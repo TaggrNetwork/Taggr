@@ -151,3 +151,17 @@ With arguments:
 
 Note that currently #IC does not support messages larger than `2Mb` in total size.
 The result of the `add_post` post method will contain the id of the new post if the post could be added successfully, or an error message otherwise.
+
+## Code and the Bug Bounty Program
+
+$name's [code](https://github.com/TaggrNetwork/taggr) is open source and has a GPL license.
+
+$name's DAO has agreed with a bug bounty program with the following bug classification and corresponding rewards nominated in `$token_symbol`.
+
+| SEVERITY | DESCRIPTION | REWARDS |
+|:--------:|-------------|--------:|
+| 0 | The bug enables  an unsanctioned state mutation affecting the monetary value of user assets like cycles, karma, tokens, the Treasury or **critically** endanger Taggr's functionality, autonomy or decentralization. | `1000` |
+| 1 | The bug enables an unsanctioned state mutation affecting important data, like posts, comments, rewards and so on or has a negative but not critical impact on Taggr's decentralization and autonomy.                  | `400` |
+| 2 | The bug enables an unsanctioned state mutation but cannot be easily leveraged to endanger Taggr or its data.                                                                                                          | `100` |
+
+If you found a bug that falls under any of these categories, please immediately reach out to stalwarts to coordinate further actions.
