@@ -441,7 +441,6 @@ div.thumbnails {
 
 .post_bar { 
     height: 2.5em;
-    margin-top: 1em;
     margin-bottom: 0.5em;
 }
 
@@ -506,7 +505,6 @@ a.accent, .accent { color: $accent; }
 .banner {
     background: $accent;
     color: black;
-    margin: 1em;
 }
 
 .banner, .banner2 {
@@ -518,6 +516,9 @@ a.accent, .accent { color: $accent; }
 .banner2 {
     background: $clickable;
     color: $background_light;
+}
+
+.post_head {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
 }

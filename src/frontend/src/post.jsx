@@ -2,7 +2,7 @@ import * as React from "react";
 import { Form } from './form';
 import { Content } from './content';
 import { Poll } from './poll';
-import { isRoot, BurgerButton, reactions, timeAgo, ToggleButton, NotFound, applyPatch, loadPostBlobs, ShareButton, commaSeparated, Loading, objectReduce, reactionCosts, postUserToPost, loadPost, ReactionToggleButton, RealmRibbon, setTitle } from './common';
+import { isRoot, BurgerButton, reactions, timeAgo, ToggleButton, NotFound, applyPatch, loadPostBlobs, ShareButton, commaSeparated, Loading, objectReduce, reactionCosts, postUserToPost, loadPost, ReactionToggleButton, RealmRibbon, setTitle, ButtonWithLoading } from './common';
 import {PostFeed} from "./post_feed";
 import {reaction2icon, Chat, Edit, Save, Unsave, Watch, Unwatch, Repost, Coin, Flag, New, Comment, CarretRight } from "./icons";
 
@@ -132,12 +132,12 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
     return <div ref={post => { if(post && focused && rendering) post.scrollIntoView({ behavior: "smooth" }); }}
         className={classNameArg || null}>
         {showReport && <ReportBanner post={post} />}
+        {isNSFW && <div className="post_head banner2 x_large_text" onClick={() => setSafeToOpen(true)}>#NSFW</div>}
         <div className={`post_box ${sum < 0 ? "inactive" : ""} ${realmPost ? "realm_post" : ""} ${isGallery ? "gallery_post": "text_post"} `} style={{position: "relative"}}>
             {realmPost && <RealmRibbon name={post.realm} />}
             {commentAsPost  && <a className="reply_tag external monospace" href={`#/thread/${post.id}`}>{post.parent} &#8592;</a>}
             {isComment && !commentAsPost && <span className="thread_button clickable"
                 onClick={() => location.href = `#/thread/${post.id}`}><Comment classNameArg="action" /></span>}
-            {isNSFW && <h1 className="banner2" onClick={() => setSafeToOpen(true)}>#NSFW</h1>}
             {!isNSFW && <article onClick={expand} className={isPrime ? "prime" : null}>
                 {/* The key is needed to render different content for different versions to avoid running into diffrrent
                  number of memorized pieces inside content */}
@@ -296,13 +296,10 @@ export const Reactions = ({reactionsMap, react}) => {
 
 const ReportBanner = ({post}) => {
     const [report, setReport] = React.useState(post.report);
-    const [reporting, setReporting] = React.useState(false);
     const { reporter, confirmed_by, rejected_by} = report;
     let tookAction = rejected_by.concat(confirmed_by).includes(api._user.id) ;
 
-    if (reporting) return <Loading />;
-
-    return <div className="banner">
+    return <div className="post_head banner">
         <h3>
             This post was <b>REPORTED</b> by <a href={`/#/user/${reporter}`}>@{backendCache.users[reporter]}</a>.
             Plaese confirm the deletion or reject the report.
@@ -314,12 +311,10 @@ const ReportBanner = ({post}) => {
         </div>}
         {!tookAction && <div className="row_container" style={{justifyContent: "center"}}>
             {[["🛑 REJECT REPORT", false], ["✅ DELETE POST", true]].map(([label, val]) =>
-            <button key={label} onClick={async () => {
-                setReporting(true);
+            <ButtonWithLoading key={label} onClick={async () => {
                 await api.call("vote_on_report", post.id, val);
                 setReport((await loadPost(api, post.id)).report);
-                setReporting(false);
-            }}>{label}</button>)}
+            }} label={label} />)}
         </div>}
     </div>;
 }
