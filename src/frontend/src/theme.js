@@ -32,7 +32,7 @@ const themes = {
         "code": "white",
         "clickable": "#00b0b0",
         "clicked": "teal",
-        "accent": "yellow"
+        "accent": "gold"
     },
     "midnight": {
         "text": "#cccccc",
