@@ -1,0 +1,13 @@
+[package]
+name = "bucket"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+ic-cdk = "0.6.8"
+
+[features]
+dev = []

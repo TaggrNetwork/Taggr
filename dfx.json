@@ -1,0 +1,19 @@
+{
+  "canisters": {
+    "taggr": {
+      "candid": "src/backend/taggr.did",
+      "package": "taggr",
+      "type": "custom",
+      "wasm": "target/wasm32-unknown-unknown/release/taggr.wasm.gz",
+      "build": "./build.sh taggr"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "networks": { },
+  "version": 1
+}

@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "src/backend",
+    "src/bucket",
+    "src/canisters",
+    "src/upgrader"
+]
