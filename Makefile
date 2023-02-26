@@ -19,6 +19,7 @@ release:
 	cargo test
 	# NODE_ENV=production dfx --identity prod deploy --network ic --no-wallet
 	shasum -a 256 target/wasm32-unknown-unknown/release/taggr.wasm.gz
+	git rev-parse HEAD
 
 fe:
 	rm -rf ./dist ./public

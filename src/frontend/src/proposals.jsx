@@ -3,6 +3,8 @@ import * as React from "react";
 import {Content} from "./content";
 import {loadFile, MAX_POST_SIZE_BYTES} from "./form";
 
+const REPO="https://github.com/TaggrNetwork/taggr";
+
 export const Proposals = () => {
     const [users, setUsers] = React.useState(null);
     const [proposals, setProposals] = React.useState(null);
@@ -98,8 +100,8 @@ export const Proposals = () => {
         <div className="vertically_spaced">
             {!proposals && <Loading />}
             {showMask && <div className="spaced column_container monospace">
-                <div className="row_container vcentered bottom_half_spaced">COMMIT<input type="text" className="left_spaced max_width_col" onChange={async ev => { setCommit(ev.target.value); }} /></div>
-                <div className="row_container vcentered bottom_half_spaced">BINARY<input type="file" className="left_spaced max_width_col" onChange={async ev => {
+                <div className="row_container vcentered bottom_half_spaced">COMMIT<input type="text" className="monospace left_spaced max_width_col" onChange={async ev => { setCommit(ev.target.value); }} /></div>
+                <div className="row_container vcentered bottom_half_spaced">BINARY<input type="file" className="monospace left_spaced max_width_col" onChange={async ev => {
                     const file = (ev.dataTransfer || ev.target).files[0];
                     const content = new Uint8Array(await loadFile(file));
                     if (content.byteLength > MAX_POST_SIZE_BYTES) {
@@ -109,7 +111,7 @@ export const Proposals = () => {
                     setBinary(content);
                 }} /></div>
                 <div className="bottom_half_spaced monospace">DESCRIPTION</div>
-                <textarea className="bottom_spaced" rows={10} value={description} onChange={event => setDescription(event.target.value)}></textarea>
+                <textarea className="monospace bottom_spaced" rows={10} value={description} onChange={event => setDescription(event.target.value)}></textarea>
                 {description && <Content value={description} preview={true} classNameArg="bottom_spaced framed" />}
                 <ButtonWithLoading classNameArg="active" onClick={async () => {
                     if (!description || !binary) {
@@ -129,6 +131,7 @@ export const Proposals = () => {
                 const voted = proposal.votes.some(vote => api._principalId == vote[0]);
                 const adopted = proposal.votes.reduce((acc, [_, adopted, votes]) => adopted ? acc + votes : acc, 0);
                 const rejected = proposal.votes.reduce((acc, [_, adopted, votes]) => !adopted ? acc + votes : acc, 0);
+                const commit = proposal.payload.Release ? proposal.payload.Release.commit : null;
                 return <div key={proposal.timestamp}
                     className={`stands_out column_container ${i > 0 ? "outdated" : ""}`}>
                     <div className="monospace bottom_half_spaced">TYPE: {Object.keys(proposal.payload)[0].toUpperCase()}</div>
@@ -137,8 +140,8 @@ export const Proposals = () => {
                     <div className="monospace bottom_spaced">STATUS: {statusEmoji(proposal.status)}&nbsp;
                         {i == 0 && status ? status : proposal.status.toUpperCase()}</div>
                     {"Release" in proposal.payload && <div className="monospace bottom_spaced">
-                        {proposal.payload.Release.commit && <div className="row_container bottom_half_spaced">COMMIT:<code className="left_spaced">{bigScreen() ? proposal.payload.Release.commit : proposal.payload.Release.commit.slice(0,8)}</code></div>}
-                        <div className="row_container"><span>HASH:</span><code className="left_spaced">{bigScreen() ? proposal.payload.Release.hash : proposal.payload.Release.hash.slice(0,8)}</code></div>
+                        {commit && <div className="row_container bottom_half_spaced">COMMIT:<a className="monospace left_spaced" href={`${REPO}/${commit}`}>{bigScreen() ? commit : commit.slice(0,8)}</a></div>}
+                        <div className="row_container"><span>HASH:</span><code className="left_spaced monospace">{bigScreen() ? proposal.payload.Release.hash : proposal.payload.Release.hash.slice(0,8)}</code></div>
                     </div>}
                     {"SetController" in proposal.payload && <div className="monospace bottom_half_spaced">Principal: <code>{proposal.payload.SetController.principal}</code></div>}
                     {"Fund" in proposal.payload && <>

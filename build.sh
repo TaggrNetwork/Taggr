@@ -1,7 +1,5 @@
 #!/bin/sh
 
-set -x
-
 FEATURES="${FEATURES:-}"
 echo "Features: $FEATURES"
 
