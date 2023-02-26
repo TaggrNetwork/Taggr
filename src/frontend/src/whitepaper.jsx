@@ -11,6 +11,6 @@ export const Whitepaper = () => {
     }, template);
     return <>
         <HeadBar title="White Paper" shareLink="whitepaper" />
-        <Content value={value} />
+        <Content classNameArg="spaced" value={value} />
     </>;
 }

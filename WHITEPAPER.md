@@ -158,8 +158,8 @@ $name's [code](https://github.com/TaggrNetwork/taggr) is open source and has a G
 
 $name's DAO has agreed with a bug bounty program with the following bug classification and corresponding rewards nominated in `$token_symbol`.
 
-| SEVERITY | DESCRIPTION | REWARDS |
-|:--------:|-------------|--------:|
+| SEV | DESCRIPTION | PRIZE |
+|:---:|-------------|--------:|
 | 0 | The bug enables  an unsanctioned state mutation affecting the monetary value of user assets like cycles, karma, tokens, the Treasury or **critically** endanger Taggr's functionality, autonomy or decentralization. | `1000` |
 | 1 | The bug enables an unsanctioned state mutation affecting important data, like posts, comments, rewards and so on or has a negative but not critical impact on Taggr's decentralization and autonomy.                  | `400` |
 | 2 | The bug enables an unsanctioned state mutation but cannot be easily leveraged to endanger Taggr or its data.                                                                                                          | `100` |
