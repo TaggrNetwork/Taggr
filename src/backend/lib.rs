@@ -61,7 +61,7 @@ fn pre_upgrade() {
 
 #[post_upgrade]
 fn post_upgrade() {
-    // This should prevent accidental deployments of a dev releases.
+    // This should prevent accidental deployments of dev releases.
     #[cfg(feature = "dev")]
     {
         let config: &str = include_str!("../../canister_ids.json");
@@ -314,14 +314,14 @@ fn finish_upgrade() {
         );
         if hash != current {
             s.logger.error(format!(
-                "Upgrade failed: the main canister is still on version {}",
+                "Upgrade failed: the main canister is still on version `{}`",
                 &current[0..8]
             ));
             return reply(false);
         }
         s.module_hash = hash.clone();
         s.logger.info(format!(
-            "Upgrade succeded: new version is {}",
+            "Upgrade succeded: new version is `{}`",
             &current[0..8]
         ));
         reply(true);
@@ -585,7 +585,7 @@ fn journal() {
                     .rev()
                     .filter_map(|id| state.posts.get(id))
                     // we filter out responses and root posts starting with tagging another user
-                    .filter(|post| post.parent.is_none() && !post.body.starts_with("@"))
+                    .filter(|post| post.parent.is_none() && !post.body.starts_with('@'))
                     .skip(page * CONFIG.feed_page_size)
                     .take(CONFIG.feed_page_size)
                     .cloned()
