@@ -76,13 +76,19 @@ pub fn load() {
         format!(
             "{{\"alternativeOrigins\": [ {} ]}}",
             domains
-                .into_iter()
-                .map(|domain| format!("\"https://{}\"", domain))
+                .iter()
+                .map(|domain| format!("\"https://{}\"", &domain))
                 .collect::<Vec<_>>()
                 .join(",")
         )
         .as_bytes()
         .to_vec(),
+    );
+
+    add_asset(
+        &["/.well-known/ic-domains"],
+        Default::default(),
+        domains.join("\n").as_bytes().to_vec(),
     );
 
     ic_cdk::api::set_certified_data(&labeled_hash(LABEL, &asset_hashes().root_hash()));
