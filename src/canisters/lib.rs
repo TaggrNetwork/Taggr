@@ -135,7 +135,7 @@ pub async fn topup_with_cycles(canister_id: Principal, cycles: u64) -> Result<()
     Ok(())
 }
 
-pub async fn top_up(canister_id: Principal, min_cycle_balance: u64) -> Result<(), String> {
+pub async fn top_up(canister_id: Principal, min_cycle_balance: u64) -> Result<bool, String> {
     let bytes = call_raw(canister_id, "balance", Default::default(), 0)
         .await
         .map_err(|err| {
@@ -150,6 +150,7 @@ pub async fn top_up(canister_id: Principal, min_cycle_balance: u64) -> Result<()
         topup_with_cycles(canister_id, min_cycle_balance)
             .await
             .map_err(|err| format!("failed to top up canister {}: {:?}", canister_id, err))?;
+        return Ok(true);
     }
-    Ok(())
+    Ok(false)
 }

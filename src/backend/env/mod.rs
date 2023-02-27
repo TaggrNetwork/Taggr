@@ -603,8 +603,9 @@ impl State {
         let mut topped_up = Vec::new();
         for canister_id in children {
             match canisters::top_up(canister_id, ICP_CYCLES_PER_XDR).await {
-                Ok(_) => topped_up.push(canister_id),
+                Ok(true) => topped_up.push(canister_id),
                 Err(err) => self.critical(err),
+                _ => {}
             }
         }
         if !topped_up.is_empty() {
