@@ -131,9 +131,15 @@ impl Proposal {
                         *tokens * 10_u64.pow(CONFIG.token_decimals as u32),
                     );
                     state.logger.info(format!(
-                        "`{}` ${} tokens were minted for {} via proposal execution.",
+                        "`{}` ${} tokens were minted for `{}` via proposal execution.",
                         tokens, CONFIG.token_symbol, receiver
                     ));
+                    if let Some(user) = state.principal_to_user_mut(receiver) {
+                        user.notify(format!(
+                            "`{}` ${} tokens were minted for you via proposal execution.",
+                            tokens, CONFIG.token_symbol,
+                        ))
+                    }
                 }
                 _ => {}
             }
