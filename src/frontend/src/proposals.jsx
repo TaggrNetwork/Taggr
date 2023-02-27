@@ -61,7 +61,7 @@ export const Proposals = () => {
                 return;
             }
             setStatus("Finalizing the upgrade...");
-            if (await api.call("finish_upgrade", lastProposal.payload.Release.hash)) {
+            if (await api.call("finalize_upgrade", lastProposal.payload.Release.hash)) {
                 setStatus("Success!");
                 await loadState();
             } else {

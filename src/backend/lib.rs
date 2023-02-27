@@ -300,8 +300,8 @@ fn cancel_proposal() {
     reply(());
 }
 
-#[export_name = "canister_update finish_upgrade"]
-fn finish_upgrade() {
+#[export_name = "canister_update finalize_upgrade"]
+fn finalize_upgrade() {
     spawn(async {
         let hash: String = parse(&arg_data_raw());
         let s = state_mut();
