@@ -23,4 +23,6 @@ fe:
 
 release:
 	docker build -t taggr .
+	docker run --rm --entrypoint cat taggr /canister/target/wasm32-unknown-unknown/release/taggr.wasm.gz > taggr.wasm.gz
+	sha256sum taggr.wasm.gz
 	git rev-parse HEAD
