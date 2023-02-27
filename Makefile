@@ -2,7 +2,7 @@ start:
 	dfx start --background --host 127.0.0.1:55554
 
 dev_deploy:
-	FEATURES=dev dfx build
+	FEATURES=dev dfx deploy
 
 dev_reinstall:
 	make fe
