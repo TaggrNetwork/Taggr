@@ -664,19 +664,28 @@ impl State {
         if burned_cycles <= 0 {
             return Default::default();
         }
-        let total_supply: u64 = self.balances.values().sum();
-        self.balances
-            .clone()
-            .into_iter()
+        let active_user_balances = self
+            .balances
+            .iter()
             .filter_map(|(acc, balance)| {
-                let user = self.principal_to_user_mut(acc.owner)?;
-                if !user.active_within_weeks(time(), CONFIG.revenue_share_activity_weeks) {
-                    return None;
+                let user = self.principal_to_user(acc.owner)?;
+                if user.active_within_weeks(time(), CONFIG.revenue_share_activity_weeks) {
+                    return Some((user.id, *balance));
                 }
-                user.balance = balance;
-                let revenue_share = burned_cycles as f64 * balance as f64 / total_supply as f64;
+                None
+            })
+            .collect::<Vec<_>>();
+        let supply_of_active_users: u64 = active_user_balances
+            .iter()
+            .map(|(_, balance)| balance)
+            .sum();
+        active_user_balances
+            .into_iter()
+            .map(|(user_id, balance)| {
+                let revenue_share =
+                    burned_cycles as f64 * balance as f64 / supply_of_active_users as f64;
                 let e8s = (revenue_share / 1000.0 * e8s_for_1000_kps as f64) as u64;
-                Some((user.id, e8s))
+                (user_id, e8s)
             })
             .collect()
     }
