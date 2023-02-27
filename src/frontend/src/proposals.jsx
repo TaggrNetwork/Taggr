@@ -3,7 +3,7 @@ import * as React from "react";
 import {Content} from "./content";
 import {loadFile, MAX_POST_SIZE_BYTES} from "./form";
 
-const REPO="https://github.com/TaggrNetwork/taggr";
+const REPO="https://github.com/TaggrNetwork/taggr/commit";
 
 export const Proposals = () => {
     const [users, setUsers] = React.useState(null);
