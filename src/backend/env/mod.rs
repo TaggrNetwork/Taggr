@@ -1058,16 +1058,19 @@ impl State {
             .values()
             .any(|user| user.name.to_lowercase() == name)
         {
-            return Some("taken".to_string());
+            return Some("taken".into());
         }
         if name.len() < 2 || name.len() > 12 {
-            return Some("should be between 2 and 12 characters".to_string());
+            return Some("should be between 2 and 12 characters".into());
         }
         if name.chars().any(|c| !char::is_alphanumeric(c)) {
-            return Some("should be an alpha-numeric string".to_string());
+            return Some("should be an alpha-numeric string".into());
         }
         if name.chars().all(|c| char::is_ascii_digit(&c)) {
-            return Some("should have at least on character".to_string());
+            return Some("should have at least on character".into());
+        }
+        if ["all", "stalwarts", "dao"].contains(&name.as_str()) {
+            return Some("reserved handle".into());
         }
         None
     }
