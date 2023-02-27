@@ -4,6 +4,9 @@ start:
 dev_deploy:
 	FEATURES=dev dfx deploy
 
+dev_build:
+	FEATURES=dev dfx build
+
 dev_reinstall:
 	make fe
 	FEATURES=dev dfx deploy --mode=reinstall taggr -y
