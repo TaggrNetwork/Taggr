@@ -29,6 +29,10 @@ export const Inbox = () => {
                 if ("NewPost" in message) {
                     id = message.NewPost[1];
                     msg = message.NewPost[0];
+                } else if ("Conditional" in message) {
+                    const report = message.Conditional[1];
+                    id = report ? report.ReportOpen : null;
+                    msg = message.Conditional[0];
                 } else if ("WatchedPostEntries" in message) {
                     id = parseInt(k.split("_")[1]);
                     msg = `\`${message.WatchedPostEntries.length}\` new replies ${message.WatchedPostEntries.map(id => `[#${id}](#/thread/${id})`).join(", ")} on the watched post`;

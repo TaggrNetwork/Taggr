@@ -1,5 +1,6 @@
 use self::invoices::Invoice;
 use self::proposals::Status;
+use self::user::{Notification, Predicate};
 use crate::proposals::Proposal;
 use crate::token::{Account, Token, Transaction};
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
@@ -491,11 +492,50 @@ impl State {
         });
     }
 
+    fn notify_with_predicate<T: AsRef<str>>(
+        &mut self,
+        filter: &dyn Fn(&User) -> bool,
+        message: T,
+        predicate: Predicate,
+    ) {
+        self.users
+            .values_mut()
+            .filter(|u| filter(u))
+            .for_each(|u| u.notify_with_params(&message, Some(predicate.clone())));
+    }
+
     fn notify_users<T: AsRef<str>>(&mut self, filter: &dyn Fn(&User) -> bool, message: T) {
         self.users
             .values_mut()
             .filter(|u| filter(u))
             .for_each(|u| u.notify(&message));
+    }
+
+    fn denotify_users(&mut self, filter: &dyn Fn(&User) -> bool) {
+        let posts = &self.posts;
+        let last_proposal_open = self
+            .proposals
+            .iter()
+            .last()
+            .map(|p| p.status == Status::Open)
+            .unwrap_or_default();
+        self.users
+            .values_mut()
+            .filter(|u| filter(u))
+            .for_each(|user| {
+                user.inbox.retain(|_, n| {
+                    if let Notification::Conditional(_, predicate) = n {
+                        return match predicate {
+                            Predicate::ReportOpen(post_id) => posts
+                                .get(post_id)
+                                .and_then(|p| p.report.as_ref().map(|r| !r.closed))
+                                .unwrap_or_default(),
+                            Predicate::ProposalPending => last_proposal_open,
+                        };
+                    }
+                    true
+                })
+            });
     }
 
     pub fn search(&self, principal: Principal, mut term: String) -> Vec<SearchResult> {
@@ -1399,6 +1439,7 @@ impl State {
             )
             .expect("couldn't charge user");
         }
+        self.denotify_users(&|u| u.stalwart);
     }
 
     pub fn report(&mut self, principal: Principal, post_id: PostId, reason: String) -> String {
@@ -1427,15 +1468,11 @@ impl State {
             .get(&post.user)
             .map(|user| user.name.clone())
             .unwrap_or_default();
-        self.users
-            .values_mut()
-            .filter(|u| u.stalwart && u.id != user.id)
-            .for_each(|u| {
-                u.notify_about_post(
-                    format!("@{} reported this post by @{}", user.name, author_name),
-                    post_id,
-                )
-            });
+        self.notify_with_predicate(
+            &|u| u.stalwart && u.id != user.id,
+            format!("@{} reported this post by @{}", user.name, author_name),
+            Predicate::ReportOpen(post_id),
+        );
         "Report accepted, thank you!".to_string()
     }
 

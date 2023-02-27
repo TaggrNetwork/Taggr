@@ -112,6 +112,9 @@ pub const CONFIG: &Config = &Config {
 
     min_cycle_balance_main: 2 * ICP_CYCLES_PER_XDR,
 
+    #[cfg(feature = "dev")]
+    report_confirmation_percentage: 1,
+    #[cfg(not(feature = "dev"))]
     report_confirmation_percentage: 15,
 
     trusted_user_min_karma: 25,

@@ -4,9 +4,16 @@ use serde::{Deserialize, Serialize};
 pub type UserId = u64;
 
 #[derive(Clone, Serialize, Deserialize)]
+pub enum Predicate {
+    ReportOpen(PostId),
+    ProposalPending,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub enum Notification {
     NewPost(String, PostId),
     Generic(String),
+    Conditional(String, Predicate),
     WatchedPostEntries(Vec<u64>),
 }
 
@@ -182,13 +189,23 @@ impl User {
         )
     }
 
-    pub fn notify<T: AsRef<str>>(&mut self, message: T) {
+    pub fn notify_with_params<T: AsRef<str>>(&mut self, message: T, predicate: Option<Predicate>) {
         self.messages += 1;
         let id = self.messages;
-        self.inbox.insert(
-            format!("generic_{id}"),
-            Notification::Generic(message.as_ref().into()),
-        );
+        match predicate {
+            None => self.inbox.insert(
+                format!("generic_{id}"),
+                Notification::Generic(message.as_ref().into()),
+            ),
+            Some(p) => self.inbox.insert(
+                format!("conditional_{id}"),
+                Notification::Conditional(message.as_ref().into(), p),
+            ),
+        };
+    }
+
+    pub fn notify<T: AsRef<str>>(&mut self, message: T) {
+        self.notify_with_params(message, None)
     }
 
     pub fn notify_about_post<T: AsRef<str>>(&mut self, message: T, post_id: PostId) {

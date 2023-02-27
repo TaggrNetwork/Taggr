@@ -1,6 +1,7 @@
 use crate::token::{Account, Token};
 
 use super::config::CONFIG;
+use super::user::Predicate;
 use super::{time, HOUR};
 use super::{user::UserId, State};
 use ic_cdk::export::candid::Principal;
@@ -218,7 +219,7 @@ pub fn propose(
         .iter_mut()
         .filter(|p| p.status == Status::Open)
         .for_each(|proposal| {
-            proposal.status = Status::Rejected;
+            proposal.status = Status::Cancelled;
         });
     state.proposals.push(Proposal {
         description,
@@ -230,12 +231,13 @@ pub fn propose(
         voting_power: 0,
     });
     let msg = format!(
-        "New [proposal](#/proposals) 🎈 was submitted by @{}.",
+        "New [proposal](#/proposals) was submitted by @{} 🎈",
         &proposer_name
     );
-    state.notify_users(
+    state.notify_with_predicate(
         &|user| user.active_within_weeks(time(), 1) && user.balance > 0,
         format!("{} Please vote!", &msg),
+        Predicate::ProposalPending,
     );
     state.logger.info(msg);
     Ok(())
@@ -284,7 +286,11 @@ pub(super) async fn execute_last_proposal(state: &mut State, time: u64) -> Resul
         state.proposals.push(proposal);
         return Err("last proposal is not open".into());
     }
+    let previous_state = proposal.status.clone();
     let result = proposal.execute(state, time).await;
+    if previous_state != proposal.status {
+        state.denotify_users(&|user| user.active_within_weeks(time, 1) && user.balance > 0);
+    }
     state.proposals.push(proposal);
     result
 }
