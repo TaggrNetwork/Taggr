@@ -203,9 +203,8 @@ pub fn propose(
     mut payload: Payload,
 ) -> Result<(), String> {
     let user = state.principal_to_user(caller).ok_or("user not found")?;
-    #[cfg(not(feature = "dev"))]
-    if user.id != 0 {
-        return Err("only @X can create proposals right now".to_string());
+    if !user.stalwart {
+        return Err("only stalwarts can create proposals".to_string());
     }
     if description.is_empty() {
         return Err("description is empty".to_string());
@@ -378,6 +377,12 @@ mod tests {
             assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
             assert!(user.trusted());
         }
+
+        assert_eq!(
+            propose(&mut state, pr(1), "test".into(), Payload::Noop),
+            Err("only stalwarts can create proposals".into())
+        );
+        state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
         assert_eq!(
             propose(&mut state, pr(1), "test".into(), Payload::Noop),
             Ok(())
@@ -435,6 +440,8 @@ mod tests {
                 100000
             )
         }
+
+        state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
         // check error cases on voting
         assert_eq!(
@@ -592,6 +599,7 @@ mod tests {
             user.change_karma(100, "test");
             assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
         }
+        state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
         // mint tokens
         state.mint(eligigble);
@@ -643,6 +651,7 @@ mod tests {
             user.change_karma(100, "test");
             assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
         }
+        state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
         // mint tokens
         state.mint(eligigble);
