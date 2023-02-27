@@ -63,7 +63,7 @@ export const Header = ({subtle, route}) => {
             <a className="iconed" onClick={() => toggleButtonBar(!showButtonBar)} href="/#/whitepaper">📄 WHITE PAPER</a>
             <a className="iconed" href="" onClick={logout}>🔌 LOGOUT</a>
         </div>}
-        {showRealms && <div className={`${bigScreen() ? "text_centered" : "two_column_grid"} monospace top_spaced stands_out`}>
+        {showRealms && <div className={`${bigScreen() ? "four_column_grid" : "two_column_grid"} monospace top_spaced stands_out`}>
             {user.realms.map(realm => <RealmSpan key={realm}
                 classNameArg="left_half_spaced right_half_spaced clickable padded_rounded text_centered"
                 onClick={async () => {

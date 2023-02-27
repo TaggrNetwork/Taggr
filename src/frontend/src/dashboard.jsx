@@ -11,7 +11,7 @@ export const Dashboard = ({fullMode}) => {
         {fullMode && <HeadBar title="Dashboard" shareLink="dashboard" />}
         {!fullMode && 
             <div className="text_centered">
-                <div className={`${bigScreen() ? "four_coulmn_grid" : "two_column_grid"} monospace bottom_spaced`}>
+                <div className={`${bigScreen() ? "four_column_grid" : "two_column_grid"} monospace bottom_spaced`}>
                     <div className="db_cell"><label>👤 USERS</label>{show(stats.users)}</div>
                     <div className="db_cell"><label>🙋 ACTIVE (7d)</label>{show(stats.active_users)}</div>
                     <div className="db_cell"><label>💡 ONLINE</label>{show(Math.max(1, backendCache.stats.users_online))}</div>
@@ -25,7 +25,7 @@ export const Dashboard = ({fullMode}) => {
             </div>}
         {fullMode && 
             <div className="text_centered">
-                <div className={`${bigScreen() ? "four_coulmn_grid" : "two_column_grid"} monospace`}>
+                <div className={`${bigScreen() ? "four_column_grid" : "two_column_grid"} monospace`}>
                     <div className="db_cell"><label>👤 USERS</label>{show(stats.users)}</div>
                     <div className="db_cell"><label>🙋 ACTIVE (7d)</label>{show(stats.active_users)}</div>
                     <div className="db_cell"><label>💡 ONLINE</label>{show(Math.max(1, backendCache.stats.users_online))}</div>
@@ -49,7 +49,7 @@ export const Dashboard = ({fullMode}) => {
                 <hr />
                 <div className="text_centered">
                     <h1>🛢️ Canisters</h1>
-                    <div className={bigScreen() ? "four_coulmn_grid" : "two_column_grid"}>
+                    <div className={bigScreen() ? "four_column_grid" : "two_column_grid"}>
                         <div className="column_container">
                             <h2><a href={`https://dashboard.internetcomputer.org/canister/${backendCache.stats.canister_id}`}>🧠 MAIN</a></h2>
                             <div className="db_cell bottom_spaced">💾 STATE {sizeMb(stats.state_size)}</div>
@@ -73,7 +73,7 @@ export const Dashboard = ({fullMode}) => {
                 <hr />
                 <div className="text_centered">
                     <h1>🌐 Domains</h1>
-                    <div className={bigScreen() ? "four_coulmn_grid" : "two_column_grid"} style={{rowGap: "1em"}}>
+                    <div className={bigScreen() ? "four_column_grid" : "two_column_grid"} style={{rowGap: "1em"}}>
                         {backendCache.config.domains.map(domain => <a key={domain} href={`https://${domain}`}>{domain}</a>)}
                     </div>
                 </div>
@@ -91,7 +91,7 @@ export const Dashboard = ({fullMode}) => {
                 <hr />
                 <h2>🥇 WEEKLY KARMA LEADERS</h2>
                 <hr />
-                <div className={bigScreen() ? "four_coulmn_grid" : "two_column_grid_flex"}>
+                <div className={bigScreen() ? "four_column_grid" : "two_column_grid_flex"}>
                     {stats.weekly_karma_leaders.map(([id, karma]) => <div key={id}><UserLink id={id} /> (<span className="accent">{karma.toLocaleString()}</span>)</div>)}
                 </div>
                 <hr />

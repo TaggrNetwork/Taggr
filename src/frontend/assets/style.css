@@ -207,7 +207,7 @@ path { fill: $focus; }
     grid-template-columns: auto auto;
 }
 
-.four_coulmn_grid {
+.four_column_grid {
     display: grid;
     row-gap: 2em;
     grid-template-columns: auto auto auto auto;
