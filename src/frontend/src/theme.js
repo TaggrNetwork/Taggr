@@ -10,7 +10,7 @@ const themes = {
         "code": "white",
         "clickable": "#30cec5",
         "clicked": "#009e95",
-        "accent": "orange"
+        "accent": "gold"
     },
     "light": {
         "text": "#23383F",
@@ -43,7 +43,7 @@ const themes = {
         "code": "white",
         "clickable": "#00b0b0",
         "clicked": "teal",
-        "accent": "orange"
+        "accent": "gold"
     }
 };
 
