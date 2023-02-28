@@ -81,8 +81,6 @@ pub struct Config {
 
     pub distribution_interval_hours: u64,
 
-    pub access: &'static str,
-
     pub reactions: &'static [(u16, i32)],
 
     pub min_positive_reaction_id: u16,
@@ -170,8 +168,6 @@ pub const CONFIG: &Config = &Config {
     chores_interval_hours: 24 * HOUR,
 
     distribution_interval_hours: WEEK,
-
-    access: "gated",
 
     reactions: &[(1, -3), (100, 10), (50, 5), (51, 5), (10, 1)],
 

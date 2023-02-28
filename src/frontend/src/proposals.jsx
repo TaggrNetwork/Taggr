@@ -143,7 +143,7 @@ export const Proposals = () => {
                         {commit && <div className="row_container bottom_half_spaced">COMMIT:<a className="monospace left_spaced" href={`${REPO}/${commit}`}>{bigScreen() ? commit : commit.slice(0,8)}</a></div>}
                         <div className="row_container"><span>HASH:</span><code className="left_spaced monospace">{bigScreen() ? proposal.payload.Release.hash : proposal.payload.Release.hash.slice(0,8)}</code></div>
                     </div>}
-                    {"SetController" in proposal.payload && <div className="monospace bottom_half_spaced">Principal: <code>{proposal.payload.SetController.principal}</code></div>}
+                    {"SetController" in proposal.payload && <div className="monospace bottom_half_spaced">Principal: <code>{proposal.payload.SetController}</code></div>}
                     {"Fund" in proposal.payload && <>
                         <div className="monospace bottom_half_spaced">Receiver: <code>{proposal.payload.Fund[0]}</code></div>
                         <div className="monospace bottom_half_spaced">Amount: <code>{proposal.payload.Fund[1].toLocaleString()}</code></div>

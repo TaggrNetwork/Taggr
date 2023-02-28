@@ -383,8 +383,8 @@ pub fn add(
         }
     }
     post.save_blobs(state, blobs);
+    notify_about(state, &post);
     state.posts.insert(post.id, post);
-    notify_about(state, id);
 
     state
         .thread(id)
@@ -400,8 +400,7 @@ pub fn add(
     Ok(id)
 }
 
-fn notify_about(state: &mut State, post_id: PostId) {
-    let post = state.posts.get(&post_id).expect("no post found").clone();
+fn notify_about(state: &mut State, post: &Post) {
     let post_user_name = state
         .users
         .get(&post.user)
@@ -420,7 +419,7 @@ fn notify_about(state: &mut State, post_id: PostId) {
             if let Some(user) = state.users.get_mut(&parent_author) {
                 user.notify_about_post(
                     format!("@{} replied to your post", post_user_name,),
-                    post_id,
+                    post.id,
                 );
                 notified.insert(user.id);
             }
@@ -454,10 +453,12 @@ fn notify_about(state: &mut State, post_id: PostId) {
                 .into_iter()
                 .map(move |user_id| (post.id, user_id))
         })
-        .filter(|(_, user_id)| !notified.contains(user_id))
         .collect::<Vec<_>>()
         .into_iter()
         .for_each(|(post_id, user_id)| {
+            if notified.contains(&user_id) {
+                return;
+            }
             if let Some(user) = state.users.get_mut(&user_id) {
                 user.notify_about_watched_post(post_id, post.id);
             }
