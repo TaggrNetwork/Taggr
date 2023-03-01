@@ -49,17 +49,8 @@ export const Proposals = () => {
         const lastProposal = data[0];
         const newStatus = lastProposal.status;
         if (prevStatus == "Open" && newStatus == "Executed" && "Release" in lastProposal.payload) {
-            const upgrader_id = backendCache.stats.upgrader_canister_id;
-            if (!upgrader_id) {
-                setStatus("The upgrader canister not found. Please check and try again!");
-                return;
-            }
             setStatus("Executing the upgrade...");
-            let response = await api.exec_upgrade(upgrader_id);
-            if ("Err" in response) {
-                setStatus(`Error: ${response.Err}`);
-                return;
-            }
+            await api.call("execute_upgrade");
             setStatus("Finalizing the upgrade...");
             if (await api.call("finalize_upgrade", lastProposal.payload.Release.hash)) {
                 setStatus("Success!");

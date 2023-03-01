@@ -1,8 +1,12 @@
-use ic_cdk::api::{
-    call::call_with_payment,
-    call::{call, call_raw},
-};
 use ic_cdk::export::candid::{CandidType, Principal};
+use ic_cdk::id;
+use ic_cdk::{
+    api::{
+        call::call_with_payment,
+        call::{call, call_raw},
+    },
+    notify,
+};
 use serde::Deserialize;
 
 const CYCLES_FOR_NEW_CANISTER: u64 = 1_000_000_000_000;
@@ -67,32 +71,49 @@ pub async fn settings(canister_id: Principal) -> Result<StatusCallResult, String
     Ok(result)
 }
 
+#[derive(CandidType)]
+struct InstallCodeArgs<'a> {
+    pub mode: CanisterInstallMode,
+    pub canister_id: Principal,
+    pub wasm_module: &'a [u8],
+    pub arg: Vec<u8>,
+}
+
 pub async fn install(
     canister_id: Principal,
-    wasm_module: Vec<u8>,
+    wasm_module: &[u8],
     mode: CanisterInstallMode,
 ) -> Result<(), String> {
     #[derive(CandidType)]
-    struct InstallCodeArgs {
+    struct InstallCodeArgs<'a> {
         pub mode: CanisterInstallMode,
         pub canister_id: Principal,
-        pub wasm_module: Vec<u8>,
+        pub wasm_module: &'a [u8],
         pub arg: Vec<u8>,
     }
 
-    let (_,): ((),) = call(
-        Principal::management_canister(),
-        "install_code",
-        (InstallCodeArgs {
-            mode,
-            canister_id,
-            wasm_module,
-            arg: ic_cdk::api::id().as_slice().to_vec(),
-        },),
-    )
-    .await
-    .map_err(|err| format!("couldn't install the WASM module: {:?}", err))?;
+    let args = (InstallCodeArgs {
+        mode,
+        canister_id,
+        wasm_module,
+        arg: ic_cdk::api::id().as_slice().to_vec(),
+    },);
+    let mgmnt_can_id = Principal::management_canister();
+    let (_,): ((),) = call(mgmnt_can_id, "install_code", args)
+        .await
+        .map_err(|err| format!("couldn't install the WASM module: {:?}", err))?;
     Ok(())
+}
+
+pub fn upgrade_main_canister(wasm_module: &[u8]) {
+    let args = (InstallCodeArgs {
+        mode: CanisterInstallMode::Upgrade,
+        canister_id: id(),
+        wasm_module,
+        arg: ic_cdk::api::id().as_slice().to_vec(),
+    },);
+    let mgmnt_can_id = Principal::management_canister();
+    notify(mgmnt_can_id, "install_code", args).expect("self-upgrade failed");
 }
 
 pub async fn set_controllers(

@@ -60,14 +60,8 @@ export const Dashboard = ({fullMode}) => {
                             <div className="db_cell bottom_spaced">💾 STATE {sizeMb(size)}</div>
                             <div className="db_cell">⚡️ IC-CYCLES <CycleBalance id={bucket_id}/></div>
                         </div>)}
-                        {stats.upgrader_canister_id && <div className="column_container">
-                            <h2><a href={`https://dashboard.internetcomputer.org/canister/${stats.upgrader_canister_id}`}>🔄 UPGRADER</a></h2>
-                            <div className="db_cell">⚡️ IC-CYCLES <CycleBalance id={stats.upgrader_canister_id}/></div>
-                        </div>}
-                        <div className="column_container">
-                            <h2 className="db_cell bottom_spaced">⚙️  UPGRADE: <code>{timeAgo(stats.last_upgrade)}</code></h2>
-                            <h2 className="db_cell">🎱 VERSION: <a href="#/proposals">{(stats.module_hash || "").slice(0,8)}</a></h2>
-                        </div>
+                        <h2 className="db_cell bottom_spaced">⚙️  UPGRADE: <code>{timeAgo(stats.last_upgrade)}</code></h2>
+                        <h2 className="db_cell">🎱 VERSION: <a href="#/proposals">{(stats.module_hash || "").slice(0,8)}</a></h2>
                     </div>
                 </div>
                 <hr />

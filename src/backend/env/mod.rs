@@ -70,7 +70,6 @@ pub struct Stats {
     users_online: usize,
     last_upgrade: u64,
     module_hash: String,
-    upgrader_canister_id: Option<Principal>,
     canister_id: Principal,
     circulating_supply: u64,
     meta: String,
@@ -103,6 +102,7 @@ pub struct State {
     pub hot: VecDeque<PostId>,
     pub invites: BTreeMap<String, (UserId, Cycles)>,
     pub realms: BTreeMap<String, Realm>,
+    #[serde(skip)]
     pub upgrader_canister_id: Option<Principal>,
     pub balances: HashMap<Account, Token>,
 
@@ -504,7 +504,7 @@ impl State {
             .for_each(|u| u.notify_with_params(&message, Some(predicate.clone())));
     }
 
-    fn notify_users<T: AsRef<str>>(&mut self, filter: &dyn Fn(&User) -> bool, message: T) {
+    pub fn notify_users<T: AsRef<str>>(&mut self, filter: &dyn Fn(&User) -> bool, message: T) {
         self.users
             .values_mut()
             .filter(|u| filter(u))
@@ -612,10 +612,7 @@ impl State {
     }
 
     async fn top_up(&mut self) {
-        let mut children = self.storage.buckets.keys().cloned().collect::<Vec<_>>();
-        if let Some(id) = self.upgrader_canister_id {
-            children.push(id);
-        }
+        let children = self.storage.buckets.keys().cloned().collect::<Vec<_>>();
 
         // top up the main canister
         let balance = canister_balance();
@@ -1302,7 +1299,6 @@ impl State {
             weekly_karma_leaders,
             bootcamp_users: self.users.values().filter(|u| !u.trusted()).count(),
             module_hash: self.module_hash.clone(),
-            upgrader_canister_id: self.upgrader_canister_id,
             canister_id: ic_cdk::id(),
             last_upgrade: self.last_upgrade,
             last_chores: self.last_chores,

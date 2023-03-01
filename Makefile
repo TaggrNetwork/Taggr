@@ -15,7 +15,6 @@ build:
 	npm install
 	NODE_ENV=production make fe
 	./build.sh bucket
-	./build.sh upgrader
 	./build.sh taggr
 	cargo test
 	shasum -a 256 target/wasm32-unknown-unknown/release/taggr.wasm.gz

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
+use canisters::upgrade_main_canister;
 use env::{
     config::CONFIG,
     post::{Extension, Post, PostId},
-    proposals::Release,
+    proposals::{Payload, Release, Status},
     user::{User, UserId},
     *,
 };
@@ -103,13 +104,6 @@ fn stable_mem_write(input: Vec<(u64, ByteBuf)>) {
 
 #[cfg(feature = "dev")]
 #[update]
-fn set_upgrader(id: String) {
-    use candid::Principal;
-    state_mut().upgrader_canister_id = Some(Principal::from_text(id).unwrap())
-}
-
-#[cfg(feature = "dev")]
-#[update]
 fn stable_to_heap() {
     stable_to_heap_core();
 }
@@ -158,6 +152,75 @@ fn heap_to_stable() {
         ));
     }
     reply_raw(&[]);
+}
+
+#[export_name = "canister_update execute_upgrade"]
+fn execute_upgrade() {
+    let state = state_mut();
+    let proposal = state
+        .proposals
+        .iter_mut()
+        .last()
+        .expect("no proposals found");
+    if proposal.status != Status::Executed {
+        return;
+    }
+    if let Payload::Release(release) = &mut proposal.payload {
+        let binary = std::mem::replace(&mut release.binary, Default::default());
+        if !binary.is_empty() {
+            state.logger.info("Executing the canister upgrade...");
+            upgrade_main_canister(&binary);
+        }
+    }
+    reply_raw(&[]);
+}
+
+#[export_name = "canister_update finalize_upgrade"]
+fn finalize_upgrade() {
+    spawn(async {
+        let hash: String = parse(&arg_data_raw());
+        let state = state_mut();
+        let proposal = state.proposals.iter().last().expect("no proposals found");
+        reply(if proposal.status != Status::Executed {
+            Err("no executed proposals found".into())
+        } else if let Payload::Release(payload) = &proposal.payload {
+            if !payload.binary.is_empty() {
+                Err("no upgrades to finalize".into())
+            } else if hash != payload.hash {
+                Err("no upgrades for the provided hash".into())
+            } else {
+                let current = canisters::settings(id())
+                    .await
+                    .ok()
+                    .and_then(|s| s.module_hash.map(hex::encode))
+                    .unwrap_or_default();
+                if hash != current {
+                    let msg = format!(
+                        "Upgrade failed: the main canister is on version `{}`",
+                        &current[0..8]
+                    );
+                    state.logger.error(&msg);
+                    Err(msg)
+                } else {
+                    state.module_hash = hash.clone();
+                    state.logger.info(format!(
+                        "Upgrade succeeded: new version is `{}`",
+                        &current[0..8]
+                    ));
+
+                    if !proposal.description.contains("#chore") {
+                        state.notify_users(
+                            &|user| user.active_within_weeks(time(), 1),
+                            format!("New release `{}` [was deployed](#/proposals).", &hash[..8]),
+                        );
+                    }
+                    Ok(())
+                }
+            }
+        } else {
+            Err("wrong proposal type".into())
+        });
+    });
 }
 
 #[export_name = "canister_update vote_on_report"]
@@ -298,34 +361,6 @@ fn vote_on_proposal() {
 fn cancel_proposal() {
     proposals::cancel_last_proposal(state_mut(), caller());
     reply(());
-}
-
-#[export_name = "canister_update finalize_upgrade"]
-fn finalize_upgrade() {
-    spawn(async {
-        let hash: String = parse(&arg_data_raw());
-        let s = state_mut();
-        let current = hex::encode(
-            canisters::settings(id())
-                .await
-                .ok()
-                .and_then(|s| s.module_hash)
-                .unwrap_or_default(),
-        );
-        if hash != current {
-            s.logger.error(format!(
-                "Upgrade failed: the main canister is still on version `{}`",
-                &current[0..8]
-            ));
-            return reply(false);
-        }
-        s.module_hash = hash.clone();
-        s.logger.info(format!(
-            "Upgrade succeded: new version is `{}`",
-            &current[0..8]
-        ));
-        reply(true);
-    });
 }
 
 #[update]

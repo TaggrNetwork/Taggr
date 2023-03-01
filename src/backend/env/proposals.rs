@@ -5,7 +5,7 @@ use super::user::Predicate;
 use super::{time, HOUR};
 use super::{user::UserId, State};
 use ic_cdk::export::candid::Principal;
-use ic_cdk::{api::call::call, id};
+use ic_cdk::id;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -110,9 +110,6 @@ impl Proposal {
 
         if approvals * 100 >= voting_power * CONFIG.proposal_approval_threshold as u64 {
             match &self.payload {
-                Payload::Release(release) => {
-                    deploy_release(state, &self.description, release).await?;
-                }
                 Payload::SetController(controller) => {
                     let principal = Principal::from_text(controller).map_err(|e| e.to_string())?;
                     add_controller(principal).await?;
@@ -288,6 +285,11 @@ pub(super) async fn execute_last_proposal(state: &mut State, time: u64) -> Resul
     }
     let previous_state = proposal.status.clone();
     let result = proposal.execute(state, time).await;
+    if let Err(err) = &result {
+        state
+            .logger
+            .error(format!("Proposal execution failed: {:?}", err));
+    }
     if previous_state != proposal.status {
         state.denotify_users(&|user| user.active_within_weeks(time, 1) && user.balance > 0);
     }
@@ -301,59 +303,6 @@ pub struct Release {
     pub hash: String,
     #[serde(skip)]
     pub binary: Vec<u8>,
-}
-
-async fn deploy_release(
-    state: &mut State,
-    description: &str,
-    release: &Release,
-) -> Result<(), String> {
-    if state.upgrader_canister_id.is_none() {
-        create_upgrader(state).await?;
-    }
-    let (_,): ((),) = call(
-        state.upgrader_canister_id.expect("no upgrader cansiter"),
-        "deploy_release",
-        (release.binary.clone(),),
-    )
-    .await
-    .map_err(|err| format!("couldn't deploy release to upgrader: {:?}", err))?;
-    state
-        .logger
-        .info(format!("Deploying release `{}`...", &release.hash[..8]));
-
-    if !description.contains("#chore") {
-        state.notify_users(
-            &|user| user.active_within_weeks(time(), 1),
-            format!(
-                "New release `{}` [was deployed](#/proposals).",
-                &release.hash[..8]
-            ),
-        );
-    }
-    Ok(())
-}
-
-async fn create_upgrader(state: &mut State) -> Result<(), String> {
-    let upgrader_id = canisters::new().await?;
-    state.upgrader_canister_id = Some(upgrader_id);
-    state
-        .logger
-        .info(format!("Upgrader canister `{upgrader_id}` created."));
-    let upgrader_wasm =
-        include_bytes!("../../../target/wasm32-unknown-unknown/release/upgrader.wasm.gz");
-    canisters::install(
-        upgrader_id,
-        upgrader_wasm.to_vec(),
-        canisters::CanisterInstallMode::Install,
-    )
-    .await?;
-    add_controller(upgrader_id).await?;
-    state.logger.info("Upgrader WASM installed.");
-    Err(format!(
-        "No upgrader canister was found and new one was created ({}). Please try again.",
-        upgrader_id
-    ))
 }
 
 async fn add_controller(controller: Principal) -> Result<(), String> {

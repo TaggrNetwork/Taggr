@@ -79,7 +79,7 @@ impl Storage {
         let id = canisters::new().await?;
         logger.info(format!("New bucket {} created.", id));
         self.buckets.insert(id, 0);
-        install(id, BUCKET_WASM_GZ.to_vec(), CanisterInstallMode::Install).await?;
+        install(id, BUCKET_WASM_GZ, CanisterInstallMode::Install).await?;
         logger.info(format!("WASM installed to bucket {}.", id));
         Ok(id)
     }
@@ -87,7 +87,7 @@ impl Storage {
     #[allow(dead_code)]
     pub async fn upgrade_buckets(&self) -> Result<(), String> {
         for id in self.buckets.keys() {
-            install(*id, BUCKET_WASM_GZ.to_vec(), CanisterInstallMode::Upgrade).await?;
+            install(*id, BUCKET_WASM_GZ, CanisterInstallMode::Upgrade).await?;
         }
         Ok(())
     }
