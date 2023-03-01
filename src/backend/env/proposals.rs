@@ -4,6 +4,7 @@ use super::config::CONFIG;
 use super::user::Predicate;
 use super::{time, HOUR};
 use super::{user::UserId, State};
+use crate::canisters;
 use ic_cdk::export::candid::Principal;
 use ic_cdk::id;
 use serde::{Deserialize, Serialize};
@@ -292,6 +293,10 @@ pub(super) async fn execute_last_proposal(state: &mut State, time: u64) -> Resul
     }
     if previous_state != proposal.status {
         state.denotify_users(&|user| user.active_within_weeks(time, 1) && user.balance > 0);
+        state.logger.info(format!(
+            "Spent `{}` cycles on proposal voting rewards.",
+            proposal.votes.len() * CONFIG.voting_reward as usize
+        ));
     }
     state.proposals.push(proposal);
     result

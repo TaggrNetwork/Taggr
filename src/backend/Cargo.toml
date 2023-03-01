@@ -10,7 +10,6 @@ crate-type = ["cdylib"]
 [dependencies]
 base64 = "0.13.0"
 candid = "0.8.4"
-canisters = { path = "../canisters" }
 hex = "0.4"
 ic-cdk = { version = "0.6.8", features = ["timers"] }
 ic-cdk-macros = "0.6.8"

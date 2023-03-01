@@ -1,5 +1,5 @@
+use crate::canisters::{install, CanisterInstallMode};
 use candid::Principal;
-use canisters::{install, CanisterInstallMode};
 use ic_cdk::api::{call::call_raw, stable::*};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -76,7 +76,7 @@ impl Storage {
         {
             return Ok(*id);
         }
-        let id = canisters::new().await?;
+        let id = crate::canisters::new().await?;
         logger.info(format!("New bucket {} created.", id));
         self.buckets.insert(id, 0);
         install(id, BUCKET_WASM_GZ, CanisterInstallMode::Install).await?;

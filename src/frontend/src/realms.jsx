@@ -105,7 +105,7 @@ export const RealmForm = ({existingName}) => {
                     alert(`Error: ${response.Err}`);
                     return;
                 }
-                else location.href = "/#/realm";
+                else location.href = `/#/realm/${name}`;
             }}>{editing ? "SAVE" : "CREATE"}</button>}
         </div>
     </div>

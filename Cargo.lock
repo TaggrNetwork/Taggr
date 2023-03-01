@@ -199,16 +199,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "canisters"
-version = "0.1.0"
-dependencies = [
- "candid",
- "ic-cdk",
- "ic-ledger-types",
- "serde",
-]
-
-[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1072,7 +1062,6 @@ dependencies = [
  "actix-rt",
  "base64",
  "candid",
- "canisters",
  "hex",
  "ic-cdk",
  "ic-cdk-macros",

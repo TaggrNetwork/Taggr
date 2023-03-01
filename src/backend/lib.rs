@@ -21,7 +21,8 @@ use serde_bytes::ByteBuf;
 use token::Account;
 
 mod assets;
-pub mod env;
+mod canisters;
+mod env;
 mod http;
 mod token;
 
@@ -166,7 +167,7 @@ fn execute_upgrade() {
         return;
     }
     if let Payload::Release(release) = &mut proposal.payload {
-        let binary = std::mem::replace(&mut release.binary, Default::default());
+        let binary = std::mem::take(&mut release.binary);
         if !binary.is_empty() {
             state.logger.info("Executing the canister upgrade...");
             upgrade_main_canister(&binary);

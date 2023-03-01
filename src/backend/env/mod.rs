@@ -102,8 +102,6 @@ pub struct State {
     pub hot: VecDeque<PostId>,
     pub invites: BTreeMap<String, (UserId, Cycles)>,
     pub realms: BTreeMap<String, Realm>,
-    #[serde(skip)]
-    pub upgrader_canister_id: Option<Principal>,
     pub balances: HashMap<Account, Token>,
 
     total_revenue_shared: u64,
@@ -338,7 +336,13 @@ impl State {
             .ok_or("no user found")?
             .clone();
 
-        self.charge(user.id, CONFIG.realm_cost, "realm creation".to_string())?;
+        self.charge(user.id, CONFIG.realm_cost, "realm creation".to_string())
+            .map_err(|err| {
+                format!(
+                    "couldn't charge {} cycles for realm creation: {}",
+                    CONFIG.realm_cost, err
+                )
+            })?;
 
         self.realms.insert(
             name.clone(),
@@ -348,7 +352,7 @@ impl State {
                 controllers,
                 label_color,
                 posts: Default::default(),
-                members: Default::default(),
+                members: vec![user.id].into_iter().collect(),
             },
         );
 
@@ -639,7 +643,7 @@ impl State {
         // top up all children canisters
         let mut topped_up = Vec::new();
         for canister_id in children {
-            match canisters::top_up(canister_id, ICP_CYCLES_PER_XDR).await {
+            match crate::canisters::top_up(canister_id, ICP_CYCLES_PER_XDR).await {
                 Ok(true) => topped_up.push(canister_id),
                 Err(err) => self.critical(err),
                 _ => {}
@@ -1772,7 +1776,7 @@ pub(crate) mod tests {
                 description.clone(),
                 controllers.clone()
             ),
-            Err("not enough cycles".to_string())
+            Err("couldn't charge 1000 cycles for realm creation: not enough cycles".to_string())
         );
 
         assert_eq!(
