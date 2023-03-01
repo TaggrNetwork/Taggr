@@ -37,6 +37,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
     const [fullTreeIsLoading, setFullTreeIsLoading] = React.useState(false);
     const [rendering, setRendering] = React.useState(true);
     const [safeToOpen, setSafeToOpen] = React.useState(false);
+    const [commentIncoming, setCommentIncoming] = React.useState(false);
 
     const loadData = async () => {
         const fullTreeLoadRequired = id in data.source && showComments && data.source[id].children.length + 1 > Object.keys(data.source).length;
@@ -107,7 +108,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
         });
         users.push(user_id);
         setPost({...post});
-        toggleInfo(false);
+        toggleInfo(commentIncoming);
     }
     const costTable = reactionCosts();
     const sum = objectReduce(post.reactions, (acc, id, users) => acc + costTable[parseInt(id)] * users.length, 0);
@@ -159,7 +160,10 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
                     {user && <ReactionsPicker post={post} react={react} />}
                 </div>
                 {user && post.realm && !user.realms.includes(post.realm) && <div className="text_centered framed">JOIN REALM <a href={`#/realm/${post.realm.toLowerCase()}`}>{post.realm}</a> TO COMMENT</div>}
-                {user && (!post.realm || user.realms.includes(post.realm)) && <Form submitCallback={commentSubmissionCallback} postId={post.id} comment={true} />}
+                {user && (!post.realm || user.realms.includes(post.realm)) &&
+                    <Form submitCallback={commentSubmissionCallback} postId={post.id}
+                        writingCallback={() => setCommentIncoming(true)}
+                        comment={true} />}
                 {<PostInfo post={post} version={version} postCreated={postCreated} />}
             </div>
         </div>}
