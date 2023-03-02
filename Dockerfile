@@ -34,6 +34,5 @@ RUN cargo install --version ${IC_CDK_OPTIMIZER_VERSION} ic-cdk-optimizer
 # Install dfx
 RUN sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
 
-COPY . /canister
-WORKDIR /canister
+COPY . .
 RUN make build
