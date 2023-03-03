@@ -3,6 +3,11 @@ import { Content } from './content';
 import DiffMatchPatch from 'diff-match-patch';
 import {Checkmark, Menu, Share} from "./icons";
 
+export const percentage = (n, supply) => {
+    let p = Math.ceil(parseInt(n) / (supply || 1) * 10000) / 100;
+    return `${p}%`;
+}
+
 export const microSecsSince = timestamp => Number(new Date()) - parseInt(timestamp) / 1000000;
 
 export const hoursTillNext = (interval, last) => Math.ceil(interval / 1000000 / 3600000 - microSecsSince(last) / 3600000);

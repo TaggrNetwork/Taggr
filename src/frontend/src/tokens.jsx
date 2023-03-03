@@ -1,4 +1,4 @@
-import {bigScreen, ButtonWithLoading, CopyToClipboard, HeadBar, Loading, timeAgo, token, UserLink} from "./common";
+import {bigScreen, ButtonWithLoading, CopyToClipboard, HeadBar, Loading, percentage, timeAgo, token, UserLink} from "./common";
 import * as React from "react";
 
 export const Tokens = () => {
@@ -50,7 +50,7 @@ export const Tokens = () => {
                     {balances.slice(0, 25).map(b => <tr key={b[0]}>
                         <td style={{textAlign: "left"}}>{principal(b[0])}</td>
                         <td>{token(b[1])}</td>
-                        <td>{Math.ceil(b[1] / totalSupply * 100)}%</td>
+                        <td>{percentage(b[1], totalSupply)}</td>
                         <td><UserLink id={b[2]} /></td>
                     </tr>)}
                 </tbody>

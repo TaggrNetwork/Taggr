@@ -1,4 +1,4 @@
-import {HeadBar, Loading, ButtonWithLoading, bigScreen, timeAgo, token, userList} from "./common";
+import {HeadBar, Loading, ButtonWithLoading, bigScreen, timeAgo, token, userList, percentage} from "./common";
 import * as React from "react";
 import {Content} from "./content";
 import {loadFile, MAX_POST_SIZE_BYTES} from "./form";
@@ -140,23 +140,21 @@ export const Proposals = () => {
                         <div className="monospace bottom_half_spaced">Amount: <code>{proposal.payload.Fund[1].toLocaleString()}</code></div>
                     </>}
                     <Content value={proposal.description} classNameArg="bottom_spaced" />
+                    <div className="monospace bottom_spaced">
+                        EFFECTIVE VOTING POWER: <code>{token(proposal.voting_power)}</code>
+                    </div>
+                    <div className="monospace bottom_spaced">
+                        <div className="bottom_half_spaced">ADOPTED: <b className={adopted > rejected ? "accent" : null}>{token(adopted)}</b> ({percentage(adopted, proposal.voting_power)})</div>
+                        <div className="small_text">{users && userList(proposal.votes.filter(vote => vote[1]).map(vote => users[vote[0]]))}</div>
+                    </div>
+                    <div className="monospace bottom_spaced">
+                        <div className="bottom_half_spaced">REJECTED: <b className={adopted < rejected ? "accent" : null}>{token(rejected)}</b> ({percentage(rejected, proposal.voting_power)})</div>
+                        <div className="small_text">{users && userList(proposal.votes.filter(vote => !vote[1]).map(vote => users[vote[0]]))}</div>
+                    </div>
                     {api._user && proposal.status == "Open" && !voted && <>
                         <div className="row_container">
                             <ButtonWithLoading onClick={() => vote(false)} classNameArg="max_width_col large_text" label="REJECT" />
                             <ButtonWithLoading onClick={() => vote(true)} classNameArg="max_width_col large_text" label="ADOPT" />
-                        </div>
-                    </>}
-                    {(proposal.status != "Open" && proposal.votes.length > 0 || voted) && <>
-                        <div className="monospace bottom_spaced">
-                            EFFECTIVE VOTING POWER: <code>{token(proposal.voting_power)}</code>
-                        </div>
-                        <div className="monospace bottom_spaced">
-                            <div className="bottom_half_spaced">ADOPTED: <b className={adopted > rejected ? "accent" : null}>{token(adopted)}</b> ({percentage(adopted, proposal.voting_power)} %)</div>
-                            <div className="small_text">{users && userList(proposal.votes.filter(vote => vote[1]).map(vote => users[vote[0]]))}</div>
-                        </div>
-                        <div className="monospace bottom_spaced">
-                            <div className="bottom_half_spaced">REJECTED: <b className={adopted < rejected ? "accent" : null}>{token(rejected)}</b> ({percentage(rejected, proposal.voting_power)} %)</div>
-                            <div className="small_text">{users && userList(proposal.votes.filter(vote => !vote[1]).map(vote => users[vote[0]]))}</div>
                         </div>
                     </>}
                     {api._user && api._user.id == proposal.proposer && proposal.status == "Open" &&
@@ -172,4 +170,3 @@ export const Proposals = () => {
     </>;
 }
 
-const percentage = (n, supply) =>  Math.ceil(parseInt(n) / supply * 10000) / 100
