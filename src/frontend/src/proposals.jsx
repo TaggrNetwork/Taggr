@@ -122,7 +122,8 @@ export const Proposals = () => {
                 const voted = proposal.votes.some(vote => api._principalId == vote[0]);
                 const adopted = proposal.votes.reduce((acc, [_, adopted, votes]) => adopted ? acc + votes : acc, 0);
                 const rejected = proposal.votes.reduce((acc, [_, adopted, votes]) => !adopted ? acc + votes : acc, 0);
-                const commit = proposal.payload.Release ? proposal.payload.Release.commit : null;
+                const commit = proposal.payload.Release ? chunks(proposal.payload.Release.commit).join(" ") : null;
+                const hash = proposal.payload.Release ? chunks(proposal.payload.Release.hash).join(" ") : null;
                 return <div key={proposal.timestamp}
                     className={`stands_out column_container ${i > 0 ? "outdated" : ""}`}>
                     <div className="monospace bottom_half_spaced">TYPE: {Object.keys(proposal.payload)[0].toUpperCase()}</div>
@@ -131,8 +132,8 @@ export const Proposals = () => {
                     <div className="monospace bottom_spaced">STATUS: {statusEmoji(proposal.status)}&nbsp;
                         {i == 0 && status ? status : proposal.status.toUpperCase()}</div>
                     {"Release" in proposal.payload && <div className="monospace bottom_spaced">
-                        {commit && <div className="row_container bottom_half_spaced">COMMIT:<a className="monospace left_spaced" href={`${REPO}/${commit}`}>{bigScreen() ? commit : commit.slice(0,8)}</a></div>}
-                        <div className="row_container"><span>HASH:</span><code className="left_spaced monospace">{bigScreen() ? proposal.payload.Release.hash : proposal.payload.Release.hash.slice(0,8)}</code></div>
+                        {commit && <div className="row_container bottom_half_spaced">COMMIT:<a className="monospace left_spaced" href={`${REPO}/${commit}`}>{commit}</a></div>}
+                        <div className="row_container"><span>HASH:</span><code className="left_spaced monospace">{hash}</code></div>
                     </div>}
                     {"SetController" in proposal.payload && <div className="monospace bottom_half_spaced">Principal: <code>{proposal.payload.SetController}</code></div>}
                     {"Fund" in proposal.payload && <>
@@ -170,3 +171,4 @@ export const Proposals = () => {
     </>;
 }
 
+const chunks = s => s ? [s.slice(0, 8)].concat(chunks(s.slice(8))) : [];
