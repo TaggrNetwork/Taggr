@@ -124,6 +124,9 @@ export const Proposals = () => {
                 const rejected = proposal.votes.reduce((acc, [_, adopted, votes]) => !adopted ? acc + votes : acc, 0);
                 const commit = proposal.payload.Release ? chunks(proposal.payload.Release.commit).join(" ") : null;
                 const hash = proposal.payload.Release ? chunks(proposal.payload.Release.hash).join(" ") : null;
+                const dailyDrop = proposal.voting_power / 100;
+                const t = backendCache.config.proposal_approval_threshold;
+                const days = Math.ceil((proposal.voting_power - (adopted > rejected ? adopted / t : rejected / (100 - t)) * 100) / dailyDrop);
                 return <div key={proposal.timestamp}
                     className={`stands_out column_container ${i > 0 ? "outdated" : ""}`}>
                     <div className="monospace bottom_half_spaced">TYPE: {Object.keys(proposal.payload)[0].toUpperCase()}</div>
@@ -144,6 +147,9 @@ export const Proposals = () => {
                     <div className="monospace bottom_spaced">
                         EFFECTIVE VOTING POWER: <code>{token(proposal.voting_power)}</code>
                     </div>
+                    {proposal.status == "Open" && !isNaN(days) && <div className="monospace bottom_spaced">
+                        EXECUTION DEADLINE: <code>{days}</code> DAYS
+                    </div>}
                     <div className="monospace bottom_spaced">
                         <div className="bottom_half_spaced">ADOPTED: <b className={adopted > rejected ? "accent" : null}>{token(adopted)}</b> ({percentage(adopted, proposal.voting_power)})</div>
                         <div className="small_text">{users && userList(proposal.votes.filter(vote => vote[1]).map(vote => users[vote[0]]))}</div>
