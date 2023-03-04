@@ -931,14 +931,15 @@ impl State {
             } else {
                 user.active_weeks = 0;
             }
-            if !user.active_within_weeks(now, CONFIG.inactivity_duration_weeks) {
-                user.clear_notifications(Vec::new());
-                if user.karma() > 0 {
-                    user.change_karma(
-                        -CONFIG.inactivity_penalty.min(user.karma()),
-                        "inactivity_penalty".to_string(),
-                    );
-                }
+            let inactive = !user.active_within_weeks(now, CONFIG.inactivity_duration_weeks);
+            if inactive || user.is_bot() {
+                user.clear_notifications(Vec::new())
+            }
+            if inactive && user.karma() > 0 {
+                user.change_karma(
+                    -CONFIG.inactivity_penalty.min(user.karma()),
+                    "inactivity_penalty".to_string(),
+                );
             }
         }
         for (id, cycles) in self
