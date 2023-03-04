@@ -306,7 +306,7 @@ const ReportBanner = ({post}) => {
     return <div className="post_head banner">
         <h3>
             This post was <b>REPORTED</b> by <a href={`/#/user/${reporter}`}>@{backendCache.users[reporter]}</a>.
-            Plaese confirm the deletion or reject the report.
+            Please confirm the deletion or reject the report.
         </h3>
         <h4>Reason: {post.report.reason}</h4>
         {tookAction && <div>
