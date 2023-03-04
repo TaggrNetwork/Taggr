@@ -50,18 +50,18 @@ export const Dashboard = ({fullMode}) => {
                 <div className="text_centered">
                     <h1>🛢️ Canisters</h1>
                     <div className={bigScreen() ? "four_column_grid" : "two_column_grid"}>
-                        <div className="column_container">
-                            <h2><a href={`https://dashboard.internetcomputer.org/canister/${backendCache.stats.canister_id}`}>🧠 MAIN</a></h2>
-                            <div className="db_cell bottom_spaced">💾 STATE {sizeMb(stats.state_size)}</div>
+                        <div className="db_cell">
+                            <a href={`https://dashboard.internetcomputer.org/canister/${backendCache.stats.canister_id}`}>🧠 MAIN</a>
+                            <div className="db_cell top_spaced bottom_spaced">💾 STATE {sizeMb(stats.state_size)}</div>
                             <div className="db_cell">⚡️ IC-CYCLES {show(stats.canister_cycle_balance / 10**12, "T")}</div>
                         </div>
-                        {stats.buckets.map(([bucket_id, size], i) => <div key={bucket_id} className="column_container">
-                            <h2><a href={`https://dashboard.internetcomputer.org/canister/${bucket_id}`}>📀 STORAGE {i}</a></h2>
-                            <div className="db_cell bottom_spaced">💾 STATE {sizeMb(size)}</div>
+                        {stats.buckets.map(([bucket_id, size], i) => <div key={bucket_id} className="db_cell">
+                            <a href={`https://dashboard.internetcomputer.org/canister/${bucket_id}`}>📀 STORAGE {i}</a>
+                            <div className="db_cell top_spaced bottom_spaced">💾 STATE {sizeMb(size)}</div>
                             <div className="db_cell">⚡️ IC-CYCLES <CycleBalance id={bucket_id}/></div>
                         </div>)}
-                        <h2 className="db_cell bottom_spaced">⚙️  UPGRADE: <code>{timeAgo(stats.last_upgrade)}</code></h2>
-                        <h2 className="db_cell">🎱 VERSION: <a href="#/proposals">{(stats.module_hash || "").slice(0,8)}</a></h2>
+                        <div className="db_cell bottom_spaced">⚙️  UPGRADE<code>{timeAgo(stats.last_upgrade)}</code></div>
+                        <div className="db_cell">🎱 VERSION<a className="monospace xx_large_text" href="#/proposals">{(stats.module_hash || "").slice(0,8)}</a></div>
                     </div>
                 </div>
                 <hr />
