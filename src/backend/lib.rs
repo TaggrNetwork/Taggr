@@ -706,8 +706,8 @@ fn users() {
         state()
             .users
             .values()
-            .map(|user| (user.id, user.name.clone()))
-            .collect::<Vec<(UserId, String)>>(),
+            .map(|user| (user.id, user.name.clone(), user.karma()))
+            .collect::<Vec<(UserId, String, Karma)>>(),
     );
 }
 

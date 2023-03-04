@@ -161,7 +161,8 @@ export const loadPost = async (api, id) => {
 
 export const postUserToPost = post => {
     const id = post.user;
-    post.user = { id, name: window.backendCache.users[id] };
+    const { users, karma } = window.backendCache;
+    post.user = { id, name: users[id], karma: karma[id] };
     return post;
 };
 

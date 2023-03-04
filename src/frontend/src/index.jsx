@@ -158,6 +158,7 @@ const reloadCache = async () => {
     ]);
     window.backendCache = {
         users: users.reduce((acc, [id, name]) => { acc[id] = name; return acc }, {}),
+        karma: users.reduce((acc, [id, _, karma]) => { acc[id] = karma; return acc }, {}),
         recent_tags: recent_tags.map(([tag, _]) => tag),
         stats, config, realms
     };

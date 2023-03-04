@@ -24,7 +24,7 @@ export const PostFeed = ({data, classNameArg = null, focusedPost, feedLoader, he
 
     const itemRendering = (post, lastItem) => <Post
         id={post.id} key={post.id} data={data || postDataProvider(post.id, post)} level={level} highlighted={highlighted}
-        isFeedItem={true} classNameArg={`${!isRoot(post) && (comments || thread) ? "comment" : "feed_item"}`}
+        isFeedItem={true} classNameArg={`${!isRoot(post) && (comments || thread) ? "comment" : "feed_item"} ${post.user.karma < 0 ? "inactive" : ""}`}
         focused={post.id == focusedPost} isCommentView={comments || thread} isThreadView={thread && ! lastItem} />;
 
     const useGrid = grid && bigScreen() && api._user?.settings.columns != "off";
