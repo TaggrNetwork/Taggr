@@ -74,6 +74,30 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
+    pub fn validate_username(name: &str) -> Result<(), String> {
+        if name.len() < 2 || name.len() > 16 {
+            return Err("should be between 2 and 16 characters".into());
+        }
+        if !name
+            .chars()
+            .all(|c| char::is_ascii(&c) && char::is_alphanumeric(c))
+        {
+            return Err("should be an alpha-numeric string".into());
+        }
+        if name.chars().all(|c| char::is_ascii_digit(&c)) {
+            return Err("should have at least one character".into());
+        }
+        Ok(())
+    }
+    for u in state_mut().users.values_mut() {
+        match validate_username(&u.name) {
+            Err(msg) if msg != "taken" && u.id != 0 => {
+                ic_cdk::println!("{} renamed", u.name);
+                u.name = format!("u{}", u.id);
+            }
+            _ => {}
+        }
+    }
 }
 
 /*
@@ -693,7 +717,7 @@ fn thread() {
 #[export_name = "canister_query validate_username"]
 fn validate_username() {
     let name: String = parse(&arg_data_raw());
-    reply(state().validate_username(&name).unwrap_or_default());
+    reply(state().validate_username(&name));
 }
 
 #[export_name = "canister_query recent_tags"]

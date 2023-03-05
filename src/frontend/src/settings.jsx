@@ -56,7 +56,7 @@ export const Settings = ({invite = null}) => {
                         clearTimeout(timer);
                         const name = event.target.value;
                         if (name) setTimer(setTimeout(() => api.query("validate_username", name).then(result => 
-                            setLabel(result.length ? result : "free!")), 300));
+                            setLabel("Err" in result ? result.Err : "free!")), 300));
                         setName(name); }} />
                 <code>{label && `Status: ${label}`}</code>
             </div>}

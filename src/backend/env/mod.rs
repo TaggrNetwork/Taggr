@@ -428,9 +428,7 @@ impl State {
         name: String,
         invite: Option<String>,
     ) -> Result<(), String> {
-        if let Some(err) = self.validate_username(&name) {
-            return Err(format!("Invalid username {:?}: {}", name, err));
-        }
+        self.validate_username(&name)?;
         if let Some(user) = self.principal_to_user(principal) {
             return Err(format!("principal already assigned to user @{}", user.name));
         }
@@ -1121,28 +1119,31 @@ impl State {
         }
     }
 
-    pub fn validate_username(&self, name: &str) -> Option<String> {
+    pub fn validate_username(&self, name: &str) -> Result<(), String> {
         let name = name.to_lowercase();
         if self
             .users
             .values()
             .any(|user| user.name.to_lowercase() == name)
         {
-            return Some("taken".into());
+            return Err("taken".into());
         }
-        if name.len() < 2 || name.len() > 12 {
-            return Some("should be between 2 and 12 characters".into());
+        if name.len() < 2 || name.len() > 16 {
+            return Err("should be between 2 and 16 characters".into());
         }
-        if name.chars().any(|c| !char::is_alphanumeric(c)) {
-            return Some("should be an alpha-numeric string".into());
+        if !name
+            .chars()
+            .all(|c| char::is_ascii(&c) && char::is_alphanumeric(c))
+        {
+            return Err("should be a latin alpha-numeric string".into());
         }
         if name.chars().all(|c| char::is_ascii_digit(&c)) {
-            return Some("should have at least on character".into());
+            return Err("should have at least one character".into());
         }
         if ["all", "stalwarts", "dao"].contains(&name.as_str()) {
-            return Some("reserved handle".into());
+            return Err("reserved handle".into());
         }
-        None
+        Ok(())
     }
 
     pub fn posts_by_tags(
