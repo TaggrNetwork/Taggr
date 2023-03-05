@@ -76,21 +76,6 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
-    for (acc, balance) in state().balances.clone() {
-        let u = state().principal_to_user(acc.owner).unwrap().clone();
-        if u.karma() > 0 {
-            let diff = (u.karma() as u64).saturating_sub(balance / 100);
-            if diff > 0 {
-                crate::token::mint(state_mut(), acc, diff * 100);
-                ic_cdk::println!("minted {} for @{}", diff, u.name);
-            }
-            // Mechaquan's accounting needs to be done by hand, becasue his team minted tokens overshadowed
-            // the difference:
-            else if u.id == 305 {
-                crate::token::mint(state_mut(), acc, (10518 - 732 - 9424) * 100);
-            }
-        }
-    }
 }
 
 /*
