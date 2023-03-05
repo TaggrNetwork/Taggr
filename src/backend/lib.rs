@@ -231,7 +231,7 @@ fn finalize_upgrade() {
 #[export_name = "canister_update vote_on_report"]
 fn vote_on_report() {
     let (post_id, vote): (PostId, bool) = parse(&arg_data_raw());
-    state_mut().vote_on_report(caller(), post_id, vote);
+    env::reports::vote_on_report(state_mut(), caller(), post_id, vote);
     reply(());
 }
 

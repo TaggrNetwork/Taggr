@@ -1,17 +1,9 @@
 use super::user::UserId;
 use super::*;
+use crate::reports::Report;
 use serde::{Deserialize, Serialize};
 
 pub type PostId = u64;
-
-#[derive(Clone, Default, Serialize, Deserialize)]
-pub struct Report {
-    pub reporter: UserId,
-    pub confirmed_by: Vec<UserId>,
-    pub rejected_by: Vec<UserId>,
-    pub closed: bool,
-    pub reason: String,
-}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Poll {
@@ -127,38 +119,19 @@ impl Post {
         }
     }
 
-    pub fn vote_on_report(
-        &mut self,
-        stalwarts: usize,
-        stalwart: UserId,
-        confirmed: bool,
-    ) -> Option<Report> {
+    pub fn vote_on_report(&mut self, stalwarts: usize, stalwart: UserId, confirmed: bool) {
+        // No voting on own posts.
         if self.user == stalwart {
-            return None;
+            return;
         }
-        let report = self.report.as_mut()?;
-        if stalwart == report.reporter
-            || report.confirmed_by.contains(&stalwart)
-            || report.rejected_by.contains(&stalwart)
-        {
-            return None;
-        }
-        if confirmed {
-            report.confirmed_by.push(stalwart);
-        } else {
-            report.rejected_by.push(stalwart);
-        }
-        let votes = report.confirmed_by.len().max(report.rejected_by.len()) as u16;
-        if votes * 100 >= CONFIG.report_confirmation_percentage * stalwarts as u16 {
-            let delete = report.confirmed_by.len() > report.rejected_by.len();
-            if delete {
+        if let Some(report) = self.report.as_mut() {
+            report.vote(stalwarts, stalwart, confirmed);
+            let approved = report.closed && report.confirmed_by.len() > report.rejected_by.len();
+            if approved {
                 self.body = Default::default();
                 self.patches = Default::default();
             }
-            report.closed = true;
-            return Some(report.clone());
         }
-        None
     }
 
     pub fn report(&mut self, reporter: UserId, reason: String) {
