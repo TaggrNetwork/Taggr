@@ -17,7 +17,7 @@ export const Tokens = () => {
     };
 
     const loadTransactions = async () => {
-        const txs = await window.api.query("transactions", page, term);
+        const txs = await window.api.query("transactions", page, userToPrincipal[term.toLowerCase()] || term);
         if (txs.length == 0) {
             setNoMoreData(true);
         }
@@ -28,6 +28,10 @@ export const Tokens = () => {
     React.useEffect(() => { loadTransactions(); }, [page]);
 
     const totalSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
+    const userToPrincipal = balances.reduce((acc, balance) => {
+        acc[(backendCache.users[balance[2]] || "").toLowerCase()] = balance[0];
+        return acc
+    }, {});
 
     return <>
         <HeadBar title="Tokens" shareLink="tokens" />
