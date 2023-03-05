@@ -19,22 +19,18 @@ The auto-regulation is enforced through a scheme of incentives:
  - Users can mint new cycles at any point paying at least `1` XDR in ICP.
  - All payments go to [$name's Treasury](https://dashboard.internetcomputer.org/account/cc5fb202723a8cfb43128dda9c0d64c03f22d455070271f63a60afff14f360ec) holding ICP rewards and $name's revenue.
 
-## Rewards Distribution
+## Rewards and Revenue Distributions
 
 - During positive engagements users can receive karma from other users.
 - The received karma points will be converted to rewards during the next distribution.
 - The rewards are computed by converting `$min_cycles_minted` karma points to ICP at the same rate as cycle minting (`1 XDR` for `$min_cycles_minted` karma points).
-- Users are excluded from the distribution if their rewards are smaller than `100` times the transaction fee.
-- Users who did not participate in a distribution carry over their accumulated karma to the next round.
-
-## Revenue Distribution
-
-Users that hold tokens and were active within the last `$revenue_share_activity_weeks` weeks receive a share of $name's revenue proportional to their token share.
+- Additionally to rewards, users that own tokens and were active within the last `$revenue_share_activity_weeks` weeks receive a share of $name's revenue proportional to their token share.
+- Users are excluded from both distributions if their ICP amount are smaller than `100` times the transaction fee. These users carry over their accumulated karma to the next round.
 
 ## Token mining
 
 Currently, all users who earn karma, automatically mine `$token_symbol` tokens.
-The token minting happens weekly by converting the earned karma to $TAGGR tokens at an exponentially declined ratio.
+The token minting happens weekly by converting the earned karma to `$token_symbol` tokens at an exponentially declined ratio.
 The ratio is 1:1 for the first `10%` of total supply, then drops to 2:1 for the next `10%` and so on.
 
 ## Bootcamp
@@ -54,10 +50,10 @@ By joining a realm, a user implicitly agrees with its terms and conditions.
 Decentralization does not imply lawlessness!
 The content allowed on $name is the content tolerated by the community which agreed on a moderation in the following cases:
 - the post is threatening $name as a public service (e.g., it is illegal in most jurisdictions),
-- the post was created with a nefarious intent to game the $name system and is threatening $name's community, sustainability or decentralization,
+- the post was created with a nefarious intent, e.g. to game the $name system and/or is threatening $name's community members, sustainability or decentralization,
 - the post breaks the rules of a realm.
 
-The latter point is vague on purpose and will require a social consensus among the moderators.
+The policy is vague on purpose and will require a social consensus among the stalwarts.
 
 **Posts violating this policy are a subject to moderation.**
 
@@ -160,8 +156,8 @@ $name's DAO has agreed with a bug bounty program with the following bug classifi
 
 | SEV | DESCRIPTION | PRIZE |
 |:---:|-------------|--------:|
-| 0 | The bug enables  an unsanctioned state mutation affecting the monetary value of user assets like cycles, karma, tokens, the Treasury or **critically** endanger Taggr's functionality, autonomy or decentralization. | `1000` |
-| 1 | The bug enables an unsanctioned state mutation affecting important data, like posts, comments, rewards and so on or has a negative but not critical impact on Taggr's decentralization and autonomy.                  | `400` |
-| 2 | The bug enables an unsanctioned state mutation but cannot be easily leveraged to endanger Taggr or its data.                                                                                                          | `100` |
+| 0 | The bug enables  an unsanctioned state mutation affecting the monetary value of user assets like cycles, karma, tokens, the Treasury or **critically** endanger $name's functionality, autonomy or decentralization. | `1000` |
+| 1 | The bug enables an unsanctioned state mutation affecting important data, like posts, comments, rewards and so on or has a negative but not critical impact on $name's decentralization and autonomy.                  | `400` |
+| 2 | The bug enables an unsanctioned state mutation but cannot be easily leveraged to endanger $name or its data.                                                                                                          | `100` |
 
 If you found a bug that falls under any of these categories, please immediately reach out to stalwarts to coordinate further actions.
