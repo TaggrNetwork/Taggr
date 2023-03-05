@@ -926,8 +926,13 @@ impl State {
             self.storage.reset();
         }
 
-        if self.proposals.iter().any(|p| p.status == Status::Open) {
-            if let Err(err) = proposals::execute_last_proposal(self, now).await {
+        for proposal_id in self
+            .proposals
+            .iter()
+            .filter_map(|p| (p.status == Status::Open).then(|| p.id))
+            .collect::<Vec<_>>()
+        {
+            if let Err(err) = proposals::execute_proposal(self, proposal_id, now).await {
                 self.logger
                     .error(format!("Couldn't execute last proposal: {:?}", err));
             }

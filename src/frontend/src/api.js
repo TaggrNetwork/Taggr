@@ -51,7 +51,7 @@ export const Api = (defaultCanisterId, identity, mainnetMode) => {
         },
         propose_release: async (text, commit, blob) => {
             const arg = IDL.encode([IDL.Text, IDL.Text, IDL.Vec(IDL.Nat8)], [text, commit, blob]);
-            return IDL.decode([IDL.Variant({ "Ok": IDL.Null, "Err": IDL.Text})], await call_raw(undefined, "propose_release", arg))[0];
+            return IDL.decode([IDL.Variant({ "Ok": IDL.Nat32, "Err": IDL.Text})], await call_raw(undefined, "propose_release", arg))[0];
         },
         add_post: async (text, blobs, parent, realm, extension) => {
             const arg = IDL.encode(

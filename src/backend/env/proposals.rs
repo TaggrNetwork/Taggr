@@ -26,6 +26,8 @@ impl Default for Status {
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Proposal {
+    #[serde(default)]
+    pub id: u32,
     pub proposer: UserId,
     pub timestamp: u64,
     pub description: String,
@@ -200,7 +202,7 @@ pub fn propose(
     caller: Principal,
     description: String,
     mut payload: Payload,
-) -> Result<(), String> {
+) -> Result<u32, String> {
     let user = state.principal_to_user(caller).ok_or("user not found")?;
     if !user.stalwart {
         return Err("only stalwarts can create proposals".to_string());
@@ -211,11 +213,18 @@ pub fn propose(
     payload.validate()?;
     let proposer = user.id;
     let proposer_name = user.name.clone();
-    // invalidate all previous proposals
+    let id = state.proposals.len() as u32;
+    // invalidate some previous proposals depending on their type
     state
         .proposals
         .iter_mut()
-        .filter(|p| p.status == Status::Open)
+        .filter(|p| {
+            p.status == Status::Open
+                && (matches!(p.payload, Payload::Release(_))
+                    && matches!(payload, Payload::Release(_))
+                    || matches!(p.payload, Payload::SetController(_))
+                        && matches!(payload, Payload::SetController(_)))
+        })
         .for_each(|proposal| {
             proposal.status = Status::Cancelled;
         });
@@ -227,6 +236,7 @@ pub fn propose(
         payload,
         votes: Default::default(),
         voting_power: 0,
+        id,
     });
     let msg = format!(
         "New [proposal](#/proposals) was submitted by @{} 🎈",
@@ -238,50 +248,58 @@ pub fn propose(
         Predicate::ProposalPending,
     );
     state.logger.info(msg);
-    Ok(())
+    Ok(id)
 }
 
-pub async fn vote_on_last_proposal(
+pub async fn vote_on_proposal(
     state: &mut State,
     time: u64,
     caller: Principal,
+    proposal_id: u32,
     approved: bool,
 ) -> Result<(), String> {
-    let mut proposal = state
-        .proposals
-        .pop()
+    let mut proposals = std::mem::take(&mut state.proposals);
+    let proposal = proposals
+        .get_mut(proposal_id as usize)
         .ok_or_else(|| "no proposals founds".to_string())?;
     if proposal.status != Status::Open {
-        state.proposals.push(proposal);
+        state.proposals = proposals;
         return Err("last proposal is not open".into());
     }
     if let Err(err) = proposal.vote(state, caller, approved) {
-        state.proposals.push(proposal);
+        state.proposals = proposals;
         return Err(err);
     }
     if let Some(user) = state.principal_to_user(caller) {
         state.spend_to_user_karma(user.id, CONFIG.voting_reward, "voting rewards");
     }
-    state.proposals.push(proposal);
-    execute_last_proposal(state, time).await
+    state.proposals = proposals;
+    execute_proposal(state, proposal_id, time).await
 }
 
-pub fn cancel_last_proposal(state: &mut State, caller: Principal) {
-    let mut proposal = state.proposals.pop().expect("no proposals exists");
+pub fn cancel_proposal(state: &mut State, caller: Principal, proposal_id: u32) {
+    let mut proposals = std::mem::take(&mut state.proposals);
+    let proposal = proposals
+        .get_mut(proposal_id as usize)
+        .expect("no proposals founds");
     let user = state.principal_to_user(caller).expect("no user found");
     if proposal.status == Status::Open && proposal.proposer == user.id {
         proposal.status = Status::Cancelled;
     }
-    state.proposals.push(proposal);
+    state.proposals = proposals;
 }
 
-pub(super) async fn execute_last_proposal(state: &mut State, time: u64) -> Result<(), String> {
-    let mut proposal = state
-        .proposals
-        .pop()
+pub(super) async fn execute_proposal(
+    state: &mut State,
+    proposal_id: u32,
+    time: u64,
+) -> Result<(), String> {
+    let mut proposals = std::mem::take(&mut state.proposals);
+    let proposal = proposals
+        .get_mut(proposal_id as usize)
         .ok_or_else(|| "no proposals founds".to_string())?;
     if proposal.status != Status::Open {
-        state.proposals.push(proposal);
+        state.proposals = proposals;
         return Err("last proposal is not open".into());
     }
     let previous_state = proposal.status.clone();
@@ -298,7 +316,7 @@ pub(super) async fn execute_last_proposal(state: &mut State, time: u64) -> Resul
             proposal.votes.len() * CONFIG.voting_reward as usize
         ));
     }
-    state.proposals.push(proposal);
+    state.proposals = proposals;
     result
 }
 
@@ -343,16 +361,87 @@ mod tests {
             Err("only stalwarts can create proposals".into())
         );
         state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
+
+        let id = propose(&mut state, pr(1), "test".into(), Payload::Noop)
+            .expect("couldn't create proposal");
+
+        let id2 = propose(
+            &mut state,
+            pr(1),
+            "test".into(),
+            Payload::SetController("e3mmv-5qaaa-aaaah-aadma-cai".into()),
+        )
+        .expect("couldn't create proposal");
         assert_eq!(
-            propose(&mut state, pr(1), "test".into(), Payload::Noop),
-            Ok(())
+            state.proposals.get(id2 as usize).unwrap().status,
+            Status::Open
         );
 
-        cancel_last_proposal(&mut state, pr(2));
-        assert_eq!(state.proposals.first().unwrap().status, Status::Open);
+        let upgrade_id = propose(
+            &mut state,
+            pr(1),
+            "test".into(),
+            Payload::Release(Release {
+                commit: "sdasd".into(),
+                hash: "".into(),
+                binary: vec![1],
+            }),
+        )
+        .expect("couldn't create proposal");
 
-        cancel_last_proposal(&mut state, pr(1));
-        assert_eq!(state.proposals.first().unwrap().status, Status::Cancelled);
+        let id3 = propose(
+            &mut state,
+            pr(1),
+            "test".into(),
+            Payload::SetController("e3mmv-5qaaa-aaaah-aadma-cai".into()),
+        )
+        .expect("couldn't create proposal");
+
+        assert_eq!(
+            state.proposals.get(id3 as usize).unwrap().status,
+            Status::Open
+        );
+        assert_eq!(
+            state.proposals.get(id2 as usize).unwrap().status,
+            Status::Cancelled
+        );
+
+        cancel_proposal(&mut state, pr(2), id);
+        assert_eq!(
+            state.proposals.get(id as usize).unwrap().status,
+            Status::Open
+        );
+
+        cancel_proposal(&mut state, pr(1), id);
+        assert_eq!(
+            state.proposals.get(id as usize).unwrap().status,
+            Status::Cancelled
+        );
+
+        assert_eq!(
+            state.proposals.get(upgrade_id as usize).unwrap().status,
+            Status::Open
+        );
+
+        let upgrade_id2 = propose(
+            &mut state,
+            pr(1),
+            "test".into(),
+            Payload::Release(Release {
+                commit: "sdasd".into(),
+                hash: "".into(),
+                binary: vec![1],
+            }),
+        )
+        .expect("couldn't create proposal");
+        assert_eq!(
+            state.proposals.get(upgrade_id as usize).unwrap().status,
+            Status::Cancelled
+        );
+        assert_eq!(
+            state.proposals.get(upgrade_id2 as usize).unwrap().status,
+            Status::Open
+        );
     }
 
     #[actix_rt::test]
@@ -412,10 +501,8 @@ mod tests {
             propose(&mut state, pr(1), "".into(), Payload::Noop),
             Err("description is empty".to_string())
         );
-        assert_eq!(
-            propose(&mut state, pr(1), "test".into(), Payload::Noop),
-            Ok(())
-        );
+        let id = propose(&mut state, pr(1), "test".into(), Payload::Noop)
+            .expect("couldn't create proposal");
         assert_eq!(state.proposals.len(), 1);
 
         let p = state.proposals.iter_mut().next().unwrap();
@@ -424,33 +511,31 @@ mod tests {
         assert_eq!(state.proposals.len(), 1);
 
         assert_eq!(
-            vote_on_last_proposal(&mut state, 0, pr(1), false).await,
+            vote_on_proposal(&mut state, 0, pr(1), id, false).await,
             Err("last proposal is not open".into())
         );
 
         // create a new proposal
-        assert_eq!(
-            propose(&mut state, pr(1), "test".into(), Payload::Noop),
-            Ok(())
-        );
+        let prop_id = propose(&mut state, pr(1), "test".into(), Payload::Noop)
+            .expect("couldn't create proposal");
 
         assert_eq!(state.proposals.len(), 2);
 
         // vote by non existing user
         assert_eq!(
-            vote_on_last_proposal(&mut state, 0, pr(111), false).await,
+            vote_on_proposal(&mut state, 0, pr(111), prop_id, false).await,
             Err("only trusted users can vote".to_string())
         );
         let id = create_user(&mut state, pr(111));
         assert!(state.users.get(&id).unwrap().trusted());
         assert_eq!(
-            vote_on_last_proposal(&mut state, 0, pr(111), false).await,
+            vote_on_proposal(&mut state, 0, pr(111), prop_id, false).await,
             Err("only token holders can vote".to_string())
         );
 
         // vote no 3 times
         for i in 1..4 {
-            assert!(vote_on_last_proposal(&mut state, 0, pr(i), false)
+            assert!(vote_on_proposal(&mut state, 0, pr(i), prop_id, false)
                 .await
                 .is_ok());
             assert_eq!(state.proposals.iter().last().unwrap().status, Status::Open);
@@ -459,7 +544,7 @@ mod tests {
         // error cases again
         let proposer = pr(1);
         assert_eq!(
-            vote_on_last_proposal(&mut state, 0, proposer, false).await,
+            vote_on_proposal(&mut state, 0, proposer, prop_id, false).await,
             Err("double vote".to_string())
         );
 
@@ -472,7 +557,7 @@ mod tests {
             10000000,
         );
         assert_eq!(
-            vote_on_last_proposal(&mut state, 0, p, false).await,
+            vote_on_proposal(&mut state, 0, p, prop_id, false).await,
             Err("only trusted users can vote".to_string())
         );
 
@@ -488,9 +573,9 @@ mod tests {
         assert_eq!(user.cycles(), 1000);
 
         // last rejection and the proposal is rejected
-        assert!(vote_on_last_proposal(&mut state, 0, pr(5), false)
+        assert!(vote_on_proposal(&mut state, 0, pr(5), prop_id, false)
             .await
-            .is_ok(),);
+            .is_ok());
         assert_eq!(
             state.proposals.iter().last().unwrap().status,
             Status::Rejected,
@@ -510,29 +595,27 @@ mod tests {
         assert!(!user.trusted());
 
         // create a new proposal
-        assert_eq!(
-            propose(&mut state, pr(1), "test".into(), Payload::Noop),
-            Ok(())
-        );
+        let prop_id =
+            propose(&mut state, pr(1), "test".into(), Payload::Noop).expect("couldn't propose");
 
         assert_eq!(
-            vote_on_last_proposal(&mut state, 0, pr(1), true).await,
+            vote_on_proposal(&mut state, 0, pr(1), prop_id, true).await,
             Err("only trusted users can vote".into())
         );
 
         // make sure it is executed when 2/3 have voted
         for i in 2..7 {
-            assert!(vote_on_last_proposal(&mut state, 0, pr(i), true)
+            assert!(vote_on_proposal(&mut state, 0, pr(i), prop_id, true)
                 .await
                 .is_ok());
             assert_eq!(state.proposals.iter().last().unwrap().status, Status::Open);
         }
-        assert!(vote_on_last_proposal(&mut state, 0, pr(7), true)
+        assert!(vote_on_proposal(&mut state, 0, pr(7), prop_id, true)
             .await
             .is_ok());
         assert_eq!(state.proposals.iter().last().unwrap().status, Status::Open);
 
-        assert!(vote_on_last_proposal(&mut state, 0, pr(8), true)
+        assert!(vote_on_proposal(&mut state, 0, pr(8), prop_id, true)
             .await
             .is_ok());
         assert_eq!(
@@ -540,7 +623,7 @@ mod tests {
             Status::Executed
         );
         assert_eq!(
-            vote_on_last_proposal(&mut state, 0, pr(9), true).await,
+            vote_on_proposal(&mut state, 0, pr(9), prop_id, true).await,
             Err("last proposal is not open".into())
         )
     }
@@ -564,12 +647,10 @@ mod tests {
         // mint tokens
         state.mint(eligigble);
 
+        let prop_id =
+            propose(&mut state, pr(1), "test".into(), Payload::Noop).expect("couldn't propose");
         assert_eq!(
-            propose(&mut state, pr(1), "test".into(), Payload::Noop),
-            Ok(())
-        );
-        assert_eq!(
-            vote_on_last_proposal(&mut state, time(), pr(1), false).await,
+            vote_on_proposal(&mut state, time(), pr(1), prop_id, false).await,
             Ok(())
         );
         assert_eq!(
@@ -579,7 +660,7 @@ mod tests {
 
         // after a day we only count 99% of voting power
         assert_eq!(
-            execute_last_proposal(&mut state, time() + HOUR * 24).await,
+            execute_proposal(&mut state, prop_id, time() + HOUR * 24).await,
             Ok(())
         );
         assert_eq!(state.proposals.iter().last().unwrap().voting_power, 29700);
@@ -587,7 +668,7 @@ mod tests {
 
         // after a day we only count 98% of voting power and it's enough to reject
         assert_eq!(
-            execute_last_proposal(&mut state, time() + 2 * HOUR * 24).await,
+            execute_proposal(&mut state, prop_id, time() + 2 * HOUR * 24).await,
             Ok(())
         );
         assert_eq!(state.proposals.iter().last().unwrap().voting_power, 29400);
@@ -616,17 +697,15 @@ mod tests {
         // mint tokens
         state.mint(eligigble);
 
-        assert_eq!(
-            propose(&mut state, pr(1), "test".into(), Payload::Noop),
-            Ok(())
-        );
+        let prop_id =
+            propose(&mut state, pr(1), "test".into(), Payload::Noop).expect("couldn't propose");
 
         assert!(state.principal_to_user(pr(1)).unwrap().cycles() > 0);
         let proposer = state.principal_to_user(pr(1)).unwrap();
         let proposers_karma = proposer.karma() + proposer.karma_to_reward();
         for i in 2..4 {
             assert_eq!(
-                vote_on_last_proposal(&mut state, time(), pr(i), false).await,
+                vote_on_proposal(&mut state, time(), pr(i), prop_id, false).await,
                 Ok(())
             );
         }

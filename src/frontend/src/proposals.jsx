@@ -38,9 +38,9 @@ export const Proposals = () => {
 
     const statusEmoji = status => { return {"Open": "✨", "Rejected": "🟥", "Cancelled": "❌", "Executed": "✅" }[status] };
 
-    const vote = async adopted => {
+    const vote = async (proposal_id, adopted) => {
         const prevStatus = proposals[0].status;
-        const result = await api.call("vote_on_proposal", adopted);
+        const result = await api.call("vote_on_proposal", proposal_id, adopted);
         if ("Err" in result) {
             setStatus(`Error: ${result.Err}`);
             return;
@@ -128,7 +128,7 @@ export const Proposals = () => {
                 const t = backendCache.config.proposal_approval_threshold;
                 const days = Math.ceil((proposal.voting_power - (adopted > rejected ? adopted / t : rejected / (100 - t)) * 100) / dailyDrop);
                 return <div key={proposal.timestamp}
-                    className={`stands_out column_container ${i > 0 ? "outdated" : ""}`}>
+                    className={`stands_out column_container ${proposal.status != "Open" ? "outdated" : ""}`}>
                     <div className="monospace bottom_half_spaced">TYPE: {Object.keys(proposal.payload)[0].toUpperCase()}</div>
                     <div className="monospace bottom_half_spaced">PROPOSER: <a href={`#/user/${proposal.proposer}`}>{`@${backendCache.users[proposal.proposer]}`}</a></div>
                     <div className="monospace bottom_half_spaced">DATE: {timeAgo(proposal.timestamp)}</div>
@@ -160,13 +160,13 @@ export const Proposals = () => {
                     </div>
                     {api._user && proposal.status == "Open" && !voted && <>
                         <div className="row_container">
-                            <ButtonWithLoading onClick={() => vote(false)} classNameArg="max_width_col large_text" label="REJECT" />
-                            <ButtonWithLoading onClick={() => vote(true)} classNameArg="max_width_col large_text" label="ADOPT" />
+                            <ButtonWithLoading onClick={() => vote(proposal.id, false)} classNameArg="max_width_col large_text" label="REJECT" />
+                            <ButtonWithLoading onClick={() => vote(proposal.id, true)} classNameArg="max_width_col large_text" label="ADOPT" />
                         </div>
                     </>}
                     {api._user && api._user.id == proposal.proposer && proposal.status == "Open" &&
                         <ButtonWithLoading onClick={async () => {
-                            await api.call("cancel_proposal", adopted);
+                            await api.call("cancel_proposal", proposal.id);
                             await loadState();
                         }} classNameArg="top_spaced max_width_col large_text" label="CANCEL" />}
                 </div>;

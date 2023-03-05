@@ -76,6 +76,9 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
+    for (i, p) in state_mut().proposals.iter_mut().enumerate() {
+        p.id = i as u32;
+    }
 }
 
 /*
@@ -316,7 +319,7 @@ fn create_invite() {
 }
 
 #[update]
-fn propose_release(description: String, commit: String, binary: ByteBuf) -> Result<(), String> {
+fn propose_release(description: String, commit: String, binary: ByteBuf) -> Result<u32, String> {
     proposals::propose(
         state_mut(),
         caller(),
@@ -354,14 +357,17 @@ fn propose_funding() {
 #[export_name = "canister_update vote_on_proposal"]
 fn vote_on_proposal() {
     spawn(async {
-        let approved: bool = parse(&arg_data_raw());
-        reply(proposals::vote_on_last_proposal(state_mut(), time(), caller(), approved).await)
+        let (proposal_id, approved): (u32, bool) = parse(&arg_data_raw());
+        reply(
+            proposals::vote_on_proposal(state_mut(), time(), caller(), proposal_id, approved).await,
+        )
     })
 }
 
 #[export_name = "canister_update cancel_proposal"]
 fn cancel_proposal() {
-    proposals::cancel_last_proposal(state_mut(), caller());
+    let proposal_id: u32 = parse(&arg_data_raw());
+    proposals::cancel_proposal(state_mut(), caller(), proposal_id);
     reply(());
 }
 
