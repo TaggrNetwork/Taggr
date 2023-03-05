@@ -239,7 +239,7 @@ pub fn propose(
         id,
     });
     let msg = format!(
-        "New [proposal](#/proposals) was submitted by @{} 🎈",
+        "New [proposal](#/proposals) 🎈 was submitted by @{}.",
         &proposer_name
     );
     state.notify_with_predicate(

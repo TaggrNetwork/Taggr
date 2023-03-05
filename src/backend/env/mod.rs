@@ -761,7 +761,7 @@ impl State {
                 if let Some((vested, remaining_balance)) = vested {
                     crate::token::mint(self, acc, vested);
                     self.logger.info(format!(
-                        "Minted `{}` team tokens for @{} (still vesting: {})",
+                        "Minted `{}` team tokens for @{} (still vesting: `{}`).",
                         vested / 100,
                         self.users
                             .get(id)
