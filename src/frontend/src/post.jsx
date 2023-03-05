@@ -314,7 +314,7 @@ const ReportBanner = ({post}) => {
             {rejected_by.length > 0 && <div>REJECTED BY {commaSeparated(rejected_by.map(id => `@${backendCache.users[id]}`))}</div>}
         </div>}
         {!tookAction && <div className="row_container" style={{justifyContent: "center"}}>
-            {[["🛑 REJECT REPORT", false], ["✅ DELETE POST", true]].map(([label, val]) =>
+            {[["🛑 DISAGREE", false], ["✅ AGREE", true]].map(([label, val]) =>
             <ButtonWithLoading key={label} onClick={async () => {
                 await api.call("vote_on_report", post.id, val);
                 setReport((await loadPost(api, post.id)).report);
