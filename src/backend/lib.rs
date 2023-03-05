@@ -206,7 +206,7 @@ fn finalize_upgrade() {
                 } else {
                     state.module_hash = hash.clone();
                     state.logger.info(format!(
-                        "Upgrade succeeded: new version is `{}`",
+                        "Upgrade succeeded: new version is `{}`.",
                         &current[0..8]
                     ));
 
