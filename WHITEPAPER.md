@@ -19,6 +19,16 @@ The auto-regulation is enforced through a scheme of incentives:
  - Users can mint new cycles at any point paying at least `1` XDR in ICP.
  - All payments go to [$name's Treasury](https://dashboard.internetcomputer.org/account/cc5fb202723a8cfb43128dda9c0d64c03f22d455070271f63a60afff14f360ec) holding ICP rewards and $name's revenue.
 
+## Tokenomics
+
+$name has a total supply of `$total_supply` tokens. Tokens can only be mined.
+Currently, all users who earn karma, automatically mine `$token_symbol` tokens.
+The token minting happens weekly by converting the earned karma to `$token_symbol` tokens at an exponentially declining ratio.
+The ratio starts with `1:1` for the first `10%` of supply, then drops to `2:1` for the next `10%`, then to `4:1` and so on.
+Hence the last `10%` of supply will be minted at the ratio `1024:1`.
+
+The utility of tokens is governance and ownership of $name's revenue.
+
 ## Rewards and Revenue Distributions
 
 - During positive engagements users can receive karma from other users.
@@ -26,12 +36,6 @@ The auto-regulation is enforced through a scheme of incentives:
 - The rewards are computed by converting `$min_cycles_minted` karma points to ICP at the same rate as cycle minting (`1 XDR` for `$min_cycles_minted` karma points).
 - Additionally to rewards, users that own tokens and were active within the last `$revenue_share_activity_weeks` weeks receive a share of $name's revenue proportional to their token share.
 - Users are excluded from both distributions if their ICP amount are smaller than `100` times the transaction fee. These users carry over their accumulated karma to the next round.
-
-## Token mining
-
-Currently, all users who earn karma, automatically mine `$token_symbol` tokens.
-The token minting happens weekly by converting the earned karma to `$token_symbol` tokens at an exponentially declined ratio.
-The ratio is 1:1 for the first `10%` of total supply, then drops to 2:1 for the next `10%` and so on.
 
 ## Bootcamp
 
