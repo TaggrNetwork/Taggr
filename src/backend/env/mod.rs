@@ -660,7 +660,7 @@ impl State {
         }
     }
 
-    pub async fn distribute_revenue(&mut self, e8s_for_1000_kps: u64) -> HashMap<UserId, u64> {
+    pub fn distribute_revenue(&mut self, e8s_for_1000_kps: u64) -> HashMap<UserId, u64> {
         let burned_cycles = self.burned_cycles;
         if burned_cycles <= 0 {
             return Default::default();
@@ -691,7 +691,7 @@ impl State {
             .collect()
     }
 
-    pub fn mint(&mut self, eligible: HashSet<UserId>) {
+    pub fn mint(&mut self, rewards: HashMap<UserId, Karma>) {
         let mut minted_tokens = 0;
         let mut minters = Vec::new();
         let circulating_supply: Token = self.balances.values().sum();
@@ -703,13 +703,7 @@ impl State {
                 .iter()
                 .map(|(p, u)| (*u, *p))
                 .collect::<HashMap<_, _>>();
-            for user_id in self
-                .users
-                .values()
-                .filter(|u| self.team_tokens.contains_key(&u.id) || eligible.contains(&u.id))
-                .map(|u| u.id)
-                .collect::<Vec<_>>()
-            {
+            for (user_id, user_karma) in rewards {
                 let (user, principal) = match (
                     self.users.get_mut(&user_id),
                     user_to_principal.get(&user_id),
@@ -721,41 +715,58 @@ impl State {
                     owner: principal,
                     subaccount: None,
                 };
-                let mut minted = user.mint(factor) * base;
+                let minted = (user_karma.max(0) as u64 / (1 << factor)).max(1) * base;
                 user.notify(format!(
                     "{} minted `{}` ${} tokens for you! 💎",
                     CONFIG.name,
                     minted / base,
                     CONFIG.token_symbol,
                 ));
-                // Mint the team tokens
-                match self.team_tokens.get_mut(&user.id) {
+                minters.push(format!("`{}` to @{}", minted / base, user.name));
+                crate::token::mint(self, acc, minted);
+                minted_tokens += minted / base;
+            }
+
+            // Mint team tokens
+            for id in &[0, 305] {
+                let acc = match user_to_principal.get(id) {
+                    Some(p) => Account {
+                        owner: *p,
+                        subaccount: None,
+                    },
+                    _ => continue,
+                };
+                let vested = match self.team_tokens.get_mut(id) {
                     Some(balance) if *balance > 0 => {
                         // 1% of circulating supply is vesting.
                         let vested = (circulating_supply / 100).min(*balance);
                         let veto_threshold = 100 - CONFIG.proposal_approval_threshold as u64;
                         let veto_power = (circulating_supply * veto_threshold) / 100;
-                        if
-                        // Vesting is allowed if the total voting power of the team member is below 1/2 of the veto power,
-                        self.balances.get(&acc).copied().unwrap_or_default() < veto_power / 2
-                            // or if 2/3s of supply is minted, allow vesting
+                        // Vesting is allowed if the total voting power of the team member is below
+                        // 1/2 of the veto power, or if 2/3 of total supply is minted.
+                        if self.balances.get(&acc).copied().unwrap_or_default() < veto_power / 2
                             || circulating_supply * 2 > CONFIG.total_supply
                         {
                             *balance -= vested;
-                            minted += vested;
-                            self.logger.info(format!(
-                                "Minted `{}` team tokens for @{} (still vesting: {})",
-                                vested / 100,
-                                user.name,
-                                *balance / 100
-                            ));
+                            Some((vested, *balance))
+                        } else {
+                            None
                         }
                     }
-                    _ => {}
+                    _ => None,
                 };
-                minters.push(format!("`{}` to @{}", minted / base, user.name));
-                crate::token::mint(self, acc, minted);
-                minted_tokens += minted / base;
+                if let Some((vested, remaining_balance)) = vested {
+                    crate::token::mint(self, acc, vested);
+                    self.logger.info(format!(
+                        "Minted `{}` team tokens for @{} (still vesting: {})",
+                        vested / 100,
+                        self.users
+                            .get(id)
+                            .map(|u| u.name.clone())
+                            .unwrap_or_default(),
+                        remaining_balance / 100
+                    ));
+                }
             }
         }
         if minters.is_empty() {
@@ -773,7 +784,7 @@ impl State {
         }
     }
 
-    pub async fn distribute_rewards(&mut self, e8s_for_1000_kps: u64) -> HashMap<UserId, u64> {
+    pub fn distribute_rewards(&mut self, e8s_for_1000_kps: u64) -> HashMap<UserId, u64> {
         for user in self.users.values_mut() {
             user.ledger.clear();
         }
@@ -794,8 +805,8 @@ impl State {
         &mut self,
         rewards: HashMap<UserId, u64>,
         revenue: HashMap<UserId, u64>,
-    ) -> HashSet<UserId> {
-        let mut user_ids = HashSet::default();
+    ) -> HashMap<UserId, Karma> {
+        let mut user_ids = Default::default();
         let treasury_balance = invoices::main_account_balance().await.e8s();
         let total_payout =
             rewards.values().copied().sum::<u64>() + revenue.values().copied().sum::<u64>();
@@ -823,6 +834,7 @@ impl State {
                 Ok(_) => {
                     user_rewards += user_reward;
                     user_revenues += user_revenue;
+                    user_ids.insert(user.id, user.karma_to_reward());
                     user.apply_rewards();
                     payments.push(format!("`{}` to @{}", e8s_to_icp(e8s), &user.name));
                     user.notify(format!(
@@ -830,7 +842,6 @@ impl State {
                         e8s_to_icp(user_reward),
                         e8s_to_icp(user_revenue)
                     ));
-                    user_ids.insert(user.id);
                 }
                 Err(err) => {
                     self.logger
@@ -888,8 +899,8 @@ impl State {
 
             let user_ids = match invoices::get_xdr_in_e8s().await {
                 Ok(e8s_for_1000_kps) => {
-                    let rewards = self.distribute_rewards(e8s_for_1000_kps).await;
-                    let revenues = self.distribute_revenue(e8s_for_1000_kps).await;
+                    let rewards = self.distribute_rewards(e8s_for_1000_kps);
+                    let revenues = self.distribute_revenue(e8s_for_1000_kps);
                     self.transfer_icp(rewards, revenues).await
                 }
                 Err(err) => {

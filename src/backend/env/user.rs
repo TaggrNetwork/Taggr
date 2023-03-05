@@ -267,10 +267,6 @@ impl User {
             .push_front(("KRM".to_string(), delta, log.to_string()));
     }
 
-    pub fn mint(&self, factor: u64) -> u64 {
-        (self.karma_to_reward().max(0) as u64 / (1 << factor)).max(1)
-    }
-
     pub fn karma_to_reward(&self) -> Karma {
         self.rewarded_karma
     }
