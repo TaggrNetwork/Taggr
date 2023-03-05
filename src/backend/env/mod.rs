@@ -15,12 +15,14 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use user::{User, UserId};
 
+pub mod canisters;
 pub mod config;
 pub mod invoices;
 pub mod post;
 pub mod proposals;
 pub mod reports;
 mod storage;
+pub mod token;
 pub mod user;
 
 pub type Cycles = i64;

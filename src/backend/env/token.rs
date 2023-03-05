@@ -1,4 +1,4 @@
-use super::*;
+use crate::*;
 use candid::{CandidType, Deserialize};
 use ic_cdk::export::candid::Principal;
 use serde::Serialize;

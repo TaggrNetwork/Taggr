@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
-use canisters::upgrade_main_canister;
 use env::{
+    canisters::upgrade_main_canister,
     config::CONFIG,
     post::{Extension, Post, PostId},
     proposals::{Payload, Release, Status},
+    token::Account,
     user::{User, UserId},
     *,
 };
@@ -18,13 +19,10 @@ use ic_cdk::{
 };
 use ic_cdk_macros::*;
 use serde_bytes::ByteBuf;
-use token::Account;
 
 mod assets;
-mod canisters;
 mod env;
 mod http;
-mod token;
 
 const BACKUP_PAGE_SIZE: u32 = 1024 * 1024;
 
