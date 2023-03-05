@@ -135,7 +135,7 @@ export const Proposals = () => {
                     <div className="monospace bottom_spaced">STATUS: {statusEmoji(proposal.status)}&nbsp;
                         {i == 0 && status ? status : proposal.status.toUpperCase()}</div>
                     {"Release" in proposal.payload && <div className="monospace bottom_spaced">
-                        {commit && <div className="row_container bottom_half_spaced">COMMIT:<a className="monospace left_spaced" href={`${REPO}/${commit}`}>{commit}</a></div>}
+                        {commit && <div className="row_container bottom_half_spaced">COMMIT:<a className="monospace left_spaced" href={`${REPO}/${proposal.payload.Release.commit}`}>{commit}</a></div>}
                         <div className="row_container"><span>HASH:</span><code className="left_spaced monospace">{hash}</code></div>
                     </div>}
                     {"SetController" in proposal.payload && <div className="monospace bottom_half_spaced">Principal: <code>{proposal.payload.SetController}</code></div>}
