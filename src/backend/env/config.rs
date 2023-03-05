@@ -112,8 +112,10 @@ pub const CONFIG: &Config = &Config {
 
     #[cfg(feature = "dev")]
     report_confirmation_percentage: 1,
-    #[cfg(not(feature = "dev"))]
+    #[cfg(test)]
     report_confirmation_percentage: 15,
+    #[cfg(not(any(test, feature = "dev")))]
+    report_confirmation_percentage: 25,
 
     trusted_user_min_karma: 25,
     trusted_user_min_age_weeks: 4,
