@@ -77,6 +77,19 @@ fn post_upgrade() {
     for (i, p) in state_mut().proposals.iter_mut().enumerate() {
         p.id = i as u32;
     }
+
+    // Mint missing tokens to Bhavan (see https://taggr.link/#/post/18688)
+    crate::env::token::mint(
+        state_mut(),
+        Account {
+            owner: candid::Principal::from_text(
+                "f3fm7-oyfh2-ulrei-aglbq-e7sey-lw63l-ddv2u-le3uk-zwxbc-iortm-7qe",
+            )
+            .unwrap(),
+            subaccount: None,
+        },
+        10900,
+    );
 }
 
 /*
