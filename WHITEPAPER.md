@@ -49,6 +49,10 @@ Realms represent sub-communities grouped by a certain topic.
 Every realm can have its own term and conditions, so that any violation of them can lead to flagging of user's post to stalwarts.
 By joining a realm, a user implicitly agrees with its terms and conditions.
 
+## STALWARTS
+
+Stalwarts are the top `$stalwart_percentage%` of users with the highest karma being active during the last `$min_stalwart_activity_weeks` consecutive weeks, with accounts older than `$min_stalwart_account_age_weeks` weeks. They are marked with ⚔️ on their profiles. They count as trusted members of the community and can carry out moderating actions and can submit proposals.
+
 ## The content policy
 
 Decentralization does not imply lawlessness!
@@ -64,9 +68,6 @@ The policy is vague on purpose and will require a social consensus among the sta
 ## Moderation
 
 Moderation on $name is decentralized: it can be triggered by anyone and can be exercised by the _stalwarts_.
-Stalwarts are the top `$stalwart_percentage%` of users with the highest karma being active during the last `$min_stalwart_activity_weeks` consecutive weeks, with accounts older than `$min_stalwart_account_age_weeks` weeks.
-They are marked with ⚔️  on their profiles.
-They count as trusted members of the community and can carry out moderating actions.
 Whenever a post gets reported, all stalwarts get notified and are expected to confirm or reject the report.
 As soon as `$report_confirmation_percentage%` of stalwarts agree on confirmation or rejection of the report, the report gets closed.
 If most stalwarts confirm the report:
