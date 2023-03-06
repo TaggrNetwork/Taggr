@@ -226,7 +226,13 @@ const PostInfo = ({post, version, postCreated, callback}) => {
             {postAuthor && <>
                 <button className="max_width_col" onClick={() => location.href=`/#/edit/${post.id}`}><Edit /></button>
                 {post.hashes.length == 0 && <ButtonWithLoading classNameArg="max_width_col" onClick={async () => {
-                    if (!confirm("Please confirm the post deletion.")) return;
+                    const { post_cost, post_deletion_penalty_factor } = backendCache.config;
+                    const cost = objectReduce(post.reactions, (acc, id, users) => {
+                        const costTable = reactionCosts();
+                        let cost = costTable[parseInt(id)];
+                        return acc + (cost > 0 ? cost : 0) * users.length;
+                    }, 0) + post_cost + post.tree_size * post_deletion_penalty_factor;
+                    if (!confirm(`Please confirm the post deletion: it will costs ${cost} cycles.`)) return;
                     let current = post.body;
                     const versions = [current];
                     for (let i = post.patches.length-1; i >= 0; i--) {
