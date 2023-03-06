@@ -131,7 +131,7 @@ impl Post {
             report.vote(stalwarts, stalwart, confirmed);
             let approved = report.closed && report.confirmed_by.len() > report.rejected_by.len();
             if approved {
-                self.delete(vec![self.body]);
+                self.delete(vec![self.body.clone()]);
             }
         }
     }
