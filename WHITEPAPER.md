@@ -121,11 +121,6 @@ While a proposal stays open, the system defers the reward distributions and toke
 Every user can invite new users to $name by creating invites charged with cycles.
 The profile of every invited user shows their "host", s.t. users can be held accountable for their invites.
 
-## Immutability
-
-$name's content is immutable. Edited posts preserve the entire edit history.
-The only exception is the post deletion by stalwarts described above.
-
 ## Autonomy
 
 $name is designed with decentralization in mind which means **full autonomy**.
