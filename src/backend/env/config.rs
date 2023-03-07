@@ -13,6 +13,7 @@ pub struct Config {
     pub twitter: &'static str,
     pub logo: &'static str,
 
+    pub transaction_fee: u64,
     pub token_decimals: u8,
     pub token_symbol: &'static str,
     pub total_supply: Token,
@@ -81,13 +82,15 @@ pub struct Config {
 
     pub distribution_interval_hours: u64,
 
-    pub reactions: &'static [(u16, i32)],
+    pub reactions: &'static [(u16, Cycles)],
 
     pub min_positive_reaction_id: u16,
 
     pub reaction_fee: i64,
 
     pub max_funding_amount: u64,
+
+    pub post_deletion_penalty_factor: u32,
 }
 
 pub const CONFIG: &Config = &Config {
@@ -98,6 +101,7 @@ pub const CONFIG: &Config = &Config {
 
     token_symbol: "TAGGR",
     token_decimals: 2,
+    transaction_fee: 1,
 
     #[cfg(feature = "dev")]
     proposal_approval_threshold: 1,
@@ -144,6 +148,8 @@ pub const CONFIG: &Config = &Config {
 
     max_realm_name: 12,
     max_realm_logo_len: 16 * 1024,
+
+    post_deletion_penalty_factor: 10,
 
     voting_reward: 5,
 
