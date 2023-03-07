@@ -1444,7 +1444,7 @@ impl State {
     ) -> Result<(), String> {
         let post = self.posts.get(&post_id).ok_or("no post found")?.clone();
         if self.principal_to_user(principal).map(|user| user.id) != Some(post.user) {
-            return Err("not authenticated".into());
+            return Err("not authorized".into());
         }
 
         let comments_tree_penalty =
@@ -1863,7 +1863,7 @@ pub(crate) mod tests {
         let versions = vec!["a".into(), "b".into()];
         assert_eq!(
             state.delete_post(pr(1), post_id, versions.clone()),
-            Err("not authenticated".into())
+            Err("not authorized".into())
         );
 
         state
