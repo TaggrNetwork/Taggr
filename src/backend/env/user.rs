@@ -1,4 +1,5 @@
 use super::*;
+use ic_ledger_types::AccountIdentifier;
 use serde::{Deserialize, Serialize};
 
 pub type UserId = u64;
@@ -29,7 +30,7 @@ pub struct User {
     karma: Karma,
     rewarded_karma: Karma,
     cycles: Cycles,
-    feeds: Vec<BTreeSet<String>>,
+    pub feeds: Vec<BTreeSet<String>>,
     pub followees: BTreeSet<UserId>,
     pub followers: BTreeSet<UserId>,
     pub timestamp: u64,
@@ -44,15 +45,26 @@ pub struct User {
     pub current_realm: Option<String>,
     pub balance: Token,
     pub active_weeks: u32,
+    #[serde(default = "set_principal")]
+    pub principal: Principal,
+}
+
+// TODO: remove
+fn set_principal() -> Principal {
+    Principal::anonymous()
 }
 
 impl User {
-    pub fn new(id: UserId, timestamp: u64, name: String) -> Self {
+    pub fn new(principal: Principal, id: UserId, timestamp: u64, name: String) -> Self {
         Self {
             id,
             name,
             about: Default::default(),
-            account: Default::default(),
+            account: AccountIdentifier::new(
+                &super::id(),
+                &invoices::principal_to_subaccount(&principal),
+            )
+            .to_string(),
             settings: Default::default(),
             cycles: 0,
             karma: 0,
@@ -74,18 +86,12 @@ impl User {
             inbox: Default::default(),
             balance: 0,
             active_weeks: 0,
+            principal,
         }
     }
 
-    pub fn update(
-        &mut self,
-        about: String,
-        account: String,
-        principals: Vec<String>,
-        settings: String,
-    ) {
+    pub fn update(&mut self, about: String, principals: Vec<String>, settings: String) {
         self.about = about;
-        self.account = account;
         self.settings = settings;
         self.controllers = principals;
     }
@@ -108,14 +114,8 @@ impl User {
             && time().saturating_sub(self.timestamp) >= CONFIG.trusted_user_min_age_weeks * WEEK
     }
 
-    pub fn valid_info(about: &str, account: &str, settings: &str) -> bool {
-        (account.is_empty() || invoices::parse_account(account).is_ok())
-            && vec![about.len(), account.len()]
-                .into_iter()
-                .max()
-                .unwrap_or_default()
-                + settings.len()
-                < CONFIG.max_user_info_length
+    pub fn valid_info(about: &str, settings: &str) -> bool {
+        about.len() + settings.len() < CONFIG.max_user_info_length
     }
 
     pub fn clear_notifications(&mut self, ids: Vec<String>) {
@@ -288,10 +288,11 @@ impl User {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::env::tests::pr;
 
     #[test]
     fn test_rewarding() {
-        let mut u = User::new(66, 0, Default::default());
+        let mut u = User::new(pr(0), 66, 0, Default::default());
 
         assert_eq!(u.karma(), 0);
         assert_eq!(u.karma_to_reward(), 0);
@@ -327,7 +328,7 @@ mod tests {
 
     #[test]
     fn test_change_cycles() {
-        let mut u = User::new(66, 0, Default::default());
+        let mut u = User::new(pr(1), 66, 0, Default::default());
         u.cycles = 100;
         assert!(u.change_cycles(55, "").is_ok());
         assert_eq!(u.cycles(), 155);

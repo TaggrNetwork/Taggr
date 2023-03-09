@@ -8,6 +8,8 @@ export const percentage = (n, supply) => {
     return `${p}%`;
 }
 
+export const hex = arr => Array.from(arr, byte => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
+
 export const microSecsSince = timestamp => Number(new Date()) - parseInt(timestamp) / 1000000;
 
 export const hoursTillNext = (interval, last) => Math.ceil(interval / 1000000 / 3600000 - microSecsSince(last) / 3600000);
@@ -143,6 +145,22 @@ export const timeAgo = (timestamp, absolute) => {
     }
 };
 
+export const tokenBalance = profile =>(profile.balance / Math.pow(10, backendCache.config.token_decimals)).toLocaleString() 
+export const icpCode = (e8s, decimals, units = true) => <code className="xx_large_text">{icp(e8s, decimals)}{units && " ICP"}</code>;
+
+export const icp = (e8s, decimals = false) => {
+    let n = parseInt(e8s);
+    let base = Math.pow(10, 8);
+    let v = n / base;
+    return (decimals ? v : Math.floor(v)).toLocaleString()
+}
+
+export const ICPAccountBalance = ({address, decimals, units}) => {
+    const [e8s, setE8s] = React.useState(0);
+    React.useEffect(() => { api.account_balance(address).then(setE8s); }, [address])
+    return icpCode(e8s, decimals, units);
+}
+
 export const Loading = ({classNameArg, spaced = true}) => {
     const [dot, setDot] = React.useState(0);
     const md = <span> ■ </span>;
@@ -191,7 +209,7 @@ export const loadPostBlobs = async (files) => {
         const [offset, len] = files[id];
         const arg = Buffer.from(intToBEBytes(offset).concat(intToBEBytes(len)));
         // This allows us to see the bucket pics in dev mode.
-        const api = bucket_id ? window.mainnet_api : window.api;
+        const api = backendCache.stats.buckets.every(([id, ]) => id != bucket_id) ? window.mainnet_api : window.api;
         return api.query_raw(bucket_id, "read", arg).then(blob => [blobId, blob]);
     }));
     return blobs.reduce((acc, [blobId, blob]) => {

@@ -1,6 +1,7 @@
-use crate::token::{Account, Token};
+use crate::token::Token;
 
 use super::config::CONFIG;
+use super::token::account;
 use super::user::Predicate;
 use super::{time, HOUR};
 use super::{user::UserId, State};
@@ -32,31 +33,28 @@ pub struct Proposal {
     pub description: String,
     pub status: Status,
     pub payload: Payload,
-    votes: Vec<(Principal, bool, Token)>,
+    // TODO: remove
+    pub votes: Vec<(Principal, bool, Token)>,
+    #[serde(default)]
+    pub bulletins: Vec<(UserId, bool, Token)>,
     voting_power: Token,
 }
 
 impl Proposal {
     fn vote(&mut self, state: &State, principal: Principal, approve: bool) -> Result<(), String> {
-        if !state
-            .principal_to_user(principal)
-            .map(|user| user.trusted())
-            .unwrap_or(false)
-        {
+        let user = state.principal_to_user(principal).ok_or("no user found")?;
+        if !user.trusted() {
             return Err("only trusted users can vote".into());
         }
-        if self.votes.iter().any(|(voter, _, _)| *voter == principal) {
+        if self.bulletins.iter().any(|(voter, _, _)| *voter == user.id) {
             return Err("double vote".into());
         }
         let balance = state
             .balances
-            .get(&Account {
-                owner: principal,
-                subaccount: None,
-            })
+            .get(&account(principal))
             .ok_or_else(|| "only token holders can vote".to_string())?;
 
-        self.votes.push((principal, approve, *balance));
+        self.bulletins.push((user.id, approve, *balance));
         Ok(())
     }
 
@@ -79,7 +77,7 @@ impl Proposal {
         self.voting_power = voting_power;
 
         let (approvals, rejects): (Token, Token) =
-            self.votes
+            self.bulletins
                 .iter()
                 .fold((0, 0), |(approvals, rejects), (_, approved, balance)| {
                     if *approved {
@@ -124,10 +122,7 @@ impl Proposal {
                     let receiver = Principal::from_text(receiver).map_err(|e| e.to_string())?;
                     crate::token::mint(
                         state,
-                        Account {
-                            owner: receiver,
-                            subaccount: None,
-                        },
+                        account(receiver),
                         *tokens * 10_u64.pow(CONFIG.token_decimals as u32),
                     );
                     state.logger.info(format!(
@@ -233,6 +228,7 @@ pub fn propose(
         timestamp: time(),
         status: Status::Open,
         payload,
+        bulletins: Vec::default(),
         votes: Default::default(),
         voting_power: 0,
         id,
@@ -312,7 +308,7 @@ pub(super) async fn execute_proposal(
         state.denotify_users(&|user| user.active_within_weeks(time, 1) && user.balance > 0);
         state.logger.info(format!(
             "Spent `{}` cycles on proposal voting rewards.",
-            proposal.votes.len() * CONFIG.voting_reward as usize
+            proposal.bulletins.len() * CONFIG.voting_reward as usize
         ));
     }
     state.proposals = proposals;
@@ -477,14 +473,7 @@ mod tests {
         for i in 1..11 {
             let p = pr(i);
             assert_eq!(
-                state
-                    .balances
-                    .get(&Account {
-                        owner: p,
-                        subaccount: None
-                    })
-                    .copied()
-                    .unwrap_or_default(),
+                state.balances.get(&account(p)).copied().unwrap_or_default(),
                 100000
             )
         }
@@ -523,7 +512,7 @@ mod tests {
         // vote by non existing user
         assert_eq!(
             vote_on_proposal(&mut state, 0, pr(111), prop_id, false).await,
-            Err("only trusted users can vote".to_string())
+            Err("no user found".to_string())
         );
         let id = create_user(&mut state, pr(111));
         assert!(state.users.get(&id).unwrap().trusted());
@@ -548,16 +537,10 @@ mod tests {
         );
 
         let p = pr(77);
-        state.balances.insert(
-            Account {
-                owner: p,
-                subaccount: None,
-            },
-            10000000,
-        );
+        state.balances.insert(account(p), 10000000);
         assert_eq!(
             vote_on_proposal(&mut state, 0, p, prop_id, false).await,
-            Err("only trusted users can vote".to_string())
+            Err("no user found".to_string())
         );
 
         // adjust karma so that after the proposal is rejected, the user turns into an untrusted

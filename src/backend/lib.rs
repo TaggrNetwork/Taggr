@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
+use candid::Principal;
 use env::{
     canisters::upgrade_main_canister,
     config::CONFIG,
     post::{Extension, Post, PostId},
     proposals::{Payload, Release, Status},
-    token::Account,
     user::{User, UserId},
     *,
 };
@@ -18,6 +18,7 @@ use ic_cdk::{
     caller, id, println, spawn, timer,
 };
 use ic_cdk_macros::*;
+use ic_ledger_types::AccountIdentifier;
 use serde_bytes::ByteBuf;
 
 mod assets;
@@ -73,7 +74,40 @@ fn post_upgrade() {
     state_mut().load();
     set_timer();
 
+    #[cfg(feature = "dev")]
+    state_mut().storage.buckets.clear();
+
     // temporary post upgrade logic goes here
+    for p in state_mut().proposals.iter_mut() {
+        p.bulletins = p
+            .votes
+            .clone()
+            .into_iter()
+            .map(|(p, v, t)| {
+                (
+                    // Only yungsucc changed the principal, so no other failures are expected
+                    state().principal_to_user(p).map(|u| u.id).unwrap_or(660),
+                    v,
+                    t,
+                )
+            })
+            .collect();
+    }
+
+    let s = state_mut();
+    s.accounting.invoices.clear();
+    let principals = s.principals.clone();
+    for u in s.users.values_mut() {
+        u.principal = principals
+            .iter()
+            .find_map(|(p, id)| (id == &u.id).then(|| *p))
+            .unwrap_or(Principal::anonymous());
+        let subacc = invoices::principal_to_subaccount(&u.principal);
+        u.account = AccountIdentifier::new(&id(), &subacc).to_string();
+    }
+
+    //  clean up garbage feeds in https://taggr.link/#/thread/18267
+    s.users.get_mut(&83).unwrap().feeds.clear();
 }
 
 /*
@@ -270,17 +304,16 @@ fn change_principal() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (about, account, principals, settings): (String, String, Vec<String>, String) =
-        parse(&arg_data_raw());
+    let (about, principals, settings): (String, Vec<String>, String) = parse(&arg_data_raw());
     let state = state_mut();
     let mut response: Result<(), String> = Ok(());
-    if !User::valid_info(&about, &account, &settings) {
+    if !User::valid_info(&about, &settings) {
         response = Err("invalid user info".to_string());
         reply(response);
         return;
     }
     if let Some(user) = state.principal_to_user_mut(caller()) {
-        user.update(about, account, principals, settings);
+        user.update(about, principals, settings);
     } else {
         response = Err("no user found".into());
     }
@@ -295,9 +328,12 @@ fn create_user() {
     });
 }
 
-#[export_name = "canister_update buy_cycles"]
-fn buy_cycles() {
-    spawn(async { reply(state_mut().buy_cycles(caller()).await) });
+#[export_name = "canister_update mint_cycles"]
+fn mint_cycles() {
+    spawn(async {
+        let kilo_cycles: u64 = parse(&arg_data_raw());
+        reply(state_mut().mint_cycles(caller(), kilo_cycles).await)
+    });
 }
 
 #[export_name = "canister_update create_invite"]
@@ -360,7 +396,7 @@ fn cancel_proposal() {
 }
 
 #[update]
-fn add_post(
+async fn add_post(
     body: String,
     blobs: Vec<(String, Blob)>,
     parent: Option<PostId>,
@@ -378,10 +414,11 @@ fn add_post(
         realm,
         extension,
     )
+    .await
 }
 
 #[update]
-fn edit_post(
+async fn edit_post(
     id: PostId,
     body: String,
     blobs: Vec<(String, Blob)>,
@@ -398,6 +435,7 @@ fn edit_post(
         caller(),
         api::time(),
     )
+    .await
 }
 
 #[export_name = "canister_update delete_post"]
@@ -580,19 +618,11 @@ fn user() {
     let input: Vec<String> = parse(&arg_data_raw());
     reply(resolve_handle(input.into_iter().next()).map(|mut user| {
         let state = state();
-        let balance = state
-            .principals
-            .iter()
-            .find_map(|(p, v)| (v == &user.id).then_some(p))
-            .and_then(|p| {
-                state.balances.get(&Account {
-                    owner: *p,
-                    subaccount: None,
-                })
-            })
+        user.balance = state
+            .balances
+            .get(&token::account(user.principal))
             .copied()
             .unwrap_or_default();
-        user.balance = balance;
         user
     }));
 }

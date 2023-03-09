@@ -33,7 +33,7 @@ pub struct Invoice {
 
 #[derive(Deserialize, Default, Serialize)]
 pub struct Invoices {
-    invoices: HashMap<Principal, Invoice>,
+    pub invoices: HashMap<Principal, Invoice>,
 }
 
 impl Invoices {
@@ -44,7 +44,8 @@ impl Invoices {
 
     async fn create_invoice(&mut self, invoice_id: Principal) -> Result<Invoice, String> {
         let time = time();
-        let (sub_account, account) = user_subaccount(invoice_id);
+        let sub_account = principal_to_subaccount(&invoice_id);
+        let account = AccountIdentifier::new(&id(), &sub_account);
         let invoice = Invoice {
             paid: false,
             e8s: get_xdr_in_e8s().await?,
@@ -61,34 +62,45 @@ impl Invoices {
         self.invoices.remove(invoice_id);
     }
 
-    pub async fn outstanding(&mut self, invoice_id: &Principal) -> Result<Invoice, String> {
+    pub async fn outstanding(
+        &mut self,
+        invoice_id: &Principal,
+        kilo_cycles: u64,
+    ) -> Result<Invoice, String> {
         let invoice = match self.invoices.get_mut(invoice_id) {
             Some(invoice) => invoice,
             None => {
                 let invoice = self.create_invoice(*invoice_id).await?;
                 self.invoices.insert(*invoice_id, invoice);
-                return Ok(self
-                    .invoices
-                    .get_mut(invoice_id)
-                    .expect("no invoice found")
-                    .clone());
+                let invoice = self.invoices.get_mut(invoice_id).expect("no invoice found");
+                if kilo_cycles == 0 {
+                    return Ok(invoice.clone());
+                }
+                invoice
             }
         };
         if invoice.paid {
             return Ok(invoice.clone());
         }
         let balance = account_balance(invoice.account).await;
-        if balance >= Tokens::from_e8s(invoice.e8s) {
+        let costs = if kilo_cycles == 0 {
+            balance
+        } else {
+            Tokens::from_e8s(kilo_cycles * invoice.e8s)
+        };
+        if balance >= costs {
             transfer_raw(
                 MAINNET_LEDGER_CANISTER_ID,
-                balance,
+                costs,
                 main_account(),
                 Memo(0),
                 Some(invoice.sub_account),
             )
             .await?;
             invoice.paid = true;
-            invoice.paid_e8s = balance.e8s();
+            invoice.paid_e8s = costs.e8s();
+        } else if kilo_cycles > 0 {
+            return Err("ICP balance too low".into());
         }
         Ok(invoice.clone())
     }
@@ -174,19 +186,6 @@ async fn account_balance(account: AccountIdentifier) -> Tokens {
     balance
 }
 
-pub fn user_subaccount(principal: Principal) -> (Subaccount, AccountIdentifier) {
-    let mut hash = [0_u8; 32];
-    principal
-        .as_slice()
-        .iter()
-        .cycle()
-        .take(hash.len())
-        .enumerate()
-        .for_each(|(i, byte)| hash[i] = *byte);
-    let sub_account = Subaccount(hash);
-    (sub_account, AccountIdentifier::new(&id(), &sub_account))
-}
-
 pub async fn get_xdr_in_e8s() -> Result<u64, String> {
     let (IcpXdrConversionRateCertifiedResponse {
         data: IcpXdrConversionRate {
@@ -253,7 +252,7 @@ async fn notify(canister_id: Principal, block_index: u64) -> Result<u128, String
     result.map_err(|err| format!("CMC notification failed: {:?}", err))
 }
 
-fn principal_to_subaccount(principal_id: &Principal) -> Subaccount {
+pub fn principal_to_subaccount(principal_id: &Principal) -> Subaccount {
     let mut subaccount = [0; std::mem::size_of::<Subaccount>()];
     let principal_id = principal_id.as_slice();
     subaccount[0] = principal_id.len() as u8;
