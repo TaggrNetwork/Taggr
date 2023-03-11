@@ -2,6 +2,7 @@ use self::invoices::Invoice;
 use self::proposals::Status;
 use self::token::account;
 use self::user::{Notification, Predicate};
+use crate::env::invoices::principal_to_subaccount;
 use crate::proposals::Proposal;
 use crate::token::{Account, Token, Transaction};
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
@@ -72,7 +73,6 @@ pub struct Stats {
     active_users: usize,
     invited_users: usize,
     buckets: Vec<(String, u64)>,
-    events: Vec<Event>,
     users_online: usize,
     last_upgrade: u64,
     module_hash: String,
@@ -87,8 +87,8 @@ pub struct Realm {
     pub description: String,
     pub posts: Vec<PostId>,
     controllers: Vec<UserId>,
-    members: BTreeSet<UserId>,
-    label_color: String,
+    pub members: BTreeSet<UserId>,
+    pub label_color: String,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -814,9 +814,13 @@ impl State {
                 _ => Err(format!("Can't parse amount {}", amount)),
             }
         }
-        invoices::user_transfer(&principal, &recipient, parse(&amount)?)
-            .await
-            .map(|_| ())
+        invoices::transfer(
+            &recipient,
+            parse(&amount)?,
+            Some(principal_to_subaccount(&principal)),
+        )
+        .await
+        .map(|_| ())
     }
 
     async fn distribute_icp(
@@ -848,7 +852,7 @@ impl State {
             if e8s < invoices::fee() * 100 {
                 continue;
             }
-            match invoices::transfer(&user.account, e8s).await {
+            match invoices::transfer(&user.account, Tokens::from_e8s(e8s), None).await {
                 Ok(_) => {
                     user_rewards += user_reward;
                     user_revenues += user_revenue;
@@ -1277,6 +1281,10 @@ impl State {
         id
     }
 
+    pub fn logs(&self) -> &Vec<Event> {
+        &self.logger.events
+    }
+
     pub fn stats(&self, now: u64) -> Stats {
         let cycles: Cycles = self.users.values().map(|u| u.cycles()).sum();
         let posts = self.posts.values().filter(|p| p.parent.is_none()).count();
@@ -1341,7 +1349,6 @@ impl State {
                 .iter()
                 .map(|(id, size)| (id.to_string(), *size))
                 .collect(),
-            events: self.logger.events.iter().rev().cloned().collect(),
             circulating_supply: self.balances.values().sum(),
         }
     }

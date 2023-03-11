@@ -2,7 +2,6 @@ use std::{cell::RefCell, collections::HashMap};
 
 use ic_stable_structures::{
     memory_manager::{MemoryId, MemoryManager, VirtualMemory},
-    writer::Writer,
     DefaultMemoryImpl,
 };
 
@@ -146,13 +145,15 @@ fn stable_to_heap_core() {
 }
 
 fn heap_to_stable_core(state: &State) {
+    use api::stable::{stable64_grow, stable64_size, stable64_write};
     let buffer: Vec<u8> = serde_cbor::to_vec(state).expect("couldn't serialize the state");
-    let mut memory = get_upgrades_memory();
-    let mut writer = Writer::new(&mut memory, 0);
-    writer
-        .write(&buffer.len().to_le_bytes())
-        .expect("couldn't serialize heap length");
-    writer.write(&buffer).expect("couldn't serialize the heap");
+    let len = buffer.len() as u64;
+    if len > (stable64_size() << 16) && stable64_grow((len >> 16) + 1).is_err() {
+        panic!("Couldn't grow memory");
+    }
+    stable64_write(16, &buffer);
+    api::stable::stable64_write(0, &16_u64.to_be_bytes());
+    api::stable::stable64_write(8, &len.to_be_bytes());
 }
 
 #[export_name = "canister_update heap_to_stable"]
@@ -587,9 +588,41 @@ fn realm_posts() {
     }
 }
 
+fn sorted_realms<'a>() -> Vec<(&'a String, &'a Realm)> {
+    let mut realms = state().realms.iter().collect::<Vec<_>>();
+    realms.sort_unstable_by(|(_, b), (_, a)| {
+        (a.posts.len() * a.members.len()).cmp(&(b.posts.len() * b.members.len()))
+    });
+    realms
+}
+
+#[export_name = "canister_query realms_data"]
+fn realms_data() {
+    reply(
+        sorted_realms()
+            .iter()
+            .map(|(name, realm)| (name, &realm.label_color))
+            .collect::<Vec<_>>(),
+    );
+}
+
+#[export_name = "canister_query realm"]
+fn realm() {
+    let name: String = parse(&arg_data_raw());
+    reply(state().realms.get(&name).ok_or("no realm found"));
+}
+
 #[export_name = "canister_query realms"]
 fn realms() {
-    reply(&state().realms);
+    let page_size = 8;
+    let page: usize = parse(&arg_data_raw());
+    reply(
+        sorted_realms()
+            .iter()
+            .skip(page * page_size)
+            .take(page_size)
+            .collect::<Vec<_>>(),
+    );
 }
 
 #[export_name = "canister_query tree"]
@@ -732,6 +765,11 @@ fn config() {
     reply(CONFIG);
 }
 
+#[export_name = "canister_query logs"]
+fn logs() {
+    reply(state().logs());
+}
+
 #[export_name = "canister_query stats"]
 fn stats() {
     reply(state().stats(api::time()));
@@ -745,9 +783,8 @@ fn search() {
 
 #[query]
 fn stable_mem_read(page: u64) -> Vec<(u64, Blob)> {
-    use ic_stable_structures::Memory;
     let offset = page * BACKUP_PAGE_SIZE as u64;
-    let memory_end = get_upgrades_memory().size() << 16;
+    let memory_end = ic_cdk::api::stable::stable64_size() << 16;
     if offset > memory_end {
         return Default::default();
     }
