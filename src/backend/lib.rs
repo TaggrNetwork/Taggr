@@ -1,25 +1,20 @@
-use std::{cell::RefCell, collections::HashMap};
+use std::collections::HashMap;
 
-use ic_stable_structures::{
-    memory_manager::{MemoryId, MemoryManager, VirtualMemory},
-    DefaultMemoryImpl,
-};
-
-use env::State;
 use env::{
     canisters::upgrade_main_canister,
     config::CONFIG,
+    memory,
     post::{Extension, Post, PostId},
     proposals::{Payload, Release, Status},
     user::{User, UserId},
-    *,
+    State, *,
 };
 use ic_cdk::{
     api::{
         self,
         call::{arg_data_raw, reply_raw},
     },
-    caller, id, println, spawn, timer,
+    caller, id, spawn, timer,
 };
 use ic_cdk_macros::*;
 use serde_bytes::ByteBuf;
@@ -28,21 +23,9 @@ mod assets;
 mod env;
 mod http;
 
-const UPGRADES: MemoryId = MemoryId::new(0);
 const BACKUP_PAGE_SIZE: u32 = 1024 * 1024;
 
-thread_local! {
-    static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> =
-        RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
-}
-
-pub fn get_upgrades_memory() -> Memory {
-    MEMORY_MANAGER.with(|m| m.borrow().get(UPGRADES))
-}
-
 static mut STATE: Option<State> = None;
-
-pub type Memory = VirtualMemory<DefaultMemoryImpl>;
 
 pub fn state<'a>() -> &'a State {
     unsafe { STATE.as_ref().expect("read access failed: no state") }
@@ -71,7 +54,7 @@ fn init() {
 
 #[pre_upgrade]
 fn pre_upgrade() {
-    heap_to_stable_core(state());
+    env::memory::heap_to_stable(state());
 }
 
 #[post_upgrade]
@@ -127,33 +110,9 @@ fn stable_to_heap() {
 }
 
 fn stable_to_heap_core() {
-    use ic_stable_structures::Memory;
-    println!("Reading heap");
-    let memory = get_upgrades_memory();
-
-    // Read the length of the state bytes.
-    let mut state_len_bytes = [0; 4];
-    memory.read(0, &mut state_len_bytes);
-    let state_len = u32::from_le_bytes(state_len_bytes) as usize;
-
-    // Read the bytes
-    let mut bytes = vec![0; state_len];
-    memory.read(4, &mut bytes);
     unsafe {
-        STATE = Some(serde_cbor::from_slice(&bytes).expect("couldn't deserialize"));
+        STATE = Some(env::memory::stable_to_heap());
     };
-}
-
-fn heap_to_stable_core(state: &State) {
-    use api::stable::{stable64_grow, stable64_size, stable64_write};
-    let buffer: Vec<u8> = serde_cbor::to_vec(state).expect("couldn't serialize the state");
-    let len = buffer.len() as u64;
-    if len > (stable64_size() << 16) && stable64_grow((len >> 16) + 1).is_err() {
-        panic!("Couldn't grow memory");
-    }
-    stable64_write(16, &buffer);
-    api::stable::stable64_write(0, &16_u64.to_be_bytes());
-    api::stable::stable64_write(8, &len.to_be_bytes());
 }
 
 #[export_name = "canister_update heap_to_stable"]
@@ -164,7 +123,7 @@ fn heap_to_stable() {
         .expect("no user found")
         .clone();
     if user.stalwart {
-        heap_to_stable_core(s);
+        env::memory::heap_to_stable(s);
         s.logger.info(format!(
             "@{} dumped heap to stable memory for backup purposes.",
             user.name
@@ -535,6 +494,12 @@ fn balances() {
     );
 }
 
+#[export_name = "canister_query transaction"]
+fn transaction() {
+    let id: usize = parse(&arg_data_raw());
+    reply(state().ledger.get(id).ok_or("not found"));
+}
+
 #[export_name = "canister_query transactions"]
 fn transactions() {
     let (page, search_term): (usize, String) = parse(&arg_data_raw());
@@ -542,7 +507,9 @@ fn transactions() {
     let iter: Box<dyn DoubleEndedIterator<Item = _>> = if search_term.is_empty() {
         Box::new(iter)
     } else {
-        Box::new(iter.filter(|(_, t)| t.to.owner.to_string().contains(&search_term)))
+        Box::new(iter.filter(|(_, t)| {
+            (t.to.owner.to_string() + &t.from.owner.to_string()).contains(&search_term)
+        }))
     };
     reply(
         iter.rev()
@@ -784,7 +751,7 @@ fn search() {
 #[query]
 fn stable_mem_read(page: u64) -> Vec<(u64, Blob)> {
     let offset = page * BACKUP_PAGE_SIZE as u64;
-    let memory_end = ic_cdk::api::stable::stable64_size() << 16;
+    let memory_end = memory::heap_address().1;
     if offset > memory_end {
         return Default::default();
     }

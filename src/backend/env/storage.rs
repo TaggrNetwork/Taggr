@@ -36,7 +36,7 @@ impl Storage {
     }
 
     #[allow(dead_code)]
-    pub async fn upgrade_buckets(&self) -> Result<(), String> {
+    async fn upgrade_buckets(&self) -> Result<(), String> {
         for id in self.buckets.keys() {
             install(*id, BUCKET_WASM_GZ, CanisterInstallMode::Upgrade).await?;
         }

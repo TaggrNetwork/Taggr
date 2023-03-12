@@ -6,12 +6,12 @@ use crate::env::invoices::principal_to_subaccount;
 use crate::proposals::Proposal;
 use crate::token::{Account, Token, Transaction};
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
-use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{self, canister_balance};
 use ic_cdk::export::candid::Principal;
 use ic_ledger_types::Tokens;
 use invoices::e8s_to_icp;
 use invoices::Invoices;
+use memory::Storable;
 use post::{Post, PostId};
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -22,10 +22,11 @@ use user::{User, UserId};
 pub mod canisters;
 pub mod config;
 pub mod invoices;
+pub mod memory;
 pub mod post;
 pub mod proposals;
 pub mod reports;
-mod storage;
+pub mod storage;
 pub mod token;
 pub mod user;
 
@@ -116,13 +117,24 @@ pub struct State {
     pub proposals: Vec<Proposal>,
     pub ledger: Vec<Transaction>,
 
-    #[serde(default)]
     pub team_tokens: HashMap<UserId, Token>,
+
+    #[serde(default)]
+    pub memory: memory::Memory,
 
     #[serde(skip)]
     pub module_hash: String,
     #[serde(skip)]
     pub last_upgrade: u64,
+}
+
+impl Storable for State {
+    fn to_bytes(&self) -> Vec<u8> {
+        serde_cbor::to_vec(&self).expect("couldn't serialize the state")
+    }
+    fn from_bytes(bytes: Vec<u8>) -> Self {
+        serde_cbor::from_slice(&bytes).expect("couldn't deserialize")
+    }
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -1332,7 +1344,7 @@ impl State {
                 .filter(|u| u.is_bot())
                 .map(|u| u.id)
                 .collect(),
-            state_size: stable64_size() << 16,
+            state_size: self.memory.size(),
             invited_users: self
                 .users
                 .values()

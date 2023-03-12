@@ -1,5 +1,6 @@
 import {CopyToClipboard, HeadBar, Loading, hex, ICPAccountBalance, tokenBalance, ButtonWithLoading, bigScreen, IcpAccountLink} from "./common";
 import * as React from "react";
+import {Transactions} from "./tokens";
 
 const Welcome = () => {
     const [invoice, setInvoice] = React.useState(null);
@@ -59,6 +60,14 @@ export const Wallets = () => {
     const [mintStatus, setMintStatus] = React.useState(null);
     const [transferStatus, setTransferStatus] = React.useState(null);
     const mintCycles = async kilo_cycles => await api.call("mint_cycles", kilo_cycles);
+    const [transactions, setTransactions] = React.useState([]);
+
+    const loadTransactions = async () => {
+        const txs = await window.api.query("transactions", 0, api._user.principal);
+        setTransactions(txs);
+    };
+
+    React.useEffect(() => { loadTransactions(); }, []);
 
     if (!user) return <Welcome />;
     let { token_symbol, name} = backendCache.config;
@@ -114,7 +123,7 @@ export const Wallets = () => {
                         setMintStatus("SUCCESS!");
                     }} label="MINT" />
                 </div>
-                <div className="row_container vcentered">
+                <div className="vcentered">
                     <div className="max_width_col">
                         {mintStatus && <code>{mintStatus}</code>}
                     </div>
@@ -123,7 +132,13 @@ export const Wallets = () => {
             </div>
             <div className="stands_out">
                 <h1>{token_symbol} TOKENS</h1>
-                <div className="row_container vcentered"><code className="max_width_col">BALANCE</code><code className="xx_large_text">{tokenBalance(user)}</code></div>
+                <div className="vcentered">
+                    <code className="max_width_col"><CopyToClipboard value={user.principal} displayMap={val => bigScreen() ? val : val.split("-")[0]} /></code>
+                    <code className="xx_large_text">{tokenBalance(user.balance)}</code>
+                </div>
+                <hr/>
+                <h2>Latest Transactions</h2>
+                <Transactions transactions={transactions} />
             </div>
         </div>
         <div className="spaced">
