@@ -20,7 +20,7 @@ pub struct Config {
 
     pub proposal_approval_threshold: u16,
     pub proposal_controversy_threashold: u16,
-    pub proposal_rejection_penalty: u32,
+    pub proposal_rejection_penalty: Cycles,
 
     pub min_cycle_balance_main: u64,
 
@@ -37,7 +37,7 @@ pub struct Config {
     pub minimal_tip: Cycles,
     pub tipping_fee: Cycles,
 
-    pub trusted_user_min_karma: i64,
+    pub trusted_user_min_karma: Karma,
     pub trusted_user_min_age_weeks: u64,
 
     pub post_cost: Cycles,
@@ -49,18 +49,18 @@ pub struct Config {
     pub max_realm_name: usize,
     pub max_realm_logo_len: usize,
 
-    pub response_reward: Karma,
+    pub response_reward: Cycles,
 
-    pub inactivity_penalty: i64,
+    pub inactivity_penalty: Cycles,
     pub inactivity_duration_weeks: u64,
 
-    pub voting_reward: i64,
+    pub voting_reward: Cycles,
 
     // top x percentage of users selected as stalwarts
     pub stalwart_percentage: usize,
     pub min_stalwart_activity_weeks: u8,
     pub min_stalwart_account_age_weeks: u8,
-    pub stalwart_moderation_reward: i64,
+    pub stalwart_moderation_reward: Cycles,
 
     // percentage of stalwarts needed to confirm a report
     pub report_confirmation_percentage: u16,
@@ -82,11 +82,11 @@ pub struct Config {
 
     pub distribution_interval_hours: u64,
 
-    pub reactions: &'static [(u16, Cycles)],
+    pub reactions: &'static [(u16, i64)],
 
     pub min_positive_reaction_id: u16,
 
-    pub reaction_fee: i64,
+    pub reaction_fee: Cycles,
 
     pub max_funding_amount: u64,
 
@@ -129,6 +129,9 @@ pub const CONFIG: &Config = &Config {
 
     max_bucket_size: 1024 * 1024 * 1024 * 31, // 31Gb
 
+    #[cfg(feature = "dev")]
+    max_posts_per_hour: 15,
+    #[cfg(not(feature = "dev"))]
     max_posts_per_hour: 3,
     max_comments_per_hour: 15,
 

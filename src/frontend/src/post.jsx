@@ -246,17 +246,19 @@ const PostInfo = ({post, version, postCreated, callback}) => {
             </>}
         </div>}
         <div className="small_text top_spaced">
-            <b>CREATED</b>: {new Date(parseInt(postCreated) / 1000000).toLocaleString()}
+            <div>
+                <b>CREATED</b>: {new Date(parseInt(postCreated) / 1000000).toLocaleString()}
+            </div>
             {post.patches.length > 0 && <div>
                 <b>VERSIONS</b>: {commaSeparated((post.patches.concat([[post.timestamp, ""]])).map(([timestamp, _], v) => version == v 
                     ? `${version} (${timeAgo(timestamp)})`
                     : <span key={v}><a href={`/#/post/${post.id}/${v}`}>{`${v}`}</a> ({timeAgo(timestamp)})</span>))}</div>}
-            {post.watchers.length > 0 && <>
+            {post.watchers.length > 0 && <div>
                 <b>WATCHERS</b>: {commaSeparated(post.watchers.map(id => <UserLink key={id} id={id} />))}
-            </>}
-            {post.tips.length > 0 && <>
-                <b>TIPS</b>: {commaSeparated(post.tips.map(([id, tip]) => <span key={id + tip}><code>{tip}</code> from {linkToProfile(id)}</span>))}
-            </>}
+            </div>}
+            {post.tips.length > 0 && <div>
+                <b>TIPS</b>: {commaSeparated(post.tips.map(([id, tip]) => <span key={id + tip}><code>{tip}</code> from {<UserLink id={id} />}</span>))}
+            </div>}
             {Object.keys(post.reactions).length > 0 && <div className="top_spaced">
                 {Object.keys(post.reactions).map(id => {
                     let users = post.reactions[id];

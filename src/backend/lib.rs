@@ -72,41 +72,15 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
-    let s = state_mut();
-    for realm in s.realms.values_mut() {
-        realm.posts.sort_unstable_by(|a, b| a.cmp(&b));
-    }
 }
 
 /*
  * Updates
  */
 
-#[update]
-async fn fix() {
-    for p in state().proposals.clone() {
-        if p.description.is_empty() {
-            return;
-        }
-        let s = state_mut();
-        let principal = state().users.get(&p.proposer).unwrap().principal;
-        let post_id = post::add(
-            s,
-            p.description.clone(),
-            Default::default(),
-            principal,
-            p.timestamp,
-            None,
-            None,
-            Some(Extension::Proposal(p.id)),
-        )
-        .await
-        .unwrap();
-        let p = s.proposals.iter_mut().find(|pr| pr.id == p.id).unwrap();
-        p.description.clear();
-        p.post_id = post_id;
-    }
-}
+// #[update]
+// async fn fix() {
+// }
 
 #[cfg(feature = "dev")]
 #[update]
@@ -726,10 +700,6 @@ fn last_posts() {
     reply(
         state
             .last_posts(caller(), with_comments)
-            .filter(|post| match post.extension {
-                Some(Extension::Proposal(id)) => id > 50,
-                _ => true,
-            })
             .skip(page * CONFIG.feed_page_size)
             .take(CONFIG.feed_page_size)
             .cloned()

@@ -3,6 +3,7 @@ use self::proposals::Status;
 use self::token::account;
 use self::user::{Notification, Predicate};
 use crate::env::invoices::principal_to_subaccount;
+use crate::env::user::CyclesDelta;
 use crate::proposals::Proposal;
 use crate::token::{Account, Token, Transaction};
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
@@ -31,7 +32,7 @@ pub mod storage;
 pub mod token;
 pub mod user;
 
-pub type Cycles = i64;
+pub type Cycles = u64;
 pub type Karma = i64;
 pub type Blob = ByteBuf;
 
@@ -60,7 +61,7 @@ pub struct Stats {
     bootcamp_users: usize,
     cycles: Cycles,
     canister_cycle_balance: u64,
-    burned_cycles: Cycles,
+    burned_cycles: i64,
     burned_cycles_total: Cycles,
     total_revenue_shared: u64,
     total_rewards_shared: u64,
@@ -95,7 +96,7 @@ pub struct Realm {
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct State {
-    pub burned_cycles: Cycles,
+    pub burned_cycles: i64,
     pub burned_cycles_total: Cycles,
     pub posts: HashMap<PostId, Post>,
     pub users: HashMap<UserId, User>,
@@ -171,9 +172,8 @@ pub enum Destination {
 
 impl State {
     fn spend_to_user_karma<T: ToString>(&mut self, id: UserId, amount: Cycles, log: T) {
-        assert!(amount >= 0);
         let user = self.users.get_mut(&id).expect("no user found");
-        user.change_karma(amount, log.to_string());
+        user.change_karma(amount as Karma, log.to_string());
         if amount > CONFIG.voting_reward {
             self.logger.info(format!(
                 "Spent `{}` cycles on @{}'s karma for {}.",
@@ -182,16 +182,15 @@ impl State {
                 log.to_string()
             ));
         }
-        self.burned_cycles -= amount;
+        self.burned_cycles -= amount as i64;
     }
 
     fn spend<T: ToString>(&mut self, amount: Cycles, log: T) {
-        assert!(amount >= 0);
         if amount > 5 {
             self.logger
                 .info(format!("Spent `{}` cycles on {}.", amount, log.to_string()));
         }
-        self.burned_cycles -= amount;
+        self.burned_cycles -= amount as i64;
     }
 
     pub fn charge<T: ToString>(
@@ -204,8 +203,8 @@ impl State {
             return Err("non-positive amount".into());
         }
         let user = self.users.get_mut(&id).ok_or("no user found")?;
-        user.change_cycles(-amount, log)?;
-        self.burned_cycles += amount;
+        user.change_cycles(amount, CyclesDelta::Minus, log)?;
+        self.burned_cycles += amount as i64;
         Ok(())
     }
 
@@ -218,17 +217,16 @@ impl State {
         destination: Destination,
         log: T,
     ) -> Result<(), String> {
-        assert!(amount >= 0 && fee >= 0);
         let sender = self.users.get_mut(&sender).expect("no sender found");
-        sender.change_cycles(-(amount + fee), log.to_string())?;
+        sender.change_cycles(amount + fee, CyclesDelta::Minus, log.to_string())?;
         let receiver = self.users.get_mut(&receiver).expect("no receiver found");
-        self.burned_cycles += fee;
+        self.burned_cycles += fee as i64;
         match destination {
             Destination::Karma => {
-                receiver.change_karma(amount, log);
+                receiver.change_karma(amount as Karma, log);
                 Ok(())
             }
-            Destination::Cycles => receiver.change_cycles(amount, log),
+            Destination::Cycles => receiver.change_cycles(amount, CyclesDelta::Plus, log),
         }
     }
 
@@ -298,9 +296,6 @@ impl State {
         description: String,
         controllers: Vec<UserId>,
     ) -> Result<(), String> {
-        if controllers.is_empty() {
-            return Err("no controllers specified".into());
-        }
         let user_id = self
             .principal_to_user_mut(principal)
             .ok_or("no user found")?
@@ -308,6 +303,9 @@ impl State {
         let realm = self.realms.get_mut(&name).ok_or("no realm found")?;
         if !realm.controllers.contains(&user_id) {
             return Err("not authorized".into());
+        }
+        if controllers.is_empty() {
+            return Err("no controllers specified".into());
         }
         if !logo.is_empty() {
             realm.logo = logo;
@@ -451,7 +449,7 @@ impl State {
         if let Some((user_id, cycles)) = invite.and_then(|code| self.invites.remove(&code)) {
             let id = self.new_user(principal, time(), name.clone());
             let user = self.users.get_mut(&id).expect("no user found");
-            user.change_cycles(cycles, "top up by invite".to_string())?;
+            user.change_cycles(cycles, CyclesDelta::Plus, "top up by invite".to_string())?;
             user.invited_by = Some(user_id);
             if let Some(inviter) = self.users.get_mut(&user_id) {
                 inviter.notify(format!(
@@ -533,12 +531,7 @@ impl State {
 
     pub fn denotify_users(&mut self, filter: &dyn Fn(&User) -> bool) {
         let posts = &self.posts;
-        let last_proposal_open = self
-            .proposals
-            .iter()
-            .last()
-            .map(|p| p.status == Status::Open)
-            .unwrap_or_default();
+        let proposals = &self.proposals;
         self.users
             .values_mut()
             .filter(|u| filter(u))
@@ -550,7 +543,12 @@ impl State {
                                 .get(post_id)
                                 .and_then(|p| p.report.as_ref().map(|r| !r.closed))
                                 .unwrap_or_default(),
-                            Predicate::ProposalPending => last_proposal_open,
+                            Predicate::Proposal(post_id) => proposals
+                                .iter()
+                                .last()
+                                .map(|p| p.status == Status::Open && p.post_id == *post_id)
+                                .unwrap_or_default(),
+                            Predicate::ProposalPending => false,
                         };
                     }
                     true
@@ -641,7 +639,7 @@ impl State {
         if balance < target_balance {
             let xdrs = target_balance / ICP_CYCLES_PER_XDR;
             // subtract weekly burned cycles to reduce the revenue
-            self.spend(xdrs as i64 * 1000, "canister top up");
+            self.spend(xdrs as u64 * 1000, "canister top up");
             match invoices::topup_with_icp(&api::id(), xdrs).await {
                 Err(err) => self.critical(format!(
                     "FAILED TO TOP UP THE MAIN CANISTER — {}'S FUNCTIONALITY IS ENDANGERED: {:?}",
@@ -889,8 +887,8 @@ impl State {
                 }
             }
         }
-        self.spend(self.burned_cycles, "revenue distribution");
-        self.burned_cycles_total += self.burned_cycles;
+        self.spend(self.burned_cycles as Cycles, "revenue distribution");
+        self.burned_cycles_total += self.burned_cycles as Cycles;
         self.total_rewards_shared += user_rewards;
         self.total_revenue_shared += user_revenues;
         self.logger.info(format!(
@@ -982,7 +980,7 @@ impl State {
             }
             if inactive && user.karma() > 0 {
                 user.change_karma(
-                    -CONFIG.inactivity_penalty.min(user.karma()),
+                    -(CONFIG.inactivity_penalty as Karma).min(user.karma()),
                     "inactivity_penalty".to_string(),
                 );
             }
@@ -1095,7 +1093,8 @@ impl State {
             if let Some(user) = self.principal_to_user_mut(principal) {
                 user.change_cycles(
                     ((invoice.paid_e8s as f64 / invoice.e8s as f64) * min_cycles_minted as f64)
-                        as i64,
+                        as Cycles,
+                    CyclesDelta::Plus,
                     "top up with ICP".to_string(),
                 )?;
                 let user_name = user.name.clone();
@@ -1453,12 +1452,12 @@ impl State {
                     .reactions
                     .iter()
                     .find(|(id, cost)| id == r_id && *cost > 0)
-                    .map(|(_, cost)| (users, *cost))
+                    .map(|(_, cost)| (users, *cost as Cycles))
             })
             .collect::<Vec<_>>();
 
         let costs: Cycles = CONFIG.post_cost
-            + reaction_costs.iter().map(|(_, cost)| *cost).sum::<i64>()
+            + reaction_costs.iter().map(|(_, cost)| *cost).sum::<u64>()
             + comments_tree_penalty;
         if costs > self.users.get(&post.user).ok_or("no user found")?.cycles() {
             return Err(format!(
@@ -1467,7 +1466,7 @@ impl State {
             ));
         }
 
-        let mut karma_penalty = post.children.len() as i64 * CONFIG.response_reward;
+        let mut karma_penalty = post.children.len() as Karma * CONFIG.response_reward as Karma;
 
         // refund rewards
         for (users, amount) in reaction_costs {
@@ -1480,7 +1479,7 @@ impl State {
                     Destination::Cycles,
                     format!("rewards refund after deletion of post {}", post.id),
                 )?;
-                karma_penalty += amount;
+                karma_penalty += amount as Karma;
             }
         }
 
@@ -1535,7 +1534,7 @@ impl State {
             if delta < 0 {
                 return Err("bootcamp users can't downvote".into());
             }
-            self.charge(user.id, delta.abs() + CONFIG.reaction_fee, log)
+            self.charge(user.id, delta.abs() as Cycles + CONFIG.reaction_fee, log)
                 .expect("coudln't charge user");
         }
         // If the user is trusted, they initiate a cycle transfer for upvotes, but burn their own cycles on
@@ -1545,11 +1544,14 @@ impl State {
                 .get_mut(&post.user)
                 .expect("user not found")
                 .change_karma(delta, log.clone());
-            self.charge(user.id, delta.abs().min(user.cycles()), log.clone())?;
+            self.charge(
+                user.id,
+                (delta.abs() as Cycles).min(user.cycles()),
+                log.clone(),
+            )?;
             self.charge(
                 post.user,
-                delta
-                    .abs()
+                (delta.abs() as Cycles)
                     .min(self.users.get(&post.user).expect("no user found").cycles()),
                 log,
             )
@@ -1558,7 +1560,7 @@ impl State {
             self.cycle_transfer(
                 user.id,
                 post.user,
-                delta,
+                delta as Cycles,
                 CONFIG.reaction_fee,
                 Destination::Karma,
                 log,
@@ -1745,7 +1747,7 @@ pub(crate) mod tests {
     ) -> UserId {
         let id = state.new_user(p, 0, name.to_string());
         let u = state.users.get_mut(&id).unwrap();
-        u.change_cycles(1000, "").unwrap();
+        u.change_cycles(1000, CyclesDelta::Plus, "").unwrap();
         if trusted {
             u.change_karma(CONFIG.trusted_user_min_karma, "");
             u.apply_rewards();
@@ -1842,7 +1844,7 @@ pub(crate) mod tests {
 
         assert_eq!(
             state.users.get(&id).unwrap().karma_to_reward(),
-            10 + 5 + 2 * CONFIG.response_reward
+            10 + 5 + 2 * CONFIG.response_reward as Karma
         );
 
         assert_eq!(
@@ -1869,7 +1871,7 @@ pub(crate) mod tests {
             .users
             .get_mut(&id)
             .unwrap()
-            .change_cycles(1000, "")
+            .change_cycles(1000, CyclesDelta::Plus, "")
             .unwrap();
 
         assert_eq!(&state.posts.get(&0).unwrap().body, "Test");
@@ -1895,7 +1897,7 @@ pub(crate) mod tests {
 
         let user1 = state.users.get_mut(&_u1).unwrap();
         assert_eq!(user1.cycles(), 1000);
-        user1.change_cycles(-500, "").unwrap();
+        user1.change_cycles(500, CyclesDelta::Minus, "").unwrap();
         assert_eq!(user1.cycles(), 500);
 
         let name = "SYNAPSE".to_string();
@@ -1976,7 +1978,7 @@ pub(crate) mod tests {
         );
 
         let user0 = state.users.get_mut(&_u0).unwrap();
-        user0.change_cycles(1000, "").unwrap();
+        user0.change_cycles(1000, CyclesDelta::Plus, "").unwrap();
 
         assert_eq!(
             state.create_realm(
@@ -2178,7 +2180,7 @@ pub(crate) mod tests {
 
         // create a new realm
         let user0 = state.users.get_mut(&_u0).unwrap();
-        user0.change_cycles(1000, "").unwrap();
+        user0.change_cycles(1000, CyclesDelta::Plus, "").unwrap();
         assert_eq!(
             state.create_realm(
                 p0,
@@ -2269,18 +2271,6 @@ pub(crate) mod tests {
             state.posts.get(&4).unwrap().realm,
             Some("SYNAPSE".to_string())
         );
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_negative_transfer_panic() {
-        let mut state = State::default();
-        let p = pr(0);
-        let u1 = create_user_with_params(&mut state, p, "user1", true);
-        let u2 = create_user_with_params(&mut state, pr(1), "user2", true);
-        state
-            .cycle_transfer(u1, u2, -1, 0, Destination::Cycles, "")
-            .unwrap();
     }
 
     #[actix_rt::test]
@@ -2588,7 +2578,7 @@ pub(crate) mod tests {
         let lurker_id = create_user(&mut state, p);
         let farmer_id = create_untrusted_user(&mut state, pr(111));
         let c = CONFIG;
-        assert_eq!(state.burned_cycles, c.post_cost);
+        assert_eq!(state.burned_cycles as Cycles, c.post_cost);
         state
             .users
             .get_mut(&lurker_id)
@@ -2634,7 +2624,7 @@ pub(crate) mod tests {
         assert_eq!(author.cycles(), c.min_cycles_minted - c.post_cost);
         assert_eq!(author.karma_to_reward(), rewards_from_reactions);
         assert_eq!(
-            state.burned_cycles,
+            state.burned_cycles as Cycles,
             c.post_cost + burned_cycles_by_reactions + burned_cycles_by_reaction_from_untrusted
         );
 
@@ -2643,23 +2633,23 @@ pub(crate) mod tests {
 
         // downvote
         assert!(state.react(p, post_id, 1, 0).is_ok());
-        let reaction_penalty = -3;
+        let reaction_penalty = 3;
         rewards_from_reactions -= 3;
         reaction_costs += 3;
         let author = state.users.get(&post_author_id).unwrap();
         let lurker = state.users.get(&lurker_id).unwrap();
         assert_eq!(
             author.cycles(),
-            c.min_cycles_minted - c.post_cost + reaction_penalty
+            c.min_cycles_minted - c.post_cost - reaction_penalty
         );
         assert_eq!(author.karma_to_reward(), rewards_from_reactions);
         assert_eq!(lurker.cycles(), c.min_cycles_minted - reaction_costs);
         assert_eq!(
             state.burned_cycles,
-            c.post_cost
+            (c.post_cost
                 + burned_cycles_by_reactions
                 + burned_cycles_by_reaction_from_untrusted
-                + 2 * 3
+                + 2 * 3) as i64
         );
 
         add(
@@ -2676,20 +2666,20 @@ pub(crate) mod tests {
         .unwrap();
         assert_eq!(
             state.burned_cycles,
-            2 * c.post_cost
+            (2 * c.post_cost
                 + burned_cycles_by_reactions
                 + burned_cycles_by_reaction_from_untrusted
-                + 2 * 3
+                + 2 * 3) as i64
         );
         let author = state.users.get(&post_author_id).unwrap();
         assert_eq!(
             author.cycles(),
-            c.min_cycles_minted - c.post_cost - c.post_cost + reaction_penalty
+            c.min_cycles_minted - c.post_cost - c.post_cost - reaction_penalty
         );
 
         let author = state.users.get_mut(&post_author_id).unwrap();
         author
-            .change_cycles(c.post_cost - 1 - author.cycles(), "")
+            .change_cycles(author.cycles(), CyclesDelta::Minus, "")
             .unwrap();
         assert!(add(
             &mut state,
@@ -2705,7 +2695,9 @@ pub(crate) mod tests {
         .is_err());
 
         let lurker = state.users.get_mut(&lurker_id).unwrap();
-        lurker.change_cycles(-lurker.cycles(), "").unwrap();
+        lurker
+            .change_cycles(lurker.cycles(), CyclesDelta::Minus, "")
+            .unwrap();
         assert_eq!(
             state.react(p, post_id, 10, 0),
             Err("not enough cycles".into())

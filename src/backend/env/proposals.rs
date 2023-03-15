@@ -1,12 +1,11 @@
-use crate::token::Token;
-
 use super::config::CONFIG;
 use super::post::{self, Extension, PostId};
 use super::token::account;
 use super::user::Predicate;
-use super::HOUR;
 use super::{user::UserId, State};
+use super::{Karma, HOUR};
 use crate::canisters;
+use crate::token::Token;
 use ic_cdk::export::candid::Principal;
 use ic_cdk::id;
 use serde::{Deserialize, Serialize};
@@ -31,9 +30,6 @@ pub struct Proposal {
     pub id: u32,
     pub proposer: UserId,
     pub timestamp: u64,
-    // TODO: remove
-    pub description: String,
-    #[serde(default)]
     pub post_id: PostId,
     pub status: Status,
     pub payload: Payload,
@@ -97,13 +93,13 @@ impl Proposal {
                     .get_mut(&self.proposer)
                     .ok_or("user not found")?;
                 proposer.change_karma(
-                    -(CONFIG.proposal_rejection_penalty as i64),
+                    -(CONFIG.proposal_rejection_penalty as Karma),
                     "proposal rejection penalty",
                 );
                 let cycle_balance = proposer.cycles();
                 state.charge(
                     self.proposer,
-                    cycle_balance.min(CONFIG.proposal_rejection_penalty as i64),
+                    cycle_balance.min(CONFIG.proposal_rejection_penalty),
                     "proposal rejection penalty",
                 )?;
             }
@@ -237,7 +233,6 @@ pub async fn propose(
     )
     .await?;
     state.proposals.push(Proposal {
-        description: Default::default(),
         post_id,
         proposer,
         timestamp: time,
@@ -247,16 +242,15 @@ pub async fn propose(
         voting_power: 0,
         id,
     });
-    let msg = format!(
-        "New [proposal](#/proposals) 🎈 was submitted by @{}.",
-        &proposer_name
-    );
     state.notify_with_predicate(
         &|user| user.active_within_weeks(time, 1) && user.balance > 0,
-        format!("{} Please vote!", &msg),
-        Predicate::ProposalPending,
+        format!("@{} submitted a new proposal", &proposer_name,),
+        Predicate::Proposal(post_id),
     );
-    state.logger.info(msg);
+    state.logger.info(format!(
+        "@{} submitted a new [proposal](#/post/{}).",
+        &proposer_name, post_id
+    ));
     Ok(id)
 }
 
@@ -351,7 +345,7 @@ mod tests {
     use super::*;
     use crate::env::{
         tests::{create_user, pr},
-        time,
+        time, Karma,
     };
 
     #[actix_rt::test]
@@ -578,7 +572,7 @@ mod tests {
         user.change_karma(-100, "");
         assert_eq!(
             user.karma(),
-            1000 - 100 + CONFIG.trusted_user_min_karma + CONFIG.voting_reward
+            1000 - 100 + CONFIG.trusted_user_min_karma + CONFIG.voting_reward as Karma
         );
         assert_eq!(user.cycles(), 1000 - 2 * CONFIG.post_cost);
 
@@ -596,15 +590,13 @@ mod tests {
         let user = state.principal_to_user_mut(proposer).unwrap();
         assert_eq!(
             user.karma(),
-            1000 - 100 + CONFIG.trusted_user_min_karma - CONFIG.proposal_rejection_penalty as i64
-                + CONFIG.voting_reward
+            1000 - 100 + CONFIG.trusted_user_min_karma - CONFIG.proposal_rejection_penalty as Karma
+                + CONFIG.voting_reward as Karma
         );
-        assert_eq!(
-            user.cycles(),
-            1000 - CONFIG.proposal_rejection_penalty as i64
-        );
+        assert_eq!(user.cycles(), 1000 - CONFIG.proposal_rejection_penalty);
         assert!(!user.trusted());
-        user.change_cycles(100, "").unwrap();
+        user.change_cycles(100, crate::env::user::CyclesDelta::Plus, "")
+            .unwrap();
 
         // create a new proposal
         let prop_id = propose(&mut state, proposer, "test".into(), Payload::Noop, 0)

@@ -58,7 +58,7 @@ pub fn vote_on_report(state: &mut State, principal: Principal, post_id: PostId, 
             ),
             post.id,
         );
-        post_author.change_karma(-CONFIG.reporting_penalty, "moderation penalty");
+        post_author.change_karma(-(CONFIG.reporting_penalty as Karma), "moderation penalty");
         let unit = CONFIG.reporting_penalty.min(post_author.cycles()) / 2;
         let reporter = state
             .users
@@ -85,7 +85,7 @@ pub fn vote_on_report(state: &mut State, principal: Principal, post_id: PostId, 
         reporter.notify_about_post("Your report was rejected by stalwarts", post.id);
         let unit = CONFIG.reporting_penalty.min(reporter.cycles());
         let log = "false report penalty";
-        reporter.change_karma(-CONFIG.reporting_penalty / 2, log);
+        reporter.change_karma(-(CONFIG.reporting_penalty as Karma) / 2, log);
         let reporter_id = reporter.id;
         (reporter_id, unit)
     };
@@ -95,7 +95,7 @@ pub fn vote_on_report(state: &mut State, principal: Principal, post_id: PostId, 
         .chain(report.rejected_by.iter())
         .cloned()
         .collect::<Vec<_>>();
-    let stalwart_reward = (unit / stalwarts.len() as i64).min(CONFIG.stalwart_moderation_reward);
+    let stalwart_reward = (unit / stalwarts.len() as u64).min(CONFIG.stalwart_moderation_reward);
     let mut total_stalwart_rewards = 0;
     let log = "moderation rewards for stalwarts";
     for stalwart_id in stalwarts.iter() {
@@ -138,7 +138,8 @@ mod tests {
         let p = pr(0);
         let u1 = create_user(&mut state, p);
         let user = state.users.get_mut(&u1).unwrap();
-        user.change_cycles(-800 + 123, "").unwrap();
+        user.change_cycles(800 - 123, CyclesDelta::Minus, "")
+            .unwrap();
         user.change_karma(100, "");
 
         assert_eq!(user.inbox.len(), 1);
@@ -190,7 +191,9 @@ mod tests {
         // report should work becasue theuser needs 500 cycles
         let reporter_user = state.principal_to_user_mut(reporter).unwrap();
         assert_eq!(reporter_user.cycles(), 998);
-        reporter_user.change_cycles(-998, "").unwrap();
+        reporter_user
+            .change_cycles(998, CyclesDelta::Minus, "")
+            .unwrap();
         assert_eq!(reporter_user.cycles(), 0);
         assert_eq!(
             state.report(reporter, post_id, String::new()),
@@ -200,7 +203,9 @@ mod tests {
         assert!(&p.report.is_none());
 
         let reporter_user = state.principal_to_user_mut(reporter).unwrap();
-        reporter_user.change_cycles(500, "").unwrap();
+        reporter_user
+            .change_cycles(500, CyclesDelta::Plus, "")
+            .unwrap();
         assert_eq!(reporter_user.cycles(), 500);
         state.report(reporter, post_id, String::new()).unwrap();
 
@@ -267,19 +272,22 @@ mod tests {
         assert_eq!(user.karma(), -75);
 
         let reporter = state.principal_to_user(reporter).unwrap();
-        assert_eq!(reporter.karma_to_reward(), CONFIG.reporting_penalty / 2);
+        assert_eq!(
+            reporter.karma_to_reward(),
+            CONFIG.reporting_penalty as Karma / 2
+        );
         // stalwarts rewarded too
         assert_eq!(
             state.principal_to_user(pr(3)).unwrap().karma_to_reward(),
-            CONFIG.stalwart_moderation_reward
+            CONFIG.stalwart_moderation_reward as Karma
         );
         assert_eq!(
             state.principal_to_user(pr(6)).unwrap().karma_to_reward(),
-            CONFIG.stalwart_moderation_reward
+            CONFIG.stalwart_moderation_reward as Karma
         );
         assert_eq!(
             state.principal_to_user(pr(12)).unwrap().karma_to_reward(),
-            CONFIG.stalwart_moderation_reward
+            CONFIG.stalwart_moderation_reward as Karma
         );
 
         // REJECTION TEST
@@ -288,7 +296,7 @@ mod tests {
         let u = create_user(&mut state, p);
         let user = state.users.get_mut(&u).unwrap();
         user.change_karma(100, "");
-        user.change_cycles(-800, "").unwrap();
+        user.change_cycles(800, CyclesDelta::Minus, "").unwrap();
         let post_id = add(
             &mut state,
             "good post".to_string(),
@@ -310,7 +318,7 @@ mod tests {
         // set cycles to 777
         let reporter_user = state.principal_to_user_mut(reporter).unwrap();
         reporter_user
-            .change_cycles(-reporter_user.cycles() + 777, "")
+            .change_cycles(777 - reporter_user.cycles(), CyclesDelta::Plus, "")
             .unwrap();
         assert_eq!(reporter_user.cycles(), 777);
         reporter_user.apply_rewards();
@@ -350,12 +358,12 @@ mod tests {
 
         assert_eq!(
             state.principal_to_user(pr(9)).unwrap().karma_to_reward(),
-            CONFIG.stalwart_moderation_reward
+            CONFIG.stalwart_moderation_reward as Karma
         );
         // he voted twice
         assert_eq!(
             state.principal_to_user(pr(6)).unwrap().karma_to_reward(),
-            CONFIG.stalwart_moderation_reward * 2
+            CONFIG.stalwart_moderation_reward as Karma * 2
         );
     }
 }

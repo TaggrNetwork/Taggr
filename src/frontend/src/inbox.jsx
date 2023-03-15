@@ -32,8 +32,8 @@ export const Inbox = () => {
                     id = message.NewPost[1];
                     msg = message.NewPost[0];
                 } else if ("Conditional" in message) {
-                    const report = message.Conditional[1];
-                    id = report ? report.ReportOpen : null;
+                    const payload = message.Conditional[1];
+                    id = payload.ReportOpen ? payload.ReportOpen : payload.Proposal;
                     msg = message.Conditional[0];
                 } else if ("WatchedPostEntries" in message) {
                     id = parseInt(k.split("_")[1]);

@@ -213,8 +213,8 @@ fn transfer(
             }))
         }
         Some(balance) => {
-            let effective_fee = fee.unwrap_or_else(icrc1_fee) as u64;
-            let effective_amount = amount as u64 + effective_fee;
+            let effective_fee = fee.unwrap_or_else(icrc1_fee) as Token;
+            let effective_amount = amount as Token + effective_fee;
             if *balance < effective_amount {
                 return Err(TransferError::InsufficientFunds(InsufficientFunds {
                     balance: *balance as u128,
@@ -230,13 +230,13 @@ fn transfer(
                 let recipient_balance = state.balances.remove(&to).unwrap_or_default();
                 state
                     .balances
-                    .insert(to.clone(), recipient_balance + amount as u64);
+                    .insert(to.clone(), recipient_balance + amount as Token);
             }
             state.ledger.push(Transaction {
                 timestamp: now,
                 from,
                 to,
-                amount: amount as u64,
+                amount: amount as Token,
                 fee: effective_fee,
                 memo,
             });
@@ -283,7 +283,7 @@ pub fn move_funds(state: &mut State, from: &Account, to: Account) -> Result<u128
             TransferArgs {
                 from_subaccount: from.subaccount.clone(),
                 to,
-                amount: (balance - fee as u64) as u128,
+                amount: (balance - fee as Token) as u128,
                 fee: None,
                 memo: Default::default(),
                 created_at_time: None,

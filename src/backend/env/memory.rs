@@ -17,6 +17,7 @@ pub struct Memory {
 }
 
 const INITIAL_OFFSET: u64 = 16;
+#[allow(dead_code)]
 const MAX_CACHE_SIZE: usize = 1000;
 
 impl Memory {
@@ -238,11 +239,13 @@ struct ObjectManager<K: Ord + Eq, T: Storable> {
 }
 
 impl<K: Eq + Ord + Copy, T: Storable> ObjectManager<K, T> {
+    #[allow(dead_code)]
     fn insert(&mut self, mem: &mut Memory, id: K, value: T) -> Result<(), String> {
         self.index.insert(id, mem.write(&value)?);
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn get(&mut self, id: &K) -> Option<&'_ T> {
         Some(
             self.cache.entry(*id).or_insert(
@@ -253,6 +256,7 @@ impl<K: Eq + Ord + Copy, T: Storable> ObjectManager<K, T> {
         )
     }
 
+    #[allow(dead_code)]
     fn get_mut(&mut self, id: &K) -> Option<&'_ mut T> {
         self.dirty.insert(*id);
         Some(
@@ -264,6 +268,7 @@ impl<K: Eq + Ord + Copy, T: Storable> ObjectManager<K, T> {
         )
     }
 
+    #[allow(dead_code)]
     fn sync(&mut self, mem: &mut Memory) -> Result<usize, String> {
         let dirty = std::mem::take(&mut self.dirty);
         let synced = dirty.len();
@@ -276,6 +281,7 @@ impl<K: Eq + Ord + Copy, T: Storable> ObjectManager<K, T> {
         Ok(synced)
     }
 
+    #[allow(dead_code)]
     fn clean_up(&mut self) -> usize {
         let len = self.cache.len();
         while self.cache.len() > MAX_CACHE_SIZE {

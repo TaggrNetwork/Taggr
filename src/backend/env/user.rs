@@ -4,10 +4,18 @@ use serde::{Deserialize, Serialize};
 
 pub type UserId = u64;
 
+#[derive(PartialEq)]
+pub enum CyclesDelta {
+    Plus,
+    Minus,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Predicate {
     ReportOpen(PostId),
+    // TODO delete
     ProposalPending,
+    Proposal(PostId),
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -226,40 +234,56 @@ impl User {
         self.controllers.iter().any(|p| p.len() == 27)
     }
 
-    pub fn change_cycles<T: ToString>(&mut self, delta: Cycles, log: T) -> Result<(), String> {
-        if delta < 0 && delta.abs() <= self.cycles || delta > 0 {
-            self.cycles += delta;
-            self.ledger
-                .push_front(("CYC".to_string(), delta, log.to_string()));
+    pub fn change_cycles<T: ToString>(
+        &mut self,
+        amount: Cycles,
+        delta: CyclesDelta,
+        log: T,
+    ) -> Result<(), String> {
+        if delta == CyclesDelta::Minus && amount <= self.cycles || delta == CyclesDelta::Plus {
+            if delta == CyclesDelta::Plus {
+                self.cycles += amount;
+            } else {
+                self.cycles -= amount;
+            }
+            self.ledger.push_front((
+                "CYC".to_string(),
+                if delta == CyclesDelta::Plus {
+                    amount as i64
+                } else {
+                    -(amount as i64)
+                },
+                log.to_string(),
+            ));
             return Ok(());
         }
         Err("not enough cycles".into())
     }
 
-    pub fn change_karma<T: ToString>(&mut self, delta: Karma, log: T) {
-        if delta > 0 {
+    pub fn change_karma<T: ToString>(&mut self, amount: Karma, log: T) {
+        if amount > 0 {
             if self.karma >= 0 {
-                // if total karma is positivie and the delta is positive, increase rewards
-                self.rewarded_karma += delta;
+                // if total karma is positivie and the amount is positive, increase rewards
+                self.rewarded_karma += amount;
             } else {
-                // if total karma is negative and the delta positive, increase total karma, not
+                // if total karma is negative and the amount positive, increase total karma, not
                 // rewards
-                self.karma += delta;
+                self.karma += amount;
             }
-        } else if delta.abs() > self.rewarded_karma {
-            // if delta is negative and larger than collected rewards, destroy them and
+        } else if amount.abs() > self.rewarded_karma {
+            // if amount is negative and larger than collected rewards, destroy them and
             // subtract from total karma the rest.
-            self.karma -= delta.abs() - self.rewarded_karma;
+            self.karma -= amount.abs() - self.rewarded_karma;
             self.rewarded_karma = 0;
         } else {
-            // if delta is negative and small than collected rewards, subtract from rewards
-            self.rewarded_karma += delta;
+            // if amount is negative and small than collected rewards, subtract from rewards
+            self.rewarded_karma += amount;
         }
         if self.karma < 0 {
             self.rewarded_karma = 0;
         }
         self.ledger
-            .push_front(("KRM".to_string(), delta, log.to_string()));
+            .push_front(("KRM".to_string(), amount, log.to_string()));
     }
 
     pub fn karma_to_reward(&self) -> Karma {
@@ -325,10 +349,10 @@ mod tests {
     fn test_change_cycles() {
         let mut u = User::new(pr(1), 66, 0, Default::default());
         u.cycles = 100;
-        assert!(u.change_cycles(55, "").is_ok());
+        assert!(u.change_cycles(55, CyclesDelta::Plus, "").is_ok());
         assert_eq!(u.cycles(), 155);
-        assert!(u.change_cycles(-156, "").is_err());
-        assert!(u.change_cycles(-155, "").is_ok());
+        assert!(u.change_cycles(156, CyclesDelta::Minus, "").is_err());
+        assert!(u.change_cycles(155, CyclesDelta::Minus, "").is_ok());
         assert_eq!(u.cycles(), 0);
     }
 
