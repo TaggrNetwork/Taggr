@@ -2001,7 +2001,7 @@ pub(crate) mod tests {
 
         assert_eq!(
             state.edit_realm(
-                pr(2),
+                p0,
                 name.clone(),
                 Default::default(),
                 Default::default(),
