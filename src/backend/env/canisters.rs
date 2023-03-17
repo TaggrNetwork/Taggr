@@ -1,5 +1,3 @@
-use std::future::Future;
-
 use candid::utils::{ArgumentDecoder, ArgumentEncoder};
 use ic_cdk::api::call::CallResult;
 use ic_cdk::export::candid::{CandidType, Principal};
@@ -13,7 +11,22 @@ use ic_cdk::{
 };
 use serde::Deserialize;
 
+use super::Logger;
+
 const CYCLES_FOR_NEW_CANISTER: u64 = 1_000_000_000_000;
+static mut CALLS: usize = 0;
+
+pub fn call_opened() {
+    unsafe { CALLS += 1 }
+}
+
+pub fn call_closed() {
+    unsafe { CALLS = CALLS.saturating_sub(1) }
+}
+
+pub fn calls_open() -> usize {
+    unsafe { CALLS }
+}
 
 #[derive(CandidType, Deserialize)]
 struct CanisterId {
@@ -26,14 +39,18 @@ struct CanisterSettings {
 }
 
 pub async fn new() -> Result<Principal, String> {
-    let (response,): (CanisterId,) = call_with_payment(
+    call_opened();
+    let result = call_with_payment(
         Principal::management_canister(),
         "create_canister",
         (CanisterSettings { controllers: None },),
         CYCLES_FOR_NEW_CANISTER,
     )
-    .await
-    .map_err(|err| format!("couldn't create a new canister: {:?}", err))?;
+    .await;
+    call_closed();
+
+    let (response,): (CanisterId,) =
+        result.map_err(|err| format!("couldn't create a new canister: {:?}", err))?;
 
     Ok(response.canister_id)
 }
@@ -65,13 +82,17 @@ pub async fn settings(canister_id: Principal) -> Result<StatusCallResult, String
         canister_id: Principal,
     }
 
-    let (result,): (StatusCallResult,) = call(
+    call_opened();
+    let result = call(
         Principal::management_canister(),
         "canister_status",
         (In { canister_id },),
     )
-    .await
-    .map_err(|err| format!("couldn't get canister status: {:?}", err))?;
+    .await;
+    call_closed();
+
+    let (result,): (StatusCallResult,) =
+        result.map_err(|err| format!("couldn't get canister status: {:?}", err))?;
     Ok(result)
 }
 
@@ -96,28 +117,45 @@ pub async fn install(
         pub arg: Vec<u8>,
     }
 
-    let args = (InstallCodeArgs {
-        mode,
-        canister_id,
-        wasm_module,
-        arg: ic_cdk::api::id().as_slice().to_vec(),
-    },);
-    let mgmnt_can_id = Principal::management_canister();
-    let (_,): ((),) = call(mgmnt_can_id, "install_code", args)
-        .await
-        .map_err(|err| format!("couldn't install the WASM module: {:?}", err))?;
+    call_opened();
+    let result = call(
+        Principal::management_canister(),
+        "install_code",
+        (InstallCodeArgs {
+            mode,
+            canister_id,
+            wasm_module,
+            arg: ic_cdk::api::id().as_slice().to_vec(),
+        },),
+    )
+    .await;
+    call_closed();
+
+    result.map_err(|err| format!("couldn't install the WASM module: {:?}", err))?;
     Ok(())
 }
 
-pub fn upgrade_main_canister(wasm_module: &[u8]) {
-    let args = (InstallCodeArgs {
-        mode: CanisterInstallMode::Upgrade,
-        canister_id: id(),
-        wasm_module,
-        arg: ic_cdk::api::id().as_slice().to_vec(),
-    },);
-    let mgmnt_can_id = Principal::management_canister();
-    notify(mgmnt_can_id, "install_code", args).expect("self-upgrade failed");
+pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8]) {
+    let calls = calls_open();
+    if calls > 0 {
+        logger.error(format!(
+            "Upgrade execution failed: {} canister calls are in-flight. Please re-trigger the upgrade finalization.",
+            calls,
+        ));
+        return;
+    }
+
+    notify(
+        Principal::management_canister(),
+        "install_code",
+        (InstallCodeArgs {
+            mode: CanisterInstallMode::Upgrade,
+            canister_id: id(),
+            wasm_module,
+            arg: ic_cdk::api::id().as_slice().to_vec(),
+        },),
+    )
+    .expect("self-upgrade failed");
 }
 
 pub async fn set_controllers(
@@ -129,7 +167,8 @@ pub async fn set_controllers(
         canister_id: Principal,
         settings: CanisterSettings,
     }
-    call(
+    call_opened();
+    let result = call(
         Principal::management_canister(),
         "update_settings",
         (In {
@@ -139,8 +178,9 @@ pub async fn set_controllers(
             },
         },),
     )
-    .await
-    .map_err(|err| format!("couldn't set controllers: {:?}", err))?;
+    .await;
+    call_closed();
+    result.map_err(|err| format!("couldn't set controllers: {:?}", err))?;
     Ok(())
 }
 
@@ -149,26 +189,29 @@ pub async fn topup_with_cycles(canister_id: Principal, cycles: u64) -> Result<()
     struct Args {
         pub canister_id: Principal,
     }
-    let (_,): ((),) = call_with_payment(
+    call_opened();
+    let result = call_with_payment(
         Principal::management_canister(),
         "deposit_cycles",
         (Args { canister_id },),
         cycles,
     )
-    .await
-    .map_err(|err| format!("couldn't deposit cycles: {:?}", err))?;
+    .await;
+    call_closed();
+    result.map_err(|err| format!("couldn't deposit cycles: {:?}", err))?;
     Ok(())
 }
 
 pub async fn top_up(canister_id: Principal, min_cycle_balance: u64) -> Result<bool, String> {
-    let bytes = call_raw(canister_id, "balance", Default::default(), 0)
-        .await
-        .map_err(|err| {
-            format!(
-                "couldn't get balance from canister {}: {:?}",
-                canister_id, err
-            )
-        })?;
+    call_opened();
+    let result = call_raw(canister_id, "balance", Default::default(), 0).await;
+    call_closed();
+    let bytes = result.map_err(|err| {
+        format!(
+            "couldn't get balance from canister {}: {:?}",
+            canister_id, err
+        )
+    })?;
     let mut arr: [u8; 8] = Default::default();
     arr.copy_from_slice(&bytes);
     if u64::from_be_bytes(arr) < min_cycle_balance {
@@ -180,10 +223,13 @@ pub async fn top_up(canister_id: Principal, min_cycle_balance: u64) -> Result<bo
     Ok(false)
 }
 
-pub fn call_canister<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(
+pub async fn call_canister<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(
     id: Principal,
     method: &str,
     args: T,
-) -> impl Future<Output = CallResult<R>> {
-    ic_cdk::call(id, method, args)
+) -> CallResult<R> {
+    call_opened();
+    let result = ic_cdk::call(id, method, args).await;
+    call_closed();
+    result
 }

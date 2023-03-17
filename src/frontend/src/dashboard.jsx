@@ -138,7 +138,7 @@ const level2icon = level => {
     }
 };
 
-const sizeMb = size => <code className="xx_large_text">{Math.ceil(parseInt(size) / 1024 / 1024).toLocaleString()}MB</code>;
+const sizeMb = size => <code className="xx_large_text">{Math.ceil(parseInt(size) / 1024 / 1024).toLocaleString()} MB</code>;
 
 const CycleBalance = ({id}) => {
     const [cycles, setCycles] = React.useState(-1);

@@ -35,7 +35,7 @@ const Welcome = () => {
                 Checking the balance... This can take up to a minute.
                 <Loading classNameArg="vertically_spaced" />
             </div>}
-            {!invoice && !loadingInvoice && <button className="active" onClick={checkPayment}>MINT CYCLES</button>}
+            {!invoice && !loadingInvoice && <button className="active vertically_spaced" onClick={checkPayment}>MINT CYCLES</button>}
             {invoice && invoice.paid && <div>
                 Payment verified! ✅
                 <br />
@@ -67,6 +67,7 @@ export const Wallet = () => {
     const [transactions, setTransactions] = React.useState([]);
 
     const loadTransactions = async () => {
+        if (!api._user) return;
         const txs = await window.api.query("transactions", 0, api._user.principal);
         setTransactions(txs);
     };

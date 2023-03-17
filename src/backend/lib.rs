@@ -146,16 +146,16 @@ fn execute_upgrade() {
     let proposal = state
         .proposals
         .iter_mut()
-        .last()
+        .rev()
+        .find(|proposal| {
+            proposal.status == Status::Executed && matches!(proposal.payload, Payload::Release(_))
+        })
         .expect("no proposals found");
-    if proposal.status != Status::Executed {
-        return;
-    }
     if let Payload::Release(release) = &mut proposal.payload {
         let binary = std::mem::take(&mut release.binary);
         if !binary.is_empty() {
             state.logger.info("Executing the canister upgrade...");
-            upgrade_main_canister(&binary);
+            upgrade_main_canister(&mut state.logger, &binary);
         }
     }
     reply_raw(&[]);

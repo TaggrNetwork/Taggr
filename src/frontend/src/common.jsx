@@ -27,13 +27,13 @@ export const bigScreen = () => window.screen.availWidth >= 1024;
 export const RealmRibbon = ({col, name}) => 
     <RealmSpan name={name} col={col} classNameArg="realm_tag monospace" onClick={() => location.href = `/#/realm/${name}`} />;
 
-export const HeadBar = ({title, shareLink, shareTitle, content, menu}) => {
+export const HeadBar = ({title, shareLink, shareTitle, content, menu, styleArg}) => {
     const [showMenu, setShowMenu] = React.useState(false);
-    return <div className="column_container stands_out bottom_spaced">
+    return <div className="column_container stands_out bottom_spaced" style={styleArg}>
         <div className="vcentered">
             <div className={`max_width_col ${bigScreen() ? "x_large_text" : "larger_text"}`}>{title}</div>
             <div className="row_container flex_ended">
-                {shareLink && <ShareButton url={shareLink} title={shareTitle} classNameArg="right_half_spaced" />}
+                {shareLink && <ShareButton styleArg={styleArg} url={shareLink} title={shareTitle} classNameArg="right_half_spaced" />}
                 {menu && <BurgerButton onClick={() => setShowMenu(!showMenu)} pressed={showMenu} />}
                 {!menu && content}
             </div>
@@ -62,8 +62,11 @@ export const RealmSpan = ({col, name, classNameArg, onClick}) => {
 };
 
 
-export const ShareButton = ({classNameArg = null, title = "Check this out", url}) =>
-    <button className={classNameArg} style={{flex: 0}}
+export const ShareButton = ({classNameArg = null, title = "Check this out", url, styleArg}) => {
+    const effStyle = styleArg || {};
+    effStyle.flex = 0;
+    effStyle.fill = effStyle.color;
+    return <button className={classNameArg} style={effStyle}
         onClick={async _ => { 
             const fullUlr = `https://share.${backendCache.config.domains[0]}/${url}`;
             if (navigator.share) navigator.share({title, url: fullUlr});
@@ -71,8 +74,9 @@ export const ShareButton = ({classNameArg = null, title = "Check this out", url}
                 await navigator.clipboard.writeText(fullUlr);
                 alert(`Copied to clipboard: ${fullUlr}`);
             } 
-        }}><Share />
+        }}><Share styleArg={effStyle} />
     </button>;
+};
 
 const regexp = /[\p{Letter}\p{Mark}|\d|\-|_]+/gu;
 export const getTokens = (prefix, value) => {

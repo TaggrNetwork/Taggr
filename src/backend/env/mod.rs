@@ -84,7 +84,7 @@ pub struct Stats {
     meta: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Realm {
     logo: String,
     pub description: String,
@@ -92,6 +92,15 @@ pub struct Realm {
     controllers: Vec<UserId>,
     pub members: BTreeSet<UserId>,
     pub label_color: String,
+}
+
+impl Storable for Realm {
+    fn to_bytes(&self) -> Vec<u8> {
+        serde_cbor::to_vec(&self).expect("couldn't serialize the state")
+    }
+    fn from_bytes(bytes: Vec<u8>) -> Self {
+        serde_cbor::from_slice(&bytes).expect("couldn't deserialize")
+    }
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -639,7 +648,7 @@ impl State {
         if balance < target_balance {
             let xdrs = target_balance / ICP_CYCLES_PER_XDR;
             // subtract weekly burned cycles to reduce the revenue
-            self.spend(xdrs as u64 * 1000, "canister top up");
+            self.spend(xdrs * 1000, "canister top up");
             match invoices::topup_with_icp(&api::id(), xdrs).await {
                 Err(err) => self.critical(format!(
                     "FAILED TO TOP UP THE MAIN CANISTER — {}'S FUNCTIONALITY IS ENDANGERED: {:?}",
@@ -1016,8 +1025,8 @@ impl State {
         let mut left = Vec::new();
         let mut joined = Vec::new();
         for u in users {
-            // Bots or new users are filtered out.
             if u.is_bot()
+                || !u.trusted()
                 || now.saturating_sub(u.timestamp)
                     < WEEK * CONFIG.min_stalwart_account_age_weeks as u64
             {
@@ -1534,7 +1543,7 @@ impl State {
             if delta < 0 {
                 return Err("bootcamp users can't downvote".into());
             }
-            self.charge(user.id, delta.abs() as Cycles + CONFIG.reaction_fee, log)
+            self.charge(user.id, delta.unsigned_abs() + CONFIG.reaction_fee, log)
                 .expect("coudln't charge user");
         }
         // If the user is trusted, they initiate a cycle transfer for upvotes, but burn their own cycles on
@@ -1546,12 +1555,13 @@ impl State {
                 .change_karma(delta, log.clone());
             self.charge(
                 user.id,
-                (delta.abs() as Cycles).min(user.cycles()),
+                delta.unsigned_abs().min(user.cycles()),
                 log.clone(),
             )?;
             self.charge(
                 post.user,
-                (delta.abs() as Cycles)
+                delta
+                    .unsigned_abs()
                     .min(self.users.get(&post.user).expect("no user found").cycles()),
                 log,
             )

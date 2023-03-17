@@ -1,5 +1,5 @@
 import * as React from "react";
-import {bigScreen, BurgerButton, ButtonWithLoading, Loading, ReactionToggleButton, realmColors, RealmSpan, ToggleButton} from "./common";
+import {bigScreen, BurgerButton, ButtonWithLoading, HeadBar, Loading, ReactionToggleButton, realmColors, RealmSpan, ToggleButton} from "./common";
 import {authMethods, LoginMasks} from "./logins";
 import {Balloon, Bars, Bell, CarretDown, Close, Cycles, Document, Gear, Gem, Journal, Logout, Realm, Save, Ticket, User, Wallet} from "./icons";
 
@@ -26,25 +26,13 @@ export const Header = ({subtle, route}) => {
             {user && user.realms.length > 0 && !subtle && <ReactionToggleButton classNameArg="left_half_spaced"
                 pressed={showRealms} onClick={() => { toggleRealms(!showRealms); toggleButtonBar(false) }}
                 icon={<CarretDown classNameArg="large_text" />} />}
-            {inRealm && <ButtonWithLoading classNameArg="left_half_spaced monospace"
-                styleArg={{background: realmBg, padding: "0.2em"}}
-                onClick={async () =>{
-                    await api.call("enter_realm", "");
-                    await api._reloadUser();
-                    location.href = "/#/main";
-                }}
-                label={<div className="vcentered">
-                    <RealmSpan classNameArg="padded_rounded smaller_text" name={user.current_realm}/>
-                    <Close styleArg={{fill: realmFg}} small={true} />
-                </div>}
-            />}
             <div className="vcentered max_width_col flex_ended">
                 {!subtle &&  <>
                     {user && !inboxEmpty && <span className="clickable vcentered" onClick={() => location.href = "#/inbox"}>
                         <Bell /><code className="left_half_spaced right_spaced">{`${Object.keys(user.inbox).length}`}</code>
                     </span>}
                     {user && inboxEmpty && <div className="vcentered"><Cycles /><code className="left_half_spaced right_spaced">{`${user.cycles}`}</code></div>}
-                    {user && (bigScreen() || !user.current_realm) && <PostButton classNameArg="right_half_spaced" />}
+                    {user && <PostButton classNameArg="right_half_spaced" />}
                     {!api._principalId && <ToggleButton 
                         classNameArg={!showLogins && "active"}
                         toggler={() => setShowLogins(!showLogins)} currState={() => showLogins} onLabel="CLOSE" offLabel="ENTER" />}
@@ -54,7 +42,6 @@ export const Header = ({subtle, route}) => {
             </div>
         </header>
         {showLogins && <LoginMasks />}
-        {showButtonBar && (!bigScreen() && user.current_realm) && <div className="spaced row_container"><PostButton classNameArg="max_width_col" /></div>}
         {showButtonBar && <div className="two_column_grid monospace top_spaced stands_out" style={{ rowGap: "1em" }}>
             {user && <a className="iconed" onClick={() => toggleButtonBar(!showButtonBar)} href={`/#/journal/${user.name}`}><Journal /> JOURNAL</a>}
             {user && <a className="iconed" onClick={() => toggleButtonBar(!showButtonBar)} href={`/#/user/${user.name}`}><User /> {api._user.name.toUpperCase()}</a>}
@@ -82,6 +69,19 @@ export const Header = ({subtle, route}) => {
                 }} name={realm} />)}
         </div>}
         {loading && <Loading />}
+        {inRealm &&
+            <HeadBar title={user.current_realm} shareLink={`realm/${user.current_realm}`} 
+                styleArg={{background: realmBg, color: realmFg}}
+                content={<ButtonWithLoading classNameArg="left_half_spaced monospace"
+                    styleArg={{background: realmBg, color: realmFg}}
+                    onClick={async () =>{
+                        await api.call("enter_realm", "");
+                        await api._reloadUser();
+                        location.href = "/#/main";
+                    }}
+                    label={<div className="vcentered"><Close styleArg={{fill: realmFg}} small={true} /></div>}
+                />}
+            />}
     </>;
 }
 

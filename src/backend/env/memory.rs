@@ -1,35 +1,43 @@
 use ic_cdk::api::stable::{stable64_grow, stable64_read, stable64_size, stable64_write};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+};
 
-use super::post::{Post, PostId};
+use super::{Logger, Realm};
 
 pub trait Storable {
     fn to_bytes(&self) -> Vec<u8>;
     fn from_bytes(bytes: Vec<u8>) -> Self;
 }
 
+#[derive(Clone, Default, Serialize, Deserialize)]
+pub struct Api {
+    allocator: Allocator,
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct Memory {
-    allocator: Allocator,
+    #[serde(default)]
+    api: Api,
+    #[serde(default)]
+    pub realms: ObjectManager<String, Realm>,
     #[serde(skip)]
-    posts: ObjectManager<PostId, Post>,
+    api_ref: Rc<RefCell<Api>>,
 }
 
 const INITIAL_OFFSET: u64 = 16;
 #[allow(dead_code)]
 const MAX_CACHE_SIZE: usize = 1000;
 
-impl Memory {
+impl Api {
     pub fn write<T: Storable>(&mut self, value: &T) -> Result<(u64, u64), String> {
         let buffer: Vec<u8> = value.to_bytes();
         let offset = self.allocator.alloc(buffer.len() as u64)?;
         stable64_write(offset, &buffer);
         Ok((offset, buffer.len() as u64))
-    }
-
-    pub fn size(&self) -> u64 {
-        self.allocator.boundary
     }
 
     pub fn read<T: Storable>(offset: u64, len: u64) -> T {
@@ -41,22 +49,39 @@ impl Memory {
         stable64_read(offset, &mut bytes);
         T::from_bytes(bytes)
     }
+}
 
-    pub fn report_health(&self, logger: &mut super::Logger) {
-        let cache_size = self.posts.cache.len();
+impl Memory {
+    fn pack(&mut self, logger: &mut Logger) {
+        if let Err(err) = self.realms.sync() {
+            logger.error(format!("couldn't sync the memory: {}", err));
+        }
+        self.api = (*self.api_ref.as_ref().borrow()).clone();
+    }
+
+    fn unpack(&mut self) {
+        self.api_ref = Rc::new(RefCell::new(self.api.clone()));
+        self.realms.api = Rc::clone(&self.api_ref);
+    }
+
+    pub fn report_health(&mut self, logger: &mut super::Logger) {
+        let cache_size = self.realms.cache.len();
         logger.info(format!(
             "Memory health: {}, cached_objects=`{}`",
-            self.allocator.health(),
+            self.api_ref.as_ref().borrow().allocator.health(),
             cache_size
         ));
+        self.realms.clean_up();
+        if let Err(err) = self.realms.sync() {
+            logger.error(format!("couldn't sync the memory: {}", err));
+        }
     }
 }
 
 pub fn heap_to_stable(state: &mut super::State) {
-    let mut memory: Memory = Default::default();
-    memory.allocator.segments = state.memory.allocator.segments.clone();
-    memory.allocator.boundary = state.memory.allocator.boundary;
-    let (offset, len) = match memory.write(state) {
+    state.memory.pack(&mut state.logger);
+    let mut api = state.memory.api.clone();
+    let (offset, len) = match api.write(state) {
         Ok(values) => values,
         // Plan B: if the allocator ever fails, just dump the heap at the end of stable memory
         Err(err) => {
@@ -88,7 +113,9 @@ pub fn heap_address() -> (u64, u64) {
 pub fn stable_to_heap() -> super::State {
     let (offset, len) = heap_address();
     ic_cdk::println!("Reading heap from coordinates: {:?}", (offset, len),);
-    Memory::read(offset, len)
+    let mut state: super::State = Api::read(offset, len);
+    state.memory.unpack();
+    state
 }
 
 #[derive(Serialize, Deserialize)]
@@ -100,6 +127,16 @@ struct Allocator {
     mem_grow: Option<Box<dyn FnMut(u64) -> Result<u64, String>>>,
     #[serde(skip)]
     mem_size: Option<Box<dyn Fn() -> u64>>,
+}
+
+impl Clone for Allocator {
+    fn clone(&self) -> Self {
+        Self {
+            segments: self.segments.clone(),
+            boundary: self.boundary,
+            ..Default::default()
+        }
+    }
 }
 
 impl Default for Allocator {
@@ -231,52 +268,60 @@ impl Allocator {
 }
 
 #[derive(Default, Serialize, Deserialize)]
-struct ObjectManager<K: Ord + Eq, T: Storable> {
+pub struct ObjectManager<K: Ord + Eq, T: Storable> {
     index: BTreeMap<K, (u64, u64)>,
     #[serde(skip)]
     cache: BTreeMap<K, T>,
+    #[serde(skip)]
     dirty: BTreeSet<K>,
+    #[serde(skip)]
+    api: Rc<RefCell<Api>>,
 }
 
-impl<K: Eq + Ord + Copy, T: Storable> ObjectManager<K, T> {
+impl<K: Eq + Ord + Clone, T: Storable> ObjectManager<K, T> {
     #[allow(dead_code)]
-    fn insert(&mut self, mem: &mut Memory, id: K, value: T) -> Result<(), String> {
-        self.index.insert(id, mem.write(&value)?);
+    pub fn keys(&self) -> impl Iterator<Item = &'_ K> {
+        self.index.keys()
+    }
+
+    #[allow(dead_code)]
+    pub fn insert(&mut self, id: K, value: T) -> Result<(), String> {
+        self.index.insert(id, self.api.borrow_mut().write(&value)?);
         Ok(())
     }
 
     #[allow(dead_code)]
-    fn get(&mut self, id: &K) -> Option<&'_ T> {
+    pub fn get(&mut self, id: &K) -> Option<&'_ T> {
         Some(
-            self.cache.entry(*id).or_insert(
+            self.cache.entry(id.clone()).or_insert(
                 self.index
                     .get(id)
-                    .map(|(offset, len)| Memory::read(*offset, *len))?,
+                    .map(|(offset, len)| Api::read(*offset, *len))?,
             ),
         )
     }
 
     #[allow(dead_code)]
-    fn get_mut(&mut self, id: &K) -> Option<&'_ mut T> {
-        self.dirty.insert(*id);
+    pub fn get_mut(&mut self, id: &K) -> Option<&'_ mut T> {
+        self.dirty.insert(id.clone());
         Some(
-            self.cache.entry(*id).or_insert(
+            self.cache.entry(id.clone()).or_insert(
                 self.index
                     .get(id)
-                    .map(|(offset, len)| Memory::read(*offset, *len))?,
+                    .map(|(offset, len)| Api::read(*offset, *len))?,
             ),
         )
     }
 
     #[allow(dead_code)]
-    fn sync(&mut self, mem: &mut Memory) -> Result<usize, String> {
+    fn sync(&mut self) -> Result<usize, String> {
         let dirty = std::mem::take(&mut self.dirty);
         let synced = dirty.len();
         for id in dirty {
             let val = self.cache.get(&id).expect("no value found");
             let (off, len) = self.index.remove(&id).expect("no offset found");
-            mem.allocator.free(off, len)?;
-            self.index.insert(id, mem.write(val)?);
+            self.api.borrow_mut().allocator.free(off, len)?;
+            self.index.insert(id, self.api.borrow_mut().write(val)?);
         }
         Ok(synced)
     }
