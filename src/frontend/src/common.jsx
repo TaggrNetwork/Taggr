@@ -32,7 +32,7 @@ export const HeadBar = ({title, shareLink, shareTitle, content, menu, styleArg})
     return <div className="column_container stands_out bottom_spaced" style={styleArg}>
         <div className="vcentered">
             <div className={`max_width_col ${bigScreen() ? "x_large_text" : "larger_text"}`}>{title}</div>
-            <div className="row_container flex_ended">
+            <div className="vcentered flex_ended">
                 {shareLink && <ShareButton styleArg={styleArg} url={shareLink} title={shareTitle} classNameArg="right_half_spaced" />}
                 {menu && <BurgerButton onClick={() => setShowMenu(!showMenu)} pressed={showMenu} />}
                 {!menu && content}

@@ -22,15 +22,15 @@ pub struct Api {
 pub struct Memory {
     #[serde(default)]
     api: Api,
-    #[serde(default)]
-    pub realms: ObjectManager<String, Realm>,
+    #[serde(skip)]
+    pub realms: ObjectManager<u32, Realm>,
     #[serde(skip)]
     api_ref: Rc<RefCell<Api>>,
 }
 
 const INITIAL_OFFSET: u64 = 16;
 #[allow(dead_code)]
-const MAX_CACHE_SIZE: usize = 1000;
+const MAX_CACHE_SIZE: usize = 2000;
 
 impl Api {
     pub fn write<T: Storable>(&mut self, value: &T) -> Result<(u64, u64), String> {
@@ -62,6 +62,7 @@ impl Memory {
     fn unpack(&mut self) {
         self.api_ref = Rc::new(RefCell::new(self.api.clone()));
         self.realms.api = Rc::clone(&self.api_ref);
+        self.realms.warm_up();
     }
 
     pub fn report_health(&mut self, logger: &mut super::Logger) {
@@ -333,6 +334,21 @@ impl<K: Eq + Ord + Clone, T: Storable> ObjectManager<K, T> {
             self.cache.pop_first();
         }
         len - self.cache.len()
+    }
+
+    #[allow(dead_code)]
+    fn warm_up(&mut self) {
+        for k in self
+            .index
+            .keys()
+            .rev()
+            .take(MAX_CACHE_SIZE)
+            .cloned()
+            .collect::<Vec<_>>()
+            .into_iter()
+        {
+            self.get(&k);
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 import * as React from "react";
 import {bigScreen, BurgerButton, ButtonWithLoading, HeadBar, Loading, ReactionToggleButton, realmColors, RealmSpan, ToggleButton} from "./common";
 import {authMethods, LoginMasks} from "./logins";
-import {Balloon, Bars, Bell, CarretDown, Close, Cycles, Document, Gear, Gem, Journal, Logout, Realm, Save, Ticket, User, Wallet} from "./icons";
+import {Balloon, Bars, Bell, CarretDown, Close, Cycles, Document, Gear, Gem, Home, Journal, Logout, Realm, Save, Ticket, User, Wallet} from "./icons";
 
 const logout = () => {
     location.href = "/";
@@ -72,15 +72,20 @@ export const Header = ({subtle, route}) => {
         {inRealm &&
             <HeadBar title={user.current_realm} shareLink={`realm/${user.current_realm}`} 
                 styleArg={{background: realmBg, color: realmFg}}
-                content={<ButtonWithLoading classNameArg="left_half_spaced monospace"
-                    styleArg={{background: realmBg, color: realmFg}}
-                    onClick={async () =>{
-                        await api.call("enter_realm", "");
-                        await api._reloadUser();
-                        location.href = "/#/main";
-                    }}
-                    label={<div className="vcentered"><Close styleArg={{fill: realmFg}} small={true} /></div>}
-                />}
+                content={<>
+                    <button style={{background: realmBg}} onClick={() =>location.href = `#/realm/${user.current_realm}`} >
+                        <Home styleArg={{fill: realmFg}} />
+                    </button>
+                    <ButtonWithLoading classNameArg="left_half_spaced monospace"
+                        styleArg={{background: realmBg, color: realmFg}}
+                        onClick={async () =>{
+                            await api.call("enter_realm", "");
+                            await api._reloadUser();
+                            location.href = "/#/main";
+                        }}
+                        label={<div className="vcentered"><Close styleArg={{fill: realmFg}} small={true} /></div>}
+                    />
+                </>}
             />}
     </>;
 }

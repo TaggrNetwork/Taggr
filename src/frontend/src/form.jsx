@@ -308,9 +308,6 @@ function downScaleImage(img, scale) {
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext("2d");
-    ctx.webkitImageSmoothingEnabled = false;
-    ctx.mozImageSmoothingEnabled = false;
-    ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img, 0, 0, width, height);
     return canvas;
 }

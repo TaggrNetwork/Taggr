@@ -59,6 +59,8 @@ pub fn vote_on_report(state: &mut State, principal: Principal, post_id: PostId, 
             post.id,
         );
         post_author.change_karma(-(CONFIG.reporting_penalty as Karma), "moderation penalty");
+        post_author.stalwart = false;
+        post_author.active_weeks = 0;
         let unit = CONFIG.reporting_penalty.min(post_author.cycles()) / 2;
         let reporter = state
             .users

@@ -457,8 +457,16 @@ impl State {
         }
         if let Some((user_id, cycles)) = invite.and_then(|code| self.invites.remove(&code)) {
             let id = self.new_user(principal, time(), name.clone());
+            self.cycle_transfer(
+                user_id,
+                id,
+                cycles,
+                0,
+                Destination::Cycles,
+                "claimed by invited user",
+            )
+            .map_err(|err| format!("couldn't use the invite: {}", err))?;
             let user = self.users.get_mut(&id).expect("no user found");
-            user.change_cycles(cycles, CyclesDelta::Plus, "top up by invite".to_string())?;
             user.invited_by = Some(user_id);
             if let Some(inviter) = self.users.get_mut(&user_id) {
                 inviter.notify(format!(
@@ -492,21 +500,23 @@ impl State {
 
     pub fn create_invite(&mut self, principal: Principal, cycles: Cycles) -> Result<(), String> {
         let min_cycles = CONFIG.min_cycles_for_inviting;
-        let user_id = self
+        let user = self
             .principal_to_user_mut(principal)
-            .ok_or("no user found")?
-            .id;
+            .ok_or("no user found")?;
         if cycles < min_cycles {
             return Err(format!(
                 "smallest invite must contain {} cycles",
                 min_cycles
             ));
         }
-        self.charge(user_id, cycles, "invite creation".to_string())?;
+        if user.cycles() < cycles {
+            return Err("not enough cycles".into());
+        }
         let mut hasher = Sha256::new();
         hasher.update(principal.as_slice());
         hasher.update(time().to_be_bytes());
         let code = format!("{:x}", hasher.finalize())[..10].to_string();
+        let user_id = user.id;
         self.invites.insert(code, (user_id, cycles));
         Ok(())
     }
@@ -942,8 +952,6 @@ impl State {
 
             self.clean_up();
 
-            self.recompute_stalwarts(now);
-
             let user_ids = match invoices::get_xdr_in_e8s().await {
                 Ok(e8s_for_1000_kps) => {
                     let rewards = self.distribute_rewards(e8s_for_1000_kps);
@@ -956,6 +964,8 @@ impl State {
                     return;
                 }
             };
+
+            self.recompute_stalwarts(now);
 
             self.mint(user_ids);
         }
@@ -1036,24 +1046,25 @@ impl State {
             match (
                 u.stalwart,
                 u.active_weeks >= CONFIG.min_stalwart_activity_weeks as u32,
+                u.karma() > CONFIG.proposal_rejection_penalty as Karma,
                 stalwart_seats,
             ) {
-                // A user is qualified and is already a stalwart but no seats available
-                (true, true, 0) => {
+                // User is qualified but seats left or they lost karma
+                (true, true, true, 0) | (true, _, false, _) => {
                     u.stalwart = false;
                     left.push(format!("@{} (karma)", u.name));
                 }
                 // A user is qualified and is already a stalwart and seats available
-                (true, true, _) => {
+                (true, true, true, _) => {
                     stalwart_seats = stalwart_seats.saturating_sub(1);
                 }
                 // A user is a stalwart but became inactive
-                (true, false, _) => {
+                (true, false, _, _) => {
                     u.stalwart = false;
                     left.push(format!("@{} (inactivity)", u.name));
                 }
                 // A user is not a stalwart, but qualified and there are seats left
-                (false, true, seats) if seats > 0 => {
+                (false, true, true, seats) if seats > 0 => {
                     u.stalwart = true;
                     joined.push(format!("@{}", u.name));
                     stalwart_seats = stalwart_seats.saturating_sub(1);
@@ -1509,6 +1520,9 @@ impl State {
             .get_mut(&post_id)
             .expect("no post found")
             .delete(versions);
+
+        self.hot.retain(|id| id != &post_id);
+
         Ok(())
     }
 
@@ -2765,7 +2779,7 @@ pub(crate) mod tests {
         let mut state = State::default();
         let now = CONFIG.min_stalwart_account_age_weeks as u64 * WEEK;
 
-        for i in 0..100 {
+        for i in 0..200 {
             let id = create_user(&mut state, pr(i as u8));
             let user = state.users.get_mut(&id).unwrap();
             user.change_karma(i as i64, "");
@@ -2775,6 +2789,8 @@ pub(crate) mod tests {
                 user.last_activity = now;
                 user.active_weeks = CONFIG.min_stalwart_activity_weeks as u32;
                 user.timestamp = 0;
+                user.change_karma(CONFIG.proposal_rejection_penalty as Karma, "");
+                user.apply_rewards();
             }
         }
 
@@ -2783,7 +2799,7 @@ pub(crate) mod tests {
         // make sure we have right number of stalwarts
         assert_eq!(
             state.users.values().filter(|u| u.stalwart).count(),
-            CONFIG.stalwart_percentage
+            CONFIG.stalwart_percentage * 2
         );
     }
 
@@ -2803,7 +2819,8 @@ pub(crate) mod tests {
         let prev_balance = state.users.get(&id).unwrap().cycles();
         assert_eq!(state.create_invite(principal, 111), Ok(()));
         let new_balance = state.users.get(&id).unwrap().cycles();
-        assert_eq!(new_balance, prev_balance - 111);
+        // no charging yet
+        assert_eq!(new_balance, prev_balance);
         let invite = state.invites(principal);
         assert_eq!(invite.len(), 1);
         let (code, cycles) = invite.get(0).unwrap();
@@ -2813,6 +2830,8 @@ pub(crate) mod tests {
         let err = state
             .create_user(pr(2), "name".to_string(), Some(code.clone()))
             .await;
+        let new_balance = state.users.get(&id).unwrap().cycles();
+        assert_eq!(new_balance, prev_balance - 111);
         assert!(err.is_ok())
     }
 }

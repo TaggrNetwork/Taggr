@@ -72,6 +72,9 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
+    state().invites.values().cloned().for_each(|(id, cycles)| {
+        state_mut().users.get_mut(&id).unwrap().cycles += cycles;
+    });
 }
 
 /*

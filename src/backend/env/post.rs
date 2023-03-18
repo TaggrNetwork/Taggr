@@ -197,22 +197,16 @@ impl Post {
         if self.parent.is_some() || self.user == user_id {
             return;
         };
-        // if too few reactions or too few comments, exit
-        if self
+        let engagements = self
             .reactions
             .iter()
             .filter_map(|(id, users)| {
-                if *id >= CONFIG.min_positive_reaction_id {
-                    Some(users.len())
-                } else {
-                    None
-                }
+                (*id >= CONFIG.min_positive_reaction_id).then_some(users.len())
             })
-            .sum::<usize>() as f32
-            / (total_users as f32)
-            < CONFIG.hot_post_reactions_percentage
-            && self.tree_size as f32 / (total_users as f32) < CONFIG.hot_post_comments_percentage
-        {
+            .sum::<usize>() as u32
+            + self.tree_size;
+
+        if engagements as f32 / (total_users as f32) < CONFIG.hot_post_engagement_percentage {
             return;
         }
         // negative reactions balance

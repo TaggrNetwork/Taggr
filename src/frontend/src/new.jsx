@@ -45,6 +45,7 @@ export const PostSubmissionForm = ({id, repost}) => {
             <li>Use three empty lines to create a cut line for long posts.</li>
             <li>You can drag and drop images into the text area.</li>
             <li>Group images together and separate from the rest by new lines to create galleries.</li>
+            <li>Use the #NSFW hashtag to mask your content by default.</li>
         </ul>
         <Form submitCallback={callback} postId={id} content={post.body || content} blobs={blobs} expanded={true}
             comment={!isRoot(post)} realmArg={post.realm || api._user.current_realm}/>

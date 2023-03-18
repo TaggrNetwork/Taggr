@@ -65,8 +65,7 @@ pub struct Config {
     // percentage of stalwarts needed to confirm a report
     pub report_confirmation_percentage: u16,
 
-    pub hot_post_reactions_percentage: f32,
-    pub hot_post_comments_percentage: f32,
+    pub hot_post_engagement_percentage: f32,
 
     pub max_post_length: usize,
     pub max_tag_length: usize,
@@ -108,7 +107,7 @@ pub const CONFIG: &Config = &Config {
     #[cfg(not(feature = "dev"))]
     proposal_approval_threshold: 66,
     proposal_controversy_threashold: 10,
-    proposal_rejection_penalty: 1000,
+    proposal_rejection_penalty: 500,
 
     total_supply: 100_000_000,
 
@@ -119,7 +118,7 @@ pub const CONFIG: &Config = &Config {
     #[cfg(test)]
     report_confirmation_percentage: 15,
     #[cfg(not(any(test, feature = "dev")))]
-    report_confirmation_percentage: 25,
+    report_confirmation_percentage: 20,
 
     trusted_user_min_karma: 25,
     trusted_user_min_age_weeks: 4,
@@ -139,7 +138,7 @@ pub const CONFIG: &Config = &Config {
 
     min_cycles_minted: 1000,
 
-    reporting_penalty: 200,
+    reporting_penalty: 400,
 
     min_cycles_for_inviting: 50,
 
@@ -162,13 +161,12 @@ pub const CONFIG: &Config = &Config {
     inactivity_duration_weeks: 4,
     revenue_share_activity_weeks: 2,
 
-    stalwart_percentage: 3,
+    stalwart_percentage: 2,
     min_stalwart_activity_weeks: 6,
     min_stalwart_account_age_weeks: 26,
     stalwart_moderation_reward: 20,
 
-    hot_post_reactions_percentage: 0.01,
-    hot_post_comments_percentage: 0.006,
+    hot_post_engagement_percentage: 0.005,
 
     max_post_length: 15000,
     max_tag_length: 20,
