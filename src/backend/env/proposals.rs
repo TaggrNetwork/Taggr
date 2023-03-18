@@ -92,6 +92,8 @@ impl Proposal {
                     .users
                     .get_mut(&self.proposer)
                     .ok_or("user not found")?;
+                proposer.stalwart = false;
+                proposer.active_weeks = 0;
                 proposer.change_karma(
                     -(CONFIG.proposal_rejection_penalty as Karma),
                     "proposal rejection penalty",
@@ -576,6 +578,8 @@ mod tests {
         );
         assert_eq!(user.cycles(), 1000 - 2 * CONFIG.post_cost);
 
+        assert!(user.stalwart);
+
         // last rejection and the proposal is rejected
         assert_eq!(
             vote_on_proposal(&mut state, 0, pr(5), prop_id, false).await,
@@ -593,12 +597,17 @@ mod tests {
             1000 - 100 + CONFIG.trusted_user_min_karma - CONFIG.proposal_rejection_penalty as Karma
                 + CONFIG.voting_reward as Karma
         );
-        assert_eq!(user.cycles(), 1000 - CONFIG.proposal_rejection_penalty);
-        assert!(!user.trusted());
+        assert_eq!(
+            user.cycles(),
+            1000 - CONFIG.proposal_rejection_penalty - 2 * CONFIG.post_cost
+        );
+        assert!(!user.stalwart);
         user.change_cycles(100, crate::env::user::CyclesDelta::Plus, "")
             .unwrap();
 
         // create a new proposal
+        user.stalwart = true;
+        user.change_karma(-1000, "");
         let prop_id = propose(&mut state, proposer, "test".into(), Payload::Noop, 0)
             .await
             .expect("couldn't propose");
@@ -721,7 +730,7 @@ mod tests {
             state.proposals.iter().last().unwrap().status,
             Status::Rejected
         );
-        assert!(state.principal_to_user(pr(1)).unwrap().cycles() == 0);
+        assert_eq!(state.principal_to_user(pr(1)).unwrap().cycles(), 498);
         assert_eq!(
             state.principal_to_user(pr(1)).unwrap().karma(),
             proposers_karma - CONFIG.proposal_rejection_penalty as i64

@@ -140,12 +140,10 @@ mod tests {
         let p = pr(0);
         let u1 = create_user(&mut state, p);
         let user = state.users.get_mut(&u1).unwrap();
-        user.change_cycles(800 - 123, CyclesDelta::Minus, "")
-            .unwrap();
         user.change_karma(100, "");
 
         assert_eq!(user.inbox.len(), 1);
-        assert_eq!(user.cycles(), CONFIG.reporting_penalty + 123);
+        assert_eq!(user.cycles(), 1000);
         assert_eq!(user.karma_to_reward(), 100);
 
         for i in 1..20 {
@@ -168,10 +166,7 @@ mod tests {
         .unwrap();
 
         let user = state.users.get(&u1).unwrap();
-        assert_eq!(
-            user.cycles(),
-            CONFIG.reporting_penalty + 123 - CONFIG.post_cost
-        );
+        assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
 
         let p = state.posts.get(&post_id).unwrap();
         assert!(p.report.is_none());
@@ -199,7 +194,7 @@ mod tests {
         assert_eq!(reporter_user.cycles(), 0);
         assert_eq!(
             state.report(reporter, post_id, String::new()),
-            Err("You need at least 100 cycles to report a post".into())
+            Err("You need at least 200 cycles to report a post".into())
         );
         let p = state.posts.get(&post_id).unwrap();
         assert!(&p.report.is_none());
@@ -270,8 +265,11 @@ mod tests {
 
         let user = state.users.get(&u1).unwrap();
         assert_eq!(user.inbox.len(), 2);
-        assert_eq!(user.cycles(), 123 - CONFIG.post_cost);
-        assert_eq!(user.karma(), -75);
+        assert_eq!(
+            user.cycles(),
+            1000 - CONFIG.reporting_penalty - CONFIG.post_cost
+        );
+        assert_eq!(user.karma(), -275);
 
         let reporter = state.principal_to_user(reporter).unwrap();
         assert_eq!(
@@ -298,7 +296,6 @@ mod tests {
         let u = create_user(&mut state, p);
         let user = state.users.get_mut(&u).unwrap();
         user.change_karma(100, "");
-        user.change_cycles(800, CyclesDelta::Minus, "").unwrap();
         let post_id = add(
             &mut state,
             "good post".to_string(),
@@ -313,7 +310,7 @@ mod tests {
         .unwrap();
 
         let user = state.users.get(&u).unwrap();
-        assert_eq!(user.cycles(), CONFIG.reporting_penalty - CONFIG.post_cost);
+        assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
 
         let reporter = pr(7);
         state.report(reporter, post_id, String::new()).unwrap();
@@ -324,7 +321,7 @@ mod tests {
             .unwrap();
         assert_eq!(reporter_user.cycles(), 777);
         reporter_user.apply_rewards();
-        assert_eq!(reporter_user.karma(), 125);
+        assert_eq!(reporter_user.karma(), 225);
 
         vote_on_report(&mut state, pr(6), post_id, false);
         let p = state.posts.get(&post_id).unwrap();
@@ -349,7 +346,7 @@ mod tests {
 
         // karma and cycles stay untouched
         let user = state.users.get(&u).unwrap();
-        assert_eq!(user.cycles(), CONFIG.reporting_penalty - CONFIG.post_cost);
+        assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
         assert_eq!(user.karma_to_reward(), 100);
 
         // reported got penalized
