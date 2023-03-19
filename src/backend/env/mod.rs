@@ -2,6 +2,7 @@ use self::invoices::{parse_account, Invoice};
 use self::proposals::Status;
 use self::token::account;
 use self::user::{Notification, Predicate};
+use crate::assets;
 use crate::env::invoices::principal_to_subaccount;
 use crate::env::user::CyclesDelta;
 use crate::proposals::Proposal;
@@ -240,7 +241,8 @@ impl State {
     }
 
     pub fn load(&mut self) {
-        crate::assets::load();
+        assets::load();
+        canisters::init();
         self.last_upgrade = time();
     }
 
