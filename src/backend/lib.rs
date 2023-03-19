@@ -155,11 +155,8 @@ fn execute_upgrade() {
         })
         .expect("no proposals found");
     if let Payload::Release(release) = &mut proposal.payload {
-        let binary = std::mem::take(&mut release.binary);
-        if !binary.is_empty() {
-            state.logger.info("Executing the canister upgrade...");
-            upgrade_main_canister(&mut state.logger, &binary);
-        }
+        state.logger.info("Executing the canister upgrade...");
+        upgrade_main_canister(&mut state.logger, &release.binary);
     }
     reply_raw(&[]);
 }
@@ -169,11 +166,15 @@ fn finalize_upgrade() {
     spawn(async {
         let hash: String = parse(&arg_data_raw());
         let state = state_mut();
-        let proposal = state.proposals.iter().last().expect("no proposals found");
+        let proposal = state
+            .proposals
+            .iter_mut()
+            .last()
+            .expect("no proposals found");
         reply(if proposal.status != Status::Executed {
             Err("no executed proposals found".into())
-        } else if let Payload::Release(payload) = &proposal.payload {
-            if !payload.binary.is_empty() {
+        } else if let Payload::Release(payload) = &mut proposal.payload {
+            if payload.binary.is_empty() {
                 Err("no upgrades to finalize".into())
             } else if hash != payload.hash {
                 Err("no upgrades for the provided hash".into())
@@ -196,6 +197,7 @@ fn finalize_upgrade() {
                         "Upgrade succeeded: new version is `{}`.",
                         &current[0..8]
                     ));
+                    payload.binary = Default::default();
                     Ok(())
                 }
             }
