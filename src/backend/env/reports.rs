@@ -58,7 +58,10 @@ pub fn vote_on_report(state: &mut State, principal: Principal, post_id: PostId, 
             ),
             post.id,
         );
-        post_author.change_karma(-(CONFIG.reporting_penalty as Karma), "moderation penalty");
+        post_author.change_karma(
+            -(CONFIG.reporting_penalty as Karma),
+            format!("moderation penalty for post {}", post_id),
+        );
         post_author.stalwart = false;
         post_author.active_weeks = 0;
         let unit = CONFIG.reporting_penalty.min(post_author.cycles()) / 2;
@@ -74,7 +77,7 @@ pub fn vote_on_report(state: &mut State, principal: Principal, post_id: PostId, 
                 unit,
                 0,
                 Destination::Karma,
-                "moderation rewards",
+                format!("moderation rewards for post {}", post_id),
             )
             .expect("couldn't reward reporter");
         (post_author_id, unit)
@@ -86,7 +89,7 @@ pub fn vote_on_report(state: &mut State, principal: Principal, post_id: PostId, 
             .expect("no user found");
         reporter.notify_about_post("Your report was rejected by stalwarts", post.id);
         let unit = CONFIG.reporting_penalty.min(reporter.cycles());
-        let log = "false report penalty";
+        let log = format!("false report penalty for post {}", post_id);
         reporter.change_karma(-(CONFIG.reporting_penalty as Karma) / 2, log);
         let reporter_id = reporter.id;
         (reporter_id, unit)
@@ -99,7 +102,7 @@ pub fn vote_on_report(state: &mut State, principal: Principal, post_id: PostId, 
         .collect::<Vec<_>>();
     let stalwart_reward = (unit / stalwarts.len() as u64).min(CONFIG.stalwart_moderation_reward);
     let mut total_stalwart_rewards = 0;
-    let log = "moderation rewards for stalwarts";
+    let log = &format!("stalwarts moderation rewards for post {}", post_id);
     for stalwart_id in stalwarts.iter() {
         let moderator = state.users.get(stalwart_id).expect("no user found").id;
         state
@@ -119,7 +122,7 @@ pub fn vote_on_report(state: &mut State, principal: Principal, post_id: PostId, 
             .charge(
                 sponsor_id,
                 unit - total_stalwart_rewards,
-                "moderation penalty",
+                format!("moderation penalty for post {}", post_id),
             )
             .expect("couldn't charge user");
     }

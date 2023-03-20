@@ -4,6 +4,7 @@ import {loadFile} from "./form";
 import {bigScreen, ButtonWithLoading, HeadBar, Loading, NotFound, RealmRibbon, setTitle, userList, } from "./common";
 import { Content } from './content';
 import {Edit} from "./icons";
+import {applyTheme, themes} from "./theme";
 
 export const RealmForm = ({existingName}) => {
     const editing = !!existingName;
@@ -18,9 +19,9 @@ export const RealmForm = ({existingName}) => {
     const [logo, setLogo] = React.useState("");
     const [labelColor, setLabelColor] = React.useState("");
     const [description, setDescription] = React.useState("");
+    const [theme, setTheme] = React.useState(null);
     const [controllersString, setControllersString] = React.useState(users[userId]);
     const [controllers, setControllers] = React.useState([userId]);
-    const [loading, setLoading] = React.useState(false);
 
     const loadRealm = async () => {
         let result = await api.query("realm", existingName);
@@ -32,6 +33,7 @@ export const RealmForm = ({existingName}) => {
         setName(existingName);
         setDescription(realm.description);
         setControllers(realm.controllers);
+        if (realm.theme) setTheme(JSON.parse(realm.theme));
         setLabelColor(realm.label_color || "#ffffff");
         setControllersString(realm.controllers.map(id => users[id]).join(", "));
     };
@@ -97,20 +99,66 @@ export const RealmForm = ({existingName}) => {
             <div className="column_container bottom_spaced monospace">
                 <div className="bottom_half_spaced">VALID CONTROLLERS: {userList(controllers)}</div>
             </div>}
-            {loading && <Loading spaced={false} />}
-            {!loading && <button className={valid ? "active" : "inactive"} onClick={async () => {
+            <h2>Color Theme</h2>
+            <div className="vcentered">
+                <input type="checkbox" checked={!!theme} onChange={() => setTheme(theme ? null : themes.classic)} />
+                <label className="left_spaced">Use own theme</label>
+            </div>
+            {theme && <div className={`${bigScreen() ? "four_column_grid" : "two_column_grid"} monospace vertically_spaced`}>
+                <div className="db_cell">
+                    TEXT
+                    <input type="color" value={theme.text} onChange={ev => setTheme({...theme, text: ev.target.value })} />
+                </div>
+                <div className="db_cell">
+                    BACKGROUND
+                    <input type="color" value={theme.background} onChange={ev => setTheme({...theme, background: ev.target.value })} />
+                </div>
+                <div className="db_cell">
+                    BACKGROUND LIGHT
+                    <input type="color" value={theme.background_light} onChange={ev => setTheme({...theme, background_light: ev.target.value })} />
+                </div>
+                <div className="db_cell">
+                    BACKGROUND DARK
+                    <input type="color" value={theme.background_dark} onChange={ev => setTheme({...theme, background_dark: ev.target.value })} />
+                </div>
+                <div className="db_cell">
+                    CODE
+                    <input type="color" value={theme.code} onChange={ev => setTheme({...theme, code: ev.target.value })} />
+                </div>
+                <div className="db_cell">
+                    LINK
+                    <input type="color" value={theme.clickable} onChange={ev => setTheme({...theme, clickable: ev.target.value })} />
+                </div>
+                <div className="db_cell">
+                    VISITED LINK
+                    <input type="color" value={theme.clicked} onChange={ev => setTheme({...theme, clicked: ev.target.value })} />
+                </div>
+                <div className="db_cell">
+                    TEXT HIGHLIGHT
+                    <input type="color" value={theme.focus} onChange={ev => setTheme({...theme, focus: ev.target.value })} />
+                </div>
+                <div className="db_cell">
+                    HIGHLIGHT
+                    <input type="color" value={theme.accent} onChange={ev => setTheme({...theme, accent: ev.target.value })} />
+                </div>
+            </div>}
+
+            <br />
+            <hr />
+            <br />
+
+            <ButtonWithLoading classNameArg={valid ? "active" : "inactive"} onClick={async () => {
                 if (!valid) return;
-                setLoading(true);
                 const response = await api.call(editing ? "edit_realm" : "create_realm",
-                    name, logo, labelColor, description, controllers.map(id => parseInt(id)));
+                    name, logo, labelColor, theme ? JSON.stringify(theme) : "", description, controllers.map(id => parseInt(id)));
                 await window.reloadCache();
-                setLoading(false);
                 if ("Err" in response) {
                     alert(`Error: ${response.Err}`);
                     return;
+                } else {
+                    await applyTheme();
                 }
-                else location.href = `/#/realm/${name}`;
-            }}>{editing ? "SAVE" : "CREATE"}</button>}
+            }} label={editing ? "SAVE" : "CREATE"} />
         </div>
     </div>
 }

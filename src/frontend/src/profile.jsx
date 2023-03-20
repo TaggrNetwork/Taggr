@@ -3,10 +3,12 @@ import { timeAgo, NotFound, ToggleButton, commaSeparated, Loading, RealmSpan, He
 import {Content} from "./content";
 import {Journal} from "./icons";
 import {PostFeed} from "./post_feed";
+import {Cycles, YinYan} from "./icons";
 
 export const Profile = ({handle}) => {
     // loadingStatus: 0 initial, 1 loaded, -1 not found
     const [profile, setProfile] = React.useState({ loadingStatus: 0 });
+    const [fullAccounting, setFullAccounting] = React.useState(false);
 
     const updateState = async () => {
         const profile = await api.query("user", [handle]);
@@ -90,6 +92,22 @@ export const Profile = ({handle}) => {
                 </div>
             </div>
         </>}
+        <hr />
+        <div className="spaced">
+            <h1>Karma and Cycles Changes</h1>
+            <table style={{width: "100%"}} className="monospace">
+                <tbody>
+                    {(fullAccounting ? profile.accounting : profile.accounting.slice(0,10))
+                            .map(([timestamp, type, delta, log], i) => 
+                                <tr className="stands_out" key={type+log+i}>
+                                    <td>{timeAgo(timestamp)}</td>
+                                    <td style={{color: delta > 0 ? "green" : "red", textAlign: "right"}}>{delta > 0 ? "+" : ""}{delta} {type == "KRM" ? <YinYan /> : <Cycles />}</td>
+                                    <td style={{textAlign: "right"}}>{linkPost(log)}</td>
+                                </tr>)}
+                </tbody>
+            </table>
+            <button onClick={() => setFullAccounting(true)}>SHOW ALL</button>
+        </div>
         <hr />
         {profile.posts.length > 0 && <h2 className="spaced">Latest posts</h2>}
         <PostFeed feedLoader={async page => {
@@ -211,3 +229,10 @@ const stalwart = profile => !isBot(profile) &&
     backendCache.config.min_stalwart_account_age_weeks * 7 * day && 
     profile.active_weeks >= backendCache.config.min_stalwart_activity_weeks &&
     profile.karma >= backendCache.config.proposal_rejection_penalty;
+
+const linkPost = line => {
+    const [prefix, id] = line.split(" post ");
+    if (id) {
+        return <span>{prefix} post <a href={`#/post/${id}`}>{id}</a></span>;
+    } else return line;
+};

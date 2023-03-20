@@ -228,7 +228,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(async (authClient
             App();
         }, REFRESH_RATE_SECS * 1000);
         await api._reloadUser();
-        applyTheme();
+        await applyTheme();
     }
     updateDoc();
     App();

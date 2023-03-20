@@ -59,7 +59,12 @@ impl Proposal {
         let supply_of_users_total: Token = state
             .balances
             .iter()
-            .filter_map(|(acc, balance)| state.principal_to_user(acc.owner).map(|_| *balance))
+            .filter_map(|(acc, balance)| {
+                state.principal_to_user(acc.owner).and_then(|user| {
+                    user.active_within_weeks(time, CONFIG.voting_power_activity_weeks)
+                        .then_some(*balance)
+                })
+            })
             .sum();
         // decrease the total number according to the delay
         let delay =
@@ -276,7 +281,11 @@ pub async fn vote_on_proposal(
         return Err(err);
     }
     if let Some(user) = state.principal_to_user(caller) {
-        state.spend_to_user_karma(user.id, CONFIG.voting_reward, "voting rewards");
+        state.spend_to_user_karma(
+            user.id,
+            CONFIG.voting_reward,
+            format!("voting rewards for proposal {}", proposal_id),
+        );
     }
     state.proposals = proposals;
     execute_proposal(state, proposal_id, time).await

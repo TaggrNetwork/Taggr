@@ -93,6 +93,8 @@ pub struct Realm {
     controllers: Vec<UserId>,
     pub members: BTreeSet<UserId>,
     pub label_color: String,
+    #[serde(default)]
+    theme: String,
 }
 
 impl Storable for Realm {
@@ -304,6 +306,7 @@ impl State {
         name: String,
         logo: String,
         label_color: String,
+        theme: String,
         description: String,
         controllers: Vec<UserId>,
     ) -> Result<(), String> {
@@ -324,6 +327,7 @@ impl State {
         realm.description = description;
         realm.controllers = controllers;
         realm.label_color = label_color;
+        realm.theme = theme;
         Ok(())
     }
 
@@ -333,6 +337,7 @@ impl State {
         name: String,
         logo: String,
         label_color: String,
+        theme: String,
         description: String,
         controllers: Vec<UserId>,
     ) -> Result<(), String> {
@@ -379,6 +384,7 @@ impl State {
                 description,
                 controllers,
                 label_color,
+                theme,
                 posts: Default::default(),
                 members: vec![user.id].into_iter().collect(),
             },
@@ -805,7 +811,7 @@ impl State {
 
     pub fn distribute_rewards(&mut self, e8s_for_1000_kps: u64) -> HashMap<UserId, u64> {
         for user in self.users.values_mut() {
-            user.ledger.clear();
+            user.accounting.clear();
         }
         self.users
             .values_mut()
@@ -1314,6 +1320,10 @@ impl State {
         let id = self.next_user_id;
         self.next_user_id += 1;
         id
+    }
+
+    fn last_post_id(&self) -> PostId {
+        self.next_post_id.saturating_sub(1)
     }
 
     fn new_post_id(&mut self) -> PostId {
@@ -1937,6 +1947,7 @@ pub(crate) mod tests {
                 name.clone(),
                 Default::default(),
                 Default::default(),
+                Default::default(),
                 description.clone(),
                 controllers.clone()
             ),
@@ -1947,6 +1958,7 @@ pub(crate) mod tests {
             state.create_realm(
                 p1,
                 name.clone(),
+                Default::default(),
                 Default::default(),
                 Default::default(),
                 description.clone(),
@@ -1961,6 +1973,7 @@ pub(crate) mod tests {
                 "THIS_NAME_IS_TOO_LONG".to_string(),
                 Default::default(),
                 Default::default(),
+                Default::default(),
                 description.clone(),
                 controllers.clone()
             ),
@@ -1971,6 +1984,7 @@ pub(crate) mod tests {
             state.create_realm(
                 p0,
                 name.clone(),
+                Default::default(),
                 Default::default(),
                 Default::default(),
                 description.clone(),
@@ -1985,6 +1999,7 @@ pub(crate) mod tests {
                 "TEST NAME".to_string(),
                 Default::default(),
                 Default::default(),
+                Default::default(),
                 description.clone(),
                 controllers.clone()
             ),
@@ -1995,6 +2010,7 @@ pub(crate) mod tests {
             state.create_realm(
                 p0,
                 name.clone(),
+                Default::default(),
                 Default::default(),
                 Default::default(),
                 description.clone(),
@@ -2010,6 +2026,7 @@ pub(crate) mod tests {
             state.create_realm(
                 p0,
                 name.clone(),
+                Default::default(),
                 Default::default(),
                 Default::default(),
                 description.clone(),
@@ -2031,6 +2048,7 @@ pub(crate) mod tests {
                 name.clone(),
                 Default::default(),
                 Default::default(),
+                Default::default(),
                 new_description.clone(),
                 vec![]
             ),
@@ -2041,6 +2059,7 @@ pub(crate) mod tests {
             state.edit_realm(
                 pr(2),
                 name.clone(),
+                Default::default(),
                 Default::default(),
                 Default::default(),
                 new_description.clone(),
@@ -2055,6 +2074,7 @@ pub(crate) mod tests {
                 "WRONGNAME".to_string(),
                 Default::default(),
                 Default::default(),
+                Default::default(),
                 new_description.clone(),
                 controllers.clone()
             ),
@@ -2067,6 +2087,7 @@ pub(crate) mod tests {
                 name.clone(),
                 Default::default(),
                 Default::default(),
+                Default::default(),
                 new_description.clone(),
                 controllers.clone()
             ),
@@ -2077,6 +2098,7 @@ pub(crate) mod tests {
             state.edit_realm(
                 p0,
                 name.clone(),
+                Default::default(),
                 Default::default(),
                 Default::default(),
                 new_description.clone(),
@@ -2211,6 +2233,7 @@ pub(crate) mod tests {
             state.create_realm(
                 p0,
                 realm_name.clone(),
+                Default::default(),
                 Default::default(),
                 Default::default(),
                 description,

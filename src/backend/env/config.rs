@@ -78,6 +78,7 @@ pub struct Config {
     pub online_activity_minutes: u64,
 
     pub revenue_share_activity_weeks: u64,
+    pub voting_power_activity_weeks: u64,
 
     pub distribution_interval_hours: u64,
 
@@ -160,13 +161,14 @@ pub const CONFIG: &Config = &Config {
     inactivity_penalty: 45,
     inactivity_duration_weeks: 4,
     revenue_share_activity_weeks: 2,
+    voting_power_activity_weeks: 8,
 
     stalwart_percentage: 2,
     min_stalwart_activity_weeks: 6,
     min_stalwart_account_age_weeks: 26,
     stalwart_moderation_reward: 20,
 
-    hot_post_engagement_percentage: 0.005,
+    hot_post_engagement_percentage: 0.008,
 
     max_post_length: 15000,
     max_tag_length: 20,

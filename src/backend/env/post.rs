@@ -373,7 +373,8 @@ pub async fn add(
     let costs = post.costs(blobs.len());
     post.valid(&blobs)?;
     let trusted_user = user.trusted();
-    state.charge(user_id, costs, "new post".to_string())?;
+    let future_id = state.last_post_id();
+    state.charge(user_id, costs, format!("new post {}", future_id))?;
     post.save_blobs(state, blobs).await?;
     let id = state.new_post_id();
     let user = state.users.get_mut(&user_id).expect("no user found");

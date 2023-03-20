@@ -252,7 +252,7 @@ const loadImage = blob => {
 
 const canvasToBlob = canvas => new Promise(
     resolve => canvas.toBlob(
-        blob => blob.arrayBuffer().then(resolve),'image/jpeg', 0.9
+        blob => blob.arrayBuffer().then(resolve),'image/jpeg', 0.5
     )
 );
 

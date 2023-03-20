@@ -6,7 +6,7 @@ use env::{
     memory,
     post::{Extension, Post, PostId},
     proposals::{Payload, Release, Status},
-    user::{User, UserId},
+    user::{Notification, Predicate, User, UserId},
     State, *,
 };
 use ic_cdk::{
@@ -72,6 +72,14 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
+    for u in state_mut().users.values_mut() {
+        u.accounting = std::mem::take(&mut u.ledger)
+            .into_iter()
+            .map(|(a, b, c)| (time(), a, b, c))
+            .collect();
+        u.inbox
+            .retain(|_, v| !matches!(v, Notification::Conditional(_, Predicate::ProposalPending)));
+    }
 }
 
 /*
@@ -456,14 +464,23 @@ fn toggle_following_feed() {
 
 #[export_name = "canister_update edit_realm"]
 fn edit_realm() {
-    let (name, logo, label_color, description, controllers): (
+    let (name, logo, label_color, theme, description, controllers): (
+        String,
         String,
         String,
         String,
         String,
         Vec<UserId>,
     ) = parse(&arg_data_raw());
-    reply(state_mut().edit_realm(caller(), name, logo, label_color, description, controllers))
+    reply(state_mut().edit_realm(
+        caller(),
+        name,
+        logo,
+        label_color,
+        theme,
+        description,
+        controllers,
+    ))
 }
 
 #[export_name = "canister_update enter_realm"]
@@ -475,14 +492,23 @@ fn enter_realm() {
 
 #[export_name = "canister_update create_realm"]
 fn create_realm() {
-    let (name, logo, label_color, description, controllers): (
+    let (name, logo, label_color, theme, description, controllers): (
+        String,
         String,
         String,
         String,
         String,
         Vec<UserId>,
     ) = parse(&arg_data_raw());
-    reply(state_mut().create_realm(caller(), name, logo, label_color, description, controllers))
+    reply(state_mut().create_realm(
+        caller(),
+        name,
+        logo,
+        label_color,
+        theme,
+        description,
+        controllers,
+    ))
 }
 
 #[export_name = "canister_update toggle_realm_membership"]

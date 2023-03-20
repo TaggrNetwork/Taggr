@@ -108,7 +108,7 @@ The cycles transferred via tipping get added to receiver's cycle balance and do 
 ## Proposals
 
 A proposal passes if `$proposal_approval_threshold%` of users approve it or it fails if `(100-$proposal_approval_threshold)%` of users reject it.
-Only tokens of registered users count as participating votes.
+Only tokens of registered users active within `$voting_power_activity_weeks` weeks count as participating votes.
 To prevent low-quality proposals, if a proposal is rejected with a rejected/adopted ratio of less than `$proposal_controversy_threashold%`, the proposer loses `$proposal_rejection_penalty` karma points and cycles.
 
 The total voting power of all registered users needed to adopt or reject a proposal decreases daily by `1%` as long as the proposal stays open.

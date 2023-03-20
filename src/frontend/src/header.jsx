@@ -2,6 +2,7 @@ import * as React from "react";
 import {bigScreen, BurgerButton, ButtonWithLoading, HeadBar, Loading, ReactionToggleButton, realmColors, RealmSpan, ToggleButton} from "./common";
 import {authMethods, LoginMasks} from "./logins";
 import {Balloon, Bars, Bell, CarretDown, Close, Cycles, Document, Gear, Gem, Home, Journal, Logout, Realm, Save, Ticket, User, Wallet} from "./icons";
+import {applyTheme} from "./theme";
 
 const logout = () => {
     location.href = "/";
@@ -64,6 +65,7 @@ export const Header = ({subtle, route}) => {
                     setLoading(true);
                     await api.call("enter_realm", realm);
                     await api._reloadUser();
+                    await applyTheme();
                     location.href = "/#/_";
                     setLoading(false);
                 }} name={realm} />)}
@@ -81,6 +83,7 @@ export const Header = ({subtle, route}) => {
                         onClick={async () =>{
                             await api.call("enter_realm", "");
                             await api._reloadUser();
+                            await applyTheme();
                             location.href = "/#/main";
                         }}
                         label={<div className="vcentered"><Close styleArg={{fill: realmFg}} small={true} /></div>}

@@ -1,6 +1,6 @@
 import template from '../assets/style.css';
 
-const themes = {
+export const themes = {
     "classic": {
         "text": "#cbcbbc",
         "focus": "#c8c6a1",
@@ -47,13 +47,21 @@ const themes = {
     }
 };
 
-export const applyTheme = () => {
+export const applyTheme = async () => {
     let theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "dark" : "light";
-    if (api._user) {
-        const preferredTheme = api._user.settings.theme;
+    let user = api._user;
+    if (user) {
+        const preferredTheme = user.settings.theme;
         if (preferredTheme && preferredTheme != "auto") theme = preferredTheme;
     }
-    const palette = themes[theme || "classic"];
+    let realmTheme = "";
+    if (user.current_realm) {
+        const result = await api.query("realm", user.current_realm);
+        if ("Ok" in result) {
+            realmTheme = result.Ok.theme;
+        }
+    }
+    const palette = realmTheme ? JSON.parse(realmTheme) : themes[theme || "classic"];
     const styleNode = document.getElementById("style");
     styleNode.innerText = Object.keys(palette).reduce((acc, color) =>
         acc.replaceAll(`$${color}`, palette[color]), template);

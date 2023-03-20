@@ -48,7 +48,10 @@ pub struct User {
     pub stalwart: bool,
     pub controllers: Vec<String>,
     pub invited_by: Option<UserId>,
+    // TODO: delete
     pub ledger: VecDeque<(String, i64, String)>,
+    #[serde(default)]
+    pub accounting: VecDeque<(u64, String, i64, String)>,
     pub realms: Vec<String>,
     pub current_realm: Option<String>,
     pub balance: Token,
@@ -78,6 +81,7 @@ impl User {
             followees: Default::default(),
             followers: Default::default(),
             ledger: Default::default(),
+            accounting: Default::default(),
             controllers: Default::default(),
             last_activity: timestamp,
             stalwart: false,
@@ -246,7 +250,8 @@ impl User {
             } else {
                 self.cycles -= amount;
             }
-            self.ledger.push_front((
+            self.accounting.push_front((
+                time(),
                 "CYC".to_string(),
                 if delta == CyclesDelta::Plus {
                     amount as i64
@@ -282,8 +287,8 @@ impl User {
         if self.karma < 0 {
             self.rewarded_karma = 0;
         }
-        self.ledger
-            .push_front(("KRM".to_string(), amount, log.to_string()));
+        self.accounting
+            .push_front((time(), "KRM".to_string(), amount, log.to_string()));
     }
 
     pub fn karma_to_reward(&self) -> Karma {

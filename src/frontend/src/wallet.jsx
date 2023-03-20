@@ -1,7 +1,6 @@
 import {CopyToClipboard, HeadBar, Loading, hex, ICPAccountBalance, tokenBalance, ButtonWithLoading, bigScreen, IcpAccountLink} from "./common";
 import * as React from "react";
 import {Transactions} from "./tokens";
-import {Cycles, YinYan} from "./icons";
 
 const Welcome = () => {
     const [invoice, setInvoice] = React.useState(null);
@@ -146,27 +145,5 @@ export const Wallet = () => {
                 <Transactions transactions={transactions} />
             </div>
         </div>
-        <div className="spaced">
-            {user.ledger.length > 0 && <>
-                <h1>Accounting</h1>
-                <table style={{width: "100%"}}>
-                    <tbody>
-                        {api._user.ledger.map(([type, delta, log], i) => 
-                        <tr className="stands_out" key={type+log+i}>
-                            <td>{type == "KRM" ? <YinYan /> : <Cycles />}</td>
-                            <td style={{color: delta > 0 ? "green" : "red"}}>{delta > 0 ? "+" : ""}{delta}</td>
-                            <td>{linkPost(log)}</td>
-                        </tr>)}
-                    </tbody>
-                </table>
-            </>}
-        </div>
     </>;
-}
-
-const linkPost = line => {
-    const [prefix, id] = line.split(" post ");
-    if (id) {
-        return <span>{prefix} post <a href={`#/post/${id}`}>{id}</a></span>;
-    } else return line;
 };
