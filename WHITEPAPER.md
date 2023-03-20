@@ -35,7 +35,7 @@ The utility of tokens is governance and ownership of $name's revenue.
 - The received karma points will be converted to rewards during the next distribution.
 - The rewards are computed by converting `$min_cycles_minted` karma points to ICP at the same rate as cycle minting (`1 XDR` for `$min_cycles_minted` karma points).
 - Additionally to rewards, users that own tokens and were active within the last `$revenue_share_activity_weeks` weeks receive a share of $name's revenue proportional to their token share.
-- Users are excluded from both distributions if their ICP amount are smaller than `100` times the transaction fee. These users carry over their accumulated karma to the next round.
+- Users are excluded from both distributions if their ICP amount are smaller than `100` times the transaction fee. These users carry over their accumulated karma to the next round. Note that in this case the minting is delayed as well.
 
 ## Bootcamp
 

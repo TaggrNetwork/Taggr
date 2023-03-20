@@ -72,9 +72,6 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
-    state().invites.values().cloned().for_each(|(id, cycles)| {
-        state_mut().users.get_mut(&id).unwrap().cycles += cycles;
-    });
 }
 
 /*
@@ -167,16 +164,18 @@ fn finalize_upgrade() {
     spawn(async {
         let hash: String = parse(&arg_data_raw());
         let state = state_mut();
-        let proposal = state
+        let payload = state
             .proposals
-            .iter_mut()
-            .last()
-            .expect("no proposals found");
-        reply(if proposal.status != Status::Executed {
-            Err("no executed proposals found".into())
-        } else if let Payload::Release(payload) = &proposal.payload {
-            if hash != payload.hash {
-                Err("no upgrades for the provided hash".into())
+            .iter()
+            .rev()
+            .filter(|p| p.status == Status::Executed)
+            .find_map(|p| match &p.payload {
+                Payload::Release(payload) if payload.hash == hash => Some(payload),
+                _ => None,
+            });
+        reply({
+            if payload.is_none() {
+                Err("no release found".into())
             } else {
                 let current = canisters::settings(id())
                     .await
@@ -199,8 +198,6 @@ fn finalize_upgrade() {
                     Ok(())
                 }
             }
-        } else {
-            Err("wrong proposal type".into())
         });
     });
 }

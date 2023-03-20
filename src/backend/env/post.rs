@@ -163,6 +163,7 @@ impl Post {
         self.files.clear();
         self.body.clear();
         self.patches.clear();
+        self.extension = None;
         self.hashes = versions
             .into_iter()
             .map(|value| {
