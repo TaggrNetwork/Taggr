@@ -13,8 +13,6 @@ pub enum CyclesDelta {
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Predicate {
     ReportOpen(PostId),
-    // TODO delete
-    ProposalPending,
     Proposal(PostId),
 }
 
@@ -49,6 +47,7 @@ pub struct User {
     pub controllers: Vec<String>,
     pub invited_by: Option<UserId>,
     // TODO: delete
+    #[serde(skip)]
     pub ledger: VecDeque<(String, i64, String)>,
     #[serde(default)]
     pub accounting: VecDeque<(u64, String, i64, String)>,

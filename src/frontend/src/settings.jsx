@@ -1,5 +1,6 @@
 import * as React from "react";
 import {ButtonWithLoading, HeadBar} from "./common";
+import {applyTheme} from "./theme";
 
 export const Settings = ({invite = null}) => {
     const user = api._user;
@@ -41,7 +42,10 @@ export const Settings = ({invite = null}) => {
             return;
         }
         if (!user) location.href = "/";
-        else if (uiRefresh) location.reload();
+        else if (uiRefresh) {
+            await api._reloadUser();
+            await applyTheme();
+        }
     };
 
     return <>

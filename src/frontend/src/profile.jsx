@@ -95,13 +95,13 @@ export const Profile = ({handle}) => {
         <hr />
         <div className="spaced">
             <h1>Karma and Cycles Changes</h1>
-            <table style={{width: "100%"}} className="monospace">
+            <table style={{width: "100%"}} className={`monospace ${bigScreen() ? "" : "small_text"}`}>
                 <tbody>
                     {(fullAccounting ? profile.accounting : profile.accounting.slice(0,10))
                             .map(([timestamp, type, delta, log], i) => 
                                 <tr className="stands_out" key={type+log+i}>
                                     <td>{timeAgo(timestamp)}</td>
-                                    <td style={{color: delta > 0 ? "green" : "red", textAlign: "right"}}>{delta > 0 ? "+" : ""}{delta} {type == "KRM" ? <YinYan /> : <Cycles />}</td>
+                                    <td style={{color: delta > 0 ? "green" : "red", textAlign: "right"}} className="no_wrap">{delta > 0 ? "+" : ""}{delta} {type == "KRM" ? <YinYan /> : <Cycles />}</td>
                                     <td style={{textAlign: "right"}}>{linkPost(log)}</td>
                                 </tr>)}
                 </tbody>

@@ -50,15 +50,15 @@ export const themes = {
 export const applyTheme = async () => {
     let theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "dark" : "light";
     let user = api._user;
+    let realmTheme = "";
     if (user) {
         const preferredTheme = user.settings.theme;
         if (preferredTheme && preferredTheme != "auto") theme = preferredTheme;
-    }
-    let realmTheme = "";
-    if (user.current_realm) {
-        const result = await api.query("realm", user.current_realm);
-        if ("Ok" in result) {
-            realmTheme = result.Ok.theme;
+        if (user.current_realm) {
+            const result = await api.query("realm", user.current_realm);
+            if ("Ok" in result) {
+                realmTheme = result.Ok.theme;
+            }
         }
     }
     const palette = realmTheme ? JSON.parse(realmTheme) : themes[theme || "classic"];

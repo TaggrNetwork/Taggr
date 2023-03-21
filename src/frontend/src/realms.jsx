@@ -101,8 +101,8 @@ export const RealmForm = ({existingName}) => {
             </div>}
             <h2>Color Theme</h2>
             <div className="vcentered">
-                <input type="checkbox" checked={!!theme} onChange={() => setTheme(theme ? null : themes.classic)} />
-                <label className="left_spaced">Use own theme</label>
+                <input type="checkbox" checked={!!theme} onChange={() => setTheme(theme ? null : themes.classic)} id="own_theme" />
+                <label className="left_half_spaced" htmlFor="own_theme">Use own theme</label>
             </div>
             {theme && <div className={`${bigScreen() ? "four_column_grid" : "two_column_grid"} monospace vertically_spaced`}>
                 <div className="db_cell">

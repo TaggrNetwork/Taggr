@@ -575,7 +575,6 @@ impl State {
                                 .last()
                                 .map(|p| p.status == Status::Open && p.post_id == *post_id)
                                 .unwrap_or_default(),
-                            Predicate::ProposalPending => false,
                         };
                     }
                     true

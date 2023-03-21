@@ -6,7 +6,7 @@ use env::{
     memory,
     post::{Extension, Post, PostId},
     proposals::{Payload, Release, Status},
-    user::{Notification, Predicate, User, UserId},
+    user::{User, UserId},
     State, *,
 };
 use ic_cdk::{
@@ -72,14 +72,6 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
-    for u in state_mut().users.values_mut() {
-        u.accounting = std::mem::take(&mut u.ledger)
-            .into_iter()
-            .map(|(a, b, c)| (time(), a, b, c))
-            .collect();
-        u.inbox
-            .retain(|_, v| !matches!(v, Notification::Conditional(_, Predicate::ProposalPending)));
-    }
 }
 
 /*
