@@ -145,18 +145,23 @@ impl Post {
         Ok(())
     }
 
-    pub fn vote_on_report(&mut self, stalwarts: usize, stalwart: UserId, confirmed: bool) {
-        // No voting on own posts.
+    pub fn vote_on_report(
+        &mut self,
+        stalwarts: usize,
+        stalwart: UserId,
+        confirmed: bool,
+    ) -> Result<(), String> {
         if self.user == stalwart {
-            return;
+            return Err("no voting on own posts".into());
         }
         if let Some(report) = self.report.as_mut() {
-            report.vote(stalwarts, stalwart, confirmed);
+            report.vote(stalwarts, stalwart, confirmed)?;
             let approved = report.closed && report.confirmed_by.len() > report.rejected_by.len();
             if approved {
                 self.delete(vec![self.body.clone()]);
             }
         }
+        Ok(())
     }
 
     pub fn delete(&mut self, versions: Vec<String>) {
@@ -172,14 +177,6 @@ impl Post {
                 format!("{:x}", hasher.finalize())
             })
             .collect();
-    }
-
-    pub fn report(&mut self, reporter: UserId, reason: String) {
-        self.report = Some(Report {
-            reporter,
-            reason,
-            ..Default::default()
-        })
     }
 
     pub fn costs(&self, blobs: usize) -> Cycles {
@@ -373,7 +370,7 @@ pub async fn add(
     let costs = post.costs(blobs.len());
     post.valid(&blobs)?;
     let trusted_user = user.trusted();
-    let future_id = state.last_post_id();
+    let future_id = state.next_post_id;
     state.charge(user_id, costs, format!("new post {}", future_id))?;
     post.save_blobs(state, blobs).await?;
     let id = state.new_post_id();

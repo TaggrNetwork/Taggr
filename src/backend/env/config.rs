@@ -34,7 +34,8 @@ pub struct Config {
     pub feed_page_size: usize,
 
     pub min_cycles_minted: Cycles,
-    pub reporting_penalty: Cycles,
+    pub reporting_penalty_post: Cycles,
+    pub reporting_penalty_misbehaviour: Cycles,
 
     pub minimal_tip: Cycles,
     pub tipping_fee: Cycles,
@@ -122,7 +123,7 @@ pub const CONFIG: &Config = &Config {
     min_cycle_balance_main: 2 * ICP_CYCLES_PER_XDR,
 
     #[cfg(feature = "dev")]
-    report_confirmation_percentage: 10,
+    report_confirmation_percentage: 1,
     #[cfg(test)]
     report_confirmation_percentage: 15,
     #[cfg(not(any(test, feature = "dev")))]
@@ -146,7 +147,8 @@ pub const CONFIG: &Config = &Config {
 
     min_cycles_minted: 1000,
 
-    reporting_penalty: 400,
+    reporting_penalty_post: 200,
+    reporting_penalty_misbehaviour: 1000,
 
     min_cycles_for_inviting: 50,
 

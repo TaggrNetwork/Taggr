@@ -2,9 +2,9 @@ import * as React from "react";
 import { Form } from './form';
 import { Content } from './content';
 import { Poll } from './poll';
-import { isRoot, BurgerButton, reactions, timeAgo, ToggleButton, NotFound, applyPatch, loadPostBlobs, ShareButton, commaSeparated, Loading, objectReduce, reactionCosts, postUserToPost, loadPost, ReactionToggleButton, RealmRibbon, setTitle, ButtonWithLoading, bigScreen, UserLink } from './common';
+import { isRoot, BurgerButton, reactions, timeAgo, ToggleButton, NotFound, applyPatch, loadPostBlobs, ShareButton, commaSeparated, Loading, objectReduce, reactionCosts, postUserToPost, loadPost, ReactionToggleButton, RealmRibbon, setTitle, ButtonWithLoading, bigScreen, UserLink, userList, FlagButton, ReportBanner } from './common';
 import {PostFeed} from "./post_feed";
-import {reaction2icon, Edit, Save, Unsave, Watch, Unwatch, Repost, Coin, Flag, New, CommentArrow, CarretRight, Trash, Comment } from "./icons";
+import {reaction2icon, Edit, Save, Unsave, Watch, Unwatch, Repost, Coin, New, CommentArrow, CarretRight, Trash, Comment } from "./icons";
 import {Proposal} from "./proposals";
 
 export const postDataProvider = (id, preloadedData = null, rootOnly = false) => {
@@ -124,7 +124,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
     };
 
     const costTable = reactionCosts();
-    const sum = objectReduce(post.reactions, (acc, id, users) => acc + costTable[parseInt(id)] * users.length, 0);
+    const isInactive = objectReduce(post.reactions, (acc, id, users) => acc + costTable[parseInt(id)] * users.length, 0) < 0 || post.user.karma < 0;
     const treeLoaded = Object.keys(data.source).length > 1;
     const highlightOp = treeLoaded && post.user.id == data.source[data.root]?.user.id;
     const user = api._user;
@@ -152,8 +152,8 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
 
     return <div ref={post => { if(post && focused && rendering) post.scrollIntoView({ behavior: "smooth" }); }}
         className={classNameArg || null}>
-        <div className={`post_box ${sum < 0 ? "inactive" : ""} ${cls}`} style={{position: "relative"}}>
-            {showReport && <ReportBanner post={post} />}
+        <div className={`post_box ${isInactive ? "inactive" : ""} ${cls}`} style={{position: "relative"}}>
+            {showReport && <ReportBanner id={post.id} reportArg={post.report} domain="post" />}
             {isNSFW && <div className="post_head banner2 x_large_text" onClick={() => setSafeToOpen(true)}>#NSFW</div>}
             {deleted && <div className="post_head banner3 small_text monospace"><h3>Post deleted</h3>
                 <ol>{post.hashes.map(hash => <li key={hash}><code>{bigScreen() ? hash : hash.slice(0,16)}</code></li>)}</ol>
@@ -203,17 +203,7 @@ const PostInfo = ({post, version, postCreated, callback}) => {
     const postAuthor = api._user?.id == post.user.id;
     return <>
         {api._user && <div className="row_container top_half_spaced">
-            {!postAuthor && <ButtonWithLoading classNameArg="max_width_col" onClick={async () => {
-                let reason = prompt("You are reporting this post to stalwarts. If the report gets rejected, you'll lose cycles and karma. If you want to continue, please justify the report:");
-                if (reason) {
-                    let response = await api.call("report", post.id, reason);
-                    if ("Err" in response) {
-                        alert(`Error: ${response.Err}`);
-                        return;
-                    }
-                    alert("Report accepted! Thank you!")
-                };
-            }} label={<Flag />} />}
+            {!postAuthor && <FlagButton id={post.id} domain="post" /> }
             <ToggleButton classNameArg="max_width_col" offLabel={<Watch />} onLabel={<Unwatch />}
                 currState={() => post.watchers.includes(api._user?.id)} 
                 toggler={() => api.call("toggle_following_post", post.id)} />
@@ -336,31 +326,6 @@ export const Reactions = ({reactionsMap, react}) => {
         })}
     </div>;
 };
-
-const ReportBanner = ({post}) => {
-    const [report, setReport] = React.useState(post.report);
-    const { reporter, confirmed_by, rejected_by} = report;
-    let tookAction = rejected_by.concat(confirmed_by).includes(api._user.id) ;
-
-    return <div className="post_head banner">
-        <h3>
-            This post was <b>REPORTED</b> by <a href={`/#/user/${reporter}`}>@{backendCache.users[reporter]}</a>.
-            Please confirm the deletion or reject the report.
-        </h3>
-        <h4>Reason: {post.report.reason}</h4>
-        {tookAction && <div>
-            {confirmed_by.length > 0 && <div>CONFIRMED BY {commaSeparated(confirmed_by.map(id => `@${backendCache.users[id]}`))}</div>}
-            {rejected_by.length > 0 && <div>REJECTED BY {commaSeparated(rejected_by.map(id => `@${backendCache.users[id]}`))}</div>}
-        </div>}
-        {!tookAction && <div className="row_container" style={{justifyContent: "center"}}>
-            {[["🛑 DISAGREE", false], ["✅ AGREE", true]].map(([label, val]) =>
-            <ButtonWithLoading key={label} onClick={async () => {
-                await api.call("vote_on_report", post.id, val);
-                setReport((await loadPost(api, post.id)).report);
-            }} label={label} />)}
-        </div>}
-    </div>;
-}
 
 const skipClicks = elem => elem && (elem.dataset["meta"] == "skipClicks" || skipClicks(elem.parentElement));
 

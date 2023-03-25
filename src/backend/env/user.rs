@@ -1,4 +1,4 @@
-use super::*;
+use super::{reports::Report, *};
 use ic_ledger_types::AccountIdentifier;
 use serde::{Deserialize, Serialize};
 
@@ -13,6 +13,7 @@ pub enum CyclesDelta {
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Predicate {
     ReportOpen(PostId),
+    UserReportOpen(UserId),
     Proposal(PostId),
 }
 
@@ -52,6 +53,7 @@ pub struct User {
     pub balance: Token,
     pub active_weeks: u32,
     pub principal: Principal,
+    pub report: Option<Report>,
 }
 
 impl User {
@@ -60,6 +62,7 @@ impl User {
             id,
             name,
             about: Default::default(),
+            report: None,
             account: AccountIdentifier::new(
                 &super::id(),
                 &invoices::principal_to_subaccount(&principal),

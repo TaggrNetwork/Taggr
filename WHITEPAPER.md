@@ -70,13 +70,13 @@ The policy is vague on purpose and will require a social consensus among the sta
 ## Moderation
 
 Moderation on $name is decentralized: it can be triggered by anyone and can be exercised by the _stalwarts_.
-Whenever a post gets reported, all stalwarts get notified and are expected to confirm or reject the report.
+Whenever a post or a user gets reported, all stalwarts get notified and are expected to confirm or reject the report.
 As soon as `$report_confirmation_percentage%` of stalwarts agree on confirmation or rejection of the report, the report gets closed.
 If most stalwarts confirm the report:
-- the post author loses `$reporting_penalty` karma points and at least `$reporting_penalty` cycles,
-- the user who created the report receives half of the penalty `$reporting_penalty` as karma points.
+- the misbehaving user loses `$reporting_penalty_post` (post report) or `$reporting_penalty_misbehaviour` (user report) karma points and at least as many cycles,
+- the user who created the report receives half of this penalty as karma points.
 
-If the stalwarts reject the report, the user who created the report loses `$reporting_penalty` cycles and karma points.  
+If the stalwarts reject the report, the user who created the report loses half of the penalty as cycles and karma points.  
 In both cases, every stalwart participating in voting receives an equal share of karma points from the penalty fee, but not more than `$stalwart_moderation_reward`.
 
 ## Cost Table

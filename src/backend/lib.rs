@@ -202,13 +202,6 @@ fn finalize_upgrade() {
     });
 }
 
-#[export_name = "canister_update vote_on_report"]
-fn vote_on_report() {
-    let (post_id, vote): (PostId, bool) = parse(&arg_data_raw());
-    env::reports::vote_on_report(state_mut(), caller(), post_id, vote);
-    reply(());
-}
-
 #[export_name = "canister_update vote_on_poll"]
 fn vote_on_poll() {
     let (post_id, vote): (PostId, u16) = parse(&arg_data_raw());
@@ -217,8 +210,14 @@ fn vote_on_poll() {
 
 #[export_name = "canister_update report"]
 fn report() {
-    let (post_id, reason): (PostId, String) = parse(&arg_data_raw());
-    reply(state_mut().report(caller(), post_id, reason));
+    let (domain, id, reason): (String, u64, String) = parse(&arg_data_raw());
+    reply(state_mut().report(caller(), domain, id, reason));
+}
+
+#[export_name = "canister_update vote_on_report"]
+fn vote_on_report() {
+    let (domain, id, vote): (String, u64, bool) = parse(&arg_data_raw());
+    reply(state_mut().vote_on_report(caller(), domain, id, vote));
 }
 
 #[export_name = "canister_update clear_notifications"]

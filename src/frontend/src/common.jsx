@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Content } from './content';
 import DiffMatchPatch from 'diff-match-patch';
-import { Clipboard, ClipboardCheck, Menu, Share} from "./icons";
+import { Clipboard, ClipboardCheck, Flag, Menu, Share} from "./icons";
 
 export const percentage = (n, supply) => {
     let p = Math.ceil(parseInt(n) / (supply || 1) * 10000) / 100;
@@ -259,4 +259,52 @@ export const intToBEBytes = val => {
         val = val >> 8;
     }
     return bytes;
+};
+
+export const FlagButton = ({id, domain}) => <ButtonWithLoading classNameArg="max_width_col"
+    onClick={async () => {
+        let reason = prompt(`You are reporting this ${domain == "post" ? "post" : "user"} to stalwarts. ` +
+        `If the report gets rejected, you'll lose ` +
+        (backendCache.config[domain == "post" ? "reporting_penalty_post" : "reporting_penalty_misbehaviour"]) +
+        ` cycles and karma. If you want to continue, please justify the report.`);
+        if (reason) {
+            let response = await api.call("report", domain, id, reason);
+            if ("Err" in response) {
+                alert(`Error: ${response.Err}`);
+                return;
+            }
+            alert("Report accepted! Thank you!")
+        };
+    }} label={<Flag />} />;
+
+export const ReportBanner = ({id, reportArg, domain}) => {
+    const [report, setReport] = React.useState(reportArg);
+    const { reporter, confirmed_by, rejected_by} = report;
+    let tookAction = rejected_by.concat(confirmed_by).includes(api._user.id) ;
+    return <div className="post_head banner">
+        <h3>
+            This {domain == "post" ? "post" : "user"} was <b>REPORTED</b> by&nbsp;
+            <a href={`/#/user/${reporter}`}>{backendCache.users[reporter]}</a>.
+            Please confirm the deletion or reject the report.
+        </h3>
+        <h4>Reason: {report.reason}</h4>
+        {tookAction && <div className="monospace medium_text">
+            {confirmed_by.length > 0 && <div>CONFIRMED BY {userList(confirmed_by)}</div>}
+            {rejected_by.length > 0 && <div>REJECTED BY {userList(rejected_by)}</div>}
+        </div>}
+        {!tookAction && <div className="row_container" style={{justifyContent: "center"}}>
+            {[["🛑 DISAGREE", false], ["✅ AGREE", true]].map(([label, val]) =>
+            <ButtonWithLoading key={label} onClick={async () => {
+                let result = await api.call("vote_on_report", domain, id, val);
+                if ("Err" in result) {
+                    alert(`Error: ${result.Err}`);
+                    return;
+                }
+                setReport((domain == "post" 
+                    ? await loadPost(api, id)
+                    : await api.query("user", [id.toString()])
+                ).report);
+            }} label={label} />)}
+        </div>}
+    </div>;
 };

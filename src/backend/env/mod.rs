@@ -1,5 +1,6 @@
 use self::invoices::{parse_account, Invoice};
 use self::proposals::Status;
+use self::reports::Report;
 use self::token::account;
 use self::user::{Notification, Predicate};
 use crate::assets;
@@ -558,29 +559,39 @@ impl State {
     }
 
     pub fn denotify_users(&mut self, filter: &dyn Fn(&User) -> bool) {
-        let posts = &self.posts;
-        let proposals = &self.proposals;
-        self.users
+        for (user_id, mut inbox) in self
+            .users
             .values_mut()
             .filter(|u| filter(u))
-            .for_each(|user| {
-                user.inbox.retain(|_, n| {
-                    if let Notification::Conditional(_, predicate) = n {
-                        return match predicate {
-                            Predicate::ReportOpen(post_id) => posts
-                                .get(post_id)
-                                .and_then(|p| p.report.as_ref().map(|r| !r.closed))
-                                .unwrap_or_default(),
-                            Predicate::Proposal(post_id) => proposals
-                                .iter()
-                                .last()
-                                .map(|p| p.status == Status::Open && p.post_id == *post_id)
-                                .unwrap_or_default(),
-                        };
-                    }
-                    true
-                })
+            .map(|u| (u.id, u.inbox.clone()))
+            .collect::<Vec<_>>()
+            .into_iter()
+        {
+            inbox.retain(|_, n| {
+                if let Notification::Conditional(_, predicate) = n {
+                    return match predicate {
+                        Predicate::UserReportOpen(user_id) => self
+                            .users
+                            .get(user_id)
+                            .and_then(|p| p.report.as_ref().map(|r| !r.closed))
+                            .unwrap_or_default(),
+                        Predicate::ReportOpen(post_id) => self
+                            .posts
+                            .get(post_id)
+                            .and_then(|p| p.report.as_ref().map(|r| !r.closed))
+                            .unwrap_or_default(),
+                        Predicate::Proposal(post_id) => self
+                            .proposals
+                            .iter()
+                            .last()
+                            .map(|p| p.status == Status::Open && p.post_id == *post_id)
+                            .unwrap_or_default(),
+                    };
+                }
+                true
             });
+            self.users.get_mut(&user_id).expect("no user found").inbox = inbox;
+        }
     }
 
     pub fn search(&self, principal: Principal, mut term: String) -> Vec<SearchResult> {
@@ -1051,6 +1062,7 @@ impl State {
         for u in users {
             if u.is_bot()
                 || !u.trusted()
+                || u.report.is_some()
                 || now.saturating_sub(u.timestamp)
                     < WEEK * CONFIG.min_stalwart_account_age_weeks as u64
             {
@@ -1328,10 +1340,6 @@ impl State {
         id
     }
 
-    fn last_post_id(&self) -> PostId {
-        self.next_post_id.saturating_sub(1)
-    }
-
     fn new_post_id(&mut self) -> PostId {
         let id = self.next_post_id;
         self.next_post_id += 1;
@@ -1410,6 +1418,48 @@ impl State {
         }
     }
 
+    pub fn vote_on_report(
+        &mut self,
+        principal: Principal,
+        domain: String,
+        id: u64,
+        vote: bool,
+    ) -> Result<(), String> {
+        let user = self
+            .principal_to_user(principal)
+            .ok_or("no user found")?
+            .clone();
+        if !user.stalwart {
+            return Err("only stalwarts can vote on reports".into());
+        }
+        let stalwarts = self.users.values().filter(|u| u.stalwart).count();
+        let (user_id, report, penalty) = match domain.as_str() {
+            "post" => {
+                let post = self.posts.get_mut(&id).expect("no post found");
+                post.vote_on_report(stalwarts, user.id, vote)?;
+                (
+                    post.user,
+                    post.report.clone().ok_or("no report")?,
+                    CONFIG.reporting_penalty_post,
+                )
+            }
+            "misbehaviour" => {
+                if user.id == id {
+                    return Err("votes on own reports are not accepted".into());
+                }
+                let report = self
+                    .users
+                    .get_mut(&id)
+                    .and_then(|u| u.report.as_mut())
+                    .expect("no user found");
+                report.vote(stalwarts, user.id, vote)?;
+                (id, report.clone(), CONFIG.reporting_penalty_misbehaviour)
+            }
+            _ => return Err("unknown report type".into()),
+        };
+        reports::finalize_report(self, &report, penalty, user_id, format!("post {}", id))
+    }
+
     pub fn vote_on_poll(
         &mut self,
         principal: Principal,
@@ -1430,42 +1480,67 @@ impl State {
     pub fn report(
         &mut self,
         principal: Principal,
-        post_id: PostId,
+        domain: String,
+        id: u64,
         reason: String,
     ) -> Result<(), String> {
         if reason.len() > 1000 {
             return Err("reason too long".into());
         }
-        let cycles_required = CONFIG.reporting_penalty / 2;
+        let cycles_required = if domain == "post" {
+            CONFIG.reporting_penalty_post
+        } else {
+            CONFIG.reporting_penalty_misbehaviour
+        } / 2;
         let user = match self.principal_to_user(principal) {
             Some(user) if user.cycles() >= cycles_required => user.clone(),
             _ => {
                 return Err(format!(
-                    "You need at least {} cycles to report a post",
+                    "You need at least {} cycles for this report",
                     cycles_required
                 ))
             }
         };
-        let post = match self.posts.get_mut(&post_id) {
-            Some(post) => {
+        let report = Some(Report {
+            reporter: user.id,
+            reason,
+            ..Default::default()
+        });
+
+        match domain.as_str() {
+            "post" => {
+                let post = self.posts.get_mut(&id).ok_or("no post found")?;
                 if post.report.is_some() {
-                    return Err("This post is already reported".into());
+                    return Err("this post is already reported".into());
                 }
-                post
+                post.report = report;
+                let author_name = self
+                    .users
+                    .get(&post.user)
+                    .map(|user| user.name.clone())
+                    .unwrap_or_default();
+                self.notify_with_predicate(
+                    &|u| u.stalwart && u.id != user.id,
+                    format!("@{} reported this post by @{}", user.name, author_name),
+                    Predicate::ReportOpen(id),
+                );
             }
-            _ => return Err("No post found".into()),
-        };
-        post.report(user.id, reason);
-        let author_name = self
-            .users
-            .get(&post.user)
-            .map(|user| user.name.clone())
-            .unwrap_or_default();
-        self.notify_with_predicate(
-            &|u| u.stalwart && u.id != user.id,
-            format!("@{} reported this post by @{}", user.name, author_name),
-            Predicate::ReportOpen(post_id),
-        );
+            "misbehaviour" => {
+                let misbehaving_user = self.users.get_mut(&id).ok_or("no user found")?;
+                if misbehaving_user.report.as_ref().map(|r| r.closed) == Some(true) {
+                    return Err("this user is already reported".into());
+                }
+                misbehaving_user.report = report;
+                let user_name = misbehaving_user.name.clone();
+                self.notify_with_predicate(
+                    &|u| u.stalwart && u.id != id,
+                    format!("@{} reported user @{}", user.name, user_name),
+                    Predicate::UserReportOpen(id),
+                );
+            }
+            _ => unimplemented!(),
+        }
+
         Ok(())
     }
 

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { timeAgo, NotFound, ToggleButton, commaSeparated, Loading, RealmSpan, HeadBar, userList, bigScreen, tokenBalance } from './common';
+import { timeAgo, NotFound, ToggleButton, commaSeparated, Loading, RealmSpan, HeadBar, userList, bigScreen, tokenBalance, FlagButton, ReportBanner } from './common';
 import {Content} from "./content";
 import {Journal} from "./icons";
 import {PostFeed} from "./post_feed";
@@ -40,15 +40,19 @@ export const Profile = ({handle}) => {
             return <NotFound />;
     }
     const { feed_page_size } = backendCache.config;
+    const user = api._user;
+    const showReport = profile.report && !profile.report.closed && user && user.stalwart;
 
     return <>
         <HeadBar title={<UserName profile={profile} />} shareLink={`user/${profile.id}`}
             content={<div className="row_container">
-                <button className="max_width_col" onClick={() => location.href= `/#/journal/${profile.name}`}><Journal /></button>
-                {api._user && <ToggleButton classNameArg="left_half_spaced max_width_col"
-                    currState={() => api._user.followees.includes(profile.id)}
+                <FlagButton id={profile.id} domain="misbehaviour" />
+                <button className="left_half_spaced" onClick={() => location.href= `/#/journal/${profile.name}`}><Journal /></button>
+                {user && <ToggleButton classNameArg="left_half_spaced max_width_col"
+                    currState={() => user.followees.includes(profile.id)}
                     toggler={() => api.call("toggle_following_user", profile.id).then(api._reloadUser)} />}
             </div>} />
+        {showReport && <ReportBanner id={profile.id} reportArg={profile.report} domain="misbehaviour" />}
         <UserInfo profile={profile} />
         {trusted(profile) && !stalwart(profile) && !isBot(profile) && <>
             <hr />
