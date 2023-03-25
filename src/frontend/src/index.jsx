@@ -20,7 +20,7 @@ import { NotFound, Unauthorized, microSecsSince, HeadBar, setTitle } from './com
 import { Settings } from './settings';
 import { Api } from "./api";
 import { Wallet } from "./wallet";
-import { applyTheme } from "./theme";
+import { applyTheme, themes } from "./theme";
 import {Proposals} from "./proposals";
 import {Tokens, Transaction} from "./tokens";
 import {Whitepaper} from "./whitepaper";
@@ -219,7 +219,14 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(async (authClient
                     api._last_visit = api._user.last_activity;
                     api.call("update_last_activity");
                 } else if (api._last_visit == 0) api._last_visit = api._user.last_activity;
-            }
+                if (data.current_realm) {
+                    const result = await api.query("realm", data.current_realm);
+                    let realmTheme = result.Ok?.theme;
+                    if (realmTheme) applyTheme(JSON.parse(realmTheme));
+                } else {
+                    applyTheme(themes[api._user.settings.theme]);
+                }
+            } else applyTheme();
         };
         setInterval(async () => { 
             await api._reloadUser();
@@ -228,7 +235,6 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(async (authClient
             App();
         }, REFRESH_RATE_SECS * 1000);
         await api._reloadUser();
-        await applyTheme();
     }
     updateDoc();
     App();

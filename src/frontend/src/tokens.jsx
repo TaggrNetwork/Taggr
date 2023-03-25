@@ -6,7 +6,8 @@ export const Tokens = () => {
     const [term, setTerm] = React.useState("");
     const [noMoreData, setNoMoreData] = React.useState(false);
     const [transactions, setTransactions] = React.useState([]);
-    const [page, setPage] = React.useState(0);
+    const [txPage, setTxPage] = React.useState(0);
+    const [balPage, setBalPage] = React.useState(0);
     const [holder, setHolder] = React.useState(-1);
 
     const loadState = async () => await Promise.all([ loadBalances(), loadTransactions() ]);
@@ -18,15 +19,15 @@ export const Tokens = () => {
     };
 
     const loadTransactions = async () => {
-        const txs = await window.api.query("transactions", page, userToPrincipal[term.toLowerCase()] || term);
+        const txs = await window.api.query("transactions", txPage, userToPrincipal[term.toLowerCase()] || term);
         if (txs.length == 0) {
             setNoMoreData(true);
         }
-        setTransactions(term && page == 0 ? txs : transactions.concat(txs));
+        setTransactions(term && txPage == 0 ? txs : transactions.concat(txs));
     };
 
     React.useEffect(() => { loadState(); }, []);
-    React.useEffect(() => { loadTransactions(); }, [page]);
+    React.useEffect(() => { loadTransactions(); }, [txPage]);
 
     const mintedSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
     const userToPrincipal = balances.reduce((acc, balance) => {
@@ -63,9 +64,8 @@ export const Tokens = () => {
                 ></div>)}
             </div>
             Holder: {holder < 0 ? "none" : <UserLink id={holder} />}
-            <br />
-            <br />
-            <h1>TOP 15 balances</h1>
+            <hr />
+            <h1>Balances</h1>
             <table style={{width: "100%"}}>
                 <thead className={bigScreen() ? null : "small_text"}>
                     <tr>
@@ -76,7 +76,7 @@ export const Tokens = () => {
                     </tr>
                 </thead>
                 <tbody style={{textAlign: "right"}} className={`monospace ${bigScreen() ? null : "small_text"}`}>
-                    {balances.slice(0, 15).map(b => <tr key={b[0]}>
+                    {balances.slice(0, (balPage + 1) * 15).map(b => <tr key={b[0]}>
                         <td style={{textAlign: "left"}}>{principal(b[0])}</td>
                         <td>{token(b[1])}</td>
                         <td>{percentage(b[1], mintedSupply)}</td>
@@ -84,21 +84,23 @@ export const Tokens = () => {
                     </tr>)}
                 </tbody>
             </table>
-            <br />
+            <div style={{display:"flex", justifyContent: "center"}}>
+                <ButtonWithLoading classNameArg="active" onClick={() => setBalPage(balPage + 1)} label="MORE" />
+            </div>
+            <hr />
             <h1>Latest transactions</h1>
             <div className="row_container">
                 <input id="search_field" className="monospace max_width_col" type="search"
                     placeholder="Principal or username" value={term}
                     onChange={event => setTerm(event.target.value)} />
                 <button className="active" onClick={async () => {
-                    setPage(0);
+                    setTxPage(0);
                     await loadTransactions();
                 }}>SEARCH</button>
             </div>
             <Transactions transactions={transactions} />
-            <hr />
             {!noMoreData && <div style={{display:"flex", justifyContent: "center"}}>
-                <ButtonWithLoading classNameArg="active" onClick={() => setPage(page + 1)} label="MORE" />
+                <ButtonWithLoading classNameArg="active" onClick={() => setTxPage(txPage + 1)} label="MORE" />
             </div>}
         </div>}
     </>;

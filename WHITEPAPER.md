@@ -95,7 +95,7 @@ Using $name costs cycles. Here's a breakdown of all costs.
 |Reacting with 👎     | `3`     | burns `3` cycles **and** karma points of the post author|
 |New realm creation   | `$realm_cost`  | burns `$realm_cost` cycles |
 
-Additionally:
+Note:
 1. Every response to a post increases author's karma for creating a resonance (by `$response_reward` karma point).
 2. The karma and cycles of every user inactive for longer than `$inactivity_duration_weeks` weeks decreases by `$inactivity_penalty` per week.
 3. Users with a negative karma do not participate in distributions.

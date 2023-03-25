@@ -46,10 +46,6 @@ pub struct User {
     pub stalwart: bool,
     pub controllers: Vec<String>,
     pub invited_by: Option<UserId>,
-    // TODO: delete
-    #[serde(skip)]
-    pub ledger: VecDeque<(String, i64, String)>,
-    #[serde(default)]
     pub accounting: VecDeque<(u64, String, i64, String)>,
     pub realms: Vec<String>,
     pub current_realm: Option<String>,
@@ -79,7 +75,6 @@ impl User {
             feeds: Default::default(),
             followees: Default::default(),
             followers: Default::default(),
-            ledger: Default::default(),
             accounting: Default::default(),
             controllers: Default::default(),
             last_activity: timestamp,

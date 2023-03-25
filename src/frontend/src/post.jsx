@@ -39,6 +39,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
     const [rendering, setRendering] = React.useState(true);
     const [safeToOpen, setSafeToOpen] = React.useState(false);
     const [commentIncoming, setCommentIncoming] = React.useState(false);
+    const [reactionTimer, setReactionTimer] = React.useState(null);
 
     const loadData = async (force) => {
         const fullTreeLoadRequired = id in data.source && showComments && data.source[id].children.length + 1 > Object.keys(data.source).length;
@@ -97,20 +98,31 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
 
     const react = id => {
         if (!api._user) return;
-        let user_id = api._user?.id;
+        let userId = api._user?.id;
         if (!(id in post.reactions)) {
             post.reactions[id] = [];
         };
         let users = post.reactions[id];
-        if (users.includes(user_id)) return;
-        api.call("react", post.id, parseInt(id)).then(response => { 
-            if ("Err" in response) alert(`Error: ${response.Err}`);
-            api._reloadUser();
-        });
-        users.push(user_id);
+        if (Object.values(post.reactions).reduce((acc, users) => acc.concat(users), []).includes(userId)) {
+            if (reactionTimer) {
+                clearTimeout(reactionTimer);
+                post.reactions[id] = users.filter(id => id != userId);
+                setPost({...post});
+            }
+            return;
+        }
+        clearTimeout(reactionTimer);
+        const timer = setTimeout(() =>
+            api.call("react", post.id, parseInt(id)).then(response => { 
+                if ("Err" in response) alert(`Error: ${response.Err}`);
+                api._reloadUser();
+            }), 4000);
+        setReactionTimer(timer);
+        users.push(userId);
         setPost({...post});
         toggleInfo(commentIncoming);
-    }
+    };
+
     const costTable = reactionCosts();
     const sum = objectReduce(post.reactions, (acc, id, users) => acc + costTable[parseInt(id)] * users.length, 0);
     const treeLoaded = Object.keys(data.source).length > 1;
@@ -282,10 +294,9 @@ const PostBar = ({post, react, highlighted, highlightOp, repost, showInfo, toggl
     const showCarret = level > (bar.current?.clientWidth > 900 ? 13 : 3);
     const goInside = () => location.href = `#/post/${post.id}`;
     return <div ref={bar} className="post_bar vcentered smaller_text flex_ended">
-        <div className="vcentered">
-            <a className={`right_spaced ${highlightOp ? "accent" : ""}`}
-                href={`#/user/${post.user.id}`}>{`${post.user.name}`}</a>
-            <div className="right_spaced no_wrap vcentered">
+        <div className="row_container" style={{alignItems: "center"}}>
+            <a className={highlightOp ? "accent" : null} href={`#/user/${post.user.id}`}>{`${post.user.name}`}</a>
+            <div className="left_spaced no_wrap vcentered">
                 {time}
                 {newPost && <New classNameArg="left_half_spaced accent" /> }
             </div>
@@ -316,7 +327,7 @@ export const Reactions = ({reactionsMap, react}) => {
             const users = reactionsMap[id];
             const reacted = users.includes(api._user?.id);
             const reaction = reactions().find(([reaction_id, _cost, _]) => reaction_id == id);
-            if (!reaction) return null;
+            if (!reaction || users == 0) return null;
             const [reactId, _cost] = reaction;
             return <button data-meta="skipClicks" key={id} className={"reaction_button " + (reacted ? "selected" : "unselected")}
                 onClick={() => react(id)}>

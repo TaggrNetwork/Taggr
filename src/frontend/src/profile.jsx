@@ -57,7 +57,7 @@ export const Profile = ({handle}) => {
                 <div className={bigScreen() ? "four_column_grid" : "two_column_grid"}>
                     <div className="db_cell monospace">
                         KARMA NEEDED
-                        <code>{Math.max(0, backendCache.config.proposal_rejection_penalty - profile.karma)}</code>
+                        <code>{Math.max(0, stalwartMinKarma() - profile.karma)}</code>
                     </div>
                     <div className="db_cell monospace">
                         AGE NEEDED
@@ -228,7 +228,10 @@ const stalwart = profile => !isBot(profile) &&
     (Number(new Date()) - parseInt(profile.timestamp) / 1000000) >=
     backendCache.config.min_stalwart_account_age_weeks * 7 * day && 
     profile.active_weeks >= backendCache.config.min_stalwart_activity_weeks &&
-    profile.karma >= backendCache.config.proposal_rejection_penalty;
+    profile.karma >= stalwartMinKarma();
+
+const stalwartMinKarma = () => Math.min(backendCache.config.proposal_rejection_penalty, backendCache.karma[backendCache.stats.stalwarts.at(-1)]);
+
 
 const linkPost = line => {
     const [prefix, id] = line.split(" post ");

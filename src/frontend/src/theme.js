@@ -47,22 +47,10 @@ export const themes = {
     }
 };
 
-export const applyTheme = async () => {
-    let theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "dark" : "light";
-    let user = api._user;
-    let realmTheme = "";
-    if (user) {
-        const preferredTheme = user.settings.theme;
-        if (preferredTheme && preferredTheme != "auto") theme = preferredTheme;
-        if (user.current_realm) {
-            const result = await api.query("realm", user.current_realm);
-            if ("Ok" in result) {
-                realmTheme = result.Ok.theme;
-            }
-        }
-    }
-    const palette = realmTheme ? JSON.parse(realmTheme) : themes[theme || "classic"];
+export const applyTheme = palette => {
+    let autoTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "dark" : "light";
+    const effPalette = palette ? palette : themes[autoTheme];
     const styleNode = document.getElementById("style");
-    styleNode.innerText = Object.keys(palette).reduce((acc, color) =>
-        acc.replaceAll(`$${color}`, palette[color]), template);
+    styleNode.innerText = Object.keys(effPalette).reduce((acc, color) =>
+        acc.replaceAll(`$${color}`, effPalette[color]), template);
 }

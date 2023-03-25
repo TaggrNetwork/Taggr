@@ -21,8 +21,14 @@ body {
     text-transform: uppercase;
 }
 
-.db_cell code { font-size: xx-large; }
+input[type=color] {
+    height: 3em;
+    width: 4em;
+}
+
+.db_cell code {font-size: xx-large; }
 .db_cell span { font-size: x-large; }
+.db_cell code, .db_cell span { margin-top: 0.25em; }
 
 #stack {
     flex: 1;

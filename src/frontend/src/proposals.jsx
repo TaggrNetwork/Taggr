@@ -166,6 +166,7 @@ export const Proposal = ({id}) => {
         </>}
         {api._user && api._user.id == proposal.proposer && open &&
             <ButtonWithLoading onClick={async () => {
+                if (!confirm("Do you want to cancel your proposal?")) return;
                 await api.call("cancel_proposal", proposal.id);
                 location.reload();
             }} classNameArg="top_spaced max_width_col large_text" label="CANCEL" />}

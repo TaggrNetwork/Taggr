@@ -25,7 +25,7 @@ export const Dashboard = ({fullMode}) => {
                     <div className="db_cell"><label><Online /> ONLINE</label>{show(Math.max(1, backendCache.stats.users_online))}</div>
                     <div className="db_cell"><label><Comment /> POSTS</label>{show(stats.posts + stats.comments)}</div>
                     <div className="db_cell"><label><Box /> APP STATE</label>{sizeMb(stats.state_size + stats.buckets.reduce((acc, [, e]) => acc + e, 0), "xx_large_text")}</div>
-                    <div className="db_cell"><label><Gem /> TOKEN SUPPLY</label><code className="xx_large_text">{token(stats.circulating_supply)}</code></div>
+                    <div className="db_cell"><label><Gem /> <a href="#/tokens">TOKEN SUPPLY</a></label><code className="xx_large_text">{token(stats.circulating_supply)}</code></div>
                     <div className="db_cell"><label><CashCoin /> REWARDS SHARED</label>{icpCode(stats.total_rewards_shared)}</div>
                     <div className="db_cell"><label><Cash /> REVENUE SHARED</label>{icpCode(stats.total_revenue_shared)}</div>
                 </div>
@@ -47,7 +47,7 @@ export const Dashboard = ({fullMode}) => {
                     <div className="db_cell"><label><Cycles /> CYCLES SUPPLY</label>{show(stats.cycles)}</div>
                     <div className="db_cell"><label><Fire /> CYCLES BURNED</label>{show(stats.burned_cycles_total)}</div>
                     <div className="db_cell"><label><Cash /> WEEK'S REVENUE</label>{show(stats.burned_cycles)}</div>
-                    <div className="db_cell"><label><Gem /> TOKEN SUPPLY</label><code className="xx_large_text">{token(stats.circulating_supply)}</code></div>
+                    <div className="db_cell"><label><Gem /> <a href="#/tokens">TOKEN SUPPLY</a></label><code className="xx_large_text">{token(stats.circulating_supply)}</code></div>
                     <div className="db_cell"><label><CashCoin /> REWARDS SHARED</label>{icpCode(stats.total_rewards_shared)}</div>
                     <div className="db_cell"><label><Cash /> REVENUE SHARED</label>{icpCode(stats.total_revenue_shared)}</div>
                 </div>
@@ -75,7 +75,7 @@ export const Dashboard = ({fullMode}) => {
                             <div className="db_cell"><label><Cycles /> IC-CYCLES</label> <CycleBalance id={bucket_id}/></div>
                         </div>)}
                         <div className="db_cell bottom_spaced">
-                            <label><Gear /> UPGRADE</label>
+                            <label><Gear /> LAST UPGRADE</label>
                             <code>{timeAgo(stats.last_upgrade)}</code>
                         </div>
                         <div className="db_cell">

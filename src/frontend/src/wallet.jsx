@@ -74,7 +74,7 @@ export const Wallet = () => {
     React.useEffect(() => { loadTransactions(); }, []);
 
     if (!user) return <Welcome />;
-    let { token_symbol, name} = backendCache.config;
+    let { token_symbol, token_decimals, name} = backendCache.config;
 
     return <>
         <HeadBar title={"Wallets"} shareLink="wallets" />
@@ -88,7 +88,7 @@ export const Wallet = () => {
                         const recipient = prompt("Enter the recipient address");
                         if (!recipient) return;
                         if(!confirm(`You are transferring\n\n${amount} ICP\n\nto\n\n${recipient}`)) return;
-                        let result = await api.call("transfer", recipient, amount);
+                        let result = await api.call("transfer_icp", recipient, amount);
                         if ("Err" in result) {
                             alert(`Error: ${result.Err}`);
                             return;
@@ -135,7 +135,23 @@ export const Wallet = () => {
                 </div>
             </div>
             <div className="stands_out">
-                <h1>{token_symbol} TOKENS</h1>
+                <div className="vcentered">
+                    <h1 className="max_width_col">{token_symbol} TOKENS</h1>
+                    <ButtonWithLoading label="TRANSFER" onClick={async () => {
+                        const amount = prompt(`Enter the amount (fee: ${1/Math.pow(10, token_decimals)} ${token_symbol})`);
+                        if (!amount) return;
+                        const recipient = prompt("Enter the recipient principal");
+                        if (!recipient) return;
+                        if(!confirm(`You are transferring\n\n${amount} ${token_symbol}\n\nto\n\n${recipient}`)) return;
+                        let result = await api.call("transfer_tokens", recipient, amount);
+                        if ("Err" in result) {
+                            alert(`Error: ${result.Err}`);
+                            return;
+                        }
+                        await api._reloadUser();
+                        setUser(api._user);
+                    }} />
+                </div>
                 <div className="vcentered">
                     <code className="max_width_col"><CopyToClipboard value={user.principal} displayMap={val => bigScreen() ? val : val.split("-")[0]} /></code>
                     <code className="xx_large_text">{tokenBalance(user.balance)}</code>

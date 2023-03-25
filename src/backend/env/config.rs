@@ -18,6 +18,8 @@ pub struct Config {
     pub token_symbol: &'static str,
     pub total_supply: Token,
 
+    pub supply_threshold_for_transfer_percentage: u64,
+
     pub proposal_approval_threshold: u16,
     pub proposal_controversy_threashold: u16,
     pub proposal_rejection_penalty: Cycles,
@@ -102,6 +104,11 @@ pub const CONFIG: &Config = &Config {
     token_symbol: "TAGGR",
     token_decimals: 2,
     transaction_fee: 1,
+
+    #[cfg(feature = "dev")]
+    supply_threshold_for_transfer_percentage: 10,
+    #[cfg(not(feature = "dev"))]
+    supply_threshold_for_transfer_percentage: 35,
 
     #[cfg(feature = "dev")]
     proposal_approval_threshold: 1,

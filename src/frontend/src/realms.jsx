@@ -4,7 +4,7 @@ import {loadFile} from "./form";
 import {bigScreen, ButtonWithLoading, HeadBar, Loading, NotFound, RealmRibbon, setTitle, userList, } from "./common";
 import { Content } from './content';
 import {Edit} from "./icons";
-import {applyTheme, themes} from "./theme";
+import {themes} from "./theme";
 
 export const RealmForm = ({existingName}) => {
     const editing = !!existingName;
@@ -122,7 +122,7 @@ export const RealmForm = ({existingName}) => {
                     <input type="color" value={theme.background_dark} onChange={ev => setTheme({...theme, background_dark: ev.target.value })} />
                 </div>
                 <div className="db_cell">
-                    CODE
+                    CODE & DIGITS
                     <input type="color" value={theme.code} onChange={ev => setTheme({...theme, code: ev.target.value })} />
                 </div>
                 <div className="db_cell">
@@ -134,11 +134,11 @@ export const RealmForm = ({existingName}) => {
                     <input type="color" value={theme.clicked} onChange={ev => setTheme({...theme, clicked: ev.target.value })} />
                 </div>
                 <div className="db_cell">
-                    TEXT HIGHLIGHT
+                    HIGHLIGHTS
                     <input type="color" value={theme.focus} onChange={ev => setTheme({...theme, focus: ev.target.value })} />
                 </div>
                 <div className="db_cell">
-                    HIGHLIGHT
+                    ACCENT
                     <input type="color" value={theme.accent} onChange={ev => setTheme({...theme, accent: ev.target.value })} />
                 </div>
             </div>}
@@ -156,7 +156,7 @@ export const RealmForm = ({existingName}) => {
                     alert(`Error: ${response.Err}`);
                     return;
                 } else {
-                    await applyTheme();
+                    await api._reloadUser();
                 }
             }} label={editing ? "SAVE" : "CREATE"} />
         </div>

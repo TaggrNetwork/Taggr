@@ -157,15 +157,13 @@ pub async fn install(
 
 pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: bool) {
     let calls = calls_open();
-    if calls > 0 {
-        if !force {
-            logger.error(format!(
-                    "Upgrade execution failed: {} canister calls are in-flight: {:?}. Please re-trigger the upgrade finalization.",
-                    calls,
-                    unsafe { &CALLS }
-            ));
-            return;
-        }
+    if calls > 0 && !force {
+        logger.error(format!(
+                "Upgrade execution failed: {} canister calls are in-flight: {:?}. Please re-trigger the upgrade finalization.",
+                calls,
+                unsafe { &CALLS }
+        ));
+        return;
     }
 
     notify(

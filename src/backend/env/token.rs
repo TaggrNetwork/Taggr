@@ -242,7 +242,7 @@ fn transfer(
             });
         }
     }
-    Ok(0)
+    Ok(state.ledger.len().saturating_sub(1) as u128)
 }
 
 pub fn account(owner: Principal) -> Account {
@@ -294,6 +294,57 @@ pub fn move_funds(state: &mut State, from: &Account, to: Account) -> Result<u128
     Ok(n)
 }
 
+pub fn transfer_from_ui(
+    state: &mut State,
+    recipient: String,
+    amount: String,
+) -> Result<u64, String> {
+    let minted_supply: Token = state.balances.values().sum();
+
+    if minted_supply * 100 < CONFIG.supply_threshold_for_transfer_percentage * CONFIG.total_supply {
+        return Err(format!(
+            "transfers will be enabled when the minted supply reaches {}% of total supply",
+            CONFIG.supply_threshold_for_transfer_percentage
+        ));
+    }
+
+    fn parse(amount: &str) -> Result<Token, String> {
+        let parse = |s: &str| {
+            s.parse::<u64>()
+                .map_err(|err| format!("Couldn't parse as u64: {:?}", err))
+        };
+        match &amount.split('.').collect::<Vec<_>>().as_slice() {
+            [tokens] => Ok(parse(tokens)? * 10_u64.pow(CONFIG.token_decimals as u32)),
+            [tokens, cents] => {
+                let mut cents = cents.to_string();
+                while cents.len() < CONFIG.token_decimals as usize {
+                    cents.push('0');
+                }
+                let cents = &cents[..CONFIG.token_decimals as usize];
+                Ok(parse(tokens)? * 10_u64.pow(CONFIG.token_decimals as u32) + parse(cents)?)
+            }
+            _ => Err(format!("Can't parse amount {}", amount)),
+        }
+    }
+    transfer(
+        time(),
+        state,
+        caller(),
+        TransferArgs {
+            from_subaccount: None,
+            to: account(
+                Principal::from_text(recipient)
+                    .map_err(|err| format!("couldn't parse the recipient: {:?}", err))?,
+            ),
+            amount: parse(&amount)? as u128,
+            fee: Some(icrc1_fee()),
+            memo: None,
+            created_at_time: Some(time()),
+        },
+    )
+    .map(|n| n as u64)
+    .map_err(|err| format!("transfer failed: {:?}", err))
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -416,7 +467,7 @@ mod tests {
                     created_at_time: None
                 }
             ),
-            Ok(0),
+            Ok(1),
         );
         assert_eq!(
             state.balances.get(&account(pr(0))),

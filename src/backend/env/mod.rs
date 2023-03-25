@@ -331,6 +331,7 @@ impl State {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_realm(
         &mut self,
         principal: Principal,
@@ -1011,6 +1012,8 @@ impl State {
                 );
             }
         }
+        let mut inactive_users = 0;
+        let mut cycles_total = 0;
         for (id, cycles) in self
             .users
             .values()
@@ -1021,15 +1024,19 @@ impl State {
             .map(|u| (u.id, u.cycles()))
             .collect::<Vec<_>>()
         {
-            if let Err(err) = self.charge(
-                id,
-                CONFIG.inactivity_penalty.min(cycles),
-                "inactivity penalty".to_string(),
-            ) {
+            let costs = CONFIG.inactivity_penalty.min(cycles);
+            if let Err(err) = self.charge(id, costs, "inactivity penalty".to_string()) {
                 self.logger
                     .error(format!("Couldn't charge inactivity penalty: {:?}", err));
-            };
+            } else {
+                cycles_total += costs;
+                inactive_users += 1;
+            }
         }
+        self.logger.info(format!(
+            "Charged {} inactive users with {} cycles",
+            inactive_users, cycles_total
+        ));
 
         self.accounting.clean_up();
     }
@@ -1556,10 +1563,13 @@ impl State {
         if post.user == user.id {
             return Err("reactions to own posts are forbidden".into());
         }
-        if let Some(set) = post.reactions.get(&reaction) {
-            if set.contains(&user.id) {
-                return Err("double reactions are forbidden".into());
-            }
+        if post
+            .reactions
+            .values()
+            .flatten()
+            .any(|user_id| user_id == &user.id)
+        {
+            return Err("multiple reactions are forbidden".into());
         }
 
         let log = format!("reaction to post {}", post_id);
@@ -2623,7 +2633,11 @@ pub(crate) mod tests {
         .await
         .unwrap();
         let p = pr(1);
+        let p2 = pr(2);
+        let p3 = pr(3);
         let lurker_id = create_user(&mut state, p);
+        create_user(&mut state, p2);
+        create_user(&mut state, p3);
         let farmer_id = create_untrusted_user(&mut state, pr(111));
         let c = CONFIG;
         assert_eq!(state.burned_cycles as Cycles, c.post_cost);
@@ -2660,8 +2674,9 @@ pub(crate) mod tests {
             c.min_cycles_minted - c.post_cost
         );
         assert!(state.react(p, post_id, 50, 0).is_ok());
-        assert!(state.react(p, post_id, 100, 0).is_ok());
-        let mut reaction_costs = 6 + 11;
+        assert!(state.react(p, post_id, 100, 0).is_err());
+        assert!(state.react(p2, post_id, 100, 0).is_ok());
+        let reaction_costs_1 = 6;
         let burned_cycles_by_reactions = 1 + 1;
         let mut rewards_from_reactions = 5 + 10;
 
@@ -2677,21 +2692,20 @@ pub(crate) mod tests {
         );
 
         let lurker = state.users.get(&lurker_id).unwrap();
-        assert_eq!(lurker.cycles(), c.min_cycles_minted - reaction_costs);
+        assert_eq!(lurker.cycles(), c.min_cycles_minted - reaction_costs_1);
 
         // downvote
-        assert!(state.react(p, post_id, 1, 0).is_ok());
+        assert!(state.react(p3, post_id, 1, 0).is_ok());
         let reaction_penalty = 3;
         rewards_from_reactions -= 3;
-        reaction_costs += 3;
         let author = state.users.get(&post_author_id).unwrap();
-        let lurker = state.users.get(&lurker_id).unwrap();
+        let lurker_3 = state.principal_to_user(p3).unwrap();
         assert_eq!(
             author.cycles(),
             c.min_cycles_minted - c.post_cost - reaction_penalty
         );
         assert_eq!(author.karma_to_reward(), rewards_from_reactions);
-        assert_eq!(lurker.cycles(), c.min_cycles_minted - reaction_costs);
+        assert_eq!(lurker_3.cycles(), c.min_cycles_minted - 3);
         assert_eq!(
             state.burned_cycles,
             (c.post_cost
@@ -2742,12 +2756,17 @@ pub(crate) mod tests {
         .await
         .is_err());
 
-        let lurker = state.users.get_mut(&lurker_id).unwrap();
+        assert_eq!(
+            state.react(p, post_id, 10, 0),
+            Err("multiple reactions are forbidden".into())
+        );
+        create_user(&mut state, pr(10));
+        let lurker = state.principal_to_user_mut(pr(10)).unwrap();
         lurker
             .change_cycles(lurker.cycles(), CyclesDelta::Minus, "")
             .unwrap();
         assert_eq!(
-            state.react(p, post_id, 10, 0),
+            state.react(pr(10), post_id, 10, 0),
             Err("not enough cycles".into())
         );
     }

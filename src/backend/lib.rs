@@ -280,12 +280,18 @@ fn create_user() {
     });
 }
 
-#[export_name = "canister_update transfer"]
-fn transfer() {
+#[export_name = "canister_update transfer_icp"]
+fn transfer_icp() {
     spawn(async {
         let (recipient, amount): (String, String) = parse(&arg_data_raw());
         reply(state().icp_transfer(caller(), recipient, amount).await)
     });
+}
+
+#[export_name = "canister_update transfer_tokens"]
+fn transfer_tokens() {
+    let (recipient, amount): (String, String) = parse(&arg_data_raw());
+    reply(token::transfer_from_ui(state_mut(), recipient, amount));
 }
 
 #[export_name = "canister_update mint_cycles"]
@@ -659,6 +665,7 @@ fn tree() {
 #[export_name = "canister_query user"]
 fn user() {
     let input: Vec<String> = parse(&arg_data_raw());
+    let own_profile_fetch = input.is_empty();
     reply(resolve_handle(input.into_iter().next()).map(|mut user| {
         let state = state();
         user.balance = state
@@ -666,6 +673,9 @@ fn user() {
             .get(&token::account(user.principal))
             .copied()
             .unwrap_or_default();
+        if own_profile_fetch {
+            user.accounting.clear();
+        }
         user
     }));
 }
