@@ -14,7 +14,5 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Build the Docker image
-      run: docker build -t taggr .
-    - name: Get the file hash
-      run: docker run --rm --entrypoint cat taggr /target/wasm32-unknown-unknown/release/taggr.wasm.gz | shasum -a 256
+    - name: Build the release binary image
+      run: make release
