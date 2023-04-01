@@ -96,7 +96,14 @@ export const Proposal = ({id}) => {
 
     const statusEmoji = status => { return {"OPEN": "✨", "REJECTED": "🟥", "CANCELLED": "❌", "EXECUTED": "✅" }[status] || <HourGlass /> };
 
-    const vote = async (proposal_id, adopted) => {
+    const vote = async (proposal, adopted) => {
+        if ("Release" in proposal.payload) {
+            if (proposal.payload.Release.hash != prompt("Please enter the build hash")) {
+                alert("Error: your hash doesn't match!");
+                return;
+            }
+        }
+        let proposal_id = proposal.id;
         const prevStatus = proposal.status;
         const result = await api.call("vote_on_proposal", proposal_id, adopted);
         if ("Err" in result) {
@@ -137,7 +144,7 @@ export const Proposal = ({id}) => {
         <div className="monospace bottom_spaced">STATUS: {statusEmoji(propStatus)} <span className={open ? "accent" : null}>{propStatus}</span></div>
         {"Release" in proposal.payload && <div className="monospace bottom_spaced">
             {commit && <div className="row_container bottom_half_spaced">COMMIT:<a className="monospace left_spaced" href={`${REPO}/${proposal.payload.Release.commit}`}>{commit}</a></div>}
-            <div className="row_container"><span>HASH:</span><code className="left_spaced monospace">{hash}</code></div>
+            {!open && <div className="row_container"><span>HASH:</span><code className="left_spaced monospace">{hash}</code></div>}
         </div>}
         {"SetController" in proposal.payload && <div className="monospace bottom_spaced">PRINCIPAL: <code>{proposal.payload.SetController}</code></div>}
         {"Fund" in proposal.payload && <>
@@ -160,8 +167,8 @@ export const Proposal = ({id}) => {
         </div>
         {api._user && open && !voted && <>
             <div className="row_container">
-                <ButtonWithLoading onClick={() => vote(proposal.id, false)} classNameArg="max_width_col large_text" label="REJECT" />
-                <ButtonWithLoading onClick={() => vote(proposal.id, true)} classNameArg="max_width_col large_text" label="ADOPT" />
+                <ButtonWithLoading onClick={() => vote(proposal, false)} classNameArg="max_width_col large_text" label="REJECT" />
+                <ButtonWithLoading onClick={() => vote(proposal, true)} classNameArg="max_width_col large_text" label="ADOPT" />
             </div>
         </>}
         {api._user && api._user.id == proposal.proposer && open &&

@@ -3,7 +3,7 @@ import { AuthClient } from "@dfinity/auth-client"
 import { Ed25519KeyIdentity } from "@dfinity/identity"
 import { createRoot } from 'react-dom/client';
 import { Post, postDataProvider } from "./post";
-import { LoginMasks, SEEDPHRASE_IDENTITY_KEY } from "./logins";
+import { LoginMasks } from "./logins";
 import { PostFeed } from "./post_feed";
 import { Feed } from "./feed";
 import { Thread } from "./thread";
@@ -187,20 +187,21 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(async (authClient
     window.lastSavedUpgrade = 0;
     window.authClient = authClient;
     let identity = undefined;
-    let method = -1;
     if (await authClient.isAuthenticated()) {
         identity = authClient.getIdentity();
-        method = 0;
+    } else if (localStorage.getItem("IDENTITY")) {
+        const serializedIdentity = localStorage.getItem("IDENTITY");
+        if (serializedIdentity) {
+            identity = Ed25519KeyIdentity.fromJSON(serializedIdentity);
+        }
     } else {
-        const hash = localStorage.getItem(SEEDPHRASE_IDENTITY_KEY);
+        const hash = localStorage.getItem("IDENTITY_DEPRECATED");
         if (hash) {
             identity = Ed25519KeyIdentity.generate((new TextEncoder()).encode(hash).slice(0, 32));
-            method = 1;
         }
     }
     const api = Api(process.env.CANISTER_ID, identity, MAINNET_MODE);
     if (identity) api._principalId = identity.getPrincipal().toString();
-    api._method = method;
     api._last_visit = 0;
     window.api = api;
     window.mainnet_api = Api(process.env.CANISTER_ID, identity, true);

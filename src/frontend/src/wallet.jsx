@@ -1,10 +1,13 @@
 import {CopyToClipboard, HeadBar, Loading, hex, ICPAccountBalance, tokenBalance, ButtonWithLoading, bigScreen, IcpAccountLink} from "./common";
 import * as React from "react";
 import {Transactions} from "./tokens";
+import {logout, SeedPhraseForm} from "./logins";
+import { Ed25519KeyIdentity } from "@dfinity/identity"
 
 const Welcome = () => {
     const [invoice, setInvoice] = React.useState(null);
     const [loadingInvoice, setLoadingInvoice] = React.useState(false);
+    const [seedPhraseConfirmed, setSeedPhraseConfirmed] = React.useState(false);
 
     const checkPayment = async () => {
         setLoadingInvoice(true);
@@ -18,45 +21,72 @@ const Welcome = () => {
         setInvoice(result.Ok);
     };
 
+    const deprecated = !!localStorage.getItem("SEED_PHRASE_V1");
+    const repeatPassword = !!localStorage.getItem("SEED_PHRASE_V2") && !seedPhraseConfirmed;
+    const logOutButton = <button className="right_spaced" onClick={() => logout()}>LOGOUT</button>;
+
     return <>
         <HeadBar title={"Welcome!"} shareLink="welcome" />
         <div className="spaced">
-            <div className="bottom_spaced">
-                To join {backendCache.config.name} you need to mint cycles.
-                You get <code>1000</code> cycles for as little as <code>~1.3 USD</code> (corresponds to 1 <a href="https://en.wikipedia.org/wiki/Special_drawing_rights">XDR</a>) paid by ICP.
-                <br />
-                <br />
-                Before you mint cycles, make sure you understand <a href="#/whitepaper">how {backendCache.config.name} works</a>!
-                <br />
-                <br />
-            </div>
-            {loadingInvoice && <div className="text_centered stands_out">
-                Checking the balance... This can take up to a minute.
-                <Loading classNameArg="vertically_spaced" />
-            </div>}
-            {!invoice && !loadingInvoice && <button className="active vertically_spaced" onClick={checkPayment}>MINT CYCLES</button>}
-            {invoice && invoice.paid && <div>
-                Payment verified! ✅
-                <br />
-                <br />
-                <button className="active top_spaced" onClick={() => location.href = "/#/settings"}>CREATE USER</button>
-            </div>}
-            {invoice && !invoice.paid && <div className="stands_out">
-                Please transfer&nbsp;
-                <CopyToClipboard value={(parseInt(invoice.e8s) / 1e8)} /> ICP to account<br />
-                <CopyToClipboard value={(hex(invoice.account))} /><br/> to mint <code>1000</code> cycles.
-                <br />
-                <br />
-                (Larger transfers will mint a proportionally larger number of cycles.)
-                <br />
-                <br />
-                <button className="active" onClick={() => { setInvoice(null); checkPayment()}}>CHECK PAYMENT</button></div>}
-        </div>
-        <div className="small_text text_centered topped_up">
-            Principal ID: <CopyToClipboard value={api._principalId} />
+            {deprecated && <>
+                <h2>Deprecated</h2>
+                <p>This method is deprecated for sign-ups, works only for existing users and will be removed soon.</p>
+                <p>Please log out and press the button <code>SEED PHRASE V2</code>.</p>
+                {logOutButton}
+            </>}
+            {!deprecated && repeatPassword && <>
+                <h2>New user detected</h2>
+                <p>Please re-enter your seed phrase to confirm it's correct.</p>
+                <SeedPhraseForm callback={async seed => {
+                    const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', (new TextEncoder()).encode(seed)));
+                    let identity = Ed25519KeyIdentity.generate(hash);
+                    if (identity.getPrincipal() != api._principalId) {
+                        alert("The seed phrase does not match! Please log-out and try again.")
+                        return;
+                    } else setSeedPhraseConfirmed(true);
+                }} />
+            </>}
+            {!deprecated && !repeatPassword && <>
+                <div className="bottom_spaced">
+                    <h2>New principal detected</h2>
+                    <CopyToClipboard value={api._principalId} />
+                    <h2>Cycles</h2>
+                    To join {backendCache.config.name} you need to mint cycles.
+                    You get <code>1000</code> cycles for as little as <code>~1.3 USD</code> (corresponds to 1 <a href="https://en.wikipedia.org/wiki/Special_drawing_rights">XDR</a>) paid by ICP.
+                    <br />
+                    <br />
+                    Before you mint cycles, make sure you understand <a href="#/whitepaper">how {backendCache.config.name} works</a>!
+                    <br />
+                    <br />
+                </div>
+                {loadingInvoice && <div className="text_centered stands_out">
+                    Checking the balance... This can take up to a minute.
+                    <Loading classNameArg="vertically_spaced" />
+                </div>}
+                {!invoice && !loadingInvoice && <>
+                    {logOutButton}
+                    <button className="active vertically_spaced" onClick={checkPayment}>MINT CYCLES</button>
+                </>}
+                {invoice && invoice.paid && <div>
+                    Payment verified! ✅
+                    <br />
+                    <br />
+                    <button className="active top_spaced" onClick={() => location.href = "/#/settings"}>CREATE USER</button>
+                </div>}
+                {invoice && !invoice.paid && <div className="stands_out">
+                    Please transfer&nbsp;
+                    <CopyToClipboard value={(parseInt(invoice.e8s) / 1e8)} /> ICP to account<br />
+                    <CopyToClipboard value={(hex(invoice.account))} /><br/> to mint <code>1000</code> cycles.
+                    <br />
+                    <br />
+                    (Larger transfers will mint a proportionally larger number of cycles.)
+                    <br />
+                    <br />
+                    <button className="active" onClick={() => { setInvoice(null); checkPayment()}}>CHECK PAYMENT</button></div>}
+            </>}
         </div>
     </>;
-}
+};
 
 export const Wallet = () => {
     const [user, setUser] = React.useState(api._user);

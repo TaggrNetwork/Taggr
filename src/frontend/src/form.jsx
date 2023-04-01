@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Content, CUT } from './content';
-import { blobToUrl, ButtonWithLoading, getTokens, Loading, ReactionToggleButton } from './common';
+import { bigScreen, blobToUrl, ButtonWithLoading, getTokens, Loading, ReactionToggleButton } from './common';
 import {Poll} from './poll';
 import {Bars, Cycles, Paperclip} from "./icons";
 
@@ -22,7 +22,8 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
     const [suggestedTags, setSuggestedTags] = React.useState([]);
     const [suggestedUsers, setSuggestedUsers] = React.useState([]);
     const [choresTimer, setChoresTimer] = React.useState(null);
-    const focus = React.useRef();
+    const [cursor, setCursor] = React.useState(0);
+    const textarea = React.useRef();
     const tags = window.backendCache.recent_tags;
     const users = Object.values(window.backendCache.users); 
     const { max_post_length, max_blob_size_bytes } = backendCache.config;
@@ -101,14 +102,14 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
             fileLinks += `![${image.width}x${image.height}, ${size}kb](/blob/${key})\n`;
             setDragAndDropping(false);
         }
-        setValue(value + ((value == "" || value[value.length-1] == "\n") ? "" : "\n\n") + fileLinks);
+        setValue(value.slice(0, cursor) + "\n" + fileLinks + "\n" + value.slice(cursor));
         setBusy(false);
     };
 
     const onValueChange = value => {
         setValue(value);
         clearTimeout(choresTimer);
-        const cursor = focus.current?.selectionStart-1;
+        const cursor = textarea.current?.selectionStart-1;
         const suggestedTags = suggestTokens(cursor, value, tags, "#");
         setSuggestedTags(suggestedTags);
         const suggestedUsers = suggestTokens(cursor, value, users, "@");
@@ -118,8 +119,10 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
     };
 
     const maybeInsertSuggestion = event => {
+        let pos = textarea.current?.selectionStart;
+        setCursor(pos);
         if (event.charCode == 13) {
-            const cursor = focus.current?.selectionStart-1;
+            const cursor = pos - 1;
             const suggestedTags = suggestTokens(cursor, value, tags, "#");
             const suggestedUsers = suggestTokens(cursor, value, users, "@");
             if (suggestedTags.length) {
@@ -132,7 +135,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
 
     const insertSuggestion = (event, trigger, token) => {
         event.preventDefault();
-        const cursor = focus.current?.selectionStart;
+        const cursor = textarea.current?.selectionStart;
         let i;
         for (i = cursor; value[i] != trigger; i--) {};
         setValue(value.slice(0, i+1) + token + value.slice(cursor) + " ");
@@ -142,7 +145,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
     }
 
     const setFocus = () => {
-        if(focus.current && !content) focus.current.focus(); 
+        if(textarea.current && !content) textarea.current.focus(); 
     };
 
     const id = `form_${postId}_${lines}`;
@@ -169,41 +172,52 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
         completionList = suggestedUsers;
     }
 
+    const preview = <article ref={ref} className={`bottom_spaced max_width_col ${postId == null ? "prime" : ""} framed`}>
+        <Content post={true} blobs={tmpBlobs} value={value} preview={true} primeMode={postId == null} />
+        {poll && <Poll poll={poll} created={Number(new Date()) * 1000000} />}
+    </article>;
+
     return <div onDrop={dropHandler} onDragOver={dragOverHandler} className="column_container">
         {!showTextField && <input type="text" className="bottom_half_spaced"
             placeholder="Reply here..."
             onFocus={() => setShowTextField(true)} /> }
         {showTextField && 
             <form className={`${submitting ? "inactive" : ""} column_container bottom_spaced`} autoFocus>
-                <textarea id={id} ref={focus} rows={lines} disabled={submitting} value={value}
-                    onKeyPress={maybeInsertSuggestion}
-                    className={dragAndDropping ? "active_element" : null}
-                    onChange={event => onValueChange(event.target.value)}></textarea>
-                <div className="spaced vcentered top_half_spaced">
-                    {busy && <Loading spaced={false} />}
-                    {!busy && completionList.length > 0 && <div className="monospace">
-                        PICK: {completionList.map((token, i) => 
-                        <button key={token} className={`right_spaced bottom_half_spaced ${i ? "" : "active"}`}
-                            onClick={e =>  insertSuggestion(e, trigger, token)}>{`${trigger}${token}`}</button>)}
-                    </div>}
-                    <div className="vcentered max_width_col flex_ended">
-                        <div className="max_width_col"></div>
-                        <Cycles /><code className="left_half_spaced">{`${costs(value, poll ? 1 : 0)}`}</code>
-                        <label id="file_picker_label" htmlFor="file-picker" className="action left_spaced clickable"><Paperclip /></label>
-                        <input id="file-picker" style={{display: "none"}} type="file" multiple accept="image/*" onChange={dropHandler} />
-                        {postId == null && <ReactionToggleButton classNameArg="left_spaced" icon={<Bars />} pressed={!!poll}
-                            onClick={() => setPoll(poll && confirm("Delete the poll?") 
-                                ? null 
-                                : (poll || { options: ["Option 1", "Option 2"], votes: {}, deadline: 24 }))} />}
-                        {!comment && api._user.realms.length > 0 && <select value={realm || ""}
-                            className="small_text left_spaced"
-                            onChange={event => setRealm(event.target.value)}>
-                            <option value="">{backendCache.config.name.toUpperCase()}</option>
-                            {api._user.realms.map(name => <option key={name} value={name}>{name}</option>)}
-                        </select>}
-                        <ButtonWithLoading classNameArg="active left_spaced" label="SEND" onClick={handleSubmit} />
-                    </div>
+                <div className="row_container">
+                    {bigScreen() && value ? preview : null}
+                    <textarea id={id} ref={textarea} rows={lines} disabled={submitting} value={value}
+                        onKeyPress={maybeInsertSuggestion} 
+                        onKeyUp={() => setCursor(textarea.current?.selectionStart)}
+                        onFocus={() => setCursor(textarea.current?.selectionStart)}
+                        className={`max_width_col ${dragAndDropping ? "active_element" : null} ${bigScreen() ? "left_half_spaced" : ""}`}
+                        onChange={event => onValueChange(event.target.value)}></textarea>
                 </div>
+                {busy && <Loading classNameArg="top_spaced" spaced={false} />}
+                {!busy && completionList.length > 0 && <div className="monospace small_text top_half_spaced">
+                    {completionList.map((token, i) => 
+                    <button key={token} className={`right_spaced bottom_half_spaced ${i ? "" : "active"}`}
+                        onClick={e =>  insertSuggestion(e, trigger, token)}>{`${trigger}${token}`}</button>)}
+                </div>}
+                {!busy && completionList.length == 0 &&
+                    <div className="spaced vcentered top_half_spaced">
+                        <div className="vcentered max_width_col flex_ended">
+                            <div className="max_width_col"></div>
+                            <Cycles /><code className="left_half_spaced">{`${costs(value, poll ? 1 : 0)}`}</code>
+                            <label id="file_picker_label" htmlFor="file-picker" className="action left_spaced clickable"><Paperclip /></label>
+                            <input id="file-picker" style={{display: "none"}} type="file" multiple accept="image/*" onChange={dropHandler} />
+                            {postId == null && <ReactionToggleButton classNameArg="left_spaced" icon={<Bars />} pressed={!!poll}
+                                onClick={() => setPoll(poll && confirm("Delete the poll?") 
+                                    ? null 
+                                    : (poll || { options: ["Option 1", "Option 2"], votes: {}, deadline: 24 }))} />}
+                            {!comment && api._user.realms.length > 0 && <select value={realm || ""}
+                                className="small_text left_spaced"
+                                onChange={event => setRealm(event.target.value)}>
+                                <option value="">{backendCache.config.name.toUpperCase()}</option>
+                                {api._user.realms.map(name => <option key={name} value={name}>{name}</option>)}
+                            </select>}
+                            <ButtonWithLoading classNameArg="active left_spaced" label="SEND" onClick={handleSubmit} />
+                        </div>
+                    </div>}
             </form>}
         {poll && <div className="monospace column_container bottom_spaced">
             <h2>Poll</h2>
@@ -215,10 +229,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
                 {[1,2,3,4,5,6,7].map(d => <option key={d} value={`${d * 24}`}>{`${d} DAY${d == 1 ? "" : "S"}`}</option>)}
             </select>
         </div>}
-        {value && <article ref={ref} className={`bottom_spaced ${postId == null ? "prime" : ""}`}>
-            <Content post={true} blobs={tmpBlobs} value={value} preview={true} primeMode={postId == null} />
-            {poll && <Poll poll={poll} created={Number(new Date()) * 1000000} />}
-        </article>}
+        {value && !bigScreen() && preview}
     </div>;
 }
 

@@ -193,6 +193,7 @@ ul { list-style-type: square; }
 #logo {
     user-select: none;
     color: $focus;
+    height: 23px;
 }
 
 path { fill: $focus; }

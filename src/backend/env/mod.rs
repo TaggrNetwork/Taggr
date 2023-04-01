@@ -1,3 +1,4 @@
+use self::canisters::CALLS;
 use self::invoices::{parse_account, Invoice};
 use self::proposals::Status;
 use self::reports::Report;
@@ -1367,7 +1368,11 @@ impl State {
         weekly_karma_leaders = weekly_karma_leaders.into_iter().rev().take(24).collect();
         stalwarts.sort_unstable_by_key(|u1| std::cmp::Reverse(u1.karma()));
         Stats {
-            meta: format!("Team tokens to mint: {:?}", &self.team_tokens),
+            meta: format!(
+                "Team tokens to mint: {:?}, CALLS {:?}",
+                &self.team_tokens,
+                unsafe { &CALLS }
+            ),
             weekly_karma_leaders,
             bootcamp_users: self.users.values().filter(|u| !u.trusted()).count(),
             module_hash: self.module_hash.clone(),

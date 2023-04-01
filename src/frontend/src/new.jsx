@@ -38,7 +38,10 @@ export const PostSubmissionForm = ({id, repost}) => {
 
     const content = repost ? `\n\n[repost:${repost}](#/post/${repost})` : "";
 
-    return <div className="spaced">
+    return <div className="spaced top_spaced">
+        <Form submitCallback={callback} postId={id} content={post.body || content} blobs={blobs} expanded={true}
+            comment={!isRoot(post)} realmArg={post.realm || api._user.current_realm}/>
+        <h3>Tipps</h3>
         <ul>
             <li>Use <a target="_blank" href="https://commonmark.org/help/">Markdown</a> for formatting.</li>
             <li>Use <code>#hashtags</code> if you want your post to appear in the corresponding tag-feed.</li>
@@ -47,8 +50,6 @@ export const PostSubmissionForm = ({id, repost}) => {
             <li>Group images together and separate from the rest by new lines to create galleries.</li>
             <li>Use the #NSFW hashtag to mask your content by default.</li>
         </ul>
-        <Form submitCallback={callback} postId={id} content={post.body || content} blobs={blobs} expanded={true}
-            comment={!isRoot(post)} realmArg={post.realm || api._user.current_realm}/>
     </div>;
 }
 

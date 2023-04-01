@@ -21,7 +21,7 @@
     "terser-webpack-plugin": "5.2.5",
     "ts-loader": "^9.2.6",
     "typescript": "^4.5.3",
-    "webpack": "5.63.0",
+    "webpack": "^5.77.0",
     "webpack-cli": "^4.9.1",
     "webpack-dev-server": "^4.4.0"
   },
@@ -32,15 +32,15 @@
     "last 2 edge version"
   ],
   "dependencies": {
-    "@dfinity/agent": "^0.15.4",
-    "@dfinity/auth-client": "0.15.4",
-    "@dfinity/candid": "0.15.4",
+    "@dfinity/agent": "0.15.5",
+    "@dfinity/auth-client": "0.15.5",
+    "@dfinity/candid": "0.15.5",
+    "assert": "^2.0.0",
     "diff-match-patch": "^1.0.5",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-markdown": "8.0.5",
     "remark-gfm": "3.0.1",
-    "stream": "^0.0.2",
-    "assert": "^2.0.0"
+    "stream": "^0.0.2"
   }
 }

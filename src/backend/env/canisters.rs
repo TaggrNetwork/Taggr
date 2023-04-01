@@ -16,7 +16,7 @@ use serde::Deserialize;
 use super::Logger;
 
 const CYCLES_FOR_NEW_CANISTER: u64 = 1_000_000_000_000;
-static mut CALLS: Option<HashMap<String, i32>> = None;
+pub static mut CALLS: Option<HashMap<String, i32>> = None;
 
 pub fn call_opened(id: &str) {
     unsafe {
