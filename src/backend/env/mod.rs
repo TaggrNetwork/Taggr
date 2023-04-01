@@ -1309,8 +1309,15 @@ impl State {
         if self.principals.contains_key(&new_principal) {
             return Err("principal already controls a user".into());
         }
-        let user = self.principals.remove(&principal).ok_or("no user found")?;
-        self.principals.insert(new_principal, user);
+        let user_id = self
+            .principals
+            .remove(&principal)
+            .ok_or("no principal found")?;
+        self.principals.insert(new_principal, user_id);
+        self.users
+            .get_mut(&user_id)
+            .expect("no user found")
+            .principal = new_principal;
         let accounts = self
             .balances
             .keys()
@@ -1319,7 +1326,7 @@ impl State {
             .collect::<Vec<_>>();
         for acc in accounts {
             crate::token::move_funds(self, &acc, account(new_principal))
-                .map_err(|err| format!("couldn't transfer token funds: {:?}", err))?;
+                .expect("couldn't transfer token funds");
         }
         Ok(())
     }
@@ -1913,6 +1920,7 @@ pub(crate) mod tests {
             *state.balances.get(&account(principal)).unwrap(),
             11100 - CONFIG.transaction_fee
         );
+        assert_eq!(state.users.get(&u_id).unwrap().principal, principal);
     }
 
     #[actix_rt::test]

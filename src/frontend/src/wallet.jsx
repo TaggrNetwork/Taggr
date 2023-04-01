@@ -36,7 +36,7 @@ const Welcome = () => {
             </>}
             {!deprecated && repeatPassword && <>
                 <h2>New user detected</h2>
-                <p>Please re-enter your seed phrase to confirm it's correct.</p>
+                <p>Please re-enter your seed phrase to confirm it.</p>
                 <SeedPhraseForm callback={async seed => {
                     const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', (new TextEncoder()).encode(seed)));
                     let identity = Ed25519KeyIdentity.generate(hash);
