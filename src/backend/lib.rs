@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use env::{
     canisters::upgrade_main_canister,
@@ -263,7 +263,19 @@ fn update_user() {
         reply(response);
         return;
     }
-    if let Some(user) = state.principal_to_user_mut(caller()) {
+    let principal = caller();
+    if state
+        .users
+        .values()
+        .filter(|user| user.principal != principal)
+        .flat_map(|user| user.controllers.iter())
+        .collect::<BTreeSet<_>>()
+        .intersection(&principals.iter().collect())
+        .count()
+        > 0
+    {
+        response = Err("controller already assigned to another user".into());
+    } else if let Some(user) = state.principal_to_user_mut(principal) {
         user.update(about, principals, settings);
     } else {
         response = Err("no user found".into());

@@ -136,7 +136,7 @@ export const Proposal = ({id}) => {
     const t = backendCache.config.proposal_approval_threshold;
     const days = Math.ceil((proposal.voting_power - (adopted > rejected ? adopted / t : rejected / (100 - t)) * 100) / dailyDrop);
     const propStatus = status ? status : proposal.status.toUpperCase();
-    return <div key={proposal.timestamp} className="framed post_extension column_container">
+    return <div key={proposal.timestamp} className="post_extension column_container">
         <div className="monospace bottom_half_spaced">ID: <code>{proposal.id}</code></div>
         <div className="monospace bottom_half_spaced">TYPE: {Object.keys(proposal.payload)[0].toUpperCase()}</div>
         <div className="monospace bottom_half_spaced">PROPOSER: <a href={`#/user/${proposal.proposer}`}>{`@${users[proposal.proposer]}`}</a></div>

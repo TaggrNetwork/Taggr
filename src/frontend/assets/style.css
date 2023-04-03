@@ -410,6 +410,10 @@ div.thumbnails {
 .post_extension, .repost {
     margin: 0.5em;
     margin-bottom: 1em;
+    font-size: medium;
+    border: 1px solid $background_dark;
+    padding: 0.5em;
+    border-radius: 5px;
 }
 
 #preview {
