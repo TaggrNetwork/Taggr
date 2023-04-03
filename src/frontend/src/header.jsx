@@ -30,7 +30,7 @@ export const Header = ({subtle, route}) => {
                     {user && !inboxEmpty && <span className="clickable vcentered" onClick={() => location.href = "#/inbox"}>
                         <Bell /><code className="left_half_spaced right_spaced">{`${Object.keys(user.inbox).length}`}</code>
                     </span>}
-                    {user && inboxEmpty && <div className="vcentered"><Cycles /><code className="left_half_spaced right_spaced">{`${user.cycles}`}</code></div>}
+                    {user && inboxEmpty && <div className="vcentered"><Cycles /><code className="left_half_spaced right_spaced">{`${user.cycles.toLocaleString()}`}</code></div>}
                     {user && <PostButton classNameArg="right_half_spaced" />}
                     {!api._principalId && <ToggleButton 
                         classNameArg={!showLogins && "active"}

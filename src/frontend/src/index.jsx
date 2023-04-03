@@ -26,9 +26,6 @@ import {Tokens, Transaction} from "./tokens";
 import {Whitepaper} from "./whitepaper";
 
 const { protocol, host, pathname } = location;
-if (pathname != "/") {
-    location.href = `${protocol}//${host.replace("share.", "")}/#${pathname}`;
-}
 
 const REFRESH_RATE_SECS = 10 * 60;
 

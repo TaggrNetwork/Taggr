@@ -7,7 +7,6 @@ export const authMethods = [
     {
         icon: <Infinity />,
         label: "INTERNET IDENTITY",
-        explanation: "A login method provided by DFINITY. It uses secure hardware authentication devices (fingerprint sensors, YubiKey, etc.).",
         login: () => {
             if ((location.href.includes(".raw") || location.href.includes("share.")) &&
                 confirm("You're using the uncertified insecure frontend. Do you want to be re-routed to the certified one?")) {

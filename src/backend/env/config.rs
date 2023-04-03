@@ -98,7 +98,14 @@ pub struct Config {
 
 pub const CONFIG: &Config = &Config {
     name: "Taggr",
-    domains: &["taggr.link", "taggr.network", "taggr.club", "taggr.top"],
+    domains: &[
+        "taggr.link",
+        "taggr.network",
+        "taggr.club",
+        "taggr.top",
+        "taggr.blog",
+        "taggr.wtf",
+    ],
     logo: include_str!("../../frontend/assets/logo.min.svg"),
     twitter: "TaggrNetwork",
 

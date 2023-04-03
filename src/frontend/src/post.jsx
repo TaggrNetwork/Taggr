@@ -2,7 +2,8 @@ import * as React from "react";
 import { Form } from './form';
 import { Content } from './content';
 import { Poll } from './poll';
-import { isRoot, BurgerButton, reactions, timeAgo, ToggleButton, NotFound, applyPatch, loadPostBlobs, ShareButton, commaSeparated, Loading, objectReduce, reactionCosts, postUserToPost, loadPost, ReactionToggleButton, RealmRibbon, setTitle, ButtonWithLoading, bigScreen, UserLink, userList, FlagButton, ReportBanner } from './common';
+import { isRoot, BurgerButton, reactions, timeAgo, ToggleButton, NotFound, applyPatch, loadPostBlobs, ShareButton, commaSeparated, Loading, objectReduce, reactionCosts, postUserToPost, loadPost,
+    ReactionToggleButton, RealmRibbon, setTitle, ButtonWithLoading, bigScreen, UserLink, FlagButton, ReportBanner } from './common';
 import {PostFeed} from "./post_feed";
 import {reaction2icon, Edit, Save, Unsave, Watch, Unwatch, Repost, Coin, New, CommentArrow, CarretRight, Trash, Comment } from "./icons";
 import {Proposal} from "./proposals";
@@ -41,6 +42,8 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
     const [commentIncoming, setCommentIncoming] = React.useState(false);
     const [reactionTimer, setReactionTimer] = React.useState(null);
 
+    const refPost = React.useRef();
+
     const loadData = async (force) => {
         const fullTreeLoadRequired = id in data.source && showComments && data.source[id].children.length + 1 > Object.keys(data.source).length;
         if (force || !(id in data.source) || fullTreeLoadRequired) {
@@ -52,9 +55,13 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
                 return;
             }
         }
-        const post = data.source[id];
-        setPost(post);
-        setBlobs(await loadPostBlobs(post.files));
+        const newData = data.source[id];
+        if (post) {
+            // This is needed, becasue reactions are updated optimistically and we might have new ones in-flight.
+            newData.reactions = post.reactions;
+        }
+        setPost(newData);
+        setBlobs(await loadPostBlobs(newData.files));
     };
 
     React.useEffect(() => { loadData(); }, [version, data, showComments]);
@@ -85,14 +92,16 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
         toggleComments(true);
     };
 
+    const showCarret = level > (refPost.current?.clientWidth > 900 ? 13 : 3);
+    const goInside = () => location.href = `#/post/${post.id}`;
+
     const expand = e => {
         if (repost) location.href = `/#/post/${id}`;
         if(!isFeedItem || window.getSelection().toString().length > 0) return;
         if (["A", "IMG", "INPUT"].includes(e.target.tagName) || skipClicks(e.target)) return;
-        if (expanded) {
-            toggleComments(false);
-            toggleInfo(false);
-        };
+        toggleInfo(false);
+        if (showCarret) goInside();
+        else toggleComments(!expanded);
         toggleExpansion(!expanded);
     };
 
@@ -152,7 +161,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
 
     return <div ref={post => { if(post && focused && rendering) post.scrollIntoView({ behavior: "smooth" }); }}
         className={classNameArg || null}>
-        <div className={`post_box ${isInactive ? "inactive" : ""} ${cls}`} style={{position: "relative"}}>
+        <div ref={refPost} className={`post_box ${isInactive ? "inactive" : ""} ${cls}`} style={{position: "relative"}}>
             {showReport && <ReportBanner id={post.id} reportArg={post.report} domain="post" />}
             {isNSFW && <div className="post_head banner2 x_large_text" onClick={() => setSafeToOpen(true)}>#NSFW</div>}
             {deleted && <div className="post_head banner3 small_text monospace"><h3>Post deleted</h3>
@@ -170,8 +179,8 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
                 {post.extension && post.extension.Proposal && <Proposal id={post.extension.Proposal} />}
             </article>}
             <PostBar post={post} react={react} highlightOp={highlightOp} repost={repost} highlighted={highlighted}
-                showComments={showComments} toggleComments={toggleComments} postCreated={postCreated}
-                showInfo={showInfo} toggleInfo={toggleInfo} isThreadView={isThreadView} level={level} />
+                showComments={showComments} toggleComments={toggleComments} postCreated={postCreated} showCarret={showCarret}
+                showInfo={showInfo} toggleInfo={toggleInfo} isThreadView={isThreadView} goInside={goInside} />
         </div>
         {showInfo && <div className="top_framed top_spaced">
             <div className="left_half_spaced right_half_spaced bottom_spaced top_spaced">
@@ -273,17 +282,15 @@ const PostInfo = ({post, version, postCreated, callback}) => {
     </>;
 };
 
-const PostBar = ({post, react, highlighted, highlightOp, repost, showInfo, toggleInfo, showComments, toggleComments, postCreated, isThreadView, level}) => {
+const PostBar = ({post, react, highlighted, highlightOp, repost, showInfo, toggleInfo, 
+    showComments, toggleComments, postCreated, isThreadView, goInside, showCarret}) => {
     const time = timeAgo(postCreated);
     const replies = post.tree_size;
     const createdRecently = (Number(new Date()) - parseInt(postCreated) / 1000000) < 30 * 60 * 1000;
     const updatedRecently = (Number(new Date()) - parseInt(post.tree_update) / 1000000) < 30 * 60 * 1000;
     const newPost = api._user && highlighted.includes(post.id) || (postCreated > api._last_visit || createdRecently)
     const newComments = api._user && (post.tree_update > api._last_visit || updatedRecently);
-    const bar = React.useRef();
-    const showCarret = level > (bar.current?.clientWidth > 900 ? 13 : 3);
-    const goInside = () => location.href = `#/post/${post.id}`;
-    return <div ref={bar} className="post_bar vcentered smaller_text flex_ended">
+    return <div className="post_bar vcentered smaller_text flex_ended">
         <div className="row_container" style={{alignItems: "center"}}>
             <a className={highlightOp ? "accent" : null} href={`#/user/${post.user.id}`}>{`${post.user.name}`}</a>
             <div className="left_spaced no_wrap vcentered">
@@ -304,11 +311,9 @@ const PostBar = ({post, react, highlighted, highlightOp, repost, showInfo, toggl
     </div>;
 }
 
-export const ReactionsPicker = ({react}) => {
-    return <div>
-        {reactions().map(([id, _]) => <button key={id} className="left_half_spaced" onClick={() => react(id)}>{reaction2icon(id)}</button>)}
-    </div>;
-};
+export const ReactionsPicker = ({react}) => <>
+    {reactions().map(([id, _]) => <button key={id} className="left_half_spaced" onClick={() => react(id)}>{reaction2icon(id)}</button>)}
+</>;
 
 export const Reactions = ({reactionsMap, react}) => {
     if (Object.keys(reactionsMap).length == 0) return null;

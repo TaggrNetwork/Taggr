@@ -114,7 +114,7 @@ export const Proposal = ({id}) => {
         const newStatus = data.status;
         if (prevStatus == "Open" && newStatus == "Executed" && "Release" in data.payload) {
             setStatus("Executing the upgrade...");
-            await api.call("execute_upgrade", false);
+            await api.call("execute_upgrade", true);
             setStatus("Finalizing the upgrade...");
             let result = await api.call("finalize_upgrade", data.payload.Release.hash);
             if ("Ok" in result) {
