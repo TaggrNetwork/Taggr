@@ -1,11 +1,13 @@
 use std::collections::{BTreeSet, HashMap};
 
+use candid::Principal;
 use env::{
     canisters::upgrade_main_canister,
     config::CONFIG,
     memory,
     post::{Extension, Post, PostId},
     proposals::{Payload, Release, Status},
+    token::{account, TransferArgs},
     user::{User, UserId},
     State, *,
 };
@@ -72,6 +74,43 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
+
+    // recompute stalwarts
+    state_mut().recompute_stalwarts(time());
+
+    let x = state().users.get(&0).unwrap().principal;
+    // Thanks for driving the resurrection of #Taggr :praying_hands:
+    let christian = "2oh3y-xd7c2-hgxa2-v3qco-32bce-yqsvr-gtskw-zo2sb-vxc27-kn5t7-lae";
+    // Thanks for implementing the replica fix! :praying_hands:
+    let dsarlis = "v7jwe-qzysn-aoxfx-ptfm2-54no7-csest-eay3s-utdaw-btja6-bycj4-bae";
+    token::transfer(
+        time(),
+        state_mut(),
+        x,
+        TransferArgs {
+            from_subaccount: None,
+            to: account(Principal::from_text(christian).unwrap()),
+            amount: 600_000,
+            fee: None,
+            memo: None,
+            created_at_time: Some(time()),
+        },
+    )
+    .unwrap();
+    token::transfer(
+        time(),
+        state_mut(),
+        x,
+        TransferArgs {
+            from_subaccount: None,
+            to: account(Principal::from_text(dsarlis).unwrap()),
+            amount: 60_000,
+            fee: None,
+            memo: None,
+            created_at_time: Some(time()),
+        },
+    )
+    .unwrap();
 }
 
 /*

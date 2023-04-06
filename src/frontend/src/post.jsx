@@ -322,7 +322,7 @@ export const Reactions = ({reactionsMap, react}) => {
             const users = reactionsMap[id];
             const reacted = users.includes(api._user?.id);
             const reaction = reactions().find(([reaction_id, _cost, _]) => reaction_id == id);
-            if (!reaction || users == 0) return null;
+            if (!reaction || users.length == 0) return null;
             const [reactId, _cost] = reaction;
             return <button data-meta="skipClicks" key={id} className={"reaction_button " + (reacted ? "selected" : "unselected")}
                 onClick={() => react(id)}>

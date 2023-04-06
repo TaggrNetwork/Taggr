@@ -961,7 +961,11 @@ impl State {
         if now - self.last_chores < CONFIG.chores_interval_hours {
             return;
         }
-        self.last_chores += CONFIG.chores_interval_hours;
+
+        // If the cansiter was offline, catch up
+        while self.last_chores + CONFIG.chores_interval_hours < now {
+            self.last_chores += CONFIG.chores_interval_hours;
+        }
 
         self.top_up().await;
 
@@ -1054,7 +1058,7 @@ impl State {
         self.accounting.clean_up();
     }
 
-    fn recompute_stalwarts(&mut self, now: u64) {
+    pub fn recompute_stalwarts(&mut self, now: u64) {
         let mut users = self.users.values_mut().into_iter().collect::<Vec<_>>();
         users.sort_unstable_by_key(|a| std::cmp::Reverse(a.karma()));
 

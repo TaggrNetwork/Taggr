@@ -177,6 +177,8 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
         {poll && <Poll poll={poll} created={Number(new Date()) * 1000000} />}
     </article>;
 
+    const previewAtLeft = bigScreen() && !comment;
+
     return <div onDrop={dropHandler} onDragOver={dragOverHandler} className="column_container">
         {!showTextField && <input type="text" className="bottom_half_spaced"
             placeholder="Reply here..."
@@ -184,7 +186,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
         {showTextField && 
             <form className={`${submitting ? "inactive" : ""} column_container bottom_spaced`} autoFocus>
                 <div className="row_container">
-                    {bigScreen() && value ? preview : null}
+                    {previewAtLeft && value ? preview : null}
                     <textarea id={id} ref={textarea} rows={lines} disabled={submitting} value={value}
                         onKeyPress={maybeInsertSuggestion} 
                         onKeyUp={() => setCursor(textarea.current?.selectionStart)}
@@ -229,7 +231,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
                 {[1,2,3,4,5,6,7].map(d => <option key={d} value={`${d * 24}`}>{`${d} DAY${d == 1 ? "" : "S"}`}</option>)}
             </select>
         </div>}
-        {value && !bigScreen() && preview}
+        {!previewAtLeft && value && preview}
     </div>;
 }
 

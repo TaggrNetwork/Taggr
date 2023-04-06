@@ -180,7 +180,8 @@ pub const CONFIG: &Config = &Config {
     voting_power_activity_weeks: 8,
 
     stalwart_percentage: 2,
-    min_stalwart_activity_weeks: 6,
+    // TODO: set back to 6 in 6 weeks
+    min_stalwart_activity_weeks: 0,
     min_stalwart_account_age_weeks: 26,
     stalwart_moderation_reward: 20,
 

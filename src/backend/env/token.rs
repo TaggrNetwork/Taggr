@@ -19,12 +19,12 @@ pub struct Account {
 
 #[derive(CandidType, Deserialize)]
 pub struct TransferArgs {
-    from_subaccount: Option<Subaccount>,
-    to: Account,
-    amount: u128,
-    fee: Option<u128>,
-    memo: Option<Memo>,
-    created_at_time: Option<Timestamp>,
+    pub from_subaccount: Option<Subaccount>,
+    pub to: Account,
+    pub amount: u128,
+    pub fee: Option<u128>,
+    pub memo: Option<Memo>,
+    pub created_at_time: Option<Timestamp>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -162,7 +162,7 @@ fn icrc1_transfer(args: TransferArgs) -> Result<u128, TransferError> {
     transfer(time(), state_mut(), caller(), args)
 }
 
-fn transfer(
+pub fn transfer(
     now: u64,
     state: &mut State,
     owner: Principal,
@@ -345,6 +345,7 @@ pub fn transfer_from_ui(
     .map(|n| n as u64)
     .map_err(|err| format!("transfer failed: {:?}", err))
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

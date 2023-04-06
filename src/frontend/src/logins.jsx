@@ -51,6 +51,7 @@ export const authMethods = [
 export const logout = () => {
     location.href = "/";
     localStorage.clear();
+    authClient.logout();
 };
 
 export const LoginMasks = ({}) => {
