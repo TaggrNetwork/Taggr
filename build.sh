@@ -6,6 +6,6 @@ echo "Features: $FEATURES"
 for pkg in $1; do
     cargo build --target wasm32-unknown-unknown --release --package $pkg --features "$FEATURES" --locked
     WASM_FILE=target/wasm32-unknown-unknown/release/$pkg.wasm
-    ic-cdk-optimizer $WASM_FILE -o $WASM_FILE
+    ic-wasm $WASM_FILE -o $WASM_FILE shrink
     gzip -nf9v $WASM_FILE
 done

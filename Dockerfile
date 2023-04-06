@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM --platform=linux/amd64 ubuntu:22.04
 
 ENV NVM_DIR=/root/.nvm
 ENV NVM_VERSION=v0.39.1
@@ -7,7 +7,7 @@ ENV NODE_VERSION=16.9.0
 ENV RUSTUP_HOME=/opt/rustup
 ENV CARGO_HOME=/opt/cargo
 ENV RUST_VERSION=1.67.1
-ENV IC_CDK_OPTIMIZER_VERSION=0.3.5
+ENV IC_WASM_VERSION=0.3.5
 
 ENV DFX_VERSION=0.12.1
 
@@ -29,7 +29,12 @@ RUN curl --fail https://sh.rustup.rs -sSf \
         | sh -s -- -y --default-toolchain ${RUST_VERSION}-x86_64-unknown-linux-gnu --no-modify-path && \
     rustup default ${RUST_VERSION}-x86_64-unknown-linux-gnu && \
     rustup target add wasm32-unknown-unknown
-RUN cargo install --version ${IC_CDK_OPTIMIZER_VERSION} ic-cdk-optimizer
+
+# Install ic-wasm
+ENV PATH=/opt/ic-wasm:${PATH}
+RUN mkdir -p /opt/ic-wasm && \
+    curl -L https://github.com/dfinity/ic-wasm/releases/download/${IC_WASM_VERSION}/ic-wasm-linux64 -o /opt/ic-wasm/ic-wasm && \
+    chmod +x /opt/ic-wasm/ic-wasm
 
 # Install dfx
 RUN sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
