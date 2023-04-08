@@ -31,12 +31,12 @@ pub fn call_opened(id: &str) {
 
 pub fn call_closed(id: &str) {
     unsafe {
-        CALLS
+        let c = CALLS
             .as_mut()
             .unwrap()
-            .entry(id.into())
-            .and_modify(|c| *c -= 1)
-            .or_insert(-1);
+            .get_mut(id.into())
+            .expect("no open call found");
+        *c -= 1;
     }
 }
 
@@ -156,6 +156,7 @@ pub async fn install(
 }
 
 pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: bool) {
+    logger.info("Executing the canister upgrade...");
     let calls = calls_open();
     if calls > 0 && !force {
         logger.error(format!(
@@ -177,32 +178,6 @@ pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: boo
         },),
     )
     .expect("self-upgrade failed");
-}
-
-pub async fn set_controllers(
-    canister_id: Principal,
-    controllers: Vec<Principal>,
-) -> Result<(), String> {
-    #[derive(CandidType)]
-    struct In {
-        canister_id: Principal,
-        settings: CanisterSettings,
-    }
-    call_opened("update_settings");
-    let result = call(
-        Principal::management_canister(),
-        "update_settings",
-        (In {
-            canister_id,
-            settings: CanisterSettings {
-                controllers: Some(controllers),
-            },
-        },),
-    )
-    .await;
-    call_closed("update_settings");
-    result.map_err(|err| format!("couldn't set controllers: {:?}", err))?;
-    Ok(())
 }
 
 pub async fn topup_with_cycles(canister_id: Principal, cycles: u64) -> Result<(), String> {

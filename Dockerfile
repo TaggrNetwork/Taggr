@@ -9,7 +9,7 @@ ENV CARGO_HOME=/opt/cargo
 ENV RUST_VERSION=1.67.1
 ENV IC_WASM_VERSION=0.3.5
 
-ENV DFX_VERSION=0.12.1
+ENV DFX_VERSION=0.13.1
 
 # Install a basic environment needed for our build tools
 RUN apt -yq update && \

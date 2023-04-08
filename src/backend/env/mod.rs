@@ -59,6 +59,7 @@ pub struct Event {
 
 #[derive(Serialize, Deserialize)]
 pub struct Stats {
+    emergency_release: String,
     weekly_karma_leaders: Vec<(UserId, Karma)>,
     users: usize,
     bootcamp_users: usize,
@@ -142,6 +143,11 @@ pub struct State {
     pub module_hash: String,
     #[serde(skip)]
     pub last_upgrade: u64,
+
+    #[serde(skip)]
+    pub emergency_binary: Vec<u8>,
+    #[serde(skip)]
+    pub emergency_votes: BTreeMap<Principal, Token>,
 }
 
 impl Storable for State {
@@ -185,6 +191,18 @@ pub enum Destination {
 }
 
 impl State {
+    pub fn active_voting_power(&self, time: u64) -> Token {
+        self.balances
+            .iter()
+            .filter_map(|(acc, balance)| {
+                self.principal_to_user(acc.owner).and_then(|user| {
+                    user.active_within_weeks(time, CONFIG.voting_power_activity_weeks)
+                        .then_some(*balance)
+                })
+            })
+            .sum()
+    }
+
     fn spend_to_user_karma<T: ToString>(&mut self, id: UserId, amount: Cycles, log: T) {
         let user = self.users.get_mut(&id).expect("no user found");
         user.change_karma(amount as Karma, log.to_string());
@@ -1379,7 +1397,20 @@ impl State {
         weekly_karma_leaders.sort_unstable_by_key(|k| k.1);
         weekly_karma_leaders = weekly_karma_leaders.into_iter().rev().take(24).collect();
         stalwarts.sort_unstable_by_key(|u1| std::cmp::Reverse(u1.karma()));
+        let emergency_votes = if self.emergency_binary.is_empty() {
+            0.0
+        } else {
+            self.emergency_votes.values().sum::<Token>() as f32
+                / self.active_voting_power(time()) as f32
+                * 100.0
+        };
         Stats {
+            emergency_release: format!(
+                "Binary set: {}, votes: {}% (required: {}%)",
+                !self.emergency_binary.is_empty(),
+                emergency_votes as u32,
+                CONFIG.proposal_approval_threshold
+            ),
             meta: format!(
                 "Team tokens to mint: {:?}, CALLS {:?}",
                 &self.team_tokens,

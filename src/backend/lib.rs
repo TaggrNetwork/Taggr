@@ -1,13 +1,12 @@
 use std::collections::{BTreeSet, HashMap};
 
-use candid::Principal;
 use env::{
     canisters::upgrade_main_canister,
     config::CONFIG,
     memory,
     post::{Extension, Post, PostId},
     proposals::{Payload, Release, Status},
-    token::{account, TransferArgs},
+    token::account,
     user::{User, UserId},
     State, *,
 };
@@ -20,6 +19,8 @@ use ic_cdk::{
 };
 use ic_cdk_macros::*;
 use serde_bytes::ByteBuf;
+
+use crate::env::token::Token;
 
 mod assets;
 mod env;
@@ -74,43 +75,19 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
+    let mut trimmed = 0;
+    for p in state_mut().posts.values_mut() {
+        let l = p.body.len();
+        p.body = p.body.trim().into();
+        trimmed += l - p.body.len();
+    }
+    ic_cdk::println!("trimmed bytes={}", trimmed);
 
-    // recompute stalwarts
-    state_mut().recompute_stalwarts(time());
-
-    let x = state().users.get(&0).unwrap().principal;
-    // Thanks for driving the resurrection of #Taggr :praying_hands:
-    let christian = "2oh3y-xd7c2-hgxa2-v3qco-32bce-yqsvr-gtskw-zo2sb-vxc27-kn5t7-lae";
-    // Thanks for implementing the replica fix! :praying_hands:
-    let dsarlis = "v7jwe-qzysn-aoxfx-ptfm2-54no7-csest-eay3s-utdaw-btja6-bycj4-bae";
-    token::transfer(
-        time(),
-        state_mut(),
-        x,
-        TransferArgs {
-            from_subaccount: None,
-            to: account(Principal::from_text(christian).unwrap()),
-            amount: 600_000,
-            fee: None,
-            memo: None,
-            created_at_time: Some(time()),
-        },
-    )
-    .unwrap();
-    token::transfer(
-        time(),
-        state_mut(),
-        x,
-        TransferArgs {
-            from_subaccount: None,
-            to: account(Principal::from_text(dsarlis).unwrap()),
-            amount: 60_000,
-            fee: None,
-            memo: None,
-            created_at_time: Some(time()),
-        },
-    )
-    .unwrap();
+    for p in state_mut().proposals.iter_mut() {
+        if matches!(&p.payload, Payload::SetController(_)) {
+            p.payload = Payload::Noop;
+        }
+    }
 }
 
 /*
@@ -191,7 +168,6 @@ fn execute_upgrade() {
         })
         .expect("no proposals found");
     if let Payload::Release(release) = &mut proposal.payload {
-        state.logger.info("Executing the canister upgrade...");
         let force: bool = parse(&arg_data_raw());
         upgrade_main_canister(&mut state.logger, &release.binary, force);
     }
@@ -378,23 +354,6 @@ async fn propose_release(
     .await
 }
 
-#[export_name = "canister_update propose_controller"]
-fn propose_controller() {
-    spawn(async {
-        let (description, controller): (String, String) = parse(&arg_data_raw());
-        reply(
-            proposals::propose(
-                state_mut(),
-                caller(),
-                description,
-                proposals::Payload::SetController(controller),
-                time(),
-            )
-            .await,
-        )
-    });
-}
-
 #[export_name = "canister_update propose_funding"]
 fn propose_funding() {
     spawn(async {
@@ -563,6 +522,41 @@ fn create_realm() {
 fn toggle_realm_membership() {
     let name: String = parse(&arg_data_raw());
     reply(state_mut().toggle_realm_membership(caller(), name))
+}
+
+#[update]
+async fn set_emergency_release(binary: ByteBuf) {
+    let state = state_mut();
+    if !state
+        .principal_to_user(caller())
+        .map(|user| user.stalwart)
+        .unwrap_or_default()
+    {
+        return;
+    }
+    state.emergency_binary = binary.to_vec();
+    state.emergency_votes.clear();
+}
+
+#[export_name = "canister_update confirm_emergency_release"]
+fn confirm_emergency_release() {
+    let state = state_mut();
+    let principal = caller();
+    if let Some(balance) = state.balances.get(&account(principal)) {
+        let hash: String = parse(&arg_data_raw());
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(&state.emergency_binary);
+        if hash == format!("{:x}", hasher.finalize()) {
+            state.emergency_votes.insert(principal, *balance);
+            let active_vp = state.active_voting_power(time());
+            let votes = state.emergency_votes.values().sum::<Token>();
+            if votes * 100 >= active_vp * CONFIG.proposal_approval_threshold as u64 {
+                upgrade_main_canister(&mut state.logger, &state.emergency_binary, true);
+            }
+        }
+    }
+    reply_raw(&[]);
 }
 
 /*

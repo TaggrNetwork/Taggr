@@ -85,11 +85,7 @@ impl Invoices {
             return Ok(invoice.clone());
         }
         let balance = account_balance(invoice.account).await;
-        let costs = if kilo_cycles == 0 {
-            balance
-        } else {
-            Tokens::from_e8s(kilo_cycles * invoice.e8s)
-        };
+        let costs = Tokens::from_e8s(kilo_cycles.max(1) * invoice.e8s);
         if balance >= costs {
             transfer(main_account(), costs, Memo(999), Some(invoice.sub_account)).await?;
             invoice.paid = true;

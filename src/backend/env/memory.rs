@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
+    fmt::Display,
     rc::Rc,
 };
 
@@ -29,7 +30,6 @@ pub struct Memory {
 }
 
 const INITIAL_OFFSET: u64 = 16;
-#[allow(dead_code)]
 const MAX_CACHE_SIZE: usize = 2000;
 
 impl Api {
@@ -279,19 +279,16 @@ pub struct ObjectManager<K: Ord + Eq, T: Storable> {
     api: Rc<RefCell<Api>>,
 }
 
-impl<K: Eq + Ord + Clone, T: Storable> ObjectManager<K, T> {
-    #[allow(dead_code)]
+impl<K: Eq + Ord + Clone + Display, T: Storable> ObjectManager<K, T> {
     pub fn keys(&self) -> impl Iterator<Item = &'_ K> {
         self.index.keys()
     }
 
-    #[allow(dead_code)]
     pub fn insert(&mut self, id: K, value: T) -> Result<(), String> {
         self.index.insert(id, self.api.borrow_mut().write(&value)?);
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub fn get(&mut self, id: &K) -> Option<&'_ T> {
         Some(
             self.cache.entry(id.clone()).or_insert(
@@ -302,7 +299,6 @@ impl<K: Eq + Ord + Clone, T: Storable> ObjectManager<K, T> {
         )
     }
 
-    #[allow(dead_code)]
     pub fn get_mut(&mut self, id: &K) -> Option<&'_ mut T> {
         self.dirty.insert(id.clone());
         Some(
@@ -314,20 +310,53 @@ impl<K: Eq + Ord + Clone, T: Storable> ObjectManager<K, T> {
         )
     }
 
-    #[allow(dead_code)]
     fn sync(&mut self) -> Result<usize, String> {
         let dirty = std::mem::take(&mut self.dirty);
-        let synced = dirty.len();
+        let dirty_entries = dirty.len();
+        let mut failures = Vec::new();
         for id in dirty {
-            let val = self.cache.get(&id).expect("no value found");
-            let (off, len) = self.index.remove(&id).expect("no offset found");
-            self.api.borrow_mut().allocator.free(off, len)?;
-            self.index.insert(id, self.api.borrow_mut().write(val)?);
+            let val = match self.cache.get(&id) {
+                Some(val) => val,
+                None => {
+                    failures.push(format!("dirty value with id={} not found in cache", &id));
+                    continue;
+                }
+            };
+            let coords = match self.api.borrow_mut().write(val) {
+                Ok(val) => val,
+                Err(err) => {
+                    failures.push(format!(
+                        "dirty value with id={} couldn't be saved: {}",
+                        &id, err
+                    ));
+                    continue;
+                }
+            };
+            self.index.insert(id.clone(), coords);
+            let (off, len) = match self.index.remove(&id) {
+                Some(val) => val,
+                None => {
+                    failures.push(format!(
+                        "dirty value with id={} not found in the index",
+                        &id
+                    ));
+                    continue;
+                }
+            };
+            if let Err(err) = self.api.borrow_mut().allocator.free(off, len) {
+                failures.push(format!(
+                    "dirty value with id={} couldn't be freed: {}",
+                    &id, err
+                ));
+            }
         }
-        Ok(synced)
+        if failures.is_empty() {
+            Ok(dirty_entries)
+        } else {
+            Err(failures.join("; "))
+        }
     }
 
-    #[allow(dead_code)]
     fn clean_up(&mut self) -> usize {
         let len = self.cache.len();
         while self.cache.len() > MAX_CACHE_SIZE {
@@ -336,7 +365,6 @@ impl<K: Eq + Ord + Clone, T: Storable> ObjectManager<K, T> {
         len - self.cache.len()
     }
 
-    #[allow(dead_code)]
     fn warm_up(&mut self) {
         for k in self
             .index

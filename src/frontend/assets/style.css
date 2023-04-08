@@ -273,6 +273,7 @@ hr {
 
 .reaction_button {
     cursor: pointer;
+    color: $text;
     border-radius: 5px;
     font-weight: normal;
     padding: 0.5em;

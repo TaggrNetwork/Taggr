@@ -1,7 +1,6 @@
-import {HeadBar, Loading, ButtonWithLoading, timeAgo, token, userList, percentage} from "./common";
+import {HeadBar, Loading, ButtonWithLoading, timeAgo, token, userList, percentage, FileUploadInput} from "./common";
 import * as React from "react";
 import {Content} from "./content";
-import {loadFile, MAX_POST_SIZE_BYTES} from "./form";
 import {HourGlass, NotFound} from "./icons";
 import {PostFeed} from "./post_feed";
 
@@ -19,21 +18,10 @@ export const Proposals = () => {
             content={<div className="row_container">
                 <ButtonWithLoading classNameArg="max_width_col" label="FUNDING" onClick={async () => {
                     let receiver = prompt("Enter the principal of the receiver.");
+                    if (!receiver) return;
                     let amount = parseInt(prompt(`Enter the token amount (max. allowed amount is ${backendCache.config.max_funding_amount.toLocaleString()})`));
                     let description = prompt("Enter the proposal description.");
                     let response = await api.call("propose_funding", description, receiver, amount);
-                    if ("Err" in response) {
-                        alert(`Error: ${response.Err}`);
-                    }
-                    setProposal(response.Ok);
-                }} />
-                <ButtonWithLoading classNameArg="max_width_col" label="CONTROLLER" onClick={async () => {
-                    if(!confirm("This proposal will add a new controller to the main canister! " +
-                        "It is needed for emergency cases, when the upgrade mechanisms stops working due to a bug. " +
-                        "Do you want to continue?")) return;
-                    let controller = prompt("Enter the principal of the controller.");
-                    let description = prompt("Enter the proposal description.");
-                    let response = await api.call("propose_controller", description, controller);
                     if ("Err" in response) {
                         alert(`Error: ${response.Err}`);
                     }
@@ -44,15 +32,7 @@ export const Proposals = () => {
         <div className="vertically_spaced">
             {showMask && <div className="spaced column_container monospace">
                 <div className="vcentered bottom_half_spaced">COMMIT<input type="text" className="monospace left_spaced max_width_col" onChange={async ev => { setCommit(ev.target.value); }} /></div>
-                <div className="vcentered bottom_half_spaced">BINARY<input type="file" className="monospace left_spaced max_width_col" onChange={async ev => {
-                    const file = (ev.dataTransfer || ev.target).files[0];
-                    const content = new Uint8Array(await loadFile(file));
-                    if (content.byteLength > MAX_POST_SIZE_BYTES) {
-                        alert(`Error: the binary cannot be larger than ${MAX_POST_SIZE_BYTES} bytes.`);
-                        return;
-                    }
-                    setBinary(content);
-                }} /></div>
+                <div className="vcentered bottom_half_spaced">BINARY <FileUploadInput classNameArg="monospace left_spaced max_width_col" callback={setBinary} /></div>
                 <div className="bottom_half_spaced monospace">DESCRIPTION</div>
                 <textarea className="monospace bottom_spaced" rows={10} value={description} onChange={event => setDescription(event.target.value)}></textarea>
                 {description && <Content value={description} preview={true} classNameArg="bottom_spaced framed" />}
@@ -98,8 +78,10 @@ export const Proposal = ({id}) => {
 
     const vote = async (proposal, adopted) => {
         if ("Release" in proposal.payload) {
-            if (proposal.payload.Release.hash != prompt("Please enter the build hash")) {
-                alert("Error: your hash doesn't match!");
+            const hash = prompt("Please enter the build hash:");
+            if (!hash) return;
+            if (proposal.payload.Release.hash != hash) {
+                alert("Error: wrong hash!");
                 return;
             }
         }
@@ -142,12 +124,11 @@ export const Proposal = ({id}) => {
         <div className="monospace bottom_half_spaced">PROPOSER: <a href={`#/user/${proposal.proposer}`}>{`@${users[proposal.proposer]}`}</a></div>
         <div className="monospace bottom_half_spaced">DATE: {timeAgo(proposal.timestamp)}</div>
         <div className="monospace bottom_spaced">STATUS: {statusEmoji(propStatus)} <span className={open ? "accent" : null}>{propStatus}</span></div>
-        {"Release" in proposal.payload && <div className="monospace bottom_spaced">
+        {!!proposal.payload.Release && <div className="monospace bottom_spaced">
             {commit && <div className="row_container bottom_half_spaced">COMMIT:<a className="monospace left_spaced" href={`${REPO}/${proposal.payload.Release.commit}`}>{commit}</a></div>}
             {!open && <div className="row_container"><span>HASH:</span><code className="left_spaced monospace">{hash}</code></div>}
         </div>}
-        {"SetController" in proposal.payload && <div className="monospace bottom_spaced">PRINCIPAL: <code>{proposal.payload.SetController}</code></div>}
-        {"Fund" in proposal.payload && <>
+        {!!proposal.payload.Fund && <>
             <div className="monospace bottom_half_spaced">RECEIVER: <code>{proposal.payload.Fund[0]}</code></div>
             <div className="monospace bottom_spaced">AMOUNT: <code>{proposal.payload.Fund[1].toLocaleString()}</code></div>
         </>}

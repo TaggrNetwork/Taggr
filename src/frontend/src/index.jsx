@@ -24,6 +24,7 @@ import { applyTheme, themes } from "./theme";
 import {Proposals} from "./proposals";
 import {Tokens, Transaction} from "./tokens";
 import {Whitepaper} from "./whitepaper";
+import {Recovery} from "./recovery";
 
 const { protocol, host, pathname } = location;
 
@@ -136,8 +137,8 @@ const App = () => {
         setTitle(`${param}'s journal`);
         subtle = true;
         content = <Journal handle={param} />;
-    } else if (handler == "not-found") {
-        content = NotFound;
+    } else if (handler == "recovery") {
+        content = <Recovery />;
     } else {
         content = <Landing heartbeat={heartbeat} />;
     }

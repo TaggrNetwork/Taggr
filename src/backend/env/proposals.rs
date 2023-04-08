@@ -4,10 +4,8 @@ use super::token::account;
 use super::user::Predicate;
 use super::{user::UserId, State};
 use super::{Karma, HOUR};
-use crate::canisters;
 use crate::token::Token;
 use ic_cdk::export::candid::Principal;
-use ic_cdk::id;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -56,16 +54,7 @@ impl Proposal {
     }
 
     async fn execute(&mut self, state: &mut State, time: u64) -> Result<(), String> {
-        let supply_of_users_total: Token = state
-            .balances
-            .iter()
-            .filter_map(|(acc, balance)| {
-                state.principal_to_user(acc.owner).and_then(|user| {
-                    user.active_within_weeks(time, CONFIG.voting_power_activity_weeks)
-                        .then_some(*balance)
-                })
-            })
-            .sum();
+        let supply_of_users_total = state.active_voting_power(time);
         // decrease the total number according to the delay
         let delay =
             ((100 - (time.saturating_sub(self.timestamp) / (HOUR * 24))).max(1)) as f64 / 100.0;
@@ -114,34 +103,23 @@ impl Proposal {
         }
 
         if approvals * 100 >= voting_power * CONFIG.proposal_approval_threshold as u64 {
-            match &self.payload {
-                Payload::SetController(controller) => {
-                    let principal = Principal::from_text(controller).map_err(|e| e.to_string())?;
-                    add_controller(principal).await?;
-                    state.logger.info(format!(
-                        "`{}` was added as a controller of the main cansiter via proposal execution.",
-                        principal
-                    ));
+            if let Payload::Fund(receiver, tokens) = &self.payload {
+                let receiver = Principal::from_text(receiver).map_err(|e| e.to_string())?;
+                crate::token::mint(
+                    state,
+                    account(receiver),
+                    *tokens * 10_u64.pow(CONFIG.token_decimals as u32),
+                );
+                state.logger.info(format!(
+                    "`{}` ${} tokens were minted for `{}` via proposal execution.",
+                    tokens, CONFIG.token_symbol, receiver
+                ));
+                if let Some(user) = state.principal_to_user_mut(receiver) {
+                    user.notify(format!(
+                        "`{}` ${} tokens were minted for you via proposal execution.",
+                        tokens, CONFIG.token_symbol,
+                    ))
                 }
-                Payload::Fund(receiver, tokens) => {
-                    let receiver = Principal::from_text(receiver).map_err(|e| e.to_string())?;
-                    crate::token::mint(
-                        state,
-                        account(receiver),
-                        *tokens * 10_u64.pow(CONFIG.token_decimals as u32),
-                    );
-                    state.logger.info(format!(
-                        "`{}` ${} tokens were minted for `{}` via proposal execution.",
-                        tokens, CONFIG.token_symbol, receiver
-                    ));
-                    if let Some(user) = state.principal_to_user_mut(receiver) {
-                        user.notify(format!(
-                            "`{}` ${} tokens were minted for you via proposal execution.",
-                            tokens, CONFIG.token_symbol,
-                        ))
-                    }
-                }
-                _ => {}
             }
             self.status = Status::Executed;
         }
@@ -154,6 +132,7 @@ impl Proposal {
 pub enum Payload {
     Noop,
     Release(Release),
+    // TODO: Delete
     SetController(String),
     Fund(String, Token),
 }
@@ -177,9 +156,6 @@ impl Payload {
                 let mut hasher = Sha256::new();
                 hasher.update(&release.binary);
                 release.hash = format!("{:x}", hasher.finalize());
-            }
-            Payload::SetController(controller) => {
-                Principal::from_text(controller).map_err(|err| err.to_string())?;
             }
             Payload::Fund(controller, tokens) => {
                 Principal::from_text(controller).map_err(|err| err.to_string())?;
@@ -220,10 +196,8 @@ pub async fn propose(
         .iter_mut()
         .filter(|p| {
             p.status == Status::Open
-                && (matches!(p.payload, Payload::Release(_))
-                    && matches!(payload, Payload::Release(_))
-                    || matches!(p.payload, Payload::SetController(_))
-                        && matches!(payload, Payload::SetController(_)))
+                && matches!(p.payload, Payload::Release(_))
+                && matches!(payload, Payload::Release(_))
         })
         .for_each(|proposal| {
             proposal.status = Status::Cancelled;
@@ -342,13 +316,6 @@ pub struct Release {
     pub binary: Vec<u8>,
 }
 
-async fn add_controller(controller: Principal) -> Result<(), String> {
-    let canister_id = id();
-    let mut controllers = canisters::settings(canister_id).await?.settings.controllers;
-    controllers.push(controller);
-    canisters::set_controllers(canister_id, controllers).await
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -387,7 +354,7 @@ mod tests {
             &mut state,
             pr(1),
             "test".into(),
-            Payload::SetController("e3mmv-5qaaa-aaaah-aadma-cai".into()),
+            Payload::Fund("e3mmv-5qaaa-aaaah-aadma-cai".into(), 10),
             0,
         )
         .await
@@ -415,7 +382,7 @@ mod tests {
             &mut state,
             pr(1),
             "test".into(),
-            Payload::SetController("e3mmv-5qaaa-aaaah-aadma-cai".into()),
+            Payload::Fund("e3mmv-5qaaa-aaaah-aadma-cai".into(), 10),
             2 * HOUR,
         )
         .await
@@ -427,7 +394,7 @@ mod tests {
         );
         assert_eq!(
             state.proposals.get(id2 as usize).unwrap().status,
-            Status::Cancelled
+            Status::Open
         );
 
         cancel_proposal(&mut state, pr(2), id);

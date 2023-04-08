@@ -49,6 +49,10 @@ export const Api = (defaultCanisterId, identity, mainnetMode) => {
             const arg = IDL.encode([], []);
             return IDL.decode([IDL.Variant({ "Ok": IDL.Null, "Err": IDL.Text})], await call_raw(canisterId, "exec", arg))[0];
         },
+        set_emergency_release: async (blob) => {
+            const arg = IDL.encode([IDL.Vec(IDL.Nat8)], [blob]);
+            return IDL.decode([], await call_raw(undefined, "set_emergency_release", arg))[0];
+        },
         propose_release: async (text, commit, blob) => {
             const arg = IDL.encode([IDL.Text, IDL.Text, IDL.Vec(IDL.Nat8)], [text, commit, blob]);
             return IDL.decode([IDL.Variant({ "Ok": IDL.Nat32, "Err": IDL.Text})], await call_raw(undefined, "propose_release", arg))[0];

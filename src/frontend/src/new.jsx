@@ -17,6 +17,7 @@ export const PostSubmissionForm = ({id, repost}) => {
 
     const callback = async (text, blobs, poll, realm) => {
         let postId;
+        text = text.trim();
         const optionalRealm = realm ? [realm] : [];
         if (post.id) {
             const patch = getPatch(text, post.body);

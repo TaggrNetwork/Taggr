@@ -2,6 +2,7 @@ import * as React from "react";
 import { Content } from './content';
 import DiffMatchPatch from 'diff-match-patch';
 import { Clipboard, ClipboardCheck, Flag, Menu, Share} from "./icons";
+import {loadFile, MAX_POST_SIZE_BYTES} from "./form";
 
 export const percentage = (n, supply) => {
     let p = Math.ceil(parseInt(n) / (supply || 1) * 10000) / 100;
@@ -9,6 +10,17 @@ export const percentage = (n, supply) => {
 }
 
 export const hex = arr => Array.from(arr, byte => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
+
+export const FileUploadInput = ({classNameArg, callback}) =>
+    <input type="file" className={classNameArg} onChange={async ev => {
+        const file = (ev.dataTransfer || ev.target).files[0];
+        const content = new Uint8Array(await loadFile(file));
+        if (content.byteLength > MAX_POST_SIZE_BYTES) {
+            alert(`Error: the binary cannot be larger than ${MAX_POST_SIZE_BYTES} bytes.`);
+            return;
+        }
+        callback(content);
+    }} />;
 
 export const microSecsSince = timestamp => Number(new Date()) - parseInt(timestamp) / 1000000;
 

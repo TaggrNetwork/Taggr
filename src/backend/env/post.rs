@@ -59,7 +59,7 @@ impl Post {
         Self {
             id: 0,
             tags,
-            body,
+            body: body.trim().into(),
             user,
             timestamp,
             children: Default::default(),

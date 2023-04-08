@@ -191,11 +191,11 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
                         onKeyPress={maybeInsertSuggestion} 
                         onKeyUp={() => setCursor(textarea.current?.selectionStart)}
                         onFocus={() => setCursor(textarea.current?.selectionStart)}
-                        className={`max_width_col ${dragAndDropping ? "active_element" : null} ${bigScreen() ? "left_half_spaced" : ""}`}
+                        className={`max_width_col ${dragAndDropping ? "active_element" : null} ${previewAtLeft && value ? "left_half_spaced" : ""}`}
                         onChange={event => onValueChange(event.target.value)}></textarea>
                 </div>
                 {busy && <Loading classNameArg="top_spaced" spaced={false} />}
-                {!busy && completionList.length > 0 && <div className="monospace small_text top_half_spaced">
+                {!busy && completionList.length > 0 && <div className="monospace small_text top_spaced">
                     {completionList.map((token, i) => 
                     <button key={token} className={`right_spaced bottom_half_spaced ${i ? "" : "active"}`}
                         onClick={e =>  insertSuggestion(e, trigger, token)}>{`${trigger}${token}`}</button>)}
