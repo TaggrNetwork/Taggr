@@ -16,7 +16,7 @@ import { PostSubmissionForm } from "./new";
 import { Profile } from './profile';
 import { Landing } from './landing';
 import { Header } from './header';
-import { NotFound, Unauthorized, microSecsSince, HeadBar, setTitle } from './common';
+import { Unauthorized, microSecsSince, HeadBar, setTitle } from './common';
 import { Settings } from './settings';
 import { Api } from "./api";
 import { Wallet } from "./wallet";
@@ -26,7 +26,11 @@ import {Tokens, Transaction} from "./tokens";
 import {Whitepaper} from "./whitepaper";
 import {Recovery} from "./recovery";
 
-const { protocol, host, pathname } = location;
+const { hash, search } = location;
+
+if (!hash && search) {
+    location.href = `#${search.slice(1)}`;
+}
 
 const REFRESH_RATE_SECS = 10 * 60;
 
@@ -221,10 +225,12 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(async (authClient
                 if (data.current_realm) {
                     const result = await api.query("realm", data.current_realm);
                     let realmTheme = result.Ok?.theme;
-                    if (realmTheme) applyTheme(JSON.parse(realmTheme));
-                } else {
-                    applyTheme(themes[api._user.settings.theme]);
+                    if (realmTheme) {
+                        applyTheme(JSON.parse(realmTheme));
+                        return;
+                    }
                 }
+                applyTheme(themes[api._user.settings.theme]);
             } else applyTheme();
         };
         setInterval(async () => { 

@@ -136,21 +136,19 @@ export const UserName = ({profile}) => {
 export const UserInfo = ({profile}) => {
     const [followeesVisible, setFolloweesVisibility] = React.useState(false);
     const [followersVisible, setFollowersVisibility] = React.useState(false);
-    const placeholder = (status, unfold, label, content) => status ? content : <a href="#" onClick={e => { e.preventDefault(); unfold(true) }}>{`${label}`}</a>;
+    const placeholder = (status, unfold, label, content) => status 
+        ? <div className="small_text">{content}</div>
+        : <a className="x_large_text" href="#" onClick={e => { e.preventDefault(); unfold(true) }}>{`${label}`}</a>;
     const followees = profile.followees.length > 0
         ? <div className="db_cell">
             FOLLOWS
-            <span>
-                {placeholder(followeesVisible, setFolloweesVisibility, profile.followees.length, userList(profile.followees))}
-            </span>
+            {placeholder(followeesVisible, setFolloweesVisibility, profile.followees.length, userList(profile.followees))}
         </div>
         : null;
     const followers = profile.followers.length > 0
         ? <div className="db_cell">
             FOLLOWERS
-            <span>
-                {placeholder(followersVisible, setFollowersVisibility, profile.followers.length, userList(profile.followers))}
-            </span>
+            {placeholder(followersVisible, setFollowersVisibility, profile.followers.length, userList(profile.followers))}
         </div>
         : null;
     const feeds = profile.feeds.length > 0

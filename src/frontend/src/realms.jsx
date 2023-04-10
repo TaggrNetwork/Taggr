@@ -155,9 +155,8 @@ export const RealmForm = ({existingName}) => {
                 if ("Err" in response) {
                     alert(`Error: ${response.Err}`);
                     return;
-                } else {
-                    await api._reloadUser();
-                }
+                } else await api._reloadUser();
+                if (!editing) location.href = `#/realm/${name}`;
             }} label={editing ? "SAVE" : "CREATE"} />
         </div>
     </div>

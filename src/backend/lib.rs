@@ -1,8 +1,10 @@
 use std::collections::{BTreeSet, HashMap};
 
+use candid::Principal;
 use env::{
     canisters::upgrade_main_canister,
     config::CONFIG,
+    invoices::principal_to_subaccount,
     memory,
     post::{Extension, Post, PostId},
     proposals::{Payload, Release, Status},
@@ -18,6 +20,7 @@ use ic_cdk::{
     caller, id, spawn, timer,
 };
 use ic_cdk_macros::*;
+use ic_ledger_types::{AccountIdentifier, Memo};
 use serde_bytes::ByteBuf;
 
 use crate::env::token::Token;
@@ -75,15 +78,9 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
-    let mut trimmed = 0;
-    for p in state_mut().posts.values_mut() {
-        let l = p.body.len();
-        p.body = p.body.trim().into();
-        trimmed += l - p.body.len();
-    }
-    ic_cdk::println!("trimmed bytes={}", trimmed);
 
-    for p in state_mut().proposals.iter_mut() {
+    let s = state_mut();
+    for p in s.proposals.iter_mut() {
         if matches!(&p.payload, Payload::SetController(_)) {
             p.payload = Payload::Noop;
         }
@@ -94,9 +91,49 @@ fn post_upgrade() {
  * Updates
  */
 
-// #[update]
-// async fn fix() {
-// }
+#[export_name = "canister_update fix"]
+fn fix() {
+    spawn(async {
+        let s = state_mut();
+        // This hotfix should be executed by X
+        if !s
+            .principal_to_user(caller())
+            .map(|user| user.id == 0)
+            .unwrap_or_default()
+        {
+            return;
+        }
+        for (user_id, old_p) in &[
+            (
+                943, // @snsproposals
+                "6j74v-lyfqo-rsdhs-vrrrx-tfp7e-gpzzj-cvv4x-tm5at-qqpah-rpvz3-mqe",
+            ),
+            (
+                311, // @advocate
+                "yr3qo-3c2pq-7rbep-7qoyh-rk3k7-kujpg-z63r7-32ixk-psgoq-cxdcv-6ae",
+            ),
+            (
+                377, // @christian
+                "2oh3y-xd7c2-hgxa2-v3qco-32bce-yqsvr-gtskw-zo2sb-vxc27-kn5t7-lae",
+            ),
+        ] {
+            let user = s.users.get_mut(user_id).unwrap();
+            let acc = AccountIdentifier::new(&id(), &principal_to_subaccount(&user.principal));
+            user.account = acc.to_string();
+            let old_principal = Principal::from_text(old_p).unwrap();
+            let balance = invoices::account_balance_of_principal(old_principal).await;
+            invoices::transfer(
+                acc,
+                balance,
+                Memo(10101),
+                Some(principal_to_subaccount(&old_principal)),
+            )
+            .await
+            .unwrap();
+        }
+        reply_raw(&[]);
+    });
+}
 
 #[cfg(feature = "dev")]
 #[update]
@@ -264,8 +301,10 @@ fn update_last_activity() {
 
 #[export_name = "canister_update change_principal"]
 fn change_principal() {
-    let principal: String = parse(&arg_data_raw());
-    reply(state_mut().change_principal(caller(), principal));
+    spawn(async {
+        let principal: String = parse(&arg_data_raw());
+        reply(state_mut().change_principal(caller(), principal).await);
+    });
 }
 
 #[export_name = "canister_update update_user"]

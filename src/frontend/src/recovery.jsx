@@ -7,7 +7,7 @@ export const Recovery = () => {
         <HeadBar title="Recovery" />
         <div className="spaced">
             <h1>Status</h1>
-            <code>{backendCache.stats.emergency_release}</code>
+            <code>{backendCache.stats.emergency_release || "No emergencies today! ☀️"}</code>
             <h1>Emergency binary</h1>
             <FileUploadInput callback={async binary => {
                 await api.set_emergency_release(binary);

@@ -13,7 +13,7 @@ use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{self, canister_balance};
 use ic_cdk::export::candid::Principal;
-use ic_ledger_types::{Memo, Tokens};
+use ic_ledger_types::{AccountIdentifier, Memo, Tokens};
 use invoices::e8s_to_icp;
 use invoices::Invoices;
 use memory::Storable;
@@ -126,6 +126,8 @@ pub struct State {
     pub hot: VecDeque<PostId>,
     pub invites: BTreeMap<String, (UserId, Cycles)>,
     pub realms: BTreeMap<String, Realm>,
+
+    #[serde(skip)]
     pub balances: HashMap<Account, Token>,
 
     total_revenue_shared: u64,
@@ -265,6 +267,13 @@ impl State {
     pub fn load(&mut self) {
         assets::load();
         canisters::init();
+        match token::balances_from_ledger(&self.ledger) {
+            Ok(value) => self.balances = value,
+            Err(err) => self.logger.log(
+                format!("the token ledger is inconsistent: {}", err),
+                "CRITICAL".into(),
+            ),
+        }
         self.last_upgrade = time();
     }
 
@@ -1323,7 +1332,7 @@ impl State {
             })
     }
 
-    pub fn change_principal(
+    pub async fn change_principal(
         &mut self,
         principal: Principal,
         new_principal_str: String,
@@ -1337,10 +1346,11 @@ impl State {
             .remove(&principal)
             .ok_or("no principal found")?;
         self.principals.insert(new_principal, user_id);
-        self.users
-            .get_mut(&user_id)
-            .expect("no user found")
-            .principal = new_principal;
+        let user = self.users.get_mut(&user_id).expect("no user found");
+        user.principal = new_principal;
+        let account_identifier =
+            AccountIdentifier::new(&id(), &principal_to_subaccount(&new_principal));
+        user.account = account_identifier.to_string();
         let accounts = self
             .balances
             .keys()
@@ -1351,6 +1361,16 @@ impl State {
             crate::token::move_funds(self, &acc, account(new_principal))
                 .expect("couldn't transfer token funds");
         }
+        #[cfg(not(test))]
+        let balance = invoices::account_balance_of_principal(principal).await;
+        #[cfg(not(test))]
+        invoices::transfer(
+            account_identifier,
+            balance,
+            Memo(10101),
+            Some(principal_to_subaccount(&principal)),
+        )
+        .await?;
         Ok(())
     }
 
@@ -1923,8 +1943,8 @@ pub(crate) mod tests {
         id
     }
 
-    #[test]
-    fn test_principal_change() {
+    #[actix_rt::test]
+    async fn test_principal_change() {
         let mut state = State::default();
 
         let mut eligigble = HashMap::default();
@@ -1948,6 +1968,7 @@ pub(crate) mod tests {
             "yh4uw-lqajx-4dxcu-rwe6s-kgfyk-6dicz-yisbt-pjg7v-to2u5-morox-hae".into();
         assert!(state
             .change_principal(pr(1), new_principal_str.clone())
+            .await
             .is_ok());
         let principal = Principal::from_text(new_principal_str).unwrap();
         assert_eq!(state.principal_to_user(principal).unwrap().id, u_id);
@@ -1956,7 +1977,12 @@ pub(crate) mod tests {
             *state.balances.get(&account(principal)).unwrap(),
             11100 - CONFIG.transaction_fee
         );
-        assert_eq!(state.users.get(&u_id).unwrap().principal, principal);
+        let user = state.users.get(&u_id).unwrap();
+        assert_eq!(user.principal, principal);
+        assert_eq!(
+            user.account,
+            AccountIdentifier::new(&id(), &principal_to_subaccount(&principal)).to_string()
+        );
     }
 
     #[actix_rt::test]

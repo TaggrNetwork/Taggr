@@ -34,7 +34,7 @@ pub fn call_closed(id: &str) {
         let c = CALLS
             .as_mut()
             .unwrap()
-            .get_mut(id.into())
+            .get_mut(id)
             .expect("no open call found");
         *c -= 1;
     }

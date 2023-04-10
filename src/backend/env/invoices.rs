@@ -147,10 +147,20 @@ pub async fn transfer(
     .map_err(|err| format!("call to ledger failed: {:?}", err))?;
     result.map_err(|err| {
         format!(
-            "transfer of {} e8s from subaccount {:?} failed: {:?}",
-            amount, sub_account, err
+            "transfer of {} e8s from {} failed: {:?}",
+            amount,
+            AccountIdentifier::new(&id(), &sub_account.unwrap_or(DEFAULT_SUBACCOUNT)),
+            err
         )
     })
+}
+
+pub async fn account_balance_of_principal(principal: Principal) -> Tokens {
+    account_balance(AccountIdentifier::new(
+        &id(),
+        &principal_to_subaccount(&principal),
+    ))
+    .await
 }
 
 async fn account_balance(account: AccountIdentifier) -> Tokens {

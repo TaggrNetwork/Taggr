@@ -495,3 +495,24 @@ mod tests {
         );
     }
 }
+
+pub fn balances_from_ledger(ledger: &[Transaction]) -> Result<HashMap<Account, Token>, String> {
+    let mut balances = HashMap::new();
+    let minting_account = icrc1_minting_account().ok_or("no minting account found")?;
+    for transaction in ledger {
+        balances
+            .entry(transaction.to.clone())
+            .and_modify(|balance| *balance += transaction.amount)
+            .or_insert(transaction.amount);
+        if transaction.from != minting_account {
+            let from = balances
+                .get_mut(&transaction.from)
+                .ok_or("paying account not found")?;
+            if transaction.amount + transaction.fee > *from {
+                return Err("account has not enough funds".into());
+            }
+            *from -= transaction.amount + transaction.fee;
+        }
+    }
+    Ok(balances)
+}

@@ -21,14 +21,22 @@ pub struct HttpResponse {
 
 #[ic_cdk_macros::query]
 fn http_request(req: HttpRequest) -> HttpResponse {
-    let path = req.url.split('?').next().expect("no path in url");
+    let mut iter = req.url.split('?');
+    let path = match (iter.next(), iter.next()) {
+        (_, Some(val)) => val,
+        (Some(val), _) => val,
+        _ => "/",
+    };
+
     let raw = req
         .headers
         .into_iter()
         .find_map(|(key, host)| (key.to_lowercase() == "host").then(|| host.contains(".raw")))
         .unwrap_or(false);
     if !raw {
-        let (headers, body) = assets::asset(path, !raw).expect("not found");
+        let (headers, body) = assets::asset(path, !raw)
+            .or_else(|| assets::asset("/", !raw))
+            .expect("asset not found");
         return HttpResponse {
             status_code: 200,
             headers,
