@@ -16,6 +16,7 @@ build:
 	NODE_ENV=production make fe
 	./build.sh bucket
 	./build.sh taggr
+	cargo clippy --tests --benches -- -D clippy::all
 	cargo test
 	shasum -a 256 target/wasm32-unknown-unknown/release/taggr.wasm.gz
 

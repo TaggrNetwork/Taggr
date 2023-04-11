@@ -29,7 +29,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
     const { max_post_length, max_blob_size_bytes } = backendCache.config;
 
     const handleSubmit = async () => {
-        if (ref.current?.clientHeight > window.innerHeight && !value.includes(CUT)) {
+        if (ref.current?.clientHeight > window.innerHeight && !value.trim().includes(CUT)) {
             alert("Your post does not fit on screen without scrolling.\n\nPlease add a cut line (three empty lines) after the introductory part.");
             return false;
         }

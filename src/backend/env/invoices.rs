@@ -131,6 +131,9 @@ pub async fn transfer(
     memo: Memo,
     sub_account: Option<Subaccount>,
 ) -> Result<BlockIndex, String> {
+    if amount < DEFAULT_FEE {
+        return Err("can't transfer amounts smaller than the fee".into());
+    }
     let (result,): (TransferResult,) = call_canister(
         MAINNET_LEDGER_CANISTER_ID,
         "transfer",

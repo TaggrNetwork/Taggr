@@ -132,8 +132,6 @@ impl Proposal {
 pub enum Payload {
     Noop,
     Release(Release),
-    // TODO: Delete
-    SetController(String),
     Fund(String, Token),
 }
 
