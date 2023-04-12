@@ -159,7 +159,14 @@ const MINUTE: u64 = 60000000000_u64;
 
 #[update]
 fn icrc1_transfer(args: TransferArgs) -> Result<u128, TransferError> {
-    transfer(time(), state_mut(), caller(), args)
+    let owner = caller();
+    if owner == Principal::anonymous() {
+        return Err(TransferError::GenericError(GenericError {
+            error_code: 0,
+            message: "No transfers from the minting account possible.".into(),
+        }));
+    }
+    transfer(time(), state_mut(), owner, args)
 }
 
 fn transfer(
@@ -168,12 +175,6 @@ fn transfer(
     owner: Principal,
     args: TransferArgs,
 ) -> Result<u128, TransferError> {
-    if owner == Principal::anonymous() {
-        return Err(TransferError::GenericError(GenericError {
-            error_code: 0,
-            message: "No transfers from the minting account possible.".into(),
-        }));
-    }
     let TransferArgs {
         from_subaccount,
         to,
@@ -206,42 +207,41 @@ fn transfer(
     };
     let from = Account { owner, subaccount };
 
-    match state.balances.get(&from) {
-        None => {
+    let balance = state.balances.get(&from).copied().unwrap_or_default();
+    if from.owner != Principal::anonymous() && balance == 0 {
+        return Err(TransferError::InsufficientFunds(InsufficientFunds {
+            balance: 0,
+        }));
+    }
+    let effective_fee = fee.unwrap_or_else(icrc1_fee) as Token;
+    if from.owner != Principal::anonymous() {
+        let effective_amount = amount as Token + effective_fee;
+        if balance < effective_amount {
             return Err(TransferError::InsufficientFunds(InsufficientFunds {
-                balance: 0,
-            }))
+                balance: balance as u128,
+            }));
         }
-        Some(balance) => {
-            let effective_fee = fee.unwrap_or_else(icrc1_fee) as Token;
-            let effective_amount = amount as Token + effective_fee;
-            if *balance < effective_amount {
-                return Err(TransferError::InsufficientFunds(InsufficientFunds {
-                    balance: *balance as u128,
-                }));
-            }
-            let resulting_balance = balance.saturating_sub(effective_amount);
-            if resulting_balance == 0 {
-                state.balances.remove(&from);
-            } else {
-                state.balances.insert(from.clone(), resulting_balance);
-            }
-            if to.owner != Principal::anonymous() {
-                let recipient_balance = state.balances.remove(&to).unwrap_or_default();
-                state
-                    .balances
-                    .insert(to.clone(), recipient_balance + amount as Token);
-            }
-            state.ledger.push(Transaction {
-                timestamp: now,
-                from,
-                to,
-                amount: amount as Token,
-                fee: effective_fee,
-                memo,
-            });
+        let resulting_balance = balance.saturating_sub(effective_amount);
+        if resulting_balance == 0 {
+            state.balances.remove(&from);
+        } else {
+            state.balances.insert(from.clone(), resulting_balance);
         }
     }
+    if to.owner != Principal::anonymous() {
+        let recipient_balance = state.balances.remove(&to).unwrap_or_default();
+        state
+            .balances
+            .insert(to.clone(), recipient_balance + amount as Token);
+    }
+    state.ledger.push(Transaction {
+        timestamp: now,
+        from,
+        to,
+        amount: amount as Token,
+        fee: effective_fee,
+        memo,
+    });
     Ok(state.ledger.len().saturating_sub(1) as u128)
 }
 
@@ -253,22 +253,20 @@ pub fn account(owner: Principal) -> Account {
 }
 
 pub fn mint(state: &mut State, account: Account, tokens: Token) {
-    state
-        .balances
-        .entry(account.clone())
-        .and_modify(|b| *b += tokens)
-        .or_insert(tokens);
-    state.ledger.push(Transaction {
-        timestamp: time(),
-        from: Account {
-            owner: Principal::anonymous(),
-            subaccount: None,
+    let now = time();
+    let _result = transfer(
+        now,
+        state,
+        icrc1_minting_account().expect("no minting account").owner,
+        TransferArgs {
+            from_subaccount: None,
+            to: account,
+            amount: tokens as u128,
+            fee: None,
+            memo: None,
+            created_at_time: Some(now),
         },
-        to: account,
-        amount: tokens,
-        fee: 0,
-        memo: None,
-    });
+    );
 }
 
 pub fn move_funds(state: &mut State, from: &Account, to: Account) -> Result<u128, TransferError> {
@@ -409,26 +407,6 @@ mod tests {
             ),
             Err(TransferError::CreatedInFuture(CreatedInFuture {
                 ledger_time: 6000000000000
-            }))
-        );
-
-        assert_eq!(
-            transfer(
-                time(),
-                &mut state,
-                Principal::anonymous(),
-                TransferArgs {
-                    from_subaccount: None,
-                    to: account(pr(1)),
-                    amount: 1,
-                    fee: Some(1),
-                    memo: None,
-                    created_at_time: None
-                }
-            ),
-            Err(TransferError::GenericError(GenericError {
-                error_code: 0,
-                message: "No transfers from the minting account possible.".into()
             }))
         );
 

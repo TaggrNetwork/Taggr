@@ -1362,15 +1362,16 @@ impl State {
                 .expect("couldn't transfer token funds");
         }
         #[cfg(not(test))]
-        let balance = invoices::account_balance_of_principal(principal).await;
-        #[cfg(not(test))]
-        invoices::transfer(
-            account_identifier,
-            balance,
-            Memo(10101),
-            Some(principal_to_subaccount(&principal)),
-        )
-        .await?;
+        {
+            let balance = invoices::account_balance_of_principal(principal).await;
+            invoices::transfer(
+                account_identifier,
+                balance,
+                Memo(10101),
+                Some(principal_to_subaccount(&principal)),
+            )
+            .await?;
+        }
         Ok(())
     }
 
@@ -1915,7 +1916,7 @@ pub(crate) mod tests {
     use post::{add, edit};
 
     pub fn pr(n: u8) -> Principal {
-        let v = vec![n];
+        let v = vec![0, n];
         Principal::from_slice(&v)
     }
 

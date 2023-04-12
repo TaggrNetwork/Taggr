@@ -117,24 +117,24 @@ export const Transaction = ({id}) => {
     return <div className="spaced">
         <HeadBar title={`Transaction #${id}`} shareLink={`transaction/${id}`} />
         <div className="monospace">
-            <div className="bottom_half_spaced">
-                TIMESTAMP: <code>{timeAgo(tx.timestamp)}</code>
+            <div className="bottom_spaced">
+                TIMESTAMP: <code>{new Date(parseInt(tx.timestamp)/1000000).toLocaleString()}</code>
             </div>
-            <div className="bottom_half_spaced">
+            <div className="bottom_spaced">
                 FROM: <code><CopyToClipboard value={tx.from.owner} displayMap={v => bigScreen() ? v : v.split("-")[0] } /></code>
             </div>
-            <div className="bottom_half_spaced">
+            <div className="bottom_spaced">
                 TO: <code><CopyToClipboard value={tx.to.owner} displayMap={v => bigScreen() ? v : v.split("-")[0] } /></code>
             </div>
-            <div className="bottom_half_spaced">
+            <div className="bottom_spaced">
                 AMOUNT: <code>{tokenBalance(tx.amount)}</code>
             </div>
-            <div className="bottom_half_spaced">
+            <div className="bottom_spaced">
                 FEE: <code>{tokenBalance(tx.fee)}</code>
             </div>
-            <div className="bottom_half_spaced">
+            <>
                 MEMO: <code>{JSON.stringify(tx.memo)}</code>
-            </div>
+            </>
         </div>
     </div>;
 }

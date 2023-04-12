@@ -190,6 +190,9 @@ a.external {
 ul { list-style-type: square; }
 
 #logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     user-select: none;
     color: $focus;
     height: 23px;

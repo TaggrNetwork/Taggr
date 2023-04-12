@@ -471,7 +471,7 @@ mod tests {
             let p = pr(i);
             assert_eq!(
                 state.balances.get(&account(p)).copied().unwrap_or_default(),
-                100000
+                100000,
             )
         }
 

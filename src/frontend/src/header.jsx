@@ -1,7 +1,7 @@
 import * as React from "react";
 import {bigScreen, BurgerButton, ButtonWithLoading, HeadBar, Loading, ReactionToggleButton, realmColors, RealmSpan, ToggleButton} from "./common";
 import { LoginMasks, logout} from "./logins";
-import {Balloon, Bars, Bell, CarretDown, Close, Cycles, Document, Gear, Gem, Home, Journal, Logout, Pirate, Realm, Save, Ticket, User, Wallet} from "./icons";
+import {Balloon, Bars, Bell, CarretDown, Close, Cycles, Document, Gear, Gem, Home, Journal, Logout, Realm, Save, Ticket, User, Wallet} from "./icons";
 
 export const Header = ({subtle, route}) => {
     let user = api._user;
@@ -12,15 +12,10 @@ export const Header = ({subtle, route}) => {
     const [realmBg, realmFg] = realmColors(user?.current_realm);
     const inboxEmpty = !user || Object.keys(user.inbox).length == 0;
     const inRealm = user && user.current_realm;
-    React.useEffect(() => {
-        if (!user) document.getElementById("logo").innerHTML = backendCache.config.logo;
-    }, []);
+    React.useEffect(() => { document.getElementById("logo").innerHTML = backendCache.config.logo }, []);
     React.useEffect(() => { toggleButtonBar(false); toggleRealms(false) }, [route]);
     return <>
         <header className={`spaced top_half_spaced vcentered ${subtle ? "subtle" : ""}`}>
-            <a href="#/home">
-                <Pirate classNameArg="right_half_spaced" />
-            </a>
             <a href="#/home" id="logo"></a>
             {user && user.realms.length > 0 && !subtle && <ReactionToggleButton classNameArg="left_half_spaced"
                 pressed={showRealms} onClick={() => { toggleRealms(!showRealms); toggleButtonBar(false) }}

@@ -158,6 +158,7 @@ pub async fn transfer(
     })
 }
 
+#[cfg(not(test))]
 pub async fn account_balance_of_principal(principal: Principal) -> Tokens {
     account_balance(AccountIdentifier::new(
         &id(),

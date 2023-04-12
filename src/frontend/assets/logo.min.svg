@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE svg  PUBLIC '-//W3C//DTD SVG 20010904//EN'  'http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd'>
-<svg height="23px" version="1.0" viewBox="0 0 756 230" xmlns="http://www.w3.org/2000/svg">
+<svg height="19px" version="1.0" viewBox="0 0 756 230" xmlns="http://www.w3.org/2000/svg">
 <g transform="translate(0 230) scale(.1 -.1)">
 <path d="m0 2070v-230h270 270v-920-920h180 180v920 920h270 270v230 230h-720-720v-230z"/>
 <path d="m1800 2070v-230h-90-90v-920-920h180 180v460 460h270 270v-460-460h180 180v920 920h-90-90v230 230h-450-450v-230zm720-460v-230h-270-270v230 230h270 270v-230z"/>
