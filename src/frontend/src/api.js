@@ -1,11 +1,12 @@
 import { Principal } from "@dfinity/principal";
 import { HttpAgent, polling } from "@dfinity/agent";
 import { IDL } from '@dfinity/candid';
+import { CANISTER_ID } from './env';
 
 export const Api = (defaultCanisterId, identity, mainnetMode) => {
     defaultCanisterId = Principal.from(defaultCanisterId);
     const options = { identity };
-    if (mainnetMode) options.host = `https://${process.env.CANISTER_ID}.ic0.app`;
+    if (mainnetMode) options.host = `https://${CANISTER_ID}.ic0.app`;
     const agent = new HttpAgent(options);
     if (!mainnetMode) agent.fetchRootKey().catch(err=>{
         console.warn("Unable to fetch root key. Check to ensure that your local replica is running");

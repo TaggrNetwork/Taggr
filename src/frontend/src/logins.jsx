@@ -2,6 +2,7 @@ import * as React from "react";
 import {bigScreen} from "./common";
 import {Infinity, Incognito, Lock} from "./icons";
 import { Ed25519KeyIdentity } from "@dfinity/identity"
+import {II_URL, II_DERIVATION_URL} from "./env";
 
 export const authMethods = [
     {
@@ -15,9 +16,9 @@ export const authMethods = [
             }
             authClient.login({
                 onSuccess: () => location.reload(), 
-                identityProvider: "https://identity.ic0.app/#authorize",
+                identityProvider: II_URL,
                 maxTimeToLive: BigInt(30 * 24 * 3600000000000),
-                derivationOrigin: `https://${process.env.CANISTER_ID}.ic0.app`
+                derivationOrigin: II_DERIVATION_URL
             });
             return null;
         },

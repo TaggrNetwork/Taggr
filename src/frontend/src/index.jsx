@@ -25,6 +25,7 @@ import {Proposals} from "./proposals";
 import {Tokens, Transaction} from "./tokens";
 import {Whitepaper} from "./whitepaper";
 import {Recovery} from "./recovery";
+import {MAINNET_MODE, CANISTER_ID} from './env';
 
 const { hash, search } = location;
 
@@ -33,8 +34,6 @@ if (!hash && search) {
 }
 
 const REFRESH_RATE_SECS = 10 * 60;
-
-const MAINNET_MODE = process.env.NODE_ENV == "production";
 
 const parseHash = () => {
     const parts = window.location.hash.replace("#", "").split("/");
@@ -202,11 +201,11 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(async (authClient
             identity = Ed25519KeyIdentity.generate((new TextEncoder()).encode(hash).slice(0, 32));
         }
     }
-    const api = Api(process.env.CANISTER_ID, identity, MAINNET_MODE);
+    const api = Api(CANISTER_ID, identity, MAINNET_MODE);
     if (identity) api._principalId = identity.getPrincipal().toString();
     api._last_visit = 0;
     window.api = api;
-    window.mainnet_api = Api(process.env.CANISTER_ID, identity, true);
+    window.mainnet_api = Api(CANISTER_ID, identity, true);
     window.reloadCache = reloadCache;
     await reloadCache();
 
