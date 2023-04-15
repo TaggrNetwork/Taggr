@@ -1,4 +1,4 @@
-use self::canisters::CALLS;
+use self::canisters::{NNSVote, CALLS};
 use self::invoices::{parse_account, Invoice};
 use self::post::{add, conclude_poll, Extension, Poll};
 use self::proposals::Status;
@@ -1040,7 +1040,11 @@ impl State {
                 let rejected = poll.weighted_by_karma.get(&1).copied().unwrap_or_default();
                 if let Err(err) = canisters::vote_on_nns_proposal(
                     proposal_id,
-                    if adopted > rejected { 1 } else { 2 },
+                    if adopted > rejected {
+                        NNSVote::Adopt
+                    } else {
+                        NNSVote::Reject
+                    },
                 )
                 .await
                 {
@@ -1063,9 +1067,22 @@ impl State {
                 Default::default()
             }
         };
-        for proposal in proposals.into_iter().filter(|proposal| {
-            proposal.id > last_known_proposal_id && [4, 13].contains(&proposal.topic)
-        }) {
+        for proposal in proposals
+            .into_iter()
+            .filter(|proposal| proposal.id > last_known_proposal_id)
+        {
+            // Reject all non-supported proposals (non governance and non replica management) right away
+            if ![4, 13].contains(&proposal.topic) {
+                if let Err(err) =
+                    canisters::vote_on_nns_proposal(proposal.id, NNSVote::Reject).await
+                {
+                    self.logger.error(format!(
+                        "couldn't vote on NNS proposal {}: {}",
+                        proposal.id, err
+                    ));
+                };
+                continue;
+            }
             let post = format!(
                 "# #NNS-Proposal [{0}](https://dashboard.internetcomputer.org/proposal/{0}): {1}\n",
                 proposal.id, proposal.title,

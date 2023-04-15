@@ -288,19 +288,24 @@ pub async fn fetch_proposals() -> Result<Vec<NNSProposal>, String> {
         .collect())
 }
 
-pub async fn vote_on_nns_proposal(proposal_id: u64, vote: u16) -> Result<(), String> {
+pub enum NNSVote {
+    Adopt = 1,
+    Reject = 2,
+}
+
+pub async fn vote_on_nns_proposal(proposal_id: u64, vote: NNSVote) -> Result<(), String> {
     use std::str::FromStr;
     let args = candid::IDLArgs::from_str(&format!(
         r#"(record {{
                 id = opt record {{ id = {} : nat64 }};
                 command = opt variant {{
                     RegisterVote = record {{
-                        vote = {vote} : int32;
-                        proposal = opt record {{ id = {proposal_id} : nat64 }}
+                        vote = {} : int32;
+                        proposal = opt record {{ id = {} : nat64 }}
                     }}
                 }}
             }})"#,
-        CONFIG.neuron_id,
+        CONFIG.neuron_id, vote as i32, proposal_id
     ))
     .map_err(|err| format!("couldn't parse args: {:?}", err))?
     .to_bytes()
