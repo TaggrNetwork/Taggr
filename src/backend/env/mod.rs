@@ -1,5 +1,6 @@
 use self::canisters::CALLS;
 use self::invoices::{parse_account, Invoice};
+use self::post::{add, conclude_poll, Extension, Poll};
 use self::proposals::Status;
 use self::reports::Report;
 use self::token::account;
@@ -41,6 +42,15 @@ pub type Blob = ByteBuf;
 
 const HOUR: u64 = 3600000000000_u64;
 const WEEK: u64 = 7 * 24 * HOUR;
+
+#[derive(Serialize, Deserialize)]
+pub struct NNSProposal {
+    pub id: u64,
+    pub topic: i32,
+    pub proposer: u64,
+    pub title: String,
+    pub summary: String,
+}
 
 #[derive(Deserialize, Serialize)]
 pub struct SearchResult {
@@ -122,6 +132,8 @@ pub struct State {
     pub last_distribution: u64,
     pub storage: storage::Storage,
     pub last_chores: u64,
+    #[serde(default)]
+    pub last_hourly_chores: u64,
     pub logger: Logger,
     pub hot: VecDeque<PostId>,
     pub invites: BTreeMap<String, (UserId, Cycles)>,
@@ -150,6 +162,15 @@ pub struct State {
     pub emergency_binary: Vec<u8>,
     #[serde(skip)]
     pub emergency_votes: BTreeMap<Principal, Token>,
+
+    #[serde(default)]
+    pending_polls: BTreeSet<PostId>,
+
+    #[serde(default)]
+    pending_nns_proposals: BTreeMap<u64, PostId>,
+
+    #[serde(default)]
+    pub last_nns_proposal: u64,
 }
 
 impl Storable for State {
@@ -984,16 +1005,111 @@ impl State {
         user_ids
     }
 
-    pub async fn chores(&mut self, now: u64) {
-        if now - self.last_chores < CONFIG.chores_interval_hours {
-            return;
+    fn conclude_polls(&mut self, now: u64) {
+        for post_id in self.pending_polls.clone() {
+            match conclude_poll(self, post_id, now) {
+                // The poll didn't end yet.
+                Ok(false) => {}
+                // The poll has ended, so it can be removed from pending ones.
+                _ => {
+                    self.pending_polls.remove(&post_id);
+                }
+            }
+        }
+    }
+
+    async fn hourly_chores(&mut self, now: u64) {
+        self.conclude_polls(now);
+
+        // Vote on proposals if pending ones exist
+        for (proposal_id, post_id) in self.pending_nns_proposals.clone() {
+            if let Some(Extension::Poll(poll)) = self
+                .posts
+                .get(&post_id)
+                .and_then(|post| post.extension.as_ref())
+            {
+                // The poll is still pending.
+                if self.pending_polls.contains(&post_id) {
+                    continue;
+                }
+
+                let adopted = poll.weighted_by_karma.get(&0).copied().unwrap_or_default();
+                let rejected = poll.weighted_by_karma.get(&1).copied().unwrap_or_default();
+                if let Err(err) = canisters::vote_on_nns_proposal(
+                    proposal_id,
+                    if adopted > rejected { 1 } else { 2 },
+                )
+                .await
+                {
+                    self.logger.error(format!(
+                        "couldn't vote on NNS proposal {}: {}",
+                        proposal_id, err
+                    ));
+                };
+            }
+            self.pending_nns_proposals.remove(&post_id);
         }
 
-        // If the cansiter was offline, catch up
-        while self.last_chores + CONFIG.chores_interval_hours < now {
+        // fetch new proposals
+        let last_known_proposal_id = self.last_nns_proposal;
+        let proposals = match canisters::fetch_proposals().await {
+            Ok(value) => value,
+            Err(err) => {
+                self.logger
+                    .error(format!("couldn't fetch proposals: {}", err));
+                Default::default()
+            }
+        };
+        for proposal in proposals.into_iter().filter(|proposal| {
+            proposal.id > last_known_proposal_id && [4, 13].contains(&proposal.topic)
+        }) {
+            let post = format!(
+                "# #NNS-Proposal [{0}](https://dashboard.internetcomputer.org/proposal/{0}): {1}\n",
+                proposal.id, proposal.title,
+            ) + &format!(
+                "Proposer: [{0}](https://dashboard.internetcomputer.org/neuron/{0})\n\n\n\n{1}",
+                proposal.proposer, proposal.summary
+            );
+
+            match add(
+                self,
+                post,
+                Default::default(),
+                id(),
+                now,
+                None,
+                None,
+                Some(Extension::Poll(Poll {
+                    deadline: 72,
+                    options: vec!["ADOPT".into(), "REJECT".into()],
+                    ..Default::default()
+                })),
+            )
+            .await
+            {
+                Err(err) => self
+                    .logger
+                    .error(format!("couldn't create a NNS proposal post: {:?}", err)),
+                Ok(post_id) => {
+                    self.pending_nns_proposals.insert(proposal.id, post_id);
+                }
+            }
+            self.last_nns_proposal = proposal.id;
+        }
+    }
+
+    pub async fn chores(&mut self, now: u64) {
+        if self.last_hourly_chores + HOUR >= now {
+            self.hourly_chores(now).await;
+            self.last_hourly_chores += HOUR;
+        }
+        if self.last_chores + CONFIG.chores_interval_hours >= now {
+            self.weekly_chores(now).await;
             self.last_chores += CONFIG.chores_interval_hours;
         }
+    }
 
+    pub async fn weekly_chores(&mut self, now: u64) {
         self.top_up().await;
 
         if now - self.last_distribution >= CONFIG.distribution_interval_hours
@@ -1944,6 +2060,79 @@ pub(crate) mod tests {
         id
     }
 
+    #[actix_rt::test]
+    async fn test_poll_conclusion() {
+        let mut state = State::default();
+
+        // create users each having trusted_user_min_karma + i*10, e.g.
+        // user 1: 35, user 2: 45, user 3: 55, etc...
+        let mut eligigble = HashMap::default();
+        for i in 1..11 {
+            let p = pr(i);
+            let id = create_user(&mut state, p);
+            let user = state.users.get_mut(&id).unwrap();
+            // we create the same amount of new and hard karma so that we have both karma and
+            // balances after minting
+            user.change_karma(i as Karma * 10, "test");
+            user.apply_rewards();
+            user.change_karma(i as Karma * 10, "test");
+            assert_eq!(
+                user.karma(),
+                i as Karma * 10 + CONFIG.trusted_user_min_karma
+            );
+            assert!(user.trusted());
+            eligigble.insert(id, user.karma_to_reward());
+        }
+
+        // mint tokens
+        state.mint(eligigble);
+        assert_eq!(state.ledger.len(), 10);
+
+        let post_id = add(
+            &mut state,
+            "Test".to_string(),
+            vec![],
+            pr(1),
+            0,
+            None,
+            None,
+            Some(Extension::Poll(Poll {
+                options: vec!["A".into(), "B".into(), "C".into()],
+                deadline: 72,
+                ..Default::default()
+            })),
+        )
+        .await
+        .unwrap();
+
+        let post = state.posts.get_mut(&post_id).unwrap();
+        let mut votes = BTreeMap::new();
+        votes.insert(0, vec![1, 2, 3].into_iter().collect());
+        votes.insert(1, vec![4, 5, 6].into_iter().collect());
+        votes.insert(2, vec![7, 8, 9].into_iter().collect());
+        if let Some(Extension::Poll(poll)) = post.extension.as_mut() {
+            poll.votes = votes;
+        }
+
+        let now = post.timestamp;
+        assert_eq!(state.pending_polls.len(), 1);
+        state.conclude_polls(now + 24 * HOUR);
+        assert_eq!(state.pending_polls.len(), 1);
+        state.conclude_polls(now + 3 * 24 * HOUR);
+        assert_eq!(state.pending_polls.len(), 0);
+        if let Some(Extension::Poll(poll)) = state.posts.get(&post_id).unwrap().extension.as_ref() {
+            // Here we can see that by karma the difference is way smaller becasue values are
+            // normalized by the square root.
+            assert_eq!(*poll.weighted_by_karma.get(&0).unwrap(), 21);
+            assert_eq!(*poll.weighted_by_karma.get(&1).unwrap(), 26);
+            assert_eq!(*poll.weighted_by_karma.get(&2).unwrap(), 31);
+            assert_eq!(*poll.weighted_by_tokens.get(&0).unwrap(), 9000);
+            assert_eq!(*poll.weighted_by_tokens.get(&1).unwrap(), 18000);
+            assert_eq!(*poll.weighted_by_tokens.get(&2).unwrap(), 27000);
+        } else {
+            panic!("should be a poll")
+        }
+    }
     #[actix_rt::test]
     async fn test_principal_change() {
         let mut state = State::default();

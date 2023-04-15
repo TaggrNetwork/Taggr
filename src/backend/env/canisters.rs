@@ -11,7 +11,11 @@ use ic_cdk::{
     },
     notify,
 };
-use serde::Deserialize;
+use ic_ledger_types::MAINNET_GOVERNANCE_CANISTER_ID;
+use serde::{Deserialize, Serialize};
+
+use crate::env::config::CONFIG;
+use crate::env::NNSProposal;
 
 use super::Logger;
 
@@ -217,6 +221,103 @@ pub async fn top_up(canister_id: Principal, min_cycle_balance: u64) -> Result<bo
         return Ok(true);
     }
     Ok(false)
+}
+
+pub async fn fetch_proposals() -> Result<Vec<NNSProposal>, String> {
+    #[derive(Clone, CandidType, Default, Serialize, Deserialize, PartialEq)]
+    pub struct ProposalId {
+        pub id: u64,
+    }
+
+    #[derive(CandidType, Clone, Serialize, Deserialize)]
+    pub struct ListProposalInfo {
+        pub limit: u32,
+        pub before_proposal: Option<ProposalId>,
+        pub exclude_topic: Vec<i32>,
+        pub include_reward_status: Vec<i32>,
+        pub include_status: Vec<i32>,
+    }
+
+    #[derive(CandidType, Clone, Serialize, Deserialize)]
+    pub struct ListProposalInfoResponse {
+        pub proposal_info: Vec<ProposalInfo>,
+    }
+
+    #[derive(CandidType, Clone, Serialize, Deserialize)]
+    pub struct NeuronId {
+        pub id: u64,
+    }
+
+    #[derive(CandidType, Clone, Serialize, Deserialize)]
+    pub struct ProposalStruct {
+        pub title: Option<String>,
+        pub summary: String,
+    }
+
+    #[derive(CandidType, Clone, Serialize, Deserialize)]
+    pub struct ProposalInfo {
+        pub id: Option<ProposalId>,
+        pub proposer: Option<NeuronId>,
+        pub proposal: Option<ProposalStruct>,
+        pub topic: i32,
+    }
+
+    let args = ListProposalInfo {
+        include_reward_status: Default::default(),
+        before_proposal: Default::default(),
+        limit: 15,
+        exclude_topic: Default::default(),
+        include_status: Default::default(),
+    };
+    let (response,): (ListProposalInfoResponse,) =
+        call_canister(MAINNET_GOVERNANCE_CANISTER_ID, "list_proposals", (args,))
+            .await
+            .map_err(|err| format!("couldn't call governance canister: {:?}", err))?;
+
+    Ok(response
+        .proposal_info
+        .into_iter()
+        .filter_map(|info| info.proposal.clone().map(|p| (info, p)))
+        .map(|(i, p)| NNSProposal {
+            id: i.id.unwrap_or_default().id,
+            title: p.title.unwrap_or_default(),
+            summary: p.summary,
+            topic: i.topic,
+            proposer: i.proposer.as_ref().expect("no neuron found").id,
+        })
+        .collect())
+}
+
+pub async fn vote_on_nns_proposal(proposal_id: u64, vote: u16) -> Result<(), String> {
+    use std::str::FromStr;
+    let args = candid::IDLArgs::from_str(&format!(
+        r#"(record {{
+                id = opt record {{ id = {} : nat64 }};
+                command = opt variant {{
+                    RegisterVote = record {{
+                        vote = {vote} : int32;
+                        proposal = opt record {{ id = {proposal_id} : nat64 }}
+                    }}
+                }}
+            }})"#,
+        CONFIG.neuron_id,
+    ))
+    .map_err(|err| format!("couldn't parse args: {:?}", err))?
+    .to_bytes()
+    .map_err(|err| format!("couldn't serialize args: {:?}", err))?;
+    call_opened("manage_neuron");
+    let result = call_raw(
+        MAINNET_GOVERNANCE_CANISTER_ID,
+        "manage_neuron",
+        args.as_slice(),
+        0,
+    )
+    .await;
+    call_closed("manage_neuron");
+
+    result
+        .map(|_| ())
+        .map_err(|err| format!("couldn't call the governance canister: {:?}", err))
 }
 
 pub async fn call_canister<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(

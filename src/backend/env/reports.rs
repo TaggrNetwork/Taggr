@@ -139,7 +139,6 @@ mod tests {
 
     use super::*;
     use crate::env::tests::*;
-    use crate::post::*;
 
     #[actix_rt::test]
     async fn test_reporting() {

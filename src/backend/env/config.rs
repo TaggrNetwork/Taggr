@@ -94,6 +94,8 @@ pub struct Config {
     pub max_funding_amount: u64,
 
     pub post_deletion_penalty_factor: u32,
+
+    pub neuron_id: u64,
 }
 
 pub const CONFIG: &Config = &Config {
@@ -204,4 +206,6 @@ pub const CONFIG: &Config = &Config {
     reaction_fee: 1,
 
     max_funding_amount: 10000,
+
+    neuron_id: 10733610488223369883,
 };

@@ -5,11 +5,13 @@ use serde::{Deserialize, Serialize};
 
 pub type PostId = u64;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Poll {
-    options: Vec<String>,
-    votes: BTreeMap<u16, BTreeSet<UserId>>,
-    deadline: u64,
+    pub options: Vec<String>,
+    pub votes: BTreeMap<u16, BTreeSet<UserId>>,
+    pub deadline: u64,
+    pub weighted_by_karma: BTreeMap<u16, Karma>,
+    pub weighted_by_tokens: BTreeMap<u16, Token>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -35,7 +37,7 @@ pub struct Post {
     pub tree_update: u64,
     pub report: Option<Report>,
     pub tips: Vec<(UserId, Cycles)>,
-    extension: Option<Extension>,
+    pub extension: Option<Extension>,
     pub realm: Option<String>,
     #[serde(default)]
     pub hashes: Vec<String>,
@@ -394,6 +396,10 @@ pub async fn add(
         }
     }
     state.posts.insert(post.id, post.clone());
+    if matches!(&post.extension, &Some(Extension::Poll(_))) {
+        state.pending_polls.insert(post.id);
+    }
+
     notify_about(state, &post);
 
     state
@@ -408,6 +414,52 @@ pub async fn add(
         });
 
     Ok(id)
+}
+
+/// Checks if the poll has ended. If not, returns `Ok(false)`. If the poll ended,
+/// returns `Ok(true)` and assings the result weighted by the square root of karma and by the token
+/// voting power.
+pub fn conclude_poll(state: &mut State, post_id: PostId, now: u64) -> Result<bool, String> {
+    let post = state.posts.get_mut(&post_id).ok_or("no post found")?;
+    let users = &state.users;
+    let balances = &state.balances;
+    if let Some(Extension::Poll(poll)) = post.extension.as_mut() {
+        if post.timestamp + poll.deadline * HOUR > now {
+            return Ok(false);
+        }
+        poll.weighted_by_karma = poll
+            .votes
+            .clone()
+            .into_iter()
+            .map(|(k, ids)| {
+                (
+                    k,
+                    ids.iter()
+                        .filter_map(|id| users.get(id))
+                        .filter(|user| user.karma() > 0)
+                        .map(|user| (user.karma() as f32).sqrt() as Karma)
+                        .sum(),
+                )
+            })
+            .collect();
+
+        poll.weighted_by_tokens = poll
+            .votes
+            .iter()
+            .map(|(k, ids)| {
+                (
+                    *k,
+                    ids.iter()
+                        .filter_map(|id| users.get(id))
+                        .filter_map(|user| balances.get(&account(user.principal)))
+                        .sum(),
+                )
+            })
+            .collect();
+
+        return Ok(true);
+    }
+    Err("no poll extension".into())
 }
 
 fn notify_about(state: &mut State, post: &Post) {
