@@ -806,7 +806,10 @@ impl State {
                     _ => continue,
                 };
                 let acc = account(user.principal);
-                let minted = (user_karma.max(0) as u64 / (1 << factor)).max(1) * base;
+                let minted = user_karma.max(0) as u64 / (1 << factor) * base;
+                if minted == 0 {
+                    continue;
+                }
                 user.notify(format!(
                     "{} minted `{}` ${} tokens for you! 💎",
                     CONFIG.name,
@@ -1194,7 +1197,7 @@ impl State {
             }
         }
         self.logger.info(format!(
-            "Charged {} inactive users with {} cycles",
+            "Charged `{}` inactive users with `{}` cycles",
             inactive_users, cycles_total
         ));
 
