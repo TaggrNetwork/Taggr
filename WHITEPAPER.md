@@ -46,7 +46,11 @@ If after the bootcamp period the user still has less than `$trusted_user_min_kar
 ## Realms
 
 Realms represent sub-communities grouped by a certain topic.
-Every realm can have its own term and conditions, so that any violation of them can lead to flagging of user's post to stalwarts.
+Every realm can have its own term and conditions, so that any violation of them can lead to
+
+- flagging of user's post to stalwarts,
+- moving of the post of of the realm which is penalized with `$realm_cleanup_penalty` cycles and karma points.
+
 By joining a realm, a user implicitly agrees with its terms and conditions.
 
 ## STALWARTS

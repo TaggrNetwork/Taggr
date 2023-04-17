@@ -52,6 +52,8 @@ pub struct Config {
     pub max_realm_name: usize,
     pub max_realm_logo_len: usize,
 
+    pub realm_cleanup_penalty: Cycles,
+
     pub response_reward: Cycles,
 
     pub inactivity_penalty: Cycles,
@@ -140,6 +142,8 @@ pub const CONFIG: &Config = &Config {
 
     minimal_tip: 1,
     tipping_fee: 1,
+
+    realm_cleanup_penalty: 10,
 
     max_bucket_size: 1024 * 1024 * 1024 * 31, // 31Gb
 

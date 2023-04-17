@@ -168,7 +168,8 @@ const reloadCache = async () => {
         users: users.reduce((acc, [id, name]) => { acc[id] = name; return acc }, {}),
         karma: users.reduce((acc, [id, _, karma]) => { acc[id] = karma; return acc }, {}),
         recent_tags: recent_tags.map(([tag, _]) => tag),
-        stats, config, realms
+        realms: realms.reduce((acc, [name, color, controller]) => { acc[name] = [color, controller]; return acc }, {}),
+        stats, config,
     };
     if (window.lastSavedUpgrade == 0) {
         window.lastSavedUpgrade = backendCache.stats.last_upgrade;
@@ -214,7 +215,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(async (authClient
             let data  = await api.query("user", []);
             if (data) {
                 api._user = data;
-                let realmNames = backendCache.realms.map(([name]) => name);
+                let realmNames = Object.keys(backendCache.realms);
                 api._user.realms.sort((a, b) => realmNames.indexOf(a) - realmNames.indexOf(b));
                 api._user.settings = JSON.parse(api._user.settings || "{}");
                 if (600000 < microSecsSince(api._user.last_activity)) {

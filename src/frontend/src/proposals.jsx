@@ -4,7 +4,8 @@ import {Content} from "./content";
 import {HourGlass, NotFound} from "./icons";
 import {PostFeed} from "./post_feed";
 
-const REPO="https://github.com/TaggrNetwork/taggr/releases/latest";
+const REPO_RELEASE = "https://github.com/TaggrNetwork/taggr/releases/latest";
+const REPO_COMMIT = "https://github.com/TaggrNetwork/taggr/commit";
 
 export const Proposals = () => {
     const [showMask, toggleMask] = React.useState(false);
@@ -125,7 +126,7 @@ export const Proposal = ({id}) => {
         <div className="monospace bottom_half_spaced">DATE: {timeAgo(proposal.timestamp)}</div>
         <div className="monospace bottom_spaced">STATUS: {statusEmoji(propStatus)} <span className={open ? "accent" : null}>{propStatus}</span></div>
         {!!proposal.payload.Release && <div className="monospace bottom_spaced">
-            {commit && <div className="row_container bottom_half_spaced">COMMIT:<a className="monospace left_spaced" href={REPO}>{commit}</a></div>}
+            {commit && <div className="row_container bottom_half_spaced">COMMIT:<a className="monospace left_spaced" href={open ? REPO_RELEASE : `${REPO_COMMIT}/${proposal.payload.Release.commit}`}>{commit}</a></div>}
             {!open && <div className="row_container"><span>HASH:</span><code className="left_spaced monospace">{hash}</code></div>}
         </div>}
         {!!proposal.payload.Fund && <>

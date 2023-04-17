@@ -4,7 +4,7 @@ use env::{
     canisters::upgrade_main_canister,
     config::CONFIG,
     memory,
-    post::{conclude_poll, Extension, Post, PostId},
+    post::{change_realm, Extension, Post, PostId},
     proposals::{Payload, Release, Status},
     token::account,
     user::{User, UserId},
@@ -75,11 +75,12 @@ fn post_upgrade() {
 
     // temporary post upgrade logic goes here
     let s = state_mut();
-    for id in s.posts.keys().cloned().collect::<Vec<_>>() {
-        let _ = conclude_poll(s, id, time());
+    for p_id in s.posts.keys().cloned().collect::<Vec<_>>() {
+        change_realm(s, p_id, s.posts.get(&p_id).unwrap().realm.clone());
     }
-
-    s.last_chores = 1681509600000000000;
+    for realm in s.realms.values_mut() {
+        realm.posts.sort_unstable();
+    }
 }
 
 /*
@@ -485,6 +486,12 @@ fn edit_realm() {
     ))
 }
 
+#[export_name = "canister_update realm_clean_up"]
+fn realm_clean_up() {
+    let post_id: PostId = parse(&arg_data_raw());
+    reply(state_mut().clean_up_realm(caller(), post_id));
+}
+
 #[export_name = "canister_update enter_realm"]
 fn enter_realm() {
     let name: String = parse(&arg_data_raw());
@@ -668,10 +675,17 @@ fn sorted_realms<'a>() -> Vec<(&'a String, &'a Realm)> {
 
 #[export_name = "canister_query realms_data"]
 fn realms_data() {
+    let user_id = state().principal_to_user(caller()).map(|user| user.id);
     reply(
         sorted_realms()
             .iter()
-            .map(|(name, realm)| (name, &realm.label_color))
+            .map(|(name, realm)| {
+                (
+                    name,
+                    &realm.label_color,
+                    user_id.map(|id| realm.controllers.contains(&id)),
+                )
+            })
             .collect::<Vec<_>>(),
     );
 }

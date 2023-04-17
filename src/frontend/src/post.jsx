@@ -5,7 +5,7 @@ import { Poll } from './poll';
 import { isRoot, BurgerButton, reactions, timeAgo, ToggleButton, NotFound, applyPatch, loadPostBlobs, ShareButton, commaSeparated, Loading, objectReduce, reactionCosts, postUserToPost, loadPost,
     ReactionToggleButton, RealmRibbon, setTitle, ButtonWithLoading, bigScreen, UserLink, FlagButton, ReportBanner } from './common';
 import {PostFeed} from "./post_feed";
-import {reaction2icon, Edit, Save, Unsave, Watch, Unwatch, Repost, Coin, New, CommentArrow, CarretRight, Trash, Comment } from "./icons";
+import {reaction2icon, Edit, Save, Unsave, Watch, Unwatch, Repost, Coin, New, CommentArrow, CarretRight, Trash, Comment, Close } from "./icons";
 import {Proposal} from "./proposals";
 
 export const postDataProvider = (id, preloadedData = null, rootOnly = false) => {
@@ -210,6 +210,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
 
 const PostInfo = ({post, version, postCreated, callback}) => {
     const postAuthor = api._user?.id == post.user.id;
+    const realmController = post.realm && backendCache.realms[post.realm][1];
     return <>
         {api._user && <div className="row_container top_half_spaced">
             {!postAuthor && <FlagButton id={post.id} domain="post" /> }
@@ -231,6 +232,11 @@ const PostInfo = ({post, version, postCreated, callback}) => {
                     alert(`Error: ${response.Err}`);
                 } else await callback();
             }} label={<Coin />} />
+            {realmController && <ButtonWithLoading classNameArg="max_width_col" onClick={async () => {
+                if (!confirm("Do you want to remove the post from this realm?")) return;
+                await api.call("realm_clean_up", post.id);
+                alert("This post was removed from this realm.");
+            }} label={<Close />} />}
             {postAuthor && <>
                 {post.hashes.length == 0 && <ButtonWithLoading classNameArg="max_width_col" onClick={async () => {
                     const { post_cost, post_deletion_penalty_factor } = backendCache.config;

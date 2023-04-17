@@ -10,7 +10,9 @@ pub struct Poll {
     pub options: Vec<String>,
     pub votes: BTreeMap<u16, BTreeSet<UserId>>,
     pub deadline: u64,
+    #[serde(default)]
     pub weighted_by_karma: BTreeMap<u16, Karma>,
+    #[serde(default)]
     pub weighted_by_tokens: BTreeMap<u16, Token>,
 }
 
@@ -262,31 +264,44 @@ pub async fn edit(
     post.patches.push((post.timestamp, patch));
     post.timestamp = timestamp;
 
-    // We only change the realm on root posts.
-    if post.parent.is_none() && post.realm != picked_realm {
-        // remove post from the previous realm
-        if let Some(realm) = post
-            .realm
-            .as_ref()
-            .and_then(|name| state.realms.get_mut(name))
-        {
-            realm.posts.retain(|post_id| post_id != &id);
-        }
-        post.realm = picked_realm.clone();
-        // add post to the new realm
-        if let Some(realm) = picked_realm
-            .as_ref()
-            .and_then(|name| state.realms.get_mut(name))
-        {
-            realm.posts.push(id);
-        }
-    }
+    let current_realm = post.realm.clone();
 
     state
         .posts
         .insert(id, post)
         .expect("previous post should exists");
+
+    if current_realm != picked_realm {
+        change_realm(state, id, picked_realm)
+    }
+
     Ok(())
+}
+
+pub fn change_realm(state: &mut State, root_post_id: PostId, new_realm: Option<String>) {
+    let mut posts = vec![root_post_id];
+
+    while let Some(post_id) = posts.pop() {
+        let post = state.posts.get_mut(&post_id).expect("no post found");
+        posts.extend_from_slice(&post.children);
+
+        if let Some(realm_id) = post.realm.as_ref() {
+            state
+                .realms
+                .get_mut(realm_id)
+                .expect("no realm found")
+                .posts
+                .retain(|id| id != &post_id);
+        }
+
+        if let Some(realm_id) = new_realm.as_ref() {
+            let realm = state.realms.get_mut(realm_id).expect("no realm found");
+            realm.posts.push(post_id);
+            realm.posts.sort_unstable();
+        }
+
+        post.realm = new_realm.clone();
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

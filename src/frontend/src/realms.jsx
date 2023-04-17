@@ -192,7 +192,10 @@ export const RealmPage = ({name}) => {
                 {user && !user.realms.includes(name) && <ButtonWithLoading
                     label="JOIN" classNameArg="active right_half_spaced"
                     onClick={async () => {
-                        if (!confirm(`By joining the realm ${name} you confirm that you understand its description and agree with all terms and conditions mentioned there. Any rule violation can lead to a moderation by stalwarts.`))
+                        if (!confirm(`By joining the realm ${name} you confirm that you understand its description ` +
+                            `and agree with all terms and conditions mentioned there. ` +
+                            `Any rule violation can lead to a moderation by stalwarts or ` +
+                            `moving out of the post with penalty of ${backendCache.config.realm_cleanup_penalty} points.`))
                             return false;
                         return api.call("toggle_realm_membership", name).then(api._reloadUser).then(loadRealm);
                     }} />}

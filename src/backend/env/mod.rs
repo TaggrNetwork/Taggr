@@ -102,7 +102,7 @@ pub struct Realm {
     logo: String,
     pub description: String,
     pub posts: Vec<PostId>,
-    controllers: Vec<UserId>,
+    pub controllers: Vec<UserId>,
     pub members: BTreeSet<UserId>,
     pub label_color: String,
     theme: String,
@@ -127,9 +127,6 @@ pub struct State {
     pub next_post_id: PostId,
     pub next_user_id: UserId,
     pub accounting: Invoices,
-    // TODO: delete
-    #[serde(skip)]
-    pub last_distribution: u64,
     pub storage: storage::Storage,
     pub last_chores: u64,
     pub last_hourly_chores: u64,
@@ -212,6 +209,30 @@ pub enum Destination {
 }
 
 impl State {
+    pub fn clean_up_realm(&mut self, principal: Principal, post_id: PostId) -> Result<(), String> {
+        let controller = self.principal_to_user(principal).ok_or("no user found")?.id;
+        let post = self.posts.get(&post_id).ok_or("no post found")?;
+        let realm = post.realm.as_ref().ok_or("no realm id found")?;
+        if !post
+            .realm
+            .as_ref()
+            .and_then(|realm_id| self.realms.get(realm_id))
+            .map(|realm| realm.controllers.contains(&controller))
+            .unwrap_or_default()
+        {
+            return Err("only realm controller can clean up".into());
+        }
+        let user = self.users.get_mut(&post.user).ok_or("no user found")?;
+        let msg = format!("post {} was moved out of realm {}", post_id, realm);
+        user.change_karma(-(CONFIG.realm_cleanup_penalty as Karma), &msg);
+        let user_id = user.id;
+        let penalty = CONFIG.realm_cleanup_penalty.min(user.cycles());
+        self.charge(user_id, penalty, msg)
+            .expect("couldn't charge user");
+        post::change_realm(self, post_id, None);
+        Ok(())
+    }
+
     pub fn active_voting_power(&self, time: u64) -> Token {
         self.balances
             .iter()
@@ -2188,6 +2209,64 @@ pub(crate) mod tests {
             user.account,
             AccountIdentifier::new(&id(), &principal_to_subaccount(&principal)).to_string()
         );
+    }
+
+    #[actix_rt::test]
+    async fn test_realm_change() {
+        let mut state = State::default();
+        state.realms.insert("TEST".into(), Realm::default());
+        state.realms.insert("TEST2".into(), Realm::default());
+
+        create_user(&mut state, pr(0));
+        assert!(state.toggle_realm_membership(pr(0), "TEST".into()));
+        assert_eq!(state.realms.get("TEST").unwrap().members.len(), 1);
+
+        let post_id = add(
+            &mut state,
+            "Root".to_string(),
+            vec![],
+            pr(0),
+            0,
+            None,
+            Some("TEST".into()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let comment_1_id = add(
+            &mut state,
+            "Comment 1".to_string(),
+            vec![],
+            pr(0),
+            0,
+            Some(post_id),
+            Some("TEST".into()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        add(
+            &mut state,
+            "Comment 2".to_string(),
+            vec![],
+            pr(0),
+            0,
+            Some(comment_1_id),
+            Some("TEST".into()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(state.realms.get("TEST").unwrap().posts.len(), 3);
+        assert_eq!(state.realms.get("TEST2").unwrap().posts.len(), 0);
+
+        crate::post::change_realm(&mut state, post_id, Some("TEST2".into()));
+
+        assert_eq!(state.realms.get("TEST").unwrap().posts.len(), 0);
+        assert_eq!(state.realms.get("TEST2").unwrap().posts.len(), 3);
     }
 
     #[actix_rt::test]

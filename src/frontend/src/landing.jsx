@@ -39,11 +39,11 @@ export const Landing = ({heartbeat}) => {
 }; 
 
 const RealmsDashboard = () => {
-    const realmNames = backendCache.realms;
+    const realmNames = Object.keys(backendCache.realms);
     return <div className="vertically_spaced text_centered">
         <div className="row_container" style={{opacity: 0.8, margin: "0.5em", marginBottom: "1em"}}>
-            {realmNames.slice(0, 10).map(([name, col]) => 
-            <RealmSpan key={name} col={col} name={name} onClick={() => location.href = `/#/realm/${name}`}
+            {realmNames.slice(0, 10).map(name => 
+            <RealmSpan key={name} col={backendCache.realms[name][0]} name={name} onClick={() => location.href = `/#/realm/${name}`}
                 classNameArg="clickable max_width_col medium_text monospace padded_rounded marginized" />)}
         </div>
         <a href="#/realms">ALL REALMS &#x279C;</a>
