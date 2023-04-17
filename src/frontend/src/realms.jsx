@@ -151,12 +151,15 @@ export const RealmForm = ({existingName}) => {
                 if (!valid) return;
                 const response = await api.call(editing ? "edit_realm" : "create_realm",
                     name, logo, labelColor, theme ? JSON.stringify(theme) : "", description, controllers.map(id => parseInt(id)));
-                await window.reloadCache();
                 if ("Err" in response) {
                     alert(`Error: ${response.Err}`);
                     return;
-                } else await api._reloadUser();
-                if (!editing) location.href = `#/realm/${name}`;
+                }
+                await api.call("toggle_realm_membership", name);
+                await window.reloadCache();
+                await api._reloadUser();
+                if (editing) await loadRealm();
+                else location.href = `#/realm/${name}`;
             }} label={editing ? "SAVE" : "CREATE"} />
         </div>
     </div>

@@ -35,14 +35,15 @@ const linkTagsAndUsers = value => {
 
 export const Content = ({post, value = "", blobs = [], collapse, preview, primeMode, classNameArg}) => {
     const [urls, setUrls] = React.useState({});
-    value = value.trim();
 
     if (!post) return <ReactMarkdown children={linkTagsAndUsers(value)} remarkPlugins={[remarkGfm]} className={classNameArg} />;
 
     let shortened = value.includes(CUT);
-    if (collapse) {
+    let extValue;
+    if (shortened) {
         const parts = value.split(CUT);
         value = parts[0];
+        extValue = parts[1];
     } else if (preview) {
         value = value.replace(CUT, "\n\n- - -\n\n");
     }
@@ -51,23 +52,26 @@ export const Content = ({post, value = "", blobs = [], collapse, preview, primeM
     const words = value.split(" ").length;
     const lines = value.split("\n").length;
     let className = classNameArg || "";
-    if (!shortened && primeMode && lines < 10 && !complexPost) {
+    if (primeMode && lines < 10 && !complexPost) {
         if (words < 50) className += " x_large_text";
         else if (words < 100) className += " enlarged_text";
     }
 
     value = linkTagsAndUsers(value);
 
-    return <div className={className || null }>
-        {markdownizer(value, urls, setUrls, blobs, primeMode)}
-        {collapse && shortened && <ArrowDown />}
-    </div>;
+    return <>
+        {markdownizer(value, urls, setUrls, blobs, primeMode, className)}
+        {shortened && <>
+            {collapse && <ArrowDown />}
+            {markdownizer(collapse ? null : extValue, urls, setUrls, blobs, primeMode)}
+        </>}
+    </>;
 }
 
 const isALink = val => val.match(/^https?:\/\/.+$/) || val.match(/^www\..+$/);
 
-const markdownizer = (value, urls, setUrls, blobs, primeMode) => 
-    React.useMemo(() => !value ? null : <ReactMarkdown children={value} remarkPlugins={[remarkGfm]}
+const markdownizer = (value, urls, setUrls, blobs, primeMode, className = null) => 
+    React.useMemo(() => !value ? null : <ReactMarkdown children={value} remarkPlugins={[remarkGfm]} className={className}
         components={{
             a: ({ node, children = [], ...props}) => {
                 let target = "_self";

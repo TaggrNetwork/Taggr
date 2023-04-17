@@ -4,7 +4,7 @@ use env::{
     canisters::upgrade_main_canister,
     config::CONFIG,
     memory,
-    post::{Extension, Post, PostId},
+    post::{conclude_poll, Extension, Post, PostId},
     proposals::{Payload, Release, Status},
     token::account,
     user::{User, UserId},
@@ -74,6 +74,12 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
+    let s = state_mut();
+    for id in s.posts.keys().cloned().collect::<Vec<_>>() {
+        let _ = conclude_poll(s, id, time());
+    }
+
+    s.last_chores = 1681509600000000000;
 }
 
 /*

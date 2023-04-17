@@ -1,6 +1,7 @@
 import * as React from "react";
 import {userList} from "./common";
 import { Content } from './content';
+import {Gem, YinYan} from "./icons";
 
 export const Poll = ({poll, post_id, created}) => {
     const [data, setData] = React.useState(poll);
@@ -13,6 +14,7 @@ export const Poll = ({poll, post_id, created}) => {
     const createdHoursAgo = Math.floor((Number(new Date()) - parseInt(created) / 1000000) / 1000 / 3600);
     const expired = createdHoursAgo > poll.deadline;
     const showVoting = !isNaN(user_id) && !voted && !expired;
+    const keyWithMaxVal = obj => Object.keys(obj).reduce(([maxKey, maxVal], key) => obj[key] > maxVal ? [key, obj[key]] : [maxKey, maxVal], [null, 0])[0];
 
     return <div className="column_container post_extension" data-meta="skipClicks">
         {data.options.map((option, id) => {
@@ -46,6 +48,11 @@ export const Poll = ({poll, post_id, created}) => {
                 </div>}
             </label>})}
         {!expired && <span className="top_spaced small_text text_centered inactive">EXPIRES IN {printDelta(data.deadline - createdHoursAgo)}</span>}
+        {expired && <div className="text_centered top_spaced">
+            <span className="right_spaced monospace">RESULTS:</span>
+            <span className="max_width_col right_spaced"><YinYan /> {data.options[keyWithMaxVal(data.weighted_by_karma)]}</span>
+            <span className="max_width_col"><Gem /> {data.options[keyWithMaxVal(data.weighted_by_tokens)]}</span>
+        </div>}
     </div>;
 }
 

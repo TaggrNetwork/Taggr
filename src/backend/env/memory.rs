@@ -21,7 +21,6 @@ pub struct Api {
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Memory {
-    #[serde(default)]
     api: Api,
     #[serde(skip)]
     pub realms: ObjectManager<u32, Realm>,
@@ -30,7 +29,6 @@ pub struct Memory {
 }
 
 const INITIAL_OFFSET: u64 = 16;
-const MAX_CACHE_SIZE: usize = 2000;
 
 impl Api {
     pub fn write<T: Storable>(&mut self, value: &T) -> Result<(u64, u64), String> {
@@ -72,7 +70,6 @@ impl Memory {
             self.api_ref.as_ref().borrow().allocator.health(),
             cache_size
         ));
-        self.realms.clean_up();
         if let Err(err) = self.realms.sync() {
             logger.error(format!("couldn't sync the memory: {}", err));
         }
@@ -218,22 +215,22 @@ impl Allocator {
             {
                 self.segments
                     .remove(&l_start)
-                    .expect("no left segment found");
+                    .ok_or("no left segment found")?;
                 self.segments
                     .remove(&r_start)
-                    .expect("no right segment found");
+                    .ok_or("no right segment found")?;
                 self.segments.insert(l_start, l_size + size + r_size);
             }
             (_, Some((r_start, r_size))) if offset + size == r_start => {
                 self.segments
                     .remove(&r_start)
-                    .expect("no right segment found");
+                    .ok_or("no right segment found")?;
                 self.segments.insert(offset, size + r_size);
             }
             (Some((l_start, l_size)), _) if l_start + l_size == offset => {
                 self.segments
                     .insert(l_start, l_size + size)
-                    .expect("no left segment found");
+                    .ok_or("no left segment found")?;
             }
             _ => {
                 self.segments.insert(offset, size);
@@ -277,6 +274,12 @@ pub struct ObjectManager<K: Ord + Eq, T: Storable> {
     dirty: BTreeSet<K>,
     #[serde(skip)]
     api: Rc<RefCell<Api>>,
+    #[serde(default = "init_cache_size")]
+    cache_size: usize,
+}
+
+fn init_cache_size() -> usize {
+    2000
 }
 
 impl<K: Eq + Ord + Clone + Display, T: Storable> ObjectManager<K, T> {
@@ -351,18 +354,13 @@ impl<K: Eq + Ord + Clone + Display, T: Storable> ObjectManager<K, T> {
             }
         }
         if failures.is_empty() {
+            while self.cache.len() > self.cache_size {
+                self.cache.pop_first();
+            }
             Ok(dirty_entries)
         } else {
             Err(failures.join("; "))
         }
-    }
-
-    fn clean_up(&mut self) -> usize {
-        let len = self.cache.len();
-        while self.cache.len() > MAX_CACHE_SIZE {
-            self.cache.pop_first();
-        }
-        len - self.cache.len()
     }
 
     fn warm_up(&mut self) {
@@ -370,7 +368,7 @@ impl<K: Eq + Ord + Clone + Display, T: Storable> ObjectManager<K, T> {
             .index
             .keys()
             .rev()
-            .take(MAX_CACHE_SIZE)
+            .take(self.cache_size)
             .cloned()
             .collect::<Vec<_>>()
             .into_iter()

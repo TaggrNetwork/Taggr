@@ -31,7 +31,8 @@ export const Tokens = () => {
 
     const mintedSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
     const userToPrincipal = balances.reduce((acc, balance) => {
-        acc[(backendCache.users[balance[2]] || "").toLowerCase()] = balance[0];
+        const userName = backendCache.users[balance[2]];
+        if (userName) acc[userName.toLowerCase()] = balance[0];
         return acc
     }, {});
     const { total_supply, proposal_approval_threshold } = backendCache.config; 

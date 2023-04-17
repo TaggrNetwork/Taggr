@@ -10,9 +10,7 @@ pub struct Poll {
     pub options: Vec<String>,
     pub votes: BTreeMap<u16, BTreeSet<UserId>>,
     pub deadline: u64,
-    #[serde(default)]
     pub weighted_by_karma: BTreeMap<u16, Karma>,
-    #[serde(default)]
     pub weighted_by_tokens: BTreeMap<u16, Token>,
 }
 
@@ -41,7 +39,6 @@ pub struct Post {
     pub tips: Vec<(UserId, Cycles)>,
     pub extension: Option<Extension>,
     pub realm: Option<String>,
-    #[serde(default)]
     pub hashes: Vec<String>,
 }
 

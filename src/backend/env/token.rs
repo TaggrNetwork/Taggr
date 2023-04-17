@@ -262,7 +262,7 @@ pub fn mint(state: &mut State, account: Account, tokens: Token) {
             from_subaccount: None,
             to: account,
             amount: tokens as u128,
-            fee: None,
+            fee: Some(0),
             memo: None,
             created_at_time: Some(now),
         },

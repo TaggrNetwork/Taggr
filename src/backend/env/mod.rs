@@ -82,7 +82,6 @@ pub struct Stats {
     posts: usize,
     comments: usize,
     account: String,
-    last_distribution: u64,
     last_chores: u64,
     stalwarts: Vec<UserId>,
     bots: Vec<UserId>,
@@ -106,7 +105,6 @@ pub struct Realm {
     controllers: Vec<UserId>,
     pub members: BTreeSet<UserId>,
     pub label_color: String,
-    #[serde(default)]
     theme: String,
 }
 
@@ -129,10 +127,11 @@ pub struct State {
     pub next_post_id: PostId,
     pub next_user_id: UserId,
     pub accounting: Invoices,
+    // TODO: delete
+    #[serde(skip)]
     pub last_distribution: u64,
     pub storage: storage::Storage,
     pub last_chores: u64,
-    #[serde(default)]
     pub last_hourly_chores: u64,
     pub logger: Logger,
     pub hot: VecDeque<PostId>,
@@ -150,7 +149,6 @@ pub struct State {
 
     pub team_tokens: HashMap<UserId, Token>,
 
-    #[serde(default)]
     pub memory: memory::Memory,
 
     #[serde(skip)]
@@ -163,14 +161,14 @@ pub struct State {
     #[serde(skip)]
     pub emergency_votes: BTreeMap<Principal, Token>,
 
-    #[serde(default)]
     pending_polls: BTreeSet<PostId>,
 
-    #[serde(default)]
     pending_nns_proposals: BTreeMap<u64, PostId>,
 
-    #[serde(default)]
     pub last_nns_proposal: u64,
+
+    #[serde(default)]
+    nns_votes: u64,
 }
 
 impl Storable for State {
@@ -438,7 +436,7 @@ impl State {
                 label_color,
                 theme,
                 posts: Default::default(),
-                members: vec![user.id].into_iter().collect(),
+                members: Default::default(),
             },
         );
 
@@ -1022,6 +1020,8 @@ impl State {
     }
 
     async fn hourly_chores(&mut self, now: u64) {
+        self.top_up().await;
+
         self.conclude_polls(now);
 
         // Vote on proposals if pending ones exist
@@ -1053,6 +1053,7 @@ impl State {
                         proposal_id, err
                     ));
                 };
+                self.nns_votes += 1;
             }
             self.pending_nns_proposals.remove(&post_id);
         }
@@ -1081,6 +1082,7 @@ impl State {
                         proposal.id, err
                     ));
                 };
+                self.nns_votes += 1;
                 continue;
             }
             let post = format!(
@@ -1119,27 +1121,33 @@ impl State {
     }
 
     pub async fn chores(&mut self, now: u64) {
-        if self.last_hourly_chores + HOUR >= now {
+        if self.last_hourly_chores + HOUR < now {
             self.hourly_chores(now).await;
             self.last_hourly_chores += HOUR;
         }
-        if self.last_chores + CONFIG.chores_interval_hours >= now {
+        if self.last_chores + WEEK < now {
             self.weekly_chores(now).await;
-            self.last_chores += CONFIG.chores_interval_hours;
+            self.last_chores += WEEK;
         }
     }
 
     pub async fn weekly_chores(&mut self, now: u64) {
-        self.top_up().await;
+        self.clean_up();
 
-        if now - self.last_distribution >= CONFIG.distribution_interval_hours
-            // We only mint and distribute if no open proposals exists
-            && self.proposals.iter().all(|p| p.status != Status::Open)
+        for proposal_id in self
+            .proposals
+            .iter()
+            .filter_map(|p| (p.status == Status::Open).then_some(p.id))
+            .collect::<Vec<_>>()
         {
-            self.last_distribution += CONFIG.distribution_interval_hours;
+            if let Err(err) = proposals::execute_proposal(self, proposal_id, now).await {
+                self.logger
+                    .error(format!("Couldn't execute last proposal: {:?}", err));
+            }
+        }
 
-            self.clean_up();
-
+        // We only mint and distribute if no open proposals exists
+        if self.proposals.iter().all(|p| p.status != Status::Open) {
             let user_ids = match invoices::get_xdr_in_e8s().await {
                 Ok(e8s_for_1000_kps) => {
                     let rewards = self.distribute_rewards(e8s_for_1000_kps);
@@ -1156,18 +1164,6 @@ impl State {
             self.recompute_stalwarts(now);
 
             self.mint(user_ids);
-        }
-
-        for proposal_id in self
-            .proposals
-            .iter()
-            .filter_map(|p| (p.status == Status::Open).then_some(p.id))
-            .collect::<Vec<_>>()
-        {
-            if let Err(err) = proposals::execute_proposal(self, proposal_id, now).await {
-                self.logger
-                    .error(format!("Couldn't execute last proposal: {:?}", err));
-            }
         }
 
         self.memory.report_health(&mut self.logger);
@@ -1589,7 +1585,6 @@ impl State {
             total_revenue_shared: self.total_revenue_shared,
             total_rewards_shared: self.total_rewards_shared,
             account: invoices::main_account().to_string(),
-            last_distribution: self.last_distribution,
             users_online: self
                 .users
                 .values()

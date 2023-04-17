@@ -1,6 +1,6 @@
 use crate::token::Token;
 
-use super::{Cycles, Karma, HOUR, WEEK};
+use super::{Cycles, Karma};
 use ic_cdk::export::candid::CandidType;
 use serde::Serialize;
 
@@ -77,13 +77,10 @@ pub struct Config {
 
     pub min_cycles_for_inviting: Cycles,
 
-    pub chores_interval_hours: u64,
     pub online_activity_minutes: u64,
 
     pub revenue_share_activity_weeks: u64,
     pub voting_power_activity_weeks: u64,
-
-    pub distribution_interval_hours: u64,
 
     pub reactions: &'static [(u16, i64)],
 
@@ -195,9 +192,6 @@ pub const CONFIG: &Config = &Config {
     max_blob_size_bytes: 460800,
 
     online_activity_minutes: 10 * 60000000000_u64,
-    chores_interval_hours: 24 * HOUR,
-
-    distribution_interval_hours: WEEK,
 
     reactions: &[(1, -3), (100, 10), (50, 5), (51, 5), (10, 1)],
 
