@@ -14,7 +14,7 @@ export const Dashboard = ({fullMode}) => {
         setLogs(logs);
     });}, []);
 
-    const { stats: {last_chores}} = backendCache;
+    const { stats: {last_weekly_chores}} = backendCache;
     return <>
         {fullMode && <HeadBar title="Dashboard" shareLink="dashboard" />}
         {!fullMode && 
@@ -43,7 +43,7 @@ export const Dashboard = ({fullMode}) => {
                     <div className="db_cell"><label><Bootcamp /> BOOTCAMPERS</label>{show(stats.bootcamp_users)}</div>
                     <div className="db_cell"><label><Box /> APP STATE</label>{sizeMb(stats.state_size + stats.buckets.reduce((acc, [, e]) => acc + e, 0), "xx_large_text")}</div>
                     <div className="db_cell"><label><Treasury /> <IcpAccountLink address={stats.account} label={"TREASURY"}/></label><ICPAccountBalance address={stats.account} /></div>
-                    <div className="db_cell"><label><HourGlass /> DISTRIBUTION</label><code className="xx_large_text">{`${hoursTillNext(604800000000000, last_chores)}h`}</code></div>
+                    <div className="db_cell"><label><HourGlass /> DISTRIBUTION</label><code className="xx_large_text">{`${hoursTillNext(604800000000000, last_weekly_chores)}h`}</code></div>
                     <div className="db_cell"><label><Cycles /> CYCLES SUPPLY</label>{show(stats.cycles)}</div>
                     <div className="db_cell"><label><Fire /> CYCLES BURNED</label>{show(stats.burned_cycles_total)}</div>
                     <div className="db_cell"><label><Cash /> WEEK'S REVENUE</label>{show(stats.burned_cycles)}</div>

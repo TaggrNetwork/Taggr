@@ -41,7 +41,8 @@ pub type Karma = i64;
 pub type Blob = ByteBuf;
 
 const HOUR: u64 = 3600000000000_u64;
-const WEEK: u64 = 7 * 24 * HOUR;
+const DAY: u64 = 24 * HOUR;
+const WEEK: u64 = 7 * DAY;
 
 #[derive(Serialize, Deserialize)]
 pub struct NNSProposal {
@@ -82,7 +83,7 @@ pub struct Stats {
     posts: usize,
     comments: usize,
     account: String,
-    last_chores: u64,
+    last_weekly_chores: u64,
     stalwarts: Vec<UserId>,
     bots: Vec<UserId>,
     state_size: u64,
@@ -128,7 +129,13 @@ pub struct State {
     pub next_user_id: UserId,
     pub accounting: Invoices,
     pub storage: storage::Storage,
+    // TODO: delete
+    #[serde(skip)]
     pub last_chores: u64,
+    #[serde(default)]
+    pub last_weekly_chores: u64,
+    #[serde(default)]
+    pub last_daily_chores: u64,
     pub last_hourly_chores: u64,
     pub logger: Logger,
     pub hot: VecDeque<PostId>,
@@ -1040,6 +1047,24 @@ impl State {
         }
     }
 
+    async fn daily_chores(&mut self, now: u64) {
+        for proposal_id in self
+            .proposals
+            .iter()
+            .filter_map(|p| (p.status == Status::Open).then_some(p.id))
+            .collect::<Vec<_>>()
+        {
+            if let Err(err) = proposals::execute_proposal(self, proposal_id, now).await {
+                self.logger
+                    .error(format!("Couldn't execute last proposal: {:?}", err));
+            }
+        }
+
+        self.recompute_stalwarts(now);
+
+        self.memory.report_health(&mut self.logger);
+    }
+
     async fn hourly_chores(&mut self, now: u64) {
         self.top_up().await;
 
@@ -1146,26 +1171,18 @@ impl State {
             self.hourly_chores(now).await;
             self.last_hourly_chores += HOUR;
         }
-        if self.last_chores + WEEK < now {
+        if self.last_daily_chores + DAY < now {
+            self.daily_chores(now).await;
+            self.last_daily_chores += DAY;
+        }
+        if self.last_weekly_chores + WEEK < now {
             self.weekly_chores(now).await;
-            self.last_chores += WEEK;
+            self.last_weekly_chores += WEEK;
         }
     }
 
-    pub async fn weekly_chores(&mut self, now: u64) {
+    pub async fn weekly_chores(&mut self, _now: u64) {
         self.clean_up();
-
-        for proposal_id in self
-            .proposals
-            .iter()
-            .filter_map(|p| (p.status == Status::Open).then_some(p.id))
-            .collect::<Vec<_>>()
-        {
-            if let Err(err) = proposals::execute_proposal(self, proposal_id, now).await {
-                self.logger
-                    .error(format!("Couldn't execute last proposal: {:?}", err));
-            }
-        }
 
         // We only mint and distribute if no open proposals exists
         if self.proposals.iter().all(|p| p.status != Status::Open) {
@@ -1181,13 +1198,8 @@ impl State {
                     return;
                 }
             };
-
-            self.recompute_stalwarts(now);
-
             self.mint(user_ids);
         }
-
-        self.memory.report_health(&mut self.logger);
     }
 
     fn clean_up(&mut self) {
@@ -1595,7 +1607,7 @@ impl State {
             module_hash: self.module_hash.clone(),
             canister_id: ic_cdk::id(),
             last_upgrade: self.last_upgrade,
-            last_chores: self.last_chores,
+            last_weekly_chores: self.last_weekly_chores,
             canister_cycle_balance: canister_balance(),
             users: self.users.len(),
             posts,

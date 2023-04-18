@@ -82,6 +82,9 @@ fn post_upgrade() {
     for realm in s.realms.values_mut() {
         realm.posts.sort_unstable();
     }
+
+    s.last_weekly_chores = 1681498800000000000;
+    s.last_daily_chores = 1681714800000000000;
 }
 
 /*
