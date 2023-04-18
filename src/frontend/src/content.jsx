@@ -22,6 +22,7 @@ const previewImg = src => {
 };
 
 const linkTagsAndUsers = value => {
+    if (!value) return value;
     const users = getTokens("@", value);
     const tags = getTokens("#$", value);
     value = tags.reduce((r, tag) => 
@@ -38,8 +39,9 @@ export const Content = ({post, value = "", blobs = [], collapse, preview, primeM
 
     if (!post) return <ReactMarkdown children={linkTagsAndUsers(value)} remarkPlugins={[remarkGfm]} className={classNameArg} />;
 
-    let shortened = value.includes(CUT);
+    let shortened = primeMode && value.includes(CUT);
     let extValue;
+
     if (shortened) {
         const parts = value.split(CUT);
         value = parts[0];
@@ -47,7 +49,6 @@ export const Content = ({post, value = "", blobs = [], collapse, preview, primeM
     } else if (preview) {
         value = value.replace(CUT, "\n\n- - -\n\n");
     }
-
     const complexPost = ["# ", "## ", "!["].some(pref => value.startsWith(pref));
     const words = value.split(" ").length;
     const lines = value.split("\n").length;
@@ -58,6 +59,7 @@ export const Content = ({post, value = "", blobs = [], collapse, preview, primeM
     }
 
     value = linkTagsAndUsers(value);
+    extValue = linkTagsAndUsers(extValue);
 
     return <>
         {markdownizer(value, urls, setUrls, blobs, primeMode, className)}
@@ -70,8 +72,9 @@ export const Content = ({post, value = "", blobs = [], collapse, preview, primeM
 
 const isALink = val => val.match(/^https?:\/\/.+$/) || val.match(/^www\..+$/);
 
-const markdownizer = (value, urls, setUrls, blobs, primeMode, className = null) => 
-    React.useMemo(() => !value ? null : <ReactMarkdown children={value} remarkPlugins={[remarkGfm]} className={className}
+const markdownizer = (value, urls, setUrls, blobs, primeMode, className = null) => !value
+    ? null
+    : <ReactMarkdown children={value} remarkPlugins={[remarkGfm]} className={className}
         components={{
             a: ({ node, children = [], ...props}) => {
                 let target = "_self";
@@ -141,7 +144,7 @@ const markdownizer = (value, urls, setUrls, blobs, primeMode, className = null) 
                 return <img {...props} onClick={() => { if (!props.thumbnail) previewImg(props.src) } } />
             }
         }}
-    />, [value, blobs]);
+    />;
 
 const Gallery = ({children}) => {
     const [currentPic, setCurrentPic] = React.useState(0);

@@ -25,7 +25,7 @@ export const authMethods = [
     },
     {
         icon: <Incognito />,
-        label: "SEED PHRASE V2",
+        label: "SEED PHRASE",
         login: async () => <SeedPhraseForm callback={async seed => {
             if(!seed) return;
             const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', (new TextEncoder()).encode(seed)));
@@ -34,19 +34,7 @@ export const authMethods = [
             localStorage.setItem("SEED_PHRASE_V2", true);
             location.reload();
         }} />,
-    },
-    {
-        icon: <Lock />,
-        label: "SEED PHRASE V1",
-        login: () => <SeedPhraseForm callback={async seed => {
-            if(!seed) return;
-            const hash = await crypto.subtle.digest('SHA-256', (new TextEncoder()).encode(seed));
-            localStorage.setItem("IDENTITY_DEPRECATED", (new TextDecoder("utf-8").decode(hash)))
-            localStorage.setItem("SEED_PHRASE_V1", true);
-            location.reload();
-        }} />,
-        logout: () => localStorage.removeItem(SEEDPHRASE_IDENTITY_KEY),
-    },
+    }
 ];
 
 export const logout = () => {
