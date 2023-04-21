@@ -1118,8 +1118,8 @@ impl State {
             .into_iter()
             .filter(|proposal| proposal.id > last_known_proposal_id)
         {
-            // Reject all non-supported proposals (non governance and non replica management) right away
-            if ![4, 13].contains(&proposal.topic) {
+            // Reject all non-supported proposals (except governance, SNS & replica-management)
+            if ![4, 13, 14].contains(&proposal.topic) {
                 if let Err(err) =
                     canisters::vote_on_nns_proposal(proposal.id, NNSVote::Reject).await
                 {
