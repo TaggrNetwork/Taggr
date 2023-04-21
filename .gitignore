@@ -12,8 +12,13 @@
 
 # rust
 target/
+release-artifacts/
 
 # frontend code
 node_modules/
 dist/
 public
+
+# e2e tests
+test-results/
+playwright-report/

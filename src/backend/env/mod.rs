@@ -1251,7 +1251,7 @@ impl State {
     }
 
     pub fn recompute_stalwarts(&mut self, now: u64) {
-        let mut users = self.users.values_mut().into_iter().collect::<Vec<_>>();
+        let mut users = self.users.values_mut().collect::<Vec<_>>();
         users.sort_unstable_by_key(|a| std::cmp::Reverse(a.karma()));
 
         let mut stalwart_seats = users.len() * CONFIG.stalwart_percentage / 100;

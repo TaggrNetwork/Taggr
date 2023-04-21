@@ -9,18 +9,13 @@ use ic_cdk::export::candid::Principal;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-#[derive(Clone, Deserialize, Debug, PartialEq, Serialize)]
+#[derive(Clone, Default, Deserialize, Debug, PartialEq, Serialize)]
 pub enum Status {
+    #[default]
     Open,
     Rejected,
     Executed,
     Cancelled,
-}
-
-impl Default for Status {
-    fn default() -> Self {
-        Status::Open
-    }
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -128,17 +123,12 @@ impl Proposal {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub enum Payload {
+    #[default]
     Noop,
     Release(Release),
     Fund(String, Token),
-}
-
-impl Default for Payload {
-    fn default() -> Self {
-        Payload::Noop
-    }
 }
 
 impl Payload {

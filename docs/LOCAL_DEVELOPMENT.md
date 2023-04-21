@@ -4,12 +4,13 @@
 
 Make sure to follow the steps outlined in the rest of this file before using these commands.
 
-| Description                 | Command         |
-| --------------------------- | --------------- |
-| Build the canister          | make build      |
-| Start the local replica     | make start      |
-| Start the frontend server   | npm start       |
-| Deploy the canister locally | make dev_deploy |
+| Description                 | Command         | Note                                               |
+| --------------------------- | --------------- | -------------------------------------------------- |
+| Build the canister          | make build      |                                                    |
+| Start the local replica     | make start      |                                                    |
+| Start the frontend server   | npm start       |                                                    |
+| Deploy the canister locally | make dev_deploy |                                                    |
+| Run e2e tests               | make e2e_test   | If you're using Ubuntu, it must be an LTS version. |
 
 ## System Dependencies
 
@@ -35,12 +36,12 @@ cd taggr
 
 The remaining steps are only necessary for deploying NNS canisters locally. This makes it easier to test new account creation with Internet Identity or to make ICP transfers to those accounts. Alternatively, you can [create a backup](#creating-and-restoring-backups) and then refer to the [command reference](#command-reference) to build and deploy.
 
-Create or edit `~/.config/dfx/networks.json`, and add the following:
+Create or edit `~/.config/dfx/networks.json`, and add the following, note that `dfx install` requires port `8080` to work:
 
 ```json
 {
   "local": {
-    "bind": "127.0.0.1:55554",
+    "bind": "127.0.0.1:8080",
     "type": "ephemeral",
     "replica": {
       "subnet_type": "system"
@@ -91,6 +92,12 @@ Change to the new identity in DFX:
 
 ```shell
 dfx identity use local-minter
+```
+
+Stop running DFX, Taggr is setup with the assumption that DFX runs on port `55554` so use the `make start` command from now on to start DFX:
+
+```shell
+dfx stop
 ```
 
 At this point, you can refer to the [command reference](#command-reference) to deploy and run Taggr, create a new account and grab your account ID. Then you can transfer ICP to that account with this command:

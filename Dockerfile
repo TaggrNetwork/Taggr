@@ -39,5 +39,9 @@ RUN mkdir -p /opt/ic-wasm && \
 # Install dfx
 RUN sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
 
+# Install Playwright dependencies
+RUN npx playwright install chromium --with-deps
+
 COPY . .
-RUN make build
+
+ENTRYPOINT [ "./release.sh" ]

@@ -13,6 +13,7 @@
     "start": "webpack serve --mode development --env development"
   },
   "devDependencies": {
+    "@playwright/test": "^1.32.3",
     "buffer": "6.0.3",
     "copy-webpack-plugin": "^9.0.1",
     "html-webpack-plugin": "5.5.0",

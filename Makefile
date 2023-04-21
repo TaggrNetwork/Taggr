@@ -16,16 +16,25 @@ build:
 	NODE_ENV=production make fe
 	./build.sh bucket
 	./build.sh taggr
+
+test:
 	cargo clippy --tests --benches -- -D clippy::all
 	cargo test
-	shasum -a 256 target/wasm32-unknown-unknown/release/taggr.wasm.gz
 
 fe:
 	rm -rf ./dist ./public
 	npm run build
 
+e2e_test:
+	npx playwright install chromium --with-deps
+	make build
+	make start || true # don't fail if DFX is already running
+	make dev_deploy
+	npx playwright test
+	dfx stop
+
 release:
 	docker build -t taggr .
-	docker run --rm --entrypoint cat taggr /target/wasm32-unknown-unknown/release/taggr.wasm.gz > release.wasm.gz
-	shasum -a 256 release.wasm.gz
+	docker run --rm -v $(shell pwd)/release-artifacts:/target/wasm32-unknown-unknown/release taggr
+	shasum -a 256 ./release-artifacts/taggr.wasm.gz
 	git rev-parse HEAD
