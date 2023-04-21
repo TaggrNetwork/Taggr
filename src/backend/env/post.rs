@@ -365,8 +365,8 @@ pub async fn add(
         ));
     }
     let realm = match parent.and_then(|id| state.posts.get(&id)) {
-        None => picked_realm.or_else(|| user.current_realm.clone()),
         Some(post) => post.realm.clone(),
+        None => picked_realm,
     };
     if let Some(name) = &realm {
         if !user.realms.contains(name) {

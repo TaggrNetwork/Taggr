@@ -2594,7 +2594,7 @@ pub(crate) mod tests {
             p1,
             0,
             None,
-            None,
+            Some("SYNAPSE".into()),
             None,
         )
         .await
@@ -2602,6 +2602,22 @@ pub(crate) mod tests {
 
         assert_eq!(state.posts.get(&post_id).unwrap().realm, Some(name.clone()));
         assert!(state.realms.get(&name).unwrap().posts.contains(&post_id));
+
+        // We can also post outside of a realm while staying in a realm.
+        let post_id = add(
+            &mut state,
+            "Realm post".to_string(),
+            vec![],
+            p1,
+            0,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(state.posts.get(&post_id).unwrap().realm, None);
 
         // comments not possible if user is not in the realm
         assert_eq!(
@@ -2632,9 +2648,9 @@ pub(crate) mod tests {
                 None
             )
             .await,
-            Ok(1)
+            Ok(2)
         );
-        assert!(state.realms.get(&name).unwrap().posts.contains(&1));
+        assert!(state.realms.get(&name).unwrap().posts.contains(&2));
 
         // Create post without a realm
         state.enter_realm(p1, Default::default());
@@ -2728,7 +2744,7 @@ pub(crate) mod tests {
                 None
             )
             .await,
-            Ok(4)
+            Ok(5)
         );
 
         // Make sure the user is in SYNAPSE realm
@@ -2743,7 +2759,7 @@ pub(crate) mod tests {
         assert_eq!(
             edit(
                 &mut state,
-                4,
+                5,
                 "changed".to_string(),
                 vec![],
                 "".to_string(),
@@ -2756,11 +2772,11 @@ pub(crate) mod tests {
         );
 
         // Move post to SYNAPSE realms
-        assert_eq!(state.posts.get(&4).unwrap().realm, Some(realm_name));
+        assert_eq!(state.posts.get(&5).unwrap().realm, Some(realm_name));
         assert_eq!(
             edit(
                 &mut state,
-                4,
+                5,
                 "changed".to_string(),
                 vec![],
                 "".to_string(),
@@ -2772,7 +2788,7 @@ pub(crate) mod tests {
             Ok(())
         );
         assert_eq!(
-            state.posts.get(&4).unwrap().realm,
+            state.posts.get(&5).unwrap().realm,
             Some("SYNAPSE".to_string())
         );
     }
