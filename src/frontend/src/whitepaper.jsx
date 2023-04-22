@@ -1,7 +1,7 @@
 import * as React from "react";
 import {HeadBar} from "./common";
 import {Content} from "./content";
-import template from '../../../WHITEPAPER.md';
+import template from '../../../docs/WHITEPAPER.md';
 
 
 export const Whitepaper = () => {
