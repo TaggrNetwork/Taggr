@@ -78,7 +78,7 @@ export const Proposal = ({id}) => {
     const statusEmoji = status => { return {"OPEN": "✨", "REJECTED": "🟥", "CANCELLED": "❌", "EXECUTED": "✅" }[status] || <HourGlass /> };
 
     const vote = async (proposal, adopted) => {
-        if ("Release" in proposal.payload) {
+        if ("Release" in proposal.payload && adopted) {
             const hash = prompt("Please enter the build hash:");
             if (!hash) return;
             if (proposal.payload.Release.hash != hash) {
