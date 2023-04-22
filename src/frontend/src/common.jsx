@@ -4,8 +4,8 @@ import DiffMatchPatch from 'diff-match-patch';
 import { Clipboard, ClipboardCheck, Flag, Menu, Share} from "./icons";
 import {loadFile, MAX_POST_SIZE_BYTES} from "./form";
 
-export const percentage = (n, supply) => {
-    let p = Math.ceil(parseInt(n) / (supply || 1) * 10000) / 100;
+export const percentage = (n, total) => {
+    let p = Math.ceil(parseInt(n) / (total || 1) * 10000) / 100;
     return `${p}%`;
 }
 
@@ -243,8 +243,6 @@ export const objectReduce = (obj, f, initVal) => Object.keys(obj).reduce((acc, k
 const dmp = new DiffMatchPatch();
 export const getPatch = (A, B) => dmp.patch_toText(dmp.patch_make(A, B));
 export const applyPatch = (text, patch) => dmp.patch_apply(dmp.patch_fromText(patch), text);
-
-export const reactions = () => backendCache.config.reactions;
 
 export const reactionCosts = () => backendCache.config.reactions.reduce((acc, [id, cost, _]) => { acc[id] = cost; return acc }, {});
 

@@ -205,22 +205,16 @@ path { fill: $focus; }
     align-items: center;
 }
 
-.two_column_grid {
+.dynamic_table {
     display: grid;
     row-gap: 2em;
-    grid-template-columns: 50% 50%;
+    grid-template-columns: auto auto auto auto;
 }
 
 .two_column_grid_flex {
     display: grid;
     row-gap: 2em;
     grid-template-columns: auto auto;
-}
-
-.four_column_grid {
-    display: grid;
-    row-gap: 2em;
-    grid-template-columns: auto auto auto auto;
 }
 
 header {
@@ -591,6 +585,12 @@ a.accent, .accent { color: $accent; }
     body {
         padding-left: 0;
         padding-right: 0;
+    }
+
+    .dynamic_table {
+        display: grid;
+        row-gap: 2em;
+        grid-template-columns: 50% 50%;
     }
 
     .iconed {

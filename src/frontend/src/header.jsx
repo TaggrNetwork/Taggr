@@ -1,5 +1,5 @@
 import * as React from "react";
-import {bigScreen, BurgerButton, ButtonWithLoading, HeadBar, Loading, ReactionToggleButton, realmColors, RealmSpan, ToggleButton} from "./common";
+import {BurgerButton, ButtonWithLoading, HeadBar, Loading, ReactionToggleButton, realmColors, RealmSpan, ToggleButton} from "./common";
 import { LoginMasks, logout} from "./logins";
 import {Balloon, Bars, Bell, CarretDown, Close, Cycles, Document, Gear, Gem, Home, Journal, Logout, Realm, Save, Ticket, User, Wallet} from "./icons";
 
@@ -36,7 +36,7 @@ export const Header = ({subtle, route}) => {
             </div>
         </header>
         {showLogins && <LoginMasks />}
-        {showButtonBar && <div className="two_column_grid monospace top_spaced stands_out" style={{ rowGap: "1em" }}>
+        {showButtonBar && <div className="two_column_grid_flex monospace top_spaced stands_out" style={{ rowGap: "1em" }}>
             {user && <a className="iconed" onClick={() => toggleButtonBar(!showButtonBar)} href={`/#/journal/${user.name}`}><Journal /> JOURNAL</a>}
             {user && <a className="iconed" onClick={() => toggleButtonBar(!showButtonBar)} href={`/#/user/${user.name}`}><User /> {api._user.name.toUpperCase()}</a>}
             {user && <a className="iconed" onClick={() => toggleButtonBar(!showButtonBar)} href={`/#/realms`}><Realm /> REALMS</a>}
@@ -50,7 +50,7 @@ export const Header = ({subtle, route}) => {
             <a className="iconed" onClick={() => toggleButtonBar(!showButtonBar)} href="/#/whitepaper"><Document /> WHITE PAPER</a>
             <a className="iconed" href="" onClick={logout}><Logout /> LOGOUT</a>
         </div>}
-        {showRealms && <div className={`${bigScreen() ? "four_column_grid" : "two_column_grid"} monospace top_spaced stands_out`}>
+        {showRealms && <div className="dynamic_table monospace top_spaced stands_out">
             {user.realms.map(realm => <RealmSpan key={realm}
                 classNameArg="left_half_spaced right_half_spaced clickable padded_rounded text_centered"
                 onClick={async () => {

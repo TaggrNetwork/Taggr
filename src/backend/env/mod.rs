@@ -10,7 +10,7 @@ use crate::env::invoices::principal_to_subaccount;
 use crate::env::user::CyclesDelta;
 use crate::proposals::Proposal;
 use crate::token::{Account, Token, Transaction};
-use config::{CONFIG, ICP_CYCLES_PER_XDR};
+use config::{reaction_karma, CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{self, canister_balance};
 use ic_cdk::export::candid::Principal;
@@ -129,12 +129,7 @@ pub struct State {
     pub next_user_id: UserId,
     pub accounting: Invoices,
     pub storage: storage::Storage,
-    // TODO: delete
-    #[serde(skip)]
-    pub last_chores: u64,
-    #[serde(default)]
     pub last_weekly_chores: u64,
-    #[serde(default)]
     pub last_daily_chores: u64,
     pub last_hourly_chores: u64,
     pub logger: Logger,
@@ -1132,7 +1127,7 @@ impl State {
                 continue;
             }
             let post = format!(
-                "# #NNS-Proposal [{0}](https://dashboard.internetcomputer.org/proposal/{0}): {1}\n",
+                "# #NNS-Proposal [{0}](https://dashboard.internetcomputer.org/proposal/{0})\n## {1}\n",
                 proposal.id, proposal.title,
             ) + &format!(
                 "Proposer: [{0}](https://dashboard.internetcomputer.org/neuron/{0})\n\n\n\n{1}",
@@ -1790,15 +1785,13 @@ impl State {
 
         let comments_tree_penalty =
             post.tree_size as Cycles * CONFIG.post_deletion_penalty_factor as Cycles;
+        let karma = reaction_karma();
         let reaction_costs = post
             .reactions
             .iter()
             .filter_map(|(r_id, users)| {
-                CONFIG
-                    .reactions
-                    .iter()
-                    .find(|(id, cost)| id == r_id && *cost > 0)
-                    .map(|(_, cost)| (users, *cost as Cycles))
+                let cost = karma.get(r_id).copied().unwrap_or_default();
+                (cost > 0).then_some((users, cost as Cycles))
             })
             .collect::<Vec<_>>();
 

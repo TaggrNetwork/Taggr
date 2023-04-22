@@ -39,15 +39,14 @@ export const Content = ({post, value = "", blobs = [], collapse, preview, primeM
 
     if (!post) return <ReactMarkdown children={linkTagsAndUsers(value)} remarkPlugins={[remarkGfm]} className={classNameArg} />;
 
-    let shortened = primeMode && value.includes(CUT);
+    let cutPos = value.indexOf(CUT);
+    let shortened = primeMode && cutPos >= 0;
     let extValue;
 
     if (shortened) {
-        const parts = value.split(CUT);
-        value = parts[0];
-        extValue = parts[1];
-    } else if (preview) {
-        value = value.replace(CUT, "\n\n- - -\n\n");
+        extValue = value.slice(cutPos + CUT.length);
+        value = value.slice(0, cutPos);
+        if (preview) value += "\n\n- - -\n\n";
     }
     const complexPost = ["# ", "## ", "!["].some(pref => value.startsWith(pref));
     const words = value.split(" ").length;

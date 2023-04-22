@@ -104,7 +104,7 @@ export const RealmForm = ({existingName}) => {
                 <input type="checkbox" checked={!!theme} onChange={() => setTheme(theme ? null : themes.classic)} id="own_theme" />
                 <label className="left_half_spaced" htmlFor="own_theme">Use own theme</label>
             </div>
-            {theme && <div className={`${bigScreen() ? "four_column_grid" : "two_column_grid"} monospace vertically_spaced`}>
+            {theme && <div className="dynamic_table monospace vertically_spaced">
                 <div className="db_cell">
                     TEXT
                     <input type="color" value={theme.text} onChange={ev => setTheme({...theme, text: ev.target.value })} />
@@ -228,7 +228,7 @@ export const Realms = () => {
     return <>
         <HeadBar title="Realms" shareLink="realms"
             content={user && <button className="active" onClick={() => location.href = "/#/realm//new"}>CREATE</button>} />
-        <div className={bigScreen() ? "two_column_grid" : null} style={{rowGap: 0, columnGap: "1em"}}>
+        <div className={bigScreen() ? "two_column_grid_flex" : null} style={{rowGap: 0, columnGap: "1em"}}>
             {realms.map(([name, realm]) =>{
                 return <div key={name} className="stands_out" style={{position: "relative"}}>
                     <RealmRibbon name={name} />

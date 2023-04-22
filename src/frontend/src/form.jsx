@@ -290,7 +290,9 @@ const suggestTokens = (cursor, value, tokens, trigger) => {
         currentTag = value[i] + currentTag;
     }
     if (value[i] == trigger) {
-        const result = tokens.filter(tag => tag.toLowerCase().startsWith(currentTag.toLowerCase()))
+        const result = tokens
+            .filter(tag => tag.length > currentTag.length)
+            .filter(tag => tag.toLowerCase().startsWith(currentTag.toLowerCase()))
             .map(tag => currentTag + tag.slice(currentTag.length, tag.length));
         result.sort((a, b) => { if (a.length != b.length) { return a.length - b.length} else { return a < b } });
         return result.slice(0, MAX_SUGGESTED_TAGS);

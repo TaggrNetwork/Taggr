@@ -12,12 +12,14 @@ export const Settings = ({invite = null}) => {
     const [timer, setTimer] = React.useState(null);
     const [uiRefresh, setUIRefresh] = React.useState(false);
 
-    React.useEffect(() => {
+    const updateData = user => {
         if (!user) return;
         setAbout(user.about);
         setControllers(user.controllers.join("\n"));
         setSettings(user.settings);
-    }, [user])
+    };
+
+    React.useEffect(() => updateData(user), [user])
 
     const setSetting = (key, e) => {
         const newSettings = {};
@@ -43,6 +45,7 @@ export const Settings = ({invite = null}) => {
         if (!user) location.href = "/";
         else if (uiRefresh) {
             await api._reloadUser();
+            updateData(api._user);
         }
     };
 

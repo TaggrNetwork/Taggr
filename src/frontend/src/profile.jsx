@@ -1,5 +1,5 @@
 import * as React from "react";
-import { timeAgo, NotFound, ToggleButton, commaSeparated, Loading, RealmSpan, HeadBar, userList, bigScreen, tokenBalance, FlagButton, ReportBanner } from './common';
+import { timeAgo, NotFound, ToggleButton, commaSeparated, Loading, RealmSpan, HeadBar, userList, bigScreen, tokenBalance, FlagButton, ReportBanner, UserLink, percentage } from './common';
 import {Content} from "./content";
 import {Journal} from "./icons";
 import {PostFeed} from "./post_feed";
@@ -8,6 +8,7 @@ import {Cycles, YinYan} from "./icons";
 export const Profile = ({handle}) => {
     // loadingStatus: 0 initial, 1 loaded, -1 not found
     const [profile, setProfile] = React.useState({ loadingStatus: 0 });
+    const [allEndorsememnts, setAllEndorsements] = React.useState(false);
     const [fullAccounting, setFullAccounting] = React.useState(false);
 
     const updateState = async () => {
@@ -42,6 +43,9 @@ export const Profile = ({handle}) => {
     const { feed_page_size } = backendCache.config;
     const user = api._user;
     const showReport = profile.report && !profile.report.closed && user && user.stalwart;
+    const karma_from_last_posts = Object.entries(profile.karma_from_last_posts);
+    karma_from_last_posts.sort(([_id1, e1], [_id2, e2]) => e2 - e1);
+    const endorsementsTotal = karma_from_last_posts.reduce((acc, [_, karma]) => acc + karma, 0);
 
     return <>
         <HeadBar title={<UserName profile={profile} />} shareLink={`user/${profile.id}`}
@@ -54,11 +58,40 @@ export const Profile = ({handle}) => {
             </div>} />
         {showReport && <ReportBanner id={profile.id} reportArg={profile.report} domain="misbehaviour" />}
         <UserInfo profile={profile} />
-        {trusted(profile) && !stalwart(profile) && !isBot(profile) && <>
+        <div className="spaced">
+            <h2>Karma from last {backendCache.config.feed_page_size * 3} posts</h2>
+            <div className="dynamic_table">
+                {(allEndorsememnts ? karma_from_last_posts : karma_from_last_posts.slice(0, bigScreen() ? 8 : 6)).map(([userId, karma]) =>
+                <div key={userId} className="db_cell">
+                    {<UserLink id={userId} />}
+                    <code>{percentage(karma, endorsementsTotal)}</code>
+                </div>)}
+            </div>
+            {!allEndorsememnts && <button className="top_spaced" onClick={() => setAllEndorsements(true)}>SHOW ALL</button>}
+        </div>
+        <hr />
+        {profile.accounting.length > 0 && <>
+            <div className="spaced">
+                <h2>Karma and Cycles Changes</h2>
+                <table style={{width: "100%"}} className={`monospace ${bigScreen() ? "" : "small_text"}`}>
+                    <tbody>
+                        {(fullAccounting ? profile.accounting : profile.accounting.slice(0,10))
+                                .map(([timestamp, type, delta, log], i) => 
+                                    <tr className="stands_out" key={type+log+i}>
+                                        <td>{timeAgo(timestamp)}</td>
+                                        <td style={{color: delta > 0 ? "green" : "red", textAlign: "right"}} className="no_wrap">{delta > 0 ? "+" : ""}{delta} {type == "KRM" ? <YinYan /> : <Cycles />}</td>
+                                        <td style={{textAlign: "right"}}>{linkPost(log)}</td>
+                                    </tr>)}
+                    </tbody>
+                </table>
+                {!fullAccounting && <button onClick={() => setFullAccounting(true)}>SHOW ALL</button>}
+            </div>
             <hr />
+        </>}
+        {trusted(profile) && !stalwart(profile) && !isBot(profile) && <>
             <div className="spaced">
                 <h2>Stalwart Progress</h2>
-                <div className={bigScreen() ? "four_column_grid" : "two_column_grid"}>
+                <div className="dynamic_table">
                     <div className="db_cell monospace">
                         KARMA NEEDED
                         <code>{Math.max(0, stalwartMinKarma() - profile.karma)}</code>
@@ -76,12 +109,12 @@ export const Profile = ({handle}) => {
                     </div>
                 </div>
             </div>
+            <hr />
         </>}
         {!trusted(profile) && <>
-            <hr />
             <div className="spaced">
                 <h2>Bootcamp Progress</h2>
-                <div className="two_column_grid">
+                <div className="dynamic_table">
                     <div className="db_cell monospace">
                         KARMA NEEDED
                         <code>{Math.max(0, backendCache.config.trusted_user_min_karma - profile.karma)}</code>
@@ -95,24 +128,8 @@ export const Profile = ({handle}) => {
                     </div>
                 </div>
             </div>
+            <hr />
         </>}
-        <hr />
-        <div className="spaced">
-            <h1>Karma and Cycles Changes</h1>
-            <table style={{width: "100%"}} className={`monospace ${bigScreen() ? "" : "small_text"}`}>
-                <tbody>
-                    {(fullAccounting ? profile.accounting : profile.accounting.slice(0,10))
-                            .map(([timestamp, type, delta, log], i) => 
-                                <tr className="stands_out" key={type+log+i}>
-                                    <td>{timeAgo(timestamp)}</td>
-                                    <td style={{color: delta > 0 ? "green" : "red", textAlign: "right"}} className="no_wrap">{delta > 0 ? "+" : ""}{delta} {type == "KRM" ? <YinYan /> : <Cycles />}</td>
-                                    <td style={{textAlign: "right"}}>{linkPost(log)}</td>
-                                </tr>)}
-                </tbody>
-            </table>
-            <button onClick={() => setFullAccounting(true)}>SHOW ALL</button>
-        </div>
-        <hr />
         {profile.posts.length > 0 && <h2 className="spaced">Latest posts</h2>}
         <PostFeed feedLoader={async page => {
             if (profile.loadingStatus != 1) return;
@@ -169,7 +186,7 @@ export const UserInfo = ({profile}) => {
             <Content classNameArg="larger_text " value={profile.about} />
             <hr />
         </>}
-        <div className="two_column_grid monospace">
+        <div className="dynamic_table monospace">
             <div className="db_cell">
                 KARMA
                 <code>{profile.karma.toLocaleString()}</code>
@@ -212,9 +229,12 @@ export const UserInfo = ({profile}) => {
             </div>}
         </div>
         <hr />
-        <h2>INTERESTS</h2>
-        {feeds}
-        {realms}
+        {(feeds || realms) && <>
+            <h2>INTERESTS</h2>
+            {feeds}
+            {realms}
+            <hr />
+        </>}
     </div>;
 };
 

@@ -19,7 +19,7 @@ export const Dashboard = ({fullMode}) => {
         {fullMode && <HeadBar title="Dashboard" shareLink="dashboard" />}
         {!fullMode && 
             <div className="text_centered">
-                <div className={`${bigScreen() ? "four_column_grid" : "two_column_grid"} monospace bottom_spaced`}>
+                <div className="dynamic_table monospace bottom_spaced">
                     <div className="db_cell"><label><User /> USERS</label>{show(stats.users)}</div>
                     <div className="db_cell"><label><ActiveUser /> ACTIVE (7d)</label>{show(stats.active_users)}</div>
                     <div className="db_cell"><label><Online /> ONLINE</label>{show(Math.max(1, backendCache.stats.users_online))}</div>
@@ -33,7 +33,7 @@ export const Dashboard = ({fullMode}) => {
             </div>}
         {fullMode && 
             <div className="text_centered">
-                <div className={`${bigScreen() ? "four_column_grid" : "two_column_grid"} monospace`}>
+                <div className="dynamic_table monospace">
                     <div className="db_cell"><label><User /> USERS</label>{show(stats.users)}</div>
                     <div className="db_cell"><label><ActiveUser /> ACTIVE (7d)</label>{show(stats.active_users)}</div>
                     <div className="db_cell"><label><Online /> ONLINE</label>{show(Math.max(1, backendCache.stats.users_online))}</div>
@@ -56,8 +56,8 @@ export const Dashboard = ({fullMode}) => {
             <div className="monospace spaced">
                 <hr />
                 <div className="text_centered">
-                    <h1><Canisters /> Canisters</h1>
-                    <div className={bigScreen() ? "four_column_grid" : "two_column_grid"}>
+                    <h2><Canisters /> Canisters</h2>
+                    <div className="dynamic_table">
                         <div className="db_cell">
                             <a href={`https://dashboard.internetcomputer.org/canister/${backendCache.stats.canister_id}`}><Canister /> MAIN</a>
                             <div className="db_cell top_spaced bottom_spaced">
@@ -86,8 +86,8 @@ export const Dashboard = ({fullMode}) => {
                 </div>
                 <hr />
                 <div className="text_centered">
-                    <h1><Globe /> Domains</h1>
-                    <div className={bigScreen() ? "four_column_grid" : "two_column_grid"} style={{rowGap: "1em"}}>
+                    <h2><Globe /> Domains</h2>
+                    <div className="dynamic_table" style={{rowGap: "1em"}}>
                         {backendCache.config.domains.map(domain => <a key={domain} href={`https://${domain}`}>{domain}</a>)}
                     </div>
                 </div>
@@ -105,7 +105,7 @@ export const Dashboard = ({fullMode}) => {
                 <hr />
                 <h2><Trophy /> WEEKLY KARMA LEADERS</h2>
                 <hr />
-                <div className={bigScreen() ? "four_column_grid" : "two_column_grid_flex"}>
+                <div className={bigScreen() ? "dynamic_table" : "two_column_grid_flex"}>
                     {stats.weekly_karma_leaders.map(([id, karma]) => <div key={id}><UserLink id={id} /> (<span className="accent">{karma.toLocaleString()}</span>)</div>)}
                 </div>
                 <hr />

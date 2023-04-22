@@ -41,7 +41,7 @@ export const Tokens = () => {
         <HeadBar title="Tokens" shareLink="tokens" />
         {balances.length == 0 && <Loading />}
         {balances.length > 0 && <div className="spaced">
-            <div className={`${bigScreen() ? "four_column_grid" : "two_column_grid"} monospace vertically_spaced`}>
+            <div className="dynamic_table monospace vertically_spaced">
                 <div className="db_cell">
                     Minted<code>{token(mintedSupply)}</code>
                 </div>
@@ -55,7 +55,7 @@ export const Tokens = () => {
                     approval threshold<code>{proposal_approval_threshold}%</code>
                 </div>
             </div>
-            <h1>Top 100 Distribution</h1>
+            <h2>Top 100 Distribution</h2>
             <div className="row_container bottom_spaced">
                 {balances.slice(0, 100).map(b => <div
                     key={b[0]}
@@ -66,7 +66,7 @@ export const Tokens = () => {
             </div>
             Holder: {holder < 0 ? "none" : <UserLink id={holder} />}
             <hr />
-            <h1>Balances</h1>
+            <h2>Balances</h2>
             <table style={{width: "100%"}}>
                 <thead className={bigScreen() ? null : "small_text"}>
                     <tr>
@@ -89,7 +89,7 @@ export const Tokens = () => {
                 <ButtonWithLoading classNameArg="active" onClick={() => setBalPage(balPage + 1)} label="MORE" />
             </div>
             <hr />
-            <h1>Latest transactions</h1>
+            <h2>Latest transactions</h2>
             <div className="row_container">
                 <input id="search_field" className="monospace max_width_col" type="search"
                     placeholder="Principal or username" value={term}

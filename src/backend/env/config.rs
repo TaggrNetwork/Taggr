@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use crate::token::Token;
 
 use super::{Cycles, Karma};
@@ -182,9 +184,9 @@ pub const CONFIG: &Config = &Config {
     revenue_share_activity_weeks: 2,
     voting_power_activity_weeks: 8,
 
-    stalwart_percentage: 2,
+    stalwart_percentage: 3,
     // TODO: set back to 6 in 6 weeks
-    min_stalwart_activity_weeks: 2,
+    min_stalwart_activity_weeks: 3,
     min_stalwart_account_age_weeks: 26,
     stalwart_moderation_reward: 20,
 
@@ -207,3 +209,13 @@ pub const CONFIG: &Config = &Config {
 
     neuron_id: 10733610488223369883,
 };
+
+pub fn reaction_karma() -> BTreeMap<u16, Karma> {
+    CONFIG
+        .reactions
+        .iter()
+        .fold(BTreeMap::default(), |mut acc, (id, karma)| {
+            acc.insert(*id, *karma);
+            acc
+        })
+}

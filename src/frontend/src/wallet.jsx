@@ -183,7 +183,10 @@ export const Wallet = () => {
                     }} />
                 </div>
                 <div className="vcentered">
-                    <code className="max_width_col"><CopyToClipboard value={user.principal} displayMap={val => bigScreen() ? val : val.split("-")[0]} /></code>
+                    <code className="max_width_col">
+                        <CopyToClipboard value={user.principal}
+                            displayMap={val => bigScreen() ? val : val.split("-")[0]} />
+                    </code>
                     <code className="xx_large_text">{tokenBalance(user.balance)}</code>
                 </div>
                 <hr/>

@@ -2,7 +2,7 @@ import * as React from "react";
 import { Form } from './form';
 import { Content } from './content';
 import { Poll } from './poll';
-import { isRoot, BurgerButton, reactions, timeAgo, ToggleButton, NotFound, applyPatch, loadPostBlobs, ShareButton, commaSeparated, Loading, objectReduce, reactionCosts, postUserToPost, loadPost,
+import { isRoot, BurgerButton, timeAgo, ToggleButton, NotFound, applyPatch, loadPostBlobs, ShareButton, commaSeparated, Loading, objectReduce, reactionCosts, postUserToPost, loadPost,
     ReactionToggleButton, RealmRibbon, setTitle, ButtonWithLoading, bigScreen, UserLink, FlagButton, ReportBanner } from './common';
 import {PostFeed} from "./post_feed";
 import {reaction2icon, Edit, Save, Unsave, Watch, Unwatch, Repost, Coin, New, CommentArrow, CarretRight, Trash, Comment, Close } from "./icons";
@@ -277,13 +277,9 @@ const PostInfo = ({post, version, postCreated, callback}) => {
                 <b>TIPS</b>: {commaSeparated(post.tips.map(([id, tip]) => <span key={id + tip}><code>{tip}</code> from {<UserLink id={id} />}</span>))}
             </div>}
             {Object.keys(post.reactions).length > 0 && <div className="top_spaced">
-                {Object.keys(post.reactions).map(id => {
-                    let users = post.reactions[id];
-                    const [reactId, _cost] = reactions().find(([reaction_id, _cost, _]) => reaction_id == id);
-                    return <div key={id} className="bottom_half_spaced">
+                {Object.entries(post.reactions).map(([reactId, users]) => <div key={reactId} className="bottom_half_spaced">
                         {reaction2icon(reactId)} {commaSeparated(users.map(id => <UserLink key={id} id={id} />))}
-                    </div>;
-                })}</div>}
+                    </div>)}</div>}
         </div>
     </>;
 };
@@ -318,20 +314,17 @@ const PostBar = ({post, react, highlighted, highlightOp, repost, showInfo, toggl
 }
 
 export const ReactionsPicker = ({react}) => <>
-    {reactions().map(([id, _]) => <button key={id} className="left_half_spaced" onClick={() => react(id)}>{reaction2icon(id)}</button>)}
+    {backendCache.config.reactions.map(([id, _]) => <button key={id} className="left_half_spaced" onClick={() => react(id)}>{reaction2icon(id)}</button>)}
 </>;
 
 export const Reactions = ({reactionsMap, react}) => {
     if (Object.keys(reactionsMap).length == 0) return null;
     return <div className="vcentered flex_ended">
-        {Object.keys(reactionsMap).map(id => {
-            const users = reactionsMap[id];
+        {Object.entries(reactionsMap).map(([reactId, users]) => {
+            if (users.length == 0) return null;
             const reacted = users.includes(api._user?.id);
-            const reaction = reactions().find(([reaction_id, _cost, _]) => reaction_id == id);
-            if (!reaction || users.length == 0) return null;
-            const [reactId, _cost] = reaction;
-            return <button data-meta="skipClicks" key={id} className={"reaction_button " + (reacted ? "selected" : "unselected")}
-                onClick={() => react(id)}>
+            return <button data-meta="skipClicks" key={reactId} className={"reaction_button " + (reacted ? "selected" : "unselected")}
+                onClick={() => react(reactId)}>
                 {reaction2icon(reactId)}&nbsp;{`${users.length}`}
             </button>;
         })}

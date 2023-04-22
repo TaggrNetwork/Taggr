@@ -1,11 +1,11 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use candid::Principal;
 use env::{
     canisters::upgrade_main_canister,
-    config::CONFIG,
+    config::{reaction_karma, CONFIG},
     memory,
-    post::{change_realm, Extension, Post, PostId},
+    post::{Extension, Post, PostId},
     proposals::{Payload, Release, Status},
     token::account,
     user::{User, UserId},
@@ -75,16 +75,6 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
-    let s = state_mut();
-    for p_id in s.posts.keys().cloned().collect::<Vec<_>>() {
-        change_realm(s, p_id, s.posts.get(&p_id).unwrap().realm.clone());
-    }
-    for realm in s.realms.values_mut() {
-        realm.posts.sort_unstable();
-    }
-
-    s.last_weekly_chores = 1681498800000000000;
-    s.last_daily_chores = 1681714800000000000;
 }
 
 /*
@@ -743,6 +733,25 @@ fn user() {
             .unwrap_or_default();
         if own_profile_fetch {
             user.accounting.clear();
+        } else {
+            let karma = reaction_karma();
+            user.karma_from_last_posts = user
+                .posts
+                .iter()
+                .rev()
+                .take(CONFIG.feed_page_size * 3)
+                .filter_map(|post_id| state.posts.get(post_id))
+                .flat_map(|post| post.reactions.iter())
+                .flat_map(|(r_id, users)| {
+                    let cost = karma.get(r_id).copied().unwrap_or_default();
+                    users.iter().map(move |user_id| (*user_id, cost))
+                })
+                .fold(BTreeMap::default(), |mut acc, (user_id, karma)| {
+                    acc.entry(user_id)
+                        .and_modify(|e| *e += karma)
+                        .or_insert(karma);
+                    acc
+                });
         }
         user
     }));

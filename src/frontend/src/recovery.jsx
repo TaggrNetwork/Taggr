@@ -6,14 +6,14 @@ export const Recovery = () => {
     return <>
         <HeadBar title="Recovery" />
         <div className="spaced">
-            <h1>Status</h1>
+            <h2>Status</h2>
             <code>{backendCache.stats.emergency_release || "No emergencies today! ☀️"}</code>
-            <h1>Emergency binary</h1>
+            <h2>Emergency binary</h2>
             <FileUploadInput callback={async binary => {
                 await api.set_emergency_release(binary);
                 alert("Done!");
             }} />
-            <h1>Confirm binary</h1>
+            <h2>Confirm binary</h2>
             <input type="text" value={hash} onChange={e => setHash(e.target.value)} />
             <ButtonWithLoading onClick={async () => await api.call("confirm_emergency_release", hash)} label="SUBMIT" />
         </div>

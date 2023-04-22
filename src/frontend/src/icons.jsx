@@ -325,7 +325,7 @@ export const Logout = ({classNameArg}) =>
     </svg>;
 
 export const reaction2icon = id => {
-    switch (id) {
+    switch (parseInt(id)) {
         case 1:
             return <ThumbsDown />;
         case 50:

@@ -211,11 +211,13 @@ impl Post {
             return;
         }
         // negative reactions balance
+        let karma = reaction_karma();
         if self
             .reactions
             .iter()
-            .filter_map(|(id, _)| CONFIG.reactions.iter().find(|(rid, _)| id == rid))
-            .map(|(_, cost)| *cost)
+            .map(|(r_id, users)| {
+                karma.get(r_id).copied().unwrap_or_default() * users.len() as Karma
+            })
             .sum::<i64>()
             < 0
         {

@@ -54,6 +54,9 @@ pub struct User {
     pub active_weeks: u32,
     pub principal: Principal,
     pub report: Option<Report>,
+
+    #[serde(default)]
+    pub karma_from_last_posts: BTreeMap<UserId, Karma>,
 }
 
 impl User {
@@ -90,6 +93,7 @@ impl User {
             balance: 0,
             active_weeks: 0,
             principal,
+            karma_from_last_posts: Default::default(),
         }
     }
 

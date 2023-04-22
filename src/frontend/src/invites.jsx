@@ -16,7 +16,7 @@ export const Invites = () => {
     return <>
         <HeadBar title="Invites" shareLink="invites" />
         <div className="spaced">
-            <h1>Create an invite</h1>
+            <h2>Create an invite</h2>
             <ul>
                 <li>You can invite new users to {backendCache.config.name} by creating invites for them.</li>
                 <li>Every invite is a funded by at least <code>{backendCache.config.min_cycles_for_inviting}</code> cycles: you will be charged once the invite is used.</li>
