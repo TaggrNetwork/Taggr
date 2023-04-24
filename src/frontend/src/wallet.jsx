@@ -1,4 +1,4 @@
-import {CopyToClipboard, HeadBar, Loading, hex, ICPAccountBalance, tokenBalance, ButtonWithLoading, bigScreen, IcpAccountLink} from "./common";
+import {CopyToClipboard, HeadBar, Loading, hex, ICPAccountBalance, tokenBalance, icpCode, ButtonWithLoading, bigScreen, IcpAccountLink} from "./common";
 import * as React from "react";
 import {Transactions} from "./tokens";
 import {logout, SeedPhraseForm} from "./logins";
@@ -21,20 +21,13 @@ const Welcome = () => {
         setInvoice(result.Ok);
     };
 
-    const deprecated = !!localStorage.getItem("SEED_PHRASE_V1");
-    const repeatPassword = !!localStorage.getItem("SEED_PHRASE_V2") && !seedPhraseConfirmed;
+    const repeatPassword = !!localStorage.getItem("SEED_PHRASE") && !seedPhraseConfirmed;
     const logOutButton = <button className="right_spaced" onClick={() => logout()}>LOGOUT</button>;
 
     return <>
         <HeadBar title={"Welcome!"} shareLink="welcome" />
         <div className="spaced">
-            {deprecated && <>
-                <h2>Deprecated</h2>
-                <p>This method is deprecated for sign-ups, works only for existing users and will be removed soon.</p>
-                <p>Please log out and press the button <code>SEED PHRASE V2</code>.</p>
-                {logOutButton}
-            </>}
-            {!deprecated && repeatPassword && <>
+            {repeatPassword && <>
                 <h2>New user detected</h2>
                 <p>Please re-enter your seed phrase to confirm it.</p>
                 <SeedPhraseForm callback={async seed => {
@@ -46,7 +39,7 @@ const Welcome = () => {
                     } else setSeedPhraseConfirmed(true);
                 }} />
             </>}
-            {!deprecated && !repeatPassword && <>
+            {!repeatPassword && <>
                 <div className="bottom_spaced">
                     <h2>New principal detected</h2>
                     <CopyToClipboard value={api._principalId} />
@@ -111,7 +104,7 @@ export const Wallet = () => {
         <div className="spaced">
             <div className="stands_out">
                 <div className="vcentered">
-                    <h1 className="max_width_col">ICP</h1>
+                    <h2 className="max_width_col">ICP</h2>
                     <ButtonWithLoading label="TRANSFER" onClick={async () => {
                         const amount = prompt("Enter the amount (fee: 0.0001 ICP)");
                         if (!amount) return;
@@ -119,6 +112,7 @@ export const Wallet = () => {
                         if (!recipient) return;
                         if(!confirm(`You are transferring\n\n${amount} ICP\n\nto\n\n${recipient}`)) return;
                         let result = await api.call("transfer_icp", recipient, amount);
+                        await api._reloadUser();
                         if ("Err" in result) {
                             alert(`Error: ${result.Err}`);
                             return;
@@ -133,12 +127,18 @@ export const Wallet = () => {
                         />
                     </code>}
                     {transferStatus && <code className="max_width_col">{transferStatus}</code>}
-                    <code><ICPAccountBalance address={user.account} units={false} decimals={true} /></code>
+                    <code><ICPAccountBalance heartbeat={new Date()} address={user.account} units={false} decimals={true} /></code>
+                </div>
+                <div className="vcentered top_spaced">
+                    <div className="monospace max_width_col">
+                    TREASURY
+                    </div>
+                    <code className="accent">{icpCode(user.threasury_e8s, 2, false)}</code>
                 </div>
             </div>
             <div className="stands_out">
                 <div className="vcentered">
-                    <h1 className="max_width_col">{name} Cycles</h1>
+                    <h2 className="max_width_col">{name} Cycles</h2>
                     <ButtonWithLoading onClick={async () => {
                         const kilo_cycles = parseInt(prompt("Enter the number of 1000s of cycles to mint", 1));
                         if (isNaN(kilo_cycles)) {
@@ -166,7 +166,7 @@ export const Wallet = () => {
             </div>
             <div className="stands_out">
                 <div className="vcentered">
-                    <h1 className="max_width_col">{token_symbol} TOKENS</h1>
+                    <h2 className="max_width_col">{token_symbol} TOKENS</h2>
                     <ButtonWithLoading label="TRANSFER" onClick={async () => {
                         const amount = prompt(`Enter the amount (fee: ${1/Math.pow(10, token_decimals)} ${token_symbol})`);
                         if (!amount) return;

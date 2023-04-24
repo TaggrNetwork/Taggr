@@ -31,7 +31,7 @@ export const authMethods = [
             const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', (new TextEncoder()).encode(seed)));
             let serializedIdentity = JSON.stringify(Ed25519KeyIdentity.generate(hash).toJSON());
             localStorage.setItem("IDENTITY", serializedIdentity);
-            localStorage.setItem("SEED_PHRASE_V2", true);
+            localStorage.setItem("SEED_PHRASE", true);
             location.reload();
         }} />,
     }

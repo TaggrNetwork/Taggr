@@ -884,7 +884,7 @@ impl State {
         } else {
             let ratio = 1 << factor;
             self.logger.info(format!(
-                "{} minted `{}` ${} tokens 💎 from users' earned karma at the ratio `{}:1` as follows: {}",
+                "{} minted `{}` ${} tokens 💎 from the earned karma at the ratio `{}:1` as follows: {}",
                 CONFIG.name,
                 minted_tokens,
                 CONFIG.token_symbol,
@@ -912,11 +912,13 @@ impl State {
     }
 
     pub async fn icp_transfer(
-        &self,
+        &mut self,
         principal: Principal,
         recipient: String,
         amount: String,
     ) -> Result<(), String> {
+        self.claim_e8s_from_treasury(principal).await?;
+
         fn parse(amount: &str) -> Result<Tokens, String> {
             let parse = |s: &str| {
                 s.parse::<u64>()
@@ -937,6 +939,7 @@ impl State {
                 _ => Err(format!("Can't parse amount {}", amount)),
             }
         }
+
         invoices::transfer(
             parse_account(&recipient)?,
             parse(&amount)?,
@@ -976,28 +979,17 @@ impl State {
             if e8s < invoices::fee() * 100 {
                 continue;
             }
-            let account = match parse_account(&user.account) {
-                Ok(value) => value,
-                _ => continue,
-            };
-            match invoices::transfer(account, Tokens::from_e8s(e8s), Memo(777), None).await {
-                Ok(_) => {
-                    user_rewards += user_reward;
-                    user_revenues += user_revenue;
-                    user_ids.insert(user.id, user.karma_to_reward());
-                    user.apply_rewards();
-                    payments.push(format!("`{}` to @{}", e8s_to_icp(e8s), &user.name));
-                    user.notify(format!(
-                        "You received `{}` ICP as rewards and `{}` ICP as revenue! 💸",
-                        e8s_to_icp(user_reward),
-                        e8s_to_icp(user_revenue)
-                    ));
-                }
-                Err(err) => {
-                    self.logger
-                        .error(format!("Couldn't transfer ICP to @{}: {}", &user.name, err));
-                }
-            }
+            user.threasury_e8s += e8s;
+            user_rewards += user_reward;
+            user_revenues += user_revenue;
+            user_ids.insert(user.id, user.karma_to_reward());
+            user.apply_rewards();
+            payments.push(format!("`{}` to @{}", e8s_to_icp(e8s), &user.name));
+            user.notify(format!(
+                "You received `{}` ICP as rewards and `{}` ICP as revenue! 💸",
+                e8s_to_icp(user_reward),
+                e8s_to_icp(user_revenue)
+            ));
         }
         self.spend(self.burned_cycles as Cycles, "revenue distribution");
         self.burned_cycles_total += self.burned_cycles as Cycles;
@@ -1312,11 +1304,31 @@ impl State {
         ));
     }
 
+    // Check if user has some unclaimed e8s in the Treasury and transfers them to user's account.
+    async fn claim_e8s_from_treasury(&mut self, principal: Principal) -> Result<(), String> {
+        let user = self
+            .principal_to_user_mut(principal)
+            .ok_or("no user found")?;
+        if user.threasury_e8s > 0 {
+            invoices::transfer(
+                parse_account(&user.account)?,
+                Tokens::from_e8s(user.threasury_e8s),
+                Memo(777),
+                None,
+            )
+            .await?;
+            user.threasury_e8s = 0;
+        }
+        Ok(())
+    }
+
     pub async fn mint_cycles(
         &mut self,
         principal: Principal,
         kilo_cycles: u64,
     ) -> Result<Invoice, String> {
+        self.claim_e8s_from_treasury(principal).await?;
+
         let invoice = match self.accounting.outstanding(&principal, kilo_cycles).await {
             Ok(val) => val,
             Err(err) => {

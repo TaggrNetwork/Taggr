@@ -172,9 +172,9 @@ export const icp = (e8s, decimals = false) => {
     return (decimals ? v : Math.floor(v)).toLocaleString()
 }
 
-export const ICPAccountBalance = ({address, decimals, units}) => {
+export const ICPAccountBalance = ({address, decimals, units, heartbeat}) => {
     const [e8s, setE8s] = React.useState(0);
-    React.useEffect(() => { api.account_balance(address).then(setE8s); }, [address])
+    React.useEffect(() => { api.account_balance(address).then(setE8s); }, [address, heartbeat])
     return icpCode(e8s, decimals, units);
 }
 

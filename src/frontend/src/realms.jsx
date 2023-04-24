@@ -41,10 +41,10 @@ export const RealmForm = ({existingName}) => {
 
     const valid = name && description && controllers.length > 0;
     return <div className="spaced">
-        <h1 className="vcentered">
+        <h2 className="vcentered">
             {logo && <img alt="Logo" className="right_spaced" style={{ maxWidth: "70px"}} src={`data:image/png;base64, ${logo}`} />}
             <span className="max_width_col">{editing ? "EDIT" : "CREATE"} REALM</span>
-        </h1>
+        </h2>
         <div className="column_container">
             {editing && <div className="column_container bottom_spaced monospace">
                 <div className="bottom_half_spaced">LOGO ({`${backendCache.config.max_realm_logo_len / 1024}`}KB MAX, resize <a href="https://imageresizer.com">here</a>)</div>

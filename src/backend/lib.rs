@@ -311,7 +311,7 @@ fn create_user() {
 fn transfer_icp() {
     spawn(async {
         let (recipient, amount): (String, String) = parse(&arg_data_raw());
-        reply(state().icp_transfer(caller(), recipient, amount).await)
+        reply(state_mut().icp_transfer(caller(), recipient, amount).await)
     });
 }
 
