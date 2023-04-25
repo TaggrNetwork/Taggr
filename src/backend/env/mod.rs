@@ -1588,7 +1588,7 @@ impl State {
             .map(|u| (u.id, u.karma_to_reward()))
             .collect::<Vec<_>>();
         weekly_karma_leaders.sort_unstable_by_key(|k| k.1);
-        weekly_karma_leaders = weekly_karma_leaders.into_iter().rev().take(24).collect();
+        weekly_karma_leaders = weekly_karma_leaders.into_iter().rev().take(12).collect();
         stalwarts.sort_unstable_by_key(|u1| std::cmp::Reverse(u1.karma()));
         let emergency_votes = if self.emergency_binary.is_empty() {
             0.0

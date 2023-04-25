@@ -105,8 +105,8 @@ export const Dashboard = ({fullMode}) => {
                 <hr />
                 <h2><Trophy /> WEEKLY KARMA LEADERS</h2>
                 <hr />
-                <div className={bigScreen() ? "dynamic_table" : "two_column_grid_flex"}>
-                    {stats.weekly_karma_leaders.map(([id, karma]) => <div key={id}><UserLink id={id} /> (<span className="accent">{karma.toLocaleString()}</span>)</div>)}
+                <div className="dynamic_table">
+                    {stats.weekly_karma_leaders.map(([id, karma]) => <div className="db_cell" key={id}><UserLink id={id} /><code>{karma.toLocaleString()}</code></div>)}
                 </div>
                 <hr />
                 <h2><Document /> Logs</h2>
