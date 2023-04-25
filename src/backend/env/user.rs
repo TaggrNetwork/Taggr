@@ -59,7 +59,7 @@ pub struct User {
     pub karma_from_last_posts: BTreeMap<UserId, Karma>,
 
     #[serde(default)]
-    pub threasury_e8s: u64,
+    pub treasury_e8s: u64,
 }
 
 impl User {
@@ -97,7 +97,7 @@ impl User {
             active_weeks: 0,
             principal,
             karma_from_last_posts: Default::default(),
-            threasury_e8s: 0,
+            treasury_e8s: 0,
         }
     }
 

@@ -133,7 +133,7 @@ export const Wallet = () => {
                     <div className="monospace max_width_col">
                     TREASURY
                     </div>
-                    <code className="accent">{icpCode(user.threasury_e8s, 2, false)}</code>
+                    <code className="accent">{icpCode(user.treasury_e8s, 2, false)}</code>
                 </div>
             </div>
             <div className="stands_out">

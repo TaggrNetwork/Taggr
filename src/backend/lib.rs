@@ -96,6 +96,12 @@ fn tmp_fix() {
     });
 }
 
+#[cfg(not(feature = "dev"))]
+#[update]
+fn prod_release() -> bool {
+    true
+}
+
 #[cfg(feature = "dev")]
 #[update]
 fn add_bucket(id: String) {

@@ -979,7 +979,7 @@ impl State {
             if e8s < invoices::fee() * 100 {
                 continue;
             }
-            user.threasury_e8s += e8s;
+            user.treasury_e8s += e8s;
             user_rewards += user_reward;
             user_revenues += user_revenue;
             user_ids.insert(user.id, user.karma_to_reward());
@@ -1309,15 +1309,15 @@ impl State {
         let user = self
             .principal_to_user_mut(principal)
             .ok_or("no user found")?;
-        if user.threasury_e8s > 0 {
+        if user.treasury_e8s > 0 {
             invoices::transfer(
                 parse_account(&user.account)?,
-                Tokens::from_e8s(user.threasury_e8s),
+                Tokens::from_e8s(user.treasury_e8s),
                 Memo(777),
                 None,
             )
             .await?;
-            user.threasury_e8s = 0;
+            user.treasury_e8s = 0;
         }
         Ok(())
     }
