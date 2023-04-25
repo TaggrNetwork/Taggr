@@ -2167,7 +2167,7 @@ pub(crate) mod tests {
             poll.votes = votes;
         }
 
-        let now = post.timestamp;
+        let now = post.timestamp();
         assert_eq!(state.pending_polls.len(), 1);
         state.conclude_polls(now + 24 * HOUR);
         assert_eq!(state.pending_polls.len(), 1);

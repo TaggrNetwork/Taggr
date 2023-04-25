@@ -27,7 +27,7 @@ pub struct Post {
     pub id: PostId,
     pub body: String,
     pub user: UserId,
-    pub timestamp: u64,
+    timestamp: u64,
     pub children: Vec<PostId>,
     pub parent: Option<PostId>,
     pub watchers: BTreeSet<UserId>,
@@ -81,6 +81,17 @@ impl Post {
         }
     }
 
+    // Return post's original timestamp, either by taking the minimum from the edits or the one
+    // assigned to `timestamp`.
+    pub fn timestamp(&self) -> u64 {
+        self.patches
+            .iter()
+            .map(|(timestamp, _)| timestamp)
+            .min()
+            .copied()
+            .unwrap_or(self.timestamp)
+    }
+
     pub fn vote_on_poll(
         &mut self,
         user_id: UserId,
@@ -93,12 +104,13 @@ impl Post {
                 return Err(format!("you're not in realm {}", realm));
             }
         }
+        let timestamp = self.timestamp();
         if let Some(Extension::Poll(poll)) = self.extension.as_mut() {
             // no multiple choice
             if poll.votes.values().flatten().any(|id| id == &user_id) {
                 return Err("double vote".to_string());
             }
-            if time < self.timestamp + HOUR * poll.deadline && poll.options.len() as u16 > vote {
+            if time < timestamp + HOUR * poll.deadline && poll.options.len() as u16 > vote {
                 poll.votes.entry(vote).or_default().insert(user_id);
             }
         }
@@ -351,7 +363,7 @@ pub async fn add(
         .filter_map(|id| state.posts.get(id))
         .filter(|post| {
             !(parent.is_none() ^ post.parent.is_none())
-                && post.timestamp > timestamp.saturating_sub(HOUR)
+                && post.timestamp() > timestamp.saturating_sub(HOUR)
         })
         .count()
         >= limit
@@ -439,8 +451,9 @@ pub fn conclude_poll(state: &mut State, post_id: PostId, now: u64) -> Result<boo
     let post = state.posts.get_mut(&post_id).ok_or("no post found")?;
     let users = &state.users;
     let balances = &state.balances;
+    let timestamp = post.timestamp();
     if let Some(Extension::Poll(poll)) = post.extension.as_mut() {
-        if post.timestamp + poll.deadline * HOUR > now {
+        if timestamp + poll.deadline * HOUR > now {
             return Ok(false);
         }
         poll.weighted_by_karma = poll
