@@ -20,6 +20,7 @@ pub struct Poll {
 pub enum Extension {
     Poll(Poll),
     Proposal(u32),
+    Repost(PostId),
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]

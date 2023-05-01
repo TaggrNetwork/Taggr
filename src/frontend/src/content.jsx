@@ -88,12 +88,6 @@ const markdownizer = (value, urls, setUrls, blobs, primeMode, className = null) 
                         return <YouTube id={id} />;
                     }
 
-                    // Reposts
-                    const id = repost(props.href);
-                    if(id != null && primeMode && props["data-repost"]) { 
-                        return React.useMemo(() => <Post id={id} data={postDataProvider(id, null, "post_only")} repost={true} classNameArg="repost" />, [id]);
-                    }
-
                     matches = isALink(child) || isALink(props.href);
                     if (matches) {
                         try {
@@ -118,8 +112,6 @@ const markdownizer = (value, urls, setUrls, blobs, primeMode, className = null) 
                 return <a target={target} className={className} {...props}>{label}</a>;
             },
             p: ({ node, children, ...props}) => {
-                const isRepost = children.some(c => c.type && c.type.name == "a" && repost(c.props.href) != null) && children.length == 1;
-                if (isRepost) return children.map(child => React.cloneElement(child, { "data-repost": true }));
                 const isPic = c => c.type && c.type.name == "img";
                 const pics = children.filter(isPic).length;
                 if (pics >= 1 && isPic(children[0])) return <Gallery children={children} />;
@@ -184,11 +176,3 @@ const setDimensions = props => {
 };
 
 const fillerImg = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAQAAAAe/WZNAAAAEElEQVR42mNkMGYAA0YMBgAJ4QCdD/t7zAAAAABJRU5ErkJggg==";
-
-const repost = link => {
-    const matches = link.match(/^\#\/post\/(\d+)$/);
-    if (!matches) return null;
-    const id = parseInt(matches.pop());
-    if (isNaN(id)) return null;
-    return id;
-}

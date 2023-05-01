@@ -75,6 +75,16 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
+    let re = regex::Regex::new(r"\[repost:(\d+)\]\(#/post/\d+\)").unwrap();
+    let s = state_mut();
+    // migrate all posts to the new format
+    for p in s.posts.values_mut() {
+        if let Some(capture) = re.captures(&p.body) {
+            let number = capture.get(1).unwrap().as_str();
+            p.extension = Some(Extension::Repost(number.parse::<u64>().unwrap()));
+            p.body = re.replace_all(&p.body, "").to_string().trim().to_string();
+        }
+    }
 }
 
 /*

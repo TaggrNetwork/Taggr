@@ -15,7 +15,7 @@ export const PostSubmissionForm = ({id, repost}) => {
 
     React.useEffect(() => { load(); }, []);
 
-    const callback = async (text, blobs, poll, realm) => {
+    const callback = async (text, blobs, extension, realm) => {
         let postId;
         text = text.trim();
         const optionalRealm = realm ? [realm] : [];
@@ -28,7 +28,7 @@ export const PostSubmissionForm = ({id, repost}) => {
             }
             postId = post.id;
         } else {
-            const result = await api.add_post(text, blobs, [], optionalRealm, encodePoll(poll));
+            const result = await api.add_post(text, blobs, [], optionalRealm, encodeExtension(extension));
             if ("Err" in result) {
                 return alert(`Error: ${result.Err}`);
             }
@@ -37,10 +37,9 @@ export const PostSubmissionForm = ({id, repost}) => {
         location.href = `#/post/${postId}`;
     };
 
-    const content = repost ? `\n\n[repost:${repost}](#/post/${repost})` : "";
 
     return <div className="spaced top_spaced">
-        <Form submitCallback={callback} postId={id} content={post.body || content} blobs={blobs} expanded={true}
+        <Form submitCallback={callback} postId={id} content={post.body || ""} blobs={blobs} expanded={true} repost={repost}
             comment={!isRoot(post)} realmArg={post.realm || api._user.current_realm}/>
         <h3>Tipps</h3>
         <ul>
@@ -54,10 +53,6 @@ export const PostSubmissionForm = ({id, repost}) => {
     </div>;
 }
 
-const encodePoll = poll => {
-    if (poll) {
-        poll.votes = {};
-        return [(new TextEncoder()).encode(JSON.stringify({ Poll: poll }))];
-    }
-    return []
-}
+const encodeExtension = extension => extension
+    ? [(new TextEncoder()).encode(JSON.stringify(extension))]
+    : [];

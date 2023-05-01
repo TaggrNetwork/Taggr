@@ -176,6 +176,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
                  number of memorized pieces inside content */}
                 <Content key={post.effBody} post={true} value={post.effBody} blobs={blobs} collapse={!expanded} primeMode={isRoot(post) && !repost} />
                 {post.extension && post.extension.Poll && <Poll poll={post.extension.Poll} post_id={post.id} created={postCreated} />}
+                {post.extension && "Repost" in post.extension && <Post id={post.extension.Repost} data={postDataProvider(post.extension.Repost, null, "post_only")} repost={true} classNameArg="repost" />}
                 {post.extension && post.extension.Proposal && <Proposal id={post.extension.Proposal} />}
             </article>}
             <PostBar post={post} react={react} highlightOp={highlightOp} repost={repost} highlighted={highlighted}

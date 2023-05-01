@@ -3,12 +3,13 @@ import { Content, CUT } from './content';
 import { bigScreen, blobToUrl, ButtonWithLoading, getTokens, Loading, ReactionToggleButton } from './common';
 import {Poll} from './poll';
 import {Bars, Cycles, Paperclip} from "./icons";
+import {postDataProvider, Post} from "./post";
 
 const MAX_IMG_SIZE = 16777216;
 const MAX_SUGGESTED_TAGS = 5;
 export const MAX_POST_SIZE_BYTES = Math.ceil(1024 * 1024 * 1.9);
 
-export const Form = ({postId = null, comment, realmArg = "", expanded, submitCallback, writingCallback = () => {}, blobs, content}) => {
+export const Form = ({postId = null, comment, realmArg = "", expanded, submitCallback, writingCallback = () => {}, repost = null, blobs, content}) => {
     const draftKey = `draft_for_${comment? "comment" : "post"}_${postId}`;
     const [value, setValue] = React.useState("");
     const [realm, setRealm] = React.useState(realmArg);
@@ -50,7 +51,13 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
         } else if ((value.match(/!\[.*?\]\(\/blob\/.*?\)/g) || []).length != blobArrays.length) {
             alert("You're referencing pictures that are not attached anymore. Please re-upload.");
         } else {
-            await submitCallback(value, blobArrays, poll, realm);
+            let extension;
+            if (poll) {
+                extension = { Poll: poll };
+            } else if (repost) {
+                extension = { Repost: repost }
+            };
+            await submitCallback(value, blobArrays, extension, realm);
             setValue("");
             localStorage.removeItem(draftKey); 
         }
@@ -175,6 +182,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
     const preview = <article ref={ref} className={`bottom_spaced max_width_col ${postId == null ? "prime" : ""} framed`}>
         <Content post={true} blobs={tmpBlobs} value={value} preview={true} primeMode={postId == null} />
         {poll && <Poll poll={poll} created={Number(new Date()) * 1000000} />}
+        {repost && React.useMemo(() => <Post id={repost} data={postDataProvider(repost, null, "post_only")} repost={true} classNameArg="repost" />, [repost])}
     </article>;
 
     const previewAtLeft = bigScreen() && !comment;
@@ -207,7 +215,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
                             <Cycles /><code className="left_half_spaced">{`${costs(value, poll ? 1 : 0)}`}</code>
                             <label id="file_picker_label" htmlFor="file-picker" className="action left_spaced clickable"><Paperclip /></label>
                             <input id="file-picker" style={{display: "none"}} type="file" multiple accept="image/*" onChange={dropHandler} />
-                            {postId == null && <ReactionToggleButton classNameArg="left_spaced" icon={<Bars />} pressed={!!poll}
+                            {postId == null && isNaN(repost) && <ReactionToggleButton classNameArg="left_spaced" icon={<Bars />} pressed={!!poll}
                                 onClick={() => setPoll(poll && confirm("Delete the poll?") 
                                     ? null 
                                     : (poll || { options: ["Option 1", "Option 2"], votes: {}, deadline: 24 }))} />}
