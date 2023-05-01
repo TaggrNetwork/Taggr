@@ -39,8 +39,12 @@ RUN mkdir -p /opt/ic-wasm && \
 # Install dfx
 RUN sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
 
+# Install NPM dependencies
+COPY package.json package-lock.json ./
+RUN npm ci
+
 # Install Playwright dependencies
-RUN npx playwright install chromium --with-deps
+RUN npm run install:e2e
 
 COPY . .
 

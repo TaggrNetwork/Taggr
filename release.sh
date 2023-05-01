@@ -3,7 +3,7 @@
 make build
 make start
 make dev_deploy
-npx playwright test
+npm run test:e2e
 make build
 dfx deploy
 OUTPUT=$(dfx canister call taggr prod_release)

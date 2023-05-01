@@ -26,11 +26,11 @@ fe:
 	npm run build
 
 e2e_test:
-	npx playwright install chromium --with-deps
+	npm run install:e2e
 	make build
 	make start || true # don't fail if DFX is already running
 	make dev_deploy
-	npx playwright test
+	npm run test:e2e
 	dfx stop
 
 release:

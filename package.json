@@ -10,7 +10,9 @@
   "scripts": {
     "build": "webpack",
     "postbuild": "gzip -9n dist/frontend/index.js",
-    "start": "webpack serve --mode development --env development"
+    "start": "webpack serve --mode development --env development",
+    "test:e2e": "playwright test",
+    "install:e2e": "playwright install chromium --with-deps"
   },
   "devDependencies": {
     "@playwright/test": "^1.32.3",
