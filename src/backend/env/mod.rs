@@ -972,7 +972,7 @@ impl State {
             .collect::<HashSet<_>>();
         let mut user_rewards = 0;
         let mut user_revenues = 0;
-        for user in self.users.values_mut().filter(|u| u.account.len() == 64) {
+        for user in self.users.values_mut() {
             let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
             let user_revenue = revenue.get(&user.id).copied().unwrap_or_default();
             let e8s = user_reward + user_revenue;
@@ -1230,7 +1230,7 @@ impl State {
             }
         }
         self.logger.info(format!(
-            "Charged `{}` inactive users with `{}` cycles",
+            "Charged `{}` inactive users with `{}` cycles.",
             inactive_users, cycles_total
         ));
 

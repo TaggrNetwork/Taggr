@@ -60,13 +60,13 @@ export const Content = ({post, value = "", blobs = [], collapse, preview, primeM
     value = linkTagsAndUsers(value);
     extValue = linkTagsAndUsers(extValue);
 
-    return <>
+    return React.useMemo(() => <>
         {markdownizer(value, urls, setUrls, blobs, primeMode, className)}
         {shortened && <>
             {collapse && <ArrowDown />}
             {markdownizer(collapse ? null : extValue, urls, setUrls, blobs, primeMode)}
         </>}
-    </>;
+    </>, [value, blobs, collapse]);
 }
 
 const isALink = val => val.match(/^https?:\/\/.+$/) || val.match(/^www\..+$/);

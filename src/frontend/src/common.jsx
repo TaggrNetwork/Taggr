@@ -208,7 +208,7 @@ export const blobToUrl = blob => URL.createObjectURL(new Blob([new Uint8Array(bl
 
 export const isRoot = post => post.parent == null;
 
-export const UserLink = ({id}) => <a href={`#/user/${id}`}>{backendCache.users[id]}</a>;
+export const UserLink = ({id}) => <a href={`#/user/${id}`}>{backendCache.users[id] || "?"}</a>;
 
 export const userList = (ids = []) => commaSeparated(ids.map(id => <UserLink key={id} id={id} />));
 
