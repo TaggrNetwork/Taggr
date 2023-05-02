@@ -186,6 +186,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
     </article>;
 
     const previewAtLeft = bigScreen() && !comment;
+    const showPreview = value || !isNaN(repost);
 
     return <div onDrop={dropHandler} onDragOver={dragOverHandler} className="column_container">
         {!showTextField && <input type="text" className="bottom_half_spaced"
@@ -194,12 +195,12 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
         {showTextField && 
             <form className={`${submitting ? "inactive" : ""} column_container bottom_spaced`} autoFocus>
                 <div className="row_container">
-                    {previewAtLeft && value ? preview : null}
+                    {previewAtLeft && showPreview ? preview : null}
                     <textarea id={id} ref={textarea} rows={lines} disabled={submitting} value={value}
                         onKeyPress={maybeInsertSuggestion} 
                         onKeyUp={() => setCursor(textarea.current?.selectionStart)}
                         onFocus={() => setCursor(textarea.current?.selectionStart)}
-                        className={`max_width_col ${dragAndDropping ? "active_element" : null} ${previewAtLeft && value ? "left_half_spaced" : ""}`}
+                        className={`max_width_col ${dragAndDropping ? "active_element" : null} ${previewAtLeft && showPreview ? "left_half_spaced" : ""}`}
                         onChange={event => onValueChange(event.target.value)}></textarea>
                 </div>
                 {busy && <Loading classNameArg="top_spaced" spaced={false} />}
@@ -239,7 +240,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
                 {[1,2,3,4,5,6,7].map(d => <option key={d} value={`${d * 24}`}>{`${d} DAY${d == 1 ? "" : "S"}`}</option>)}
             </select>
         </div>}
-        {!previewAtLeft && value && preview}
+        {!previewAtLeft && showPreview && preview}
     </div>;
 }
 

@@ -12,7 +12,7 @@ export const percentage = (n, total) => {
 export const hex = arr => Array.from(arr, byte => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
 
 export const FileUploadInput = ({classNameArg, callback}) =>
-    <input type="file" className={classNameArg} onChange={async ev => {
+    <input type="file" className={classNameArg} style={{maxWidth: "90%"}} onChange={async ev => {
         const file = (ev.dataTransfer || ev.target).files[0];
         const content = new Uint8Array(await loadFile(file));
         if (content.byteLength > MAX_POST_SIZE_BYTES) {

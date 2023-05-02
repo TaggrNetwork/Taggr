@@ -15,7 +15,7 @@ export const Inbox = () => {
         if (!a.startsWith("condition") && b.startsWith("condition")) return 1;
         if (a.startsWith("watched") && !b.startsWith("watched")) return 1;
         if (!a.startsWith("watched") && b.startsWith("watched")) return -1;
-        return a < b;
+        return b.localeCompare(a)
     });
     return <>
         <HeadBar title="Inbox" content={<button onClick={() => {

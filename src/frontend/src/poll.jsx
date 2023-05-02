@@ -12,7 +12,7 @@ export const Poll = ({poll, post_id, created}) => {
     const voted = Object.values(data.votes).flat().includes(user_id);
     const totalVotes = Object.values(data.votes).map(votes => votes.length).reduce((acc, e) => acc + e ,0);
     const createdHoursAgo = Math.floor((Number(new Date()) - parseInt(created) / 1000000) / 1000 / 3600);
-    const expired = createdHoursAgo > poll.deadline;
+    const expired = createdHoursAgo >= poll.deadline;
     const showVoting = !isNaN(user_id) && !voted && !expired;
     const keyWithMaxVal = obj => Object.keys(obj).reduce(([maxKey, maxVal], key) => obj[key] > maxVal ? [key, obj[key]] : [maxKey, maxVal], [null, 0])[0];
 

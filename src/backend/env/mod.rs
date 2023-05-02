@@ -71,6 +71,7 @@ pub struct Event {
 #[derive(Serialize, Deserialize)]
 pub struct Stats {
     emergency_release: String,
+    emergency_votes: Vec<Principal>,
     weekly_karma_leaders: Vec<(UserId, Karma)>,
     users: usize,
     bootcamp_users: usize,
@@ -1604,6 +1605,7 @@ impl State {
                 emergency_votes as u32,
                 CONFIG.proposal_approval_threshold
             ),
+            emergency_votes: self.emergency_votes.keys().cloned().collect(),
             meta: format!(
                 "Team tokens to mint: {:?}, CALLS {:?}",
                 &self.team_tokens,

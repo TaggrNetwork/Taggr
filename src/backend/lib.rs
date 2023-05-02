@@ -550,10 +550,11 @@ fn toggle_realm_membership() {
 #[update]
 async fn set_emergency_release(binary: ByteBuf) {
     let state = state_mut();
-    if !state
-        .principal_to_user(caller())
-        .map(|user| user.stalwart)
-        .unwrap_or_default()
+    if binary.is_empty()
+        || !state
+            .principal_to_user(caller())
+            .map(|user| user.stalwart)
+            .unwrap_or_default()
     {
         return;
     }
