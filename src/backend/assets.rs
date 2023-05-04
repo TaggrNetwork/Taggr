@@ -104,13 +104,15 @@ fn add_asset(paths: &[&str], headers: Headers, bytes: Vec<u8>) {
     }
 }
 
-pub fn asset(path: &str, certified: bool) -> Option<(Headers, ByteBuf)> {
+pub fn asset_certified(path: &str) -> Option<(Headers, ByteBuf)> {
+    let (mut headers, bytes) = asset(path)?;
+    headers.push(certificate_header(path));
+    Some((headers, bytes))
+}
+
+pub fn asset(path: &str) -> Option<(Headers, ByteBuf)> {
     let (headers, bytes) = assets().get(path)?;
-    let mut headers = headers.clone();
-    if certified {
-        headers.push(certificate_header(path));
-    }
-    Some((headers, ByteBuf::from(bytes.as_slice())))
+    Some((headers.clone(), ByteBuf::from(bytes.as_slice())))
 }
 
 fn certificate_header(path: &str) -> (String, String) {

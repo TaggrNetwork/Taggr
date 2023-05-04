@@ -17,42 +17,41 @@ pub struct HttpResponse {
     status_code: u16,
     headers: Headers,
     body: ByteBuf,
+    upgrade: Option<bool>,
 }
 
-#[ic_cdk_macros::query]
-fn http_request(req: HttpRequest) -> HttpResponse {
-    let mut iter = req.url.split('?');
-    let path = match (iter.next(), iter.next()) {
-        (_, Some(val)) => val,
-        (Some(val), _) => val,
-        _ => "/",
-    };
-
-    let raw = req
-        .headers
-        .into_iter()
-        .find_map(|(key, host)| (key.to_lowercase() == "host").then(|| host.contains(".raw")))
-        .unwrap_or(false);
-    if !raw {
-        let (headers, body) = assets::asset(path, !raw)
-            .or_else(|| assets::asset("/", !raw))
-            .expect("asset not found");
-        return HttpResponse {
-            status_code: 200,
-            headers,
-            body,
-        };
-    }
-
+#[ic_cdk_macros::update]
+fn http_request_update(req: HttpRequest) -> HttpResponse {
+    let path = &req.url;
     route(path)
-        .or_else(|| assets::asset(path, false))
-        .or_else(|| assets::asset("/", false))
         .map(|(headers, body)| HttpResponse {
             status_code: 200,
             headers,
             body,
+            upgrade: None,
         })
-        .unwrap_or_else(|| panic!("no assets for route {}", path))
+        .unwrap_or_else(|| panic!("no assets for {}", path))
+}
+
+#[ic_cdk_macros::query]
+fn http_request(req: HttpRequest) -> HttpResponse {
+    let path = &req.url;
+    // If the asset is certified, return it, otherwise, upgrade to http_request_update
+    if let Some((headers, body)) = assets::asset_certified(path) {
+        HttpResponse {
+            status_code: 200,
+            headers,
+            body,
+            upgrade: None,
+        }
+    } else {
+        HttpResponse {
+            status_code: 200,
+            headers: Default::default(),
+            body: Default::default(),
+            upgrade: Some(true),
+        }
+    }
 }
 
 fn route(path: &str) -> Option<(Headers, ByteBuf)> {
@@ -134,7 +133,7 @@ fn route(path: &str) -> Option<(Headers, ByteBuf)> {
 }
 
 fn index(host: &str, path: &str, title: &str, desc: &str) -> Option<(Headers, ByteBuf)> {
-    assets::asset("/", false).map(|(headers, body)| {
+    assets::asset("/").map(|(headers, body)| {
         (
             headers,
             ByteBuf::from(

@@ -80,7 +80,7 @@ export const ShareButton = ({classNameArg = null, title = "Check this out", url,
     effStyle.fill = effStyle.color;
     return <button className={classNameArg} style={effStyle}
         onClick={async _ => { 
-            const fullUlr = `https://${backendCache.config.domains[0]}/#/${url}`;
+            const fullUlr = `https://${backendCache.config.domains[0]}/${url}`;
             if (navigator.share) navigator.share({title, url: fullUlr});
             else {
                 await navigator.clipboard.writeText(fullUlr);
