@@ -179,14 +179,15 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
         completionList = suggestedUsers;
     }
 
+    const previewAtLeft = bigScreen() && !comment;
+    const isRepost = repost != null && !isNaN(repost);
+    const showPreview = value || isRepost;
+
     const preview = <article ref={ref} className={`bottom_spaced max_width_col ${postId == null ? "prime" : ""} framed`}>
         <Content post={true} blobs={tmpBlobs} value={value} preview={true} primeMode={postId == null} />
         {poll && <Poll poll={poll} created={Number(new Date()) * 1000000} />}
-        {repost && React.useMemo(() => <Post id={repost} data={postDataProvider(repost, null, "post_only")} repost={true} classNameArg="repost" />, [repost])}
+        {isRepost && React.useMemo(() => <Post id={repost} data={postDataProvider(repost, null, "post_only")} repost={true} classNameArg="repost" />, [repost])}
     </article>;
-
-    const previewAtLeft = bigScreen() && !comment;
-    const showPreview = value || !isNaN(repost);
 
     return <div onDrop={dropHandler} onDragOver={dragOverHandler} className="column_container">
         {!showTextField && <input type="text" className="bottom_half_spaced"
@@ -216,7 +217,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
                             <Cycles /><code className="left_half_spaced">{`${costs(value, poll ? 1 : 0)}`}</code>
                             <label id="file_picker_label" htmlFor="file-picker" className="action left_spaced clickable"><Paperclip /></label>
                             <input id="file-picker" style={{display: "none"}} type="file" multiple accept="image/*" onChange={dropHandler} />
-                            {postId == null && isNaN(repost) && <ReactionToggleButton classNameArg="left_spaced" icon={<Bars />} pressed={!!poll}
+                            {postId == null && !isRepost && <ReactionToggleButton classNameArg="left_spaced" icon={<Bars />} pressed={!!poll}
                                 onClick={() => setPoll(poll && confirm("Delete the poll?") 
                                     ? null 
                                     : (poll || { options: ["Option 1", "Option 2"], votes: {}, deadline: 24 }))} />}

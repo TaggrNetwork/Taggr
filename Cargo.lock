@@ -1073,7 +1073,6 @@ dependencies = [
  "ic-cdk-macros",
  "ic-certified-map",
  "ic-ledger-types",
- "regex",
  "serde",
  "serde_bytes",
  "serde_cbor",

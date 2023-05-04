@@ -35,7 +35,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
     const [blobs, setBlobs] = React.useState({});
     const [showComments, toggleComments] = React.useState(!isFeedItem && !repost);
     const [showInfo, toggleInfo] = React.useState(false);
-    const [expanded, toggleExpansion] = React.useState(!isFeedItem && !repost);
+    const [expanded, toggleExpansion] = React.useState(!isFeedItem && !repost || isThreadView);
     const [fullTreeIsLoading, setFullTreeIsLoading] = React.useState(false);
     const [rendering, setRendering] = React.useState(true);
     const [safeToOpen, setSafeToOpen] = React.useState(false);
@@ -159,6 +159,8 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
         cls += isGallery ? " gallery_post" : " text_post";
     }
 
+    const showExtension = post.extension && !repost;
+
     return <div ref={post => { if(post && focused && rendering) post.scrollIntoView({ behavior: "smooth" }); }}
         className={classNameArg || null}>
         <div ref={refPost} className={`post_box ${isInactive ? "inactive" : ""} ${cls}`} style={{position: "relative"}}>
@@ -175,9 +177,9 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
                 {/* The key is needed to render different content for different versions to avoid running into diffrrent
                  number of memorized pieces inside content */}
                 <Content key={post.effBody} post={true} value={post.effBody} blobs={blobs} collapse={!expanded} primeMode={isRoot(post) && !repost} />
-                {post.extension && post.extension.Poll && <Poll poll={post.extension.Poll} post_id={post.id} created={postCreated} />}
-                {post.extension && "Repost" in post.extension && <Post id={post.extension.Repost} data={postDataProvider(post.extension.Repost, null, "post_only")} repost={true} classNameArg="repost" />}
-                {post.extension && post.extension.Proposal && <Proposal id={post.extension.Proposal} />}
+                {showExtension && post.extension.Poll && <Poll poll={post.extension.Poll} post_id={post.id} created={postCreated} />}
+                {showExtension && "Repost" in post.extension && <Post id={post.extension.Repost} data={postDataProvider(post.extension.Repost, null, "post_only")} repost={true} classNameArg="repost" />}
+                {showExtension && post.extension.Proposal && <Proposal id={post.extension.Proposal} />}
             </article>}
             <PostBar post={post} react={react} highlightOp={highlightOp} repost={repost} highlighted={highlighted}
                 showComments={showComments} toggleComments={toggleComments} postCreated={postCreated} showCarret={showCarret}
@@ -287,32 +289,34 @@ const PostInfo = ({post, version, postCreated, callback}) => {
 
 const PostBar = ({post, react, highlighted, highlightOp, repost, showInfo, toggleInfo, 
     showComments, toggleComments, postCreated, isThreadView, goInside, showCarret}) => {
-    const time = timeAgo(postCreated);
-    const replies = post.tree_size;
-    const createdRecently = (Number(new Date()) - parseInt(postCreated) / 1000000) < 30 * 60 * 1000;
-    const updatedRecently = (Number(new Date()) - parseInt(post.tree_update) / 1000000) < 30 * 60 * 1000;
-    const newPost = api._user && highlighted.includes(post.id) || (postCreated > api._last_visit || createdRecently)
-    const newComments = api._user && (post.tree_update > api._last_visit || updatedRecently);
-    return <div className="post_bar vcentered smaller_text flex_ended">
-        <div className="row_container" style={{alignItems: "center"}}>
-            <a className={highlightOp ? "accent" : null} href={`#/user/${post.user.id}`}>{`${post.user.name}`}</a>
-            <div className="left_spaced no_wrap vcentered">
-                {time}
-                {newPost && <New classNameArg="left_half_spaced accent" /> }
+        const time = timeAgo(postCreated);
+        const replies = post.tree_size;
+        const createdRecently = (Number(new Date()) - parseInt(postCreated) / 1000000) < 30 * 60 * 1000;
+        const updatedRecently = (Number(new Date()) - parseInt(post.tree_update) / 1000000) < 30 * 60 * 1000;
+        const newPost = api._user && highlighted.includes(post.id) || (postCreated > api._last_visit || createdRecently)
+        const newComments = api._user && (post.tree_update > api._last_visit || updatedRecently);
+        return <div className="post_bar vcentered smaller_text flex_ended">
+            <div className="row_container" style={{alignItems: "center"}}>
+                <a className={highlightOp ? "accent" : null} href={`#/user/${post.user.id}`}>{`${post.user.name}`}</a>
+                <div className="left_spaced no_wrap vcentered">
+                    {time}
+                    {newPost && <New classNameArg="left_half_spaced accent" /> }
+                </div>
             </div>
-        </div>
-        {!repost && <div className="vcentered max_width_col flex_ended">
-            <Reactions reactionsMap={post.reactions} react={react} />
-            {replies > 0 && !isThreadView && <ReactionToggleButton pressed={showComments}
-                onClick={showCarret ? goInside : () => { toggleInfo(false); toggleComments(!showComments) }}
-                icon={<><Comment classNameArg={newComments ? "accent" : null} />&nbsp;{`${replies}`}</>}
-            />}
-            {!isThreadView && !showCarret && <BurgerButton onClick={() => { toggleInfo(!showInfo); toggleComments(false) }} pressed={showInfo} />}
-            {(isThreadView || showCarret) && <button className="reaction_button unselected"
-                onClick={goInside}><CarretRight /></button>}
-        </div>}
-    </div>;
-}
+            <div className="vcentered max_width_col flex_ended">
+                {!repost && <>
+                    <Reactions reactionsMap={post.reactions} react={react} />
+                    {replies > 0 && !isThreadView && <ReactionToggleButton pressed={showComments}
+                        onClick={showCarret ? goInside : () => { toggleInfo(false); toggleComments(!showComments) }}
+                        icon={<><Comment classNameArg={newComments ? "accent" : null} />&nbsp;{`${replies}`}</>}
+                    />}
+                    {!isThreadView && !showCarret && <BurgerButton onClick={() => { toggleInfo(!showInfo); toggleComments(false) }} pressed={showInfo} />}
+                    {(isThreadView || showCarret) && <button className="reaction_button unselected"
+                        onClick={goInside}><CarretRight /></button>}
+                </>}
+            </div>
+        </div>;
+    }
 
 export const ReactionsPicker = ({react}) => <>
     {backendCache.config.reactions.map(([id, _]) => <button key={id} className="left_half_spaced" onClick={() => react(id)}>{reaction2icon(id)}</button>)}

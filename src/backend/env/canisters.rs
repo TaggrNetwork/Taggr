@@ -310,19 +310,24 @@ pub async fn vote_on_nns_proposal(proposal_id: u64, vote: NNSVote) -> Result<(),
     .map_err(|err| format!("couldn't parse args: {:?}", err))?
     .to_bytes()
     .map_err(|err| format!("couldn't serialize args: {:?}", err))?;
-    call_opened("manage_neuron");
-    let result = call_raw(
-        MAINNET_GOVERNANCE_CANISTER_ID,
-        "manage_neuron",
-        args.as_slice(),
-        0,
-    )
-    .await;
-    call_closed("manage_neuron");
 
-    result
-        .map(|_| ())
-        .map_err(|err| format!("couldn't call the governance canister: {:?}", err))
+    let method = "manage_neuron";
+    // Sometimes we can't vote because the governance canister gets an upgrade,
+    // so we try at most 10 times
+    let mut attempts: i16 = 10;
+    loop {
+        call_opened(method);
+        let result = call_raw(MAINNET_GOVERNANCE_CANISTER_ID, method, args.as_slice(), 0).await;
+        call_closed(method);
+
+        attempts -= 1;
+
+        if result.is_ok() || attempts <= 0 {
+            return result
+                .map(|_| ())
+                .map_err(|err| format!("couldn't call the governance canister: {:?}", err));
+        }
+    }
 }
 
 pub async fn call_canister<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(

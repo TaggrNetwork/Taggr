@@ -1576,28 +1576,45 @@ impl State {
     }
 
     pub fn stats(&self, now: u64) -> Stats {
-        let cycles: Cycles = self.users.values().map(|u| u.cycles()).sum();
-        let posts = self.posts.values().filter(|p| p.parent.is_none()).count();
-        let mut stalwarts = self
-            .users
-            .values()
-            .filter(|u| u.stalwart)
-            .collect::<Vec<_>>();
-        let mut weekly_karma_leaders = self
-            .users
-            .values()
-            .map(|u| (u.id, u.karma_to_reward()))
-            .collect::<Vec<_>>();
+        let mut stalwarts = Vec::new();
+        let mut weekly_karma_leaders = Vec::new();
+        let mut bootcamp_users = 0;
+        let mut users_online = 0;
+        let mut invited_users = 0;
+        let mut active_users = 0;
+        let mut bots = Vec::new();
+        let mut cycles = 0;
+        for user in self.users.values() {
+            if user.stalwart {
+                stalwarts.push(user);
+            }
+            if !user.trusted() {
+                bootcamp_users += 1;
+            }
+            if now < user.last_activity + CONFIG.online_activity_minutes {
+                users_online += 1;
+            }
+            if user.is_bot() {
+                bots.push(user.id);
+            }
+            if user.invited_by.is_some() {
+                invited_users += 1;
+            }
+            if user.active_within_weeks(now, 1) {
+                active_users += 1;
+                if user.karma_to_reward() > 0 {
+                    weekly_karma_leaders.push((user.id, user.karma_to_reward()));
+                }
+            }
+            cycles += user.cycles();
+        }
+        stalwarts.sort_unstable_by_key(|u1| std::cmp::Reverse(u1.karma()));
         weekly_karma_leaders.sort_unstable_by_key(|k| k.1);
         weekly_karma_leaders = weekly_karma_leaders.into_iter().rev().take(12).collect();
-        stalwarts.sort_unstable_by_key(|u1| std::cmp::Reverse(u1.karma()));
-        let emergency_votes = if self.emergency_binary.is_empty() {
-            0.0
-        } else {
-            self.emergency_votes.values().sum::<Token>() as f32
-                / self.active_voting_power(time()) as f32
-                * 100.0
-        };
+        let posts = self.posts.values().filter(|p| p.parent.is_none()).count();
+        let emergency_votes = self.emergency_votes.values().sum::<Token>() as f32
+            / self.active_voting_power(time()).max(1) as f32
+            * 100.0;
         Stats {
             emergency_release: format!(
                 "Binary set: {}, votes: {}% (required: {}%)",
@@ -1612,7 +1629,7 @@ impl State {
                 unsafe { &CALLS }
             ),
             weekly_karma_leaders,
-            bootcamp_users: self.users.values().filter(|u| !u.trusted()).count(),
+            bootcamp_users,
             module_hash: self.module_hash.clone(),
             canister_id: ic_cdk::id(),
             last_upgrade: self.last_upgrade,
@@ -1627,36 +1644,19 @@ impl State {
             total_revenue_shared: self.total_revenue_shared,
             total_rewards_shared: self.total_rewards_shared,
             account: invoices::main_account().to_string(),
-            users_online: self
-                .users
-                .values()
-                .filter(|u| now - u.last_activity < CONFIG.online_activity_minutes)
-                .count(),
+            users_online,
             stalwarts: stalwarts.into_iter().map(|u| u.id).collect(),
-            bots: self
-                .users
-                .values()
-                .filter(|u| u.is_bot())
-                .map(|u| u.id)
-                .collect(),
+            bots,
             state_size: stable64_size() << 16,
-            invited_users: self
-                .users
-                .values()
-                .filter(|u| u.invited_by.is_some())
-                .count(),
-            active_users: self
-                .users
-                .values()
-                .filter(|u| u.active_within_weeks(now, 1))
-                .count(),
+            invited_users,
+            active_users,
+            circulating_supply: self.balances.values().sum(),
             buckets: self
                 .storage
                 .buckets
                 .iter()
                 .map(|(id, size)| (id.to_string(), *size))
                 .collect(),
-            circulating_supply: self.balances.values().sum(),
         }
     }
 

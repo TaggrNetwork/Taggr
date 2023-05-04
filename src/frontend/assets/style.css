@@ -96,7 +96,7 @@ h5 { font-size: 80%; }
 .realm_post { padding-top: 1em; }
 .gallery_post { padding-top: 0; }
 
-.feed_item > .post_box.gallery_post > article > div > .gallery:first-child > img {
+.feed_item > .post_box.gallery_post > article > div.gallery:first-child > img {
     border-top-left-radius: 5px;
     border-top-right-radius: 5px;
 }

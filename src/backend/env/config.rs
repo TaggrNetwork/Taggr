@@ -190,7 +190,7 @@ pub const CONFIG: &Config = &Config {
     min_stalwart_account_age_weeks: 26,
     stalwart_moderation_reward: 20,
 
-    hot_post_engagement_percentage: 0.008,
+    hot_post_engagement_percentage: 0.01,
 
     max_post_length: 15000,
     max_tag_length: 20,
