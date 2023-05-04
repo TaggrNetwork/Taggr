@@ -66,7 +66,7 @@ export const Content = ({post, value = "", blobs = [], collapse, preview, primeM
             {collapse && <ArrowDown />}
             {markdownizer(collapse ? null : extValue, urls, setUrls, blobs)}
         </>}
-    </>, [value, blobs, collapse]);
+    </>, [value, extValue, blobs, collapse]);
 }
 
 const isALink = val => val.match(/^https?:\/\/.+$/) || val.match(/^www\..+$/);

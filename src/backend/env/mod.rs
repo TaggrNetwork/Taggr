@@ -1307,9 +1307,10 @@ impl State {
 
     // Check if user has some unclaimed e8s in the Treasury and transfers them to user's account.
     async fn claim_e8s_from_treasury(&mut self, principal: Principal) -> Result<(), String> {
-        let user = self
-            .principal_to_user_mut(principal)
-            .ok_or("no user found")?;
+        let user = match self.principal_to_user_mut(principal) {
+            Some(user) => user,
+            None => return Ok(()),
+        };
         if user.treasury_e8s > 0 {
             invoices::transfer(
                 parse_account(&user.account)?,
