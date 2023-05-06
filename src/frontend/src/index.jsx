@@ -27,10 +27,10 @@ import {Whitepaper} from "./whitepaper";
 import {Recovery} from "./recovery";
 import {MAINNET_MODE, CANISTER_ID} from './env';
 
-const { hash, search } = location;
+const { hash, pathname } = location;
 
-if (!hash && search) {
-    location.href = `#${search.slice(1)}`;
+if (!hash && pathname != "/") {
+    location.href = `#${pathname}`;
 }
 
 const REFRESH_RATE_SECS = 10 * 60;

@@ -1049,8 +1049,6 @@ impl State {
         }
 
         self.recompute_stalwarts(now);
-
-        self.memory.report_health(&mut self.logger);
     }
 
     async fn hourly_chores(&mut self, now: u64) {
@@ -1188,6 +1186,8 @@ impl State {
             };
             self.mint(user_ids);
         }
+
+        self.memory.report_health(&mut self.logger);
     }
 
     fn clean_up(&mut self) {
@@ -1287,6 +1287,10 @@ impl State {
                 }
                 _ => {}
             };
+        }
+
+        if joined.is_empty() && left.is_empty() {
+            return;
         }
 
         self.logger.info(format!(
@@ -2399,7 +2403,7 @@ pub(crate) mod tests {
         user1.change_cycles(500, CyclesDelta::Minus, "").unwrap();
         assert_eq!(user1.cycles(), 500);
 
-        let name = "SYNAPSE".to_string();
+        let name = "TAGGRDAO".to_string();
         let description = "Test description".to_string();
         let controllers = vec![_u0];
 
@@ -2602,7 +2606,7 @@ pub(crate) mod tests {
             p1,
             0,
             None,
-            Some("SYNAPSE".into()),
+            Some("TAGGRDAO".into()),
             None,
         )
         .await
@@ -2611,7 +2615,7 @@ pub(crate) mod tests {
         assert_eq!(state.posts.get(&post_id).unwrap().realm, Some(name.clone()));
         assert!(state.realms.get(&name).unwrap().posts.contains(&post_id));
 
-        // We can also post outside of a realm while staying in a realm.
+        // Posting without realm creates the post in the current realm of the user
         let post_id = add(
             &mut state,
             "Realm post".to_string(),
@@ -2625,7 +2629,10 @@ pub(crate) mod tests {
         .await
         .unwrap();
 
-        assert_eq!(state.posts.get(&post_id).unwrap().realm, None);
+        assert_eq!(
+            state.posts.get(&post_id).unwrap().realm,
+            Some("TAGGRDAO".into())
+        );
 
         // comments not possible if user is not in the realm
         assert_eq!(
@@ -2640,7 +2647,7 @@ pub(crate) mod tests {
                 None
             )
             .await,
-            Err("not a member of the realm SYNAPSE".to_string())
+            Err("not a member of the realm TAGGRDAO".to_string())
         );
 
         assert!(state.toggle_realm_membership(p0, name.clone()));
@@ -2755,13 +2762,13 @@ pub(crate) mod tests {
             Ok(5)
         );
 
-        // Make sure the user is in SYNAPSE realm
+        // Make sure the user is in TAGGRDAO realm
         assert!(state
             .users
             .get(&_u1)
             .unwrap()
             .realms
-            .contains(&"SYNAPSE".to_string()));
+            .contains(&"TAGGRDAO".to_string()));
 
         // Move the post to non-joined realm
         assert_eq!(
@@ -2771,7 +2778,7 @@ pub(crate) mod tests {
                 "changed".to_string(),
                 vec![],
                 "".to_string(),
-                Some("SYNAPSE_X".to_string()),
+                Some("TAGGRDAO_X".to_string()),
                 p1,
                 time(),
             )
@@ -2779,7 +2786,7 @@ pub(crate) mod tests {
             Err("you're not in the realm".into()),
         );
 
-        // Move post to SYNAPSE realms
+        // Move post to TAGGRDAO realms
         assert_eq!(state.posts.get(&5).unwrap().realm, Some(realm_name));
         assert_eq!(
             edit(
@@ -2788,7 +2795,7 @@ pub(crate) mod tests {
                 "changed".to_string(),
                 vec![],
                 "".to_string(),
-                Some("SYNAPSE".to_string()),
+                Some("TAGGRDAO".to_string()),
                 p1,
                 time(),
             )
@@ -2797,7 +2804,7 @@ pub(crate) mod tests {
         );
         assert_eq!(
             state.posts.get(&5).unwrap().realm,
-            Some("SYNAPSE".to_string())
+            Some("TAGGRDAO".to_string())
         );
     }
 

@@ -119,31 +119,31 @@ export const Proposal = ({id}) => {
     const t = backendCache.config.proposal_approval_threshold;
     const days = Math.ceil((proposal.voting_power - (adopted > rejected ? adopted / t : rejected / (100 - t)) * 100) / dailyDrop);
     const propStatus = status ? status : proposal.status.toUpperCase();
-    return <div key={proposal.timestamp} className="post_extension column_container">
-        <div className="monospace bottom_half_spaced">ID: <code>{proposal.id}</code></div>
-        <div className="monospace bottom_half_spaced">TYPE: {Object.keys(proposal.payload)[0].toUpperCase()}</div>
-        <div className="monospace bottom_half_spaced">PROPOSER: <a href={`#/user/${proposal.proposer}`}>{`@${users[proposal.proposer]}`}</a></div>
-        <div className="monospace bottom_half_spaced">DATE: {timeAgo(proposal.timestamp)}</div>
-        <div className="monospace bottom_spaced">STATUS: {statusEmoji(propStatus)} <span className={open ? "accent" : null}>{propStatus}</span></div>
+    return <div key={proposal.timestamp} className="post_extension column_container monospace">
+        <div className="bottom_half_spaced">ID: {proposal.id}</div>
+        <div className="bottom_half_spaced">TYPE: {Object.keys(proposal.payload)[0].toUpperCase()}</div>
+        <div className="bottom_half_spaced">PROPOSER: <a href={`#/user/${proposal.proposer}`}>{`@${users[proposal.proposer]}`}</a></div>
+        <div className="bottom_half_spaced">CREATED: {timeAgo(proposal.timestamp)}</div>
+        <div className="bottom_spaced">STATUS: {statusEmoji(propStatus)} <span className={open ? "accent" : null}>{propStatus}</span></div>
         {!!proposal.payload.Release && <div className="monospace bottom_spaced">
             {commit && <div className="row_container bottom_half_spaced">COMMIT:<a className="monospace left_spaced" href={open ? REPO_RELEASE : `${REPO_COMMIT}/${proposal.payload.Release.commit}`}>{commit}</a></div>}
             {!open && <div className="row_container"><span>HASH:</span><code className="left_spaced monospace">{hash}</code></div>}
         </div>}
         {!!proposal.payload.Fund && <>
-            <div className="monospace bottom_half_spaced">RECEIVER: <code>{proposal.payload.Fund[0]}</code></div>
-            <div className="monospace bottom_spaced">AMOUNT: <code>{proposal.payload.Fund[1].toLocaleString()}</code></div>
+            <div className="bottom_half_spaced">RECEIVER: <code>{proposal.payload.Fund[0]}</code></div>
+            <div className="bottom_spaced">AMOUNT: {proposal.payload.Fund[1].toLocaleString()}</div>
         </>}
-        <div className="monospace bottom_spaced">
-            EFFECTIVE VOTING POWER: <code>{token(proposal.voting_power)}</code>
+        <div className="bottom_spaced">
+            EFFECTIVE VOTING POWER: {token(proposal.voting_power)}
         </div>
-        {open && !isNaN(days) && <div className="monospace bottom_spaced">
-            EXECUTION DEADLINE: <code>{days}</code> DAYS
+        {open && !isNaN(days) && <div className="bottom_spaced">
+            EXECUTION DEADLINE: {days} DAYS
         </div>}
-        <div className="monospace bottom_spaced">
+        <div className="bottom_spaced">
             <div className="bottom_half_spaced">ADOPTED: <b className={adopted > rejected && open ? "accent" : null}>{token(adopted)}</b> ({percentage(adopted, proposal.voting_power)})</div>
             <div className="small_text">{users && userList(proposal.bulletins.filter(vote => vote[1]).map(vote => vote[0]))}</div>
         </div>
-        <div className="monospace bottom_spaced">
+        <div className="bottom_spaced">
             <div className="bottom_half_spaced">REJECTED: <b className={adopted < rejected && open ? "accent" : null}>{token(rejected)}</b> ({percentage(rejected, proposal.voting_power)})</div>
             <div className="small_text">{users && userList(proposal.bulletins.filter(vote => !vote[1]).map(vote => vote[0]))}</div>
         </div>

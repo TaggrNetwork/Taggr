@@ -43,7 +43,7 @@ export const Profile = ({handle}) => {
     const { feed_page_size } = backendCache.config;
     const user = api._user;
     const showReport = profile.report && !profile.report.closed && user && user.stalwart;
-    const karma_from_last_posts = Object.entries(profile.karma_from_last_posts);
+    const karma_from_last_posts = Object.entries(profile.karma_from_last_posts).filter(([_, karma]) => karma >= 0);
     karma_from_last_posts.sort(([_id1, e1], [_id2, e2]) => e2 - e1);
     const endorsementsTotal = karma_from_last_posts.reduce((acc, [_, karma]) => acc + karma, 0);
 

@@ -81,21 +81,6 @@ fn post_upgrade() {
  * Updates
  */
 
-#[export_name = "canister_update tmp_fix"]
-// This is a temporary fixture which can be used by @X for users who still didn't migrate from seed phrase v1 to seed
-// phrase v2 and is needed becasue the seed phrase v1 login is removed now.
-fn tmp_fix() {
-    spawn(async {
-        let s = state_mut();
-        // Only X can migrate
-        assert_eq!(s.principal_to_user(caller()).unwrap().id, 0);
-        let (old, new): (String, String) = parse(&arg_data_raw());
-        let _ = s
-            .change_principal(Principal::from_text(old).unwrap(), new)
-            .await;
-    });
-}
-
 #[cfg(not(feature = "dev"))]
 #[update]
 fn prod_release() -> bool {
