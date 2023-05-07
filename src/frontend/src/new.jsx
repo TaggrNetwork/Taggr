@@ -3,7 +3,7 @@ import { Form } from './form';
 import { getPatch, loadPostBlobs, loadPost, isRoot } from './common';
 
 export const PostSubmissionForm = ({id, repost}) => {
-    const [post, setPost] = React.useState({});
+    const [post, setPost] = React.useState(null);
     const [blobs, setBlobs] = React.useState({});
 
     const load = async () => {
@@ -37,10 +37,11 @@ export const PostSubmissionForm = ({id, repost}) => {
         location.href = `#/post/${postId}`;
     };
 
+    if (!isNaN(id) && !post) return null;
 
     return <div className="spaced top_spaced">
-        <Form submitCallback={callback} postId={id} content={post.body || ""} blobs={blobs} expanded={true} repost={repost}
-            comment={!isRoot(post)} realmArg={post.realm || api._user.current_realm}/>
+        <Form submitCallback={callback} postId={id} content={post.body || ""} blobs={blobs} expanded={true}
+            repost={repost} realmArg={post.realm || api._user.current_realm}/>
         <h3>Tipps</h3>
         <ul>
             <li>Use <a target="_blank" href="https://commonmark.org/help/">Markdown</a> for formatting.</li>

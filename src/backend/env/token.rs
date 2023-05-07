@@ -1,3 +1,4 @@
+use super::MINUTE;
 use crate::*;
 use candid::{CandidType, Deserialize};
 use ic_cdk::export::candid::Principal;
@@ -155,8 +156,6 @@ fn icrc1_supported_standards() -> Vec<Standard> {
     }]
 }
 
-const MINUTE: u64 = 60000000000_u64;
-
 #[update]
 fn icrc1_transfer(args: TransferArgs) -> Result<u128, TransferError> {
     let owner = caller();
@@ -292,11 +291,7 @@ pub fn move_funds(state: &mut State, from: &Account, to: Account) -> Result<u128
     Ok(n)
 }
 
-pub fn transfer_from_ui(
-    state: &mut State,
-    recipient: String,
-    amount: String,
-) -> Result<u64, String> {
+pub fn transfer_from_ui(state: &State, recipient: String, amount: String) -> Result<u64, String> {
     let minted_supply: Token = state.balances.values().sum();
 
     if minted_supply * 100 < CONFIG.supply_threshold_for_transfer_percentage * CONFIG.total_supply {
@@ -324,25 +319,22 @@ pub fn transfer_from_ui(
             _ => Err(format!("Can't parse amount {}", amount)),
         }
     }
-    transfer(
-        time(),
-        state,
-        caller(),
-        TransferArgs {
-            from_subaccount: None,
-            to: account(
-                Principal::from_text(recipient)
-                    .map_err(|err| format!("couldn't parse the recipient: {:?}", err))?,
-            ),
-            amount: parse(&amount)? as u128,
-            fee: Some(icrc1_fee()),
-            memo: None,
-            created_at_time: Some(time()),
-        },
-    )
+
+    icrc1_transfer(TransferArgs {
+        from_subaccount: None,
+        to: account(
+            Principal::from_text(recipient)
+                .map_err(|err| format!("couldn't parse the recipient: {:?}", err))?,
+        ),
+        amount: parse(&amount)? as u128,
+        fee: Some(icrc1_fee()),
+        memo: None,
+        created_at_time: Some(time()),
+    })
     .map(|n| n as u64)
     .map_err(|err| format!("transfer failed: {:?}", err))
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

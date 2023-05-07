@@ -40,7 +40,8 @@ pub type Cycles = u64;
 pub type Karma = i64;
 pub type Blob = ByteBuf;
 
-const HOUR: u64 = 3600000000000_u64;
+const MINUTE: u64 = 60000000000_u64;
+const HOUR: u64 = 60 * MINUTE;
 const DAY: u64 = 24 * HOUR;
 const WEEK: u64 = 7 * DAY;
 

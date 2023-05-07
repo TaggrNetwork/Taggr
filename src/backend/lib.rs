@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use candid::Principal;
 use env::{
     canisters::upgrade_main_canister,
     config::{reaction_karma, CONFIG},
@@ -309,7 +308,7 @@ fn transfer_icp() {
 #[export_name = "canister_update transfer_tokens"]
 fn transfer_tokens() {
     let (recipient, amount): (String, String) = parse(&arg_data_raw());
-    reply(token::transfer_from_ui(state_mut(), recipient, amount));
+    reply(token::transfer_from_ui(state(), recipient, amount));
 }
 
 #[export_name = "canister_update mint_cycles"]
