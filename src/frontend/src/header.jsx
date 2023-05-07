@@ -32,7 +32,7 @@ export const Header = ({subtle, route}) => {
                         toggler={() => setShowLogins(!showLogins)} currState={() => showLogins} onLabel="CLOSE" offLabel="CONNECT" />}
                 </>}
                 {api._principalId && 
-                    <BurgerButton onClick={() => { toggleButtonBar(!showButtonBar); toggleRealms(false) }} pressed={showButtonBar} />}
+                    <BurgerButton onClick={() => { toggleButtonBar(!showButtonBar); toggleRealms(false) }} pressed={showButtonBar} testId="burger-button" />}
             </div>
         </header>
         {showLogins && <LoginMasks />}

@@ -68,8 +68,8 @@ const Welcome = () => {
                 </div>}
                 {invoice && !invoice.paid && <div className="stands_out">
                     Please transfer&nbsp;
-                    <CopyToClipboard value={(parseInt(invoice.e8s) / 1e8)} /> ICP to account<br />
-                    <CopyToClipboard value={(hex(invoice.account))} /><br/> to mint <code>1000</code> cycles.
+                    <CopyToClipboard value={(parseInt(invoice.e8s) / 1e8)} testId="amount-to-transfer" />&nbsp;ICP to account<br />
+                    <CopyToClipboard value={(hex(invoice.account))} testId="account-to-transfer-to"/> to mint <code>1000</code> cycles.
                     <br />
                     <br />
                     (Larger transfers will mint a proportionally larger number of cycles.)

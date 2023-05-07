@@ -4,13 +4,14 @@
 
 Make sure to follow the steps outlined in the rest of this file before using these commands.
 
-| Description                 | Command         | Note                                               |
-| --------------------------- | --------------- | -------------------------------------------------- |
-| Build the canister          | make build      |                                                    |
-| Start the local replica     | make start      |                                                    |
-| Start the frontend server   | npm start       |                                                    |
-| Deploy the canister locally | make dev_deploy |                                                    |
-| Run e2e tests               | make e2e_test   | If you're using Ubuntu, it must be an LTS version. |
+| Description                 | Command             | Note                                                    |
+| --------------------------- | ------------------- | ------------------------------------------------------- |
+| Build the canister          | make build          |                                                         |
+| Start the local replica     | make start          |                                                         |
+| Start the frontend server   | npm start           |                                                         |
+| Deploy the canister locally | make dev_deploy     |                                                         |
+| Set up and run e2e tests    | make e2e_test       | If you're using Ubuntu, it must be an LTS version.      |
+| Run e2e tests               | npx playwright test | Assumes e2e setup is already done (see `make e2e_test`) |
 
 ## System Dependencies
 
@@ -34,7 +35,7 @@ Change your directory to the newly cloned Taggr repo:
 cd taggr
 ```
 
-The remaining steps are only necessary for deploying NNS canisters locally. This makes it easier to test new account creation with Internet Identity or to make ICP transfers to those accounts. Alternatively, you can [create a backup](#creating-and-restoring-backups) and then refer to the [command reference](#command-reference) to build and deploy.
+The remaining steps are only necessary for deploying NNS canisters locally. This makes it easier to test new account creation with Internet Identity, to make ICP transfers to those accounts or to run Taggr e2e tests without a Docker container. Alternatively, you can [create a backup](#creating-and-restoring-backups) and then refer to the [command reference](#command-reference) to build and deploy.
 
 Create or edit `~/.config/dfx/networks.json`, and add the following, note that `dfx install` requires port `8080` to work:
 
@@ -68,7 +69,7 @@ Install NNS canisters (see the [DFX docs](https://github.com/dfinity/sdk/blob/ma
 dfx nns install
 ```
 
-Now you are ready to create a new Taggr account with Internet Identity locally. If you also want to make ICP transfers to this account then continue with the remaining steps.
+Now you are ready to create a new Taggr account with Internet Identity locally. If you also want to make ICP transfers to this account then continue with the remaining steps, the remaining steps are not necessary for running e2e tests.
 
 Set up the private key for the local minting account:
 
@@ -104,6 +105,28 @@ At this point, you can refer to the [command reference](#command-reference) to d
 
 ```shell
 dfx ledger transfer --memo 1000 --amount 10 ${accountId}
+```
+
+## e2e Tests
+
+Make sure to follow the [first time setup instructions](#first-time-setup) before running e2e tests without using the Dockerfile.
+
+Run the test UI, this is great for watching the tests run as they are happening and checking screenshots at each stage:
+
+```shell
+npx playwright test --ui
+```
+
+To collect a static trace for tests:
+
+```shell
+npx playwright test --trace on
+```
+
+To help determine if tests are flaky, run them multiple times, note that only the file's name is required, not its full path. If the filename is ommited then all tests will be run multiple times:
+
+```shell
+npx playwright test ${test_filename}.spec.ts --trace on --repeat-each 10
 ```
 
 ## Creating and Restoring backups

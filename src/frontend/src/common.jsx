@@ -214,13 +214,14 @@ export const userList = (ids = []) => commaSeparated(ids.map(id => <UserLink key
 
 export const token = n => Math.ceil(n / Math.pow(10, backendCache.config.token_decimals)).toLocaleString();
 
-export const ReactionToggleButton = ({icon, onClick, pressed, classNameArg}) => 
+export const ReactionToggleButton = ({icon, onClick, pressed, classNameArg, testId = null}) => 
     <button data-meta="skipClicks" onClick={e => { e.preventDefault(); onClick(e)}}
+        data-testid={testId}
         className={`${pressed ? "" : "un"}selected reaction_button vcentered ${classNameArg}`}>
         {icon}
     </button>;
 
-export const BurgerButton = ({onClick, pressed}) => <ReactionToggleButton onClick={onClick} pressed={pressed} icon={<Menu />} />
+export const BurgerButton = ({onClick, pressed, testId = null}) => <ReactionToggleButton onClick={onClick} pressed={pressed} icon={<Menu />} testId={testId} />
 
 export const loadPostBlobs = async (files) => {
     const ids = Object.keys(files);
@@ -251,13 +252,14 @@ export const CopyToClipboard = ({value,
     post = value => <span><code>{value}</code> <ClipboardCheck /></span>,
     displayMap = e => e,
     map = e => e,
+    testId = null
 }) => {
     const [copied, setCopied] = React.useState(false)
     return <span onClick={async () => {
         const cb = navigator.clipboard;
         await cb.writeText(map(value));
         setCopied(true);
-    }}>{copied ? post(displayMap(value)) : pre(displayMap(value))}</span>;
+    }} data-testid={testId}>{copied ? post(displayMap(value)) : pre(displayMap(value))}</span>;
 }
 
 export const intFromBEBytes = bytes => bytes.reduce((acc, value) => acc * 256 + value, 0);
