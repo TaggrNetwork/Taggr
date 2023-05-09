@@ -9,11 +9,12 @@ export const Header = ({subtle, route}) => {
     const [showButtonBar, toggleButtonBar] = React.useState(false);
     const [showRealms, toggleRealms] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
+    const [inRealm, setInRealm] = React.useState(user && user.current_realm);
     const [realmBg, realmFg] = realmColors(user?.current_realm);
     const inboxEmpty = !user || Object.keys(user.inbox).length == 0;
-    const inRealm = user && user.current_realm;
     React.useEffect(() => { document.getElementById("logo").innerHTML = backendCache.config.logo }, []);
     React.useEffect(() => { toggleButtonBar(false); toggleRealms(false) }, [route]);
+
     return <>
         <header className={`spaced top_half_spaced vcentered ${subtle ? "subtle" : ""}`}>
             <a href="#/home" id="logo"></a>
@@ -54,12 +55,11 @@ export const Header = ({subtle, route}) => {
             {user.realms.map(realm => <RealmSpan key={realm}
                 classNameArg="left_half_spaced right_half_spaced clickable padded_rounded text_centered"
                 onClick={async () => {
-                    toggleRealms(false);
                     setLoading(true);
+                    toggleRealms(false);
                     await api.call("enter_realm", realm);
-                    await api._reloadUser();
-                    location.href = "/#/_";
-                    setLoading(false);
+                    api._reloadUser().then(() => setInRealm(realm)).then(() => setLoading(false));
+                    location.href = `/#/${realm}/home/`;
                 }} name={realm} />)}
         </div>}
         {loading && <Loading />}
@@ -73,8 +73,10 @@ export const Header = ({subtle, route}) => {
                     <ButtonWithLoading classNameArg="left_half_spaced monospace"
                         styleArg={{background: realmBg, color: realmFg}}
                         onClick={async () =>{
+                            setLoading(true);
+                            setInRealm("");
                             await api.call("enter_realm", "");
-                            await api._reloadUser();
+                            api._reloadUser().then(() => setLoading(false));
                             location.href = "/#/main";
                         }}
                         label={<div className="vcentered"><Close styleArg={{fill: realmFg}} small={true} /></div>}

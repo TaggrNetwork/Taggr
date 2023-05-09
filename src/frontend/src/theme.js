@@ -1,48 +1,48 @@
 import template from '../assets/style.css';
 
+var shade = function(color, percent) {
+    var num = parseInt(color.replace("#",""), 16),
+        amt = Math.round(2.55 * percent),
+        R = (num >> 16) + amt,
+        B = (num >> 8 & 0x00FF) + amt,
+        G = (num & 0x0000FF) + amt;
+    return (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (B<255?B<1?0:B:255)*0x100 + (G<255?G<1?0:G:255)).toString(16).slice(1);
+};
+
 export const themes = {
+    "calm": {
+        "text": "#e0e0c8",
+        "background": "#343541",
+        "code": "White",
+        "clickable": "MediumTurquoise",
+        "accent": "Gold"
+    },
     "classic": {
-        "text": "#cbcbbc",
-        "focus": "#c8c6a1",
-        "background_light": "#23383f",
-        "background_dark": "#0f242b",
+        "text": "#e0e0c8",
         "background": "#1c3239",
-        "code": "white",
-        "clickable": "#30cec5",
-        "clicked": "#009e95",
+        "code": "White",
+        "clickable": "MediumTurquoise",
         "accent": "#FFc700"
     },
     "light": {
         "text": "#23383F",
-        "focus": "darkslategray",
-        "background_light": "#cbcbbc",
-        "background_dark": "#a9a99a",
         "background": "#c3c3b4",
-        "code": "black",
-        "clickable": "teal",
-        "clicked": "#006060",
-        "accent": "orangered"
+        "code": "Black",
+        "clickable": "Teal",
+        "accent": "OrangeRed"
     },
     "dark": {
-        "text": "#cccccc",
-        "focus": "#c8c6a1",
-        "background_light": "#24242a",
-        "background_dark": "#101014",
+        "text": "#e0e0c8",
         "background": "#1e1e23",
-        "code": "white",
-        "clickable": "#00b0b0",
-        "clicked": "teal",
-        "accent": "gold"
+        "code": "White",
+        "clickable": "MediumTurquoise",
+        "accent": "Gold"
     },
     "midnight": {
-        "text": "#cccccc",
-        "focus": "#c8c6a1",
-        "background_light": "#192636",
-        "background_dark": "#091523",
+        "text": "#e0e0c8",
         "background": "#111d2b",
-        "code": "white",
-        "clickable": "#00b0b0",
-        "clicked": "teal",
+        "code": "White",
+        "clickable": "MediumAquaMarine",
         "accent": "#FFd700"
     }
 };
@@ -50,6 +50,8 @@ export const themes = {
 export const applyTheme = palette => {
     let autoTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "dark" : "light";
     const effPalette = palette ? palette : themes[autoTheme];
+    effPalette["light_background"] = "#" + shade(effPalette.background, 3);
+    effPalette["dark_background"] = "#" + shade(effPalette.background, -5);
     const styleNode = document.getElementById("style");
     styleNode.innerText = Object.keys(effPalette).reduce((acc, color) =>
         acc.replaceAll(`$${color}`, effPalette[color]), template);

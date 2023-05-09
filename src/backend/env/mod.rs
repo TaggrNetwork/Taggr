@@ -1470,8 +1470,6 @@ impl State {
                 break 'OUTER;
             }
         }
-        // Don't display taggr, it's useless
-        tags.remove("taggr");
         tags.into_iter()
             .map(|v| v.1)
             .filter(|(_, count)| *count > 1)
@@ -1491,10 +1489,6 @@ impl State {
             }
         }
         Box::new(result.into_iter().rev())
-    }
-
-    pub fn posts(&self, ids: Vec<PostId>) -> Vec<&'_ Post> {
-        ids.iter().filter_map(|id| self.posts.get(id)).collect()
     }
 
     pub fn user(&self, handle: &str) -> Option<&User> {
@@ -2008,7 +2002,9 @@ fn tokens(max_tag_length: usize, input: &str, tokens: &[char]) -> BTreeSet<Strin
                 if c.is_alphanumeric() || ['-', '_'].iter().any(|v| v == &c) {
                     tag.push(c);
                 } else {
-                    tags.push(String::from_iter(tag.clone()));
+                    if !tag.iter().all(|c| c.is_numeric()) {
+                        tags.push(String::from_iter(tag.clone()));
+                    }
                     tag.clear();
                     token_found = false;
                 }
@@ -3078,9 +3074,10 @@ pub(crate) mod tests {
         assert_eq!(tags("This is a #string with hashtags!"), "string");
         assert_eq!(tags("#This is a #string with two hashtags!"), "This string");
         assert_eq!(tags("This string has no tags.#bug"), "");
+        assert_eq!(tags("This is $TOKEN symbol"), "TOKEN");
         assert_eq!(
-            tags("#This is a #string with #333 hashtags!"),
-            "333 This string"
+            tags("#This is a #string with $333 hashtags!"),
+            "This string"
         );
         assert_eq!(tags("#year2021"), "year2021");
         assert_eq!(tags("#year2021 #year2021 #"), "year2021");

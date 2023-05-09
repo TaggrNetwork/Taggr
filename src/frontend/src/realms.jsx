@@ -130,14 +130,6 @@ export const RealmForm = ({existingName}) => {
                     <input type="color" value={theme.clickable} onChange={ev => setTheme({...theme, clickable: ev.target.value })} />
                 </div>
                 <div className="db_cell">
-                    VISITED LINK
-                    <input type="color" value={theme.clicked} onChange={ev => setTheme({...theme, clicked: ev.target.value })} />
-                </div>
-                <div className="db_cell">
-                    HIGHLIGHTS
-                    <input type="color" value={theme.focus} onChange={ev => setTheme({...theme, focus: ev.target.value })} />
-                </div>
-                <div className="db_cell">
                     ACCENT
                     <input type="color" value={theme.accent} onChange={ev => setTheme({...theme, accent: ev.target.value })} />
                 </div>
@@ -155,11 +147,11 @@ export const RealmForm = ({existingName}) => {
                     alert(`Error: ${response.Err}`);
                     return;
                 }
-                await api.call("toggle_realm_membership", name);
-                await window.reloadCache();
-                await api._reloadUser();
-                if (editing) await loadRealm();
-                else location.href = `#/realm/${name}`;
+                await Promise.all([window.reloadCache(), api._reloadUser(), loadRealm()]);
+                if (!editing) {
+                    api.call("toggle_realm_membership", name);
+                    location.href = `#/realm/${name}`
+                };
             }} label={editing ? "SAVE" : "CREATE"} />
         </div>
     </div>

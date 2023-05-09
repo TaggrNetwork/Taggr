@@ -74,6 +74,7 @@ export const Settings = ({invite = null}) => {
                     <option value="light">LIGHT</option>
                     <option value="dark">DARK</option>
                     <option value="classic">CLASSIC</option>
+                    <option value="calm">CALM</option>
                     <option value="midnight">MIDNIGHT</option>
                 </select>
             </div>

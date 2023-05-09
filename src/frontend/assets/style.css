@@ -35,7 +35,6 @@ input[type=color] {
 }
 
 h1, h2, h3, h4, h5, th {
-    color: $focus;
     text-transform: uppercase;
     font-weight: bold;
 }
@@ -52,7 +51,7 @@ h5 { font-size: 80%; }
     padding: 0.5em;
     color: $text;
     border-radius: 5px;
-    background: $background_dark;
+    background: $dark_background;
     border: none;
     font-size: large;
 }
@@ -77,8 +76,8 @@ h5 { font-size: 80%; }
 }
 
 .repost, .feed_item {
-    background: $background_light;
-    border-bottom: 1px solid $background_dark;
+    background: $light_background;
+    border-bottom: 1px solid $dark_background;
     cursor: pointer;
     margin-bottom: 1em;
     border-radius: 5px;
@@ -113,9 +112,9 @@ h5 { font-size: 80%; }
 }
 
 .stands_out {
-    background: $background_light;
+    background: $light_background;
     border-radius: 5px;
-    border-bottom: 1px solid $background_dark;
+    border-bottom: 1px solid $dark_background;
     padding: 1em;
     margin-top: 1em;
     margin-bottom: 1em;
@@ -133,8 +132,8 @@ h5 { font-size: 80%; }
 
 button {
     cursor: pointer;
-    color: $focus;
-    background: $background_dark;
+    color: $text;
+    background: $dark_background;
     font-weight: bold;
     font-size: small;
     border: none;
@@ -167,14 +166,12 @@ a:hover {
     text-decoration: underline dotted;
 }
 
-a:visited { color: $clicked; }
-
 a.iconed:hover { text-decoration: none; }
 
 a.external {
     border-radius: 3px;
     background: $clickable;
-    color: $background_light;
+    color: $light_background;
     padding-left: 0.3em;
     padding-right: 0.3em;
 }
@@ -186,11 +183,11 @@ ul { list-style-type: square; }
     align-items: center;
     justify-content: center;
     user-select: none;
-    color: $focus;
+    color: $text;
     height: 23px;
 }
 
-path { fill: $focus; }
+path { fill: $text; }
 
 .vcentered {
     display: flex;
@@ -243,7 +240,7 @@ header {
 
 hr {
     border-style: none none none;
-    border-top: 2px solid $background_light;
+    border-top: 2px solid $light_background;
     margin-top: 1em;
     margin-bottom: 1em;
 }
@@ -253,7 +250,7 @@ hr {
 .subtle { opacity: 0.75; }
 
 .selected {
-    background: $background_dark;
+    background: $dark_background;
     border-radius: 7px;
 }
 
@@ -275,7 +272,7 @@ hr {
     padding-left: 0.3em;
 }
 
-article table, article th, article td { border: 1px solid $background_dark; }
+article table, article th, article td { border: 1px solid $dark_background; }
 
 article { overflow-wrap: anywhere; }
 
@@ -285,7 +282,7 @@ article { overflow-wrap: anywhere; }
     margin-top: 1em;
 }
 
-th { background: $background_dark; }
+th { background: $dark_background; }
 
 td, th { padding: 0.5em; }
 
@@ -389,10 +386,10 @@ div.thumbnails {
     top: 1em;
 }
 
-.top_framed { border-top: 1px solid $background_dark; }
+.top_framed { border-top: 1px solid $dark_background; }
 
 .framed {
-    border: 1px solid $background_dark;
+    border: 1px solid $dark_background;
     padding: 0.5em;
     border-radius: 5px;
 }
@@ -401,7 +398,7 @@ div.thumbnails {
     margin: 1em;
     margin-bottom: 1em;
     font-size: medium;
-    border: 1px solid $background_dark;
+    border: 1px solid $dark_background;
     padding: 0.5em;
     border-radius: 5px;
 }
@@ -526,11 +523,11 @@ a.accent, .accent { color: $accent; }
 
 .banner2 {
     background: $clickable;
-    color: $background_light;
+    color: $light_background;
 }
 
 .banner3 {
-    background: $background_dark;
+    background: $dark_background;
 }
 
 .post_head {
