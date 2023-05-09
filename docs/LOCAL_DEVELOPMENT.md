@@ -114,19 +114,19 @@ Make sure to follow the [first time setup instructions](#first-time-setup) befor
 Run the test UI, this is great for watching the tests run as they are happening and checking screenshots at each stage:
 
 ```shell
-npx playwright test --ui
+npm run test:e2e -- --ui
 ```
 
 To collect a static trace for tests:
 
 ```shell
-npx playwright test --trace on
+npm run test:e2e -- --trace on
 ```
 
 To help determine if tests are flaky, run them multiple times, note that only the file's name is required, not its full path. If the filename is ommited then all tests will be run multiple times:
 
 ```shell
-npx playwright test ${test_filename}.spec.ts --trace on --repeat-each 10
+npm run test:e2e -- ${test_filename}.spec.ts --trace on --repeat-each 10
 ```
 
 ## Creating and Restoring backups

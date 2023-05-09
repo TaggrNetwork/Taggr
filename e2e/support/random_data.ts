@@ -1,4 +1,4 @@
-import { customAlphabet } from "nanoid";
+import { customAlphabet, nanoid } from "nanoid";
 
 const generateAlphanumericalString = customAlphabet(
   "0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvxzy"
@@ -12,4 +12,8 @@ export function generateUsername(): string {
   }
 
   return username;
+}
+
+export function generateSeedPhrase(): string {
+  return nanoid();
 }

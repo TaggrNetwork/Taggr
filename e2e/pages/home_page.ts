@@ -5,6 +5,9 @@ export class HomePage {
   public readonly welcomeAboardHeader: Locator;
   public readonly connectButton: Locator;
   private readonly loginWithInternetIdentityButton: Locator;
+  private readonly loginWithSeedPhraseButton: Locator;
+  private readonly seedPhraseInput: Locator;
+  private readonly seedPhraseJoinButton: Locator;
 
   constructor(private readonly page: Page) {
     this.welcomeAboardHeader = page.locator("h1");
@@ -14,6 +17,11 @@ export class HomePage {
     this.loginWithInternetIdentityButton = page.locator("button", {
       hasText: "INTERNET IDENTITY",
     });
+    this.loginWithSeedPhraseButton = page.locator("button", {
+      hasText: "SEED PHRASE",
+    });
+    this.seedPhraseInput = page.getByPlaceholder("Enter your seedphrase");
+    this.seedPhraseJoinButton = page.locator("button", { hasText: "JOIN" });
   }
 
   public async goto(): Promise<void> {
@@ -29,5 +37,17 @@ export class HomePage {
     ]);
 
     return new InternetIdentityPage(internetIdentityPopup);
+  }
+
+  public async loginWithSeedPhrase(seedPhrase: string): Promise<void> {
+    await this.connectButton.click();
+    await this.loginWithSeedPhraseButton.click();
+
+    await this.seedPhraseInput.fill(seedPhrase);
+    await this.seedPhraseJoinButton.click();
+    
+    // confirm seed phrase
+    await this.seedPhraseInput.fill(seedPhrase);
+    await this.seedPhraseJoinButton.click();
   }
 }
