@@ -114,14 +114,6 @@ export const RealmForm = ({existingName}) => {
                     <input type="color" value={theme.background} onChange={ev => setTheme({...theme, background: ev.target.value })} />
                 </div>
                 <div className="db_cell">
-                    BACKGROUND LIGHT
-                    <input type="color" value={theme.background_light} onChange={ev => setTheme({...theme, background_light: ev.target.value })} />
-                </div>
-                <div className="db_cell">
-                    BACKGROUND DARK
-                    <input type="color" value={theme.background_dark} onChange={ev => setTheme({...theme, background_dark: ev.target.value })} />
-                </div>
-                <div className="db_cell">
                     CODE & DIGITS
                     <input type="color" value={theme.code} onChange={ev => setTheme({...theme, code: ev.target.value })} />
                 </div>
