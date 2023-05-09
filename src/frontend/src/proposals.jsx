@@ -8,7 +8,9 @@ const REPO_RELEASE = "https://github.com/TaggrNetwork/taggr/releases/latest";
 const REPO_COMMIT = "https://github.com/TaggrNetwork/taggr/commit";
 
 export const Proposals = () => {
-    const [showMask, toggleMask] = React.useState(false);
+    const [currentMask, setCurrentMask] = React.useState(null);
+    const [fundingReceiver, setFundingReceiver] = React.useState(null);
+    const [fundingAmount, setFundingAmount] = React.useState(0);
     const [binary, setBinary] = React.useState(null);
     const [commit, setCommit] = React.useState("");
     const [proposal, setProposal] = React.useState(null);
@@ -17,21 +19,30 @@ export const Proposals = () => {
     return <>
         <HeadBar title="Proposals" shareLink="proposals" menu={true}
             content={<div className="row_container">
-                <ButtonWithLoading classNameArg="max_width_col" label="FUNDING" onClick={async () => {
-                    let receiver = prompt("Enter the principal of the receiver.");
-                    if (!receiver) return;
-                    let amount = parseInt(prompt(`Enter the token amount (max. allowed amount is ${backendCache.config.max_funding_amount.toLocaleString()})`));
-                    let description = prompt("Enter the proposal description.");
-                    let response = await api.call("propose_funding", description, receiver, amount);
-                    if ("Err" in response) {
-                        alert(`Error: ${response.Err}`);
-                    }
-                    setProposal(response.Ok);
-                }} />
-                <button className="max_width_col active" onClick={() => toggleMask(!showMask)}>RELEASE</button>
+                <button className="max_width_col" onClick={() => setCurrentMask('funding')}>FUNDING</button>
+                <button className="max_width_col" onClick={() => setCurrentMask('release')}>RELEASE</button>
             </div>} />
         <div className="vertically_spaced">
-            {showMask && <div className="spaced column_container monospace">
+            {currentMask == "funding" && <div className="spaced column_container monospace">
+                <div className="vcentered bottom_half_spaced">RECEIVER<input type="text" className="monospace left_spaced max_width_col" onChange={async ev => { setFundingReceiver(ev.target.value); }} /></div>
+                <div className="vcentered bottom_half_spaced">TOKEN AMOUNT<input type="text" className="monospace left_spaced max_width_col" onChange={async ev => { setFundingAmount(ev.target.value); }} /></div>
+                <div className="bottom_half_spaced monospace">DESCRIPTION</div>
+                <textarea className="monospace bottom_spaced" rows={10} value={description} onChange={event => setDescription(event.target.value)}></textarea>
+                {description && <Content value={description} preview={true} classNameArg="bottom_spaced framed" />}
+                <ButtonWithLoading classNameArg="active" onClick={async () => {
+                    if (!description || !fundingReceiver || !fundingAmount) {
+                        alert("Error: incomplete data.");
+                        return;
+                    }
+                    let response = await api.call("propose_funding", description, fundingReceiver, parseInt(fundingAmount));
+                    if ("Err" in response) {
+                        alert(`Error: ${response.Err}`);
+                        return;
+                    }
+                    setCurrentMask(null);
+                    setProposal(response.Ok);
+                }} label="SUBMIT" />
+            </div>}{currentMask == "release" && <div className="spaced column_container monospace">
                 <div className="vcentered bottom_half_spaced">COMMIT<input type="text" className="monospace left_spaced max_width_col" onChange={async ev => { setCommit(ev.target.value); }} /></div>
                 <div className="vcentered bottom_half_spaced">BINARY <FileUploadInput classNameArg="monospace left_spaced max_width_col" callback={setBinary} /></div>
                 <div className="bottom_half_spaced monospace">DESCRIPTION</div>
@@ -47,7 +58,7 @@ export const Proposals = () => {
                         alert(`Error: ${response.Err}`);
                         return;
                     }
-                    toggleMask(!showMask);
+                    setCurrentMask(null);
                     setProposal(response.Ok);
                 }} label="SUBMIT" />
             </div>}
