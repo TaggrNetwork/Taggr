@@ -350,13 +350,16 @@ pub async fn add(
         return Err("Bots can't create comments currently".into());
     }
 
-    let limit = if user.is_bot() {
+    let limit = if principal == id() {
+        10 // canister itself can post up to 10 posts per hour to not skip NNS proposals
+    } else if user.is_bot() {
         1
     } else if parent.is_none() {
         CONFIG.max_posts_per_hour
     } else {
         CONFIG.max_comments_per_hour
     } as usize;
+
     if user
         .posts
         .iter()
@@ -381,7 +384,11 @@ pub async fn add(
     }
     let realm = match parent.and_then(|id| state.posts.get(&id)) {
         Some(post) => post.realm.clone(),
-        None => picked_realm.or(user.current_realm.clone()),
+        None => match picked_realm {
+            Some(value) if value.to_lowercase() == CONFIG.name.to_lowercase() => None,
+            Some(value) => Some(value),
+            None => user.current_realm.clone(),
+        },
     };
     if let Some(name) = &realm {
         if !user.realms.contains(name) {

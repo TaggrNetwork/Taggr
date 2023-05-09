@@ -435,7 +435,7 @@ impl State {
             return Err("realm name should have at least on character".into());
         }
 
-        if self.realms.contains_key(&name) {
+        if CONFIG.name.to_lowercase() == name.to_lowercase() || self.realms.contains_key(&name) {
             return Err("realm name taken".into());
         }
 
