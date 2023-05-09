@@ -1,13 +1,8 @@
 use ic_cdk::api::stable::{stable64_grow, stable64_read, stable64_size, stable64_write};
 use serde::{Deserialize, Serialize};
-use std::{
-    cell::RefCell,
-    collections::{BTreeMap, BTreeSet},
-    fmt::Display,
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::BTreeMap, fmt::Display, rc::Rc};
 
-use super::{Logger, Realm};
+use super::post::PostId;
 
 pub trait Storable {
     fn to_bytes(&self) -> Vec<u8>;
@@ -23,11 +18,12 @@ pub struct Api {
 pub struct Memory {
     api: Api,
     #[serde(skip)]
-    pub realms: ObjectManager<u32, Realm>,
+    pub posts: ObjectManager<PostId>,
     #[serde(skip)]
     api_ref: Rc<RefCell<Api>>,
 }
 
+// We leave the first 16 bytes recerved for the heap coordinates (offset + length)
 const INITIAL_OFFSET: u64 = 16;
 
 impl Api {
@@ -36,6 +32,10 @@ impl Api {
         let offset = self.allocator.alloc(buffer.len() as u64)?;
         stable64_write(offset, &buffer);
         Ok((offset, buffer.len() as u64))
+    }
+
+    pub fn remove(&mut self, offset: u64, len: u64) -> Result<(), String> {
+        self.allocator.free(offset, len)
     }
 
     pub fn read<T: Storable>(offset: u64, len: u64) -> T {
@@ -50,34 +50,15 @@ impl Api {
 }
 
 impl Memory {
-    fn pack(&mut self, logger: &mut Logger) {
-        if let Err(err) = self.realms.sync() {
-            logger.error(format!("couldn't sync the memory: {}", err));
-        }
-        self.api = (*self.api_ref.as_ref().borrow()).clone();
-    }
-
-    fn unpack(&mut self) {
-        self.api_ref = Rc::new(RefCell::new(self.api.clone()));
-        self.realms.api = Rc::clone(&self.api_ref);
-        self.realms.warm_up();
-    }
-
     pub fn report_health(&mut self, logger: &mut super::Logger) {
-        let cache_size = self.realms.cache.len();
         logger.info(format!(
-            "Memory health: {}, cached_objects=`{}`",
+            "Memory health: {}",
             self.api_ref.as_ref().borrow().allocator.health(),
-            cache_size
         ));
-        if let Err(err) = self.realms.sync() {
-            logger.error(format!("couldn't sync the memory: {}", err));
-        }
     }
 }
 
 pub fn heap_to_stable(state: &mut super::State) {
-    state.memory.pack(&mut state.logger);
     let mut api = state.memory.api.clone();
     let (offset, len) = match api.write(state) {
         Ok(values) => values,
@@ -111,9 +92,7 @@ pub fn heap_address() -> (u64, u64) {
 pub fn stable_to_heap() -> super::State {
     let (offset, len) = heap_address();
     ic_cdk::println!("Reading heap from coordinates: {:?}", (offset, len),);
-    let mut state: super::State = Api::read(offset, len);
-    state.memory.unpack();
-    state
+    Api::read(offset, len)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -266,115 +245,29 @@ impl Allocator {
 }
 
 #[derive(Default, Serialize, Deserialize)]
-pub struct ObjectManager<K: Ord + Eq, T: Storable> {
+pub struct ObjectManager<K: Ord + Eq> {
     index: BTreeMap<K, (u64, u64)>,
     #[serde(skip)]
-    cache: BTreeMap<K, T>,
-    #[serde(skip)]
-    dirty: BTreeSet<K>,
-    #[serde(skip)]
     api: Rc<RefCell<Api>>,
-    #[serde(default = "init_cache_size")]
-    cache_size: usize,
 }
 
-fn init_cache_size() -> usize {
-    2000
-}
-
-impl<K: Eq + Ord + Clone + Display, T: Storable> ObjectManager<K, T> {
-    pub fn keys(&self) -> impl Iterator<Item = &'_ K> {
-        self.index.keys()
-    }
-
-    pub fn insert(&mut self, id: K, value: T) -> Result<(), String> {
+impl<K: Eq + Ord + Clone + Display> ObjectManager<K> {
+    pub fn insert<T: Storable>(&mut self, id: K, value: T) -> Result<(), String> {
         self.index.insert(id, self.api.borrow_mut().write(&value)?);
         Ok(())
     }
 
-    pub fn get(&mut self, id: &K) -> Option<&'_ T> {
-        Some(
-            self.cache.entry(id.clone()).or_insert(
-                self.index
-                    .get(id)
-                    .map(|(offset, len)| Api::read(*offset, *len))?,
-            ),
-        )
+    pub fn get<T: Storable>(&mut self, id: &K) -> Option<T> {
+        self.index
+            .get(id)
+            .map(|(offset, len)| Api::read(*offset, *len))
     }
 
-    pub fn get_mut(&mut self, id: &K) -> Option<&'_ mut T> {
-        self.dirty.insert(id.clone());
-        Some(
-            self.cache.entry(id.clone()).or_insert(
-                self.index
-                    .get(id)
-                    .map(|(offset, len)| Api::read(*offset, *len))?,
-            ),
-        )
-    }
-
-    fn sync(&mut self) -> Result<usize, String> {
-        let dirty = std::mem::take(&mut self.dirty);
-        let dirty_entries = dirty.len();
-        let mut failures = Vec::new();
-        for id in dirty {
-            let val = match self.cache.get(&id) {
-                Some(val) => val,
-                None => {
-                    failures.push(format!("dirty value with id={} not found in cache", &id));
-                    continue;
-                }
-            };
-            let coords = match self.api.borrow_mut().write(val) {
-                Ok(val) => val,
-                Err(err) => {
-                    failures.push(format!(
-                        "dirty value with id={} couldn't be saved: {}",
-                        &id, err
-                    ));
-                    continue;
-                }
-            };
-            self.index.insert(id.clone(), coords);
-            let (off, len) = match self.index.remove(&id) {
-                Some(val) => val,
-                None => {
-                    failures.push(format!(
-                        "dirty value with id={} not found in the index",
-                        &id
-                    ));
-                    continue;
-                }
-            };
-            if let Err(err) = self.api.borrow_mut().allocator.free(off, len) {
-                failures.push(format!(
-                    "dirty value with id={} couldn't be freed: {}",
-                    &id, err
-                ));
-            }
-        }
-        if failures.is_empty() {
-            while self.cache.len() > self.cache_size {
-                self.cache.pop_first();
-            }
-            Ok(dirty_entries)
-        } else {
-            Err(failures.join("; "))
-        }
-    }
-
-    fn warm_up(&mut self) {
-        for k in self
-            .index
-            .keys()
-            .rev()
-            .take(self.cache_size)
-            .cloned()
-            .collect::<Vec<_>>()
-            .into_iter()
-        {
-            self.get(&k);
-        }
+    pub fn remove<T: Storable>(&mut self, id: &K) -> Result<T, String> {
+        let (offset, len) = self.index.remove(id).ok_or("not found")?;
+        let value = Api::read(offset, len);
+        self.api.borrow_mut().remove(offset, len)?;
+        Ok(value)
     }
 }
 

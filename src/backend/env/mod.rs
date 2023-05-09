@@ -1493,10 +1493,8 @@ impl State {
         Box::new(result.into_iter().rev())
     }
 
-    pub fn posts(&self, ids: Vec<PostId>) -> Vec<Post> {
-        ids.iter()
-            .filter_map(|id| self.posts.get(id).cloned())
-            .collect()
+    pub fn posts(&self, ids: Vec<PostId>) -> Vec<&'_ Post> {
+        ids.iter().filter_map(|id| self.posts.get(id)).collect()
     }
 
     pub fn user(&self, handle: &str) -> Option<&User> {

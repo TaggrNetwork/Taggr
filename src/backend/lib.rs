@@ -757,7 +757,7 @@ fn invites() {
 fn posts() {
     let ids: Vec<PostId> = parse(&arg_data_raw());
     let state = state();
-    reply(state.posts(ids).into_iter().collect::<Vec<Post>>());
+    reply(state.posts(ids).into_iter().collect::<Vec<&Post>>());
 }
 
 #[export_name = "canister_query journal"]
