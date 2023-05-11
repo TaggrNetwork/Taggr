@@ -153,7 +153,11 @@ fn execute_upgrade() {
         .iter_mut()
         .rev()
         .find(|proposal| {
-            proposal.status == Status::Executed && matches!(proposal.payload, Payload::Release(_))
+            proposal.status == Status::Executed
+                && match &proposal.payload {
+                    Payload::Release(payload) => !payload.binary.is_empty(),
+                    _ => false,
+                }
         })
         .expect("no proposals found");
     if let Payload::Release(release) = &mut proposal.payload {

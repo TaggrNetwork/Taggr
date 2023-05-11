@@ -25,6 +25,7 @@ export const Poll = ({poll, post_id, created}) => {
                     onChange={e => {
                         if (isNaN(post_id) || !api._user) return;
                         let vote = e.target.value;
+                        if (!confirm(`Please confirm your choice: ${data.options[vote]}`)) return;
                         api.call("vote_on_poll", post_id, parseInt(vote)).then(response => {
                             if (response.Err) {
                                 alert(`Error: ${response.Err}!`);

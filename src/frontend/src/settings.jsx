@@ -95,7 +95,7 @@ export const Settings = ({invite = null}) => {
                 <div className="bottom_half_spaced">PRINCIPAL</div>
                 <input placeholder="Your principal" className="monospace small_text" type="text" value={principal} onChange={event => setPrincipal(event.target.value)} />
             </div>
-            <div className="small_text vertically_spaced">⚠️ Please note that changing your principal will lead to the account loss if you do not control the new principal!</div>
+            <div className="vertically_spaced">⚠️ Please note that changing your principal will lead to the account loss if you do not control the new principal!</div>
             {<ButtonWithLoading classNameArg={principal != api._principalId ? "" : "inactive"} onClick={async () => {
                 let response = await api.call("change_principal", principal);
                 if ("Err" in response) {

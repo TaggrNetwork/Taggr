@@ -18,7 +18,7 @@ export const themes = {
         "accent": "Gold"
     },
     "classic": {
-        "text": "#e0e0c8",
+        "text": "#d0d0bf",
         "background": "#1c3239",
         "code": "White",
         "clickable": "MediumTurquoise",
@@ -32,7 +32,7 @@ export const themes = {
         "accent": "OrangeRed"
     },
     "dark": {
-        "text": "#e0e0c8",
+        "text": "#d0d0bf",
         "background": "#1e1e23",
         "code": "White",
         "clickable": "MediumTurquoise",

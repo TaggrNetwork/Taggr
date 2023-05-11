@@ -180,6 +180,10 @@ impl Post {
         Ok(())
     }
 
+    pub fn is_deleted(&self) -> bool {
+        !self.hashes.is_empty()
+    }
+
     pub fn delete(&mut self, versions: Vec<String>) {
         self.files.clear();
         self.body.clear();

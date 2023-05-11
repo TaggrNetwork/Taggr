@@ -1873,6 +1873,9 @@ impl State {
             .ok_or("no user for principal found")?
             .clone();
         let post = self.posts.get(&post_id).ok_or("post not found")?.clone();
+        if post.is_deleted() {
+            return Err("post deleted".into());
+        }
         if post.user == user.id {
             return Err("reactions to own posts are forbidden".into());
         }
@@ -2383,6 +2386,11 @@ pub(crate) mod tests {
             upvoter_cycles - 10 - 1 - 2 + 10
         );
         assert_eq!(state.users.get(&id).unwrap().karma_to_reward(), 0);
+
+        assert_eq!(
+            state.react(pr(1), post_id, 1, 0),
+            Err("post deleted".into())
+        );
     }
 
     #[actix_rt::test]
