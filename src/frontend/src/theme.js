@@ -14,35 +14,35 @@ export const themes = {
         "text": "#e0e0c8",
         "background": "#343541",
         "code": "White",
-        "clickable": "MediumTurquoise",
+        "clickable": "#30d5c8",
         "accent": "Gold"
     },
     "classic": {
         "text": "#d0d0bf",
         "background": "#1c3239",
         "code": "White",
-        "clickable": "MediumTurquoise",
+        "clickable": "#30d5c8",
         "accent": "#FFc700"
     },
     "light": {
         "text": "#23383F",
         "background": "#c3c3b4",
         "code": "Black",
-        "clickable": "Teal",
+        "clickable": "#008080",
         "accent": "OrangeRed"
     },
     "dark": {
         "text": "#d0d0bf",
         "background": "#1e1e23",
         "code": "White",
-        "clickable": "MediumTurquoise",
+        "clickable": "#30d5c8",
         "accent": "Gold"
     },
     "midnight": {
         "text": "#e0e0c8",
         "background": "#111d2b",
         "code": "White",
-        "clickable": "MediumAquaMarine",
+        "clickable": "#7fffd4",
         "accent": "#FFd700"
     }
 };
@@ -52,6 +52,7 @@ export const applyTheme = palette => {
     const effPalette = palette ? palette : themes[autoTheme];
     effPalette["light_background"] = "#" + shade(effPalette.background, 3);
     effPalette["dark_background"] = "#" + shade(effPalette.background, -5);
+    effPalette["visited_clickable"] = "#" + shade(effPalette.clickable, -20);
     const styleNode = document.getElementById("style");
     styleNode.innerText = Object.keys(effPalette).reduce((acc, color) =>
         acc.replaceAll(`$${color}`, effPalette[color]), template);

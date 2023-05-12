@@ -161,6 +161,8 @@ a {
     text-decoration: none; 
 }
 
+a:visited { color: $visited_clickable; }
+
 a:hover { 
     filter: brightness(120%);
     text-decoration: underline dotted;

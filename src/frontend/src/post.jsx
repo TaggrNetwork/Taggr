@@ -161,9 +161,8 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
 
     const showExtension = post.extension && !repost;
 
-    return <div ref={post => { if(post && focused && rendering) post.scrollIntoView({ behavior: "smooth" }); }}
-        className={classNameArg || null}>
-        <div ref={refPost} className={`post_box ${isInactive ? "inactive" : ""} ${cls}`} style={{position: "relative"}}>
+    return <div ref={post => { if(post && focused && rendering) post.scrollIntoView({ behavior: "smooth" }); }} className={classNameArg || null}>
+        <div ref={refPost} className={`post_box ${isInactive ? "inactive" : ""} ${cls} ${post.children.length > 0 ? "clickable" : ""}`} style={{position: "relative"}}>
             {showReport && <ReportBanner id={post.id} reportArg={post.report} domain="post" />}
             {isNSFW && <div className="post_head banner2 x_large_text" onClick={() => setSafeToOpen(true)}>#NSFW</div>}
             {deleted && <div className="post_head banner3 small_text monospace"><h3>Post deleted</h3>

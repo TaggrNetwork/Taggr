@@ -1671,7 +1671,7 @@ impl State {
             return Err("only stalwarts can vote on reports".into());
         }
         let stalwarts = self.users.values().filter(|u| u.stalwart).count();
-        let (user_id, report, penalty) = match domain.as_str() {
+        let (user_id, report, penalty, subject) = match domain.as_str() {
             "post" => {
                 let post = self.posts.get_mut(&id).expect("no post found");
                 post.vote_on_report(stalwarts, user.id, vote)?;
@@ -1679,6 +1679,7 @@ impl State {
                     post.user,
                     post.report.clone().ok_or("no report")?,
                     CONFIG.reporting_penalty_post,
+                    format!("post {}", id),
                 )
             }
             "misbehaviour" => {
@@ -1691,11 +1692,16 @@ impl State {
                     .and_then(|u| u.report.as_mut())
                     .expect("no user found");
                 report.vote(stalwarts, user.id, vote)?;
-                (id, report.clone(), CONFIG.reporting_penalty_misbehaviour)
+                (
+                    id,
+                    report.clone(),
+                    CONFIG.reporting_penalty_misbehaviour,
+                    format!("user {}", id),
+                )
             }
             _ => return Err("unknown report type".into()),
         };
-        reports::finalize_report(self, &report, penalty, user_id, format!("post {}", id))
+        reports::finalize_report(self, &report, penalty, user_id, subject)
     }
 
     pub fn vote_on_poll(
