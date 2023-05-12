@@ -134,6 +134,19 @@ Hence, $name is automatically creating new storage canisters if it runs out of s
 $name also automatically tops up its canisters if they are low on cycles using the ICP from the Treasury.
 All information on the current state of the system and past events can be found on the [dashboard](/#/dashboard).
 
+## Team tokens
+
+`20%` of all tokens will be allocated to the team (`2%` to @mechaquan, `18%` to @X).
+
+Tokens are minted weekly with an amount equal to `1%` of the current supply for each team member if
+- their share is below half of the veto power, or
+- if `2/3` of the total supply were minted.
+
+Still vesting tokens:
+
+- @mechaquan: `$vesting_tokens_m`
+- @X: `$vesting_tokens_x`
+
 ## Bots
 
 Every $name user can be turned into a bot by adding one or more principal ids in the account settings.

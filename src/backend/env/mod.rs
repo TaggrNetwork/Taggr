@@ -71,6 +71,7 @@ pub struct Event {
 
 #[derive(Serialize, Deserialize)]
 pub struct Stats {
+    team_tokens: HashMap<UserId, Token>,
     emergency_release: String,
     emergency_votes: Vec<Principal>,
     weekly_karma_leaders: Vec<(UserId, Karma)>,
@@ -860,7 +861,7 @@ impl State {
                         // Vesting is allowed if the total voting power of the team member is below
                         // 1/2 of the veto power, or if 2/3 of total supply is minted.
                         if self.balances.get(&acc).copied().unwrap_or_default() < veto_power / 2
-                            || circulating_supply * 2 > CONFIG.total_supply
+                            || circulating_supply * 3 > CONFIG.total_supply * 2
                         {
                             *balance -= vested;
                             Some((vested, *balance))
@@ -1620,12 +1621,9 @@ impl State {
                 emergency_votes as u32,
                 CONFIG.proposal_approval_threshold
             ),
+            team_tokens: self.team_tokens.clone(),
             emergency_votes: self.emergency_votes.keys().cloned().collect(),
-            meta: format!(
-                "Team tokens to mint: {:?}, CALLS {:?}",
-                &self.team_tokens,
-                unsafe { &CALLS }
-            ),
+            meta: format!("CALLS {:?}", unsafe { &CALLS }),
             weekly_karma_leaders,
             bootcamp_users,
             module_hash: self.module_hash.clone(),
