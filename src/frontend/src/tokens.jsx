@@ -43,16 +43,16 @@ export const Tokens = () => {
         {balances.length > 0 && <div className="spaced">
             <div className="dynamic_table monospace vertically_spaced">
                 <div className="db_cell">
-                    Minted<code>{token(mintedSupply)}</code>
+                    MINTED<code>{token(mintedSupply)}</code>
                 </div>
                 <div className="db_cell">
-                    Total<code>{token(total_supply)}</code>
+                    TOTAL<code>{token(total_supply)}</code>
                 </div>
                 <div className="db_cell">
-                    Minting ratio<code>{1 << Math.floor(10 * mintedSupply / total_supply)}:1</code>
+                    MINTING RATIO<code>{1 << Math.floor(10 * mintedSupply / total_supply)}:1</code>
                 </div>
                 <div className="db_cell">
-                    approval threshold<code>{proposal_approval_threshold}%</code>
+                    APPROVAL THRESHOLD<code>{proposal_approval_threshold}%</code>
                 </div>
             </div>
             <h2>Top 100 Distribution</h2>

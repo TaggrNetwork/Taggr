@@ -37,6 +37,7 @@ input[type=color] {
 h1, h2, h3, h4, h5, th {
     text-transform: uppercase;
     font-weight: bold;
+    filter: brightness(110%);
 }
 
 h1 { font-size: 130%; }
@@ -75,10 +76,11 @@ h5 { font-size: 80%; }
     margin-left: 0.75em;
 }
 
+.repost { cursor: pointer; }
+
 .repost, .feed_item {
     background: $light_background;
     border-bottom: 1px solid $dark_background;
-    cursor: pointer;
     margin-bottom: 1em;
     border-radius: 5px;
 }

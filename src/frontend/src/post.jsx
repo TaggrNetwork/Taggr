@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Form } from './form';
-import { Content } from './content';
+import { Content, CUT } from './content';
 import { Poll } from './poll';
 import { isRoot, BurgerButton, timeAgo, ToggleButton, NotFound, applyPatch, loadPostBlobs, ShareButton, commaSeparated, Loading, objectReduce, reactionCosts, postUserToPost, loadPost,
     ReactionToggleButton, RealmRibbon, setTitle, ButtonWithLoading, bigScreen, UserLink, FlagButton, ReportBanner } from './common';
@@ -160,9 +160,10 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
     }
 
     const showExtension = post.extension && !repost;
+    const postIsClickable = post.children.length > 0 || post.effBody.includes(CUT);
 
     return <div ref={post => { if(post && focused && rendering) post.scrollIntoView({ behavior: "smooth" }); }} className={classNameArg || null}>
-        <div ref={refPost} className={`post_box ${isInactive ? "inactive" : ""} ${cls} ${post.children.length > 0 ? "clickable" : ""}`} style={{position: "relative"}}>
+        <div ref={refPost} className={`post_box ${isInactive ? "inactive" : ""} ${cls} ${postIsClickable ? "clickable" : ""}`} style={{position: "relative"}}>
             {showReport && <ReportBanner id={post.id} reportArg={post.report} domain="post" />}
             {isNSFW && <div className="post_head banner2 x_large_text" onClick={() => setSafeToOpen(true)}>#NSFW</div>}
             {deleted && <div className="post_head banner3 small_text monospace"><h3>Post deleted</h3>

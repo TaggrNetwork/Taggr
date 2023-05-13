@@ -2,7 +2,6 @@ import * as React from "react";
 import ReactMarkdown from 'react-markdown'
 import { getTokens, blobToUrl } from './common'
 import remarkGfm from 'remark-gfm'
-import {Post, postDataProvider} from "./post";
 import {CarretDown} from "./icons";
 
 export const CUT = "\n\n\n\n";

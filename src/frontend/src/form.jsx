@@ -2,7 +2,7 @@ import * as React from "react";
 import { Content, CUT } from './content';
 import { bigScreen, blobToUrl, ButtonWithLoading, getTokens, Loading, ReactionToggleButton } from './common';
 import {Poll} from './poll';
-import {Bars, Cycles, Paperclip} from "./icons";
+import {Bars, Code, Cycles, Image, Link, List, ListNumbered, Paperclip, Quote, Table} from "./icons";
 import {postDataProvider, Post} from "./post";
 
 const MAX_IMG_SIZE = 16777216;
@@ -194,6 +194,19 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
         {isRepost && React.useMemo(() => <Post id={repost} data={postDataProvider(repost, null, "post_only")} repost={true} classNameArg="repost" />, [repost])}
     </article>;
 
+    const formButton = (content, map) => <button className="max_width_col"
+        onClick={e => {
+            e.preventDefault();
+            const element = textarea.current;
+            const start = element.selectionStart;
+            const end = element.selectionEnd;
+            const selection = element.value.substring(start, end);
+            setValue(value.slice(0, start) + map(selection) + value.slice(end));
+            element.focus();
+        }}>
+        {content}
+    </button>;
+
     return <div onDrop={dropHandler} onDragOver={dragOverHandler} className="column_container">
         {!showTextField && <input type="text" className="bottom_half_spaced"
             placeholder="Reply here..."
@@ -202,12 +215,26 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
             <form className={`${submitting ? "inactive" : ""} column_container bottom_spaced`} autoFocus>
                 <div className="row_container">
                     {previewAtLeft && showPreview ? preview : null}
-                    <textarea id={id} ref={textarea} rows={lines} disabled={submitting} value={value}
+                    <div className={`column_container max_width_col ${previewAtLeft && showPreview ? "left_half_spaced" : ""}`}>
+                        <div className="row_container">
+                            {formButton(<b>B</b>, v => `**${v}**`)}
+                            {formButton(<i>I</i>, v => `_${v}_`)}
+                            {formButton(<s>S</s>, v => `~${v}~`)}
+                            {formButton(<List />, v => v.split('\n').map(line => "- " + line).join('\n'))}
+                            {formButton(<ListNumbered />, v => v.split('\n').map((line, i) => (i+1) + ". " + line).join('\n'))}
+                            {formButton(<Quote />, v => `> ${v}`)}
+                            {formButton(<Link />, v => `[${v}](${prompt("URL:")})`)}
+                            {formButton(<Image />, v => `![${prompt("Image name")}](${prompt("URL")})`)}
+                            {formButton(<Code />, v => `\`${v}\``)}
+                            {formButton(<Table />, _ => tableTemplate)}
+                        </div>
+                        <textarea id={id} ref={textarea} rows={lines} disabled={submitting} value={value}
                         onKeyPress={maybeInsertSuggestion} 
                         onKeyUp={() => setCursor(textarea.current?.selectionStart)}
                         onFocus={() => setCursor(textarea.current?.selectionStart)}
-                        className={`max_width_col ${dragAndDropping ? "active_element" : null} ${previewAtLeft && showPreview ? "left_half_spaced" : ""}`}
+                        className={`max_width_col ${dragAndDropping ? "active_element" : null}`}
                         onChange={event => onValueChange(event.target.value)}></textarea>
+                    </div>
                 </div>
                 {busy && <Loading classNameArg="top_spaced" spaced={false} />}
                 {!busy && completionList.length > 0 && <div className="monospace small_text top_spaced">
@@ -343,3 +370,8 @@ function downScaleImage(img, scale) {
 }
 
 const iOS = () => [ 'iPad Simulator', 'iPhone Simulator', 'iPod Simulator', 'iPad', 'iPhone', 'iPod' ].includes(navigator.platform);
+
+const tableTemplate = "| XXX | YYY | ZZZ |\n"
+    + "|-----|:---:|----:|\n"
+    + "|  A  |  B  |  C  |\n"
+    + "|  D  |  E  |  F  |\n";
