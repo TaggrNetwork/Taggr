@@ -207,7 +207,7 @@ pub const CONFIG: &Config = &Config {
 
     max_funding_amount: 10000,
 
-    neuron_id: 10733610488223369883,
+    neuron_id: 16737374299031693047,
 };
 
 pub fn reaction_karma() -> BTreeMap<u16, Karma> {

@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use env::{
-    canisters::upgrade_main_canister,
+    canisters::{get_full_neuron, upgrade_main_canister},
     config::{reaction_karma, CONFIG},
     memory,
     post::{Extension, Post, PostId},
@@ -143,6 +143,13 @@ fn heap_to_stable() {
         ));
     }
     reply_raw(&[]);
+}
+
+/// Fetches the full neuron info of the TaggrDAO proving the neuron decentralization
+/// and voting via hot-key capabilities.
+#[update]
+async fn get_neuron_info() -> Result<String, String> {
+    get_full_neuron(CONFIG.neuron_id).await
 }
 
 #[export_name = "canister_update execute_upgrade"]

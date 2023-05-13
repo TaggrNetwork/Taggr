@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use candid::utils::{ArgumentDecoder, ArgumentEncoder};
 use ic_cdk::api::call::CallResult;
@@ -223,6 +224,11 @@ pub async fn top_up(canister_id: Principal, min_cycle_balance: u64) -> Result<bo
     Ok(false)
 }
 
+#[derive(CandidType, Clone, Debug, Serialize, Deserialize)]
+pub struct NeuronId {
+    pub id: u64,
+}
+
 pub async fn fetch_proposals() -> Result<Vec<NNSProposal>, String> {
     #[derive(Clone, CandidType, Default, Serialize, Deserialize, PartialEq)]
     pub struct ProposalId {
@@ -241,11 +247,6 @@ pub async fn fetch_proposals() -> Result<Vec<NNSProposal>, String> {
     #[derive(CandidType, Clone, Serialize, Deserialize)]
     pub struct ListProposalInfoResponse {
         pub proposal_info: Vec<ProposalInfo>,
-    }
-
-    #[derive(CandidType, Clone, Serialize, Deserialize)]
-    pub struct NeuronId {
-        pub id: u64,
     }
 
     #[derive(CandidType, Clone, Serialize, Deserialize)]
@@ -293,8 +294,37 @@ pub enum NNSVote {
     Reject = 2,
 }
 
+pub async fn get_full_neuron(neuron_id: u64) -> Result<String, String> {
+    #[derive(CandidType, Deserialize)]
+    struct GovernanceError {
+        error_message: String,
+    }
+    #[derive(CandidType, Debug, Deserialize, Serialize)]
+    struct Followees {
+        followees: Vec<NeuronId>,
+    }
+    #[derive(CandidType, Debug, Deserialize, Serialize)]
+    struct Neuron {
+        id: Option<NeuronId>,
+        controller: Option<Principal>,
+        hot_keys: Vec<Principal>,
+        followees: Vec<(i32, Followees)>,
+    }
+
+    let (result,): (Result<Neuron, GovernanceError>,) = call_canister(
+        MAINNET_GOVERNANCE_CANISTER_ID,
+        "get_full_neuron",
+        (neuron_id,),
+    )
+    .await
+    .map_err(|err| format!("couldn't call governance canister: {:?}", err))?;
+
+    result
+        .map(|neuron| format!("{:?}", neuron))
+        .map_err(|err| err.error_message)
+}
+
 pub async fn vote_on_nns_proposal(proposal_id: u64, vote: NNSVote) -> Result<(), String> {
-    use std::str::FromStr;
     let args = candid::IDLArgs::from_str(&format!(
         r#"(record {{
                 id = opt record {{ id = {} : nat64 }};

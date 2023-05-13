@@ -46,6 +46,11 @@ h3 { font-size: 100%; }
 h4 { font-size: 90%; }
 h5 { font-size: 80%; }
 
+.prime h1, .prime h2, .prime h3 {
+    background: $light_background;
+    padding: 0.5em;
+}
+
 .monospace { font-family: "Menlo", "Consolas", "Roboto Mono", "DejaVu Sans Mono", monospace; }
 
 #search_field, textarea, input, select {
