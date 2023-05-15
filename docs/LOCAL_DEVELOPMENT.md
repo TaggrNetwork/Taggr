@@ -129,6 +129,12 @@ To help determine if tests are flaky, run them multiple times, note that only th
 npm run test:e2e -- ${test_filename}.spec.ts --trace on --repeat-each 10
 ```
 
+During development, it can be common to write an incorrect selector or something else that will cause the test to timeout. If it's happening frequently and slowing down the feedback cycle then the max timeout can be set to a lower value. Be careful not to set it too low or you may get false negatives in the tests:
+
+```
+npm run test:e2e -- --timeout 10000
+```
+
 ## Creating and Restoring backups
 
 1. Pull the backup from Taggr (heap only):

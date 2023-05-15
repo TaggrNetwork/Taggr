@@ -246,7 +246,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
                     <div className="spaced vcentered top_half_spaced">
                         <div className="vcentered max_width_col flex_ended">
                             <div className="max_width_col"></div>
-                            <Cycles /><code className="left_half_spaced">{`${costs(value, poll ? 1 : 0)}`}</code>
+                            <Cycles /><code className="left_half_spaced" data-testid="cycle-cost">{`${costs(value, poll ? 1 : 0)}`}</code>
                             <label id="file_picker_label" htmlFor="file-picker" className="action left_spaced clickable"><Paperclip /></label>
                             <input id="file-picker" style={{display: "none"}} type="file" multiple accept="image/*" onChange={dropHandler} />
                             {postId == null && !isRepost && <ReactionToggleButton classNameArg="left_spaced" icon={<Bars />} pressed={!!poll}
