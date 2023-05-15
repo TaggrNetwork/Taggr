@@ -12,7 +12,7 @@ export const Header = ({subtle, route, monitorUser}) => {
     const [showRealms, toggleRealms] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const [inRealm, setInRealm] = React.useState(user && user.current_realm);
-    const [messages, setMessages] = React.useState(Object.keys(user.inbox).length);
+    const [messages, setMessages] = React.useState(user ? Object.keys(user.inbox).length : 0);
     const [realmBg, realmFg] = realmColors(user?.current_realm);
     const inboxEmpty = !user || messages == 0;
     React.useEffect(() => { document.getElementById("logo").innerHTML = backendCache.config.logo; }, []);
