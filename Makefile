@@ -12,7 +12,7 @@ dev_reinstall:
 	FEATURES=dev dfx deploy --mode=reinstall taggr -y
 
 build:
-	npm install
+	npm install --quiet
 	NODE_ENV=production make fe
 	./build.sh bucket
 	./build.sh taggr
@@ -23,7 +23,7 @@ test:
 
 fe:
 	rm -rf ./dist ./public
-	npm run build
+	npm run build --quiet
 
 e2e_test:
 	npm run install:e2e

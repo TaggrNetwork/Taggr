@@ -3,17 +3,26 @@ import {BurgerButton, ButtonWithLoading, HeadBar, Loading, ReactionToggleButton,
 import { LoginMasks, logout} from "./logins";
 import {Balloon, Bars, Bell, CarretDown, Close, Cycles, Document, Gear, Gem, Home, Journal, Logout, Realm, Save, Ticket, User, Wallet} from "./icons";
 
-export const Header = ({subtle, route}) => {
-    let user = api._user;
+let interval = null;
+
+export const Header = ({subtle, route, monitorUser}) => {
+    const user = api._user;
     const [showLogins, setShowLogins] = React.useState(!user && location.href.includes("?join"));
     const [showButtonBar, toggleButtonBar] = React.useState(false);
     const [showRealms, toggleRealms] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const [inRealm, setInRealm] = React.useState(user && user.current_realm);
+    const [messages, setMessages] = React.useState(Object.keys(user.inbox).length);
     const [realmBg, realmFg] = realmColors(user?.current_realm);
-    const inboxEmpty = !user || Object.keys(user.inbox).length == 0;
-    React.useEffect(() => { document.getElementById("logo").innerHTML = backendCache.config.logo }, []);
-    React.useEffect(() => { toggleButtonBar(false); toggleRealms(false) }, [route]);
+    const inboxEmpty = !user || messages == 0;
+    React.useEffect(() => { document.getElementById("logo").innerHTML = backendCache.config.logo; }, []);
+    React.useEffect(() => { toggleButtonBar(false); toggleRealms(false); }, [route]);
+    React.useEffect(() => {
+        if (monitorUser)
+            interval = setInterval(() => setMessages(Object.keys(user.inbox).length), 1000);
+        else clearInterval(interval);
+    }, [monitorUser]);
+
 
     return <>
         <header className={`spaced top_half_spaced vcentered ${subtle ? "subtle" : ""}`}>
@@ -24,7 +33,7 @@ export const Header = ({subtle, route}) => {
             <div className="vcentered max_width_col flex_ended">
                 {!subtle &&  <>
                     {user && !inboxEmpty && <span className="clickable vcentered" onClick={() => location.href = "#/inbox"}>
-                        <Bell /><code className="left_half_spaced right_spaced">{`${Object.keys(user.inbox).length}`}</code>
+                        <Bell /><code className="left_half_spaced right_spaced">{`${messages}`}</code>
                     </span>}
                     {user && inboxEmpty && <div className="vcentered"><Cycles /><code className="left_half_spaced right_spaced">{`${user.cycles.toLocaleString()}`}</code></div>}
                     {user && <PostButton classNameArg="right_half_spaced" />}

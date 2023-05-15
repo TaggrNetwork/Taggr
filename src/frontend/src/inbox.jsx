@@ -20,7 +20,7 @@ export const Inbox = () => {
     return <>
         <HeadBar title="Inbox" content={<button onClick={() => {
             api._user.inbox = {};
-            api.call("clear_notifications", Object.keys(inbox)).then(api._reloadUser);
+            api.call("clear_notifications", Object.keys(inbox));
             location.href = "#/";
         }}>CLEAR ALL</button>} />
         <>
@@ -43,8 +43,9 @@ export const Inbox = () => {
                     <div className="row_container">
                         <Content value={msg} classNameArg="medium_text left_spaced right_spaced max_width_col" />
                         <button className="reaction_button unselected" onClick={() => {
-                            api.call("clear_notifications", [k]).then(api._reloadUser);
+                            api.call("clear_notifications", [k]);
                             delete inbox[k];
+                            delete api._user.inbox[k];
                             setInbox({...inbox});
                         }}><Close classNameArg="action right_half_spaced" /></button>
                     </div>

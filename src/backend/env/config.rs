@@ -96,7 +96,21 @@ pub struct Config {
 
     pub post_deletion_penalty_factor: u32,
 
+    #[serde(with = "string")]
     pub neuron_id: u64,
+}
+
+mod string {
+    use serde::Serializer;
+    use std::fmt::Display;
+
+    pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: Display,
+        S: Serializer,
+    {
+        serializer.collect_str(value)
+    }
 }
 
 pub const CONFIG: &Config = &Config {

@@ -2,7 +2,7 @@ import * as React from "react";
 import { Content, CUT } from './content';
 import { bigScreen, blobToUrl, ButtonWithLoading, getTokens, Loading, ReactionToggleButton } from './common';
 import {Poll} from './poll';
-import {Bars, Code, Cycles, Image, Link, List, ListNumbered, Paperclip, Quote, Table} from "./icons";
+import {Bars, Code, Cycles, Pic, Link, List, ListNumbered, Paperclip, Quote, Table} from "./icons";
 import {postDataProvider, Post} from "./post";
 
 const MAX_IMG_SIZE = 16777216;
@@ -216,7 +216,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
                 <div className="row_container">
                     {previewAtLeft && showPreview ? preview : null}
                     <div className={`column_container max_width_col ${previewAtLeft && showPreview ? "left_half_spaced" : ""}`}>
-                        <div className="row_container">
+                        <div className="row_container bottom_half_spaced">
                             {formButton(<b>B</b>, v => `**${v}**`)}
                             {formButton(<i>I</i>, v => `_${v}_`)}
                             {formButton(<s>S</s>, v => `~${v}~`)}
@@ -224,7 +224,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
                             {formButton(<ListNumbered />, v => v.split('\n').map((line, i) => (i+1) + ". " + line).join('\n'))}
                             {formButton(<Quote />, v => `> ${v}`)}
                             {formButton(<Link />, v => `[${v}](${prompt("URL:")})`)}
-                            {formButton(<Image />, v => `![${prompt("Image name")}](${prompt("URL")})`)}
+                            {formButton(<Pic />, v => `![${prompt("Image name")}](${prompt("URL")})`)}
                             {formButton(<Code />, v => `\`${v}\``)}
                             {formButton(<Table />, _ => tableTemplate)}
                         </div>
@@ -371,7 +371,7 @@ function downScaleImage(img, scale) {
 
 const iOS = () => [ 'iPad Simulator', 'iPhone Simulator', 'iPod Simulator', 'iPad', 'iPhone', 'iPod' ].includes(navigator.platform);
 
-const tableTemplate = "| XXX | YYY | ZZZ |\n"
+const tableTemplate = "\n| XXX | YYY | ZZZ |\n"
     + "|-----|:---:|----:|\n"
     + "|  A  |  B  |  C  |\n"
     + "|  D  |  E  |  F  |\n";

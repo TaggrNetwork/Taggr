@@ -1,4 +1,5 @@
 use crate::config::CONFIG;
+use base64::{engine::general_purpose, Engine as _};
 use ic_cdk::id;
 use ic_certified_map::{labeled, labeled_hash, AsHashTree, Hash, RbTree};
 use serde_bytes::ByteBuf;
@@ -127,8 +128,8 @@ fn certificate_header(path: &str) -> (String, String) {
         "IC-Certificate".to_string(),
         format!(
             "certificate=:{}:, tree=:{}:",
-            base64::encode(certificate),
-            base64::encode(serializer.into_inner())
+            general_purpose::STANDARD_NO_PAD.encode(certificate),
+            general_purpose::STANDARD_NO_PAD.encode(serializer.into_inner())
         ),
     )
 }

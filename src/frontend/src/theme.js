@@ -39,7 +39,7 @@ export const themes = {
         "accent": "Gold"
     },
     "midnight": {
-        "text": "#e0e0c8",
+        "text": "#e0e0cf",
         "background": "#111d2b",
         "code": "White",
         "clickable": "#7fffd4",
