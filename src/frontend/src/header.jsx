@@ -21,8 +21,8 @@ export const Header = ({subtle, route, monitorUser}) => {
         if (monitorUser)
             interval = setInterval(() => setMessages(Object.keys(user.inbox).length), 1000);
         else clearInterval(interval);
+        setMessages(user ? Object.keys(user.inbox).length : 0);
     }, [monitorUser]);
-
 
     return <>
         <header className={`spaced top_half_spaced vcentered ${subtle ? "subtle" : ""}`}>

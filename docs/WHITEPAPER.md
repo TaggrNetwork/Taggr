@@ -171,10 +171,10 @@ Bots can only create root posts at the rate 1 post per hour.
 
 ## DAO Neuron
 
-$name DAO is voting on NNS proposals with the neuron `$neuron_id`.
+$name DAO is voting on NNS proposals with the neuron [$neuron_id](http://dashboard.internetcomputer.org/neuron/$neuron_id).
 The voting result on each proposal is weighted by karma.
 The neuron is controlled by the main canister via the hot-key mechanism.
-Neuron's controller is the principal `uduew-qycai-baeaq-caiba-eaqca-ibaea-qcaib-aeaqc-aibae-aqcai-bae` which has [no known secret key](https://forum.dfinity.org/t/how-to-create-a-decentralized-community-neuron/12564).
+Neuron's controller is the principal `uduew-qycai-baeaq-caiba-eaqca-ibaea-qcaib-aeaqc-aibae-aqcai-bae` which has no known secret key.
 The neuron is also not following anyone on the neuron management topic.
 $name canister implements the method `get_neuron_info` which fetches the neuron's info proving the statements above:
 

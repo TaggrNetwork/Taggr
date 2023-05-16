@@ -1,5 +1,5 @@
 start:
-	dfx start --background --host 127.0.0.1:55554
+	dfx start --background --host 127.0.0.1:55554 -qqqq
 
 dev_deploy:
 	FEATURES=dev dfx deploy

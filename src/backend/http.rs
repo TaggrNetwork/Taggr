@@ -64,7 +64,6 @@ fn route(path: &str) -> Option<(Headers, ByteBuf)> {
     };
     let mut parts = path.split('/').skip(1);
     match (parts.next(), parts.next()) {
-        (None, _) | (Some(""), _) => index(domain, "", CONFIG.name, "Web3 Social Network"),
         (Some("post"), Some(id)) | (Some("thread"), Some(id)) => {
             if let Some(post) = state
                 .posts
@@ -128,7 +127,7 @@ fn route(path: &str) -> Option<(Headers, ByteBuf)> {
             filter,
             &format!("Latest posts on {}", filter),
         ),
-        _ => None,
+        _ => index(domain, "", CONFIG.name, "Web3 Social Network"),
     }
 }
 

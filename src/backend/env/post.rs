@@ -569,9 +569,80 @@ fn notify_about(state: &mut State, post: &Post) {
         });
 }
 
+// Extracts hashtags from a string.
+fn tags(max_tag_length: usize, input: &str) -> BTreeSet<String> {
+    tokens(max_tag_length, input, &['#', '$'])
+}
+
+// Extracts user names from a string.
+fn user_handles(max_tag_length: usize, input: &str) -> BTreeSet<String> {
+    tokens(max_tag_length, input, &['@'])
+}
+
+fn tokens(max_tag_length: usize, input: &str, tokens: &[char]) -> BTreeSet<String> {
+    use std::iter::FromIterator;
+    let mut tags = Vec::new();
+    let mut tag = Vec::new();
+    let mut token_found = false;
+    let mut whitespace_seen = true;
+    for c in input.chars() {
+        match c {
+            t if whitespace_seen && tokens.contains(&t) => {
+                token_found = true;
+            }
+            c if token_found => {
+                if c.is_alphanumeric() || ['-', '_'].iter().any(|v| v == &c) {
+                    tag.push(c);
+                } else {
+                    if !tag.iter().all(|c| c.is_numeric()) {
+                        tags.push(String::from_iter(tag.clone()));
+                    }
+                    tag.clear();
+                    token_found = false;
+                }
+            }
+            _ => {}
+        }
+        whitespace_seen = c == ' ' || c == '\n' || c == '\t';
+    }
+    tags.push(String::from_iter(tag));
+    tags.into_iter()
+        .filter(|tag| {
+            let l = tag.chars().count();
+            l > 0 && l <= max_tag_length
+        })
+        .collect::<BTreeSet<_>>()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_hashtag_extraction() {
+        let tags = |body| {
+            let c = CONFIG;
+            let mut t: Vec<_> = tags(c.max_tag_length, body).into_iter().collect();
+            t.sort_unstable();
+            t.join(" ")
+        };
+        assert_eq!(tags("This is a string without hashtags!"), "");
+        assert_eq!(tags("This is a #string with hashtags!"), "string");
+        assert_eq!(tags("#This is a #string with two hashtags!"), "This string");
+        assert_eq!(tags("This string has no tags.#bug"), "");
+        assert_eq!(tags("This is $TOKEN symbol"), "TOKEN");
+        assert_eq!(
+            tags("#This is a #string with $333 hashtags!"),
+            "This string"
+        );
+        assert_eq!(tags("#year2021"), "year2021");
+        assert_eq!(tags("#year2021 #year2021 #"), "year2021");
+        assert_eq!(tags("#Ta1 #ta2"), "Ta1 ta2");
+        assert_eq!(tags("#Tag #tag"), "Tag tag");
+        assert_eq!(tags("Ой у #лузі червона #калина"), "калина лузі");
+        assert_eq!(tags("This is a #feature-request"), "feature-request");
+        assert_eq!(tags("Support #under_score"), "under_score");
+    }
 
     #[test]
     fn test_costs() {

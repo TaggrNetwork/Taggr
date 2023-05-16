@@ -337,4 +337,3 @@ export const Reactions = ({reactionsMap, react}) => {
 };
 
 const skipClicks = elem => elem && (elem.dataset["meta"] == "skipClicks" || skipClicks(elem.parentElement));
-

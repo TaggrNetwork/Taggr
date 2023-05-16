@@ -30,9 +30,9 @@ export const commaSeparated = items => interleaved(items, ', ');
 
 export const interleaved = (items, link) => items.length ? items.reduce((prev, curr) => [prev, link, curr]) : [];
 
-export const NotFound = () => <Content value="# 404 Not found" />;
+export const NotFound = () => <Content classNameArg="spaced" value="# 404 Not found" />;
 
-export const Unauthorized = () => <Content value="# 401 Unauthorized" />;
+export const Unauthorized = () => <Content classNameArg="spaced" value="# 401 Unauthorized" />;
 
 export const bigScreen = () => window.screen.availWidth >= 1024;
 

@@ -856,11 +856,11 @@ impl State {
                     Some(balance) if *balance > 0 => {
                         // 1% of circulating supply is vesting.
                         let vested = (circulating_supply / 100).min(*balance);
-                        let veto_threshold = 100 - CONFIG.proposal_approval_threshold as u64;
-                        let veto_power = (circulating_supply * veto_threshold) / 100;
-                        // Vesting is allowed if the total voting power of the team member is below
-                        // 1/2 of the veto power, or if 2/3 of total supply is minted.
-                        if self.balances.get(&acc).copied().unwrap_or_default() < veto_power / 2
+                        // We use 14% because 1% will vest and we want to stay below 15%.
+                        let cap = (circulating_supply * 14) / 100;
+                        // Vesting is allowed if the total voting power of the team member stays below
+                        // 15% of the current supply, or if 2/3 of total supply is minted.
+                        if self.balances.get(&acc).copied().unwrap_or_default() <= cap
                             || circulating_supply * 3 > CONFIG.total_supply * 2
                         {
                             *balance -= vested;
@@ -1984,51 +1984,6 @@ impl State {
     }
 }
 
-// Extracts hashtags from a string.
-fn tags(max_tag_length: usize, input: &str) -> BTreeSet<String> {
-    tokens(max_tag_length, input, &['#', '$'])
-}
-
-// Extracts user names from a string.
-fn user_handles(max_tag_length: usize, input: &str) -> BTreeSet<String> {
-    tokens(max_tag_length, input, &['@'])
-}
-
-fn tokens(max_tag_length: usize, input: &str, tokens: &[char]) -> BTreeSet<String> {
-    use std::iter::FromIterator;
-    let mut tags = Vec::new();
-    let mut tag = Vec::new();
-    let mut token_found = false;
-    let mut whitespace_seen = true;
-    for c in input.chars() {
-        match c {
-            t if whitespace_seen && tokens.contains(&t) => {
-                token_found = true;
-            }
-            c if token_found => {
-                if c.is_alphanumeric() || ['-', '_'].iter().any(|v| v == &c) {
-                    tag.push(c);
-                } else {
-                    if !tag.iter().all(|c| c.is_numeric()) {
-                        tags.push(String::from_iter(tag.clone()));
-                    }
-                    tag.clear();
-                    token_found = false;
-                }
-            }
-            _ => {}
-        }
-        whitespace_seen = c == ' ' || c == '\n' || c == '\t';
-    }
-    tags.push(String::from_iter(tag));
-    tags.into_iter()
-        .filter(|tag| {
-            let l = tag.chars().count();
-            l > 0 && l <= max_tag_length
-        })
-        .collect::<BTreeSet<_>>()
-}
-
 // Checks if any feed represents the superset for the given tag set.
 // The `strict` option requires the sets to be equal.
 fn covered_by_feeds(
@@ -2328,10 +2283,11 @@ pub(crate) mod tests {
         .unwrap();
 
         // Create 2 comments
+        let mut comment_id = 0;
         for i in 1..=2 {
-            add(
+            comment_id = add(
                 &mut state,
-                "Test".to_string(),
+                "Comment".to_string(),
                 vec![],
                 pr(i),
                 0,
@@ -2342,6 +2298,23 @@ pub(crate) mod tests {
             .await
             .unwrap();
         }
+
+        let leaf = add(
+            &mut state,
+            "Leaf".to_string(),
+            vec![],
+            pr(0),
+            0,
+            Some(comment_id),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(state.posts.get(&post_id).unwrap().tree_size, 3);
+        assert_eq!(state.posts.get(&comment_id).unwrap().tree_size, 1);
+        assert_eq!(state.posts.get(&leaf).unwrap().tree_size, 0);
 
         // React from both users
         assert!(state.react(pr(1), post_id, 100, 0).is_ok());
@@ -2369,7 +2342,7 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(
             state.delete_post(pr(0), post_id, versions.clone()),
-            Err("not enough cycles (this post requires 37 cycles to be deleted)".into())
+            Err("not enough cycles (this post requires 47 cycles to be deleted)".into())
         );
 
         state
@@ -3072,32 +3045,6 @@ pub(crate) mod tests {
         assert_eq!(feed.len(), 2);
         assert!(feed.contains(&post_id));
         assert!(feed.contains(&post_id2));
-    }
-
-    #[test]
-    fn test_hashtag_extraction() {
-        let tags = |body| {
-            let c = CONFIG;
-            let mut t: Vec<_> = tags(c.max_tag_length, body).into_iter().collect();
-            t.sort_unstable();
-            t.join(" ")
-        };
-        assert_eq!(tags("This is a string without hashtags!"), "");
-        assert_eq!(tags("This is a #string with hashtags!"), "string");
-        assert_eq!(tags("#This is a #string with two hashtags!"), "This string");
-        assert_eq!(tags("This string has no tags.#bug"), "");
-        assert_eq!(tags("This is $TOKEN symbol"), "TOKEN");
-        assert_eq!(
-            tags("#This is a #string with $333 hashtags!"),
-            "This string"
-        );
-        assert_eq!(tags("#year2021"), "year2021");
-        assert_eq!(tags("#year2021 #year2021 #"), "year2021");
-        assert_eq!(tags("#Ta1 #ta2"), "Ta1 ta2");
-        assert_eq!(tags("#Tag #tag"), "Tag tag");
-        assert_eq!(tags("Это #тест-строка"), "тест-строка");
-        assert_eq!(tags("This is a #feature-request"), "feature-request");
-        assert_eq!(tags("Support #under_score"), "under_score");
     }
 
     #[actix_rt::test]
