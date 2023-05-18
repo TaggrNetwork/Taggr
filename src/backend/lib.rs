@@ -74,6 +74,10 @@ fn post_upgrade() {
     set_timer();
 
     // temporary post upgrade logic goes here
+    let s = state_mut();
+    for p in s.posts.values_mut() {
+        p.tags.retain(|tag| tag.parse::<u64>().is_err());
+    }
 }
 
 /*
