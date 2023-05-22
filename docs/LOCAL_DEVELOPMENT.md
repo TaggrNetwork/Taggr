@@ -4,14 +4,14 @@
 
 Make sure to follow the steps outlined in the rest of this file before using these commands.
 
-| Description                 | Command          | Note                                                    |
-| --------------------------- | ---------------- | ------------------------------------------------------- |
-| Build the canister          | make build       |                                                         |
-| Start the local replica     | make start       |                                                         |
-| Start the frontend server   | npm start        |                                                         |
-| Deploy the canister locally | make dev_deploy  |                                                         |
-| Set up and run e2e tests    | make e2e_test    | If you're using Ubuntu, it must be an LTS version.      |
-| Run e2e tests               | npm run test:e2e | Assumes e2e setup is already done (see `make e2e_test`) |
+| Description                 | Command             | Note                                                    |
+| --------------------------- | ------------------- | ------------------------------------------------------- |
+| Build the canister          | make build          |                                                         |
+| Start the local replica     | make start          |                                                         |
+| Start the frontend server   | npm start           |                                                         |
+| Deploy the canister locally | make dev_deploy     |                                                         |
+| Set up and run e2e tests    | make e2e_test       | If you're using Ubuntu, it must be an LTS version.      |
+| Run e2e tests               | npx playwright test | Assumes e2e setup is already done (see `make e2e_test`) |
 
 ## System Dependencies
 
@@ -133,12 +133,6 @@ During development, it can be common to write an incorrect selector or something
 
 ```
 npm run test:e2e -- --timeout 10000
-```
-
-To update screenshots/snapshots:
-
-```
-npm run test:e2e -- -u
 ```
 
 ## Creating and Restoring backups

@@ -2,7 +2,7 @@ import { Page, expect } from "@playwright/test";
 import { HomePage, NewPostPage } from "../pages";
 import { generateHashTag, generateText } from "./random_data";
 
-export async function initPost(page: Page): Promise<NewPostPage> {
+async function initPost(page: Page): Promise<NewPostPage> {
   const homePage = new HomePage(page);
   await homePage.goto();
 

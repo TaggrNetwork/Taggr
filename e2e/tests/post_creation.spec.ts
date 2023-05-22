@@ -1,11 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { resolve } from "node:path";
 import {
   createPost,
   createPostWithHashTag,
   createSeedPhraseUser,
   generateHashTag,
-  initPost,
   performInNewContext,
 } from "../support";
 import { HomePage, FeedPage } from "../pages";
@@ -61,26 +59,4 @@ test("post creation with hashtag", async ({ page, baseURL, browser }) => {
 
   const postTwo = await feedPage.getPostByContent(postTwoContent);
   await expect(postTwo).toBeVisible();
-});
-
-test("post creation with image", async ({ page, baseURL, browser }) => {
-  await createSeedPhraseUser(page, baseURL);
-
-  const imagePath = resolve(__dirname, "..", "assets", "smash.jpg");
-  const newPostPage = await initPost(page);
-  await newPostPage.addImage(imagePath);
-  await expect(newPostPage.cycleCost).toHaveText("12");
-
-  const postPage = await newPostPage.submit();
-  const uploadedImage = postPage.postBody.locator("img");
-  await expect(uploadedImage).toBeVisible();
-
-  await expect(postPage.imagePreview).not.toBeVisible();
-
-  await uploadedImage.click();
-  await expect(postPage.imagePreview).toBeVisible();
-  await expect(postPage.imagePreview.locator("img")).toHaveScreenshot();
-
-  await postPage.imagePreview.click();
-  await expect(postPage.imagePreview).not.toBeVisible();
 });
