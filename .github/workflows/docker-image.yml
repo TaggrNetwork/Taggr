@@ -16,3 +16,5 @@ jobs:
     - uses: actions/checkout@v3
     - name: Build the release binary image
       run: make release
+    - name: Print the git commit and the binary hash
+      run: make hashes

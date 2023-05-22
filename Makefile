@@ -36,5 +36,7 @@ e2e_test:
 release:
 	docker build -t taggr .
 	docker run --rm -v $(shell pwd)/release-artifacts:/target/wasm32-unknown-unknown/release taggr
-	shasum -a 256 ./release-artifacts/taggr.wasm.gz
+
+hashes:
 	git rev-parse HEAD
+	shasum -a 256 ./release-artifacts/taggr.wasm.gz  | cut -d ' ' -f 1
