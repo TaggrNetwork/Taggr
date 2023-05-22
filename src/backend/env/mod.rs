@@ -227,34 +227,6 @@ impl State {
         }
     }
 
-    pub fn num_posts(&self) -> usize {
-        self.posts.len()
-    }
-
-    pub fn post(&self, post_id: &PostId) -> Option<&'_ Post> {
-        self.posts.get(post_id)
-    }
-
-    pub fn save_post(&mut self, post: Post) {
-        self.posts.insert(post.id, post);
-    }
-
-    pub fn mutate_post<T>(
-        &mut self,
-        post_id: &PostId,
-        f: &mut dyn FnMut(&mut Post, &mut State) -> Result<T, String>,
-    ) -> Result<T, String> {
-        let mut post = self.posts.remove(post_id).ok_or("no post found")?;
-
-        let result = f(&mut post, self);
-
-        if self.posts.insert(*post_id, post).is_some() {
-            panic!("no post should exist")
-        }
-
-        result
-    }
-
     pub fn clean_up_realm(&mut self, principal: Principal, post_id: PostId) -> Result<(), String> {
         let controller = self.principal_to_user(principal).ok_or("no user found")?.id;
         let post = Post::get(self, &post_id).ok_or("no post found")?;
