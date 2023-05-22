@@ -159,7 +159,7 @@ mod tests {
             user.stalwart = true;
         }
 
-        let post_id = add(
+        let post_id = Post::create(
             &mut state,
             "bad post".to_string(),
             vec![],
@@ -175,12 +175,12 @@ mod tests {
         let user = state.users.get(&u1).unwrap();
         assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
 
-        let p = state.posts.get(&post_id).unwrap();
+        let p = Post::get(&state, &post_id).unwrap();
         assert!(p.report.is_none());
 
         let reporter = pr(7);
         // The reporter can only be a user with at least one post.
-        let _ = add(
+        let _ = Post::create(
             &mut state,
             "some post".to_string(),
             vec![],
@@ -203,7 +203,7 @@ mod tests {
             state.report(reporter, "post".into(), post_id, String::new()),
             Err("You need at least 100 cycles for this report".into())
         );
-        let p = state.posts.get(&post_id).unwrap();
+        let p = Post::get(&state, &post_id).unwrap();
         assert!(&p.report.is_none());
 
         let reporter_user = state.principal_to_user_mut(reporter).unwrap();
@@ -216,7 +216,7 @@ mod tests {
             .unwrap();
 
         // make sure the reporter is correct
-        let p = state.posts.get(&post_id).unwrap();
+        let p = Post::get(&state, &post_id).unwrap();
         let report = &p.report.clone().unwrap();
         assert!(report.reporter == state.principal_to_user(reporter).unwrap().id);
 
@@ -232,7 +232,7 @@ mod tests {
         state
             .vote_on_report(pr(3), "post".into(), post_id, true)
             .unwrap();
-        let p = state.posts.get(&post_id).unwrap();
+        let p = Post::get(&state, &post_id).unwrap();
         let report = &p.report.clone().unwrap();
         assert_eq!(report.confirmed_by.len(), 1);
         assert_eq!(report.rejected_by.len(), 0);
@@ -240,7 +240,7 @@ mod tests {
         assert!(state
             .vote_on_report(pr(3), "post".into(), post_id, true)
             .is_err());
-        let p = state.posts.get(&post_id).unwrap();
+        let p = Post::get(&state, &post_id).unwrap();
         let report = &p.report.clone().unwrap();
         assert_eq!(report.confirmed_by.len(), 1);
         assert!(!report.closed);
@@ -249,7 +249,7 @@ mod tests {
         state
             .vote_on_report(pr(6), "post".into(), post_id, false)
             .unwrap();
-        let p = state.posts.get(&post_id).unwrap();
+        let p = Post::get(&state, &post_id).unwrap();
         let report = &p.report.clone().unwrap();
         assert_eq!(report.confirmed_by.len(), 1);
         assert_eq!(report.rejected_by.len(), 1);
@@ -262,7 +262,7 @@ mod tests {
         state
             .vote_on_report(pr(12), "post".into(), post_id, true)
             .unwrap();
-        let p = state.posts.get(&post_id).unwrap();
+        let p = Post::get(&state, &post_id).unwrap();
         let report = &p.report.clone().unwrap();
         assert_eq!(report.confirmed_by.len(), 2);
         assert_eq!(report.rejected_by.len(), 1);
@@ -273,7 +273,7 @@ mod tests {
         state
             .vote_on_report(pr(13), "post".into(), post_id, true)
             .unwrap();
-        let p = state.posts.get(&post_id).unwrap();
+        let p = Post::get(&state, &post_id).unwrap();
         let report = &p.report.clone().unwrap();
         assert_eq!(report.confirmed_by.len(), 3);
         assert_eq!(report.rejected_by.len(), 1);
@@ -315,7 +315,7 @@ mod tests {
         let u = create_user(&mut state, p);
         let user = state.users.get_mut(&u).unwrap();
         user.change_karma(100, "");
-        let post_id = add(
+        let post_id = Post::create(
             &mut state,
             "good post".to_string(),
             vec![],
@@ -347,7 +347,7 @@ mod tests {
         state
             .vote_on_report(pr(6), "post".into(), post_id, false)
             .unwrap();
-        let p = state.posts.get(&post_id).unwrap();
+        let p = Post::get(&state, &post_id).unwrap();
         let report = &p.report.clone().unwrap();
         assert_eq!(report.confirmed_by.len(), 0);
         assert_eq!(report.rejected_by.len(), 1);
@@ -357,7 +357,7 @@ mod tests {
         state
             .vote_on_report(pr(9), "post".into(), post_id, false)
             .unwrap();
-        let p = state.posts.get(&post_id).unwrap();
+        let p = Post::get(&state, &post_id).unwrap();
         let report = &p.report.clone().unwrap();
         assert_eq!(report.confirmed_by.len(), 0);
         assert_eq!(report.rejected_by.len(), 2);
@@ -365,7 +365,7 @@ mod tests {
         state
             .vote_on_report(pr(10), "post".into(), post_id, false)
             .unwrap();
-        let p = state.posts.get(&post_id).unwrap();
+        let p = Post::get(&state, &post_id).unwrap();
         let report = &p.report.clone().unwrap();
         assert_eq!(report.confirmed_by.len(), 0);
         assert_eq!(report.rejected_by.len(), 3);

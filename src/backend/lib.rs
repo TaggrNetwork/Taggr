@@ -76,6 +76,12 @@ fn post_upgrade() {
     set_timers();
 
     // temporary post upgrade logic goes here
+    let s = state_mut();
+    s.root_posts = s
+        .posts
+        .values()
+        .filter(|post| post.parent.is_none())
+        .count();
 }
 
 /*
@@ -350,7 +356,7 @@ async fn add_post(
     extension: Option<ByteBuf>,
 ) -> Result<PostId, String> {
     let extension: Option<Extension> = extension.map(|bytes| parse(&bytes));
-    post::add(
+    Post::create(
         state_mut(),
         body,
         blobs,
@@ -371,7 +377,7 @@ async fn edit_post(
     patch: String,
     realm: Option<String>,
 ) -> Result<(), String> {
-    post::edit(
+    Post::edit(
         state_mut(),
         id,
         body,
@@ -402,7 +408,14 @@ fn toggle_bookmark() {
 #[export_name = "canister_update toggle_following_post"]
 fn toggle_following_post() {
     let post_id: PostId = parse(&arg_data_raw());
-    reply(state_mut().toggle_following_post(caller(), post_id));
+    let state = state_mut();
+    reply(
+        Post::mutate(state, &post_id, &mut |post, state| {
+            let user_id = state.principal_to_user(caller()).ok_or("no user found")?.id;
+            Ok(post.toggle_following(user_id))
+        })
+        .unwrap_or_default(),
+    );
 }
 
 #[export_name = "canister_update toggle_following_user"]
@@ -452,7 +465,9 @@ fn realm_clean_up() {
 #[export_name = "canister_update enter_realm"]
 fn enter_realm() {
     let name: String = parse(&arg_data_raw());
-    state_mut().enter_realm(caller(), name);
+    if let Some(user) = state_mut().principal_to_user_mut(caller()) {
+        user.enter_realm(name);
+    }
     reply(());
 }
 
@@ -597,7 +612,7 @@ fn proposals() {
             .rev()
             .skip(page * page_size)
             .take(page_size)
-            .filter_map(|proposal| state.posts.get(&proposal.post_id))
+            .filter_map(|proposal| Post::get(state, &proposal.post_id))
             .collect::<Vec<_>>(),
     )
 }
@@ -613,7 +628,7 @@ fn realm_posts() {
                 .posts
                 .iter()
                 .rev()
-                .filter_map(|id| state.posts.get(id))
+                .filter_map(|id| Post::get(state, id))
                 .filter(move |post| with_comments || post.parent.is_none())
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
@@ -693,7 +708,7 @@ fn user() {
                 .iter()
                 .rev()
                 .take(CONFIG.feed_page_size * 3)
-                .filter_map(|post_id| state.posts.get(post_id))
+                .filter_map(|post_id| Post::get(state, post_id))
                 .flat_map(|post| post.reactions.iter())
                 .flat_map(|(r_id, users)| {
                     let cost = karma.get(r_id).copied().unwrap_or_default();
@@ -721,7 +736,7 @@ fn posts() {
     let state = state();
     reply(
         ids.into_iter()
-            .filter_map(|id| state.posts.get(&id))
+            .filter_map(|id| Post::get(state, &id))
             .collect::<Vec<&Post>>(),
     );
 }
@@ -737,7 +752,7 @@ fn journal() {
                 user.posts
                     .iter()
                     .rev()
-                    .filter_map(|id| state.posts.get(id))
+                    .filter_map(|id| Post::get(state, id))
                     // we filter out responses and root posts starting with tagging another user
                     .filter(|post| post.parent.is_none() && !post.body.starts_with('@'))
                     .skip(page * CONFIG.feed_page_size)
@@ -800,7 +815,7 @@ fn thread() {
     reply(
         state
             .thread(id)
-            .filter_map(|id| state.posts.get(&id))
+            .filter_map(|id| Post::get(state, &id))
             .cloned()
             .collect::<Vec<Post>>(),
     );

@@ -1,5 +1,5 @@
 use super::config::CONFIG;
-use super::post::{self, Extension, PostId};
+use super::post::{Extension, Post, PostId};
 use super::token::account;
 use super::user::Predicate;
 use super::{user::UserId, State};
@@ -190,7 +190,7 @@ pub async fn propose(
         .for_each(|proposal| {
             proposal.status = Status::Cancelled;
         });
-    let post_id = post::add(
+    let post_id = Post::create(
         state,
         description,
         Default::default(),

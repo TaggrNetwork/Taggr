@@ -1,6 +1,6 @@
 use self::canisters::{upgrade_main_canister, NNSVote, CALLS};
 use self::invoices::{parse_account, Invoice};
-use self::post::{add, conclude_poll, Extension, Poll};
+use self::post::{Extension, Poll, Post, PostId};
 use self::proposals::{Payload, Status};
 use self::reports::Report;
 use self::token::account;
@@ -17,8 +17,6 @@ use ic_cdk::export::candid::Principal;
 use ic_ledger_types::{AccountIdentifier, Memo, Tokens};
 use invoices::e8s_to_icp;
 use invoices::Invoices;
-use memory::Storable;
-use post::{Post, PostId};
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use sha2::{Digest, Sha256};
@@ -112,15 +110,6 @@ pub struct Realm {
     theme: String,
 }
 
-impl Storable for Realm {
-    fn to_bytes(&self) -> Vec<u8> {
-        serde_cbor::to_vec(&self).expect("couldn't serialize the state")
-    }
-    fn from_bytes(bytes: Vec<u8>) -> Self {
-        serde_cbor::from_slice(&bytes).expect("couldn't deserialize")
-    }
-}
-
 #[derive(Default, Serialize, Deserialize)]
 pub struct State {
     pub burned_cycles: i64,
@@ -169,17 +158,10 @@ pub struct State {
 
     pub last_nns_proposal: u64,
 
-    #[serde(default)]
     nns_votes: u64,
-}
 
-impl Storable for State {
-    fn to_bytes(&self) -> Vec<u8> {
-        serde_cbor::to_vec(&self).expect("couldn't serialize the state")
-    }
-    fn from_bytes(bytes: Vec<u8>) -> Self {
-        serde_cbor::from_slice(&bytes).expect("couldn't deserialize")
-    }
+    #[serde(default)]
+    pub root_posts: usize,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -245,10 +227,39 @@ impl State {
         }
     }
 
+    pub fn num_posts(&self) -> usize {
+        self.posts.len()
+    }
+
+    pub fn post(&self, post_id: &PostId) -> Option<&'_ Post> {
+        self.posts.get(post_id)
+    }
+
+    pub fn save_post(&mut self, post: Post) {
+        self.posts.insert(post.id, post);
+    }
+
+    pub fn mutate_post<T>(
+        &mut self,
+        post_id: &PostId,
+        f: &mut dyn FnMut(&mut Post, &mut State) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let mut post = self.posts.remove(post_id).ok_or("no post found")?;
+
+        let result = f(&mut post, self);
+
+        if self.posts.insert(*post_id, post).is_some() {
+            panic!("no post should exist")
+        }
+
+        result
+    }
+
     pub fn clean_up_realm(&mut self, principal: Principal, post_id: PostId) -> Result<(), String> {
         let controller = self.principal_to_user(principal).ok_or("no user found")?.id;
-        let post = self.posts.get(&post_id).ok_or("no post found")?;
-        let realm = post.realm.as_ref().ok_or("no realm id found")?;
+        let post = Post::get(self, &post_id).ok_or("no post found")?;
+        let realm = post.realm.as_ref().cloned().ok_or("no realm id found")?;
+        let post_user = post.user;
         if !post
             .realm
             .as_ref()
@@ -258,7 +269,7 @@ impl State {
         {
             return Err("only realm controller can clean up".into());
         }
-        let user = self.users.get_mut(&post.user).ok_or("no user found")?;
+        let user = self.users.get_mut(&post_user).ok_or("no user found")?;
         let msg = format!("post {} was moved out of realm {}", post_id, realm);
         user.change_karma(-(CONFIG.realm_cleanup_penalty as Karma), &msg);
         let user_id = user.id;
@@ -359,24 +370,12 @@ impl State {
             .and_then(|u| u.current_realm.clone());
         self.hot
             .iter()
-            .filter_map(|post_id| self.posts.get(post_id))
+            .filter_map(|post_id| Post::get(self, post_id))
             .filter(|post| current_realm.is_none() || post.realm == current_realm)
             .skip(page * CONFIG.feed_page_size)
             .take(CONFIG.feed_page_size)
             .cloned()
             .collect()
-    }
-
-    pub fn enter_realm(&mut self, principal: Principal, name: String) {
-        let user = match self.principal_to_user_mut(principal) {
-            Some(user) => user,
-            _ => return,
-        };
-        if user.realms.contains(&name) {
-            user.current_realm = Some(name);
-            return;
-        }
-        user.current_realm = None;
     }
 
     pub fn toggle_realm_membership(&mut self, principal: Principal, name: String) -> bool {
@@ -515,7 +514,7 @@ impl State {
         let tipper = self.principal_to_user(principal).ok_or("no user found")?;
         let tipper_id = tipper.id;
         let tipper_name = tipper.name.clone();
-        let author_id = self.posts.get(&post_id).ok_or("post not found")?.user;
+        let author_id = Post::get(self, &post_id).ok_or("post not found")?.user;
         self.cycle_transfer(
             tipper_id,
             author_id,
@@ -524,8 +523,11 @@ impl State {
             Destination::Cycles,
             ledger_log,
         )?;
-        let post = self.posts.get_mut(&post_id).expect("post not found");
-        post.tips.push((tipper_id, tip));
+        Post::mutate(self, &post_id, &mut |post, _| {
+            post.tips.push((tipper_id, tip));
+            Ok(())
+        })
+        .expect("couldn't mutate post");
         self.users
             .get_mut(&author_id)
             .expect("user not found")
@@ -542,7 +544,7 @@ impl State {
     pub fn tree(&self, id: PostId) -> HashMap<PostId, &'_ Post> {
         let mut backlog = vec![id];
         let mut posts: HashMap<_, _> = Default::default();
-        while let Some(post) = backlog.pop().and_then(|id| self.posts.get(&id)) {
+        while let Some(post) = backlog.pop().and_then(|id| Post::get(self, &id)) {
             backlog.extend_from_slice(post.children.as_slice());
             posts.insert(post.id, post);
         }
@@ -680,9 +682,7 @@ impl State {
                             .get(user_id)
                             .and_then(|p| p.report.as_ref().map(|r| !r.closed))
                             .unwrap_or_default(),
-                        Predicate::ReportOpen(post_id) => self
-                            .posts
-                            .get(post_id)
+                        Predicate::ReportOpen(post_id) => Post::get(self, post_id)
                             .and_then(|p| p.report.as_ref().map(|r| !r.closed))
                             .unwrap_or_default(),
                         Predicate::Proposal(post_id) => self
@@ -1057,14 +1057,14 @@ impl State {
 
     fn conclude_polls(&mut self, now: u64) {
         for post_id in self.pending_polls.clone() {
-            match conclude_poll(self, post_id, now) {
+            match Post::conclude_poll(self, &post_id, now) {
                 // The poll didn't end yet.
                 Ok(false) => {}
                 // The poll has ended, so it can be removed from pending ones.
                 _ => {
                     self.pending_polls.remove(&post_id);
                 }
-            }
+            };
         }
     }
 
@@ -1087,10 +1087,8 @@ impl State {
     async fn handle_nns_proposals(&mut self, now: u64) {
         // Vote on proposals if pending ones exist
         for (proposal_id, post_id) in self.pending_nns_proposals.clone() {
-            if let Some(Extension::Poll(poll)) = self
-                .posts
-                .get(&post_id)
-                .and_then(|post| post.extension.as_ref())
+            if let Some(Extension::Poll(poll)) =
+                Post::get(self, &post_id).and_then(|post| post.extension.as_ref())
             {
                 // The poll is still pending.
                 if self.pending_polls.contains(&post_id) {
@@ -1154,7 +1152,7 @@ impl State {
                 proposal.proposer, proposal.summary
             );
 
-            match add(
+            match Post::create(
                 self,
                 post,
                 Default::default(),
@@ -1206,7 +1204,7 @@ impl State {
         }
     }
 
-    pub async fn weekly_chores(&mut self, _now: u64) {
+    async fn weekly_chores(&mut self, _now: u64) {
         self.clean_up();
 
         // We only mint and distribute if no open proposals exists
@@ -1277,7 +1275,7 @@ impl State {
         self.accounting.clean_up();
     }
 
-    pub fn recompute_stalwarts(&mut self, now: u64) {
+    fn recompute_stalwarts(&mut self, now: u64) {
         let mut users = self.users.values_mut().collect::<Vec<_>>();
         users.sort_unstable_by_key(|a| std::cmp::Reverse(a.karma()));
 
@@ -1488,7 +1486,7 @@ impl State {
         };
         Box::new(
             posts
-                .filter_map(move |i| self.posts.get(&i))
+                .filter_map(move |i| Post::get(self, &i))
                 .filter(move |post| with_comments || post.parent.is_none()),
         )
     }
@@ -1518,7 +1516,7 @@ impl State {
     pub fn thread(&self, id: PostId) -> Box<dyn Iterator<Item = PostId>> {
         let mut result = Vec::new();
         let mut curr = id;
-        while let Some(Post { id, parent, .. }) = self.posts.get(&curr) {
+        while let Some(Post { id, parent, .. }) = Post::get(self, &curr) {
             result.push(*id);
             if let Some(parent_id) = parent {
                 curr = *parent_id
@@ -1647,7 +1645,7 @@ impl State {
         stalwarts.sort_unstable_by_key(|u1| std::cmp::Reverse(u1.karma()));
         weekly_karma_leaders.sort_unstable_by_key(|k| k.1);
         weekly_karma_leaders = weekly_karma_leaders.into_iter().rev().take(12).collect();
-        let posts = self.posts.values().filter(|p| p.parent.is_none()).count();
+        let posts = self.root_posts;
         let emergency_votes = self.emergency_votes.values().sum::<Token>() as f32
             / self.active_voting_power(time()).max(1) as f32
             * 100.0;
@@ -1670,7 +1668,7 @@ impl State {
             canister_cycle_balance: canister_balance(),
             users: self.users.len(),
             posts,
-            comments: self.posts.len() - posts,
+            comments: Post::count(self) - posts,
             cycles,
             burned_cycles: self.burned_cycles,
             burned_cycles_total: self.burned_cycles_total,
@@ -1709,16 +1707,22 @@ impl State {
         }
         let stalwarts = self.users.values().filter(|u| u.stalwart).count();
         let (user_id, report, penalty, subject) = match domain.as_str() {
-            "post" => {
-                let post = self.posts.get_mut(&id).expect("no post found");
+            "post" => Post::mutate(self, &id, &mut |post,
+                                                    _|
+             -> Result<
+                (UserId, Report, Cycles, String),
+                String,
+            > {
                 post.vote_on_report(stalwarts, user.id, vote)?;
-                (
-                    post.user,
-                    post.report.clone().ok_or("no report")?,
+                let post_user = post.user;
+                let post_report = post.report.clone().ok_or("no report")?;
+                Ok((
+                    post_user,
+                    post_report,
                     CONFIG.reporting_penalty_post,
                     format!("post {}", id),
-                )
-            }
+                ))
+            })?,
             "misbehaviour" => {
                 if user.id == id {
                     return Err("votes on own reports are not accepted".into());
@@ -1752,10 +1756,9 @@ impl State {
             .principal_to_user(principal)
             .ok_or_else(|| "no user found".to_string())?;
         let (user_id, user_realms) = (user.id, user.realms.clone());
-        self.posts
-            .get_mut(&post_id)
-            .ok_or_else(|| "no post found".to_string())?
-            .vote_on_poll(user_id, user_realms, time, vote)
+        Post::mutate(self, &post_id, &mut |post, _| {
+            post.vote_on_poll(user_id, user_realms.clone(), time, vote)
+        })
     }
 
     pub fn report(
@@ -1790,14 +1793,16 @@ impl State {
 
         match domain.as_str() {
             "post" => {
-                let post = self.posts.get_mut(&id).ok_or("no post found")?;
-                if post.report.is_some() {
-                    return Err("this post is already reported".into());
-                }
-                post.report = report;
+                let post_user = Post::mutate(self, &id, &mut |post, _| {
+                    if post.report.is_some() {
+                        return Err("this post is already reported".into());
+                    }
+                    post.report = report.clone();
+                    Ok(post.user)
+                })?;
                 let author_name = self
                     .users
-                    .get(&post.user)
+                    .get(&post_user)
                     .map(|user| user.name.clone())
                     .unwrap_or_default();
                 self.notify_with_predicate(
@@ -1831,7 +1836,7 @@ impl State {
         post_id: PostId,
         versions: Vec<String>,
     ) -> Result<(), String> {
-        let post = self.posts.get(&post_id).ok_or("no post found")?.clone();
+        let post = Post::get(self, &post_id).ok_or("no post found")?.clone();
         if self.principal_to_user(principal).map(|user| user.id) != Some(post.user) {
             return Err("not authorized".into());
         }
@@ -1902,14 +1907,12 @@ impl State {
             .expect("no user found")
             .change_karma(-karma_penalty, format!("deletion of post {}", post.id));
 
-        self.posts
-            .get_mut(&post_id)
-            .expect("no post found")
-            .delete(versions);
-
         self.hot.retain(|id| id != &post_id);
 
-        Ok(())
+        Post::mutate(self, &post_id, &mut |post, _| {
+            post.delete(versions.clone());
+            Ok(())
+        })
     }
 
     pub fn react(
@@ -1927,7 +1930,7 @@ impl State {
             .principal_to_user(principal)
             .ok_or("no user for principal found")?
             .clone();
-        let post = self.posts.get(&post_id).ok_or("post not found")?.clone();
+        let post = Post::get(self, &post_id).ok_or("post not found")?.clone();
         if post.is_deleted() {
             return Err("post deleted".into());
         }
@@ -1988,9 +1991,10 @@ impl State {
             .expect("no user for principal found")
             .last_activity = time;
         let user_id = user.id;
-        let post = self.posts.get_mut(&post_id).expect("no post found");
-        post.reactions.entry(reaction).or_default().insert(user_id);
-        Ok(())
+        Post::mutate(self, &post_id, &mut |post, _| {
+            post.reactions.entry(reaction).or_default().insert(user_id);
+            Ok(())
+        })
     }
 
     pub fn toggle_following_user(&mut self, principal: Principal, followee_id: UserId) -> bool {
@@ -2018,20 +2022,6 @@ impl State {
             followee.followers.remove(&id);
         }
         added
-    }
-
-    pub fn toggle_following_post(&mut self, principal: Principal, post_id: PostId) -> bool {
-        let user_id = match self.principal_to_user(principal) {
-            Some(user) => user.id,
-            _ => return false,
-        };
-        let post = self.posts.get_mut(&post_id).expect("No post found");
-        if post.watchers.contains(&user_id) {
-            post.watchers.remove(&user_id);
-            return false;
-        }
-        post.watchers.insert(user_id);
-        true
     }
 }
 
@@ -2097,7 +2087,7 @@ pub fn time() -> u64 {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use post::{add, edit};
+    use post::Post;
 
     pub fn pr(n: u8) -> Principal {
         let v = vec![0, n];
@@ -2156,7 +2146,7 @@ pub(crate) mod tests {
         state.mint(eligigble);
         assert_eq!(state.ledger.len(), 10);
 
-        let post_id = add(
+        let post_id = Post::create(
             &mut state,
             "Test".to_string(),
             vec![],
@@ -2173,22 +2163,24 @@ pub(crate) mod tests {
         .await
         .unwrap();
 
-        let post = state.posts.get_mut(&post_id).unwrap();
-        let mut votes = BTreeMap::new();
-        votes.insert(0, vec![1, 2, 3].into_iter().collect());
-        votes.insert(1, vec![4, 5, 6].into_iter().collect());
-        votes.insert(2, vec![7, 8, 9].into_iter().collect());
-        if let Some(Extension::Poll(poll)) = post.extension.as_mut() {
-            poll.votes = votes;
-        }
-
-        let now = post.timestamp();
+        let now = Post::mutate(&mut state, &post_id, &mut |post, _| {
+            let mut votes = BTreeMap::new();
+            votes.insert(0, vec![1, 2, 3].into_iter().collect());
+            votes.insert(1, vec![4, 5, 6].into_iter().collect());
+            votes.insert(2, vec![7, 8, 9].into_iter().collect());
+            if let Some(Extension::Poll(poll)) = post.extension.as_mut() {
+                poll.votes = votes;
+            }
+            Ok(post.timestamp())
+        })
+        .unwrap();
         assert_eq!(state.pending_polls.len(), 1);
         state.conclude_polls(now + 24 * HOUR);
         assert_eq!(state.pending_polls.len(), 1);
         state.conclude_polls(now + 3 * 24 * HOUR);
         assert_eq!(state.pending_polls.len(), 0);
-        if let Some(Extension::Poll(poll)) = state.posts.get(&post_id).unwrap().extension.as_ref() {
+        if let Some(Extension::Poll(poll)) = Post::get(&state, &post_id).unwrap().extension.as_ref()
+        {
             // Here we can see that by karma the difference is way smaller becasue values are
             // normalized by the square root.
             assert_eq!(*poll.weighted_by_karma.get(&0).unwrap(), 21);
@@ -2201,6 +2193,7 @@ pub(crate) mod tests {
             panic!("should be a poll")
         }
     }
+
     #[actix_rt::test]
     async fn test_principal_change() {
         let mut state = State::default();
@@ -2253,7 +2246,7 @@ pub(crate) mod tests {
         assert!(state.toggle_realm_membership(pr(0), "TEST".into()));
         assert_eq!(state.realms.get("TEST").unwrap().members.len(), 1);
 
-        let post_id = add(
+        let post_id = Post::create(
             &mut state,
             "Root".to_string(),
             vec![],
@@ -2266,7 +2259,7 @@ pub(crate) mod tests {
         .await
         .unwrap();
 
-        let comment_1_id = add(
+        let comment_1_id = Post::create(
             &mut state,
             "Comment 1".to_string(),
             vec![],
@@ -2279,7 +2272,7 @@ pub(crate) mod tests {
         .await
         .unwrap();
 
-        add(
+        Post::create(
             &mut state,
             "Comment 2".to_string(),
             vec![],
@@ -2321,7 +2314,7 @@ pub(crate) mod tests {
             .unwrap()
             .change_karma(1000, "test");
 
-        let post_id = add(
+        let post_id = Post::create(
             &mut state,
             "Test".to_string(),
             vec![],
@@ -2337,7 +2330,7 @@ pub(crate) mod tests {
         // Create 2 comments
         let mut comment_id = 0;
         for i in 1..=2 {
-            comment_id = add(
+            comment_id = Post::create(
                 &mut state,
                 "Comment".to_string(),
                 vec![],
@@ -2351,7 +2344,7 @@ pub(crate) mod tests {
             .unwrap();
         }
 
-        let leaf = add(
+        let leaf = Post::create(
             &mut state,
             "Leaf".to_string(),
             vec![],
@@ -2364,9 +2357,9 @@ pub(crate) mod tests {
         .await
         .unwrap();
 
-        assert_eq!(state.posts.get(&post_id).unwrap().tree_size, 3);
-        assert_eq!(state.posts.get(&comment_id).unwrap().tree_size, 1);
-        assert_eq!(state.posts.get(&leaf).unwrap().tree_size, 0);
+        assert_eq!(Post::get(&state, &post_id).unwrap().tree_size, 3);
+        assert_eq!(Post::get(&state, &comment_id).unwrap().tree_size, 1);
+        assert_eq!(Post::get(&state, &leaf).unwrap().tree_size, 0);
 
         // React from both users
         assert!(state.react(pr(1), post_id, 100, 0).is_ok());
@@ -2412,10 +2405,10 @@ pub(crate) mod tests {
             .change_cycles(1000, CyclesDelta::Plus, "")
             .unwrap();
 
-        assert_eq!(&state.posts.get(&0).unwrap().body, "Test");
+        assert_eq!(&Post::get(&state, &0).unwrap().body, "Test");
         assert_eq!(state.delete_post(pr(0), post_id, versions.clone()), Ok(()));
-        assert_eq!(&state.posts.get(&0).unwrap().body, "");
-        assert_eq!(state.posts.get(&0).unwrap().hashes.len(), versions.len());
+        assert_eq!(&Post::get(&state, &0).unwrap().body, "");
+        assert_eq!(Post::get(&state, &0).unwrap().hashes.len(), versions.len());
 
         assert_eq!(
             state.users.get(&upvoter_id).unwrap().cycles(),
@@ -2623,7 +2616,10 @@ pub(crate) mod tests {
         );
 
         // Entering a realm without joining does not work
-        state.enter_realm(p1, name.clone());
+        state
+            .principal_to_user_mut(p1)
+            .unwrap()
+            .enter_realm(name.clone());
         assert!(state.users.get(&_u1).unwrap().realms.is_empty());
         assert_eq!(state.users.get(&_u1).unwrap().current_realm, None);
 
@@ -2635,14 +2631,17 @@ pub(crate) mod tests {
         assert!(state.users.get(&_u1).unwrap().realms.contains(&name));
         assert_eq!(state.users.get(&_u1).unwrap().current_realm, None);
 
-        state.enter_realm(p1, name.clone());
+        state
+            .principal_to_user_mut(p1)
+            .unwrap()
+            .enter_realm(name.clone());
         assert_eq!(
             state.users.get(&_u1).unwrap().current_realm,
             Some(name.clone())
         );
 
         // creating a post in a realm
-        let post_id = add(
+        let post_id = Post::create(
             &mut state,
             "Realm post".to_string(),
             vec![],
@@ -2655,11 +2654,14 @@ pub(crate) mod tests {
         .await
         .unwrap();
 
-        assert_eq!(state.posts.get(&post_id).unwrap().realm, Some(name.clone()));
+        assert_eq!(
+            Post::get(&state, &post_id).unwrap().realm,
+            Some(name.clone())
+        );
         assert!(state.realms.get(&name).unwrap().posts.contains(&post_id));
 
         // Posting without realm creates the post in the current realm of the user
-        let post_id = add(
+        let post_id = Post::create(
             &mut state,
             "Realm post".to_string(),
             vec![],
@@ -2673,13 +2675,13 @@ pub(crate) mod tests {
         .unwrap();
 
         assert_eq!(
-            state.posts.get(&post_id).unwrap().realm,
+            Post::get(&state, &post_id).unwrap().realm,
             Some("TAGGRDAO".into())
         );
 
         // comments not possible if user is not in the realm
         assert_eq!(
-            add(
+            Post::create(
                 &mut state,
                 "comment".to_string(),
                 vec![],
@@ -2695,7 +2697,7 @@ pub(crate) mod tests {
 
         assert!(state.toggle_realm_membership(p0, name.clone()));
         assert_eq!(
-            add(
+            Post::create(
                 &mut state,
                 "comment".to_string(),
                 vec![],
@@ -2711,8 +2713,11 @@ pub(crate) mod tests {
         assert!(state.realms.get(&name).unwrap().posts.contains(&2));
 
         // Create post without a realm
-        state.enter_realm(p1, Default::default());
-        let post_id = add(
+        state
+            .principal_to_user_mut(p1)
+            .unwrap()
+            .enter_realm(Default::default());
+        let post_id = Post::create(
             &mut state,
             "No realm post".to_string(),
             vec![],
@@ -2724,7 +2729,7 @@ pub(crate) mod tests {
         )
         .await
         .unwrap();
-        let comment_id = add(
+        let comment_id = Post::create(
             &mut state,
             "comment".to_string(),
             vec![],
@@ -2736,12 +2741,12 @@ pub(crate) mod tests {
         )
         .await
         .unwrap();
-        assert_eq!(state.posts.get(&comment_id).unwrap().realm, None);
+        assert_eq!(Post::get(&state, &comment_id).unwrap().realm, None);
 
         // Creating post without entering the realm
         let realm_name = "NEW_REALM".to_string();
         assert_eq!(
-            add(
+            Post::create(
                 &mut state,
                 "test".to_string(),
                 vec![],
@@ -2773,7 +2778,7 @@ pub(crate) mod tests {
 
         // we still can't post into it, because we didn't join
         assert_eq!(
-            add(
+            Post::create(
                 &mut state,
                 "test".to_string(),
                 vec![],
@@ -2791,7 +2796,7 @@ pub(crate) mod tests {
         assert!(state.toggle_realm_membership(p1, realm_name.clone()));
         assert!(state.users.get(&_u1).unwrap().realms.contains(&name));
         assert_eq!(
-            add(
+            Post::create(
                 &mut state,
                 "test".to_string(),
                 vec![],
@@ -2815,7 +2820,7 @@ pub(crate) mod tests {
 
         // Move the post to non-joined realm
         assert_eq!(
-            edit(
+            Post::edit(
                 &mut state,
                 5,
                 "changed".to_string(),
@@ -2830,9 +2835,9 @@ pub(crate) mod tests {
         );
 
         // Move post to TAGGRDAO realms
-        assert_eq!(state.posts.get(&5).unwrap().realm, Some(realm_name));
+        assert_eq!(Post::get(&state, &5).unwrap().realm, Some(realm_name));
         assert_eq!(
-            edit(
+            Post::edit(
                 &mut state,
                 5,
                 "changed".to_string(),
@@ -2846,7 +2851,7 @@ pub(crate) mod tests {
             Ok(())
         );
         assert_eq!(
-            state.posts.get(&5).unwrap().realm,
+            Post::get(&state, &5).unwrap().realm,
             Some("TAGGRDAO".to_string())
         );
     }
@@ -2857,7 +2862,7 @@ pub(crate) mod tests {
         let p = pr(0);
         let u1 = create_user_with_params(&mut state, p, "user1", true);
         let u2 = create_user_with_params(&mut state, pr(1), "user2", true);
-        let post_id = add(
+        let post_id = Post::create(
             &mut state,
             "This is a #post with #tags".to_string(),
             vec![],
@@ -2886,7 +2891,7 @@ pub(crate) mod tests {
         let u = state.users.get_mut(&u2).unwrap();
         assert_eq!(u.cycles(), 1000 - 500 - CONFIG.tipping_fee);
 
-        let p = state.posts.get(&post_id).unwrap();
+        let p = Post::get(&state, &post_id).unwrap();
         assert_eq!(p.tips, vec![(u2, 500)]);
     }
 
@@ -2964,7 +2969,7 @@ pub(crate) mod tests {
         // create a post author and one post for its principal
         let p = pr(0);
         let post_author_id = create_user(&mut state, p);
-        let post_id = add(
+        let post_id = Post::create(
             &mut state,
             "This is a #post with #tags".to_string(),
             vec![],
@@ -3025,7 +3030,7 @@ pub(crate) mod tests {
         // now a different post with the same tags appears
         let p = pr(2);
         let _post_author_id = create_user(&mut state, p);
-        let post_id2 = add(
+        let post_id2 = Post::create(
             &mut state,
             "This is a different #post, but with the same #tags".to_string(),
             vec![],
@@ -3053,7 +3058,7 @@ pub(crate) mod tests {
         // yet another post appears
         let p = pr(3);
         let _post_author_id = create_user(&mut state, p);
-        let post_id3 = add(
+        let post_id3 = Post::create(
             &mut state,
             "Different #post, different #feed".to_string(),
             vec![],
@@ -3115,7 +3120,7 @@ pub(crate) mod tests {
         let mut state = State::default();
         let p0 = pr(0);
         let post_author_id = create_user(&mut state, p0);
-        let post_id = add(
+        let post_id = Post::create(
             &mut state,
             "test".to_string(),
             vec![],
@@ -3209,7 +3214,7 @@ pub(crate) mod tests {
                 + 2 * 3) as i64
         );
 
-        add(
+        Post::create(
             &mut state,
             "test".to_string(),
             vec![],
@@ -3238,7 +3243,7 @@ pub(crate) mod tests {
         author
             .change_cycles(author.cycles(), CyclesDelta::Minus, "")
             .unwrap();
-        assert!(add(
+        assert!(Post::create(
             &mut state,
             "test".to_string(),
             vec![],

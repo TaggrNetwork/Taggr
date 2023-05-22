@@ -1,13 +1,8 @@
 use ic_cdk::api::stable::{stable64_grow, stable64_read, stable64_size, stable64_write};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{cell::RefCell, collections::BTreeMap, fmt::Display, rc::Rc};
 
 use super::post::PostId;
-
-pub trait Storable {
-    fn to_bytes(&self) -> Vec<u8>;
-    fn from_bytes(bytes: Vec<u8>) -> Self;
-}
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Api {
@@ -27,8 +22,8 @@ pub struct Memory {
 const INITIAL_OFFSET: u64 = 16;
 
 impl Api {
-    pub fn write<T: Storable>(&mut self, value: &T) -> Result<(u64, u64), String> {
-        let buffer: Vec<u8> = value.to_bytes();
+    pub fn write<T: Serialize>(&mut self, value: &T) -> Result<(u64, u64), String> {
+        let buffer: Vec<u8> = serde_cbor::to_vec(value).expect("couldn't serialize");
         let offset = self.allocator.alloc(buffer.len() as u64)?;
         stable64_write(offset, &buffer);
         Ok((offset, buffer.len() as u64))
@@ -38,14 +33,14 @@ impl Api {
         self.allocator.free(offset, len)
     }
 
-    pub fn read<T: Storable>(offset: u64, len: u64) -> T {
+    pub fn read<T: DeserializeOwned>(offset: u64, len: u64) -> T {
         let mut bytes = Vec::with_capacity(len as usize);
         bytes.spare_capacity_mut();
         unsafe {
             bytes.set_len(len as usize);
         }
         stable64_read(offset, &mut bytes);
-        T::from_bytes(bytes)
+        serde_cbor::from_slice(&bytes).expect("couldn't deserialize")
     }
 }
 
@@ -68,7 +63,7 @@ pub fn heap_to_stable(state: &mut super::State) {
                 format!("Allocator failed when dumping the heap: {:?}", err),
                 "CRITICAL".into(),
             );
-            let bytes = state.to_bytes();
+            let bytes = serde_cbor::to_vec(&state).expect("couldn't serialize the state");
             let offset = stable64_size() >> 16;
             stable64_grow(1 + (bytes.len() as u64 >> 16)).expect("couldn't grow memory");
             stable64_write(offset, &bytes);
@@ -252,18 +247,18 @@ pub struct ObjectManager<K: Ord + Eq> {
 }
 
 impl<K: Eq + Ord + Clone + Display> ObjectManager<K> {
-    pub fn insert<T: Storable>(&mut self, id: K, value: T) -> Result<(), String> {
+    pub fn insert<T: Serialize>(&mut self, id: K, value: T) -> Result<(), String> {
         self.index.insert(id, self.api.borrow_mut().write(&value)?);
         Ok(())
     }
 
-    pub fn get<T: Storable>(&mut self, id: &K) -> Option<T> {
+    pub fn get<T: DeserializeOwned>(&self, id: &K) -> Option<T> {
         self.index
             .get(id)
             .map(|(offset, len)| Api::read(*offset, *len))
     }
 
-    pub fn remove<T: Storable>(&mut self, id: &K) -> Result<T, String> {
+    pub fn remove<T: DeserializeOwned>(&mut self, id: &K) -> Result<T, String> {
         let (offset, len) = self.index.remove(id).ok_or("not found")?;
         let value = Api::read(offset, len);
         self.api.borrow_mut().remove(offset, len)?;

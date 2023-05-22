@@ -100,6 +100,13 @@ impl User {
             treasury_e8s: 0,
         }
     }
+    pub fn enter_realm(&mut self, name: String) {
+        if self.realms.contains(&name) {
+            self.current_realm = Some(name);
+            return;
+        }
+        self.current_realm = None;
+    }
 
     pub fn update(&mut self, about: String, principals: Vec<String>, settings: String) {
         self.about = about;
@@ -183,7 +190,7 @@ impl User {
             IteratorMerger {
                 iterators: iterators.into_iter().map(|i| i.peekable()).collect(),
             }
-            .filter_map(move |id| state.posts.get(&id))
+            .filter_map(move |id| Post::get(state, &id))
             .filter(move |post| with_comments || post.parent.is_none())
             .filter(move |post| {
                 // Either  the user is in no realm or in the realm of the post
