@@ -107,16 +107,8 @@ export const Proposal = ({id}) => {
         const data = await loadState();
         const newStatus = data.status;
         if (prevStatus == "Open" && newStatus == "Executed" && "Release" in data.payload) {
-            setStatus("Executing the upgrade...");
-            await api.call("execute_upgrade", false);
-            setStatus("Finalizing the upgrade...");
-            let result = await api.call("finalize_upgrade", data.payload.Release.hash);
-            if ("Ok" in result) {
-                setStatus(newStatus.toUpperCase());
-                await loadState();
-            } else {
-                setStatus(`Upgrade execution failed: ${result.Err}`);
-            }
+            setStatus(newStatus.toUpperCase());
+            await loadState();
         }
     };
 

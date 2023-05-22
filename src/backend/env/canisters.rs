@@ -164,12 +164,16 @@ pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: boo
     logger.info("Executing the canister upgrade...");
     let calls = calls_open();
     if calls > 0 && !force {
-        logger.error(format!(
-                "Upgrade execution failed: {} canister calls are in-flight: {:?}. Please re-trigger the upgrade finalization.",
-                calls,
-                unsafe { &CALLS }
-        ));
-        return;
+        if let Some(calls) = unsafe { &CALLS }.as_ref() {
+            logger.error(format!(
+                "Upgrade execution failed due to open canister calls: {:?}",
+                calls
+                    .iter()
+                    .map(|(_, calls)| *calls > 0)
+                    .collect::<Vec<_>>()
+            ));
+            return;
+        }
     }
 
     notify(

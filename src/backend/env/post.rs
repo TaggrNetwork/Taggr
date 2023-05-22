@@ -188,6 +188,7 @@ impl Post {
         self.files.clear();
         self.body.clear();
         self.patches.clear();
+        self.tags.clear();
         self.extension = None;
         self.hashes = versions
             .into_iter()
@@ -563,7 +564,11 @@ fn notify_about(state: &mut State, post: &Post) {
                 return;
             }
             if let Some(user) = state.users.get_mut(&user_id) {
-                user.notify_about_watched_post(post_id, post.id);
+                user.notify_about_watched_post(
+                    post_id,
+                    post.id,
+                    post.parent.expect("no parent found"),
+                );
             }
             notified.insert(user_id);
         });

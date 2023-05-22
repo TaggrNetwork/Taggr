@@ -29,7 +29,7 @@ const Welcome = () => {
         <div className="spaced">
             {repeatPassword && <>
                 <h2>New user detected</h2>
-                <p>Please re-enter your seed phrase to confirm it.</p>
+                <p>Please re-enter your password to confirm it.</p>
                 <SeedPhraseForm callback={async seed => {
                     const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', (new TextEncoder()).encode(seed)));
                     let identity = Ed25519KeyIdentity.generate(hash);
@@ -41,16 +41,23 @@ const Welcome = () => {
             </>}
             {!repeatPassword && <>
                 <div className="bottom_spaced">
-                    <h2>New principal detected</h2>
-                    <CopyToClipboard value={api._principalId} />
-                    <h2>Cycles</h2>
-                    To join {backendCache.config.name} you need to mint cycles.
-                    You get <code>1000</code> cycles for as little as <code>~1.3 USD</code> (corresponds to 1 <a href="https://en.wikipedia.org/wiki/Special_drawing_rights">XDR</a>) paid by ICP.
-                    <br />
-                    <br />
-                    Before you mint cycles, make sure you understand <a href="#/whitepaper">how {backendCache.config.name} works</a>!
-                    <br />
-                    <br />
+                    <h2>New user detected</h2>
+                    Your {backendCache.config.name} principal: <CopyToClipboard value={api._principalId} />
+                    <h2>JOINING</h2>
+                    <p>
+                        To join {backendCache.config.name} you need to have "cycles".
+                        Cycles are special in-app tokens which you spend as a "gas" while using the dapp.
+                        You can mint cycles yourself or you can use an invite pre-charged with cycles created by another {backendCache.config.name} user.
+                        Ask around on socials for an invite or keep reading to get onboard faster!
+                    </p>
+                    <p>
+                        To mint cycles, you need to transfer a small amount of ICP to an account controlled by the {backendCache.config.name} canister.
+                        You get <code>1000</code> cycles for as little as <code>~1.3 USD</code> (corresponds to 1 <a href="https://en.wikipedia.org/wiki/Special_drawing_rights">XDR</a>).
+                        Before you mint cycles, make sure you understand <a href="#/whitepaper">how {backendCache.config.name} works</a>!
+                    </p>
+                    <p>
+                        Ready to mint? Continue below!
+                    </p>
                 </div>
                 {loadingInvoice && <div className="text_centered stands_out">
                     Checking the balance... This can take up to a minute.
@@ -131,7 +138,7 @@ export const Wallet = () => {
                 </div>
                 <div className="vcentered top_spaced">
                     <div className="monospace max_width_col">
-                    TREASURY
+                        TREASURY
                     </div>
                     <code className="accent">{icpCode(user.treasury_e8s, 2, false)}</code>
                 </div>

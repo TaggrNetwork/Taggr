@@ -55,7 +55,7 @@ export const Tokens = () => {
                     APPROVAL THRESHOLD<code>{proposal_approval_threshold}%</code>
                 </div>
             </div>
-            <h2>Top 100 Distribution</h2>
+            <h2>Top 100 token holders</h2>
             <div className="row_container bottom_spaced">
                 {balances.slice(0, 100).map(b => <div
                     key={b[0]}

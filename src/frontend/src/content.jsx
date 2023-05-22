@@ -39,7 +39,7 @@ export const Content = ({post, value = "", blobs = [], collapse, preview, primeM
     if (!post) return <ReactMarkdown children={linkTagsAndUsers(value)} remarkPlugins={[remarkGfm]} className={classNameArg} />;
 
     let cutPos = value.indexOf(CUT);
-    let shortened = primeMode && cutPos >= 0;
+    let shortened = cutPos >= 0;
     let extValue;
 
     if (shortened) {

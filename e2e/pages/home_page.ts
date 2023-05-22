@@ -19,12 +19,12 @@ export class HomePage {
       hasText: "CONNECT",
     });
     this.loginWithInternetIdentityButton = page.locator("button", {
-      hasText: "INTERNET IDENTITY",
+      hasText: "VIA INTERNET IDENTITY",
     });
     this.loginWithSeedPhraseButton = page.locator("button", {
-      hasText: "SEED PHRASE",
+      hasText: "VIA PASSWORD",
     });
-    this.seedPhraseInput = page.getByPlaceholder("Enter your seedphrase");
+    this.seedPhraseInput = page.getByPlaceholder("Enter your password");
     this.seedPhraseJoinButton = page.locator("button", { hasText: "JOIN" });
     this.postButton = page.locator("button", { hasText: "POST" });
     this.newPostsTab = page.locator("button", { hasText: "NEW" });

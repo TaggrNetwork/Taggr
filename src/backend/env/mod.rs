@@ -1,7 +1,7 @@
-use self::canisters::{NNSVote, CALLS};
+use self::canisters::{upgrade_main_canister, NNSVote, CALLS};
 use self::invoices::{parse_account, Invoice};
 use self::post::{add, conclude_poll, Extension, Poll};
-use self::proposals::Status;
+use self::proposals::{Payload, Status};
 use self::reports::Report;
 use self::token::account;
 use self::user::{Notification, Predicate};
@@ -214,6 +214,37 @@ pub enum Destination {
 }
 
 impl State {
+    pub async fn finalize_upgrade(&mut self) {
+        let current_hash = canisters::settings(id())
+            .await
+            .ok()
+            .and_then(|s| s.module_hash.map(hex::encode))
+            .unwrap_or_default();
+        self.module_hash = current_hash.clone();
+        self.logger.info(format!(
+            "Upgrade succeeded: new version is `{}`.",
+            &current_hash[0..8]
+        ));
+    }
+
+    pub fn execute_pending_upgrade(&mut self, force: bool) {
+        let pending_upgrade =
+            self.proposals
+                .iter()
+                .rev()
+                .find_map(|proposal| match &proposal.payload {
+                    Payload::Release(payload)
+                        if proposal.status == Status::Executed && !payload.binary.is_empty() =>
+                    {
+                        Some(payload)
+                    }
+                    _ => None,
+                });
+        if let Some(release) = pending_upgrade {
+            upgrade_main_canister(&mut self.logger, &release.binary, force);
+        }
+    }
+
     pub fn clean_up_realm(&mut self, principal: Principal, post_id: PostId) -> Result<(), String> {
         let controller = self.principal_to_user(principal).ok_or("no user found")?.id;
         let post = self.posts.get(&post_id).ok_or("no post found")?;
@@ -1053,11 +1084,7 @@ impl State {
         self.recompute_stalwarts(now);
     }
 
-    async fn hourly_chores(&mut self, now: u64) {
-        self.top_up().await;
-
-        self.conclude_polls(now);
-
+    async fn handle_nns_proposals(&mut self, now: u64) {
         // Vote on proposals if pending ones exist
         for (proposal_id, post_id) in self.pending_nns_proposals.clone() {
             if let Some(Extension::Poll(poll)) = self
@@ -1152,6 +1179,16 @@ impl State {
             }
             self.last_nns_proposal = proposal.id;
         }
+    }
+
+    pub async fn hourly_chores(&mut self, now: u64) {
+        self.top_up().await;
+
+        self.conclude_polls(now);
+
+        self.handle_nns_proposals(now).await;
+
+        self.execute_pending_upgrade(false);
     }
 
     pub async fn chores(&mut self, now: u64) {
@@ -1811,9 +1848,12 @@ impl State {
             })
             .collect::<Vec<_>>();
 
+        let tips: Cycles = post.tips.iter().map(|(_, tip)| tip).sum();
+
         let costs: Cycles = CONFIG.post_cost
             + reaction_costs.iter().map(|(_, cost)| *cost).sum::<u64>()
-            + comments_tree_penalty;
+            + comments_tree_penalty
+            + tips;
         if costs > self.users.get(&post.user).ok_or("no user found")?.cycles() {
             return Err(format!(
                 "not enough cycles (this post requires {} cycles to be deleted)",
@@ -1836,6 +1876,17 @@ impl State {
                 )?;
                 karma_penalty += amount as Karma;
             }
+        }
+
+        for (user_id, tip) in post.tips {
+            self.cycle_transfer(
+                post.user,
+                user_id,
+                tip,
+                0,
+                Destination::Cycles,
+                format!("tip refund after deletion of post {}", post.id),
+            )?;
         }
 
         // penalize for comments tree destruction
@@ -2263,6 +2314,7 @@ pub(crate) mod tests {
         user.change_karma(1000, "test");
         assert!(user.trusted());
         let uid = create_user(&mut state, pr(2));
+        create_user(&mut state, pr(3));
         state
             .users
             .get_mut(&uid)
@@ -2320,6 +2372,14 @@ pub(crate) mod tests {
         assert!(state.react(pr(1), post_id, 100, 0).is_ok());
         assert!(state.react(pr(2), post_id, 50, 0).is_ok());
 
+        // Tip from another user
+        let cycles = state.principal_to_user(pr(3)).unwrap().cycles();
+        state.tip(pr(3), post_id, 100).unwrap();
+        assert_eq!(
+            state.principal_to_user(pr(3)).unwrap().cycles(),
+            cycles - 100 - 1
+        );
+
         assert_eq!(
             state.users.get(&id).unwrap().karma_to_reward(),
             10 + 5 + 2 * CONFIG.response_reward as Karma
@@ -2342,7 +2402,7 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(
             state.delete_post(pr(0), post_id, versions.clone()),
-            Err("not enough cycles (this post requires 47 cycles to be deleted)".into())
+            Err("not enough cycles (this post requires 147 cycles to be deleted)".into())
         );
 
         state
@@ -2368,6 +2428,9 @@ pub(crate) mod tests {
             state.react(pr(1), post_id, 1, 0),
             Err("post deleted".into())
         );
+
+        // Tipper got his tip back, modulo transfer fee
+        assert_eq!(state.principal_to_user(pr(3)).unwrap().cycles(), cycles - 1);
     }
 
     #[actix_rt::test]

@@ -49,10 +49,12 @@ export const Poll = ({poll, post_id, created}) => {
                 </div>}
             </label>})}
         {!expired && <span className="top_spaced small_text text_centered inactive">EXPIRES IN {printDelta(data.deadline - createdHoursAgo)}</span>}
-        {expired && <div className="text_centered top_spaced">
-            <span className="right_spaced monospace">RESULTS:</span>
-            <span className="max_width_col right_spaced"><YinYan /> {data.options[keyWithMaxVal(data.weighted_by_karma)]}</span>
-            <span className="max_width_col"><Gem /> {data.options[keyWithMaxVal(data.weighted_by_tokens)]}</span>
+        {expired && <div className="top_spaced">
+            <h4 className="monospace">RESULTS</h4>
+            <div className="small_text">
+                <div className="bottom_half_spaced"><YinYan /> <span className="left_spaced monospace">BY KARMA: </span> {data.options[keyWithMaxVal(data.weighted_by_karma)]}</div>
+                <div><Gem /> <span className="left_spaced monospace">BY DAO: </span> {data.options[keyWithMaxVal(data.weighted_by_tokens)]}</div>
+            </div>
         </div>}
     </div>;
 }

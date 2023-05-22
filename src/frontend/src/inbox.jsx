@@ -37,7 +37,7 @@ export const Inbox = () => {
                     msg = message.Conditional[0];
                 } else if ("WatchedPostEntries" in message) {
                     id = parseInt(k.split("_")[1]);
-                    msg = `\`${message.WatchedPostEntries.length}\` new replies ${message.WatchedPostEntries.map(id => `[#${id}](#/thread/${id})`).join(", ")} on the watched post`;
+                    msg = `\`${message.WatchedPostEntries.length}\` new thread updates ${message.WatchedPostEntries.map(id => `[#${id}](#/thread/${id})`).join(", ")} on the watched post`;
                 }
                 return <div key={k} className="stands_out" style={{padding: 0}}>
                     <div className="row_container">

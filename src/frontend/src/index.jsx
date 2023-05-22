@@ -76,7 +76,7 @@ const App = () => {
     const [handler = "", param, param2] = parseHash();
     const heartbeat = (new Date()).toTimeString();
     let subtle = false;
-    let monitorUser = false;
+    let inboxMode = false;
     let content = null;
 
     setTitle(handler);
@@ -118,7 +118,7 @@ const App = () => {
         else content = <RealmPage name={decodeURI(name.toUpperCase())} />;
     } else if (handler == "inbox") {
         content = auth(<Inbox />);
-        monitorUser = true;
+        inboxMode = true;
     } else if (handler == "transaction") {
         content = <Transaction id={parseInt(param)} />;
     } else if (handler == "proposals") {
@@ -148,7 +148,7 @@ const App = () => {
         content = <Landing heartbeat={heartbeat} />;
     }
 
-    headerRoot.render(<React.StrictMode><Header subtle={subtle} monitorUser={monitorUser} route={window.location.hash} /></React.StrictMode>);
+    headerRoot.render(<React.StrictMode><Header subtle={subtle} inboxMode={inboxMode} user={api._user} route={window.location.hash} /></React.StrictMode>);
     renderFrame(<React.StrictMode>{content}</React.StrictMode>);
 }
 

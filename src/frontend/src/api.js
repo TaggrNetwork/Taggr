@@ -45,11 +45,6 @@ export const Api = (defaultCanisterId, identity, mainnetMode) => {
 
     return { 
         query, query_raw, call, 
-        exec_upgrade: async (canisterId) => {
-            canisterId = Principal.from(canisterId);
-            const arg = IDL.encode([], []);
-            return IDL.decode([IDL.Variant({ "Ok": IDL.Null, "Err": IDL.Text})], await call_raw(canisterId, "exec", arg))[0];
-        },
         set_emergency_release: async (blob) => {
             const arg = IDL.encode([IDL.Vec(IDL.Nat8)], [blob]);
             return IDL.decode([], await call_raw(undefined, "set_emergency_release", arg))[0];

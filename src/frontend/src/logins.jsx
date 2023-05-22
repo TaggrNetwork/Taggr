@@ -7,7 +7,7 @@ import {II_URL, II_DERIVATION_URL} from "./env";
 export const authMethods = [
     {
         icon: <Infinity />,
-        label: "INTERNET IDENTITY",
+        label: "VIA INTERNET IDENTITY",
         login: () => {
             if ((location.href.includes(".raw") || location.href.includes("share.")) &&
                 confirm("You're using the uncertified insecure frontend. Do you want to be re-routed to the certified one?")) {
@@ -25,7 +25,7 @@ export const authMethods = [
     },
     {
         icon: <Incognito />,
-        label: "SEED PHRASE",
+        label: "VIA PASSWORD",
         login: async () => <SeedPhraseForm callback={async seed => {
             if(!seed) return;
             const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', (new TextEncoder()).encode(seed)));
@@ -64,7 +64,7 @@ export const SeedPhraseForm = ({callback}) => {
         <input ref={field} onChange={e => setValue(e.target.value)}
             onKeyPress={e => { if(e.charCode == 13) callback(value) }}
             className="max_width_col" 
-            type="password" placeholder="Enter your seedphrase..." />
+            type="password" placeholder="Enter your password..." />
         <button className="active" onClick={() => callback(value)}>JOIN</button>
     </div>;
 }

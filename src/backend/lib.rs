@@ -5,7 +5,7 @@ use env::{
     config::{reaction_karma, CONFIG},
     memory,
     post::{Extension, Post, PostId},
-    proposals::{Payload, Release, Status},
+    proposals::Release,
     token::account,
     user::{User, UserId},
     State, *,
@@ -15,7 +15,7 @@ use ic_cdk::{
         self,
         call::{arg_data_raw, reply_raw},
     },
-    caller, id, spawn, timer,
+    caller, spawn, timer,
 };
 use ic_cdk_macros::*;
 use serde_bytes::ByteBuf;
@@ -38,8 +38,10 @@ fn state_mut<'a>() -> &'a mut State {
     unsafe { STATE.as_mut().expect("write access failed: no state") }
 }
 
-// sets a timer triggering chores
-fn set_timer() {
+fn set_timers() {
+    timer::set_timer(std::time::Duration::from_secs(1), || {
+        spawn(state_mut().finalize_upgrade())
+    });
     timer::set_timer_interval(std::time::Duration::from_secs(15 * 60), || {
         spawn(state_mut().chores(api::time()))
     });
@@ -52,7 +54,7 @@ fn init() {
     unsafe {
         STATE = Some(state);
     }
-    set_timer();
+    set_timers();
 }
 
 #[pre_upgrade]
@@ -71,13 +73,9 @@ fn post_upgrade() {
         }
     }
     stable_to_heap_core();
-    set_timer();
+    set_timers();
 
     // temporary post upgrade logic goes here
-    let s = state_mut();
-    for p in s.posts.values_mut() {
-        p.tags.retain(|tag| tag.parse::<u64>().is_err());
-    }
 }
 
 /*
@@ -88,6 +86,12 @@ fn post_upgrade() {
 #[update]
 fn prod_release() -> bool {
     true
+}
+
+#[cfg(feature = "dev")]
+#[update]
+async fn chores() {
+    state_mut().hourly_chores(time()).await;
 }
 
 #[cfg(feature = "dev")]
@@ -156,69 +160,12 @@ async fn get_neuron_info() -> Result<String, String> {
     get_full_neuron(CONFIG.neuron_id).await
 }
 
+// TODO: delete this function after the next couple upgrades go in without issues.
 #[export_name = "canister_update execute_upgrade"]
 fn execute_upgrade() {
-    let state = state_mut();
-    let proposal = state
-        .proposals
-        .iter_mut()
-        .rev()
-        .find(|proposal| {
-            proposal.status == Status::Executed
-                && match &proposal.payload {
-                    Payload::Release(payload) => !payload.binary.is_empty(),
-                    _ => false,
-                }
-        })
-        .expect("no proposals found");
-    if let Payload::Release(release) = &mut proposal.payload {
-        let force: bool = parse(&arg_data_raw());
-        upgrade_main_canister(&mut state.logger, &release.binary, force);
-    }
+    let force: bool = parse(&arg_data_raw());
+    state_mut().execute_pending_upgrade(force);
     reply_raw(&[]);
-}
-
-#[export_name = "canister_update finalize_upgrade"]
-fn finalize_upgrade() {
-    spawn(async {
-        let hash: String = parse(&arg_data_raw());
-        let state = state_mut();
-        let payload = state
-            .proposals
-            .iter()
-            .rev()
-            .filter(|p| p.status == Status::Executed)
-            .find_map(|p| match &p.payload {
-                Payload::Release(payload) if payload.hash == hash => Some(payload),
-                _ => None,
-            });
-        reply({
-            if payload.is_none() {
-                Err("no release found".into())
-            } else {
-                let current = canisters::settings(id())
-                    .await
-                    .ok()
-                    .and_then(|s| s.module_hash.map(hex::encode))
-                    .unwrap_or_default();
-                if hash != current {
-                    let msg = format!(
-                        "Upgrade failed: the main canister is on version `{}`",
-                        &current[0..8]
-                    );
-                    state.logger.error(&msg);
-                    Err(msg)
-                } else {
-                    state.module_hash = hash.clone();
-                    state.logger.info(format!(
-                        "Upgrade succeeded: new version is `{}`.",
-                        &current[0..8]
-                    ));
-                    Ok(())
-                }
-            }
-        });
-    });
 }
 
 #[export_name = "canister_update vote_on_poll"]

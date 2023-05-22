@@ -228,13 +228,14 @@ impl User {
         );
     }
 
-    pub fn notify_about_watched_post(&mut self, post_id: PostId, comment: PostId) {
+    pub fn notify_about_watched_post(&mut self, post_id: PostId, comment: PostId, parent: PostId) {
         let id = format!("watched_{post_id}");
         if let Notification::WatchedPostEntries(entries) = self
             .inbox
             .entry(id)
             .or_insert_with(|| Notification::WatchedPostEntries(Default::default()))
         {
+            entries.retain(|id| *id != parent);
             entries.push(comment);
         }
     }

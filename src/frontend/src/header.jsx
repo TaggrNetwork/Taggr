@@ -5,24 +5,24 @@ import {Balloon, Bars, Bell, CarretDown, Close, Cycles, Document, Gear, Gem, Hom
 
 let interval = null;
 
-export const Header = ({subtle, route, monitorUser}) => {
-    const user = api._user;
+export const Header = ({subtle, route, inboxMode, user}) => {
     const [showLogins, setShowLogins] = React.useState(!user && location.href.includes("?join"));
     const [showButtonBar, toggleButtonBar] = React.useState(false);
     const [showRealms, toggleRealms] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const [inRealm, setInRealm] = React.useState(user && user.current_realm);
-    const [messages, setMessages] = React.useState(user ? Object.keys(user.inbox).length : 0);
+    const [messages, setMessages] = React.useState(0);
     const [realmBg, realmFg] = realmColors(user?.current_realm);
     const inboxEmpty = !user || messages == 0;
+    const refreshMessageCounter = () => setMessages(user ? Object.keys(user.inbox).length : 0);
     React.useEffect(() => { document.getElementById("logo").innerHTML = backendCache.config.logo; }, []);
     React.useEffect(() => { toggleButtonBar(false); toggleRealms(false); }, [route]);
+    React.useEffect(refreshMessageCounter, [user]);
     React.useEffect(() => {
-        if (monitorUser)
-            interval = setInterval(() => setMessages(Object.keys(user.inbox).length), 1000);
+        if (inboxMode) interval = setInterval(refreshMessageCounter, 1000);
         else clearInterval(interval);
-        setMessages(user ? Object.keys(user.inbox).length : 0);
-    }, [monitorUser]);
+        refreshMessageCounter()
+    }, [inboxMode]);
 
     return <>
         <header className={`spaced top_half_spaced vcentered ${subtle ? "subtle" : ""}`}>

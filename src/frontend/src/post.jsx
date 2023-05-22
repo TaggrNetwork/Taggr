@@ -159,7 +159,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
         cls += isGallery ? " gallery_post" : " text_post";
     }
 
-    const showExtension = post.extension && !repost;
+    const showExtension = !isNSFW && post.extension && !repost;
     const postIsClickable = post.children.length > 0 || post.effBody.includes(CUT);
 
     return <div ref={post => { if(post && focused && rendering) post.scrollIntoView({ behavior: "smooth" }); }} className={classNameArg || null}>
@@ -177,10 +177,10 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
                 {/* The key is needed to render different content for different versions to avoid running into diffrrent
                  number of memorized pieces inside content */}
                 <Content key={post.effBody} post={true} value={post.effBody} blobs={blobs} collapse={!expanded} primeMode={isRoot(post) && !repost} />
-                {showExtension && post.extension.Poll && <Poll poll={post.extension.Poll} post_id={post.id} created={postCreated} />}
-                {showExtension && "Repost" in post.extension && <Post id={post.extension.Repost} data={postDataProvider(post.extension.Repost, null, "post_only")} repost={true} classNameArg="post_extension repost" />}
-                {showExtension && post.extension.Proposal && <Proposal id={post.extension.Proposal} />}
             </article>}
+            {showExtension && post.extension.Poll && <Poll poll={post.extension.Poll} post_id={post.id} created={postCreated} />}
+            {showExtension && "Repost" in post.extension && <Post id={post.extension.Repost} data={postDataProvider(post.extension.Repost, null, "post_only")} repost={true} classNameArg="post_extension repost" />}
+            {showExtension && post.extension.Proposal && <Proposal id={post.extension.Proposal} />}
             <PostBar post={post} react={react} highlightOp={highlightOp} repost={repost} highlighted={highlighted}
                 showComments={showComments} toggleComments={toggleComments} postCreated={postCreated} showCarret={showCarret}
                 showInfo={showInfo} toggleInfo={toggleInfo} isThreadView={isThreadView} goInside={goInside} />
@@ -243,11 +243,12 @@ const PostInfo = ({post, version, postCreated, callback}) => {
             {postAuthor && <>
                 {post.hashes.length == 0 && <ButtonWithLoading classNameArg="max_width_col" onClick={async () => {
                     const { post_cost, post_deletion_penalty_factor } = backendCache.config;
+                    const tips = post.tips.reduce((acc, [_, tip]) => acc + tip, 0);
                     const cost = objectReduce(post.reactions, (acc, id, users) => {
                         const costTable = reactionCosts();
                         let cost = costTable[parseInt(id)];
                         return acc + (cost > 0 ? cost : 0) * users.length;
-                    }, 0) + post_cost + post.tree_size * post_deletion_penalty_factor;
+                    }, 0) + post_cost + post.tree_size * post_deletion_penalty_factor + tips;
                     if (!confirm(`Please confirm the post deletion: it will costs ${cost} cycles.`)) return;
                     let current = post.body;
                     const versions = [current];
