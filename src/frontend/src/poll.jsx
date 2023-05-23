@@ -8,6 +8,7 @@ export const Poll = ({poll, post_id, created}) => {
 
     React.useEffect(() => setData(poll), [poll]);
 
+    const radio_group_name = post_id ? `${post_id}-poll` : 'poll';
     const user_id = api._user?.id;
     const voted = Object.values(data.votes).flat().includes(user_id);
     const totalVotes = Object.values(data.votes).map(votes => votes.length).reduce((acc, e) => acc + e ,0);
@@ -21,9 +22,10 @@ export const Poll = ({poll, post_id, created}) => {
             const votes = (data.votes[id] || []).length;
             const pc = totalVotes > 0 ? Math.ceil(votes / totalVotes * 100) : 0;
             return <label key={id} className={showVoting ? "vcentered" : null} style={{display: "flex", flexDirection: showVoting ? "row" : "column"}}>
-                {showVoting && <input type="radio" value={id} name={id} className="right_spaced" style={{marginTop: 0}}
+                {showVoting && <input type="radio" value={id} name={radio_group_name} className="right_spaced" style={{marginTop: 0}}
                     onChange={e => {
                         if (isNaN(post_id) || !api._user) return;
+                        e.preventDefault();
                         let vote = e.target.value;
                         if (!confirm(`Please confirm your choice: ${data.options[vote]}`)) return;
                         api.call("vote_on_poll", post_id, parseInt(vote)).then(response => {
