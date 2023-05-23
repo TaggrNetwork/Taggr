@@ -171,14 +171,26 @@ Bots can only create root posts at the rate 1 post per hour.
 
 ## DAO Neuron
 
-$name DAO is voting on NNS proposals with the neuron [$neuron_id](http://dashboard.internetcomputer.org/neuron/$neuron_id).
-The voting result on each proposal is weighted by karma.
-The neuron is controlled by the main canister via the hot-key mechanism.
-Neuron's controller is the principal `uduew-qycai-baeaq-caiba-eaqca-ibaea-qcaib-aeaqc-aibae-aqcai-bae` which has no known secret key.
-The neuron is also not following anyone on the neuron management topic.
+$name DAO is voting on all NNS proposals with the neuron [$neuron_id](http://dashboard.internetcomputer.org/neuron/$neuron_id) without following anyone.
+
+### Decentralization of the neuron
+Neuron's controller is a principal that has no known secret key.
+The main canister votes with the DAO neuron via the hot-key mechanism.
+The neuron does not follow anyone on the neuron management topic.
 $name canister implements the method `get_neuron_info` which fetches the neuron's info proving the statements above:
 
     dfx canister --network ic call $canister_id get_neuron_info
+
+### Voting
+
+Currently, the proposals with topics "Governance", "Replica Version Management" and "SNS & Community Fund" are displayed as posts with polls.
+$name canister automatically votes on these proposals after exactly 3 days with the poll result weighted by the square root of each voter's karma.
+
+All proposals with different topics are autoamtically rejected.
+As a named neuron, $name DAO commits to the following:
+
+1. We will attract voters to other topics over time.
+2. If the automated rejection of certain topics by the DAO neuron starts to be harmful to the #IC, we will find an appropriate followee on these topics or we start voting ourselves.
 
 ## Code and the Bug Bounty Program
 
