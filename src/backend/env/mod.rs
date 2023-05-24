@@ -1103,8 +1103,8 @@ impl State {
             .into_iter()
             .filter(|proposal| proposal.id > last_known_proposal_id)
         {
-            // Reject all non-supported proposals (except governance, SNS & replica-management)
-            if ![4, 13, 14].contains(&proposal.topic) {
+            // Reject all non-supported proposals (except network economics, governance, SNS & replica-management)
+            if ![3, 4, 13, 14].contains(&proposal.topic) {
                 if let Err(err) =
                     canisters::vote_on_nns_proposal(proposal.id, NNSVote::Reject).await
                 {
@@ -2013,33 +2013,6 @@ fn covered_by_feeds(
         }
     }
     None
-}
-
-struct IteratorMerger<'a, T> {
-    iterators: Vec<std::iter::Peekable<Box<dyn Iterator<Item = &'a T> + 'a>>>,
-}
-
-impl<'a, T: Clone + PartialOrd> Iterator for IteratorMerger<'a, T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut max_val = None;
-        let mut indexes = vec![];
-        for (i, iter) in self.iterators.iter_mut().enumerate() {
-            let candidate = iter.peek().cloned().cloned();
-            if candidate == max_val {
-                indexes.push(i);
-            } else if candidate > max_val {
-                max_val = candidate;
-                indexes = vec![i];
-            }
-        }
-        max_val.as_ref()?;
-        indexes.into_iter().for_each(|i| {
-            self.iterators[i].next();
-        });
-        max_val
-    }
 }
 
 pub fn id() -> Principal {

@@ -98,7 +98,6 @@ export const Proposal = ({id}) => {
             }
         }
         let proposal_id = proposal.id;
-        const prevStatus = proposal.status;
         const result = await api.call("vote_on_proposal", proposal_id, adopted);
         if ("Err" in result) {
             setStatus(`Error: ${result.Err}`);
@@ -106,10 +105,7 @@ export const Proposal = ({id}) => {
         }
         const data = await loadState();
         const newStatus = data.status;
-        if (prevStatus == "Open" && newStatus == "Executed" && "Release" in data.payload) {
-            setStatus(newStatus.toUpperCase());
-            await loadState();
-        }
+        setStatus(newStatus.toUpperCase());
     };
 
     const voted = !api._user || proposal.bulletins.some(vote => api._user.id == vote[0]);

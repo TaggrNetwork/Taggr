@@ -54,8 +54,8 @@ export const Poll = ({poll, post_id, created}) => {
         {expired && <div className="top_spaced">
             <h4 className="monospace">RESULTS</h4>
             <div className="small_text">
-                <div className="bottom_half_spaced"><YinYan /> <span className="left_spaced monospace">BY KARMA: </span> {data.options[keyWithMaxVal(data.weighted_by_karma)]}</div>
-                <div><Gem /> <span className="left_spaced monospace">BY DAO: </span> {data.options[keyWithMaxVal(data.weighted_by_tokens)]}</div>
+                <div className="bottom_half_spaced"><YinYan /> <span className="left_spaced monospace">KARMA: </span> {data.options[keyWithMaxVal(data.weighted_by_karma)]}</div>
+                <div><Gem /> <span className="left_spaced monospace">DAO: </span> {data.options[keyWithMaxVal(data.weighted_by_tokens)]}</div>
             </div>
         </div>}
     </div>;

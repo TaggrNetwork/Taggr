@@ -147,6 +147,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
     const postCreated = post.patches.length > 0 ? post.patches[0][0] : post.timestamp;
     const isPrime = !isCommentView && !isFeedItem && !repost;
     const isNSFW = post.effBody.toLowerCase().includes("#nsfw") && isFeedItem && !safeToOpen;
+    const versionSpecified = !isNaN(version);
     version = isNaN(version) && post.patches.length > 0 ? post.patches.length : version;
 
     if (isPrime) setTitle(`Post #${post.id} by @${backendCache.users[post.user.id]}`);
@@ -190,7 +191,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
                 <div className="vcentered bottom_spaced flex_ended">
                     <a href={`#/post/${post.id}`}>#</a>
                     <ShareButton classNameArg="left_spaced"
-                        url={`${isComment ? "thread" : "post"}/${post.id}${isNaN(version) ? "" : "/" + version}`}
+                        url={`${isComment ? "thread" : "post"}/${post.id}${versionSpecified ? "/" + version : ""}`}
                         title={`Post ${post.id} on ${backendCache.config.name}`} />
                     <div className="max_width_col"></div>
                     {user && <ReactionsPicker post={post} react={react} />}

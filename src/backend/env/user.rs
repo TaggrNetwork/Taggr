@@ -322,6 +322,33 @@ impl User {
     }
 }
 
+struct IteratorMerger<'a, T> {
+    iterators: Vec<std::iter::Peekable<Box<dyn Iterator<Item = &'a T> + 'a>>>,
+}
+
+impl<'a, T: Clone + PartialOrd> Iterator for IteratorMerger<'a, T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut max_val = None;
+        let mut indexes = vec![];
+        for (i, iter) in self.iterators.iter_mut().enumerate() {
+            let candidate = iter.peek().cloned().cloned();
+            if candidate == max_val {
+                indexes.push(i);
+            } else if candidate > max_val {
+                max_val = candidate;
+                indexes = vec![i];
+            }
+        }
+        max_val.as_ref()?;
+        indexes.into_iter().for_each(|i| {
+            self.iterators[i].next();
+        });
+        max_val
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

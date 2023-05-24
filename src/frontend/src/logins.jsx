@@ -1,6 +1,6 @@
 import * as React from "react";
 import {bigScreen} from "./common";
-import {Infinity, Incognito, Lock} from "./icons";
+import {Infinity, Incognito} from "./icons";
 import { Ed25519KeyIdentity } from "@dfinity/identity"
 import {II_URL, II_DERIVATION_URL} from "./env";
 
@@ -51,7 +51,7 @@ export const LoginMasks = ({}) => {
         <button key={i} className={`large_text active left_half_spaced right_half_spaced ` +
             `${!bigScreen() ? "bottom_spaced" :""}`}
             onClick={async () => setMask(await method.login())}>
-            {method.icon} {`${method.label}`}
+            {`${method.label}`} {method.icon}
         </button>)}
     </div>;
 }

@@ -17,17 +17,16 @@ const Welcome = () => {
             alert(`Error: ${result.Err}`);
             return;
         }
-        if (result.Ok.paid) await api._reloadUser();
         setInvoice(result.Ok);
     };
 
-    const repeatPassword = !!localStorage.getItem("SEED_PHRASE") && !seedPhraseConfirmed;
+    const passwordConfirmationRequired = !!localStorage.getItem("SEED_PHRASE") && !seedPhraseConfirmed;
     const logOutButton = <button className="right_spaced" onClick={() => logout()}>LOGOUT</button>;
 
     return <>
         <HeadBar title={"Welcome!"} shareLink="welcome" />
         <div className="spaced">
-            {repeatPassword && <>
+            {passwordConfirmationRequired && <>
                 <h2>New user detected</h2>
                 <p>Please re-enter your password to confirm it.</p>
                 <SeedPhraseForm callback={async seed => {
@@ -39,8 +38,8 @@ const Welcome = () => {
                     } else setSeedPhraseConfirmed(true);
                 }} />
             </>}
-            {!repeatPassword && <>
-                <div className="bottom_spaced">
+            {!passwordConfirmationRequired && <>
+                {(!invoice || !invoice.paid) && <div className="bottom_spaced">
                     <h2>New user detected</h2>
                     Your {backendCache.config.name} principal: <CopyToClipboard value={api._principalId} />
                     <h2>JOINING</h2>
@@ -58,7 +57,7 @@ const Welcome = () => {
                     <p>
                         Ready to mint? Continue below!
                     </p>
-                </div>
+                </div>}
                 {loadingInvoice && <div className="text_centered stands_out">
                     Checking the balance... This can take up to a minute.
                     <Loading classNameArg="vertically_spaced" />
@@ -68,9 +67,10 @@ const Welcome = () => {
                     <button className="active vertically_spaced" onClick={checkPayment}>MINT CYCLES</button>
                 </>}
                 {invoice && invoice.paid && <div>
-                    Payment verified! ✅
-                    <br />
-                    <br />
+                    <h2>CYCLES MINTED! ✅</h2>
+                    <p>
+                        You can create a user account now.
+                    </p>
                     <button className="active top_spaced" onClick={() => location.href = "/#/settings"}>CREATE USER</button>
                 </div>}
                 {invoice && !invoice.paid && <div className="stands_out">
@@ -82,7 +82,7 @@ const Welcome = () => {
                     (Larger transfers will mint a proportionally larger number of cycles.)
                     <br />
                     <br />
-                    <button className="active" onClick={() => { setInvoice(null); checkPayment()}}>CHECK PAYMENT</button></div>}
+                    <button className="active" onClick={() => { setInvoice(null); checkPayment()}}>CHECK BALANCE</button></div>}
             </>}
         </div>
     </>;
