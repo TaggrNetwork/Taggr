@@ -219,7 +219,7 @@ pub const CONFIG: &Config = &Config {
 
     reaction_fee: 1,
 
-    max_funding_amount: 10000,
+    max_funding_amount: 20_000_00, // at ratio 1:1
 
     neuron_id: 16737374299031693047,
 };

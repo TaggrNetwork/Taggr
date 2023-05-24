@@ -5,7 +5,7 @@ use env::{
     config::{reaction_karma, CONFIG},
     memory,
     post::{Extension, Post, PostId},
-    proposals::Release,
+    proposals::{Release, Reward},
     token::account,
     user::{User, UserId},
     State, *,
@@ -313,6 +313,27 @@ async fn propose_release(
     .await
 }
 
+#[export_name = "canister_update propose_reward"]
+fn propose_reward() {
+    spawn(async {
+        let (description, receiver): (String, String) = parse(&arg_data_raw());
+        reply(
+            proposals::propose(
+                state_mut(),
+                caller(),
+                description,
+                proposals::Payload::Reward(Reward {
+                    receiver,
+                    votes: Default::default(),
+                    minted: 0,
+                }),
+                time(),
+            )
+            .await,
+        )
+    });
+}
+
 #[export_name = "canister_update propose_funding"]
 fn propose_funding() {
     spawn(async {
@@ -322,7 +343,10 @@ fn propose_funding() {
                 state_mut(),
                 caller(),
                 description,
-                proposals::Payload::Fund(receiver, tokens),
+                proposals::Payload::Fund(
+                    receiver,
+                    tokens * 10_u64.pow(CONFIG.token_decimals as u32),
+                ),
                 time(),
             )
             .await,
@@ -333,9 +357,10 @@ fn propose_funding() {
 #[export_name = "canister_update vote_on_proposal"]
 fn vote_on_proposal() {
     spawn(async {
-        let (proposal_id, approved): (u32, bool) = parse(&arg_data_raw());
+        let (proposal_id, vote, data): (u32, bool, String) = parse(&arg_data_raw());
         reply(
-            proposals::vote_on_proposal(state_mut(), time(), caller(), proposal_id, approved).await,
+            proposals::vote_on_proposal(state_mut(), time(), caller(), proposal_id, vote, &data)
+                .await,
         )
     })
 }

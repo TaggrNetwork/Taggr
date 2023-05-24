@@ -820,12 +820,18 @@ impl State {
             .collect()
     }
 
+    pub fn minting_ratio(&self) -> u64 {
+        let circulating_supply: Token = self.balances.values().sum();
+        let factor = (circulating_supply as f64 / CONFIG.total_supply as f64 * 10.0) as u64;
+        1 << factor
+    }
+
     pub fn mint(&mut self, rewards: HashMap<UserId, Karma>) {
         let mut minted_tokens = 0;
         let mut minters = Vec::new();
-        let circulating_supply: Token = self.balances.values().sum();
         let base = 10_u64.pow(CONFIG.token_decimals as u32);
-        let factor = (circulating_supply as f64 / CONFIG.total_supply as f64 * 10.0) as u64;
+        let ratio = self.minting_ratio();
+        let circulating_supply: Token = self.balances.values().sum();
         if circulating_supply < CONFIG.total_supply {
             for (user_id, user_karma) in rewards {
                 let user = match self.users.get_mut(&user_id) {
@@ -833,7 +839,7 @@ impl State {
                     _ => continue,
                 };
                 let acc = account(user.principal);
-                let minted = user_karma.max(0) as u64 / (1 << factor) * base;
+                let minted = user_karma.max(0) as u64 / ratio * base;
                 if minted == 0 {
                     continue;
                 }
@@ -888,7 +894,6 @@ impl State {
         if minters.is_empty() {
             self.logger.info("no tokens were minted".to_string());
         } else {
-            let ratio = 1 << factor;
             self.logger.info(format!(
                 "{} minted `{}` ${} tokens 💎 from the earned karma at the ratio `{}:1` as follows: {}",
                 CONFIG.name,
