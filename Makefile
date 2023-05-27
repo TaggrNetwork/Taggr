@@ -12,7 +12,6 @@ dev_reinstall:
 	FEATURES=dev dfx deploy --mode=reinstall taggr -y
 
 build:
-	npm install --quiet
 	NODE_ENV=production make fe
 	./build.sh bucket
 	./build.sh taggr
@@ -20,14 +19,17 @@ build:
 test:
 	cargo clippy --tests --benches -- -D clippy::all
 	cargo test
+	make run e2e_test
 
 fe:
-	rm -rf ./dist ./public
 	npm run build --quiet
 
 e2e_test:
 	npm run install:e2e
-	make build
+	dfx canister create --all
+	npm run build
+	./build.sh bucket
+	./build.sh taggr
 	make start || true # don't fail if DFX is already running
 	make dev_deploy
 	npm run test:e2e

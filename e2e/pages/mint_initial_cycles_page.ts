@@ -14,7 +14,7 @@ export class MintInitialCyclesPage {
     this.icpAmountElement = page.getByTestId("amount-to-transfer");
     this.icpAccountElement = page.getByTestId("account-to-transfer-to");
     this.checkPaymentButton = page.locator("button", {
-      hasText: "CHECK PAYMENT",
+      hasText: "CHECK BALANCE",
     });
     this.createUserButton = page.locator("button", { hasText: "CREATE USER" });
   }

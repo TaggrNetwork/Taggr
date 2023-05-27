@@ -1,0 +1,29 @@
+name: "Setup IC WASM"
+description: Setup IC WASM
+
+runs:
+  using: "composite"
+  steps:
+    - name: Get IC WASM version
+      shell: bash
+      run: echo "ic_wasm_version=$(cat .ic-wasm-version | xargs)" >> "$GITHUB_ENV"
+
+    - name: Cache IC WASM
+      uses: actions/cache@v3
+      with:
+        path: /usr/local/bin/ic-wasm
+        key: ic-wasm-cache-${{ env.ic_wasm_version }}
+
+    - name: Install IC WASM
+      shell: bash
+      run: |
+        if command -v ic-wasm
+        then
+          echo "IC WASM restored from cache"
+        else
+          echo "IC WASM not restored from cache, downloading:"
+          curl -L https://github.com/dfinity/ic-wasm/releases/download/${{ env.ic_wasm_version }}/ic-wasm-linux64 -o /usr/local/bin/ic-wasm
+          chmod +x /usr/local/bin/ic-wasm
+        fi
+        echo "IC WASM version"
+        ic-wasm --version

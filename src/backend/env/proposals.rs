@@ -191,7 +191,7 @@ impl Proposal {
 fn mint_tokens(state: &mut State, receiver: &str, mut tokens: Token) -> Result<(), String> {
     let receiver = Principal::from_text(receiver).map_err(|e| e.to_string())?;
     crate::token::mint(state, account(receiver), tokens);
-    tokens = tokens / 10_u64.pow(CONFIG.token_decimals as u32);
+    tokens /= 10_u64.pow(CONFIG.token_decimals as u32);
     state.logger.info(format!(
         "`{}` ${} tokens were minted for `{}` via proposal execution.",
         tokens, CONFIG.token_symbol, receiver

@@ -10,8 +10,7 @@ export interface InternetIdentityUser extends CommonUser {
 
 // [TODO] - currently not used, use when agent-js@0.15.7 or higher is released
 export async function createInternetIdentityUser(
-  page: Page,
-  baseURL: string
+  page: Page
 ): Promise<InternetIdentityUser> {
   const homePage = new HomePage(page);
   await homePage.goto();
@@ -20,7 +19,7 @@ export async function createInternetIdentityUser(
   const anchor = await internetIdentityPage.createAnchor();
   expect(anchor).toBeTruthy();
 
-  const userCommon = await completeUserSignup(page, baseURL);
+  const userCommon = await completeUserSignup(page);
 
   return {
     ...userCommon,
@@ -33,8 +32,7 @@ export interface SeedPhraseUser extends CommonUser {
 }
 
 export async function createSeedPhraseUser(
-  page: Page,
-  baseURL: string
+  page: Page
 ): Promise<SeedPhraseUser> {
   const homePage = new HomePage(page);
   await homePage.goto();
@@ -42,7 +40,7 @@ export async function createSeedPhraseUser(
   const seedPhrase = generateSeedPhrase();
   await homePage.loginWithSeedPhrase(seedPhrase);
 
-  const userCommon = await completeUserSignup(page, baseURL);
+  const userCommon = await completeUserSignup(page);
 
   return {
     ...userCommon,
@@ -55,10 +53,7 @@ interface CommonUser {
   username: string;
 }
 
-async function completeUserSignup(
-  page: Page,
-  baseURL: string
-): Promise<CommonUser> {
+async function completeUserSignup(page: Page): Promise<CommonUser> {
   const mintInitialCyclesPage = new MintInitialCyclesPage(page);
   await mintInitialCyclesPage.mintCycles();
 
@@ -68,7 +63,7 @@ async function completeUserSignup(
   const icpAccount = await mintInitialCyclesPage.getIcpAccount();
   expect(icpAccount).toBeTruthy();
 
-  const ledger = await createLedgerClient(baseURL);
+  const ledger = await createLedgerClient();
   await ledger.transfer({
     amount: icpAmount,
     to: icpAccount,

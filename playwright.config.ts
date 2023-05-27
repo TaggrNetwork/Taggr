@@ -1,4 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
+import { execSync } from "node:child_process";
+
+function exec(cmd: string): string {
+  const result = execSync(cmd);
+
+  return result.toString().replace(/(\r\n|\n|\r)/gm, "");
+}
+
+const canisterId = exec("dfx canister id taggr");
+const webServerPort = exec("dfx info webserver-port");
+const replicaPort = exec("dfx info replica-port");
+
+process.env["REPLICA_URL"] = `http://localhost:${replicaPort}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -8,7 +21,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [["html", { open: "never" }]],
   use: {
-    baseURL: "http://127.0.0.1:8080",
+    baseURL: `http://${canisterId}.localhost:${webServerPort}`,
     trace: "on-first-retry",
   },
   projects: [
@@ -17,9 +30,4 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    command: "npm run start",
-    url: "http://127.0.0.1:8080",
-    reuseExistingServer: !process.env.CI,
-  },
 });

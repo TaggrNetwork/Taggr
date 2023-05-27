@@ -1,0 +1,10 @@
+name: "Setup nodejs"
+description: Setup nodejs
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-node@v3
+      with:
+        node-version-file: ".node-version"
+        cache: "npm"

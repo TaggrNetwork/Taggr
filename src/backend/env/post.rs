@@ -262,7 +262,7 @@ impl Post {
     /// returns `Ok(true)` and assings the result weighted by the square root of karma and by the token
     /// voting power.
     pub fn conclude_poll(state: &mut State, post_id: &PostId, now: u64) -> Result<bool, String> {
-        Post::mutate(state, &post_id, &mut |post, state| {
+        Post::mutate(state, post_id, &mut |post, state| {
             let users = &state.users;
             let balances = &state.balances;
             let timestamp = post.timestamp();

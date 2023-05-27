@@ -17,8 +17,8 @@ const minting_identity = Ed25519KeyIdentity.fromKeyPair(
   base64ToUInt8Array(privateKey)
 );
 
-export async function createLedgerClient(baseUrl: string): Promise<LedgerCanister> {
-  const agent = await createAgent(baseUrl, minting_identity);
+export async function createLedgerClient(): Promise<LedgerCanister> {
+  const agent = await createAgent(minting_identity);
 
   return LedgerCanister.create({
     agent,

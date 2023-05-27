@@ -174,7 +174,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
             {commentAsPost  && <a className="reply_tag external monospace" href={`#/thread/${post.id}`}>{post.parent} &#8592;</a>}
             {isComment && !commentAsPost && <span className="thread_button clickable"
                 onClick={() => location.href = `#/thread/${post.id}`}><CommentArrow classNameArg="action" /></span>}
-            {!isNSFW && <article onClick={expand} className={isPrime ? "prime" : null}>
+            {!isNSFW && <article onClick={expand} className={isPrime ? "prime" : null} data-testid="post-body">
                 {/* The key is needed to render different content for different versions to avoid running into diffrrent
                  number of memorized pieces inside content */}
                 <Content key={post.effBody} post={true} value={post.effBody} blobs={blobs} collapse={!expanded} primeMode={isRoot(post) && !repost} />

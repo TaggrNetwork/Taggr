@@ -1,0 +1,67 @@
+name: e2e Tests
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  e2e_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup-nodejs
+      - uses: ./.github/actions/setup-dfx
+      - uses: ./.github/actions/setup-ic-wasm
+
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "playwright_version=$(cat package-lock.json | jq -r '.dependencies."@playwright/test".version')" >> $GITHUB_ENV
+
+      - name: Cache Playwright dependencies
+        uses: actions/cache@v3
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ env.playwright_version }}
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Install Playwright dependencies
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npm run install:e2e
+
+      - name: Start DFX
+        run: dfx start --background
+
+      - name: Set up NNS canisters
+        run: dfx nns install
+
+      - name: Build frontend
+        run: |
+          dfx canister create --all
+          npm run build --quiet
+
+      - name: Build canister
+        run: |
+          ./build.sh bucket
+          ./build.sh taggr
+
+      - name: Deploy canister
+        run: make dev_deploy
+
+      - name: Run e2e tests
+        run: npm run test:e2e
+
+      - name: Stop DFX
+        run: dfx stop
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30

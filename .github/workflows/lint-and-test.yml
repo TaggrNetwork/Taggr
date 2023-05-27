@@ -1,0 +1,44 @@
+name: Lint and Test
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  lint_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup-nodejs
+      - uses: ./.github/actions/setup-dfx
+      - uses: ./.github/actions/setup-ic-wasm
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Start DFX
+        run: dfx start --background
+
+      - name: Build frontend
+        run: |
+          dfx canister create --all
+          npm run build --quiet
+
+      - name: Build canister
+        run: |
+          ./build.sh bucket
+          ./build.sh taggr
+
+      - name: Rust lint
+        run: cargo clippy --tests --benches -- -D clippy::all
+
+      - name: Rust test
+        run: cargo test
+
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+
+      - name: Stop DFX
+        run: dfx stop
