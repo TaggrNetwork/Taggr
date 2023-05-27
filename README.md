@@ -23,6 +23,6 @@ Use the printed code commit and the binary to submit a new release proposal.
 2. Fetch the backup: `DIR=/path/to/backup; ./backup.sh $DIR`.
 3. Restore to the local replica: `DIR=/path/to/backup; ./backup.sh $DIR restore`.
 
-## Contributing
+## Local Development
 
 Refer to the [local development](./docs/LOCAL_DEVELOPMENT.md) docs for instructions on how to work with Taggr locally.
