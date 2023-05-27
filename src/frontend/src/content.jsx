@@ -36,7 +36,10 @@ const linkTagsAndUsers = value => {
 export const Content = ({post, value = "", blobs = [], collapse, preview, primeMode, classNameArg}) => {
     const [urls, setUrls] = React.useState({});
 
-    if (!post) return <ReactMarkdown children={linkTagsAndUsers(value)} remarkPlugins={[remarkGfm]} className={classNameArg} />;
+    if (!post) return <ReactMarkdown 
+        components={{ a: linkRenderer }}
+        children={linkTagsAndUsers(value)} remarkPlugins={[remarkGfm]} className={classNameArg}
+    />;
 
     let cutPos = value.indexOf(CUT);
     let shortened = cutPos >= 0;
@@ -70,46 +73,52 @@ export const Content = ({post, value = "", blobs = [], collapse, preview, primeM
 
 const isALink = val => val.match(/^https?:\/\/.+$/) || val.match(/^www\..+$/);
 
+const linkRenderer = ({ node, children = [], ...props}) => {
+    let target = "_self";
+    let className = null;
+    let label = children;
+    let child = children[0];
+    if (typeof child == "string") {
+        // YouTube
+        let matches = child.match(/https:\/\/(www\.)?(youtu.be\/|youtube.com\/watch\?v=)([a-zA-Z0-9\-_]+)/);
+        if(matches) { 
+            const id = matches.pop();
+            return <YouTube id={id} />;
+        }
+
+        matches = isALink(child) || isALink(props.href);
+        if (matches) {
+            try {
+                const url = new URL(props.href);
+                if (child == props.href) {
+                    className = "external";
+                    label = url.hostname.toUpperCase();
+                } else {
+                    label = child;
+                }
+
+                // Internal links
+                if(backendCache.config.domains.some(domain => url.hostname.includes(domain))) {
+                    let link = url.href.replace(url.origin + "/", "");
+                    props.href = (link.startsWith("#") ? "" : "#/") + link;
+                }
+                // External links
+                else target = "_blank";
+            } catch (e) {}
+        }
+        // local link
+        else if (props.href.startsWith("/")) {
+            props.href = "#" + props.href;
+        }
+    }
+    return <a target={target} className={className} {...props}>{label}</a>;
+};
+
 const markdownizer = (value, urls, setUrls, blobs, className = null) => !value
     ? null
     : <ReactMarkdown children={value} remarkPlugins={[remarkGfm]} className={className}
         components={{
-            a: ({ node, children = [], ...props}) => {
-                let target = "_self";
-                let className = null;
-                let label = children;
-                let child = children[0];
-                if (typeof child == "string") {
-                    // YouTube
-                    let matches = child.match(/https:\/\/(www\.)?(youtu.be\/|youtube.com\/watch\?v=)([a-zA-Z0-9\-_]+)/);
-                    if(matches) { 
-                        const id = matches.pop();
-                        return <YouTube id={id} />;
-                    }
-
-                    matches = isALink(child) || isALink(props.href);
-                    if (matches) {
-                        try {
-                            const url = new URL(props.href);
-                            if (child == props.href) {
-                                className = "external";
-                                label = url.hostname.toUpperCase();
-                            } else {
-                                label = child;
-                            }
-
-                            // Internal links
-                            if(backendCache.config.domains.some(domain => url.hostname.includes(domain))) {
-                                let link = url.href.replace(url.origin + "/", "");
-                                props.href = (link.startsWith("#") ? "" : "#/") + link;
-                            }
-                            // External links
-                            else target = "_blank";
-                        } catch (e) {}
-                    }
-                }
-                return <a target={target} className={className} {...props}>{label}</a>;
-            },
+            a: linkRenderer,
             p: ({ node, children, ...props}) => {
                 const isPic = c => c.type && c.type.name == "img";
                 const pics = children.filter(isPic).length;

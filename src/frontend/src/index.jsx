@@ -91,10 +91,11 @@ const App = () => {
         content = api._principalId 
             ? <Settings invite={param} />
             : <article className="text_centered">
-                <h1>Welcome to {backendCache.config.name}!</h1>
-                <h3>You were invited!</h3>
-                <span className="larger_text">Please login and create your profile.</span>
-                <hr />
+                <h1>Welcome!</h1>
+                <p className="larger_text">
+                    You were invited to {backendCache.config.name}!
+                    Please connect and create your user account.
+                </p>
                 <LoginMasks />
             </article>;
     } else if (handler == "wallet" || (api._principalId && !api._user)) {

@@ -82,7 +82,17 @@ impl Proposal {
                     return Err("wrong hash".into());
                 }
             }
-            Payload::Reward(Reward { votes, .. }) => {
+            Payload::Fund(receiver, _) => {
+                if Principal::from_text(receiver) == Ok(principal) {
+                    return Err("funding receivers can not vote".into());
+                }
+            }
+            Payload::Reward(Reward {
+                receiver, votes, ..
+            }) => {
+                if Principal::from_text(receiver) == Ok(principal) {
+                    return Err("reward receivers can not vote".into());
+                }
                 let minting_ratio = state.minting_ratio();
                 let base = 10_u64.pow(CONFIG.token_decimals as u32);
                 let max_funding_amount = CONFIG.max_funding_amount / minting_ratio / base;
@@ -94,7 +104,7 @@ impl Proposal {
                 };
                 if tokens > max_funding_amount {
                     return Err(format!(
-                        "funding amount is higher than the configured maximum of {} tokens",
+                        "reward amount is higher than the configured maximum of {} tokens",
                         max_funding_amount
                     ));
                 }
@@ -764,6 +774,44 @@ mod tests {
     }
 
     #[actix_rt::test]
+    async fn test_funding_proposal() {
+        let mut state = State::default();
+
+        // create voters, make each of them earn some karma
+        let mut eligigble = HashMap::new();
+        for i in 1..=2 {
+            let p = pr(i);
+            let id = create_user(&mut state, p);
+            let user = state.users.get_mut(&id).unwrap();
+            user.change_karma(100 * (1 << i), "test");
+            assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
+            eligigble.insert(id, user.karma_to_reward());
+        }
+        state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
+
+        // mint tokens
+        state.mint(eligigble);
+
+        let prop_id = propose(
+            &mut state,
+            pr(1),
+            "test".into(),
+            Payload::Reward(Reward {
+                receiver: pr(1).to_string(),
+                votes: Default::default(),
+                minted: 0,
+            }),
+            time(),
+        )
+        .await
+        .expect("couldn't propose");
+        assert_eq!(
+            vote_on_proposal(&mut state, time(), pr(1), prop_id, true, "300").await,
+            Err("reward receivers can not vote".into())
+        );
+    }
+
+    #[actix_rt::test]
     async fn test_reward_proposal() {
         let mut state = State::default();
 
@@ -778,6 +826,7 @@ mod tests {
             eligigble.insert(id, user.karma_to_reward());
         }
         state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
+        state.principal_to_user_mut(pr(2)).unwrap().stalwart = true;
 
         // mint tokens
         state.mint(eligigble);
@@ -788,7 +837,7 @@ mod tests {
             pr(1),
             "test".into(),
             Payload::Reward(Reward {
-                receiver: pr(111).to_string(),
+                receiver: pr(4).to_string(),
                 votes: Default::default(),
                 minted: 0,
             }),
@@ -799,7 +848,7 @@ mod tests {
 
         assert_eq!(
             vote_on_proposal(&mut state, time(), pr(1), prop_id, true, "30000").await,
-            Err("funding amount is higher than the configured maximum of 20000 tokens".into())
+            Err("reward amount is higher than the configured maximum of 20000 tokens".into())
         );
 
         assert_eq!(state.active_voting_power(time()), 140000);
@@ -847,7 +896,7 @@ mod tests {
 
         assert_eq!(
             vote_on_proposal(&mut state, time(), pr(1), prop_id, true, "30000").await,
-            Err("funding amount is higher than the configured maximum of 20000 tokens".into())
+            Err("reward amount is higher than the configured maximum of 20000 tokens".into())
         );
 
         // 200 tokens vote for reward of size 1000
@@ -891,7 +940,7 @@ mod tests {
 
         assert_eq!(
             vote_on_proposal(&mut state, time(), pr(1), prop_id, true, "30000").await,
-            Err("funding amount is higher than the configured maximum of 20000 tokens".into())
+            Err("reward amount is higher than the configured maximum of 20000 tokens".into())
         );
 
         // 200 tokens vote for reward of size 1000
@@ -917,5 +966,25 @@ mod tests {
         } else {
             panic!("unexpected payload")
         };
+
+        // Case 4: user votes for themseleves
+        let prop_id = propose(
+            &mut state,
+            pr(2),
+            "test".into(),
+            Payload::Reward(Reward {
+                receiver: pr(1).to_string(),
+                votes: Default::default(),
+                minted: 0,
+            }),
+            time(),
+        )
+        .await
+        .expect("couldn't propose");
+
+        assert_eq!(
+            vote_on_proposal(&mut state, time(), pr(1), prop_id, true, "300").await,
+            Err("reward receivers can not vote".into())
+        );
     }
 }

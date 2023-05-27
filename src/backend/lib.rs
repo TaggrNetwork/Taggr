@@ -76,12 +76,6 @@ fn post_upgrade() {
     set_timers();
 
     // temporary post upgrade logic goes here
-    let s = state_mut();
-    s.root_posts = s
-        .posts
-        .values()
-        .filter(|post| post.parent.is_none())
-        .count();
 }
 
 /*
@@ -164,14 +158,6 @@ fn heap_to_stable() {
 #[update]
 async fn get_neuron_info() -> Result<String, String> {
     get_full_neuron(CONFIG.neuron_id).await
-}
-
-// TODO: delete this function after the next couple upgrades go in without issues.
-#[export_name = "canister_update execute_upgrade"]
-fn execute_upgrade() {
-    let force: bool = parse(&arg_data_raw());
-    state_mut().execute_pending_upgrade(force);
-    reply_raw(&[]);
 }
 
 #[export_name = "canister_update vote_on_poll"]

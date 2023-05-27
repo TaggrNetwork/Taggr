@@ -109,7 +109,6 @@ pub fn parse_account(acc: &str) -> Result<AccountIdentifier, String> {
 }
 
 pub fn fee() -> u64 {
-    // TODO: fetch from ledger
     DEFAULT_FEE.e8s()
 }
 
@@ -150,7 +149,7 @@ pub async fn transfer(
     .map_err(|err| format!("call to ledger failed: {:?}", err))?;
     result.map_err(|err| {
         format!(
-            "transfer of {} e8s from {} failed: {:?}",
+            "transfer of `{}` ICP from `{}` failed: {:?}",
             amount,
             AccountIdentifier::new(&id(), &sub_account.unwrap_or(DEFAULT_SUBACCOUNT)),
             err
