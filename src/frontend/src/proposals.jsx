@@ -151,7 +151,7 @@ export const Proposal = ({id}) => {
         </div>}
         {!!proposal.payload.Reward && <>
             <div className="bottom_half_spaced">RECEIVER: <code>{proposal.payload.Reward.receiver}</code></div>
-            <div className="bottom_spaced">TOKENS MINTED: {tokenBalance(proposal.payload.Reward.minted)}</div>
+            {proposal.status == "Executed" && <div className="bottom_spaced">TOKENS MINTED: {tokenBalance(proposal.payload.Reward.minted)}</div>}
         </>}
         {!!proposal.payload.Fund && <>
             <div className="bottom_half_spaced">RECEIVER: <code>{proposal.payload.Fund[0]}</code></div>

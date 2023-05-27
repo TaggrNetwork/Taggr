@@ -596,30 +596,32 @@ fn notify_about(state: &mut State, post: &Post) {
             notified.insert(user.id);
         });
 
-    state
-        .thread(post.id)
-        .filter_map(|id| Post::get(state, &id))
-        .flat_map(|post| {
-            post.watchers
-                .clone()
-                .into_iter()
-                .map(move |user_id| (post.id, user_id))
-        })
-        .collect::<Vec<_>>()
-        .into_iter()
-        .for_each(|(post_id, user_id)| {
-            if notified.contains(&user_id) {
-                return;
-            }
-            if let Some(user) = state.users.get_mut(&user_id) {
-                user.notify_about_watched_post(
-                    post_id,
-                    post.id,
-                    post.parent.expect("no parent found"),
-                );
-            }
-            notified.insert(user_id);
-        });
+    if let Some(parent_id) = post.parent {
+        state
+            .thread(parent_id)
+            .filter_map(|id| Post::get(state, &id))
+            .flat_map(|post| {
+                post.watchers
+                    .clone()
+                    .into_iter()
+                    .map(move |user_id| (post.id, user_id))
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .for_each(|(post_id, user_id)| {
+                if notified.contains(&user_id) {
+                    return;
+                }
+                if let Some(user) = state.users.get_mut(&user_id) {
+                    user.notify_about_watched_post(
+                        post_id,
+                        post.id,
+                        post.parent.expect("no parent found"),
+                    );
+                }
+                notified.insert(user_id);
+            });
+    }
 }
 
 // Extracts hashtags from a string.
