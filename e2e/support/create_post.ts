@@ -1,12 +1,14 @@
 import { Page, expect } from "@playwright/test";
-import { HomePage, NewPostPage } from "../pages";
+import { GlobalNavigation, NewPostPage } from "../pages";
 import { generateHashTag, generateText } from "./random_data";
+import { CommonUser } from "./create_user";
 
-export async function initPost(page: Page): Promise<NewPostPage> {
-  const homePage = new HomePage(page);
-  await homePage.goto();
-
-  const newPostPage = await homePage.createPost();
+export async function initPost(
+  page: Page,
+  user: CommonUser
+): Promise<NewPostPage> {
+  const globalNavigation = new GlobalNavigation(page, user);
+  const newPostPage = await globalNavigation.createNewPost();
   await expect(newPostPage.cycleCost).toHaveText("2");
 
   const postTextContent = generateText();
@@ -16,8 +18,11 @@ export async function initPost(page: Page): Promise<NewPostPage> {
   return newPostPage;
 }
 
-export async function createPost(page: Page): Promise<string> {
-  const newPostPage = await initPost(page);
+export async function createPost(
+  page: Page,
+  user: CommonUser
+): Promise<string> {
+  const newPostPage = await initPost(page, user);
   const postTextContent = await newPostPage.getPostContent();
   await newPostPage.submit();
 
@@ -26,9 +31,10 @@ export async function createPost(page: Page): Promise<string> {
 
 export async function createPostWithHashTag(
   page: Page,
+  user: CommonUser,
   hashtag?: string
 ): Promise<string> {
-  const newPostPage = await initPost(page);
+  const newPostPage = await initPost(page, user);
 
   const hashTagContent = `\n#${hashtag || generateHashTag()}`;
   await newPostPage.addPostTextContent(hashTagContent);

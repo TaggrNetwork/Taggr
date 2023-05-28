@@ -1,6 +1,5 @@
 import { Locator, Page } from "@playwright/test";
 import { InternetIdentityPage } from "./internet_identity_page";
-import { NewPostPage } from "./new_post_page";
 
 export class HomePage {
   public readonly welcomeAboardHeader: Locator;
@@ -9,9 +8,8 @@ export class HomePage {
   private readonly loginWithSeedPhraseButton: Locator;
   private readonly seedPhraseInput: Locator;
   private readonly seedPhraseJoinButton: Locator;
-  private readonly postButton: Locator;
   private readonly newPostsTab: Locator;
-  private readonly postArticles: Locator;
+  private readonly posts: Locator;
 
   constructor(private readonly page: Page) {
     this.welcomeAboardHeader = page.locator("h1");
@@ -26,9 +24,10 @@ export class HomePage {
     });
     this.seedPhraseInput = page.getByPlaceholder("Enter your password");
     this.seedPhraseJoinButton = page.locator("button", { hasText: "JOIN" });
-    this.postButton = page.locator("button", { hasText: "POST" });
-    this.newPostsTab = page.locator("button", { hasText: "NEW" });
-    this.postArticles = page.getByRole("article");
+    this.newPostsTab = page
+      .locator("button", { hasText: "NEW" })
+      .locator("visible=true");
+    this.posts = page.getByTestId("post-body").locator("visible=true");
   }
 
   public async goto(): Promise<void> {
@@ -58,17 +57,11 @@ export class HomePage {
     await this.seedPhraseJoinButton.click();
   }
 
-  public async createPost(): Promise<NewPostPage> {
-    await this.postButton.click();
-
-    return new NewPostPage(this.page);
-  }
-
   public async showNewPosts(): Promise<void> {
     await this.newPostsTab.click();
   }
 
   public async getPostByContent(content: string): Promise<Locator> {
-    return this.postArticles.filter({ hasText: content });
+    return this.posts.filter({ hasText: content });
   }
 }

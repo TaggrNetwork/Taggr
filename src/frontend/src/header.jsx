@@ -26,7 +26,7 @@ export const Header = ({subtle, route, inboxMode, user}) => {
 
     return <>
         <header className={`spaced top_half_spaced vcentered ${subtle ? "subtle" : ""}`}>
-            <a href="#/home" id="logo"></a>
+            <a href="#/home" id="logo" data-testid="home-page-link"></a>
             {user && user.realms.length > 0 && !subtle && <ReactionToggleButton classNameArg="left_half_spaced"
                 pressed={showRealms} onClick={() => { toggleRealms(!showRealms); toggleButtonBar(false) }}
                 icon={<CarretDown classNameArg="large_text" />} />}

@@ -163,7 +163,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
     const showExtension = !isNSFW && post.extension && !repost;
     const postIsClickable = post.children.length > 0 || post.effBody.includes(CUT);
 
-    return <div ref={post => { if(post && focused && rendering) post.scrollIntoView({ behavior: "smooth" }); }} className={classNameArg || null}>
+    return <div ref={post => { if(post && focused && rendering) post.scrollIntoView({ behavior: "smooth" }); }} className={classNameArg || null} data-testid="post-body">
         <div ref={refPost} className={`post_box ${isInactive ? "inactive" : ""} ${cls} ${postIsClickable ? "clickable" : ""}`} style={{position: "relative"}}>
             {showReport && <ReportBanner id={post.id} reportArg={post.report} domain="post" />}
             {isNSFW && <div className="post_head banner2 x_large_text" onClick={() => setSafeToOpen(true)}>#NSFW</div>}
@@ -174,7 +174,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
             {commentAsPost  && <a className="reply_tag external monospace" href={`#/thread/${post.id}`}>{post.parent} &#8592;</a>}
             {isComment && !commentAsPost && <span className="thread_button clickable"
                 onClick={() => location.href = `#/thread/${post.id}`}><CommentArrow classNameArg="action" /></span>}
-            {!isNSFW && <article onClick={expand} className={isPrime ? "prime" : null} data-testid="post-body">
+            {!isNSFW && <article onClick={expand} className={isPrime ? "prime" : null}>
                 {/* The key is needed to render different content for different versions to avoid running into diffrrent
                  number of memorized pieces inside content */}
                 <Content key={post.effBody} post={true} value={post.effBody} blobs={blobs} collapse={!expanded} primeMode={isRoot(post) && !repost} />
@@ -312,7 +312,7 @@ const PostBar = ({post, react, highlighted, highlightOp, repost, showInfo, toggl
                         onClick={showCarret ? goInside : () => { toggleInfo(false); toggleComments(!showComments) }}
                         icon={<><Comment classNameArg={newComments ? "accent" : null} />&nbsp;{`${replies}`}</>}
                     />}
-                    {!isThreadView && !showCarret && <BurgerButton onClick={() => { toggleInfo(!showInfo); toggleComments(false) }} pressed={showInfo} />}
+                    {!isThreadView && !showCarret && <BurgerButton onClick={() => { toggleInfo(!showInfo); toggleComments(false) }} pressed={showInfo} testId="post-info-toggle" />}
                     {(isThreadView || showCarret) && <button className="reaction_button unselected"
                         onClick={goInside}><CarretRight /></button>}
                 </>}
@@ -321,7 +321,7 @@ const PostBar = ({post, react, highlighted, highlightOp, repost, showInfo, toggl
     }
 
 export const ReactionsPicker = ({react}) => <>
-    {backendCache.config.reactions.map(([id, _]) => <button key={id} className="left_half_spaced" onClick={() => react(id)}>{reaction2icon(id)}</button>)}
+    {backendCache.config.reactions.map(([id, _]) => <button key={id} className="left_half_spaced" onClick={() => react(id)} data-testid={"give-" + reactionToTestId(id) + "-reaction"}>{reaction2icon(id)}</button>)}
 </>;
 
 export const Reactions = ({reactionsMap, react}) => {
@@ -331,7 +331,7 @@ export const Reactions = ({reactionsMap, react}) => {
             if (users.length == 0) return null;
             const reacted = users.includes(api._user?.id);
             return <button data-meta="skipClicks" key={reactId} className={"reaction_button " + (reacted ? "selected" : "unselected")}
-                onClick={() => react(reactId)}>
+                onClick={() => react(reactId)}  data-testid={reactionToTestId(reactId) + "-reaction"}>
                 {reaction2icon(reactId)}&nbsp;{`${users.length}`}
             </button>;
         })}
@@ -339,3 +339,19 @@ export const Reactions = ({reactionsMap, react}) => {
 };
 
 const skipClicks = elem => elem && (elem.dataset["meta"] == "skipClicks" || skipClicks(elem.parentElement));
+
+const reactionToTestId = id => {
+    switch (parseInt(id)) {
+        case 1:
+            return "thumbs-down";
+        case 50:
+            return "fire";
+        case 51:
+            return "laughing";
+        case 100:
+            return "star";
+        case 10:
+            return "heart"
+    }
+    return null;
+}

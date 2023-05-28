@@ -32,7 +32,10 @@ export class NewPostPage {
   }
 
   public async getPostContent(): Promise<string> {
-    return await this.inputTextArea.inputValue();
+    const postContent = await this.inputTextArea.inputValue();
+
+    // remove image tags from content since they're not "visible"
+    return postContent.replace(/!\[.*\]\(.*\)/, "");
   }
 
   public async submit(): Promise<PostPage> {
@@ -41,7 +44,10 @@ export class NewPostPage {
     // since this navigation is asynchronous and not a result of directly
     // clicking an anchor tag, Playwright does not know that it needs to wait.
     // wait for network idle so we know any post images are finished loading
-    await this.page.waitForURL("/#/post/*", { waitUntil: "networkidle" });
+    await this.page.waitForURL("/#/post/*", {
+      waitUntil: "networkidle",
+      timeout: 4000,
+    });
 
     return new PostPage(this.page);
   }

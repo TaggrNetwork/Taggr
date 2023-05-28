@@ -8,22 +8,59 @@ import {
   initPost,
   performInNewContext,
 } from "../support";
-import { HomePage, FeedPage } from "../pages";
+import { HomePage, FeedPage, GlobalNavigation } from "../pages";
 
 test("post creation", async ({ page, browser }) => {
-  const [postOneContent, postTwoContent] = await Promise.all([
-    performInNewContext(browser, async (page) => {
-      await createSeedPhraseUser(page);
+  const [[postOneContext, postOneContent], [postTwoContext, postTwoContent]] =
+    await Promise.all([
+      performInNewContext(browser, async (page) => {
+        const user = await createSeedPhraseUser(page);
+        const globalNavigation = new GlobalNavigation(page, user);
 
-      return await createPost(page);
-    }),
+        const profilePage = await globalNavigation.goToProfilePage();
+        const cyclesBalance = await profilePage.getCyclesBalance();
+        expect(cyclesBalance).toEqual(1000);
 
-    performInNewContext(browser, async (page) => {
-      await createSeedPhraseUser(page);
+        const postContent = await createPost(page, user);
 
-      return await createPost(page);
-    }),
-  ]);
+        await globalNavigation.goToProfilePage();
+
+        const updatedCyclesBalance = await profilePage.getCyclesBalance();
+        expect(updatedCyclesBalance).toEqual(cyclesBalance - 2);
+
+        const postCount = await profilePage.getPostCount();
+        expect(postCount).toEqual(1);
+
+        const post = await profilePage.getPostByContent(postContent);
+        await expect(post).toBeVisible();
+
+        return postContent;
+      }),
+
+      performInNewContext(browser, async (page) => {
+        const user = await createSeedPhraseUser(page);
+        const globalNavigation = new GlobalNavigation(page, user);
+
+        const profilePage = await globalNavigation.goToProfilePage();
+        const cyclesBalance = await profilePage.getCyclesBalance();
+        expect(cyclesBalance).toEqual(1000);
+
+        const postContent = await createPost(page, user);
+
+        await globalNavigation.goToProfilePage();
+
+        const updatedCyclesBalance = await profilePage.getCyclesBalance();
+        expect(updatedCyclesBalance).toEqual(cyclesBalance - 2);
+
+        const postCount = await profilePage.getPostCount();
+        expect(postCount).toEqual(1);
+
+        const post = await profilePage.getPostByContent(postContent);
+        await expect(post).toBeVisible();
+
+        return postContent;
+      }),
+    ]);
 
   const homePage = new HomePage(page);
   await homePage.goto();
@@ -34,24 +71,64 @@ test("post creation", async ({ page, browser }) => {
 
   const postTwo = await homePage.getPostByContent(postTwoContent);
   await expect(postTwo).toBeVisible();
+
+  await postOneContext.close();
+  await postTwoContext.close();
 });
 
 test("post creation with hashtag", async ({ page, browser }) => {
   const hashTag = generateHashTag();
 
-  const [postOneContent, postTwoContent] = await Promise.all([
-    performInNewContext(browser, async (page) => {
-      await createSeedPhraseUser(page);
+  const [[postOneContext, postOneContent], [postTwoContext, postTwoContent]] =
+    await Promise.all([
+      performInNewContext(browser, async (page) => {
+        const user = await createSeedPhraseUser(page);
+        const globalNavigation = new GlobalNavigation(page, user);
 
-      return await createPostWithHashTag(page, hashTag);
-    }),
+        const profilePage = await globalNavigation.goToProfilePage();
+        const cyclesBalance = await profilePage.getCyclesBalance();
+        expect(cyclesBalance).toEqual(1000);
 
-    performInNewContext(browser, async (page) => {
-      await createSeedPhraseUser(page);
+        const postContent = await createPostWithHashTag(page, user, hashTag);
 
-      return await createPostWithHashTag(page, hashTag);
-    }),
-  ]);
+        await globalNavigation.goToProfilePage();
+
+        const updatedCyclesBalance = await profilePage.getCyclesBalance();
+        expect(updatedCyclesBalance).toEqual(cyclesBalance - 3);
+
+        const postCount = await profilePage.getPostCount();
+        expect(postCount).toEqual(1);
+
+        const post = await profilePage.getPostByContent(postContent);
+        await expect(post).toBeVisible();
+
+        return postContent;
+      }),
+
+      performInNewContext(browser, async (page) => {
+        const user = await createSeedPhraseUser(page);
+        const globalNavigation = new GlobalNavigation(page, user);
+
+        const profilePage = await globalNavigation.goToProfilePage();
+        const cyclesBalance = await profilePage.getCyclesBalance();
+        expect(cyclesBalance).toEqual(1000);
+
+        const postContent = await createPostWithHashTag(page, user, hashTag);
+
+        await globalNavigation.goToProfilePage();
+
+        const updatedCyclesBalance = await profilePage.getCyclesBalance();
+        expect(updatedCyclesBalance).toEqual(cyclesBalance - 3);
+
+        const postCount = await profilePage.getPostCount();
+        expect(postCount).toEqual(1);
+
+        const post = await profilePage.getPostByContent(postContent);
+        await expect(post).toBeVisible();
+
+        return postContent;
+      }),
+    ]);
 
   const feedPage = new FeedPage(page);
   await feedPage.goto(hashTag);
@@ -61,16 +138,25 @@ test("post creation with hashtag", async ({ page, browser }) => {
 
   const postTwo = await feedPage.getPostByContent(postTwoContent);
   await expect(postTwo).toBeVisible();
+
+  await postOneContext.close();
+  await postTwoContext.close();
 });
 
 test("post creation with image", async ({ page }) => {
-  await createSeedPhraseUser(page);
+  const user = await createSeedPhraseUser(page);
+  const globalNavigation = new GlobalNavigation(page, user);
+
+  const profilePage = await globalNavigation.goToProfilePage();
+  const cyclesBalance = await profilePage.getCyclesBalance();
+  expect(cyclesBalance).toEqual(1000);
 
   const imagePath = resolve(__dirname, "..", "assets", "smash.jpg");
-  const newPostPage = await initPost(page);
+  const newPostPage = await initPost(page, user);
   await newPostPage.addImage(imagePath);
   await expect(newPostPage.cycleCost).toHaveText("12");
 
+  const postContent = await newPostPage.getPostContent();
   const postPage = await newPostPage.submit();
   const uploadedImage = postPage.postBody.locator("img");
   await expect(uploadedImage).toBeVisible();
@@ -83,4 +169,15 @@ test("post creation with image", async ({ page }) => {
 
   await postPage.imagePreview.click();
   await expect(postPage.imagePreview).not.toBeVisible();
+
+  await globalNavigation.goToProfilePage();
+
+  const updatedCyclesBalance = await profilePage.getCyclesBalance();
+  expect(updatedCyclesBalance).toEqual(cyclesBalance - 12);
+
+  const postCount = await profilePage.getPostCount();
+  expect(postCount).toEqual(1);
+
+  const post = await profilePage.getPostByContent(postContent);
+  await expect(post).toBeVisible();
 });

@@ -48,7 +48,7 @@ export async function createSeedPhraseUser(
   };
 }
 
-interface CommonUser {
+export interface CommonUser {
   icpAccount: AccountIdentifier;
   username: string;
 }
