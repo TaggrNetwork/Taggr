@@ -25,6 +25,7 @@ use crate::env::token::Token;
 mod assets;
 mod env;
 mod http;
+mod metadata;
 
 const BACKUP_PAGE_SIZE: u32 = 1024 * 1024;
 

@@ -1,6 +1,7 @@
 use super::{assets, state};
-use crate::config::CONFIG;
+use crate::assets::{index_html_headers, INDEX_HTML};
 use crate::post::Post;
+use crate::{config::CONFIG, metadata::set_metadata};
 use ic_cdk::export::candid::CandidType;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -89,6 +90,7 @@ fn route(path: &str) -> Option<(Headers, ByteBuf)> {
                         state.users.get(&post.user)?.name
                     ),
                     &filter(&post.body),
+                    "article",
                 );
             }
             None
@@ -100,6 +102,7 @@ fn route(path: &str) -> Option<(Headers, ByteBuf)> {
                 &format!("journal/{}", user.name),
                 &format!("@{}'s journal", user.name),
                 &filter(&user.about),
+                "website",
             )
         }
         (Some("user"), Some(handle)) => {
@@ -109,6 +112,7 @@ fn route(path: &str) -> Option<(Headers, ByteBuf)> {
                 &format!("user/{}", user.name),
                 &format!("User @{}", user.name),
                 &filter(&user.about),
+                "profile",
             )
         }
         (Some("realm"), Some(arg)) => {
@@ -119,6 +123,7 @@ fn route(path: &str) -> Option<(Headers, ByteBuf)> {
                 &format!("realm/{}", id),
                 &format!("Realm {}", id),
                 &filter(&realm.description),
+                "website",
             )
         }
         (Some("feed"), Some(filter)) => index(
@@ -126,29 +131,21 @@ fn route(path: &str) -> Option<(Headers, ByteBuf)> {
             &format!("feed/{}", filter),
             filter,
             &format!("Latest posts on {}", filter),
+            "website",
         ),
-        _ => index(domain, "", CONFIG.name, "Web3 Social Network"),
+        _ => assets::asset("/"),
     }
 }
 
-fn index(host: &str, path: &str, title: &str, desc: &str) -> Option<(Headers, ByteBuf)> {
-    assets::asset("/").map(|(headers, body)| {
-        (
-            headers,
-            ByteBuf::from(
-                String::from_utf8_lossy(&body)
-                    .replace(
-                        r#"<meta name="mark" content="OG">"#,
-                        &format!(
-                            r#"<meta content="https://{}/#/{}" property="og:url" />
-                               <meta content="{}" property="og:title" />
-                               <meta content="{}" property="og:description" />"#,
-                            host, path, title, &desc
-                        ),
-                    )
-                    .as_bytes()
-                    .to_vec(),
-            ),
-        )
-    })
+fn index(
+    host: &str,
+    path: &str,
+    title: &str,
+    desc: &str,
+    page_type: &str,
+) -> Option<(Headers, ByteBuf)> {
+    Some((
+        index_html_headers(),
+        ByteBuf::from(set_metadata(INDEX_HTML, host, path, title, desc, page_type)),
+    ))
 }

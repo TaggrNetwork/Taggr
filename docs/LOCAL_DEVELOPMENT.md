@@ -4,14 +4,17 @@
 
 Make sure to follow the steps outlined in the rest of this file before using these commands.
 
-| Description                 | Command          | Note                                                    |
-| --------------------------- | ---------------- | ------------------------------------------------------- |
-| Build the canister          | make build       |                                                         |
-| Start the local replica     | make start       |                                                         |
-| Start the frontend server   | npm start        |                                                         |
-| Deploy the canister locally | make dev_deploy  |                                                         |
-| Set up and run e2e tests    | make e2e_test    | If you're using Ubuntu, it must be an LTS version.      |
-| Run e2e tests               | npm run test:e2e | Assumes e2e setup is already done (see `make e2e_test`) |
+| Description                       | Command                                             | Note                                                    |
+| --------------------------------- | --------------------------------------------------- | ------------------------------------------------------- |
+| Build the canister                | make build                                          |                                                         |
+| Start the local replica           | make start                                          |                                                         |
+| Start the frontend server         | npm start                                           |                                                         |
+| Build the frontend                | npm run build                                       |                                                         |
+| Production frontend               | NODE_ENV=production npm run build                   |                                                         |
+| Production frontend local network | NODE_ENV=production DFX_NETWORK=local npm run build |                                                         |
+| Deploy the canister locally       | make dev_deploy                                     |                                                         |
+| Set up and run e2e tests          | make e2e_test                                       | If you're using Ubuntu, it must be an LTS version.      |
+| Run e2e tests                     | npm run test:e2e                                    | Assumes e2e setup is already done (see `make e2e_test`) |
 
 ## System Dependencies
 

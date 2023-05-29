@@ -1,4 +1,4 @@
-export const MAINNET_MODE = process.env.NODE_ENV == "production";
+export const MAINNET_MODE = process.env.DFX_NETWORK == "ic";
 
 export const CANISTER_ID = process.env.CANISTER_ID;
 

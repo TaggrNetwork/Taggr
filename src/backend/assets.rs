@@ -1,4 +1,4 @@
-use crate::config::CONFIG;
+use crate::{config::CONFIG, metadata::set_index_metadata};
 use base64::{engine::general_purpose, Engine as _};
 use ic_cdk::id;
 use ic_certified_map::{labeled, labeled_hash, AsHashTree, Hash, RbTree};
@@ -20,6 +20,14 @@ fn assets<'a>() -> &'a mut HashMap<String, (Headers, Vec<u8>)> {
     unsafe { ASSETS.as_mut().expect("uninitialized") }
 }
 
+pub static INDEX_HTML: &[u8] = include_bytes!("../../dist/frontend/index.html");
+pub fn index_html_headers() -> Headers {
+    vec![(
+        "Content-Type".to_string(),
+        "text/html; charset=UTF-8".to_string(),
+    )]
+}
+
 pub fn load() {
     unsafe {
         ASSET_HASHES = Some(Default::default());
@@ -28,11 +36,8 @@ pub fn load() {
 
     add_asset(
         &["/", "/index.html"],
-        vec![(
-            "Content-Type".to_string(),
-            "text/html; charset=UTF-8".to_string(),
-        )],
-        include_bytes!("../../dist/frontend/index.html").to_vec(),
+        index_html_headers(),
+        set_index_metadata(INDEX_HTML),
     );
 
     add_asset(
