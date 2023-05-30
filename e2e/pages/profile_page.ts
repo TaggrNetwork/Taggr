@@ -1,5 +1,6 @@
 import { Locator, Page } from "@playwright/test";
 import { CommonUser, textToNumber } from "../support";
+import { PostElement } from "../elements";
 
 export class ProfilePage {
   private readonly cycles: Locator;
@@ -42,7 +43,7 @@ export class ProfilePage {
     return textToNumber(postCountString);
   }
 
-  public async getPostByContent(content: string): Promise<Locator> {
-    return this.posts.filter({ hasText: content });
+  public async getPostByContent(content: string): Promise<PostElement> {
+    return new PostElement(this.page, this.posts.filter({ hasText: content }));
   }
 }

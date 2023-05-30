@@ -185,7 +185,7 @@ export const Loading = ({classNameArg, spaced = true}) => {
     const [dot, setDot] = React.useState(0);
     const md = <span> ■ </span>;
     React.useEffect(() => { setTimeout(() => setDot(dot+1), 200); }, [dot]);
-    return <div className={`${classNameArg} ${spaced ? "vertically_spaced" : ""} accent small_text text_centered left_spaced right_spaced`}>
+    return <div className={`${classNameArg} ${spaced ? "vertically_spaced" : ""} accent small_text text_centered left_spaced right_spaced`} data-testid="loading-spinner">
         {[md, md, md].map((v, i) => i == dot % 3
             ? <span key={i} style={{opacity: 0.5}}>{v}</span>
             : v)}

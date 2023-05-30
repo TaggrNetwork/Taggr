@@ -1,5 +1,6 @@
 import { Locator, Page } from "@playwright/test";
 import { InternetIdentityPage } from "./internet_identity_page";
+import { PostElement } from "../elements";
 
 export class HomePage {
   public readonly welcomeAboardHeader: Locator;
@@ -61,7 +62,7 @@ export class HomePage {
     await this.newPostsTab.click();
   }
 
-  public async getPostByContent(content: string): Promise<Locator> {
-    return this.posts.filter({ hasText: content });
+  public async getPostByContent(content: string): Promise<PostElement> {
+    return new PostElement(this.page, this.posts.filter({ hasText: content }));
   }
 }

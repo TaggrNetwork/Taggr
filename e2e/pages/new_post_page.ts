@@ -1,45 +1,16 @@
-import { Locator, Page } from "@playwright/test";
+import { Page } from "@playwright/test";
+import { PostEditorElement } from "../elements";
 import { PostPage } from "./post_page";
 
 export class NewPostPage {
-  public readonly cycleCost: Locator;
-  private readonly inputTextArea: Locator;
-  private readonly filePickerButton: Locator;
-  private readonly sendButton: Locator;
+  public readonly editor: PostEditorElement;
 
   constructor(private readonly page: Page) {
-    this.cycleCost = page.getByTestId("cycle-cost");
-    this.inputTextArea = page.locator("textarea");
-    this.filePickerButton = page.getByTestId("file-picker");
-    this.sendButton = page.locator("button", { hasText: "SEND" });
-  }
-
-  public async addPostTextContent(textContent: string): Promise<string> {
-    const currentContent = await this.inputTextArea.textContent();
-
-    await this.inputTextArea.fill(currentContent + textContent);
-
-    return await this.inputTextArea.textContent();
-  }
-
-  public async addImage(imagePath: string): Promise<void> {
-    const [fileChooser] = await Promise.all([
-      this.page.waitForEvent("filechooser"),
-      this.filePickerButton.click(),
-    ]);
-
-    await fileChooser.setFiles([imagePath]);
-  }
-
-  public async getPostContent(): Promise<string> {
-    const postContent = await this.inputTextArea.inputValue();
-
-    // remove image tags from content since they're not "visible"
-    return postContent.replace(/!\[.*\]\(.*\)/, "");
+    this.editor = new PostEditorElement(page, page.locator("form"));
   }
 
   public async submit(): Promise<PostPage> {
-    await this.sendButton.click();
+    await this.editor.submit();
 
     // since this navigation is asynchronous and not a result of directly
     // clicking an anchor tag, Playwright does not know that it needs to wait.

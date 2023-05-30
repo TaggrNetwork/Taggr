@@ -8,14 +8,15 @@ import {
   initPost,
   performInNewContext,
 } from "../support";
-import { HomePage, FeedPage, GlobalNavigation } from "../pages";
+import { GlobalNavigationElement } from "../elements";
+import { HomePage, FeedPage } from "../pages";
 
 test("post creation", async ({ page, browser }) => {
   const [[postOneContext, postOneContent], [postTwoContext, postTwoContent]] =
     await Promise.all([
       performInNewContext(browser, async (page) => {
         const user = await createSeedPhraseUser(page);
-        const globalNavigation = new GlobalNavigation(page, user);
+        const globalNavigation = new GlobalNavigationElement(page, user);
 
         const profilePage = await globalNavigation.goToProfilePage();
         const cyclesBalance = await profilePage.getCyclesBalance();
@@ -32,14 +33,14 @@ test("post creation", async ({ page, browser }) => {
         expect(postCount).toEqual(1);
 
         const post = await profilePage.getPostByContent(postContent);
-        await expect(post).toBeVisible();
+        await expect(post.element).toBeVisible();
 
         return postContent;
       }),
 
       performInNewContext(browser, async (page) => {
         const user = await createSeedPhraseUser(page);
-        const globalNavigation = new GlobalNavigation(page, user);
+        const globalNavigation = new GlobalNavigationElement(page, user);
 
         const profilePage = await globalNavigation.goToProfilePage();
         const cyclesBalance = await profilePage.getCyclesBalance();
@@ -56,7 +57,7 @@ test("post creation", async ({ page, browser }) => {
         expect(postCount).toEqual(1);
 
         const post = await profilePage.getPostByContent(postContent);
-        await expect(post).toBeVisible();
+        await expect(post.element).toBeVisible();
 
         return postContent;
       }),
@@ -67,10 +68,10 @@ test("post creation", async ({ page, browser }) => {
   await homePage.showNewPosts();
 
   const postOne = await homePage.getPostByContent(postOneContent);
-  await expect(postOne).toBeVisible();
+  await expect(postOne.element).toBeVisible();
 
   const postTwo = await homePage.getPostByContent(postTwoContent);
-  await expect(postTwo).toBeVisible();
+  await expect(postTwo.element).toBeVisible();
 
   await postOneContext.close();
   await postTwoContext.close();
@@ -83,7 +84,7 @@ test("post creation with hashtag", async ({ page, browser }) => {
     await Promise.all([
       performInNewContext(browser, async (page) => {
         const user = await createSeedPhraseUser(page);
-        const globalNavigation = new GlobalNavigation(page, user);
+        const globalNavigation = new GlobalNavigationElement(page, user);
 
         const profilePage = await globalNavigation.goToProfilePage();
         const cyclesBalance = await profilePage.getCyclesBalance();
@@ -100,14 +101,14 @@ test("post creation with hashtag", async ({ page, browser }) => {
         expect(postCount).toEqual(1);
 
         const post = await profilePage.getPostByContent(postContent);
-        await expect(post).toBeVisible();
+        await expect(post.element).toBeVisible();
 
         return postContent;
       }),
 
       performInNewContext(browser, async (page) => {
         const user = await createSeedPhraseUser(page);
-        const globalNavigation = new GlobalNavigation(page, user);
+        const globalNavigation = new GlobalNavigationElement(page, user);
 
         const profilePage = await globalNavigation.goToProfilePage();
         const cyclesBalance = await profilePage.getCyclesBalance();
@@ -124,7 +125,7 @@ test("post creation with hashtag", async ({ page, browser }) => {
         expect(postCount).toEqual(1);
 
         const post = await profilePage.getPostByContent(postContent);
-        await expect(post).toBeVisible();
+        await expect(post.element).toBeVisible();
 
         return postContent;
       }),
@@ -145,7 +146,7 @@ test("post creation with hashtag", async ({ page, browser }) => {
 
 test("post creation with image", async ({ page }) => {
   const user = await createSeedPhraseUser(page);
-  const globalNavigation = new GlobalNavigation(page, user);
+  const globalNavigation = new GlobalNavigationElement(page, user);
 
   const profilePage = await globalNavigation.goToProfilePage();
   const cyclesBalance = await profilePage.getCyclesBalance();
@@ -153,10 +154,10 @@ test("post creation with image", async ({ page }) => {
 
   const imagePath = resolve(__dirname, "..", "assets", "smash.jpg");
   const newPostPage = await initPost(page, user);
-  await newPostPage.addImage(imagePath);
-  await expect(newPostPage.cycleCost).toHaveText("12");
+  await newPostPage.editor.addImage(imagePath);
+  await expect(newPostPage.editor.cycleCost).toHaveText("12");
 
-  const postContent = await newPostPage.getPostContent();
+  const postContent = await newPostPage.editor.getContent();
   const postPage = await newPostPage.submit();
   const uploadedImage = postPage.postBody.locator("img");
   await expect(uploadedImage).toBeVisible();
@@ -179,5 +180,5 @@ test("post creation with image", async ({ page }) => {
   expect(postCount).toEqual(1);
 
   const post = await profilePage.getPostByContent(postContent);
-  await expect(post).toBeVisible();
+  await expect(post.element).toBeVisible();
 });

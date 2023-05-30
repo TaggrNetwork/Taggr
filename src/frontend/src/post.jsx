@@ -308,7 +308,7 @@ const PostBar = ({post, react, highlighted, highlightOp, repost, showInfo, toggl
             <div className="vcentered max_width_col flex_ended">
                 {!repost && <>
                     <Reactions reactionsMap={post.reactions} react={react} />
-                    {replies > 0 && !isThreadView && <ReactionToggleButton pressed={showComments}
+                    {replies > 0 && !isThreadView && <ReactionToggleButton pressed={showComments} testId="post-comments-toggle"
                         onClick={showCarret ? goInside : () => { toggleInfo(false); toggleComments(!showComments) }}
                         icon={<><Comment classNameArg={newComments ? "accent" : null} />&nbsp;{`${replies}`}</>}
                     />}
@@ -321,7 +321,7 @@ const PostBar = ({post, react, highlighted, highlightOp, repost, showInfo, toggl
     }
 
 export const ReactionsPicker = ({react}) => <>
-    {backendCache.config.reactions.map(([id, _]) => <button key={id} className="left_half_spaced" onClick={() => react(id)} data-testid={"give-" + reactionToTestId(id) + "-reaction"}>{reaction2icon(id)}</button>)}
+    {backendCache.config.reactions.map(([id, _]) => <button key={id} className="left_half_spaced" onClick={() => react(id)} data-testid={"give-" + id + "-reaction"}>{reaction2icon(id)}</button>)}
 </>;
 
 export const Reactions = ({reactionsMap, react}) => {
@@ -331,7 +331,7 @@ export const Reactions = ({reactionsMap, react}) => {
             if (users.length == 0) return null;
             const reacted = users.includes(api._user?.id);
             return <button data-meta="skipClicks" key={reactId} className={"reaction_button " + (reacted ? "selected" : "unselected")}
-                onClick={() => react(reactId)}  data-testid={reactionToTestId(reactId) + "-reaction"}>
+                onClick={() => react(reactId)}  data-testid={reactId + "-reaction"}>
                 {reaction2icon(reactId)}&nbsp;{`${users.length}`}
             </button>;
         })}
@@ -339,19 +339,3 @@ export const Reactions = ({reactionsMap, react}) => {
 };
 
 const skipClicks = elem => elem && (elem.dataset["meta"] == "skipClicks" || skipClicks(elem.parentElement));
-
-const reactionToTestId = id => {
-    switch (parseInt(id)) {
-        case 1:
-            return "thumbs-down";
-        case 50:
-            return "fire";
-        case 51:
-            return "laughing";
-        case 100:
-            return "star";
-        case 10:
-            return "heart"
-    }
-    return null;
-}
