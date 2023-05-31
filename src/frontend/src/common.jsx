@@ -105,7 +105,7 @@ export const getTokens = (prefix, value) => {
     return list;
 };
 
-export const setTitle = value => document.getElementsByTagName("title")[0].innerText = `TAGGR: ${value}`;
+export const setTitle = value => document.getElementsByTagName("title")[0]?.innerText = `TAGGR: ${value}`;
 
 export const ButtonWithLoading = ({label, onClick, classNameArg, styleArg}) => {
     let [loading, setLoading] = React.useState(false);

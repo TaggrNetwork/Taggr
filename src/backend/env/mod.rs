@@ -496,6 +496,7 @@ impl State {
             ledger_log,
         )?;
         Post::mutate(self, &post_id, &mut |post, _| {
+            post.watchers.insert(tipper_id);
             post.tips.push((tipper_id, tip));
             Ok(())
         })
@@ -1152,7 +1153,7 @@ impl State {
                     self.pending_nns_proposals.insert(proposal.id, post_id);
                 }
             }
-            self.last_nns_proposal = proposal.id;
+            self.last_nns_proposal = self.last_nns_proposal.max(proposal.id);
         }
     }
 
@@ -1199,6 +1200,9 @@ impl State {
                 }
             };
             self.mint(user_ids);
+        } else {
+            self.logger
+                .info("Skipping minting & distributions due to open proposals");
         }
 
         self.memory.report_health(&mut self.logger);
@@ -1308,7 +1312,7 @@ impl State {
         }
 
         self.logger.info(format!(
-            "Weekly stalwart election ⚔️: {} joined; {} have left; `{}` seats vacant.",
+            "Stalwart election ⚔️: {} joined; {} have left; `{}` seats vacant.",
             if joined.is_empty() {
                 "no new users".to_string()
             } else {
@@ -1469,13 +1473,20 @@ impl State {
     }
 
     pub fn recent_tags(&self, principal: Principal, n: u64) -> Vec<(String, u64)> {
-        let mut tags: HashMap<String, (String, u64)> = Default::default();
+        // normalized hashtag -> (user spelled hashtag, unique users, occurences)
+        let mut tags: HashMap<String, (String, HashSet<UserId>, u64)> = Default::default();
         let mut tags_found = 0;
         'OUTER: for post in self.last_posts(principal, true) {
             for tag in &post.tags {
-                let entry = tags.entry(tag.to_lowercase()).or_insert((tag.clone(), 0));
-                entry.1 += 1;
-                if entry.1 == 2 {
+                let (_, users, counter) =
+                    tags.entry(tag.to_lowercase())
+                        .or_insert((tag.clone(), Default::default(), 0));
+                if users.contains(&post.user) {
+                    continue;
+                }
+                users.insert(post.user);
+                *counter += 1;
+                if *counter == 2 {
                     tags_found += 1;
                 }
             }
@@ -1484,8 +1495,8 @@ impl State {
             }
         }
         tags.into_iter()
-            .map(|v| v.1)
-            .filter(|(_, count)| *count > 1)
+            .map(|(_, (tag, _, counter))| (tag, counter))
+            .filter(|(_, counter)| *counter > 1)
             .collect()
     }
 
@@ -1734,6 +1745,7 @@ impl State {
             .ok_or_else(|| "no user found".to_string())?;
         let (user_id, user_realms) = (user.id, user.realms.clone());
         Post::mutate(self, &post_id, &mut |post, _| {
+            post.watchers.insert(user_id);
             post.vote_on_poll(user_id, user_realms.clone(), time, vote)
         })
     }
@@ -1886,7 +1898,20 @@ impl State {
 
         self.hot.retain(|id| id != &post_id);
 
-        Post::mutate(self, &post_id, &mut |post, _| {
+        Post::mutate(self, &post_id, &mut |post, state| {
+            match &post.extension {
+                Some(Extension::Proposal(proposal_id)) => {
+                    if let Some(proposal) =
+                        state.proposals.iter_mut().find(|p| &p.id == proposal_id)
+                    {
+                        proposal.status = Status::Cancelled
+                    }
+                }
+                Some(Extension::Poll(_)) => {
+                    state.pending_polls.remove(&post_id);
+                }
+                _ => {}
+            }
             post.delete(versions.clone());
             Ok(())
         })

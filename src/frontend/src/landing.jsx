@@ -54,8 +54,6 @@ export const TagCloud = ({size, heartbeat}) => {
     const [tags, setTags] = React.useState(null);
     const loadTags = async () => {
         let tags = await api.query("recent_tags", size);
-        const projectName = backendCache.config.name.toLowerCase();
-        tags = tags.filter(([tag]) => tag.toLowerCase() != projectName);
         const occurences = tags.map(([_, N]) => parseInt(N));
         const min = Math.min(...occurences);
         const max = Math.max(...occurences);

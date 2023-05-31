@@ -181,7 +181,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
             </article>}
             {showExtension && post.extension.Poll && <Poll poll={post.extension.Poll} post_id={post.id} created={postCreated} />}
             {showExtension && "Repost" in post.extension && <Post id={post.extension.Repost} data={postDataProvider(post.extension.Repost, null, "post_only")} repost={true} classNameArg="post_extension repost" />}
-            {showExtension && post.extension.Proposal && <Proposal id={post.extension.Proposal} />}
+            {showExtension && post.extension.Proposal && <Proposal postId={post.id} id={post.extension.Proposal} />}
             <PostBar post={post} react={react} highlightOp={highlightOp} repost={repost} highlighted={highlighted}
                 showComments={showComments} toggleComments={toggleComments} postCreated={postCreated} showCarret={showCarret}
                 showInfo={showInfo} toggleInfo={toggleInfo} isThreadView={isThreadView} goInside={goInside} />
@@ -221,7 +221,10 @@ const PostInfo = ({post, version, postCreated, callback}) => {
             <ToggleButton classNameArg="max_width_col" offLabel={<Watch />} onLabel={<Unwatch />}
                 currState={() => post.watchers.includes(api._user?.id)} 
                 toggler={() => api.call("toggle_following_post", post.id)} />
-            <button className="max_width_col" onClick={() => location.href = `/#/new/repost/${post.id}`}><Repost /></button>
+            <button className="max_width_col" onClick={() => {
+                api.call("toggle_following_post", post.id);
+                location.href = `/#/new/repost/${post.id}`;
+            }}><Repost /></button>
             <ToggleButton classNameArg="max_width_col"
                 offLabel={<Save />} onLabel={<Unsave />}
                 currState={() => api._user.bookmarks.includes(post.id)} 

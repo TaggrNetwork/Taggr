@@ -42,7 +42,7 @@ export const Poll = ({poll, post_id, created}) => {
                 {!showVoting && <div className="column_container" style={{margin: "0.5em", width: "96%"}}>
                     <div className="vcentered">
                         <code className="right_half_spaced small_text"
-                            style={{width: "6em", textAlign: "right", alignSelf: "flex-start"}}>{`${votes} (${pc} %)`}</code>
+                            style={{width: "7em", textAlign: "right", alignSelf: "flex-start"}}>{`${votes} (${pc} %)`}</code>
                         <div className="max_width_col">
                             <div style={{width: `${pc}%`, height: "0.6em", marginTop: "0.1em"}} className="active"></div>
                             <div className="small_text top_half_spaced">{userList(data.votes[id])}</div>

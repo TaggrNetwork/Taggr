@@ -88,7 +88,7 @@ export const Proposals = () => {
     </>;
 }
 
-export const Proposal = ({id}) => {
+export const Proposal = ({id, postId}) => {
     const users = backendCache.users;
     const [proposal, setProposal] = React.useState(null);
 
@@ -126,6 +126,7 @@ export const Proposal = ({id}) => {
             alert(`Error: ${result.Err}`);
             return;
         }
+        api.call("toggle_following_post", postId);
         await loadState();
     };
 

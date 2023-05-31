@@ -108,7 +108,7 @@ const linkRenderer = ({ node, children = [], ...props}) => {
         }
         // local link
         else if (props.href.startsWith("/")) {
-            props.href = "#" + props.href;
+            props.href = "#" + props.href.replace("/#/", "/");
         }
     }
     return <a target={target} className={className} {...props}>{label}</a>;
