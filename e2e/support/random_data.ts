@@ -16,6 +16,10 @@ function generateRandomWord(wordLength = randomIntInRange(2, 12)): string {
   return generateAlphaString(wordLength);
 }
 
+export function generateRealmName(): string {
+  return generateRandomWord();
+}
+
 export function generateHashTag(): string {
   return generateRandomWord();
 }

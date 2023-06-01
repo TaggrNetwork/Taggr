@@ -29,7 +29,7 @@ export const Header = ({subtle, route, inboxMode, user}) => {
             <a href="#/home" id="logo" data-testid="home-page-link"></a>
             {user && user.realms.length > 0 && !subtle && <ReactionToggleButton classNameArg="left_half_spaced"
                 pressed={showRealms} onClick={() => { toggleRealms(!showRealms); toggleButtonBar(false) }}
-                icon={<CarretDown classNameArg="large_text" />} />}
+                icon={<CarretDown classNameArg="large_text" />} testId="toggle-realms" />}
             <div className="vcentered max_width_col flex_ended">
                 {!subtle &&  <>
                     {user && !inboxEmpty && <span className="clickable vcentered" onClick={() => location.href = "#/inbox"}>
@@ -73,10 +73,10 @@ export const Header = ({subtle, route, inboxMode, user}) => {
         </div>}
         {loading && <Loading />}
         {inRealm &&
-            <HeadBar title={user.current_realm} shareLink={`realm/${user.current_realm}`} 
+            <HeadBar title={api._user.current_realm} shareLink={`realm/${api._user.current_realm}`} 
                 styleArg={{background: realmBg, color: realmFg}}
                 content={<>
-                    <button style={{background: realmBg}} onClick={() =>location.href = `#/realm/${user.current_realm}`} >
+                    <button style={{background: realmBg}} onClick={() =>location.href = `#/realm/${api._user.current_realm}`} >
                         <Home styleArg={{fill: realmFg}} />
                     </button>
                     <ButtonWithLoading classNameArg="left_half_spaced monospace"

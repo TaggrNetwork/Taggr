@@ -139,9 +139,11 @@ export const RealmForm = ({existingName}) => {
                     alert(`Error: ${response.Err}`);
                     return;
                 }
-                await Promise.all([window.reloadCache(), api._reloadUser(), loadRealm()]);
                 if (!editing) {
-                    api.call("toggle_realm_membership", name);
+                    await api.call("toggle_realm_membership", name);
+                };
+                await Promise.all([window.reloadCache(), api._reloadUser()]);
+                if (!editing) {
                     location.href = `#/realm/${name}`
                 };
             }} label={editing ? "SAVE" : "CREATE"} />

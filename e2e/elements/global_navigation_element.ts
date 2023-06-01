@@ -6,25 +6,33 @@ import {
   NewPostPage,
   InvitesPage,
   WalletPage,
+  RealmListPage,
+  RealmPage,
 } from "../pages";
 
 export class GlobalNavigationElement {
-  public readonly burgerButton: Locator;
+  public readonly toggleRealmsButton: Locator;
+  private readonly burgerButton: Locator;
   private readonly homeLink: Locator;
   private readonly profileLink: Locator;
   private readonly invitesLink: Locator;
   private readonly walletLink: Locator;
+  private readonly realmsLink: Locator;
   private readonly postButton: Locator;
 
   constructor(private readonly page: Page, private readonly user?: CommonUser) {
     this.burgerButton = page.getByTestId("burger-button");
     this.homeLink = page.getByTestId("home-page-link");
-    this.profileLink = page.locator("a:near(header)", {
-      hasText: user?.username ?? "",
-    });
+    this.profileLink = page
+      .locator("a:near(header)", {
+        hasText: user?.username ?? "",
+      })
+      .locator("visible=true");
     this.invitesLink = page.locator("a", { hasText: "INVITES" });
     this.walletLink = page.locator("a", { hasText: "WALLET" });
+    this.realmsLink = page.locator("a", { hasText: "REALMS" });
     this.postButton = page.locator("button", { hasText: "POST" });
+    this.toggleRealmsButton = page.getByTestId("toggle-realms");
   }
 
   public async goToHomePage(): Promise<HomePage> {
@@ -62,8 +70,29 @@ export class GlobalNavigationElement {
 
   public async goToNewPostPage(): Promise<NewPostPage> {
     await this.postButton.click();
-    expect(new URL(this.page.url()).hash).toEqual(`#/new`);
+    expect(new URL(this.page.url()).hash).toEqual("#/new");
 
     return new NewPostPage(this.page);
+  }
+
+  public async goToRealmsPage(): Promise<RealmListPage> {
+    await this.burgerButton.click();
+    await this.realmsLink.click();
+    expect(new URL(this.page.url()).hash).toEqual("#/realms");
+
+    return new RealmListPage(this.page);
+  }
+
+  public async enterRealm(realmName: string): Promise<RealmPage> {
+    await this.toggleRealmsButton.click();
+    await this.page
+      .locator("span:near(header)", {
+        hasText: new RegExp(`^${realmName.toUpperCase()}$`),
+      })
+      .locator("visible=true")
+      .click();
+
+    await this.page.waitForURL(`/#/${realmName.toUpperCase()}/home/`);
+    return new RealmPage(this.page, realmName);
   }
 }
