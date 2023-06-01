@@ -9,7 +9,7 @@ export async function initPost(
   user: CommonUser
 ): Promise<NewPostPage> {
   const globalNavigation = new GlobalNavigationElement(page, user);
-  const newPostPage = await globalNavigation.createNewPost();
+  const newPostPage = await globalNavigation.goToNewPostPage();
   await expect(newPostPage.editor.cycleCost).toHaveText("2");
 
   const postTextContent = generateText();
