@@ -17,6 +17,7 @@ export class PostElement {
   private readonly commentInput: Locator;
   private readonly loadingSpinner: Locator;
   private readonly comments: Locator;
+  private readonly bookmarkButton: Locator;
 
   constructor(private readonly page: Page, public readonly element: Locator) {
     this.editor = new PostEditorElement(page, element.locator("form"));
@@ -25,6 +26,7 @@ export class PostElement {
     this.commentInput = element.getByPlaceholder("Reply here...");
     this.loadingSpinner = element.getByTestId("loading-spinner");
     this.comments = element.getByTestId("post-body");
+    this.bookmarkButton = this.element.getByTestId("bookmark-post");
   }
 
   public async giveComment(): Promise<string> {
@@ -52,6 +54,13 @@ export class PostElement {
 
   public async toggleComments(): Promise<void> {
     return await this.commentsToggleButton.click();
+  }
+
+  public async toggleBookmark(): Promise<void> {
+    await this.infoToggleButton.click();
+    await this.bookmarkButton.click();
+    // wait for the update and read_state calls to complete
+    await this.page.waitForResponse("**/query", { timeout: 6000 });
   }
 
   public getHeartReaction(): Locator {

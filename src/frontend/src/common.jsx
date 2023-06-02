@@ -120,7 +120,7 @@ export const ButtonWithLoading = ({label, onClick, classNameArg, styleArg}) => {
     </button>;
 };
 
-export const ToggleButton = ({toggler, classNameArg, currState, offLabel = "FOLLOW", onLabel = "UNFOLLOW"}) => {
+export const ToggleButton = ({toggler, classNameArg, currState, offLabel = "FOLLOW", onLabel = "UNFOLLOW" , testId = null}) => {
     // -1: not following, 0: unknown, 1: following
     let [status, setStatus] = React.useState(0);
     let on = status == 1 || status == 0 && currState();
@@ -128,7 +128,7 @@ export const ToggleButton = ({toggler, classNameArg, currState, offLabel = "FOLL
         e.preventDefault();
         setStatus(on ? -1 : 1);
         toggler();
-    }}>
+    }} data-testid={testId}>
         {on ? onLabel: offLabel}
     </button>;
 };

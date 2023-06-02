@@ -8,6 +8,7 @@ import {
   WalletPage,
   RealmListPage,
   RealmPage,
+  BookmarksPage,
 } from "../pages";
 
 export class GlobalNavigationElement {
@@ -18,6 +19,7 @@ export class GlobalNavigationElement {
   private readonly invitesLink: Locator;
   private readonly walletLink: Locator;
   private readonly realmsLink: Locator;
+  private readonly bookmarksLink: Locator;
   private readonly postButton: Locator;
 
   constructor(private readonly page: Page, private readonly user?: CommonUser) {
@@ -31,6 +33,7 @@ export class GlobalNavigationElement {
     this.invitesLink = page.locator("a", { hasText: "INVITES" });
     this.walletLink = page.locator("a", { hasText: "WALLET" });
     this.realmsLink = page.locator("a", { hasText: "REALMS" });
+    this.bookmarksLink = page.locator("a", { hasText: "BOOKMARKS" });
     this.postButton = page.locator("button", { hasText: "POST" });
     this.toggleRealmsButton = page.getByTestId("toggle-realms");
   }
@@ -81,6 +84,14 @@ export class GlobalNavigationElement {
     expect(new URL(this.page.url()).hash).toEqual("#/realms");
 
     return new RealmListPage(this.page);
+  }
+
+  public async goToBookmarksPage(): Promise<BookmarksPage> {
+    await this.burgerButton.click();
+    await this.bookmarksLink.click();
+    expect(new URL(this.page.url()).hash).toEqual("#/bookmarks");
+
+    return new BookmarksPage(this.page);
   }
 
   public async enterRealm(realmName: string): Promise<RealmPage> {

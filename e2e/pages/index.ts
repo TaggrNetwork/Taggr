@@ -1,4 +1,5 @@
 export * from "./accept_invite_page";
+export * from './bookmarks_page';
 export * from "./feed_page";
 export * from "./home_page";
 export * from "./internet_identity_page";

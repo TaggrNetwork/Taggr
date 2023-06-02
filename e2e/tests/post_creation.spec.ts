@@ -135,10 +135,10 @@ test("post creation with hashtag", async ({ page, browser }) => {
   await feedPage.goto(hashTag);
 
   const postOne = await feedPage.getPostByContent(postOneContent);
-  await expect(postOne).toBeVisible();
+  await expect(postOne.element).toBeVisible();
 
   const postTwo = await feedPage.getPostByContent(postTwoContent);
-  await expect(postTwo).toBeVisible();
+  await expect(postTwo.element).toBeVisible();
 
   await postOneContext.close();
   await postTwoContext.close();

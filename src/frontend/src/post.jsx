@@ -228,7 +228,8 @@ const PostInfo = ({post, version, postCreated, callback}) => {
             <ToggleButton classNameArg="max_width_col"
                 offLabel={<Save />} onLabel={<Unsave />}
                 currState={() => api._user.bookmarks.includes(post.id)} 
-                toggler={() => api.call("toggle_bookmark", post.id).then(api._reloadUser)} />
+                toggler={() => api.call("toggle_bookmark", post.id).then(api._reloadUser)}
+                testId="bookmark-post" />
             <ButtonWithLoading classNameArg="max_width_col" onClick={async () => {
                 const cycles = prompt(`Tip @${post.user.name} with cycles (tipping fee: ${backendCache.config.tipping_fee}):`, 20);
                 if(cycles == null) return;
