@@ -16,10 +16,10 @@ export class AcceptInvitePage {
 
   constructor(private readonly page: Page, private readonly inviteUrl: string) {
     this.loginWithInternetIdentityButton = page.locator("button", {
-      hasText: "VIA INTERNET IDENTITY",
+      hasText: "INTERNET IDENTITY",
     });
     this.loginWithSeedPhraseButton = page.locator("button", {
-      hasText: "VIA PASSWORD",
+      hasText: "PASSWORD",
     });
     this.seedPhraseInput = page.getByPlaceholder("Enter your password");
     this.seedPhraseJoinButton = page.locator("button", { hasText: "JOIN" });

@@ -64,18 +64,18 @@ export const realmColors = (name, col) => {
         return brightness > 155;
     };
     const effCol = col || (backendCache.realms[name] || [])[0] || "#ffffff";
-    return [effCol, light(effCol) ? "black" : "white"];
+    return {background: effCol, color: light(effCol) ? "black" : "white" };
 };
 
 export const RealmSpan = ({col, name, classNameArg, onClick}) => {
     if (!name) return null;
-    const [background, color] = realmColors(name, col);
+    const {background, color} = realmColors(name, col);
     return <span className={classNameArg || null} onClick={onClick} style={{background, color, whiteSpace: "nowrap"}}>{name}</span>;
 };
 
 
 export const ShareButton = ({classNameArg = null, title = "Check this out", url, styleArg}) => {
-    const effStyle = styleArg || {};
+    const effStyle = {...styleArg} || {};
     effStyle.flex = 0;
     effStyle.fill = effStyle.color;
     return <button className={classNameArg} style={effStyle}

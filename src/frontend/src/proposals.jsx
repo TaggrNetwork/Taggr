@@ -165,7 +165,7 @@ export const Proposal = ({id, postId}) => {
             EXECUTION DEADLINE: {days} DAYS
         </div>}
         <div className="bottom_spaced">
-            <div className="bottom_half_spaced">ADOPTED: <b className={adopted > rejected && open ? "accent" : null}>{token(adopted)}</b> ({percentage(adopted, proposal.voting_power)})</div>
+            <div className="bottom_half_spaced">ACCEPTED: <b className={adopted > rejected && open ? "accent" : null}>{token(adopted)}</b> ({percentage(adopted, proposal.voting_power)})</div>
             <div className="small_text">{users && userList(proposal.bulletins.filter(vote => vote[1]).map(vote => vote[0]))}</div>
         </div>
         <div className="bottom_spaced">
@@ -175,7 +175,7 @@ export const Proposal = ({id, postId}) => {
         {api._user && open && !voted && <>
             <div className="row_container">
                 <ButtonWithLoading onClick={() => vote(proposal, false)} classNameArg="max_width_col large_text" label="REJECT" />
-                <ButtonWithLoading onClick={() => vote(proposal, true)} classNameArg="max_width_col large_text" label="ADOPT" />
+                <ButtonWithLoading onClick={() => vote(proposal, true)} classNameArg="max_width_col large_text" label="ACCEPT" />
             </div>
         </>}
         {api._user && api._user.id == proposal.proposer && open &&

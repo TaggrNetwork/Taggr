@@ -10,14 +10,15 @@ export const Header = ({subtle, route, inboxMode, user}) => {
     const [showButtonBar, toggleButtonBar] = React.useState(false);
     const [showRealms, toggleRealms] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
-    const [inRealm, setInRealm] = React.useState(user && user.current_realm);
+    const [currentRealm, setCurrentRealm] = React.useState(user && user.current_realm);
+    const [colors, setColors] = React.useState(realmColors(user?.current_realm));
     const [messages, setMessages] = React.useState(0);
-    const [realmBg, realmFg] = realmColors(user?.current_realm);
     const inboxEmpty = !user || messages == 0;
     const refreshMessageCounter = () => setMessages(user ? Object.keys(user.inbox).length : 0);
     React.useEffect(() => { document.getElementById("logo").innerHTML = backendCache.config.logo; }, []);
     React.useEffect(() => { toggleButtonBar(false); toggleRealms(false); }, [route]);
     React.useEffect(refreshMessageCounter, [user]);
+    React.useEffect(() => setColors(realmColors(currentRealm)), [currentRealm]);
     React.useEffect(() => {
         if (inboxMode) interval = setInterval(refreshMessageCounter, 1000);
         else clearInterval(interval);
@@ -48,7 +49,7 @@ export const Header = ({subtle, route, inboxMode, user}) => {
         {showLogins && <LoginMasks />}
         {showButtonBar && <div className="two_column_grid_flex monospace top_spaced stands_out" style={{ rowGap: "1em" }}>
             {user && <a className="iconed" onClick={() => toggleButtonBar(!showButtonBar)} href={`/#/journal/${user.name}`}><Journal /> JOURNAL</a>}
-            {user && <a className="iconed" onClick={() => toggleButtonBar(!showButtonBar)} href={`/#/user/${user.name}`}><User /> {api._user.name.toUpperCase()}</a>}
+            {user && <a className="iconed" onClick={() => toggleButtonBar(!showButtonBar)} href={`/#/user/${user.name}`}><User /> {user.name.toUpperCase()}</a>}
             {user && <a className="iconed" onClick={() => toggleButtonBar(!showButtonBar)} href={`/#/realms`}><Realm /> REALMS</a>}
             {user && <a className="iconed" onClick={() => toggleButtonBar(!showButtonBar)} href={`/#/bookmarks`}><Save /> BOOKMARKS</a>}
             {user && <a className="iconed" onClick={() => toggleButtonBar(!showButtonBar)} href="/#/wallet"><Wallet /> WALLET</a>}
@@ -67,28 +68,26 @@ export const Header = ({subtle, route, inboxMode, user}) => {
                     setLoading(true);
                     toggleRealms(false);
                     await api.call("enter_realm", realm);
-                    api._reloadUser().then(() => setInRealm(realm)).then(() => setLoading(false));
+                    api._reloadUser().then(() => setCurrentRealm(realm)).then(() => setLoading(false));
                     location.href = `/#/${realm}/home/`;
                 }} name={realm} />)}
         </div>}
         {loading && <Loading />}
-        {inRealm &&
-            <HeadBar title={api._user.current_realm} shareLink={`realm/${api._user.current_realm}`} 
-                styleArg={{background: realmBg, color: realmFg}}
-                content={<>
-                    <button style={{background: realmBg}} onClick={() =>location.href = `#/realm/${api._user.current_realm}`} >
-                        <Home styleArg={{fill: realmFg}} />
+        {currentRealm &&
+            <HeadBar title={currentRealm} shareLink={`realm/${currentRealm.toLowerCase()}`} 
+                styleArg={colors} content={<>
+                    <button style={colors} onClick={() =>location.href = `#/realm/${currentRealm}`} >
+                        <Home styleArg={{fill: colors.color}} />
                     </button>
-                    <ButtonWithLoading classNameArg="left_half_spaced monospace"
-                        styleArg={{background: realmBg, color: realmFg}}
+                    <ButtonWithLoading classNameArg="left_half_spaced monospace" styleArg={colors}
                         onClick={async () =>{
                             setLoading(true);
-                            setInRealm("");
+                            setCurrentRealm("");
                             await api.call("enter_realm", "");
                             api._reloadUser().then(() => setLoading(false));
                             location.href = "/#/main";
                         }}
-                        label={<div className="vcentered"><Close styleArg={{fill: realmFg}} small={true} /></div>}
+                        label={<div className="vcentered"><Close styleArg={{fill: colors.color}} small={true} /></div>}
                     />
                 </>}
             />}

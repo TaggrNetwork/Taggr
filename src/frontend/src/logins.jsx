@@ -7,7 +7,7 @@ import {II_URL, II_DERIVATION_URL} from "./env";
 export const authMethods = [
     {
         icon: <Infinity />,
-        label: "VIA INTERNET IDENTITY",
+        label: "INTERNET IDENTITY",
         login: () => {
             if ((location.href.includes(".raw") || location.href.includes("share.")) &&
                 confirm("You're using the uncertified insecure frontend. Do you want to be re-routed to the certified one?")) {
@@ -25,7 +25,7 @@ export const authMethods = [
     },
     {
         icon: <Incognito />,
-        label: "VIA PASSWORD",
+        label: "PASSWORD",
         login: async () => <SeedPhraseForm callback={async seed => {
             if(!seed) return;
             const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', (new TextEncoder()).encode(seed)));
@@ -51,7 +51,7 @@ export const LoginMasks = ({}) => {
         <button key={i} className={`large_text active left_half_spaced right_half_spaced ` +
             `${!bigScreen() ? "bottom_spaced" :""}`}
             onClick={async () => setMask(await method.login())}>
-            {`${method.label}`} {method.icon}
+            {method.icon} {`${method.label}`}
         </button>)}
     </div>;
 }

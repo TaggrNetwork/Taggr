@@ -1140,7 +1140,7 @@ impl State {
                 None,
                 Some(Extension::Poll(Poll {
                     deadline: 72,
-                    options: vec!["ADOPT".into(), "REJECT".into()],
+                    options: vec!["ACCEPT".into(), "REJECT".into()],
                     ..Default::default()
                 })),
             )
@@ -1473,18 +1473,16 @@ impl State {
     }
 
     pub fn recent_tags(&self, principal: Principal, n: u64) -> Vec<(String, u64)> {
-        // normalized hashtag -> (user spelled hashtag, unique users, occurences)
-        let mut tags: HashMap<String, (String, HashSet<UserId>, u64)> = Default::default();
+        // normalized hashtag -> (user spelled hashtag, occurences)
+        let mut tags: HashMap<String, (String, u64)> = Default::default();
         let mut tags_found = 0;
         'OUTER: for post in self.last_posts(principal, true) {
             for tag in &post.tags {
-                let (_, users, counter) =
-                    tags.entry(tag.to_lowercase())
-                        .or_insert((tag.clone(), Default::default(), 0));
-                if users.contains(&post.user) {
+                let (_, counter) = tags.entry(tag.to_lowercase()).or_insert((tag.clone(), 0));
+                // We only count tags occurences on root posts, if they have comments or reactions
+                if post.parent.is_some() || post.reactions.is_empty() && post.children.is_empty() {
                     continue;
                 }
-                users.insert(post.user);
                 *counter += 1;
                 if *counter == 2 {
                     tags_found += 1;
@@ -1495,8 +1493,7 @@ impl State {
             }
         }
         tags.into_iter()
-            .map(|(_, (tag, _, counter))| (tag, counter))
-            .filter(|(_, counter)| *counter > 1)
+            .filter_map(|(_, (tag, count))| (count > 1).then_some((tag, count)))
             .collect()
     }
 
