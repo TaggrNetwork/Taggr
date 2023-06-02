@@ -29,6 +29,7 @@ impl Api {
         Ok((offset, buffer.len() as u64))
     }
 
+    #[allow(dead_code)]
     pub fn remove(&mut self, offset: u64, len: u64) -> Result<(), String> {
         self.allocator.free(offset, len)
     }
@@ -243,21 +244,25 @@ impl Allocator {
 pub struct ObjectManager<K: Ord + Eq> {
     index: BTreeMap<K, (u64, u64)>,
     #[serde(skip)]
+    #[allow(dead_code)]
     api: Rc<RefCell<Api>>,
 }
 
 impl<K: Eq + Ord + Clone + Display> ObjectManager<K> {
+    #[allow(dead_code)]
     pub fn insert<T: Serialize>(&mut self, id: K, value: T) -> Result<(), String> {
         self.index.insert(id, self.api.borrow_mut().write(&value)?);
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn get<T: DeserializeOwned>(&self, id: &K) -> Option<T> {
         self.index
             .get(id)
             .map(|(offset, len)| Api::read(*offset, *len))
     }
 
+    #[allow(dead_code)]
     pub fn remove<T: DeserializeOwned>(&mut self, id: &K) -> Result<T, String> {
         let (offset, len) = self.index.remove(id).ok_or("not found")?;
         let value = Api::read(offset, len);

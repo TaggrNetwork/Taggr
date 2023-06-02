@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
+use crate::{mutate, read};
+
 use super::canisters::call_canister;
 
 const INVOICE_MAX_AGE_HOURS: u64 = 24 * super::HOUR;
@@ -44,7 +46,7 @@ impl Invoices {
             .retain(|_, invoice| time() - invoice.time < INVOICE_MAX_AGE_HOURS)
     }
 
-    async fn create_invoice(&mut self, invoice_id: Principal) -> Result<Invoice, String> {
+    async fn create(invoice_id: Principal) -> Result<Invoice, String> {
         let time = time();
         let sub_account = principal_to_subaccount(&invoice_id);
         let account = AccountIdentifier::new(&id(), &sub_account);
@@ -56,7 +58,6 @@ impl Invoices {
             account,
             sub_account,
         };
-        self.invoices.insert(invoice_id, invoice.clone());
         Ok(invoice)
     }
 
@@ -64,36 +65,38 @@ impl Invoices {
         self.invoices.remove(invoice_id);
     }
 
-    pub async fn outstanding(
-        &mut self,
-        invoice_id: &Principal,
-        kilo_cycles: u64,
-    ) -> Result<Invoice, String> {
-        let invoice = match self.invoices.get_mut(invoice_id) {
+    pub async fn outstanding(invoice_id: &Principal, kilo_cycles: u64) -> Result<Invoice, String> {
+        let invoice = match read(|state| state.accounting.invoices.get(invoice_id).cloned()) {
             Some(invoice) => invoice,
             None => {
-                let invoice = self.create_invoice(*invoice_id).await?;
-                self.invoices.insert(*invoice_id, invoice);
-                let invoice = self.invoices.get_mut(invoice_id).expect("no invoice found");
-                if kilo_cycles == 0 {
-                    return Ok(invoice.clone());
-                }
+                let invoice = Invoices::create(*invoice_id).await?;
+                mutate(|state| {
+                    state
+                        .accounting
+                        .invoices
+                        .insert(*invoice_id, invoice.clone());
+                });
                 invoice
             }
         };
         if invoice.paid {
-            return Ok(invoice.clone());
+            return Ok(invoice);
         }
         let balance = account_balance(invoice.account).await;
         let costs = Tokens::from_e8s(kilo_cycles.max(1) * invoice.e8s);
         if balance >= costs {
             transfer(main_account(), costs, Memo(999), Some(invoice.sub_account)).await?;
-            invoice.paid = true;
-            invoice.paid_e8s = costs.e8s();
+            mutate(|state| {
+                if let Some(invoice) = state.accounting.invoices.get_mut(invoice_id) {
+                    invoice.paid = true;
+                    invoice.paid_e8s = costs.e8s();
+                }
+            });
         } else if kilo_cycles > 0 {
             return Err("ICP balance too low".into());
         }
-        Ok(invoice.clone())
+        read(|state| state.accounting.invoices.get(invoice_id).cloned())
+            .ok_or("no invoice found".into())
     }
 }
 

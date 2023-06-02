@@ -145,7 +145,7 @@ fn icrc1_balance_of(mut account: Account) -> u128 {
     {
         account.subaccount = None
     };
-    state().balances.get(&account).copied().unwrap_or_default() as u128
+    read(|state| state.balances.get(&account).copied().unwrap_or_default() as u128)
 }
 
 #[query]
@@ -165,7 +165,7 @@ fn icrc1_transfer(args: TransferArgs) -> Result<u128, TransferError> {
             message: "No transfers from the minting account possible.".into(),
         }));
     }
-    transfer(time(), state_mut(), owner, args)
+    mutate(|state| transfer(time(), state, owner, args))
 }
 
 fn transfer(

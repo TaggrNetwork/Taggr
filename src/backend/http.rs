@@ -1,6 +1,7 @@
-use super::{assets, state};
+use super::assets;
 use crate::assets::{index_html_headers, INDEX_HTML};
 use crate::post::Post;
+use crate::read;
 use crate::{config::CONFIG, metadata::set_metadata};
 use ic_cdk::export::candid::CandidType;
 use serde::{Deserialize, Serialize};
@@ -57,84 +58,85 @@ fn http_request(req: HttpRequest) -> HttpResponse {
 }
 
 fn route(path: &str) -> Option<(Headers, ByteBuf)> {
-    let state = state();
-    let domain = CONFIG.domains.first().cloned().expect("no domains");
-    let filter = |val: &str| {
-        val.chars()
-            .filter(|c| c.is_alphanumeric() || " .,?!-:/@\n#".chars().any(|v| &v == c))
-            .collect::<String>()
-    };
-    let mut parts = path.split('/').skip(1);
-    match (parts.next(), parts.next()) {
-        (Some("post"), Some(id)) | (Some("thread"), Some(id)) => {
-            if let Some(post) =
-                Post::get(state, &id.parse::<u64>().expect("couldn't parse post id"))
-            {
-                return index(
-                    domain,
-                    &format!(
-                        "{}/{}",
-                        match post.parent {
-                            None => "post",
-                            _ => "thread",
-                        },
-                        post.id
-                    ),
-                    &format!(
-                        "{} #{} by @{}",
-                        match post.parent {
-                            None => "Post",
-                            _ => "Reply",
-                        },
-                        post.id,
-                        state.users.get(&post.user)?.name
-                    ),
-                    &filter(&post.body),
-                    "article",
-                );
+    read(|state| {
+        let domain = CONFIG.domains.first().cloned().expect("no domains");
+        let filter = |val: &str| {
+            val.chars()
+                .filter(|c| c.is_alphanumeric() || " .,?!-:/@\n#".chars().any(|v| &v == c))
+                .collect::<String>()
+        };
+        let mut parts = path.split('/').skip(1);
+        match (parts.next(), parts.next()) {
+            (Some("post"), Some(id)) | (Some("thread"), Some(id)) => {
+                if let Some(post) =
+                    Post::get(state, &id.parse::<u64>().expect("couldn't parse post id"))
+                {
+                    return index(
+                        domain,
+                        &format!(
+                            "{}/{}",
+                            match post.parent {
+                                None => "post",
+                                _ => "thread",
+                            },
+                            post.id
+                        ),
+                        &format!(
+                            "{} #{} by @{}",
+                            match post.parent {
+                                None => "Post",
+                                _ => "Reply",
+                            },
+                            post.id,
+                            state.users.get(&post.user)?.name
+                        ),
+                        &filter(&post.body),
+                        "article",
+                    );
+                }
+                None
             }
-            None
-        }
-        (Some("journal"), Some(handle)) => {
-            let user = state.user(handle)?;
-            index(
+            (Some("journal"), Some(handle)) => {
+                let user = state.user(handle)?;
+                index(
+                    domain,
+                    &format!("journal/{}", user.name),
+                    &format!("@{}'s journal", user.name),
+                    &filter(&user.about),
+                    "website",
+                )
+            }
+            (Some("user"), Some(handle)) => {
+                let user = state.user(handle)?;
+                index(
+                    domain,
+                    &format!("user/{}", user.name),
+                    &format!("User @{}", user.name),
+                    &filter(&user.about),
+                    "profile",
+                )
+            }
+            (Some("realm"), Some(arg)) => {
+                let id = arg.to_uppercase();
+                let realm = state.realms.get(&id)?;
+                index(
+                    domain,
+                    &format!("realm/{}", id),
+                    &format!("Realm {}", id),
+                    &filter(&realm.description),
+                    "website",
+                )
+            }
+            (Some("feed"), Some(filter)) => index(
                 domain,
-                &format!("journal/{}", user.name),
-                &format!("@{}'s journal", user.name),
-                &filter(&user.about),
+                &format!("feed/{}", filter),
+                filter,
+                &format!("Latest posts on {}", filter),
                 "website",
-            )
+            ),
+            _ => assets::asset("/"),
         }
-        (Some("user"), Some(handle)) => {
-            let user = state.user(handle)?;
-            index(
-                domain,
-                &format!("user/{}", user.name),
-                &format!("User @{}", user.name),
-                &filter(&user.about),
-                "profile",
-            )
-        }
-        (Some("realm"), Some(arg)) => {
-            let id = arg.to_uppercase();
-            let realm = state.realms.get(&id)?;
-            index(
-                domain,
-                &format!("realm/{}", id),
-                &format!("Realm {}", id),
-                &filter(&realm.description),
-                "website",
-            )
-        }
-        (Some("feed"), Some(filter)) => index(
-            domain,
-            &format!("feed/{}", filter),
-            filter,
-            &format!("Latest posts on {}", filter),
-            "website",
-        ),
-        _ => assets::asset("/"),
-    }
+    })
 }
 
 fn index(

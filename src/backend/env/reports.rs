@@ -138,258 +138,243 @@ pub fn finalize_report(
 mod tests {
 
     use super::*;
-    use crate::env::tests::*;
+    use crate::{env::tests::*, mutate, STATE};
 
     #[actix_rt::test]
     async fn test_reporting() {
-        let mut state = State::default();
+        let (u1, p) = STATE.with(|cell| {
+            cell.replace(Default::default());
+            let state = &mut *cell.borrow_mut();
 
-        let p = pr(0);
-        let u1 = create_user(&mut state, p);
-        let user = state.users.get_mut(&u1).unwrap();
-        user.change_karma(100, "");
+            let p = pr(0);
+            let u1 = create_user(state, p);
+            let user = state.users.get_mut(&u1).unwrap();
+            user.change_karma(100, "");
 
-        assert_eq!(user.inbox.len(), 1);
-        assert_eq!(user.cycles(), 1000);
-        assert_eq!(user.karma_to_reward(), 100);
+            assert_eq!(user.inbox.len(), 1);
+            assert_eq!(user.cycles(), 1000);
+            assert_eq!(user.karma_to_reward(), 100);
 
-        for i in 1..20 {
-            let id = create_user(&mut state, pr(i as u8));
-            let user = state.users.get_mut(&id).unwrap();
-            user.stalwart = true;
-        }
+            for i in 1..20 {
+                let id = create_user(state, pr(i as u8));
+                let user = state.users.get_mut(&id).unwrap();
+                user.stalwart = true;
+            }
+            (u1, p)
+        });
 
-        let post_id = Post::create(
-            &mut state,
-            "bad post".to_string(),
-            vec![],
-            p,
-            0,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
+        let post_id = Post::create("bad post".to_string(), vec![], p, 0, None, None, None)
+            .await
+            .unwrap();
 
-        let user = state.users.get(&u1).unwrap();
-        assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
+        mutate(|state| {
+            let user = state.users.get(&u1).unwrap();
+            assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
 
-        let p = Post::get(&state, &post_id).unwrap();
-        assert!(p.report.is_none());
+            let p = Post::get(state, &post_id).unwrap();
+            assert!(p.report.is_none());
+        });
 
         let reporter = pr(7);
         // The reporter can only be a user with at least one post.
-        let _ = Post::create(
-            &mut state,
-            "some post".to_string(),
-            vec![],
-            pr(7),
-            0,
-            None,
-            None,
-            None,
-        )
-        .await;
+        let _ = Post::create("some post".to_string(), vec![], pr(7), 0, None, None, None).await;
 
-        // report should work becasue theuser needs 500 cycles
-        let reporter_user = state.principal_to_user_mut(reporter).unwrap();
-        assert_eq!(reporter_user.cycles(), 998);
-        reporter_user
-            .change_cycles(998, CyclesDelta::Minus, "")
-            .unwrap();
-        assert_eq!(reporter_user.cycles(), 0);
-        assert_eq!(
-            state.report(reporter, "post".into(), post_id, String::new()),
-            Err("You need at least 100 cycles for this report".into())
-        );
-        let p = Post::get(&state, &post_id).unwrap();
-        assert!(&p.report.is_none());
+        mutate(|state| {
+            // report should work becasue theuser needs 500 cycles
+            let reporter_user = state.principal_to_user_mut(reporter).unwrap();
+            assert_eq!(reporter_user.cycles(), 998);
+            reporter_user
+                .change_cycles(998, CyclesDelta::Minus, "")
+                .unwrap();
+            assert_eq!(reporter_user.cycles(), 0);
+            assert_eq!(
+                state.report(reporter, "post".into(), post_id, String::new()),
+                Err("You need at least 100 cycles for this report".into())
+            );
+            let p = Post::get(state, &post_id).unwrap();
+            assert!(&p.report.is_none());
 
-        let reporter_user = state.principal_to_user_mut(reporter).unwrap();
-        reporter_user
-            .change_cycles(500, CyclesDelta::Plus, "")
-            .unwrap();
-        assert_eq!(reporter_user.cycles(), 500);
-        state
-            .report(reporter, "post".into(), post_id, String::new())
-            .unwrap();
+            let reporter_user = state.principal_to_user_mut(reporter).unwrap();
+            reporter_user
+                .change_cycles(500, CyclesDelta::Plus, "")
+                .unwrap();
+            assert_eq!(reporter_user.cycles(), 500);
+            state
+                .report(reporter, "post".into(), post_id, String::new())
+                .unwrap();
 
-        // make sure the reporter is correct
-        let p = Post::get(&state, &post_id).unwrap();
-        let report = &p.report.clone().unwrap();
-        assert!(report.reporter == state.principal_to_user(reporter).unwrap().id);
+            // make sure the reporter is correct
+            let p = Post::get(state, &post_id).unwrap();
+            let report = &p.report.clone().unwrap();
+            assert!(report.reporter == state.principal_to_user(reporter).unwrap().id);
 
-        // Another user cannot overwrite the report
-        assert_eq!(
-            state.report(pr(8), "post".into(), post_id, String::new()),
-            Err("this post is already reported".into())
-        );
-        // the reporter is stil lthe same
-        assert!(report.reporter == state.principal_to_user(reporter).unwrap().id);
+            // Another user cannot overwrite the report
+            assert_eq!(
+                state.report(pr(8), "post".into(), post_id, String::new()),
+                Err("this post is already reported".into())
+            );
+            // the reporter is stil lthe same
+            assert!(report.reporter == state.principal_to_user(reporter).unwrap().id);
 
-        // stalwart 3 confirmed the report
-        state
-            .vote_on_report(pr(3), "post".into(), post_id, true)
-            .unwrap();
-        let p = Post::get(&state, &post_id).unwrap();
-        let report = &p.report.clone().unwrap();
-        assert_eq!(report.confirmed_by.len(), 1);
-        assert_eq!(report.rejected_by.len(), 0);
-        // repeated confirmation is a noop
-        assert!(state
-            .vote_on_report(pr(3), "post".into(), post_id, true)
-            .is_err());
-        let p = Post::get(&state, &post_id).unwrap();
-        let report = &p.report.clone().unwrap();
-        assert_eq!(report.confirmed_by.len(), 1);
-        assert!(!report.closed);
+            // stalwart 3 confirmed the report
+            state
+                .vote_on_report(pr(3), "post".into(), post_id, true)
+                .unwrap();
+            let p = Post::get(state, &post_id).unwrap();
+            let report = &p.report.clone().unwrap();
+            assert_eq!(report.confirmed_by.len(), 1);
+            assert_eq!(report.rejected_by.len(), 0);
+            // repeated confirmation is a noop
+            assert!(state
+                .vote_on_report(pr(3), "post".into(), post_id, true)
+                .is_err());
+            let p = Post::get(state, &post_id).unwrap();
+            let report = &p.report.clone().unwrap();
+            assert_eq!(report.confirmed_by.len(), 1);
+            assert!(!report.closed);
 
-        // stalwart 6 rejected the report
-        state
-            .vote_on_report(pr(6), "post".into(), post_id, false)
-            .unwrap();
-        let p = Post::get(&state, &post_id).unwrap();
-        let report = &p.report.clone().unwrap();
-        assert_eq!(report.confirmed_by.len(), 1);
-        assert_eq!(report.rejected_by.len(), 1);
-        assert!(!report.closed);
+            // stalwart 6 rejected the report
+            state
+                .vote_on_report(pr(6), "post".into(), post_id, false)
+                .unwrap();
+            let p = Post::get(state, &post_id).unwrap();
+            let report = &p.report.clone().unwrap();
+            assert_eq!(report.confirmed_by.len(), 1);
+            assert_eq!(report.rejected_by.len(), 1);
+            assert!(!report.closed);
 
-        // make sure post still exists
-        assert_eq!(&p.body, "bad post");
+            // make sure post still exists
+            assert_eq!(&p.body, "bad post");
 
-        // stalwarts 12 & 13 confirmed too
-        state
-            .vote_on_report(pr(12), "post".into(), post_id, true)
-            .unwrap();
-        let p = Post::get(&state, &post_id).unwrap();
-        let report = &p.report.clone().unwrap();
-        assert_eq!(report.confirmed_by.len(), 2);
-        assert_eq!(report.rejected_by.len(), 1);
+            // stalwarts 12 & 13 confirmed too
+            state
+                .vote_on_report(pr(12), "post".into(), post_id, true)
+                .unwrap();
+            let p = Post::get(state, &post_id).unwrap();
+            let report = &p.report.clone().unwrap();
+            assert_eq!(report.confirmed_by.len(), 2);
+            assert_eq!(report.rejected_by.len(), 1);
 
-        // stalwart has no karma to reward
-        assert_eq!(state.principal_to_user(pr(3)).unwrap().karma_to_reward(), 0);
+            // stalwart has no karma to reward
+            assert_eq!(state.principal_to_user(pr(3)).unwrap().karma_to_reward(), 0);
 
-        state
-            .vote_on_report(pr(13), "post".into(), post_id, true)
-            .unwrap();
-        let p = Post::get(&state, &post_id).unwrap();
-        let report = &p.report.clone().unwrap();
-        assert_eq!(report.confirmed_by.len(), 3);
-        assert_eq!(report.rejected_by.len(), 1);
+            state
+                .vote_on_report(pr(13), "post".into(), post_id, true)
+                .unwrap();
+            let p = Post::get(state, &post_id).unwrap();
+            let report = &p.report.clone().unwrap();
+            assert_eq!(report.confirmed_by.len(), 3);
+            assert_eq!(report.rejected_by.len(), 1);
 
-        // make sure the report is closed and post deleted
-        assert!(report.closed);
-        assert_eq!(&p.body, "");
+            // make sure the report is closed and post deleted
+            assert!(report.closed);
+            assert_eq!(&p.body, "");
 
-        let user = state.users.get(&u1).unwrap();
-        assert_eq!(user.inbox.len(), 2);
-        assert_eq!(
-            user.cycles(),
-            1000 - CONFIG.reporting_penalty_post - CONFIG.post_cost
-        );
-        assert_eq!(user.karma(), -75);
+            let user = state.users.get(&u1).unwrap();
+            assert_eq!(user.inbox.len(), 2);
+            assert_eq!(
+                user.cycles(),
+                1000 - CONFIG.reporting_penalty_post - CONFIG.post_cost
+            );
+            assert_eq!(user.karma(), -75);
 
-        let reporter = state.principal_to_user(reporter).unwrap();
-        assert_eq!(
-            reporter.karma_to_reward(),
-            CONFIG.reporting_penalty_post as Karma / 2
-        );
-        // stalwarts rewarded too
-        assert_eq!(
-            state.principal_to_user(pr(3)).unwrap().karma_to_reward(),
-            CONFIG.stalwart_moderation_reward as Karma
-        );
-        assert_eq!(
-            state.principal_to_user(pr(6)).unwrap().karma_to_reward(),
-            CONFIG.stalwart_moderation_reward as Karma
-        );
-        assert_eq!(
-            state.principal_to_user(pr(12)).unwrap().karma_to_reward(),
-            CONFIG.stalwart_moderation_reward as Karma
-        );
+            let reporter = state.principal_to_user(reporter).unwrap();
+            assert_eq!(
+                reporter.karma_to_reward(),
+                CONFIG.reporting_penalty_post as Karma / 2
+            );
+            // stalwarts rewarded too
+            assert_eq!(
+                state.principal_to_user(pr(3)).unwrap().karma_to_reward(),
+                CONFIG.stalwart_moderation_reward as Karma
+            );
+            assert_eq!(
+                state.principal_to_user(pr(6)).unwrap().karma_to_reward(),
+                CONFIG.stalwart_moderation_reward as Karma
+            );
+            assert_eq!(
+                state.principal_to_user(pr(12)).unwrap().karma_to_reward(),
+                CONFIG.stalwart_moderation_reward as Karma
+            );
+        });
 
         // REJECTION TEST
 
-        let p = pr(100);
-        let u = create_user(&mut state, p);
-        let user = state.users.get_mut(&u).unwrap();
-        user.change_karma(100, "");
-        let post_id = Post::create(
-            &mut state,
-            "good post".to_string(),
-            vec![],
-            p,
-            0,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
-        let user = state.users.get(&u).unwrap();
-        assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
-
-        let reporter = pr(7);
-        state
-            .report(reporter, "post".into(), post_id, String::new())
+        let (u, p) = mutate(|state| {
+            let p = pr(100);
+            let u = create_user(state, p);
+            let user = state.users.get_mut(&u).unwrap();
+            user.change_karma(100, "");
+            (u, p)
+        });
+        let post_id = Post::create("good post".to_string(), vec![], p, 0, None, None, None)
+            .await
             .unwrap();
-        // set cycles to 777
-        let reporter_user = state.principal_to_user_mut(reporter).unwrap();
-        reporter_user
-            .change_cycles(777 - reporter_user.cycles(), CyclesDelta::Plus, "")
-            .unwrap();
-        assert_eq!(reporter_user.cycles(), 777);
-        reporter_user.apply_rewards();
-        assert_eq!(reporter_user.karma(), 125);
 
-        state
-            .vote_on_report(pr(6), "post".into(), post_id, false)
-            .unwrap();
-        let p = Post::get(&state, &post_id).unwrap();
-        let report = &p.report.clone().unwrap();
-        assert_eq!(report.confirmed_by.len(), 0);
-        assert_eq!(report.rejected_by.len(), 1);
-        assert!(!report.closed);
-        assert_eq!(&p.body, "good post");
+        mutate(|state| {
+            let user = state.users.get(&u).unwrap();
+            assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
 
-        state
-            .vote_on_report(pr(9), "post".into(), post_id, false)
-            .unwrap();
-        let p = Post::get(&state, &post_id).unwrap();
-        let report = &p.report.clone().unwrap();
-        assert_eq!(report.confirmed_by.len(), 0);
-        assert_eq!(report.rejected_by.len(), 2);
+            let reporter = pr(7);
+            state
+                .report(reporter, "post".into(), post_id, String::new())
+                .unwrap();
+            // set cycles to 777
+            let reporter_user = state.principal_to_user_mut(reporter).unwrap();
+            reporter_user
+                .change_cycles(777 - reporter_user.cycles(), CyclesDelta::Plus, "")
+                .unwrap();
+            assert_eq!(reporter_user.cycles(), 777);
+            reporter_user.apply_rewards();
+            assert_eq!(reporter_user.karma(), 125);
 
-        state
-            .vote_on_report(pr(10), "post".into(), post_id, false)
-            .unwrap();
-        let p = Post::get(&state, &post_id).unwrap();
-        let report = &p.report.clone().unwrap();
-        assert_eq!(report.confirmed_by.len(), 0);
-        assert_eq!(report.rejected_by.len(), 3);
-        assert!(report.closed);
+            state
+                .vote_on_report(pr(6), "post".into(), post_id, false)
+                .unwrap();
+            let p = Post::get(state, &post_id).unwrap();
+            let report = &p.report.clone().unwrap();
+            assert_eq!(report.confirmed_by.len(), 0);
+            assert_eq!(report.rejected_by.len(), 1);
+            assert!(!report.closed);
+            assert_eq!(&p.body, "good post");
 
-        // karma and cycles stay untouched
-        let user = state.users.get(&u).unwrap();
-        assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
-        assert_eq!(user.karma_to_reward(), 100);
+            state
+                .vote_on_report(pr(9), "post".into(), post_id, false)
+                .unwrap();
+            let p = Post::get(state, &post_id).unwrap();
+            let report = &p.report.clone().unwrap();
+            assert_eq!(report.confirmed_by.len(), 0);
+            assert_eq!(report.rejected_by.len(), 2);
 
-        // reported got penalized
-        let reporter = state.principal_to_user(reporter).unwrap();
-        let unit = CONFIG.reporting_penalty_post / 2;
-        assert_eq!(reporter.cycles(), 777 - 2 * unit);
-        assert_eq!(reporter.karma(), 25);
+            state
+                .vote_on_report(pr(10), "post".into(), post_id, false)
+                .unwrap();
+            let p = Post::get(state, &post_id).unwrap();
+            let report = &p.report.clone().unwrap();
+            assert_eq!(report.confirmed_by.len(), 0);
+            assert_eq!(report.rejected_by.len(), 3);
+            assert!(report.closed);
 
-        assert_eq!(
-            state.principal_to_user(pr(9)).unwrap().karma_to_reward(),
-            CONFIG.stalwart_moderation_reward as Karma
-        );
-        // he voted twice
-        assert_eq!(
-            state.principal_to_user(pr(6)).unwrap().karma_to_reward(),
-            CONFIG.stalwart_moderation_reward as Karma * 2
-        );
+            // karma and cycles stay untouched
+            let user = state.users.get(&u).unwrap();
+            assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
+            assert_eq!(user.karma_to_reward(), 100);
+
+            // reported got penalized
+            let reporter = state.principal_to_user(reporter).unwrap();
+            let unit = CONFIG.reporting_penalty_post / 2;
+            assert_eq!(reporter.cycles(), 777 - 2 * unit);
+            assert_eq!(reporter.karma(), 25);
+
+            assert_eq!(
+                state.principal_to_user(pr(9)).unwrap().karma_to_reward(),
+                CONFIG.stalwart_moderation_reward as Karma
+            );
+            // he voted twice
+            assert_eq!(
+                state.principal_to_user(pr(6)).unwrap().karma_to_reward(),
+                CONFIG.stalwart_moderation_reward as Karma * 2
+            );
+        })
     }
 }
