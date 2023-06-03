@@ -134,7 +134,7 @@ export const Wallet = () => {
                         />
                     </code>}
                     {transferStatus && <code className="max_width_col">{transferStatus}</code>}
-                    <code><ICPAccountBalance heartbeat={new Date()} address={user.account} units={false} decimals={true} /></code>
+                    <code data-testid="icp-amount"><ICPAccountBalance heartbeat={new Date()} address={user.account} units={false} decimals={true} /></code>
                 </div>
                 <div className="vcentered top_spaced">
                     <div className="monospace max_width_col">
@@ -168,7 +168,7 @@ export const Wallet = () => {
                     <div className="max_width_col">
                         {mintStatus && <code>{mintStatus}</code>}
                     </div>
-                    <code className="xx_large_text">{user.cycles.toLocaleString()}</code>
+                    <code className="xx_large_text" data-testid="cycles-amount">{user.cycles.toLocaleString()}</code>
                 </div>
             </div>
             <div className="stands_out">

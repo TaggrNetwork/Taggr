@@ -192,7 +192,7 @@ pub async fn get_xdr_in_e8s() -> Result<u64, String> {
     )
     .await
     .map_err(|err| format!("couldn't get ICP/XDR ratio: {:?}", err))?;
-    Ok((100000000.0 / xdr_permyriad_per_icp as f64) as u64 * 10000)
+    Ok((100_000_000.0 / xdr_permyriad_per_icp as f64) as u64 * 10_000)
 }
 
 pub async fn topup_with_icp(canister_id: &Principal, xdrs: u64) -> Result<u128, String> {

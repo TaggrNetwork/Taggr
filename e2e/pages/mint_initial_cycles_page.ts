@@ -1,5 +1,6 @@
 import { AccountIdentifier } from "@dfinity/nns";
 import { Locator, Page } from "@playwright/test";
+import { icpToE8s } from "../support";
 
 export class MintInitialCyclesPage {
   public readonly createUserButton: Locator;
@@ -26,8 +27,7 @@ export class MintInitialCyclesPage {
   public async getIcpAmount(): Promise<bigint> {
     const icpAmount = await this.icpAmountElement.textContent();
 
-    // convert ICP to e8s
-    return BigInt(Math.floor(Number(icpAmount) * 10 ** 8));
+    return icpToE8s(Number(icpAmount));
   }
 
   public async getIcpAccount(): Promise<AccountIdentifier> {

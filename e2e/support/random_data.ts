@@ -6,7 +6,7 @@ const generateAlphanumericalString = customAlphabet(
   "0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvxzy"
 );
 
-function randomIntInRange(low = 0, high = 10): number {
+export function randomIntInRange(low = 0, high = 10): number {
   const offset = high - low;
 
   return Math.floor(Math.random() * offset + low);
@@ -34,8 +34,10 @@ export function generateText(numWords = 30): string {
   return text.trim();
 }
 
-export function generateUsername(): string {
-  const username = generateAlphanumericalString(14);
+export function generateUsername(
+  usernameLength = randomIntInRange(2, 16)
+): string {
+  const username = generateAlphanumericalString(usernameLength);
 
   if (/\d/.test(username[0])) {
     return generateUsername();
