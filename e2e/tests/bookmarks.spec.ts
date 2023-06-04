@@ -9,63 +9,74 @@ import { GlobalNavigationElement } from "../elements";
 test("bookmarks", async ({ page, browser }) => {
   test.setTimeout(40000);
 
-  function createUserAndPostInRealm(): Promise<[BrowserContext, string]> {
-    return performInNewContext(browser, async (page) => {
-      const user = await createSeedPhraseUser(page);
-      return await createPost(page, user);
-    });
-  }
-
   const [
     [postOneContext, postOneContent],
     [postTwoContext, postTwoContent],
     [postThreeContext, postThreeContent],
-  ] = await Promise.all([
-    createUserAndPostInRealm(),
-    createUserAndPostInRealm(),
-    createUserAndPostInRealm(),
-  ]);
+  ] = await test.step("create posts", async () => {
+    function createUserAndPostInRealm(): Promise<[BrowserContext, string]> {
+      return performInNewContext(browser, async (page) => {
+        const user = await createSeedPhraseUser(page);
+        return await createPost(page, user);
+      });
+    }
 
-  const user = await createSeedPhraseUser(page);
+    return await Promise.all([
+      createUserAndPostInRealm(),
+      createUserAndPostInRealm(),
+      createUserAndPostInRealm(),
+    ]);
+  });
+
+  const user = await test.step("create user", async () => {
+    return await createSeedPhraseUser(page);
+  });
   const globalNavigation = new GlobalNavigationElement(page, user);
-  const homePage = await globalNavigation.goToHomePage();
-  await homePage.goto();
-  await homePage.showNewPosts();
 
-  const postOne = await homePage.getPostByContent(postOneContent);
-  await expect(postOne.element).toBeVisible();
-  await postOne.toggleBookmark();
+  const homePage = await test.step("go to home page", async () => {
+    const homePage = await globalNavigation.goToHomePage();
+    await homePage.goto();
+    await homePage.showNewPosts();
 
-  const postTwo = await homePage.getPostByContent(postTwoContent);
-  await expect(postTwo.element).toBeVisible();
-  await postTwo.toggleBookmark();
+    return homePage;
+  });
 
-  const postThree = await homePage.getPostByContent(postThreeContent);
-  await expect(postThree.element).toBeVisible();
-  await postThree.toggleBookmark();
+  await test.step("bookmark posts", async () => {
+    async function bookmarkPost(postContent: string): Promise<void> {
+      const post = await homePage.getPostByContent(postContent);
+      await expect(post.element).toBeVisible();
+      await post.toggleBookmark();
+    }
 
-  const bookmarksPage = await globalNavigation.goToBookmarksPage();
+    await bookmarkPost(postOneContent);
+    await bookmarkPost(postTwoContent);
+    await bookmarkPost(postThreeContent);
+  });
 
-  const bookmarkedPostOne = await bookmarksPage.getPostByContent(
-    postOneContent
-  );
-  await expect(bookmarkedPostOne.element).toBeVisible();
+  await test.step("find bookmarks on bookmarks page", async () => {
+    const bookmarksPage = await globalNavigation.goToBookmarksPage();
 
-  const bookmarkedPostTwo = await bookmarksPage.getPostByContent(
-    postTwoContent
-  );
-  await expect(bookmarkedPostTwo.element).toBeVisible();
+    const bookmarkedPostOne = await bookmarksPage.getPostByContent(
+      postOneContent
+    );
+    await expect(bookmarkedPostOne.element).toBeVisible();
 
-  const bookmarkedPostThree = await bookmarksPage.getPostByContent(
-    postThreeContent
-  );
-  await expect(bookmarkedPostThree.element).toBeVisible();
+    const bookmarkedPostTwo = await bookmarksPage.getPostByContent(
+      postTwoContent
+    );
+    await expect(bookmarkedPostTwo.element).toBeVisible();
 
-  await bookmarkedPostTwo.toggleBookmark();
-  await page.reload();
-  await expect(bookmarkedPostOne.element).toBeVisible();
-  await expect(bookmarkedPostTwo.element).not.toBeVisible();
-  await expect(bookmarkedPostThree.element).toBeVisible();
+    const bookmarkedPostThree = await bookmarksPage.getPostByContent(
+      postThreeContent
+    );
+    await expect(bookmarkedPostThree.element).toBeVisible();
+
+    await bookmarkedPostTwo.toggleBookmark();
+    await page.reload();
+    await expect(bookmarkedPostOne.element).toBeVisible();
+    await expect(bookmarkedPostTwo.element).not.toBeVisible();
+    await expect(bookmarkedPostThree.element).toBeVisible();
+  });
 
   await postOneContext.close();
   await postTwoContext.close();
