@@ -184,3 +184,39 @@ test("post creation with image", async ({ page }) => {
     await expect(post.element).toBeVisible();
   });
 });
+
+test("journal", async ({ page }) => {
+  const user = await createSeedPhraseUser(page);
+  const globalNavigation = new GlobalNavigationElement(page, user);
+
+  const [postOneContent, postTwoContent, postThreeContent] =
+    await test.step("create posts", async () => {
+      const profilePage = await globalNavigation.goToProfilePage();
+      const cyclesBalance = await profilePage.getCyclesBalance();
+      expect(cyclesBalance).toEqual(1000);
+
+      const postOneContent = await createPost(page, user);
+      const postTwoContent = await createPost(page, user);
+      const postThreeContent = await createPost(page, user);
+
+      await globalNavigation.goToProfilePage();
+
+      const updatedCyclesBalance = await profilePage.getCyclesBalance();
+      expect(updatedCyclesBalance).toEqual(cyclesBalance - 6);
+
+      return [postOneContent, postTwoContent, postThreeContent];
+    });
+
+  await test.step("find created posts in journal", async () => {
+    const journalPage = await globalNavigation.goToJournalPage();
+
+    const postOne = await journalPage.getPostByContent(postOneContent);
+    await expect(postOne.element).toBeVisible();
+
+    const postTwo = await journalPage.getPostByContent(postTwoContent);
+    await expect(postTwo.element).toBeVisible();
+
+    const postThree = await journalPage.getPostByContent(postThreeContent);
+    await expect(postThree.element).toBeVisible();
+  });
+});

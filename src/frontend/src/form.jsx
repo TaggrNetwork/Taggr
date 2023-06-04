@@ -64,6 +64,7 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
             };
             await submitCallback(value, blobArrays, extension, realm);
             setValue("");
+            clearTimeout(choresTimer);
             localStorage.removeItem(draftKey); 
         }
         setLines(3);
