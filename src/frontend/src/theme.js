@@ -1,4 +1,4 @@
-import template from '../assets/style.css';
+import template from './style.css';
 
 var shade = function(color, percent) {
     var num = parseInt(color.replace("#",""), 16),

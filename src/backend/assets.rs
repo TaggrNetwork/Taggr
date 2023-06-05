@@ -70,6 +70,15 @@ pub fn load() {
         include_bytes!("../../dist/frontend/apple-touch-icon.png").to_vec(),
     );
 
+    add_asset(
+        &["/_/raw/social-image.jpg"],
+        vec![
+            ("Content-Type".to_string(), "image/jpeg".to_string()),
+            ("Cache-Control".to_string(), "public".to_string()),
+        ],
+        include_bytes!("../../dist/frontend/social-image.jpg").to_vec(),
+    );
+
     let mut domains = Vec::from(CONFIG.domains);
     let can_domain = format!("{}.ic0.app", id());
     domains.push(&can_domain);

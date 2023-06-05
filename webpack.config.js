@@ -46,7 +46,6 @@ module.exports = {
     devtool: isDevelopment ? "source-map" : false,
     optimization: {
         minimize: !isDevelopment,
-        minimizer: [new TerserPlugin()],
     },
     resolve: {
         extensions: [".js", ".ts", ".jsx", ".tsx"],
@@ -76,6 +75,16 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: path.join(__dirname, asset_entry),
             cache: false,
+            minify: isDevelopment ? false : {
+                minifyCSS: true,
+                collapseWhitespace: true,
+                keepClosingSlash: true,
+                removeComments: true,
+                removeRedundantAttributes: true,
+                removeScriptTypeAttributes: true,
+                removeStyleLinkTypeAttributes: true,
+                useShortDoctype: true
+            }
         }),
         new CopyPlugin({
             patterns: [
