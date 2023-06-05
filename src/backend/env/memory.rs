@@ -46,11 +46,8 @@ impl Api {
 }
 
 impl Memory {
-    pub fn report_health(&mut self, logger: &mut super::Logger) {
-        logger.info(format!(
-            "Memory health: {}",
-            self.api_ref.as_ref().borrow().allocator.health(),
-        ));
+    pub fn report_health(&self) -> String {
+        self.api_ref.as_ref().borrow().allocator.health()
     }
 }
 

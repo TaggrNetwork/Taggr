@@ -1,4 +1,4 @@
-use self::canisters::{upgrade_main_canister, NNSVote, CALLS};
+use self::canisters::{upgrade_main_canister, NNSVote};
 use self::invoices::{parse_account, Invoice};
 use self::post::{Extension, Poll, Post, PostId};
 use self::proposals::{Payload, Status};
@@ -38,10 +38,10 @@ pub type Cycles = u64;
 pub type Karma = i64;
 pub type Blob = ByteBuf;
 
-const MINUTE: u64 = 60000000000_u64;
-const HOUR: u64 = 60 * MINUTE;
-const DAY: u64 = 24 * HOUR;
-const WEEK: u64 = 7 * DAY;
+pub const MINUTE: u64 = 60000000000_u64;
+pub const HOUR: u64 = 60 * MINUTE;
+pub const DAY: u64 = 24 * HOUR;
+pub const WEEK: u64 = 7 * DAY;
 
 #[derive(Serialize, Deserialize)]
 pub struct NNSProposal {
@@ -329,7 +329,6 @@ impl State {
 
     pub fn load(&mut self) {
         assets::load();
-        canisters::init();
         match token::balances_from_ledger(&self.ledger) {
             Ok(value) => self.balances = value,
             Err(err) => self.logger.log(
@@ -1211,10 +1210,7 @@ impl State {
     }
 
     async fn weekly_chores(_now: u64) {
-        mutate(|state| {
-            state.clean_up();
-            state.memory.report_health(&mut state.logger);
-        });
+        mutate(|state| state.clean_up());
 
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
@@ -1692,7 +1688,7 @@ impl State {
             ),
             team_tokens: self.team_tokens.clone(),
             emergency_votes: self.emergency_votes.keys().cloned().collect(),
-            meta: format!("CALLS {:?}", unsafe { &CALLS }),
+            meta: format!("Memory health: {}", self.memory.report_health()),
             weekly_karma_leaders,
             bootcamp_users,
             module_hash: self.module_hash.clone(),

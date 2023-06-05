@@ -11,7 +11,7 @@ use env::{
     proposals::{Release, Reward},
     token::account,
     user::{User, UserId},
-    State, *,
+    State, WEEK, *,
 };
 use ic_cdk::{
     api::{
@@ -97,47 +97,69 @@ fn prod_release() -> bool {
     true
 }
 
+// Dev methods used for testing only.
 #[cfg(feature = "dev")]
-#[update]
-async fn chores() {
-    State::hourly_chores(time()).await;
-}
+mod dev {
+    use super::*;
 
-#[cfg(feature = "dev")]
-#[update]
-fn add_bucket(id: String) {
-    use candid::Principal;
-    mutate(|state| {
-        state.storage.buckets.clear();
-        state
-            .storage
-            .buckets
-            .insert(Principal::from_text(id).unwrap(), 0);
-    });
-}
-
-#[cfg(feature = "dev")]
-#[update]
-fn stable_mem_write(input: Vec<(u64, ByteBuf)>) {
-    if let Some((page, buffer)) = input.get(0) {
-        if buffer.is_empty() {
-            return;
-        }
-        let offset = page * BACKUP_PAGE_SIZE as u64;
-        let current_size = ic_cdk::api::stable::stable64_size();
-        let needed_size = ((offset + buffer.len() as u64) >> 16) + 1;
-        let delta = needed_size.saturating_sub(current_size);
-        if delta > 0 {
-            api::stable::stable64_grow(delta).unwrap_or_else(|_| panic!("couldn't grow memory"));
-        }
-        api::stable::stable64_write(offset, buffer);
+    #[update]
+    // This method needs to be triggered to test an upgrade locally.
+    async fn chores() {
+        State::hourly_chores(time()).await;
     }
-}
 
-#[cfg(feature = "dev")]
-#[update]
-fn stable_to_heap() {
-    stable_to_heap_core();
+    #[update]
+    // Promotes any user to a stalwart with 20k tokens.
+    async fn godmode(user_id: UserId) {
+        mutate(|state| {
+            let user = state.users.get_mut(&user_id).expect("no user found");
+            user.timestamp -= CONFIG.trusted_user_min_age_weeks * WEEK;
+            user.stalwart = true;
+            user.change_karma(CONFIG.trusted_user_min_karma, "test");
+            user.apply_rewards();
+            let principal = user.principal.clone();
+            token::mint(state, account(principal), CONFIG.max_funding_amount);
+        })
+    }
+
+    #[update]
+    // Sets a local canister as a bucket if it was created previously.
+    // Helps with avoiding too many local cnaister.
+    fn add_bucket(id: String) {
+        use candid::Principal;
+        mutate(|state| {
+            state.storage.buckets.clear();
+            state
+                .storage
+                .buckets
+                .insert(Principal::from_text(id).unwrap(), 0);
+        });
+    }
+
+    #[update]
+    // Backup restore method.
+    fn stable_mem_write(input: Vec<(u64, ByteBuf)>) {
+        if let Some((page, buffer)) = input.get(0) {
+            if buffer.is_empty() {
+                return;
+            }
+            let offset = page * BACKUP_PAGE_SIZE as u64;
+            let current_size = ic_cdk::api::stable::stable64_size();
+            let needed_size = ((offset + buffer.len() as u64) >> 16) + 1;
+            let delta = needed_size.saturating_sub(current_size);
+            if delta > 0 {
+                api::stable::stable64_grow(delta)
+                    .unwrap_or_else(|_| panic!("couldn't grow memory"));
+            }
+            api::stable::stable64_write(offset, buffer);
+        }
+    }
+
+    #[update]
+    // Backup restore method.
+    fn stable_to_heap() {
+        stable_to_heap_core();
+    }
 }
 
 fn stable_to_heap_core() {

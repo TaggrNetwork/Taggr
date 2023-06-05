@@ -255,7 +255,7 @@ export const CopyToClipboard = ({value,
     testId = null
 }) => {
     const [copied, setCopied] = React.useState(false)
-    return <span onClick={async () => {
+    return <span className="no_wrap" onClick={async () => {
         const cb = navigator.clipboard;
         await cb.writeText(map(value));
         setCopied(true);

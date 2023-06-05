@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -21,36 +22,28 @@ use crate::env::NNSProposal;
 use super::Logger;
 
 const CYCLES_FOR_NEW_CANISTER: u64 = 1_000_000_000_000;
-pub static mut CALLS: Option<HashMap<String, i32>> = None;
+
+thread_local! {
+    static CALLS: RefCell<HashMap<String, i32>> = Default::default();
+}
 
 pub fn call_opened(id: &str) {
-    unsafe {
-        CALLS
-            .as_mut()
-            .unwrap()
-            .entry(id.into())
-            .and_modify(|c| *c += 1)
-            .or_insert(1);
-    }
+    CALLS.with(|cell| {
+        let map = &mut *cell.borrow_mut();
+        map.entry(id.into()).and_modify(|c| *c += 1).or_insert(1);
+    });
 }
 
 pub fn call_closed(id: &str) {
-    unsafe {
-        let c = CALLS
-            .as_mut()
-            .unwrap()
-            .get_mut(id)
-            .expect("no open call found");
+    CALLS.with(|cell| {
+        let map = &mut *cell.borrow_mut();
+        let c = map.get_mut(id).expect("no open call found");
         *c -= 1;
-    }
-}
-
-pub fn init() {
-    unsafe { CALLS = Some(Default::default()) };
+    })
 }
 
 pub fn calls_open() -> usize {
-    unsafe { CALLS.as_mut().unwrap().values().filter(|v| **v > 0).count() }
+    CALLS.with(|cell| cell.borrow().values().filter(|v| **v > 0).count())
 }
 
 #[derive(CandidType, Deserialize)]
@@ -164,16 +157,16 @@ pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: boo
     logger.info("Executing the canister upgrade...");
     let calls = calls_open();
     if calls > 0 && !force {
-        if let Some(calls) = unsafe { &CALLS }.as_ref() {
+        CALLS.with(|cell| {
             logger.error(format!(
                 "Upgrade execution failed due to open canister calls: {:?}",
-                calls
+                cell.borrow()
                     .iter()
                     .map(|(_, calls)| *calls > 0)
                     .collect::<Vec<_>>()
-            ));
-            return;
-        }
+            ))
+        });
+        return;
     }
 
     notify(
