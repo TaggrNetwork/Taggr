@@ -19,22 +19,32 @@ use serde::{Deserialize, Serialize};
 use crate::env::config::CONFIG;
 use crate::env::NNSProposal;
 
-use super::Logger;
+use super::{time, Logger, MINUTE};
 
 const CYCLES_FOR_NEW_CANISTER: u64 = 1_000_000_000_000;
 
 thread_local! {
     static CALLS: RefCell<HashMap<String, i32>> = Default::default();
+    // A timestamp of the last upgrading attempt
+    static UPGRADE_TIMESTAMP: RefCell<u64> = Default::default();
 }
 
-pub fn call_opened(id: &str) {
+pub fn open_call(id: &str) {
+    // Before opeining a new casniter call, we first check whether an upgrade was intiated within the last 5 minutes and panic if it is the case.
+    // If something goes wrong and the canister was not upgraded (and hence the timer reset), after 5 minutes we start ignoring the timestamp.
+    UPGRADE_TIMESTAMP.with(|cell| {
+        let upgrading_attempt = cell.borrow();
+        if *upgrading_attempt + 5 * MINUTE > time() {
+            panic!("canister upgrading");
+        }
+    });
     CALLS.with(|cell| {
         let map = &mut *cell.borrow_mut();
         map.entry(id.into()).and_modify(|c| *c += 1).or_insert(1);
     });
 }
 
-pub fn call_closed(id: &str) {
+pub fn close_call(id: &str) {
     CALLS.with(|cell| {
         let map = &mut *cell.borrow_mut();
         let c = map.get_mut(id).expect("no open call found");
@@ -57,7 +67,7 @@ struct CanisterSettings {
 }
 
 pub async fn new() -> Result<Principal, String> {
-    call_opened("create_canister");
+    open_call("create_canister");
     let result = call_with_payment(
         Principal::management_canister(),
         "create_canister",
@@ -65,7 +75,7 @@ pub async fn new() -> Result<Principal, String> {
         CYCLES_FOR_NEW_CANISTER,
     )
     .await;
-    call_closed("create_canister");
+    close_call("create_canister");
 
     let (response,): (CanisterId,) =
         result.map_err(|err| format!("couldn't create a new canister: {:?}", err))?;
@@ -100,14 +110,14 @@ pub async fn settings(canister_id: Principal) -> Result<StatusCallResult, String
         canister_id: Principal,
     }
 
-    call_opened("canister_status");
+    open_call("canister_status");
     let result = call(
         Principal::management_canister(),
         "canister_status",
         (In { canister_id },),
     )
     .await;
-    call_closed("canister_status");
+    close_call("canister_status");
 
     let (result,): (StatusCallResult,) =
         result.map_err(|err| format!("couldn't get canister status: {:?}", err))?;
@@ -135,7 +145,7 @@ pub async fn install(
         pub arg: Vec<u8>,
     }
 
-    call_opened("install_code");
+    open_call("install_code");
     let result = call(
         Principal::management_canister(),
         "install_code",
@@ -147,7 +157,7 @@ pub async fn install(
         },),
     )
     .await;
-    call_closed("install_code");
+    close_call("install_code");
 
     result.map_err(|err| format!("couldn't install the WASM module: {:?}", err))?;
     Ok(())
@@ -169,6 +179,8 @@ pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: boo
         return;
     }
 
+    UPGRADE_TIMESTAMP.with(|cell| cell.replace(time()));
+
     notify(
         Principal::management_canister(),
         "install_code",
@@ -187,7 +199,7 @@ pub async fn topup_with_cycles(canister_id: Principal, cycles: u64) -> Result<()
     struct Args {
         pub canister_id: Principal,
     }
-    call_opened("deposit_cycles");
+    open_call("deposit_cycles");
     let result = call_with_payment(
         Principal::management_canister(),
         "deposit_cycles",
@@ -195,15 +207,15 @@ pub async fn topup_with_cycles(canister_id: Principal, cycles: u64) -> Result<()
         cycles,
     )
     .await;
-    call_closed("deposit_cycles");
+    close_call("deposit_cycles");
     result.map_err(|err| format!("couldn't deposit cycles: {:?}", err))?;
     Ok(())
 }
 
 pub async fn top_up(canister_id: Principal, min_cycle_balance: u64) -> Result<bool, String> {
-    call_opened("balance");
+    open_call("balance");
     let result = call_raw(canister_id, "balance", Default::default(), 0).await;
-    call_closed("balance");
+    close_call("balance");
     let bytes = result.map_err(|err| {
         format!(
             "couldn't get balance from canister {}: {:?}",
@@ -343,9 +355,9 @@ pub async fn vote_on_nns_proposal(proposal_id: u64, vote: NNSVote) -> Result<(),
     // so we try at most 10 times
     let mut attempts: i16 = 10;
     loop {
-        call_opened(method);
+        open_call(method);
         let result = call_raw(MAINNET_GOVERNANCE_CANISTER_ID, method, args.as_slice(), 0).await;
-        call_closed(method);
+        close_call(method);
 
         attempts -= 1;
 
@@ -362,8 +374,8 @@ pub async fn call_canister<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(
     method: &str,
     args: T,
 ) -> CallResult<R> {
-    call_opened(method);
+    open_call(method);
     let result = ic_cdk::call(id, method, args).await;
-    call_closed(method);
+    close_call(method);
     result
 }
