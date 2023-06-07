@@ -31,10 +31,7 @@ test("wallet", async ({ page }) => {
 
       const amount = icpToE8s(10);
       const to = await walletPage.getIcpAccount();
-      await ledger.transfer({
-        amount,
-        to,
-      });
+      await ledger.transfer({ amount, to });
 
       await page.reload({ waitUntil: "networkidle" });
       const amountOnPage = await walletPage.getIcpAmount();
@@ -78,7 +75,9 @@ test("wallet", async ({ page }) => {
     const kiloCycles = 3;
     await walletPage.mintCycles(kiloCycles);
     const updatedCyclesAmount = await walletPage.getCyclesAmount();
-    expect(updatedCyclesAmount).toEqual(1_000 + kiloCycles * 1_000);
+    expect(updatedCyclesAmount).toEqual(
+      initialCyclesAmount + kiloCycles * 1_000
+    );
 
     const icpAmountAfterCycleMinting = await walletPage.getIcpAmount();
     const taggrCyclesRate = await icpToTaggrCyclesRate();

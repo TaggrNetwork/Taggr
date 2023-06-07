@@ -17,7 +17,7 @@ export class NewRealmPage {
       .locator("visible=true");
   }
 
-  public async fillAndSaveRealmForm(): Promise<RealmPage> {
+  public async fillAndSaveRealmForm(): Promise<[RealmPage, string, string]> {
     const realmName = generateRealmName();
     const realmDescription = generateText();
 
@@ -26,6 +26,6 @@ export class NewRealmPage {
     await this.createButton.click();
 
     await this.page.waitForURL(`/#/realm/${realmName.toUpperCase()}`);
-    return new RealmPage(this.page, realmName);
+    return [new RealmPage(this.page, realmName), realmName, realmDescription];
   }
 }

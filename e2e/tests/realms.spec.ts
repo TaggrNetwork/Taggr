@@ -31,7 +31,7 @@ test("realms", async ({ page, browser }) => {
     const realmListPage = await globalNavigation.goToRealmsPage();
     const newRealmPage = await realmListPage.createNewRealm();
 
-    const realmPage = await newRealmPage.fillAndSaveRealmForm();
+    const [realmPage] = await newRealmPage.fillAndSaveRealmForm();
     await expect(globalNavigation.toggleRealmsButton).toBeVisible();
 
     return realmPage;

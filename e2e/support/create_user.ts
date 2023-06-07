@@ -2,7 +2,11 @@ import { Page, expect } from "@playwright/test";
 import { AccountIdentifier } from "@dfinity/nns";
 import { HomePage, MintInitialCyclesPage, SettingsPage } from "../pages";
 import { createLedgerClient } from "./ledger";
-import { generateSeedPhrase, generateUsername } from "./random_data";
+import {
+  generateAboutYou,
+  generateSeedPhrase,
+  generateUsername,
+} from "./random_data";
 
 export interface InternetIdentityUser extends CommonUser {
   anchor: string;
@@ -51,6 +55,7 @@ export async function createSeedPhraseUser(
 export interface CommonUser {
   icpAccount: AccountIdentifier;
   username: string;
+  about: string;
 }
 
 async function completeUserSignup(page: Page): Promise<CommonUser> {
@@ -73,12 +78,18 @@ async function completeUserSignup(page: Page): Promise<CommonUser> {
   await mintInitialCyclesPage.createUser();
 
   const settingsPage = new SettingsPage(page);
+
   const username = generateUsername();
   await settingsPage.setUsername(username);
+
+  const about = generateAboutYou();
+  await settingsPage.setAboutYou(about);
+
   await settingsPage.save();
 
   return {
     icpAccount,
     username,
+    about,
   };
 }

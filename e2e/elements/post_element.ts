@@ -1,6 +1,7 @@
-import { Locator, Page } from "@playwright/test";
+import { Locator, Page, expect } from "@playwright/test";
 import { generateText } from "../support";
 import { PostEditorElement } from "./post_editor_element";
+import { PostPage } from "../pages";
 
 export enum PostReaction {
   Heart = 10,
@@ -18,15 +19,19 @@ export class PostElement {
   private readonly loadingSpinner: Locator;
   private readonly comments: Locator;
   private readonly bookmarkButton: Locator;
+  private readonly linkButton: Locator;
 
   constructor(private readonly page: Page, public readonly element: Locator) {
     this.editor = new PostEditorElement(page, element.locator("form"));
     this.infoToggleButton = element.getByTestId("post-info-toggle");
     this.commentsToggleButton = element.getByTestId("post-comments-toggle");
     this.commentInput = element.getByPlaceholder("Reply here...");
-    this.loadingSpinner = element.getByTestId("loading-spinner");
+    this.loadingSpinner = element
+      .getByTestId("loading-spinner")
+      .locator("visible=true");
     this.comments = element.getByTestId("post-body");
-    this.bookmarkButton = this.element.getByTestId("bookmark-post");
+    this.bookmarkButton = element.getByTestId("bookmark-post");
+    this.linkButton = element.locator("a", { hasText: "#" });
   }
 
   public async giveComment(): Promise<string> {
@@ -50,6 +55,14 @@ export class PostElement {
       this.page,
       this.comments.filter({ hasText: content })
     );
+  }
+
+  public async goToPostPage(): Promise<PostPage> {
+    await this.infoToggleButton.click();
+    await this.linkButton.click();
+    expect(new URL(this.page.url()).hash).toMatch(/#\/post\/\d+/);
+
+    return new PostPage(this.page);
   }
 
   public async toggleComments(): Promise<void> {

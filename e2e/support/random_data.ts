@@ -46,6 +46,10 @@ export function generateUsername(
   return username;
 }
 
+export function generateAboutYou(): string {
+  return generateText();
+}
+
 export function generateSeedPhrase(): string {
   return nanoid();
 }
