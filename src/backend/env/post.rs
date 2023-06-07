@@ -353,151 +353,144 @@ impl Post {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn create(
+    pub fn create(
+        state: &mut State,
         body: String,
-        blobs: Vec<(String, Blob)>,
+        blobs: &[(String, Blob)],
         principal: Principal,
         timestamp: u64,
         parent: Option<PostId>,
         picked_realm: Option<String>,
         extension: Option<Extension>,
     ) -> Result<PostId, String> {
-        let id = mutate(|state| {
-            let user = match state.principal_to_user(principal) {
-                Some(user) => user,
-                // look for an authorized controller
-                None => {
-                    let controller_id = principal.to_string();
-                    match state
-                        .users
-                        .values()
-                        .find(|u| u.controllers.contains(&controller_id))
-                    {
-                        Some(user) => user,
-                        None => {
-                            return Err(format!("no user with controller {} found", controller_id))
-                        }
-                    }
-                }
-            };
-
-            if user.is_bot() && parent.is_some() {
-                return Err("Bots can't create comments currently".into());
-            }
-
-            let limit = if principal == id() {
-                10 // canister itself can post up to 10 posts per hour to not skip NNS proposals
-            } else if user.is_bot() {
-                1
-            } else if parent.is_none() {
-                CONFIG.max_posts_per_hour
-            } else {
-                CONFIG.max_comments_per_hour
-            } as usize;
-
-            if user
-                .posts
-                .iter()
-                .rev()
-                .filter_map(|id| Post::get(state, id))
-                .filter(|post| {
-                    !(parent.is_none() ^ post.parent.is_none())
-                        && post.timestamp() > timestamp.saturating_sub(HOUR)
-                })
-                .count()
-                >= limit
-            {
-                return Err(format!(
-                    "not more than {} {} per hour are allowed",
-                    limit,
-                    if parent.is_none() {
-                        "posts"
-                    } else {
-                        "comments"
-                    }
-                ));
-            }
-            let realm = match parent.and_then(|id| Post::get(state, &id)) {
-                Some(post) => post.realm.clone(),
-                None => match picked_realm {
-                    Some(value) if value.to_lowercase() == CONFIG.name.to_lowercase() => None,
-                    Some(value) => Some(value),
-                    None => user.current_realm.clone(),
-                },
-            };
-            if let Some(name) = &realm {
-                if !user.realms.contains(name) {
-                    return Err(format!("not a member of the realm {}", name));
+        let user = match state.principal_to_user(principal) {
+            Some(user) => user,
+            // look for an authorized controller
+            None => {
+                let controller_id = principal.to_string();
+                match state
+                    .users
+                    .values()
+                    .find(|u| u.controllers.contains(&controller_id))
+                {
+                    Some(user) => user,
+                    None => return Err(format!("no user with controller {} found", controller_id)),
                 }
             }
-            let user_id = user.id;
-            let mut post = Post::new(
-                user_id,
-                tags(CONFIG.max_tag_length, &body),
-                body,
-                timestamp,
-                parent,
-                extension,
-                realm.clone(),
-            );
-            let costs = post.costs(blobs.len());
-            post.valid(&blobs)?;
-            let trusted_user = user.trusted();
-            let future_id = state.next_post_id;
-            state.charge(user_id, costs, format!("new post {}", future_id))?;
-            let id = state.new_post_id();
-            let user = state.users.get_mut(&user_id).expect("no user found");
-            user.posts.push(id);
-            post.id = id;
-            if let Some(realm) = realm.and_then(|name| state.realms.get_mut(&name)) {
-                realm.posts.push(id);
+        };
+
+        if user.is_bot() && parent.is_some() {
+            return Err("Bots can't create comments currently".into());
+        }
+
+        let limit = if principal == id() {
+            10 // canister itself can post up to 10 posts per hour to not skip NNS proposals
+        } else if user.is_bot() {
+            1
+        } else if parent.is_none() {
+            CONFIG.max_posts_per_hour
+        } else {
+            CONFIG.max_comments_per_hour
+        } as usize;
+
+        if user
+            .posts
+            .iter()
+            .rev()
+            .filter_map(|id| Post::get(state, id))
+            .filter(|post| {
+                !(parent.is_none() ^ post.parent.is_none())
+                    && post.timestamp() > timestamp.saturating_sub(HOUR)
+            })
+            .count()
+            >= limit
+        {
+            return Err(format!(
+                "not more than {} {} per hour are allowed",
+                limit,
+                if parent.is_none() {
+                    "posts"
+                } else {
+                    "comments"
+                }
+            ));
+        }
+        let realm = match parent.and_then(|id| Post::get(state, &id)) {
+            Some(post) => post.realm.clone(),
+            None => match picked_realm {
+                Some(value) if value.to_lowercase() == CONFIG.name.to_lowercase() => None,
+                Some(value) => Some(value),
+                None => user.current_realm.clone(),
+            },
+        };
+        if let Some(name) = &realm {
+            if !user.realms.contains(name) {
+                return Err(format!("not a member of the realm {}", name));
             }
-            if let Some(parent_id) = post.parent {
-                Post::mutate(state, &parent_id, &mut |parent_post, state| {
-                    parent_post.children.push(id);
-                    parent_post.watchers.insert(user_id);
-                    let parent_post_author = parent_post.user;
-                    if parent_post.user != user_id && trusted_user {
-                        let log = format!("response to post {}", parent_post.id);
-                        // Reward user for spawning activity with his post.
-                        state.spend_to_user_karma(parent_post_author, CONFIG.response_reward, log)
-                    }
+        }
+        let user_id = user.id;
+        let mut post = Post::new(
+            user_id,
+            tags(CONFIG.max_tag_length, &body),
+            body,
+            timestamp,
+            parent,
+            extension,
+            realm.clone(),
+        );
+        let costs = post.costs(blobs.len());
+        post.valid(blobs)?;
+        let trusted_user = user.trusted();
+        let future_id = state.next_post_id;
+        state.charge(user_id, costs, format!("new post {}", future_id))?;
+        let id = state.new_post_id();
+        let user = state.users.get_mut(&user_id).expect("no user found");
+        user.posts.push(id);
+        post.id = id;
+        if let Some(realm) = realm.and_then(|name| state.realms.get_mut(&name)) {
+            realm.posts.push(id);
+        }
+        if let Some(parent_id) = post.parent {
+            Post::mutate(state, &parent_id, &mut |parent_post, state| {
+                parent_post.children.push(id);
+                parent_post.watchers.insert(user_id);
+                let parent_post_author = parent_post.user;
+                if parent_post.user != user_id && trusted_user {
+                    let log = format!("response to post {}", parent_post.id);
+                    // Reward user for spawning activity with his post.
+                    state.spend_to_user_karma(parent_post_author, CONFIG.response_reward, log)
+                }
+                Ok(())
+            })?;
+        }
+        if matches!(&post.extension, &Some(Extension::Poll(_))) {
+            state.pending_polls.insert(post.id);
+        }
+
+        notify_about(state, &post);
+
+        if post.parent.is_none() {
+            state.root_posts += 1
+        }
+
+        Post::save(state, post);
+
+        let users_len = state.users.len();
+        let mut hot_posts = std::mem::take(&mut state.hot);
+        state
+            .thread(id)
+            .filter(|post_id| post_id != &id)
+            .try_for_each(|id| {
+                Post::mutate(state, &id, &mut |post, _| {
+                    post.tree_size += 1;
+                    post.tree_update = timestamp;
+                    post.make_hot(&mut hot_posts, users_len, user_id);
                     Ok(())
-                })?;
-            }
-            if matches!(&post.extension, &Some(Extension::Poll(_))) {
-                state.pending_polls.insert(post.id);
-            }
-
-            notify_about(state, &post);
-
-            if post.parent.is_none() {
-                state.root_posts += 1
-            }
-
-            Post::save(state, post);
-
-            let users_len = state.users.len();
-            let mut hot_posts = std::mem::take(&mut state.hot);
-            state
-                .thread(id)
-                .filter(|post_id| post_id != &id)
-                .try_for_each(|id| {
-                    Post::mutate(state, &id, &mut |post, _| {
-                        post.tree_size += 1;
-                        post.tree_update = timestamp;
-                        post.make_hot(&mut hot_posts, users_len, user_id);
-                        Ok(())
-                    })
                 })
-                .expect("couldn't adjust post on the thread");
+            })
+            .expect("couldn't adjust post on the thread");
 
-            state.hot = hot_posts;
-            Ok(id)
-        })?;
-
-        Post::save_blobs(id, blobs).await?;
-
+        state.hot = hot_posts;
         Ok(id)
     }
 

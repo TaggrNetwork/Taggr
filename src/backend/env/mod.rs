@@ -1148,31 +1148,32 @@ impl State {
                 proposal.proposer, proposal.summary
             );
 
-            match Post::create(
-                post,
-                Default::default(),
-                id(),
-                now,
-                None,
-                None,
-                Some(Extension::Poll(Poll {
-                    deadline: 72,
-                    options: vec!["ACCEPT".into(), "REJECT".into()],
-                    ..Default::default()
-                })),
-            )
-            .await
-            {
-                Err(err) => mutate(|state| {
-                    state
-                        .logger
-                        .error(format!("couldn't create a NNS proposal post: {:?}", err))
-                }),
-                Ok(post_id) => {
-                    mutate(|state| state.pending_nns_proposals.insert(proposal.id, post_id));
-                }
-            }
-            mutate(|state| state.last_nns_proposal = state.last_nns_proposal.max(proposal.id));
+            mutate(|state| {
+                match Post::create(
+                    state,
+                    post,
+                    Default::default(),
+                    id(),
+                    now,
+                    None,
+                    None,
+                    Some(Extension::Poll(Poll {
+                        deadline: 72,
+                        options: vec!["ACCEPT".into(), "REJECT".into()],
+                        ..Default::default()
+                    })),
+                ) {
+                    Err(err) => {
+                        state
+                            .logger
+                            .error(format!("couldn't create a NNS proposal post: {:?}", err));
+                    }
+                    Ok(post_id) => {
+                        state.pending_nns_proposals.insert(proposal.id, post_id);
+                    }
+                };
+                state.last_nns_proposal = state.last_nns_proposal.max(proposal.id);
+            })
         }
     }
 
@@ -2136,8 +2137,8 @@ pub(crate) mod tests {
         id
     }
 
-    #[actix_rt::test]
-    async fn test_poll_conclusion() {
+    #[test]
+    fn test_poll_conclusion() {
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -2165,25 +2166,23 @@ pub(crate) mod tests {
             // mint tokens
             state.mint(eligigble);
             assert_eq!(state.ledger.len(), 10);
-        });
 
-        let post_id = Post::create(
-            "Test".to_string(),
-            vec![],
-            pr(1),
-            0,
-            None,
-            None,
-            Some(Extension::Poll(Poll {
-                options: vec!["A".into(), "B".into(), "C".into()],
-                deadline: 72,
-                ..Default::default()
-            })),
-        )
-        .await
-        .unwrap();
+            let post_id = Post::create(
+                state,
+                "Test".to_string(),
+                &[],
+                pr(1),
+                0,
+                None,
+                None,
+                Some(Extension::Poll(Poll {
+                    options: vec!["A".into(), "B".into(), "C".into()],
+                    deadline: 72,
+                    ..Default::default()
+                })),
+            )
+            .unwrap();
 
-        mutate(|state| {
             let now = Post::mutate(state, &post_id, &mut |post, _| {
                 let mut votes = BTreeMap::new();
                 votes.insert(0, vec![1, 2, 3].into_iter().collect());
@@ -2265,8 +2264,8 @@ pub(crate) mod tests {
         })
     }
 
-    #[actix_rt::test]
-    async fn test_realm_change() {
+    #[test]
+    fn test_realm_change() {
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -2276,45 +2275,43 @@ pub(crate) mod tests {
             create_user(state, pr(0));
             assert!(state.toggle_realm_membership(pr(0), "TEST".into()));
             assert_eq!(state.realms.get("TEST").unwrap().members.len(), 1);
-        });
 
-        let post_id = Post::create(
-            "Root".to_string(),
-            vec![],
-            pr(0),
-            0,
-            None,
-            Some("TEST".into()),
-            None,
-        )
-        .await
-        .unwrap();
+            let post_id = Post::create(
+                state,
+                "Root".to_string(),
+                &[],
+                pr(0),
+                0,
+                None,
+                Some("TEST".into()),
+                None,
+            )
+            .unwrap();
 
-        let comment_1_id = Post::create(
-            "Comment 1".to_string(),
-            vec![],
-            pr(0),
-            0,
-            Some(post_id),
-            Some("TEST".into()),
-            None,
-        )
-        .await
-        .unwrap();
+            let comment_1_id = Post::create(
+                state,
+                "Comment 1".to_string(),
+                &[],
+                pr(0),
+                0,
+                Some(post_id),
+                Some("TEST".into()),
+                None,
+            )
+            .unwrap();
 
-        Post::create(
-            "Comment 2".to_string(),
-            vec![],
-            pr(0),
-            0,
-            Some(comment_1_id),
-            Some("TEST".into()),
-            None,
-        )
-        .await
-        .unwrap();
+            Post::create(
+                state,
+                "Comment 2".to_string(),
+                &[],
+                pr(0),
+                0,
+                Some(comment_1_id),
+                Some("TEST".into()),
+                None,
+            )
+            .unwrap();
 
-        mutate(|state| {
             assert_eq!(state.realms.get("TEST").unwrap().posts.len(), 3);
             assert_eq!(state.realms.get("TEST2").unwrap().posts.len(), 0);
 
@@ -2325,9 +2322,9 @@ pub(crate) mod tests {
         });
     }
 
-    #[actix_rt::test]
-    async fn test_post_deletion() {
-        let (id, upvoter_id, upvoter_cycles) = STATE.with(|cell| {
+    #[test]
+    fn test_post_deletion() {
+        STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
@@ -2346,42 +2343,38 @@ pub(crate) mod tests {
                 .get_mut(&uid)
                 .unwrap()
                 .change_karma(1000, "test");
-            (id, upvoter_id, upvoter_cycles)
-        });
 
-        let post_id = Post::create("Test".to_string(), vec![], pr(0), 0, None, None, None)
-            .await
-            .unwrap();
+            let post_id =
+                Post::create(state, "Test".to_string(), &[], pr(0), 0, None, None, None).unwrap();
 
-        // Create 2 comments
-        let mut comment_id = 0;
-        for i in 1..=2 {
-            comment_id = Post::create(
-                "Comment".to_string(),
-                vec![],
-                pr(i),
+            // Create 2 comments
+            let mut comment_id = 0;
+            for i in 1..=2 {
+                comment_id = Post::create(
+                    state,
+                    "Comment".to_string(),
+                    &[],
+                    pr(i),
+                    0,
+                    Some(post_id),
+                    None,
+                    None,
+                )
+                .unwrap();
+            }
+
+            let leaf = Post::create(
+                state,
+                "Leaf".to_string(),
+                &[],
+                pr(0),
                 0,
-                Some(post_id),
+                Some(comment_id),
                 None,
                 None,
             )
-            .await
             .unwrap();
-        }
 
-        let leaf = Post::create(
-            "Leaf".to_string(),
-            vec![],
-            pr(0),
-            0,
-            Some(comment_id),
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
-        mutate(|state| {
             assert_eq!(Post::get(state, &post_id).unwrap().tree_size, 3);
             assert_eq!(Post::get(state, &comment_id).unwrap().tree_size, 1);
             assert_eq!(Post::get(state, &leaf).unwrap().tree_size, 0);
@@ -2454,7 +2447,7 @@ pub(crate) mod tests {
 
     #[actix_rt::test]
     async fn test_realms() {
-        let (name, p0, p1, _u0, _u1, description, controllers) = STATE.with(|cell| {
+        let (p1, realm_name) = STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
             let p0 = pr(0);
@@ -2669,58 +2662,75 @@ pub(crate) mod tests {
                 state.users.get(&_u1).unwrap().current_realm,
                 Some(name.clone())
             );
-            (name, p0, p1, _u0, _u1, description, controllers)
-        });
 
-        // creating a post in a realm
-        let post_id = Post::create(
-            "Realm post".to_string(),
-            vec![],
-            p1,
-            0,
-            None,
-            Some("TAGGRDAO".into()),
-            None,
-        )
-        .await
-        .unwrap();
+            // creating a post in a realm
+            let post_id = Post::create(
+                state,
+                "Realm post".to_string(),
+                &[],
+                p1,
+                0,
+                None,
+                Some("TAGGRDAO".into()),
+                None,
+            )
+            .unwrap();
 
-        mutate(|state| {
             assert_eq!(
                 Post::get(state, &post_id).unwrap().realm,
                 Some(name.clone())
             );
             assert!(state.realms.get(&name).unwrap().posts.contains(&post_id));
-        });
 
-        // Posting without realm creates the post in the current realm of the user
-        let post_id = Post::create("Realm post".to_string(), vec![], p1, 0, None, None, None)
-            .await
+            // Posting without realm creates the post in the current realm of the user
+            let post_id = Post::create(
+                state,
+                "Realm post".to_string(),
+                &[],
+                p1,
+                0,
+                None,
+                None,
+                None,
+            )
             .unwrap();
 
-        mutate(|state| {
             assert_eq!(
                 Post::get(state, &post_id).unwrap().realm,
                 Some("TAGGRDAO".into())
             );
-        });
 
-        // comments not possible if user is not in the realm
-        assert_eq!(
-            Post::create("comment".to_string(), vec![], p0, 0, Some(0), None, None).await,
-            Err("not a member of the realm TAGGRDAO".to_string())
-        );
+            // comments not possible if user is not in the realm
+            assert_eq!(
+                Post::create(
+                    state,
+                    "comment".to_string(),
+                    &[],
+                    p0,
+                    0,
+                    Some(0),
+                    None,
+                    None
+                ),
+                Err("not a member of the realm TAGGRDAO".to_string())
+            );
 
-        mutate(|state| {
             assert!(state.toggle_realm_membership(p0, name.clone()));
-        });
 
-        assert_eq!(
-            Post::create("comment".to_string(), vec![], p0, 0, Some(0), None, None).await,
-            Ok(2)
-        );
+            assert_eq!(
+                Post::create(
+                    state,
+                    "comment".to_string(),
+                    &[],
+                    p0,
+                    0,
+                    Some(0),
+                    None,
+                    None
+                ),
+                Ok(2)
+            );
 
-        mutate(|state| {
             assert!(state.realms.get(&name).unwrap().posts.contains(&2));
 
             // Create post without a realm
@@ -2728,44 +2738,48 @@ pub(crate) mod tests {
                 .principal_to_user_mut(p1)
                 .unwrap()
                 .enter_realm(Default::default());
-        });
 
-        let post_id = Post::create("No realm post".to_string(), vec![], p1, 0, None, None, None)
-            .await
-            .unwrap();
-        let comment_id = Post::create(
-            "comment".to_string(),
-            vec![],
-            p0,
-            0,
-            Some(post_id),
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
-        mutate(|state| {
-            assert_eq!(Post::get(state, &comment_id).unwrap().realm, None);
-        });
-
-        // Creating post without entering the realm
-        let realm_name = "NEW_REALM".to_string();
-        assert_eq!(
-            Post::create(
-                "test".to_string(),
-                vec![],
-                p0,
+            let post_id = Post::create(
+                state,
+                "No realm post".to_string(),
+                &[],
+                p1,
                 0,
                 None,
-                Some(realm_name.clone()),
-                None
+                None,
+                None,
             )
-            .await,
-            Err(format!("not a member of the realm {}", realm_name))
-        );
+            .unwrap();
+            let comment_id = Post::create(
+                state,
+                "comment".to_string(),
+                &[],
+                p0,
+                0,
+                Some(post_id),
+                None,
+                None,
+            )
+            .unwrap();
 
-        mutate(|state| {
+            assert_eq!(Post::get(state, &comment_id).unwrap().realm, None);
+
+            // Creating post without entering the realm
+            let realm_name = "NEW_REALM".to_string();
+            assert_eq!(
+                Post::create(
+                    state,
+                    "test".to_string(),
+                    &[],
+                    p0,
+                    0,
+                    None,
+                    Some(realm_name.clone()),
+                    None
+                ),
+                Err(format!("not a member of the realm {}", realm_name))
+            );
+
             // create a new realm
             let user0 = state.users.get_mut(&_u0).unwrap();
             user0.change_cycles(1000, CyclesDelta::Plus, "").unwrap();
@@ -2781,50 +2795,47 @@ pub(crate) mod tests {
                 ),
                 Ok(())
             );
-        });
 
-        // we still can't post into it, because we didn't join
-        assert_eq!(
-            Post::create(
-                "test".to_string(),
-                vec![],
-                p0,
-                0,
-                None,
-                Some(realm_name.clone()),
-                None
-            )
-            .await,
-            Err(format!("not a member of the realm {}", realm_name))
-        );
+            // we still can't post into it, because we didn't join
+            assert_eq!(
+                Post::create(
+                    state,
+                    "test".to_string(),
+                    &[],
+                    p0,
+                    0,
+                    None,
+                    Some(realm_name.clone()),
+                    None
+                ),
+                Err(format!("not a member of the realm {}", realm_name))
+            );
 
-        mutate(|state| {
             // join the realm and create the post without entering
             assert!(state.toggle_realm_membership(p1, realm_name.clone()));
             assert!(state.users.get(&_u1).unwrap().realms.contains(&name));
-        });
 
-        assert_eq!(
-            Post::create(
-                "test".to_string(),
-                vec![],
-                p1,
-                0,
-                None,
-                Some(realm_name.clone()),
-                None
-            )
-            .await,
-            Ok(5)
-        );
+            assert_eq!(
+                Post::create(
+                    state,
+                    "test".to_string(),
+                    &[],
+                    p1,
+                    0,
+                    None,
+                    Some(realm_name.clone()),
+                    None
+                ),
+                Ok(5)
+            );
 
-        mutate(|state| {
             assert!(state
                 .users
                 .get(&_u1)
                 .unwrap()
                 .realms
                 .contains(&"TAGGRDAO".to_string()));
+            (p1, realm_name)
         });
 
         // Move the post to non-joined realm
@@ -2868,25 +2879,25 @@ pub(crate) mod tests {
         });
     }
 
-    #[actix_rt::test]
-    async fn test_tipping() {
+    #[test]
+    fn test_tipping() {
         STATE.with(|cell| cell.replace(Default::default()));
-        let p = pr(0);
-        let u1 = mutate(|state| create_user_with_params(state, p, "user1", true));
-        let u2 = mutate(|state| create_user_with_params(state, pr(1), "user2", true));
-        let post_id = Post::create(
-            "This is a #post with #tags".to_string(),
-            vec![],
-            p,
-            0,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
         mutate(|state| {
+            let p = pr(0);
+            let u1 = create_user_with_params(state, p, "user1", true);
+            let u2 = create_user_with_params(state, pr(1), "user2", true);
+            let post_id = Post::create(
+                state,
+                "This is a #post with #tags".to_string(),
+                &[],
+                p,
+                0,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+
             let u = state.users.get_mut(&u1).unwrap();
             assert_eq!(u.karma(), CONFIG.trusted_user_min_karma);
             let cycles_before = u.cycles();
@@ -2978,27 +2989,27 @@ pub(crate) mod tests {
         });
     }
 
-    #[actix_rt::test]
-    async fn test_personal_feed() {
+    #[test]
+    fn test_personal_feed() {
         STATE.with(|cell| cell.replace(Default::default()));
 
-        // create a post author and one post for its principal
-        let p = pr(0);
-        let post_author_id = mutate(|state| create_user(state, p));
-        let post_id = Post::create(
-            "This is a #post with #tags".to_string(),
-            vec![],
-            p,
-            0,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-        let anon = Principal::anonymous();
+        mutate(|state| {
+            // create a post author and one post for its principal
+            let p = pr(0);
+            let post_author_id = create_user(state, p);
+            let post_id = Post::create(
+                state,
+                "This is a #post with #tags".to_string(),
+                &[],
+                p,
+                0,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+            let anon = Principal::anonymous();
 
-        let user_id = mutate(|state| {
             // create a user and make sure his feed is empty
             let pr1 = pr(1);
             let user_id = create_user(state, pr1);
@@ -3042,25 +3053,22 @@ pub(crate) mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 1);
             assert!(feed.contains(&post_id));
-            user_id
-        });
 
-        // now a different post with the same tags appears
-        let p = pr(2);
-        let _post_author_id = mutate(|state| create_user(state, p));
-        let post_id2 = Post::create(
-            "This is a different #post, but with the same #tags".to_string(),
-            vec![],
-            p,
-            0,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
+            // now a different post with the same tags appears
+            let p = pr(2);
+            let _post_author_id = create_user(state, p);
+            let post_id2 = Post::create(
+                state,
+                "This is a different #post, but with the same #tags".to_string(),
+                &[],
+                p,
+                0,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
 
-        mutate(|state| {
             // make sure the feed contains both posts
             let feed = state
                 .users
@@ -3072,24 +3080,22 @@ pub(crate) mod tests {
             assert_eq!(feed.len(), 2);
             assert!(feed.contains(&post_id));
             assert!(feed.contains(&post_id2));
-        });
 
-        // yet another post appears
-        let p = pr(3);
-        let _post_author_id = mutate(|state| create_user(state, p));
-        let post_id3 = Post::create(
-            "Different #post, different #feed".to_string(),
-            vec![],
-            p,
-            0,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
+            // yet another post appears
+            let p = pr(3);
+            let _post_author_id = create_user(state, p);
+            let post_id3 = Post::create(
+                state,
+                "Different #post, different #feed".to_string(),
+                &[],
+                p,
+                0,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
 
-        mutate(|state| {
             // make sure the feed contains the same old posts
             let feed = state
                 .users
@@ -3135,23 +3141,18 @@ pub(crate) mod tests {
         });
     }
 
-    #[actix_rt::test]
-    async fn test_cycles_accounting() {
+    #[test]
+    fn test_cycles_accounting() {
         STATE.with(|cell| cell.replace(Default::default()));
-        let p0 = pr(0);
-        let post_author_id = mutate(|state| create_user(state, p0));
-        let post_id = Post::create("test".to_string(), vec![], p0, 0, None, None, None)
-            .await
-            .unwrap();
-        let p = pr(1);
-        let p2 = pr(2);
-        let p3 = pr(3);
+        mutate(|state| {
+            let p0 = pr(0);
+            let post_author_id = create_user(state, p0);
+            let post_id =
+                Post::create(state, "test".to_string(), &[], p0, 0, None, None, None).unwrap();
+            let p = pr(1);
+            let p2 = pr(2);
+            let p3 = pr(3);
 
-        let (
-            burned_cycles_by_reactions,
-            burned_cycles_by_reaction_from_untrusted,
-            reaction_penalty,
-        ) = mutate(|state| {
             let lurker_id = create_user(state, p);
             create_user(state, p2);
             create_user(state, p3);
@@ -3230,18 +3231,9 @@ pub(crate) mod tests {
                     + burned_cycles_by_reaction_from_untrusted
                     + 2 * 3) as i64
             );
-            (
-                burned_cycles_by_reactions,
-                burned_cycles_by_reaction_from_untrusted,
-                reaction_penalty,
-            )
-        });
 
-        Post::create("test".to_string(), vec![], p0, 0, Some(0), None, None)
-            .await
-            .unwrap();
+            Post::create(state, "test".to_string(), &[], p0, 0, Some(0), None, None).unwrap();
 
-        mutate(|state| {
             let c = CONFIG;
             assert_eq!(
                 state.burned_cycles,
@@ -3260,15 +3252,9 @@ pub(crate) mod tests {
             author
                 .change_cycles(author.cycles(), CyclesDelta::Minus, "")
                 .unwrap();
-        });
 
-        assert!(
-            Post::create("test".to_string(), vec![], p0, 0, None, None, None)
-                .await
-                .is_err()
-        );
+            assert!(Post::create(state, "test".to_string(), &[], p0, 0, None, None, None).is_err());
 
-        mutate(|state| {
             assert_eq!(
                 state.react(p, post_id, 10, 0),
                 Err("multiple reactions are forbidden".into())

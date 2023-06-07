@@ -140,9 +140,9 @@ mod tests {
     use super::*;
     use crate::{env::tests::*, mutate, STATE};
 
-    #[actix_rt::test]
-    async fn test_reporting() {
-        let (u1, p) = STATE.with(|cell| {
+    #[test]
+    fn test_reporting() {
+        STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
@@ -160,26 +160,29 @@ mod tests {
                 let user = state.users.get_mut(&id).unwrap();
                 user.stalwart = true;
             }
-            (u1, p)
-        });
 
-        let post_id = Post::create("bad post".to_string(), vec![], p, 0, None, None, None)
-            .await
-            .unwrap();
+            let post_id =
+                Post::create(state, "bad post".to_string(), &[], p, 0, None, None, None).unwrap();
 
-        mutate(|state| {
             let user = state.users.get(&u1).unwrap();
             assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
 
             let p = Post::get(state, &post_id).unwrap();
             assert!(p.report.is_none());
-        });
 
-        let reporter = pr(7);
-        // The reporter can only be a user with at least one post.
-        let _ = Post::create("some post".to_string(), vec![], pr(7), 0, None, None, None).await;
+            let reporter = pr(7);
+            // The reporter can only be a user with at least one post.
+            let _ = Post::create(
+                state,
+                "some post".to_string(),
+                &[],
+                pr(7),
+                0,
+                None,
+                None,
+                None,
+            );
 
-        mutate(|state| {
             // report should work becasue theuser needs 500 cycles
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
             assert_eq!(reporter_user.cycles(), 998);
@@ -300,18 +303,15 @@ mod tests {
 
         // REJECTION TEST
 
-        let (u, p) = mutate(|state| {
+        mutate(|state| {
             let p = pr(100);
             let u = create_user(state, p);
             let user = state.users.get_mut(&u).unwrap();
             user.change_karma(100, "");
-            (u, p)
-        });
-        let post_id = Post::create("good post".to_string(), vec![], p, 0, None, None, None)
-            .await
-            .unwrap();
 
-        mutate(|state| {
+            let post_id =
+                Post::create(state, "good post".to_string(), &[], p, 0, None, None, None).unwrap();
+
             let user = state.users.get(&u).unwrap();
             assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
 

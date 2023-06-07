@@ -11,7 +11,7 @@ use env::{
     proposals::{Release, Reward},
     token::account,
     user::{User, UserId},
-    State, WEEK, *,
+    State, *,
 };
 use ic_cdk::{
     api::{
@@ -323,60 +323,51 @@ fn create_invite() {
 }
 
 #[update]
-async fn propose_release(
-    description: String,
-    commit: String,
-    binary: ByteBuf,
-) -> Result<u32, String> {
-    proposals::propose(
-        caller(),
-        description,
-        proposals::Payload::Release(Release {
-            commit,
-            binary: binary.to_vec(),
-            hash: Default::default(),
-        }),
-        time(),
-    )
-    .await
+fn propose_release(description: String, commit: String, binary: ByteBuf) -> Result<u32, String> {
+    mutate(|state| {
+        proposals::propose(
+            state,
+            caller(),
+            description,
+            proposals::Payload::Release(Release {
+                commit,
+                binary: binary.to_vec(),
+                hash: Default::default(),
+            }),
+            time(),
+        )
+    })
 }
 
 #[export_name = "canister_update propose_reward"]
 fn propose_reward() {
     let (description, receiver): (String, String) = parse(&arg_data_raw());
-    spawn(async {
-        reply(
-            proposals::propose(
-                caller(),
-                description,
-                proposals::Payload::Reward(Reward {
-                    receiver,
-                    votes: Default::default(),
-                    minted: 0,
-                }),
-                time(),
-            )
-            .await,
-        )
+    mutate(|state| {
+        reply(proposals::propose(
+            state,
+            caller(),
+            description,
+            proposals::Payload::Reward(Reward {
+                receiver,
+                votes: Default::default(),
+                minted: 0,
+            }),
+            time(),
+        ))
     })
 }
 
 #[export_name = "canister_update propose_funding"]
 fn propose_funding() {
-    spawn(async {
-        let (description, receiver, tokens): (String, String, u64) = parse(&arg_data_raw());
-        reply(
-            proposals::propose(
-                caller(),
-                description,
-                proposals::Payload::Fund(
-                    receiver,
-                    tokens * 10_u64.pow(CONFIG.token_decimals as u32),
-                ),
-                time(),
-            )
-            .await,
-        )
+    let (description, receiver, tokens): (String, String, u64) = parse(&arg_data_raw());
+    mutate(|state| {
+        reply(proposals::propose(
+            state,
+            caller(),
+            description,
+            proposals::Payload::Fund(receiver, tokens * 10_u64.pow(CONFIG.token_decimals as u32)),
+            time(),
+        ))
     })
 }
 
@@ -410,8 +401,21 @@ async fn add_post(
     realm: Option<String>,
     extension: Option<ByteBuf>,
 ) -> Result<PostId, String> {
-    let extension: Option<Extension> = extension.map(|bytes| parse(&bytes));
-    Post::create(body, blobs, caller(), api::time(), parent, realm, extension).await
+    let post_id = mutate(|state| {
+        let extension: Option<Extension> = extension.map(|bytes| parse(&bytes));
+        Post::create(
+            state,
+            body,
+            &blobs,
+            caller(),
+            api::time(),
+            parent,
+            realm,
+            extension,
+        )
+    })?;
+    Post::save_blobs(post_id, blobs).await?;
+    Ok(post_id)
 }
 
 #[update]

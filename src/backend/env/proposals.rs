@@ -4,7 +4,6 @@ use super::token::account;
 use super::user::Predicate;
 use super::{user::UserId, State};
 use super::{Karma, HOUR};
-use crate::mutate;
 use crate::token::Token;
 use ic_cdk::export::candid::Principal;
 use serde::{Deserialize, Serialize};
@@ -237,40 +236,40 @@ impl Payload {
     }
 }
 
-pub async fn propose(
+pub fn propose(
+    state: &mut State,
     caller: Principal,
     description: String,
     mut payload: Payload,
     time: u64,
 ) -> Result<u32, String> {
-    let (id, proposer, proposer_name) = mutate(|state| {
-        let user = state.principal_to_user(caller).ok_or("user not found")?;
-        if !user.stalwart {
-            return Err("only stalwarts can create proposals".to_string());
-        }
-        if description.is_empty() {
-            return Err("description is empty".to_string());
-        }
-        payload.validate(state.minting_ratio())?;
-        let proposer = user.id;
-        let proposer_name = user.name.clone();
-        // invalidate some previous proposals depending on their type
-        state
-            .proposals
-            .iter_mut()
-            .filter(|p| {
-                p.status == Status::Open
-                    && matches!(p.payload, Payload::Release(_))
-                    && matches!(payload, Payload::Release(_))
-            })
-            .for_each(|proposal| {
-                proposal.status = Status::Cancelled;
-            });
-        let id = state.proposals.len() as u32;
-        Ok((id, proposer, proposer_name))
-    })?;
+    let user = state.principal_to_user(caller).ok_or("user not found")?;
+    if !user.stalwart {
+        return Err("only stalwarts can create proposals".to_string());
+    }
+    if description.is_empty() {
+        return Err("description is empty".to_string());
+    }
+    payload.validate(state.minting_ratio())?;
+    let proposer = user.id;
+    let proposer_name = user.name.clone();
+    // invalidate some previous proposals depending on their type
+    state
+        .proposals
+        .iter_mut()
+        .filter(|p| {
+            p.status == Status::Open
+                && matches!(p.payload, Payload::Release(_))
+                && matches!(payload, Payload::Release(_))
+        })
+        .for_each(|proposal| {
+            proposal.status = Status::Cancelled;
+        });
+
+    let id = state.proposals.len() as u32;
 
     let post_id = Post::create(
+        state,
         description,
         Default::default(),
         caller,
@@ -278,31 +277,28 @@ pub async fn propose(
         None,
         None,
         Some(Extension::Proposal(id)),
-    )
-    .await?;
+    )?;
 
-    mutate(|state| {
-        state.proposals.push(Proposal {
-            post_id,
-            proposer,
-            timestamp: time,
-            status: Status::Open,
-            payload,
-            bulletins: Vec::default(),
-            voting_power: 0,
-            id,
-        });
-        state.notify_with_predicate(
-            &|user| user.active_within_weeks(time, 1) && user.balance > 0,
-            format!("@{} submitted a new proposal", &proposer_name,),
-            Predicate::Proposal(post_id),
-        );
-        state.logger.info(format!(
-            "@{} submitted a new [proposal](#/post/{}).",
-            &proposer_name, post_id
-        ));
-        Ok(id)
-    })
+    state.proposals.push(Proposal {
+        post_id,
+        proposer,
+        timestamp: time,
+        status: Status::Open,
+        payload,
+        bulletins: Vec::default(),
+        voting_power: 0,
+        id,
+    });
+    state.notify_with_predicate(
+        &|user| user.active_within_weeks(time, 1) && user.balance > 0,
+        format!("@{} submitted a new proposal", &proposer_name,),
+        Predicate::Proposal(post_id),
+    );
+    state.logger.info(format!(
+        "@{} submitted a new [proposal](#/post/{}).",
+        &proposer_name, post_id
+    ));
+    Ok(id)
 }
 
 pub fn vote_on_proposal(
@@ -392,8 +388,8 @@ mod tests {
         STATE,
     };
 
-    #[actix_rt::test]
-    async fn test_proposal_canceling() {
+    #[test]
+    fn test_proposal_canceling() {
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -407,60 +403,53 @@ mod tests {
                 assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
                 assert!(user.trusted());
             }
-        });
 
-        assert_eq!(
-            propose(pr(1), "test".into(), Payload::Noop, 0).await,
-            Err("only stalwarts can create proposals".into())
-        );
+            assert_eq!(
+                propose(state, pr(1), "test".into(), Payload::Noop, 0),
+                Err("only stalwarts can create proposals".into())
+            );
 
-        mutate(|state| {
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
-        });
 
-        let id = propose(pr(1), "test".into(), Payload::Noop, 0)
-            .await
+            let id = propose(state, pr(1), "test".into(), Payload::Noop, 0)
+                .expect("couldn't create proposal");
+
+            let id2 = propose(
+                state,
+                pr(1),
+                "test".into(),
+                Payload::Fund("e3mmv-5qaaa-aaaah-aadma-cai".into(), 10),
+                0,
+            )
             .expect("couldn't create proposal");
 
-        let id2 = propose(
-            pr(1),
-            "test".into(),
-            Payload::Fund("e3mmv-5qaaa-aaaah-aadma-cai".into(), 10),
-            0,
-        )
-        .await
-        .expect("couldn't create proposal");
-
-        mutate(|state| {
             assert_eq!(
                 state.proposals.get(id2 as usize).unwrap().status,
                 Status::Open
             );
-        });
 
-        let upgrade_id = propose(
-            pr(1),
-            "test".into(),
-            Payload::Release(Release {
-                commit: "sdasd".into(),
-                hash: "".into(),
-                binary: vec![1],
-            }),
-            0,
-        )
-        .await
-        .expect("couldn't create proposal");
+            let upgrade_id = propose(
+                state,
+                pr(1),
+                "test".into(),
+                Payload::Release(Release {
+                    commit: "sdasd".into(),
+                    hash: "".into(),
+                    binary: vec![1],
+                }),
+                0,
+            )
+            .expect("couldn't create proposal");
 
-        let id3 = propose(
-            pr(1),
-            "test".into(),
-            Payload::Fund("e3mmv-5qaaa-aaaah-aadma-cai".into(), 10),
-            2 * HOUR,
-        )
-        .await
-        .expect("couldn't create proposal");
+            let id3 = propose(
+                state,
+                pr(1),
+                "test".into(),
+                Payload::Fund("e3mmv-5qaaa-aaaah-aadma-cai".into(), 10),
+                2 * HOUR,
+            )
+            .expect("couldn't create proposal");
 
-        mutate(|state| {
             assert_eq!(
                 state.proposals.get(id3 as usize).unwrap().status,
                 Status::Open
@@ -486,22 +475,20 @@ mod tests {
                 state.proposals.get(upgrade_id as usize).unwrap().status,
                 Status::Open
             );
-        });
 
-        let upgrade_id2 = propose(
-            pr(1),
-            "test".into(),
-            Payload::Release(Release {
-                commit: "sdasd".into(),
-                hash: "".into(),
-                binary: vec![1],
-            }),
-            0,
-        )
-        .await
-        .expect("couldn't create proposal");
+            let upgrade_id2 = propose(
+                state,
+                pr(1),
+                "test".into(),
+                Payload::Release(Release {
+                    commit: "sdasd".into(),
+                    hash: "".into(),
+                    binary: vec![1],
+                }),
+                0,
+            )
+            .expect("couldn't create proposal");
 
-        mutate(|state| {
             assert_eq!(
                 state.proposals.get(upgrade_id as usize).unwrap().status,
                 Status::Cancelled
@@ -513,8 +500,8 @@ mod tests {
         });
     }
 
-    #[actix_rt::test]
-    async fn test_proposal_voting() {
+    #[test]
+    fn test_proposal_voting() {
         let data = &"".to_string();
         let proposer = pr(1);
         STATE.with(|cell| {
@@ -557,22 +544,19 @@ mod tests {
             }
 
             state.principal_to_user_mut(proposer).unwrap().stalwart = true;
-        });
 
-        // check error cases on voting
-        assert_eq!(
-            propose(pr(111), "".into(), Payload::Noop, 0).await,
-            Err("user not found".to_string())
-        );
-        assert_eq!(
-            propose(proposer, "".into(), Payload::Noop, 0).await,
-            Err("description is empty".to_string())
-        );
-        let id = propose(proposer, "test".into(), Payload::Noop, 0)
-            .await
-            .expect("couldn't create proposal");
+            // check error cases on voting
+            assert_eq!(
+                propose(state, pr(111), "".into(), Payload::Noop, 0),
+                Err("user not found".to_string())
+            );
+            assert_eq!(
+                propose(state, proposer, "".into(), Payload::Noop, 0),
+                Err("description is empty".to_string())
+            );
+            let id = propose(state, proposer, "test".into(), Payload::Noop, 0)
+                .expect("couldn't create proposal");
 
-        mutate(|state| {
             assert_eq!(state.proposals.len(), 1);
 
             let p = state.proposals.iter_mut().next().unwrap();
@@ -584,14 +568,11 @@ mod tests {
                 vote_on_proposal(state, 0, proposer, id, false, data),
                 Err("last proposal is not open".into())
             );
-        });
 
-        // create a new proposal
-        let prop_id = propose(proposer, "test".into(), Payload::Noop, 0)
-            .await
-            .expect("couldn't create proposal");
+            // create a new proposal
+            let prop_id = propose(state, proposer, "test".into(), Payload::Noop, 0)
+                .expect("couldn't create proposal");
 
-        mutate(|state| {
             assert_eq!(state.proposals.len(), 2);
 
             // vote by non existing user
@@ -667,13 +648,10 @@ mod tests {
             // create a new proposal
             user.stalwart = true;
             user.change_karma(-1000, "");
-        });
 
-        let prop_id = propose(proposer, "test".into(), Payload::Noop, 0)
-            .await
-            .expect("couldn't propose");
+            let prop_id = propose(state, proposer, "test".into(), Payload::Noop, 0)
+                .expect("couldn't propose");
 
-        mutate(|state| {
             assert_eq!(
                 vote_on_proposal(state, 0, proposer, prop_id, true, data),
                 Err("only trusted users can vote".into())
@@ -699,8 +677,8 @@ mod tests {
         })
     }
 
-    #[actix_rt::test]
-    async fn test_reducing_voting_power() {
+    #[test]
+    fn test_reducing_voting_power() {
         let data = &"".to_string();
         STATE.with(|cell| {
             cell.replace(Default::default());
@@ -720,13 +698,10 @@ mod tests {
 
             // mint tokens
             state.mint(eligigble);
-        });
 
-        let prop_id = propose(pr(1), "test".into(), Payload::Noop, time())
-            .await
-            .expect("couldn't propose");
+            let prop_id = propose(state, pr(1), "test".into(), Payload::Noop, time())
+                .expect("couldn't propose");
 
-        mutate(|state| {
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, false, data),
                 Ok(())
@@ -754,8 +729,8 @@ mod tests {
         })
     }
 
-    #[actix_rt::test]
-    async fn test_non_controversial_rejection() {
+    #[test]
+    fn test_non_controversial_rejection() {
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -774,13 +749,10 @@ mod tests {
 
             // mint tokens
             state.mint(eligigble);
-        });
 
-        let prop_id = propose(pr(1), "test".into(), Payload::Noop, 0)
-            .await
-            .expect("couldn't propose");
+            let prop_id =
+                propose(state, pr(1), "test".into(), Payload::Noop, 0).expect("couldn't propose");
 
-        mutate(|state| {
             assert!(state.principal_to_user(pr(1)).unwrap().cycles() > 0);
             let proposer = state.principal_to_user(pr(1)).unwrap();
             let data = &"".to_string();
@@ -804,8 +776,8 @@ mod tests {
         })
     }
 
-    #[actix_rt::test]
-    async fn test_funding_proposal() {
+    #[test]
+    fn test_funding_proposal() {
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -824,22 +796,20 @@ mod tests {
 
             // mint tokens
             state.mint(eligigble);
-        });
 
-        let prop_id = propose(
-            pr(1),
-            "test".into(),
-            Payload::Reward(Reward {
-                receiver: pr(1).to_string(),
-                votes: Default::default(),
-                minted: 0,
-            }),
-            time(),
-        )
-        .await
-        .expect("couldn't propose");
+            let prop_id = propose(
+                state,
+                pr(1),
+                "test".into(),
+                Payload::Reward(Reward {
+                    receiver: pr(1).to_string(),
+                    votes: Default::default(),
+                    minted: 0,
+                }),
+                time(),
+            )
+            .expect("couldn't propose");
 
-        mutate(|state| {
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "300"),
                 Err("reward receivers can not vote".into())
@@ -847,8 +817,8 @@ mod tests {
         })
     }
 
-    #[actix_rt::test]
-    async fn test_reward_proposal() {
+    #[test]
+    fn test_reward_proposal() {
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -868,23 +838,21 @@ mod tests {
 
             // mint tokens
             state.mint(eligigble);
-        });
 
-        // Case 1: all agree
-        let prop_id = propose(
-            pr(1),
-            "test".into(),
-            Payload::Reward(Reward {
-                receiver: pr(4).to_string(),
-                votes: Default::default(),
-                minted: 0,
-            }),
-            time(),
-        )
-        .await
-        .expect("couldn't propose");
+            // Case 1: all agree
+            let prop_id = propose(
+                state,
+                pr(1),
+                "test".into(),
+                Payload::Reward(Reward {
+                    receiver: pr(4).to_string(),
+                    votes: Default::default(),
+                    minted: 0,
+                }),
+                time(),
+            )
+            .expect("couldn't propose");
 
-        mutate(|state| {
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "30000"),
                 Err("reward amount is higher than the configured maximum of 20000 tokens".into())
@@ -917,23 +885,21 @@ mod tests {
             };
 
             assert_eq!(state.active_voting_power(time()), 140000);
-        });
 
-        // Case 2: proposal gets rejected
-        let prop_id = propose(
-            pr(1),
-            "test".into(),
-            Payload::Reward(Reward {
-                receiver: pr(111).to_string(),
-                votes: Default::default(),
-                minted: 0,
-            }),
-            time(),
-        )
-        .await
-        .expect("couldn't propose");
+            // Case 2: proposal gets rejected
+            let prop_id = propose(
+                state,
+                pr(1),
+                "test".into(),
+                Payload::Reward(Reward {
+                    receiver: pr(111).to_string(),
+                    votes: Default::default(),
+                    minted: 0,
+                }),
+                time(),
+            )
+            .expect("couldn't propose");
 
-        mutate(|state| {
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "30000"),
                 Err("reward amount is higher than the configured maximum of 20000 tokens".into())
@@ -962,23 +928,21 @@ mod tests {
             } else {
                 panic!("unexpected payload")
             };
-        });
 
-        // Case 3: some voters reject
-        let prop_id = propose(
-            pr(1),
-            "test".into(),
-            Payload::Reward(Reward {
-                receiver: pr(111).to_string(),
-                votes: Default::default(),
-                minted: 0,
-            }),
-            time(),
-        )
-        .await
-        .expect("couldn't propose");
+            // Case 3: some voters reject
+            let prop_id = propose(
+                state,
+                pr(1),
+                "test".into(),
+                Payload::Reward(Reward {
+                    receiver: pr(111).to_string(),
+                    votes: Default::default(),
+                    minted: 0,
+                }),
+                time(),
+            )
+            .expect("couldn't propose");
 
-        mutate(|state| {
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "30000"),
                 Err("reward amount is higher than the configured maximum of 20000 tokens".into())
@@ -1007,23 +971,21 @@ mod tests {
             } else {
                 panic!("unexpected payload")
             };
-        });
 
-        // Case 4: user votes for themseleves
-        let prop_id = propose(
-            pr(2),
-            "test".into(),
-            Payload::Reward(Reward {
-                receiver: pr(1).to_string(),
-                votes: Default::default(),
-                minted: 0,
-            }),
-            time(),
-        )
-        .await
-        .expect("couldn't propose");
+            // Case 4: user votes for themseleves
+            let prop_id = propose(
+                state,
+                pr(2),
+                "test".into(),
+                Payload::Reward(Reward {
+                    receiver: pr(1).to_string(),
+                    votes: Default::default(),
+                    minted: 0,
+                }),
+                time(),
+            )
+            .expect("couldn't propose");
 
-        mutate(|state| {
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "300"),
                 Err("reward receivers can not vote".into())

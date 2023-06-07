@@ -213,9 +213,7 @@ pub async fn topup_with_cycles(canister_id: Principal, cycles: u64) -> Result<()
 }
 
 pub async fn top_up(canister_id: Principal, min_cycle_balance: u64) -> Result<bool, String> {
-    open_call("balance");
-    let result = call_raw(canister_id, "balance", Default::default(), 0).await;
-    close_call("balance");
+    let result = call_canister_raw(canister_id, "balance", Default::default()).await;
     let bytes = result.map_err(|err| {
         format!(
             "couldn't get balance from canister {}: {:?}",
@@ -355,9 +353,8 @@ pub async fn vote_on_nns_proposal(proposal_id: u64, vote: NNSVote) -> Result<(),
     // so we try at most 10 times
     let mut attempts: i16 = 10;
     loop {
-        open_call(method);
-        let result = call_raw(MAINNET_GOVERNANCE_CANISTER_ID, method, args.as_slice(), 0).await;
-        close_call(method);
+        let result =
+            call_canister_raw(MAINNET_GOVERNANCE_CANISTER_ID, method, args.as_slice()).await;
 
         attempts -= 1;
 
@@ -367,6 +364,13 @@ pub async fn vote_on_nns_proposal(proposal_id: u64, vote: NNSVote) -> Result<(),
                 .map_err(|err| format!("couldn't call the governance canister: {:?}", err));
         }
     }
+}
+
+pub async fn call_canister_raw(id: Principal, method: &str, args: &[u8]) -> CallResult<Vec<u8>> {
+    open_call(method);
+    let result = call_raw(id, method, args, 0).await;
+    close_call(method);
+    result
 }
 
 pub async fn call_canister<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(

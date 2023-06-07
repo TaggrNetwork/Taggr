@@ -1,9 +1,8 @@
 use crate::{
-    canisters::{install, CanisterInstallMode},
+    canisters::{self, CanisterInstallMode},
     mutate, read,
 };
 use candid::Principal;
-use ic_cdk::api::call::call_raw;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -33,7 +32,7 @@ impl Storage {
             state.storage.buckets.insert(id, 0);
             state.logger.info(format!("New bucket {} created.", id));
         });
-        install(id, BUCKET_WASM_GZ, CanisterInstallMode::Install).await?;
+        canisters::install(id, BUCKET_WASM_GZ, CanisterInstallMode::Install).await?;
         mutate(|state| {
             state
                 .logger
@@ -45,14 +44,14 @@ impl Storage {
     #[allow(dead_code)]
     async fn upgrade_buckets(&self) -> Result<(), String> {
         for id in self.buckets.keys() {
-            install(*id, BUCKET_WASM_GZ, CanisterInstallMode::Upgrade).await?;
+            canisters::install(*id, BUCKET_WASM_GZ, CanisterInstallMode::Upgrade).await?;
         }
         Ok(())
     }
 
     pub async fn write_to_bucket(blob: &[u8]) -> Result<(Principal, u64), String> {
         let id = Storage::allocate_space(CONFIG.max_bucket_size).await?;
-        let response = call_raw(id, "write", blob, 0)
+        let response = canisters::call_canister_raw(id, "write", blob)
             .await
             .map_err(|err| format!("couldn't call write on a bucket: {:?}", err))?;
         let mut offset_bytes: [u8; 8] = Default::default();
