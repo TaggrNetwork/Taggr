@@ -3,7 +3,7 @@ import { Form } from './form';
 import { Content, CUT } from './content';
 import { Poll } from './poll';
 import { isRoot, BurgerButton, timeAgo, ToggleButton, NotFound, applyPatch, loadPostBlobs, ShareButton, commaSeparated, Loading, objectReduce, reactionCosts, postUserToPost, loadPost,
-    ReactionToggleButton, RealmRibbon, setTitle, ButtonWithLoading, bigScreen, UserLink, FlagButton, ReportBanner } from './common';
+    ReactionToggleButton, RealmRibbon, setTitle, ButtonWithLoading, bigScreen, UserLink, FlagButton, ReportBanner, icp } from './common';
 import {PostFeed} from "./post_feed";
 import {reaction2icon, Edit, Save, Unsave, Watch, Unwatch, Repost, Coin, New, CommentArrow, CarretRight, Trash, Comment, Close } from "./icons";
 import {Proposal} from "./proposals";
@@ -231,11 +231,9 @@ const PostInfo = ({post, version, postCreated, callback}) => {
                 toggler={() => api.call("toggle_bookmark", post.id).then(api._reloadUser)}
                 testId="bookmark-post" />
             <ButtonWithLoading classNameArg="max_width_col" onClick={async () => {
-                const cycles = prompt(`Tip @${post.user.name} with cycles (tipping fee: ${backendCache.config.tipping_fee}):`, 20);
-                if(cycles == null) return;
-                const tip = parseInt(cycles);
-                if(isNaN(tip)) alert("Couldn't parse the number of cycles.");
-                let response = await api.call("tip", post.id, tip);
+                const amount = prompt(`Tip @${post.user.name} with ICP:`);
+                if(amount == null || !confirm(`Transfer ${amount} ICP to @${post.user.name} as a tip?`)) return;
+                let response = await api.call("tip", post.id, amount);
                 if ("Err" in response) {
                     alert(`Error: ${response.Err}`);
                 } else await callback();
@@ -248,12 +246,11 @@ const PostInfo = ({post, version, postCreated, callback}) => {
             {postAuthor && <>
                 {post.hashes.length == 0 && <ButtonWithLoading classNameArg="max_width_col" onClick={async () => {
                     const { post_cost, post_deletion_penalty_factor } = backendCache.config;
-                    const tips = post.tips.reduce((acc, [_, tip]) => acc + tip, 0);
                     const cost = objectReduce(post.reactions, (acc, id, users) => {
                         const costTable = reactionCosts();
                         let cost = costTable[parseInt(id)];
                         return acc + (cost > 0 ? cost : 0) * users.length;
-                    }, 0) + post_cost + post.tree_size * post_deletion_penalty_factor + tips;
+                    }, 0) + post_cost + post.tree_size * post_deletion_penalty_factor;
                     if (!confirm(`Please confirm the post deletion: it will costs ${cost} cycles.`)) return;
                     let current = post.body;
                     const versions = [current];
@@ -283,7 +280,7 @@ const PostInfo = ({post, version, postCreated, callback}) => {
                 <b>WATCHERS</b>: {commaSeparated(post.watchers.map(id => <UserLink key={id} id={id} />))}
             </div>}
             {post.tips.length > 0 && <div>
-                <b>TIPS</b>: {commaSeparated(post.tips.map(([id, tip]) => <span key={id + tip}><code>{tip}</code> from {<UserLink id={id} />}</span>))}
+                <b>ICP TIPS</b>: {commaSeparated(post.tips.map(([id, tip]) => <span key={id + tip}><code>{icp(tip, "with_decimals")}</code> from {<UserLink id={id} />}</span>))}
             </div>}
             {Object.keys(post.reactions).length > 0 && <div className="top_spaced">
                 {Object.entries(post.reactions).map(([reactId, users]) => <div key={reactId} className="bottom_half_spaced">
@@ -304,9 +301,10 @@ const PostBar = ({post, react, highlighted, highlightOp, repost, showInfo, toggl
         return <div className="post_bar vcentered smaller_text flex_ended">
             <div className="row_container" style={{alignItems: "center"}}>
                 <a className={highlightOp ? "accent" : null} href={`#/user/${post.user.id}`}>{`${post.user.name}`}</a>
-                <div className="left_spaced no_wrap vcentered">
+                <div className="left_half_spaced no_wrap vcentered">
                     {time}
                     {newPost && <New classNameArg="left_half_spaced accent" /> }
+                    {post.tips.length > 0 && <Coin classNameArg="accent left_half_spaced" />}
                 </div>
             </div>
             <div className="vcentered max_width_col flex_ended">

@@ -40,7 +40,6 @@ pub struct Config {
     pub reporting_penalty_misbehaviour: Cycles,
 
     pub minimal_tip: Cycles,
-    pub tipping_fee: Cycles,
 
     pub trusted_user_min_karma: Karma,
     pub trusted_user_min_age_weeks: u64,
@@ -157,7 +156,6 @@ pub const CONFIG: &Config = &Config {
     trusted_user_min_age_weeks: 4,
 
     minimal_tip: 1,
-    tipping_fee: 1,
 
     realm_cleanup_penalty: 10,
 

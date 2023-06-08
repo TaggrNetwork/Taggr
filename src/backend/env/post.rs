@@ -40,7 +40,7 @@ pub struct Post {
     pub tree_size: u32,
     pub tree_update: u64,
     pub report: Option<Report>,
-    pub tips: Vec<(UserId, Cycles)>,
+    pub tips: Vec<(UserId, u64)>,
     pub extension: Option<Extension>,
     pub realm: Option<String>,
     pub hashes: Vec<String>,

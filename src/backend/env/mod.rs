@@ -479,42 +479,41 @@ impl State {
         Ok(())
     }
 
-    pub fn tip(
-        &mut self,
-        principal: Principal,
-        post_id: PostId,
-        tip: Cycles,
-    ) -> Result<(), String> {
-        let ledger_log = format!("tipping for post {}", post_id);
-        let tipper = self.principal_to_user(principal).ok_or("no user found")?;
-        let tipper_id = tipper.id;
-        let tipper_name = tipper.name.clone();
-        let author_id = Post::get(self, &post_id).ok_or("post not found")?.user;
-        self.cycle_transfer(
-            tipper_id,
-            author_id,
-            tip,
-            CONFIG.tipping_fee,
-            Destination::Cycles,
-            ledger_log,
-        )?;
-        Post::mutate(self, &post_id, |post| {
-            post.watchers.insert(tipper_id);
-            post.tips.push((tipper_id, tip));
+    pub async fn tip(principal: Principal, post_id: PostId, amount: String) -> Result<(), String> {
+        let result: Result<_, String> = read(|state| {
+            let tipper = state.principal_to_user(principal).ok_or("no user found")?;
+            let tipper_id = tipper.id;
+            let tipper_name = tipper.name.clone();
+            let author_id = Post::get(state, &post_id).ok_or("post not found")?.user;
+            let recipient = state
+                .users
+                .get(&author_id)
+                .ok_or("no user found")?
+                .account
+                .clone();
+            Ok((recipient, tipper_name, author_id, tipper_id))
+        });
+        let (recipient, tipper_name, author_id, tipper_id) = result?;
+        let tip = State::icp_transfer(principal, recipient, &amount).await?;
+        mutate(|state| {
+            Post::mutate(state, &post_id, |post| {
+                post.watchers.insert(tipper_id);
+                post.tips.push((tipper_id, tip.e8s()));
+                Ok(())
+            })?;
+            state
+                .users
+                .get_mut(&author_id)
+                .expect("user not found")
+                .notify_about_post(
+                    format!(
+                        "@{} tipped you with `{}` ICP for your post",
+                        tipper_name, amount,
+                    ),
+                    post_id,
+                );
             Ok(())
         })
-        .expect("couldn't mutate post");
-        self.users
-            .get_mut(&author_id)
-            .expect("user not found")
-            .notify_about_post(
-                format!(
-                    "@{} tipped you with `{}` cycles for your post",
-                    tipper_name, tip,
-                ),
-                post_id,
-            );
-        Ok(())
     }
 
     pub fn tree(&self, id: PostId) -> HashMap<PostId, &'_ Post> {
@@ -935,8 +934,8 @@ impl State {
     pub async fn icp_transfer(
         principal: Principal,
         recipient: String,
-        amount: String,
-    ) -> Result<(), String> {
+        amount: &str,
+    ) -> Result<Tokens, String> {
         State::claim_e8s_from_treasury(principal).await?;
 
         fn parse(amount: &str) -> Result<Tokens, String> {
@@ -960,14 +959,15 @@ impl State {
             }
         }
 
+        let amount = parse(amount)?;
         invoices::transfer(
             parse_account(&recipient)?,
-            parse(&amount)?,
+            amount,
             Memo(1),
             Some(principal_to_subaccount(&principal)),
         )
         .await
-        .map(|_| ())
+        .map(|_| amount)
     }
 
     async fn distribute_icp(
@@ -1884,12 +1884,9 @@ impl State {
             })
             .collect::<Vec<_>>();
 
-        let tips: Cycles = post.tips.iter().map(|(_, tip)| tip).sum();
-
         let costs: Cycles = CONFIG.post_cost
             + reaction_costs.iter().map(|(_, cost)| *cost).sum::<u64>()
-            + comments_tree_penalty
-            + tips;
+            + comments_tree_penalty;
         if costs > self.users.get(&post.user).ok_or("no user found")?.cycles() {
             return Err(format!(
                 "not enough cycles (this post requires {} cycles to be deleted)",
@@ -2381,14 +2378,6 @@ pub(crate) mod tests {
             assert!(state.react(pr(1), post_id, 100, 0).is_ok());
             assert!(state.react(pr(2), post_id, 50, 0).is_ok());
 
-            // Tip from another user
-            let cycles = state.principal_to_user(pr(3)).unwrap().cycles();
-            state.tip(pr(3), post_id, 100).unwrap();
-            assert_eq!(
-                state.principal_to_user(pr(3)).unwrap().cycles(),
-                cycles - 100 - 1
-            );
-
             assert_eq!(
                 state.users.get(&id).unwrap().karma_to_reward(),
                 10 + 5 + 2 * CONFIG.response_reward as Karma
@@ -2411,7 +2400,7 @@ pub(crate) mod tests {
                 .unwrap();
             assert_eq!(
                 state.delete_post(pr(0), post_id, versions.clone()),
-                Err("not enough cycles (this post requires 147 cycles to be deleted)".into())
+                Err("not enough cycles (this post requires 47 cycles to be deleted)".into())
             );
 
             state
@@ -2437,9 +2426,6 @@ pub(crate) mod tests {
                 state.react(pr(1), post_id, 1, 0),
                 Err("post deleted".into())
             );
-
-            // Tipper got his tip back, modulo transfer fee
-            assert_eq!(state.principal_to_user(pr(3)).unwrap().cycles(), cycles - 1);
         });
     }
 
@@ -2876,46 +2862,6 @@ pub(crate) mod tests {
                 Some("TAGGRDAO".to_string())
             );
         });
-    }
-
-    #[test]
-    fn test_tipping() {
-        STATE.with(|cell| cell.replace(Default::default()));
-        mutate(|state| {
-            let p = pr(0);
-            let u1 = create_user_with_params(state, p, "user1", true);
-            let u2 = create_user_with_params(state, pr(1), "user2", true);
-            let post_id = Post::create(
-                state,
-                "This is a #post with #tags".to_string(),
-                &[],
-                p,
-                0,
-                None,
-                None,
-                None,
-            )
-            .unwrap();
-
-            let u = state.users.get_mut(&u1).unwrap();
-            assert_eq!(u.karma(), CONFIG.trusted_user_min_karma);
-            let cycles_before = u.cycles();
-
-            assert_eq!(state.tip(pr(1), post_id, 500), Ok(()));
-            assert_eq!(
-                state.tip(pr(1), post_id, 600),
-                Err("not enough cycles".into())
-            );
-
-            let u = state.users.get_mut(&u1).unwrap();
-            assert_eq!(u.karma_to_reward(), 0);
-            assert_eq!(u.cycles(), cycles_before + 500);
-            let u = state.users.get_mut(&u2).unwrap();
-            assert_eq!(u.cycles(), 1000 - 500 - CONFIG.tipping_fee);
-
-            let p = Post::get(state, &post_id).unwrap();
-            assert_eq!(p.tips, vec![(u2, 500)]);
-        })
     }
 
     #[test]

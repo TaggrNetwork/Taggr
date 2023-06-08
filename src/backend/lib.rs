@@ -225,8 +225,10 @@ fn clear_notifications() {
 
 #[export_name = "canister_update tip"]
 fn tip() {
-    let (post_id, tip): (PostId, Cycles) = parse(&arg_data_raw());
-    mutate(|state| reply(state.tip(caller(), post_id, tip)));
+    spawn(async {
+        let (post_id, amount): (PostId, String) = parse(&arg_data_raw());
+        reply(State::tip(caller(), post_id, amount).await);
+    })
 }
 
 #[export_name = "canister_update react"]
@@ -296,7 +298,7 @@ fn create_user() {
 fn transfer_icp() {
     spawn(async {
         let (recipient, amount): (String, String) = parse(&arg_data_raw());
-        reply(State::icp_transfer(caller(), recipient, amount).await)
+        reply(State::icp_transfer(caller(), recipient, &amount).await)
     });
 }
 

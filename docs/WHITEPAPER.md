@@ -104,11 +104,6 @@ Note:
 2. The karma and cycles of every user inactive for longer than `$inactivity_duration_weeks` weeks decreases by `$inactivity_penalty` per week.
 3. Users with a negative karma do not participate in distributions.
 
-### Tipping
-
-Additionally to rewards users can tip each other with any amount of cycles. The fee for tipping is `$tipping_fee` cycle.
-The cycles transferred via tipping get added to receiver's cycle balance and do not contribute to karma.
-
 ## Proposals
 
 A proposal passes if `$proposal_approval_threshold%` of users approve it or it fails if `(100-$proposal_approval_threshold)%` of users reject it.
