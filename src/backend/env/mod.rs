@@ -1911,17 +1911,6 @@ impl State {
             }
         }
 
-        for (user_id, tip) in post.tips.iter() {
-            self.cycle_transfer(
-                post.user,
-                *user_id,
-                *tip,
-                0,
-                Destination::Cycles,
-                format!("tip refund after deletion of post {}", post.id),
-            )?;
-        }
-
         // penalize for comments tree destruction
         self.charge(
             post.user,
