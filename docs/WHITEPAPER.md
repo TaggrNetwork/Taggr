@@ -17,7 +17,7 @@ The auto-regulation is enforced through a scheme of incentives:
  - Every mutable operation on $name burns user's cycles.
  - Users earn or lose "karma" by writing posts and getting reactions and comments.
  - Users can mint new cycles at any point paying at least `1` XDR in ICP.
- - All payments go to [$name's Treasury](https://dashboard.internetcomputer.org/account/cc5fb202723a8cfb43128dda9c0d64c03f22d455070271f63a60afff14f360ec) holding ICP rewards and $name's revenue.
+ - All payments go to [$name's Treasury](https://dashboard.internetcomputer.org/account/dee15d98a70029163c79ace6ec9cf33b21917355f1766f44f87b4cb9f4d3b393) holding ICP rewards and $name's revenue.
 
 ## Tokenomics
 

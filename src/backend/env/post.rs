@@ -153,7 +153,7 @@ impl Post {
             }
             match Storage::write_to_bucket(blob.as_slice()).await.clone() {
                 Ok((bucket_id, offset)) => mutate(|state| {
-                    Post::mutate(state, &post_id, &mut |post, _| {
+                    Post::mutate(state, &post_id, |post| {
                         post.files
                             .insert(format!("{}@{}", id, bucket_id), (offset, blob.len()));
                         Ok(())
@@ -261,9 +261,36 @@ impl Post {
     /// returns `Ok(true)` and assings the result weighted by the square root of karma and by the token
     /// voting power.
     pub fn conclude_poll(state: &mut State, post_id: &PostId, now: u64) -> Result<bool, String> {
-        Post::mutate(state, post_id, &mut |post, state| {
-            let users = &state.users;
-            let balances = &state.balances;
+        let (balances, users) = Post::get(state, post_id)
+            .and_then(|post| {
+                if let Some(Extension::Poll(poll)) = post.extension.as_ref() {
+                    let user_ids = poll.votes.values().flatten().cloned();
+                    let users = user_ids
+                        .filter_map(|id| state.users.get(&id).map(|user| (id, user.clone())))
+                        .collect::<BTreeMap<_, _>>();
+                    Some((
+                        users
+                            .values()
+                            .map(|user| {
+                                (
+                                    user.principal,
+                                    state
+                                        .balances
+                                        .get(&account(user.principal))
+                                        .copied()
+                                        .unwrap_or_default(),
+                                )
+                            })
+                            .collect::<BTreeMap<_, _>>(),
+                        users,
+                    ))
+                } else {
+                    None
+                }
+            })
+            .ok_or("no post with poll found")?;
+
+        Post::mutate(state, post_id, |post| {
             let timestamp = post.timestamp();
             if let Some(Extension::Poll(poll)) = post.extension.as_mut() {
                 if timestamp + poll.deadline * HOUR > now {
@@ -293,7 +320,7 @@ impl Post {
                             *k,
                             ids.iter()
                                 .filter_map(|id| users.get(id))
-                                .filter_map(|user| balances.get(&account(user.principal)))
+                                .filter_map(|user| balances.get(&user.principal))
                                 .sum(),
                         )
                     })
@@ -451,17 +478,22 @@ impl Post {
             realm.posts.push(id);
         }
         if let Some(parent_id) = post.parent {
-            Post::mutate(state, &parent_id, &mut |parent_post, state| {
+            let result = Post::mutate(state, &parent_id, |parent_post| {
                 parent_post.children.push(id);
                 parent_post.watchers.insert(user_id);
-                let parent_post_author = parent_post.user;
                 if parent_post.user != user_id && trusted_user {
-                    let log = format!("response to post {}", parent_post.id);
-                    // Reward user for spawning activity with his post.
-                    state.spend_to_user_karma(parent_post_author, CONFIG.response_reward, log)
+                    return Ok(Some((parent_post.user, parent_post.id)));
                 }
-                Ok(())
+                Ok(None)
             })?;
+            // Reward user for spawning activity with their post.
+            if let Some((parent_post_author, parent_post_id)) = result {
+                state.spend_to_user_karma(
+                    parent_post_author,
+                    CONFIG.response_reward,
+                    format!("response to post {}", parent_post_id),
+                )
+            }
         }
         if matches!(&post.extension, &Some(Extension::Poll(_))) {
             state.pending_polls.insert(post.id);
@@ -481,7 +513,7 @@ impl Post {
             .thread(id)
             .filter(|post_id| post_id != &id)
             .try_for_each(|id| {
-                Post::mutate(state, &id, &mut |post, _| {
+                Post::mutate(state, &id, |post| {
                     post.tree_size += 1;
                     post.tree_update = timestamp;
                     post.make_hot(&mut hot_posts, users_len, user_id);
@@ -502,13 +534,12 @@ impl Post {
         state.posts.get(post_id)
     }
 
-    pub fn mutate<T>(
-        state: &mut State,
-        post_id: &PostId,
-        f: &mut dyn FnMut(&mut Post, &mut State) -> Result<T, String>,
-    ) -> Result<T, String> {
+    pub fn mutate<T, F>(state: &mut State, post_id: &PostId, f: F) -> Result<T, String>
+    where
+        F: FnOnce(&mut Post) -> Result<T, String>,
+    {
         let mut post = state.posts.remove(post_id).ok_or("no post found")?;
-        let result = f(&mut post, state);
+        let result = f(&mut post);
         if state.posts.insert(*post_id, post).is_some() {
             panic!("no post should exist")
         }
@@ -544,7 +575,7 @@ pub fn change_realm(state: &mut State, root_post_id: PostId, new_realm: Option<S
             realm.posts.sort_unstable();
         }
 
-        Post::mutate(state, &post_id, &mut |post, _| {
+        Post::mutate(state, &post_id, |post| {
             post.realm = new_realm.clone();
             Ok(())
         })

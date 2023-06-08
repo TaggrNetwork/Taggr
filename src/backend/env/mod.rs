@@ -498,7 +498,7 @@ impl State {
             Destination::Cycles,
             ledger_log,
         )?;
-        Post::mutate(self, &post_id, &mut |post, _| {
+        Post::mutate(self, &post_id, |post| {
             post.watchers.insert(tipper_id);
             post.tips.push((tipper_id, tip));
             Ok(())
@@ -1738,22 +1738,21 @@ impl State {
         }
         let stalwarts = self.users.values().filter(|u| u.stalwart).count();
         let (user_id, report, penalty, subject) = match domain.as_str() {
-            "post" => Post::mutate(self, &id, &mut |post,
-                                                    _|
-             -> Result<
-                (UserId, Report, Cycles, String),
-                String,
-            > {
-                post.vote_on_report(stalwarts, user.id, vote)?;
-                let post_user = post.user;
-                let post_report = post.report.clone().ok_or("no report")?;
-                Ok((
-                    post_user,
-                    post_report,
-                    CONFIG.reporting_penalty_post,
-                    format!("post {}", id),
-                ))
-            })?,
+            "post" => Post::mutate(
+                self,
+                &id,
+                |post| -> Result<(UserId, Report, Cycles, String), String> {
+                    post.vote_on_report(stalwarts, user.id, vote)?;
+                    let post_user = post.user;
+                    let post_report = post.report.clone().ok_or("no report")?;
+                    Ok((
+                        post_user,
+                        post_report,
+                        CONFIG.reporting_penalty_post,
+                        format!("post {}", id),
+                    ))
+                },
+            )?,
             "misbehaviour" => {
                 if user.id == id {
                     return Err("votes on own reports are not accepted".into());
@@ -1787,7 +1786,7 @@ impl State {
             .principal_to_user(principal)
             .ok_or_else(|| "no user found".to_string())?;
         let (user_id, user_realms) = (user.id, user.realms.clone());
-        Post::mutate(self, &post_id, &mut |post, _| {
+        Post::mutate(self, &post_id, |post| {
             post.watchers.insert(user_id);
             post.vote_on_poll(user_id, user_realms.clone(), time, vote)
         })
@@ -1825,7 +1824,7 @@ impl State {
 
         match domain.as_str() {
             "post" => {
-                let post_user = Post::mutate(self, &id, &mut |post, _| {
+                let post_user = Post::mutate(self, &id, |post| {
                     if post.report.is_some() {
                         return Err("this post is already reported".into());
                     }
@@ -1915,11 +1914,11 @@ impl State {
             }
         }
 
-        for (user_id, tip) in post.tips {
+        for (user_id, tip) in post.tips.iter() {
             self.cycle_transfer(
                 post.user,
-                user_id,
-                tip,
+                *user_id,
+                *tip,
                 0,
                 Destination::Cycles,
                 format!("tip refund after deletion of post {}", post.id),
@@ -1941,20 +1940,19 @@ impl State {
 
         self.hot.retain(|id| id != &post_id);
 
-        Post::mutate(self, &post_id, &mut |post, state| {
-            match &post.extension {
-                Some(Extension::Proposal(proposal_id)) => {
-                    if let Some(proposal) =
-                        state.proposals.iter_mut().find(|p| &p.id == proposal_id)
-                    {
-                        proposal.status = Status::Cancelled
-                    }
+        match &post.extension {
+            Some(Extension::Proposal(proposal_id)) => {
+                if let Some(proposal) = self.proposals.iter_mut().find(|p| &p.id == proposal_id) {
+                    proposal.status = Status::Cancelled
                 }
-                Some(Extension::Poll(_)) => {
-                    state.pending_polls.remove(&post_id);
-                }
-                _ => {}
             }
+            Some(Extension::Poll(_)) => {
+                self.pending_polls.remove(&post_id);
+            }
+            _ => {}
+        };
+
+        Post::mutate(self, &post_id, |post| {
             post.delete(versions.clone());
             Ok(())
         })
@@ -2036,7 +2034,7 @@ impl State {
             .expect("no user for principal found")
             .last_activity = time;
         let user_id = user.id;
-        Post::mutate(self, &post_id, &mut |post, _| {
+        Post::mutate(self, &post_id, |post| {
             post.reactions.entry(reaction).or_default().insert(user_id);
             Ok(())
         })
@@ -2183,7 +2181,7 @@ pub(crate) mod tests {
             )
             .unwrap();
 
-            let now = Post::mutate(state, &post_id, &mut |post, _| {
+            let now = Post::mutate(state, &post_id, |post| {
                 let mut votes = BTreeMap::new();
                 votes.insert(0, vec![1, 2, 3].into_iter().collect());
                 votes.insert(1, vec![4, 5, 6].into_iter().collect());
@@ -2853,7 +2851,7 @@ pub(crate) mod tests {
             Err("you're not in the realm".into()),
         );
 
-        mutate(|state| {
+        read(|state| {
             // Move post to TAGGRDAO realms
             assert_eq!(Post::get(state, &5).unwrap().realm, Some(realm_name));
         });
@@ -2871,7 +2869,8 @@ pub(crate) mod tests {
             .await,
             Ok(())
         );
-        mutate(|state| {
+
+        read(|state| {
             assert_eq!(
                 Post::get(state, &5).unwrap().realm,
                 Some("TAGGRDAO".to_string())

@@ -452,15 +452,11 @@ fn toggle_bookmark() {
 #[export_name = "canister_update toggle_following_post"]
 fn toggle_following_post() {
     let post_id: PostId = parse(&arg_data_raw());
-    mutate(|state| {
-        reply(
-            Post::mutate(state, &post_id, &mut |post, state| {
-                let user_id = state.principal_to_user(caller()).ok_or("no user found")?.id;
-                Ok(post.toggle_following(user_id))
-            })
+    let user_id = read(|state| state.principal_to_user(caller()).expect("no user found").id);
+    reply(
+        mutate(|state| Post::mutate(state, &post_id, |post| Ok(post.toggle_following(user_id))))
             .unwrap_or_default(),
-        );
-    })
+    )
 }
 
 #[export_name = "canister_update toggle_following_user"]
