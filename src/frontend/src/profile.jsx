@@ -18,7 +18,6 @@ export const Profile = ({handle}) => {
             return;
         }
         profile.loadingStatus = 1;
-        profile.posts.reverse();
         setProfile(profile);
     };
 
@@ -130,14 +129,12 @@ export const Profile = ({handle}) => {
             </div>
             <hr />
         </>}
-        {profile.posts.length > 0 && <h2 className="spaced">Latest posts</h2>}
-        <PostFeed feedLoader={async page => {
-            if (profile.loadingStatus != 1) return;
-            let post_ids = profile.posts;
-            const offset = page * feed_page_size;
-            post_ids = post_ids.slice(offset, offset + feed_page_size);
-            return await api.query("posts", post_ids);
-        }} heartbeat={profile.id} />
+        <PostFeed 
+            title={<h2 className="spaced">Latest posts</h2>}
+            feedLoader={async page => {
+                if (profile.loadingStatus != 1) return;
+                return await api.query("user_posts", profile.id.toString(), page);
+            }} heartbeat={profile.id} />
     </>;
 };
 
@@ -215,7 +212,7 @@ export const UserInfo = ({profile}) => {
             </div>
             <div className="db_cell">
                 POSTS
-                <code>{profile.posts.length.toLocaleString()}</code>
+                <code>{profile.num_posts.toLocaleString()}</code>
             </div>
             <div className="db_cell">
                 TOKENS

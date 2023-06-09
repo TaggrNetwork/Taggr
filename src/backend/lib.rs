@@ -85,6 +85,12 @@ fn post_upgrade() {
     set_timers();
 
     // temporary post upgrade logic goes here
+    mutate(|state| {
+        state
+            .users
+            .values_mut()
+            .for_each(|user| user.num_posts = user.posts.len() as u64)
+    });
 }
 
 /*
@@ -755,6 +761,21 @@ fn tree() {
     read(|state| reply(state.tree(post_id)));
 }
 
+#[export_name = "canister_query user_posts"]
+fn user_posts() {
+    let (handle, page): (String, usize) = parse(&arg_data_raw());
+    read(|state| {
+        resolve_handle(Some(handle)).map(|user| {
+            reply(
+                user.posts(state)
+                    .skip(CONFIG.feed_page_size * page)
+                    .take(CONFIG.feed_page_size)
+                    .collect::<Vec<_>>(),
+            )
+        })
+    });
+}
+
 #[export_name = "canister_query user"]
 fn user() {
     let input: Vec<String> = parse(&arg_data_raw());
@@ -770,12 +791,12 @@ fn user() {
                 user.accounting.clear();
             } else {
                 let karma = reaction_karma();
+                user.bookmarks.clear();
+                user.settings.clear();
+                user.inbox.clear();
                 user.karma_from_last_posts = user
-                    .posts
-                    .iter()
-                    .rev()
+                    .posts(state)
                     .take(CONFIG.feed_page_size * 3)
-                    .filter_map(|post_id| Post::get(state, post_id))
                     .flat_map(|post| post.reactions.iter())
                     .flat_map(|(r_id, users)| {
                         let cost = karma.get(r_id).copied().unwrap_or_default();
@@ -826,12 +847,14 @@ fn journal() {
             state
                 .user(&handle)
                 .map(|user| {
-                    user.posts
-                        .iter()
-                        .rev()
-                        .filter_map(|id| Post::get(state, id))
-                        // we filter out responses and root posts starting with tagging another user
-                        .filter(|post| post.parent.is_none() && !post.body.starts_with('@'))
+                    user.posts(state)
+                        // we filter out responses, root posts starting with tagging another user
+                        // and deletet posts
+                        .filter(|post| {
+                            !post.is_deleted()
+                                && post.parent.is_none()
+                                && !post.body.starts_with('@')
+                        })
                         .skip(page * CONFIG.feed_page_size)
                         .take(CONFIG.feed_page_size)
                         .cloned()
@@ -854,7 +877,7 @@ fn last_posts() {
     read(|state| {
         reply(
             state
-                .last_posts(caller(), with_comments)
+                .last_posts(Some(caller()), with_comments)
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
                 .cloned()

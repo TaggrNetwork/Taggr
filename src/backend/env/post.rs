@@ -1,3 +1,5 @@
+use std::cmp::{Ordering, PartialOrd};
+
 use super::*;
 use super::{storage::Storage, user::UserId};
 use crate::mutate;
@@ -44,6 +46,18 @@ pub struct Post {
     pub extension: Option<Extension>,
     pub realm: Option<String>,
     pub hashes: Vec<String>,
+}
+
+impl PartialEq for Post {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl PartialOrd for Post {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.id.cmp(&other.id))
+    }
 }
 
 impl Post {
@@ -421,10 +435,7 @@ impl Post {
         } as usize;
 
         if user
-            .posts
-            .iter()
-            .rev()
-            .filter_map(|id| Post::get(state, id))
+            .posts(state)
             .filter(|post| {
                 !(parent.is_none() ^ post.parent.is_none())
                     && post.timestamp() > timestamp.saturating_sub(HOUR)
@@ -470,9 +481,12 @@ impl Post {
         let trusted_user = user.trusted();
         let future_id = state.next_post_id;
         state.charge(user_id, costs, format!("new post {}", future_id))?;
+        state
+            .users
+            .get_mut(&user_id)
+            .expect("no user found")
+            .num_posts += 1;
         let id = state.new_post_id();
-        let user = state.users.get_mut(&user_id).expect("no user found");
-        user.posts.push(id);
         post.id = id;
         if let Some(realm) = realm.and_then(|name| state.realms.get_mut(&name)) {
             realm.posts.push(id);

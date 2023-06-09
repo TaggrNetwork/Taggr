@@ -29,11 +29,15 @@ pub enum Notification {
 pub struct User {
     pub id: UserId,
     pub name: String,
+    // TODO: delete
+    #[serde(skip_serializing)]
     pub posts: Vec<PostId>,
-    bookmarks: VecDeque<PostId>,
+    #[serde(default)]
+    pub num_posts: u64,
+    pub bookmarks: VecDeque<PostId>,
     pub about: String,
     pub account: String,
-    settings: String,
+    pub settings: String,
     karma: Karma,
     pub rewarded_karma: Karma,
     pub cycles: Cycles,
@@ -80,6 +84,7 @@ impl User {
             rewarded_karma: 0,
             timestamp,
             posts: Default::default(),
+            num_posts: 0,
             bookmarks: Default::default(),
             feeds: Default::default(),
             followees: Default::default(),
@@ -100,6 +105,16 @@ impl User {
             treasury_e8s: 0,
         }
     }
+
+    pub fn posts<'a>(&'a self, state: &'a State) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+        let id = self.id;
+        Box::new(
+            state
+                .last_posts(None, true)
+                .filter(move |post| post.user == id),
+        )
+    }
+
     pub fn enter_realm(&mut self, name: String) {
         if self.realms.contains(&name) {
             self.current_realm = Some(name);
@@ -163,25 +178,18 @@ impl User {
         page: usize,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let posts_by_tags = Box::new(
-            state
-                .last_posts(principal, with_comments)
-                .filter(move |post| {
-                    let lc_tags: BTreeSet<_> = post.tags.iter().map(|t| t.to_lowercase()).collect();
-                    covered_by_feeds(&self.feeds, &lc_tags, false).is_some()
-                })
-                .map(|post| &post.id),
-        );
+        let posts_by_tags = Box::new(state.last_posts(Some(principal), with_comments).filter(
+            move |post| {
+                let lc_tags: BTreeSet<_> = post.tags.iter().map(|t| t.to_lowercase()).collect();
+                covered_by_feeds(&self.feeds, &lc_tags, false).is_some()
+            },
+        ));
 
-        let mut iterators: Vec<Box<dyn Iterator<Item = &'a PostId> + 'a>> = self
+        let mut iterators: Vec<Box<dyn Iterator<Item = &'a Post> + 'a>> = self
             .followees
             .iter()
             .filter_map(move |id| state.users.get(id))
-            .map(|user| {
-                let iter: Box<dyn Iterator<Item = &'a PostId> + 'a> =
-                    Box::new(user.posts.iter().rev());
-                iter
-            })
+            .map(|user| user.posts(state))
             .collect();
 
         iterators.push(posts_by_tags);
@@ -190,7 +198,6 @@ impl User {
             IteratorMerger {
                 iterators: iterators.into_iter().map(|i| i.peekable()).collect(),
             }
-            .filter_map(move |id| Post::get(state, &id))
             .filter(move |post| with_comments || post.parent.is_none())
             .filter(move |post| {
                 // Either  the user is in no realm or in the realm of the post
@@ -327,13 +334,13 @@ struct IteratorMerger<'a, T> {
 }
 
 impl<'a, T: Clone + PartialOrd> Iterator for IteratorMerger<'a, T> {
-    type Item = T;
+    type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut max_val = None;
         let mut indexes = vec![];
         for (i, iter) in self.iterators.iter_mut().enumerate() {
-            let candidate = iter.peek().cloned().cloned();
+            let candidate = iter.peek().cloned();
             if candidate == max_val {
                 indexes.push(i);
             } else if candidate > max_val {

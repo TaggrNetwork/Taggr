@@ -78,7 +78,7 @@ impl Proposal {
 
         match &mut self.payload {
             Payload::Release(release) => {
-                if release.hash != data {
+                if approve && release.hash != data {
                     return Err("wrong hash".into());
                 }
             }

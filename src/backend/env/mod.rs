@@ -337,6 +337,7 @@ impl State {
             ),
         }
         self.last_upgrade = time();
+        self.last_hourly_chores = time();
     }
 
     pub fn hot_posts(&self, principal: Principal, page: usize) -> Vec<Post> {
@@ -721,7 +722,7 @@ impl State {
                         None
                     }),
             )
-            .chain(self.last_posts(principal, true).filter_map(
+            .chain(self.last_posts(Some(principal), true).filter_map(
                 |Post { id, body, user, .. }| {
                     if id.to_string() == term {
                         return Some(SearchResult {
@@ -1475,7 +1476,7 @@ impl State {
         page: usize,
     ) -> Vec<Post> {
         let query: HashSet<_> = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
-        self.last_posts(principal, true)
+        self.last_posts(Some(principal), true)
             .filter(|post| {
                 (users.is_empty() || users.contains(&post.user))
                     && post
@@ -1493,11 +1494,11 @@ impl State {
 
     pub fn last_posts<'a>(
         &'a self,
-        principal: Principal,
+        principal: Option<Principal>,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let posts: Box<dyn Iterator<Item = PostId>> = match self
-            .principal_to_user(principal)
+        let posts: Box<dyn Iterator<Item = PostId>> = match principal
+            .and_then(|principal| self.principal_to_user(principal))
             .and_then(|user| user.current_realm.as_ref())
             .and_then(|id| self.realms.get(id))
         {
@@ -1510,7 +1511,7 @@ impl State {
         Box::new(
             posts
                 .filter_map(move |i| Post::get(self, &i))
-                .filter(move |post| with_comments || post.parent.is_none()),
+                .filter(move |post| !post.is_deleted() && (with_comments || post.parent.is_none())),
         )
     }
 
@@ -1518,7 +1519,7 @@ impl State {
         // normalized hashtag -> (user spelled hashtag, occurences)
         let mut tags: HashMap<String, (String, u64)> = Default::default();
         let mut tags_found = 0;
-        'OUTER: for post in self.last_posts(principal, true) {
+        'OUTER: for post in self.last_posts(Some(principal), true) {
             for tag in &post.tags {
                 let (_, counter) = tags.entry(tag.to_lowercase()).or_insert((tag.clone(), 0));
                 // We only count tags occurences on root posts, if they have comments or reactions

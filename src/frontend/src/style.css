@@ -570,8 +570,8 @@ a.accent, .accent { color: $accent; }
 .post_box > article h4, 
 .post_box > article h5, 
 .post_box > article pre {
-    padding-left: 0.6rem;
-    padding-right: 0.6rem;
+    padding-left: 0.8rem;
+    padding-right: 0.8rem;
 }
 
 .post_box > article ol,
