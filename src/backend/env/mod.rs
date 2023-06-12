@@ -112,7 +112,9 @@ pub struct Realm {
     pub members: BTreeSet<UserId>,
     pub label_color: String,
     theme: String,
+    #[serde(default)]
     pub num_posts: u64,
+    #[serde(default)]
     pub num_members: u64,
 }
 
