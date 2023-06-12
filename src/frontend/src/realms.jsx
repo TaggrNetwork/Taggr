@@ -153,7 +153,6 @@ export const RealmForm = ({existingName}) => {
 
 export const RealmPage = ({name}) => {
     const [realm, setRealm] = React.useState(null);
-    const [showMembers, setShowMembers] = React.useState(false);
     const loadRealm = async () => {
         let result = await api.query("realm", name);
         if ("Err" in result) {
@@ -188,10 +187,7 @@ export const RealmPage = ({name}) => {
                 {user && user.realms.includes(name) && <ButtonWithLoading classNameArg="right_half_spaced" label="LEAVE"
                     onClick={async () => api.call("toggle_realm_membership", name).then(api._reloadUser).then(loadRealm)} />}
             </>} />
-        <div className="spaced">
-            <Content value={realm.description} />
-            <p>Members: {showMembers ? userList(realm.members) : <a href="" onClick={e => {e.preventDefault(); setShowMembers(true)}}>{realm.members.length}</a>}</p>
-        </div>
+        <Content classNameArg="spaced" value={realm.description} />
         <hr />
         <PostFeed title={<h2 className="spaced">Latest Posts</h2>}
             grid={true} feedLoader={async page => await api.query("realm_posts", name, page, false)} />
@@ -226,7 +222,7 @@ export const Realms = () => {
                     </h3>
                     <Content value={realm.description.split("\n")[0]} classNameArg="bottom_spaced" />
                     <div>
-                        <code>{realm.posts.length}</code> posts, <code>{realm.members.length}</code> members,
+                        <code>{realm.num_posts}</code> posts, <code>{realm.num_members}</code> members,
                         controlled by: {userList(realm.controllers)}
                     </div>
                 </div>;})}

@@ -89,7 +89,11 @@ fn post_upgrade() {
         state
             .users
             .values_mut()
-            .for_each(|user| user.num_posts = user.posts.len() as u64)
+            .for_each(|user| user.num_posts = user.posts.len() as u64);
+        state.realms.values_mut().for_each(|realm| {
+            realm.num_posts = realm.posts.len() as u64;
+            realm.num_members = realm.members.len() as u64;
+        })
     });
 }
 
@@ -672,27 +676,23 @@ fn proposals() {
 #[export_name = "canister_query realm_posts"]
 fn realm_posts() {
     let (name, page, with_comments): (String, usize, bool) = parse(&arg_data_raw());
-    read(|state| match state.realms.get(&name) {
-        None => reply_raw(&[]),
-        Some(realm) => reply(
-            realm
-                .posts
-                .iter()
-                .rev()
-                .filter_map(|id| Post::get(state, id))
+    read(|state| {
+        reply(
+            state
+                .last_posts(None, true)
+                .filter(|post| post.realm.as_ref() == Some(&name))
                 .filter(move |post| with_comments || post.parent.is_none())
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
-                .cloned()
-                .collect::<Vec<Post>>(),
-        ),
+                .collect::<Vec<&Post>>(),
+        )
     })
 }
 
 fn sorted_realms(state: &State) -> Vec<(&'_ String, &'_ Realm)> {
     let mut realms = state.realms.iter().collect::<Vec<_>>();
-    realms.sort_unstable_by(|(_, b), (_, a)| {
-        (a.posts.len() * a.members.len()).cmp(&(b.posts.len() * b.members.len()))
+    realms.sort_unstable_by_key(|(_name, realm)| {
+        std::cmp::Reverse(realm.num_posts * realm.num_members)
     });
     realms
 }

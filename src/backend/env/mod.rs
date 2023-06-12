@@ -103,11 +103,17 @@ pub struct Stats {
 pub struct Realm {
     logo: String,
     pub description: String,
+    // TODO: delete
+    #[serde(skip_serializing)]
     pub posts: Vec<PostId>,
     pub controllers: Vec<UserId>,
+    // TODO: delete
+    #[serde(skip_serializing)]
     pub members: BTreeSet<UserId>,
     pub label_color: String,
     theme: String,
+    pub num_posts: u64,
+    pub num_members: u64,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -358,21 +364,14 @@ impl State {
             Some(user) => user,
             _ => return false,
         };
-        let user_id = user.id;
         if user.realms.contains(&name) {
             user.realms.retain(|realm| realm != &name);
             if user.current_realm == Some(name.clone()) {
                 user.current_realm = None
             }
-            self.realms
-                .get_mut(&name)
-                .map(|realm| realm.members.remove(&user_id));
             return false;
         }
         user.realms.push(name.clone());
-        self.realms
-            .get_mut(&name)
-            .map(|realm| realm.members.insert(user_id));
         true
     }
 
@@ -463,8 +462,7 @@ impl State {
                 controllers,
                 label_color,
                 theme,
-                posts: Default::default(),
-                members: Default::default(),
+                ..Default::default()
             },
         );
 
@@ -1507,22 +1505,19 @@ impl State {
         principal: Option<Principal>,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let posts: Box<dyn Iterator<Item = PostId>> = match principal
+        let iter = {
+            let last_id = self.next_post_id.saturating_sub(1);
+            Box::new((0..=last_id).rev())
+        }
+        .filter_map(move |i| Post::get(self, &i))
+        .filter(move |post| !post.is_deleted() && (with_comments || post.parent.is_none()));
+        match principal
             .and_then(|principal| self.principal_to_user(principal))
             .and_then(|user| user.current_realm.as_ref())
-            .and_then(|id| self.realms.get(id))
         {
-            Some(realm) => Box::new(realm.posts.iter().cloned().rev()),
-            None => {
-                let last_id = self.next_post_id.saturating_sub(1);
-                Box::new((0..=last_id).rev())
-            }
-        };
-        Box::new(
-            posts
-                .filter_map(move |i| Post::get(self, &i))
-                .filter(move |post| !post.is_deleted() && (with_comments || post.parent.is_none())),
-        )
+            None => Box::new(iter),
+            id => Box::new(iter.filter(move |post| post.realm.as_ref() == id)),
+        }
     }
 
     pub fn recent_tags(&self, principal: Principal, n: u64) -> Vec<(String, u64)> {
@@ -2272,7 +2267,14 @@ pub(crate) mod tests {
 
             create_user(state, pr(0));
             assert!(state.toggle_realm_membership(pr(0), "TEST".into()));
-            assert_eq!(state.realms.get("TEST").unwrap().members.len(), 1);
+            assert_eq!(
+                state
+                    .users
+                    .values()
+                    .filter(|user| user.realms.contains(&"TEST".to_string()))
+                    .count(),
+                1
+            );
 
             let post_id = Post::create(
                 state,
@@ -2310,14 +2312,22 @@ pub(crate) mod tests {
             )
             .unwrap();
 
-            assert_eq!(state.realms.get("TEST").unwrap().posts.len(), 3);
-            assert_eq!(state.realms.get("TEST2").unwrap().posts.len(), 0);
+            assert_eq!(realm_posts(state, "TEST").len(), 3);
+            assert_eq!(realm_posts(state, "TEST2").len(), 0);
 
             crate::post::change_realm(state, post_id, Some("TEST2".into()));
 
-            assert_eq!(state.realms.get("TEST").unwrap().posts.len(), 0);
-            assert_eq!(state.realms.get("TEST2").unwrap().posts.len(), 3);
+            assert_eq!(realm_posts(state, "TEST").len(), 0);
+            assert_eq!(realm_posts(state, "TEST2").len(), 3);
         });
+    }
+
+    fn realm_posts(state: &State, name: &str) -> Vec<PostId> {
+        state
+            .last_posts(None, true)
+            .filter(|post| post.realm.as_ref() == Some(&name.to_string()))
+            .map(|post| post.id)
+            .collect::<Vec<_>>()
     }
 
     #[test]
@@ -2667,7 +2677,7 @@ pub(crate) mod tests {
                 Post::get(state, &post_id).unwrap().realm,
                 Some(name.clone())
             );
-            assert!(state.realms.get(&name).unwrap().posts.contains(&post_id));
+            assert!(realm_posts(state, &name).contains(&post_id));
 
             // Posting without realm creates the post in the current realm of the user
             let post_id = Post::create(
@@ -2718,7 +2728,7 @@ pub(crate) mod tests {
                 Ok(2)
             );
 
-            assert!(state.realms.get(&name).unwrap().posts.contains(&2));
+            assert!(realm_posts(state, &name).contains(&2));
 
             // Create post without a realm
             state

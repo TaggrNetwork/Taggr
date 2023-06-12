@@ -516,7 +516,7 @@ impl Post {
         let id = state.new_post_id();
         post.id = id;
         if let Some(realm) = realm.and_then(|name| state.realms.get_mut(&name)) {
-            realm.posts.push(id);
+            realm.num_posts += 1;
         }
         if let Some(parent_id) = post.parent {
             let result = Post::mutate(state, &parent_id, |parent_post| {
@@ -647,25 +647,8 @@ pub fn change_realm(state: &mut State, root_post_id: PostId, new_realm: Option<S
     let mut post_ids = vec![root_post_id];
 
     while let Some(post_id) = post_ids.pop() {
-        let Post {
-            children, realm, ..
-        } = Post::get(state, &post_id).expect("no post found").clone();
+        let Post { children, .. } = Post::get(state, &post_id).expect("no post found").clone();
         post_ids.extend_from_slice(&children);
-
-        if let Some(realm_id) = realm.as_ref() {
-            state
-                .realms
-                .get_mut(realm_id)
-                .expect("no realm found")
-                .posts
-                .retain(|id| id != &post_id);
-        }
-
-        if let Some(realm_id) = new_realm.as_ref() {
-            let realm = state.realms.get_mut(realm_id).expect("no realm found");
-            realm.posts.push(post_id);
-            realm.posts.sort_unstable();
-        }
 
         Post::mutate(state, &post_id, |post| {
             post.realm = new_realm.clone();
