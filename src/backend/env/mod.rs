@@ -236,6 +236,9 @@ impl State {
     pub fn clean_up_realm(&mut self, principal: Principal, post_id: PostId) -> Result<(), String> {
         let controller = self.principal_to_user(principal).ok_or("no user found")?.id;
         let post = Post::get(self, &post_id).ok_or("no post found")?;
+        if post.parent.is_some() {
+            return Err("only root posts can be moved out of realms".into());
+        }
         let realm = post.realm.as_ref().cloned().ok_or("no realm id found")?;
         let post_user = post.user;
         if !post

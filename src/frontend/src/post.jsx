@@ -238,7 +238,7 @@ const PostInfo = ({post, version, postCreated, callback}) => {
                     alert(`Error: ${response.Err}`);
                 } else await callback();
             }} label={<Coin />} />
-            {realmController && <ButtonWithLoading classNameArg="max_width_col" onClick={async () => {
+            {realmController && isRoot(post) && <ButtonWithLoading classNameArg="max_width_col" onClick={async () => {
                 if (!confirm("Do you want to remove the post from this realm?")) return;
                 await api.call("realm_clean_up", post.id);
                 alert("This post was removed from this realm.");
