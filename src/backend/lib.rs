@@ -119,7 +119,7 @@ mod dev {
     async fn godmode(user_id: UserId) {
         mutate(|state| {
             let user = state.users.get_mut(&user_id).expect("no user found");
-            user.timestamp -= CONFIG.trusted_user_min_age_weeks * WEEK;
+            user.timestamp -= CONFIG.trusted_user_min_age_weeks * env::WEEK;
             user.stalwart = true;
             user.change_karma(CONFIG.trusted_user_min_karma, "test");
             user.apply_rewards();

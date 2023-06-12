@@ -6,6 +6,26 @@ use crate::mutate;
 use crate::reports::Report;
 use serde::{Deserialize, Serialize};
 
+static mut CACHE: Option<BTreeMap<PostId, Box<Post>>> = None;
+
+// This is a static cache that is only populated during one queries's life cycle. The reason why it's
+// needed is that `Post::get` always returns a reference to a post. But when we load an archived
+// post, we read raw bytes from the stable memory and deserialize them into a value. To return a
+// reference to that value, we need to anchor it somewhere on the heap. This is where we need our
+// cache. But we also _cannot_ store posts inside the cache directly, because any mutation of the
+// cache within a query life cycle will restructure the hash map and hence break all references.
+// To work around this issue, we go through one level of indirection and box all posts (put them on
+// to the heap) and then only add the pointers to the boxed value into the cache. This way,
+// when we get a reference to a post and dereference twice, we get a stable reference.
+fn cache<'a>() -> &'a mut BTreeMap<PostId, Box<Post>> {
+    unsafe {
+        if CACHE.is_none() {
+            CACHE = Some(Default::default())
+        }
+        CACHE.as_mut().expect("no cache instantiated")
+    }
+}
+
 pub type PostId = u64;
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -46,6 +66,9 @@ pub struct Post {
     pub extension: Option<Extension>,
     pub realm: Option<String>,
     pub hashes: Vec<String>,
+
+    #[serde(skip)]
+    pub archived: bool,
 }
 
 impl PartialEq for Post {
@@ -93,6 +116,7 @@ impl Post {
             tree_update: timestamp,
             report: None,
             extension,
+            archived: false,
             realm,
         }
     }
@@ -380,7 +404,10 @@ impl Post {
 
             let current_realm = post.realm.clone();
 
-            Post::save(state, post.clone());
+            // After we validated the new edited copy of the post, charged the user, we should remove the
+            // old post, and insert the edited one.
+            Post::take(state, &id).expect("couldn't remove old post");
+            Post::save(state, post);
 
             if current_realm != picked_realm {
                 change_realm(state, id, picked_realm)
@@ -541,28 +568,79 @@ impl Post {
     }
 
     pub fn count(state: &State) -> usize {
-        state.posts.len()
+        state.posts.len() + state.memory.posts.len()
     }
 
+    // Get the post from the heap if available, or load from the stable memory into the cache and
+    // return the reference to it
     pub fn get<'a>(state: &'a State, post_id: &PostId) -> Option<&'a Post> {
-        state.posts.get(post_id)
+        state.posts.get(post_id).or_else(|| {
+            let boxed = cache().get(post_id).or_else(|| {
+                state.memory.posts.get(post_id).and_then(|mut post: Post| {
+                    let cache = cache();
+                    post.archived = true;
+                    cache.insert(*post_id, Box::new(post));
+                    cache.get(post_id)
+                })
+            });
+            boxed.map(|ptr| &**ptr)
+        })
     }
 
+    // Takes the post from cold or hot memory
+    fn take(state: &mut State, post_id: &PostId) -> Result<Post, String> {
+        cache().remove(post_id);
+        state
+            .posts
+            .remove(post_id)
+            .ok_or("no post found".to_string())
+            .or_else(|_| state.memory.posts.remove(post_id))
+    }
+
+    // Takes the post from hot or cold memory, mutates and inserts into the hot memory
     pub fn mutate<T, F>(state: &mut State, post_id: &PostId, f: F) -> Result<T, String>
     where
         F: FnOnce(&mut Post) -> Result<T, String>,
     {
-        let mut post = state.posts.remove(post_id).ok_or("no post found")?;
+        let mut post = Post::take(state, post_id)?;
         let result = f(&mut post);
-        if state.posts.insert(*post_id, post).is_some() {
-            panic!("no post should exist")
-        }
+        Post::save(state, post);
         result
     }
 
     fn save(state: &mut State, post: Post) {
-        state.posts.insert(post.id, post);
+        if state.posts.insert(post.id, post).is_some() {
+            panic!("no post should exist")
+        }
     }
+}
+
+// Moves a configured number of posts from hot to cold memory.
+pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result<(), String> {
+    let mut posts: Vec<&Post> = state.posts.values().collect();
+    let posts_to_archive = posts.len().saturating_sub(max_posts_in_heap);
+    if posts_to_archive == 0 {
+        return Ok(());
+    }
+
+    // sort from newest to oldest
+    posts.sort_unstable_by_key(|p| std::cmp::Reverse(p.timestamp()));
+    let ids = posts.into_iter().map(|post| post.id).collect::<Vec<_>>();
+
+    ids.into_iter()
+        .skip(max_posts_in_heap)
+        .try_for_each(|post_id| {
+            let post = state
+                .posts
+                .remove(&post_id)
+                .ok_or(format!("no post found for id={post_id}"))?;
+            state.memory.posts.insert(post_id, post)
+        })?;
+
+    state
+        .logger
+        .info(format!("`{}` posts archived.", posts_to_archive));
+    Ok(())
 }
 
 pub fn change_realm(state: &mut State, root_post_id: PostId, new_realm: Option<String>) {
@@ -717,6 +795,135 @@ fn tokens(max_tag_length: usize, input: &str, tokens: &[char]) -> BTreeSet<Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        env::tests::{create_user, pr},
+        STATE,
+    };
+
+    #[test]
+    fn test_post_archiving() {
+        static mut MEM_END: u64 = 16;
+        static mut MEMORY: Option<Vec<u8>> = None;
+        unsafe {
+            let size = 1024 * 512;
+            MEMORY = Some(Vec::with_capacity(size));
+            for _ in 0..size {
+                MEMORY.as_mut().unwrap().push(0);
+            }
+        };
+        let mem_grow = |n| unsafe {
+            MEM_END += n;
+            Ok(0)
+        };
+        fn mem_end() -> u64 {
+            unsafe { MEM_END }
+        }
+        let writer = |offset, buf: &[u8]| {
+            buf.iter().enumerate().for_each(|(i, byte)| unsafe {
+                MEMORY.as_mut().unwrap()[offset as usize + i] = *byte
+            });
+        };
+        let reader = |offset, buf: &mut [u8]| {
+            for (i, b) in buf.iter_mut().enumerate() {
+                *b = unsafe { MEMORY.as_ref().unwrap()[offset as usize + i] }
+            }
+        };
+        STATE.with(|cell| {
+            cell.replace(Default::default());
+            cell.borrow_mut().memory.set_test_api(
+                Box::new(mem_grow),
+                Box::new(mem_end),
+                Box::new(writer),
+                Box::new(reader),
+            );
+        });
+
+        mutate(|state| {
+            for i in 0..10 {
+                create_user(state, pr(i));
+                let id = Post::create(
+                    state,
+                    format!("test {}", i),
+                    &[],
+                    pr(i),
+                    0,
+                    None,
+                    None,
+                    None,
+                )
+                .unwrap();
+                // Make every new post be older than the previous one
+                Post::mutate(state, &id, |post| {
+                    post.timestamp = 10 << i;
+                    Ok(())
+                })
+                .unwrap();
+            }
+
+            assert_eq!(state.posts.len(), 10);
+            // Trigger post archiving
+            archive_cold_posts(state, 5).unwrap();
+            assert_eq!(
+                state.memory.health("B"),
+                "boundary=819B, mem_size=819B, segments=0".to_string()
+            );
+
+            // Make sure we have the right numbers in cold and hot memories
+            assert_eq!(state.posts.len(), 5);
+            assert_eq!(state.memory.posts.len(), 5);
+
+            // Make sure the first posts are deserialized correctly and are marked as archived
+            for i in 0..5 {
+                let post = Post::get(state, &i).unwrap();
+                assert!(post.archived);
+                assert_eq!(post.body, format!("test {}", i));
+            }
+            for i in 5..10 {
+                assert!(!Post::get(state, &i).unwrap().archived);
+            }
+
+            // Mutate post 1 by reacting on it
+            state.react(pr(0), 1, 10, 0).unwrap();
+
+            // This should unarchive the post
+            assert!(!Post::get(state, &1).unwrap().archived);
+            assert_eq!(state.posts.len(), 6);
+            assert_eq!(state.memory.posts.len(), 4);
+
+            // Create a comment on 3rd post
+            Post::create(
+                state,
+                "comment".to_string(),
+                &[],
+                pr(4),
+                0,
+                Some(3),
+                None,
+                None,
+            )
+            .unwrap();
+
+            // Make sure the post is unarchived
+            assert!(!Post::get(state, &3).unwrap().archived);
+            assert_eq!(state.posts.len(), 8);
+            assert_eq!(state.memory.posts.len(), 3);
+            assert_eq!(
+                state.memory.health("B"),
+                "boundary=819B, mem_size=819B, segments=2".to_string()
+            );
+
+            // Archive posts again
+            archive_cold_posts(state, 5).unwrap();
+            assert_eq!(state.posts.len(), 5);
+            assert_eq!(state.memory.posts.len(), 6);
+            // Segments were reduced, becasue the new post 10 fits into a gap left from one of the
+            // old posts
+            assert_eq!(
+                state.memory.health("B"),
+                "boundary=1145B, mem_size=1145B, segments=1".to_string()
+            );
+        });
+    }
 
     #[test]
     fn test_hashtag_extraction() {

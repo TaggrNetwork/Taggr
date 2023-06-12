@@ -4,15 +4,40 @@ use std::{cell::RefCell, collections::BTreeMap, fmt::Display, rc::Rc};
 
 use super::post::PostId;
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Api {
     allocator: Allocator,
+    #[allow(clippy::type_complexity)]
+    #[serde(skip)]
+    write_bytes: Option<Box<dyn Fn(u64, &[u8])>>,
+    #[allow(clippy::type_complexity)]
+    #[serde(skip)]
+    read_bytes: Option<Box<dyn Fn(u64, &mut [u8])>>,
+}
+
+impl Clone for Api {
+    fn clone(&self) -> Self {
+        Self {
+            allocator: self.allocator.clone(),
+            ..Default::default()
+        }
+    }
+}
+
+impl Default for Api {
+    fn default() -> Self {
+        Self {
+            allocator: Default::default(),
+            write_bytes: Some(Box::new(stable64_write)),
+            read_bytes: Some(Box::new(stable64_read)),
+        }
+    }
 }
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Memory {
     api: Api,
-    #[serde(skip)]
+    #[serde(default)]
     pub posts: ObjectManager<PostId>,
     #[serde(skip)]
     api_ref: Rc<RefCell<Api>>,
@@ -25,33 +50,66 @@ impl Api {
     pub fn write<T: Serialize>(&mut self, value: &T) -> Result<(u64, u64), String> {
         let buffer: Vec<u8> = serde_cbor::to_vec(value).expect("couldn't serialize");
         let offset = self.allocator.alloc(buffer.len() as u64)?;
-        stable64_write(offset, &buffer);
+        (self.write_bytes.as_ref().expect("no writer"))(offset, &buffer);
         Ok((offset, buffer.len() as u64))
     }
 
-    #[allow(dead_code)]
     pub fn remove(&mut self, offset: u64, len: u64) -> Result<(), String> {
         self.allocator.free(offset, len)
     }
 
-    pub fn read<T: DeserializeOwned>(offset: u64, len: u64) -> T {
+    pub fn read<T: DeserializeOwned>(&self, offset: u64, len: u64) -> T {
         let mut bytes = Vec::with_capacity(len as usize);
         bytes.spare_capacity_mut();
         unsafe {
             bytes.set_len(len as usize);
         }
-        stable64_read(offset, &mut bytes);
+        (self.read_bytes.as_ref().expect("no reader"))(offset, &mut bytes);
         serde_cbor::from_slice(&bytes).expect("couldn't deserialize")
     }
 }
 
 impl Memory {
-    pub fn report_health(&self) -> String {
-        self.api_ref.as_ref().borrow().allocator.health()
+    pub fn health(&self, unit: &str) -> String {
+        self.api_ref.as_ref().borrow().allocator.health(unit)
+    }
+
+    fn pack(&mut self) {
+        self.api = (*self.api_ref.as_ref().borrow()).clone();
+    }
+
+    fn unpack(&mut self) {
+        self.api_ref = Rc::new(RefCell::new(self.api.clone()));
+        self.posts.api = Rc::clone(&self.api_ref);
+    }
+
+    #[allow(clippy::type_complexity)]
+    #[cfg(test)]
+    pub fn set_test_api(
+        &mut self,
+        mem_grow: Box<dyn FnMut(u64) -> Result<u64, String>>,
+        mem_end: Box<dyn Fn() -> u64>,
+        write_bytes: Box<dyn Fn(u64, &[u8])>,
+        read_bytes: Box<dyn Fn(u64, &mut [u8])>,
+    ) {
+        let allocator = Allocator {
+            segments: Default::default(),
+            mem_grow: Some(mem_grow),
+            mem_size: Some(mem_end),
+            boundary: 16,
+        };
+        let test_api = Api {
+            allocator,
+            write_bytes: Some(write_bytes),
+            read_bytes: Some(read_bytes),
+        };
+        self.api_ref = Rc::new(RefCell::new(test_api));
+        self.posts.api = Rc::clone(&self.api_ref);
     }
 }
 
 pub fn heap_to_stable(state: &mut super::State) {
+    state.memory.pack();
     let mut api = state.memory.api.clone();
     let (offset, len) = match api.write(state) {
         Ok(values) => values,
@@ -85,7 +143,10 @@ pub fn heap_address() -> (u64, u64) {
 pub fn stable_to_heap() -> super::State {
     let (offset, len) = heap_address();
     ic_cdk::println!("Reading heap from coordinates: {:?}", (offset, len),);
-    Api::read(offset, len)
+    let api = Api::default();
+    let mut state: super::State = api.read(offset, len);
+    state.memory.unpack();
+    state
 }
 
 #[derive(Serialize, Deserialize)]
@@ -156,7 +217,6 @@ impl Allocator {
         if let Some((start, size)) = new_segment {
             self.segments.insert(start, size);
         }
-        ic_cdk::println!("Allocated {} bytes, {}", n, self.health());
         Ok(start)
     }
 
@@ -208,20 +268,20 @@ impl Allocator {
                 self.segments.insert(offset, size);
             }
         }
-        ic_cdk::println!(
-            "Deallocated segment={:?}, {}",
-            (offset, size),
-            self.health()
-        );
         Ok(())
     }
 
-    fn health(&self) -> String {
-        let megabyte = 1024 * 1024;
+    fn health(&self, unit: &str) -> String {
+        let divisor = match unit {
+            "KB" => 1024,
+            "MB" => 1024 * 1024,
+            _ => 1,
+        };
         format!(
-            "boundary=`{}Mb`, mem_size=`{}Mb`, segments=`{:?}`",
-            self.boundary / megabyte,
-            self.mem_size.as_ref().map(|f| f()).unwrap_or_default() / megabyte,
+            "boundary={}{2}, mem_size={}{2}, segments={3}",
+            self.boundary / divisor,
+            self.mem_size.as_ref().map(|f| f()).unwrap_or_default() / divisor,
+            unit,
             &self.segments.len(),
         )
     }
@@ -241,28 +301,28 @@ impl Allocator {
 pub struct ObjectManager<K: Ord + Eq> {
     index: BTreeMap<K, (u64, u64)>,
     #[serde(skip)]
-    #[allow(dead_code)]
     api: Rc<RefCell<Api>>,
 }
 
 impl<K: Eq + Ord + Clone + Display> ObjectManager<K> {
-    #[allow(dead_code)]
+    pub fn len(&self) -> usize {
+        self.index.len()
+    }
+
     pub fn insert<T: Serialize>(&mut self, id: K, value: T) -> Result<(), String> {
         self.index.insert(id, self.api.borrow_mut().write(&value)?);
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub fn get<T: DeserializeOwned>(&self, id: &K) -> Option<T> {
         self.index
             .get(id)
-            .map(|(offset, len)| Api::read(*offset, *len))
+            .map(|(offset, len)| self.api.borrow().read(*offset, *len))
     }
 
-    #[allow(dead_code)]
     pub fn remove<T: DeserializeOwned>(&mut self, id: &K) -> Result<T, String> {
         let (offset, len) = self.index.remove(id).ok_or("not found")?;
-        let value = Api::read(offset, len);
+        let value = self.api.borrow().read(offset, len);
         self.api.borrow_mut().remove(offset, len)?;
         Ok(value)
     }

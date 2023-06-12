@@ -1,6 +1,6 @@
 use self::canisters::{upgrade_main_canister, NNSVote};
 use self::invoices::{parse_account, Invoice};
-use self::post::{Extension, Poll, Post, PostId};
+use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
 use self::proposals::{Payload, Status};
 use self::reports::Report;
 use self::token::account;
@@ -114,8 +114,8 @@ pub struct Realm {
 pub struct State {
     pub burned_cycles: i64,
     pub burned_cycles_total: Cycles,
-    pub posts: HashMap<PostId, Post>,
-    pub users: HashMap<UserId, User>,
+    pub posts: BTreeMap<PostId, Post>,
+    pub users: BTreeMap<UserId, User>,
     pub principals: HashMap<Principal, UserId>,
     pub next_post_id: PostId,
     pub next_user_id: UserId,
@@ -157,10 +157,6 @@ pub struct State {
     pending_nns_proposals: BTreeMap<u64, PostId>,
 
     pub last_nns_proposal: u64,
-
-    #[serde(skip)]
-    #[allow(dead_code)]
-    nns_votes: u64,
 
     #[serde(default)]
     pub root_posts: usize,
@@ -517,9 +513,9 @@ impl State {
         })
     }
 
-    pub fn tree(&self, id: PostId) -> HashMap<PostId, &'_ Post> {
+    pub fn tree(&self, id: PostId) -> BTreeMap<PostId, &'_ Post> {
         let mut backlog = vec![id];
-        let mut posts: HashMap<_, _> = Default::default();
+        let mut posts: BTreeMap<_, _> = Default::default();
         while let Some(post) = backlog.pop().and_then(|id| Post::get(self, &id)) {
             backlog.extend_from_slice(post.children.as_slice());
             posts.insert(post.id, post);
@@ -1068,12 +1064,23 @@ impl State {
                 if let Err(err) = proposals::execute_proposal(state, proposal_id, now) {
                     state
                         .logger
-                        .error(format!("Couldn't execute last proposal: {:?}", err));
+                        .error(format!("couldn't execute last proposal: {:?}", err));
                 }
             }
 
             state.recompute_stalwarts(now);
+
+            if let Err(err) = state.archive_cold_data() {
+                state
+                    .logger
+                    .error(format!("couldn't archive cold data: {:?}", err));
+            }
         })
+    }
+
+    fn archive_cold_data(&mut self) -> Result<(), String> {
+        let max_posts_in_heap = 20_000;
+        archive_cold_posts(self, max_posts_in_heap)
     }
 
     async fn handle_nns_proposals(now: u64) {
@@ -1519,7 +1526,10 @@ impl State {
         // normalized hashtag -> (user spelled hashtag, occurences)
         let mut tags: HashMap<String, (String, u64)> = Default::default();
         let mut tags_found = 0;
-        'OUTER: for post in self.last_posts(Some(principal), true) {
+        'OUTER: for post in self
+            .last_posts(Some(principal), true)
+            .take_while(|post| !post.archived)
+        {
             for tag in &post.tags {
                 let (_, counter) = tags.entry(tag.to_lowercase()).or_insert((tag.clone(), 0));
                 // We only count tags occurences on root posts, if they have comments or reactions
@@ -1690,7 +1700,7 @@ impl State {
             ),
             team_tokens: self.team_tokens.clone(),
             emergency_votes: self.emergency_votes.keys().cloned().collect(),
-            meta: format!("Memory health: {}", self.memory.report_health()),
+            meta: format!("Memory health: {}", self.memory.health("MB")),
             weekly_karma_leaders,
             bootcamp_users,
             module_hash: self.module_hash.clone(),
