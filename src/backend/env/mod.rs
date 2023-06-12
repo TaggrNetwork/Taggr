@@ -1075,6 +1075,9 @@ impl State {
                     .logger
                     .error(format!("couldn't archive cold data: {:?}", err));
             }
+
+            // Automatically dump the heap to the stable memory.
+            memory::heap_to_stable(state);
         })
     }
 

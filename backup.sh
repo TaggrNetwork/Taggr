@@ -12,8 +12,7 @@ mkdir -p $DIR
 restore() {
     FILE="$1"
     echo "Restoring $FILE..."
-    $QU --pem-file ~/.config/dfx/identity/dev/identity.pem \
-        raw $(cat .dfx/local/canister_ids.json | jq -r ".taggr.local") "stable_mem_write" --args-file "$FILE" | $QU send --yes --raw - > /dev/null
+    $QU raw $(cat .dfx/local/canister_ids.json | jq -r ".taggr.local") "stable_mem_write" --args-file "$FILE" | $QU send --yes --raw - > /dev/null
 }
 
 if [ "$CMD" == "restore" ]; then
@@ -34,8 +33,7 @@ fi
 
 fetch() {
     FILE="$1"
-    $QU --pem-file ~/.config/dfx/identity/prod/identity.pem \
-        raw "6qfxa-ryaaa-aaaai-qbhsq-cai" "stable_mem_read" --args "($PAGE:nat64)" --query |\
+    $QU raw "6qfxa-ryaaa-aaaai-qbhsq-cai" "stable_mem_read" --args "($PAGE:nat64)" --query |\
         $QU send --yes --raw - > $FILE
 }
 

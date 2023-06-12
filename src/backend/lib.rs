@@ -173,24 +173,6 @@ fn stable_to_heap_core() {
     mutate(|state| state.load());
 }
 
-#[export_name = "canister_update heap_to_stable"]
-fn heap_to_stable() {
-    mutate(|state| {
-        let user = state
-            .principal_to_user(caller())
-            .expect("no user found")
-            .clone();
-        if user.stalwart {
-            env::memory::heap_to_stable(state);
-            state.logger.info(format!(
-                "@{} dumped heap to stable memory for backup purposes.",
-                user.name
-            ));
-        }
-    });
-    reply_raw(&[]);
-}
-
 /// Fetches the full neuron info of the TaggrDAO proving the neuron decentralization
 /// and voting via hot-key capabilities.
 #[update]
