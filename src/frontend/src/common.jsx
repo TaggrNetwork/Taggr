@@ -39,14 +39,14 @@ export const bigScreen = () => window.screen.availWidth >= 1024;
 export const RealmRibbon = ({col, name}) => 
     <RealmSpan name={name} col={col} classNameArg="realm_tag monospace" onClick={() => location.href = `/#/realm/${name}`} />;
 
-export const HeadBar = ({title, shareLink, shareTitle, content, menu, styleArg}) => {
+export const HeadBar = ({title, shareLink, shareTitle, content, menu, styleArg, burgerTestId = null}) => {
     const [showMenu, setShowMenu] = React.useState(false);
     return <div className="column_container stands_out bottom_spaced" style={styleArg}>
         <div className="vcentered">
             <div className={`max_width_col ${bigScreen() ? "x_large_text" : "larger_text"}`}>{title}</div>
             <div className="vcentered flex_ended">
                 {shareLink && <ShareButton styleArg={styleArg} url={shareLink} title={shareTitle} classNameArg="right_half_spaced" />}
-                {menu && <BurgerButton onClick={() => setShowMenu(!showMenu)} pressed={showMenu} />}
+                {menu && <BurgerButton onClick={() => setShowMenu(!showMenu)} pressed={showMenu} testId={burgerTestId} />}
                 {!menu && content}
             </div>
         </div>

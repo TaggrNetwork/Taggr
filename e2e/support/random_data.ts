@@ -6,6 +6,10 @@ const generateAlphanumericalString = customAlphabet(
   "0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvxzy"
 );
 
+const generateLowerAlphanumericalString = customAlphabet(
+  "0123456789abcdefghijklmnopqrstuvxzy"
+);
+
 export function randomIntInRange(low = 0, high = 10): number {
   const offset = high - low;
 
@@ -22,6 +26,10 @@ export function generateRealmName(): string {
 
 export function generateHashTag(): string {
   return generateRandomWord();
+}
+
+export function generateGitCommitHash(): string {
+  return generateLowerAlphanumericalString(40);
 }
 
 export function generateText(numWords = 30): string {

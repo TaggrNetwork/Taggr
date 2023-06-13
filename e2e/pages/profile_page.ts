@@ -6,6 +6,7 @@ export class ProfilePage {
   private readonly cycles: Locator;
   private readonly newKarma: Locator;
   private readonly postCount: Locator;
+  private readonly tokenBalance: Locator;
   private readonly posts: Locator;
 
   constructor(private readonly page: Page, private readonly user: CommonUser) {
@@ -17,6 +18,9 @@ export class ProfilePage {
       .locator("visible=true");
     this.postCount = page
       .locator("div:has-text('POSTS') > code")
+      .locator("visible=true");
+    this.tokenBalance = page
+      .locator("div:has-text('TOKENS') > code")
       .locator("visible=true");
     this.posts = page.getByTestId("post-body").locator("visible=true");
   }
@@ -41,6 +45,12 @@ export class ProfilePage {
     const postCountString = await this.postCount.innerText();
 
     return textToNumber(postCountString);
+  }
+
+  public async getTokenBalance(): Promise<number> {
+    const tokenBalanceString = await this.tokenBalance.innerText();
+
+    return textToNumber(tokenBalanceString);
   }
 
   public async getPostByContent(content: string): Promise<PostElement> {

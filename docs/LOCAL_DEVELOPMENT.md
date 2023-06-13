@@ -144,6 +144,26 @@ To update screenshots/snapshots:
 npm run test:e2e -- -u
 ```
 
+## Working with trusted users and stalwarts
+
+Make a user a stalwart:
+
+```shell
+dfx canister call taggr godmode '("${username}")'
+```
+
+Make a user trusted:
+
+```shell
+dfx canister call taggr demigodmode '("${username}")'
+```
+
+Return a user to bootcamp:
+
+```shell
+dfx canister call taggr peasantmode '("${username}")'
+```
+
 ## Creating and Restoring backups
 
 1. Pull the backup from Taggr (heap only):

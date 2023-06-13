@@ -12,6 +12,7 @@ const webServerPort = exec("dfx info webserver-port");
 const replicaPort = exec("dfx info replica-port");
 
 process.env["REPLICA_URL"] = `http://localhost:${replicaPort}`;
+process.env["CANISTER_ID"] = canisterId;
 
 export default defineConfig({
   testDir: "./e2e",

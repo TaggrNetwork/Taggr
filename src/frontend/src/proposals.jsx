@@ -17,7 +17,7 @@ export const Proposals = () => {
     const [description, setDescription] = React.useState("");
 
     return <>
-        <HeadBar title="Proposals" shareLink="proposals" menu={true}
+        <HeadBar title="Proposals" shareLink="proposals" menu={true} burgerTestId="proposals-burger-button"
             content={<div className="row_container">
                 <button className="max_width_col" onClick={() => setCurrentMask('funding')}>FUNDING</button>
                 <button className="max_width_col" onClick={() => setCurrentMask('reward')}>REWARD</button>
