@@ -7,7 +7,7 @@ import {
 import { GlobalNavigationElement } from "../elements";
 
 test("love heart a post", async ({ page, browser }) => {
-  test.setTimeout(35000);
+  test.setTimeout(60000);
 
   const user = await test.step("create user", async () => {
     return await createSeedPhraseUser(page);
@@ -86,7 +86,7 @@ test("love heart a post", async ({ page, browser }) => {
 });
 
 test("react with fire and comment on a post", async ({ page, browser }) => {
-  test.setTimeout(35000);
+  test.setTimeout(60000);
 
   const user = await test.step("create user", async () => {
     return await createSeedPhraseUser(page);

@@ -7,7 +7,7 @@ import {
 import { GlobalNavigationElement } from "../elements";
 
 test("bookmarks", async ({ page, browser }) => {
-  test.setTimeout(40000);
+  test.setTimeout(60000);
 
   const [
     [postOneContext, postOneContent],

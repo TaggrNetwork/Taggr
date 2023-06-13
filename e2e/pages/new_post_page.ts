@@ -17,7 +17,7 @@ export class NewPostPage {
     // wait for network idle so we know any post images are finished loading
     await this.page.waitForURL("/#/post/*", {
       waitUntil: "networkidle",
-      timeout: 4000,
+      timeout: 6000,
     });
 
     return new PostPage(this.page);

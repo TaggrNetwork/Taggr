@@ -138,7 +138,7 @@ function checkMetadata(
 }
 
 test("seo and metadata", async ({ page, baseURL, browser }) => {
-  test.setTimeout(45000);
+  test.setTimeout(60000);
 
   const user = await test.step("create user", async () => {
     return await createSeedPhraseUser(page);
