@@ -67,6 +67,10 @@ impl Api {
         (self.read_bytes.as_ref().expect("no reader"))(offset, &mut bytes);
         serde_cbor::from_slice(&bytes).expect("couldn't deserialize")
     }
+
+    pub fn boundary(&self) -> u64 {
+        self.allocator.boundary
+    }
 }
 
 impl Memory {
@@ -110,22 +114,13 @@ impl Memory {
 
 pub fn heap_to_stable(state: &mut super::State) {
     state.memory.pack();
-    let mut api = state.memory.api.clone();
-    let (offset, len) = match api.write(state) {
-        Ok(values) => values,
-        // Plan B: if the allocator ever fails, just dump the heap at the end of stable memory
-        Err(err) => {
-            state.logger.log(
-                format!("Allocator failed when dumping the heap: {:?}", err),
-                "CRITICAL".into(),
-            );
-            let bytes = serde_cbor::to_vec(&state).expect("couldn't serialize the state");
-            let offset = stable64_size() >> 16;
-            stable64_grow(1 + (bytes.len() as u64 >> 16)).expect("couldn't grow memory");
-            stable64_write(offset, &bytes);
-            (offset, bytes.len() as u64)
-        }
-    };
+    let offset = state.memory.api.boundary();
+    let bytes = serde_cbor::to_vec(&state).expect("couldn't serialize the state");
+    let len = bytes.len() as u64;
+    if offset + len > (stable64_size() << 16) {
+        stable64_grow((len >> 16) + 1).expect("couldn't grow memory");
+    }
+    stable64_write(offset, &bytes);
     stable64_write(0, &offset.to_be_bytes());
     stable64_write(8, &len.to_be_bytes());
 }

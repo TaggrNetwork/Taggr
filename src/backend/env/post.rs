@@ -406,7 +406,7 @@ impl Post {
 
             // After we validated the new edited copy of the post, charged the user, we should remove the
             // old post, and insert the edited one.
-            Post::take(state, &id).expect("couldn't remove old post");
+            Post::take(state, &id);
             Post::save(state, post);
 
             if current_realm != picked_realm {
@@ -588,13 +588,14 @@ impl Post {
     }
 
     // Takes the post from cold or hot memory
-    fn take(state: &mut State, post_id: &PostId) -> Result<Post, String> {
+    fn take(state: &mut State, post_id: &PostId) -> Post {
         cache().remove(post_id);
         state
             .posts
             .remove(post_id)
             .ok_or("no post found".to_string())
             .or_else(|_| state.memory.posts.remove(post_id))
+            .expect("couldn't take post")
     }
 
     // Takes the post from hot or cold memory, mutates and inserts into the hot memory
@@ -602,7 +603,7 @@ impl Post {
     where
         F: FnOnce(&mut Post) -> Result<T, String>,
     {
-        let mut post = Post::take(state, post_id)?;
+        let mut post = Post::take(state, post_id);
         let result = f(&mut post);
         Post::save(state, post);
         result
@@ -623,7 +624,7 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
         .saturating_sub(max_posts_in_heap)
         // We cap the number at `max_posts_in_heap` because we know for sure this archiving will
         // never run out of instructions.
-        .max(max_posts_in_heap);
+        .min(max_posts_in_heap);
     if posts_to_archive == 0 {
         return Ok(());
     }
@@ -640,7 +641,8 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
                 .remove(&post_id)
                 .ok_or(format!("no post found for id={post_id}"))?;
             state.memory.posts.insert(post_id, post)
-        })?;
+        })
+        .expect("couldn't archive post");
 
     state
         .logger

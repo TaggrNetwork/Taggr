@@ -105,7 +105,7 @@ mod dev {
     #[update]
     // This method needs to be triggered to test an upgrade locally.
     async fn chores() {
-        State::hourly_chores(time()).await;
+        State::chores(time()).await;
     }
 
     #[update]

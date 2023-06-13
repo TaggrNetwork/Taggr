@@ -211,7 +211,7 @@ impl State {
         });
     }
 
-    pub fn execute_pending_upgrade(&mut self, force: bool) {
+    pub fn execute_pending_upgrade(&mut self, force: bool) -> bool {
         let pending_upgrade =
             self.proposals
                 .iter()
@@ -226,6 +226,9 @@ impl State {
                 });
         if let Some(release) = pending_upgrade {
             upgrade_main_canister(&mut self.logger, &release.binary, force);
+            true
+        } else {
+            false
         }
     }
 
@@ -1186,13 +1189,8 @@ impl State {
         }
     }
 
-    pub async fn hourly_chores(now: u64) {
-        mutate(|state| {
-            // This should always be the first operation executed in the hourly chores routine so
-            // that the upgrades are never blocked by a panic in some other parts of the routine.
-            state.execute_pending_upgrade(false);
-            state.conclude_polls(now);
-        });
+    async fn hourly_chores(now: u64) {
+        mutate(|state| state.conclude_polls(now));
 
         State::top_up().await;
 
@@ -1200,6 +1198,12 @@ impl State {
     }
 
     pub async fn chores(now: u64) {
+        // This should always be the first operation executed in the chores routine so
+        // that the upgrades are never blocked by a panic in any other routine.
+        if mutate(|state| state.execute_pending_upgrade(false)) {
+            return;
+        }
+
         let (last_hourly_chores, last_daily_chores, last_weekly_chores) = read(|state| {
             (
                 state.last_hourly_chores,
