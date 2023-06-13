@@ -85,16 +85,6 @@ fn post_upgrade() {
     set_timers();
 
     // temporary post upgrade logic goes here
-    mutate(|state| {
-        state
-            .users
-            .values_mut()
-            .for_each(|user| user.num_posts = user.posts.len() as u64);
-        state.realms.values_mut().for_each(|realm| {
-            realm.num_posts = realm.posts.len() as u64;
-            realm.num_members = realm.members.len() as u64;
-        })
-    });
 }
 
 /*

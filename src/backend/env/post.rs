@@ -618,7 +618,12 @@ impl Post {
 // Moves a configured number of posts from hot to cold memory.
 pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result<(), String> {
     let mut posts: Vec<&Post> = state.posts.values().collect();
-    let posts_to_archive = posts.len().saturating_sub(max_posts_in_heap);
+    let posts_to_archive = posts
+        .len()
+        .saturating_sub(max_posts_in_heap)
+        // We cap the number at `max_posts_in_heap` because we know for sure this archiving will
+        // never run out of instructions.
+        .max(max_posts_in_heap);
     if posts_to_archive == 0 {
         return Ok(());
     }

@@ -103,13 +103,7 @@ pub struct Stats {
 pub struct Realm {
     logo: String,
     pub description: String,
-    // TODO: delete
-    #[serde(skip_serializing)]
-    pub posts: Vec<PostId>,
     pub controllers: Vec<UserId>,
-    // TODO: delete
-    #[serde(skip_serializing)]
-    pub members: BTreeSet<UserId>,
     pub label_color: String,
     theme: String,
     #[serde(default)]
@@ -1058,6 +1052,10 @@ impl State {
 
     fn daily_chores(now: u64) {
         mutate(|state| {
+            // Automatically dump the heap to the stable memory. This should be the first
+            // opearation to avoid blocking of the backup by a panic in other parts of the daily routine.
+            memory::heap_to_stable(state);
+
             for proposal_id in state
                 .proposals
                 .iter()
@@ -1071,16 +1069,13 @@ impl State {
                 }
             }
 
-            state.recompute_stalwarts(now);
-
             if let Err(err) = state.archive_cold_data() {
                 state
                     .logger
                     .error(format!("couldn't archive cold data: {:?}", err));
             }
 
-            // Automatically dump the heap to the stable memory.
-            memory::heap_to_stable(state);
+            state.recompute_stalwarts(now);
         })
     }
 
@@ -1192,14 +1187,16 @@ impl State {
     }
 
     pub async fn hourly_chores(now: u64) {
+        mutate(|state| {
+            // This should always be the first operation executed in the hourly chores routine so
+            // that the upgrades are never blocked by a panic in some other parts of the routine.
+            state.execute_pending_upgrade(false);
+            state.conclude_polls(now);
+        });
+
         State::top_up().await;
 
         State::handle_nns_proposals(now).await;
-
-        mutate(|state| {
-            state.conclude_polls(now);
-            state.execute_pending_upgrade(false);
-        });
     }
 
     pub async fn chores(now: u64) {

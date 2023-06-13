@@ -29,9 +29,6 @@ pub enum Notification {
 pub struct User {
     pub id: UserId,
     pub name: String,
-    // TODO: delete
-    #[serde(skip_serializing)]
-    pub posts: Vec<PostId>,
     #[serde(default)]
     pub num_posts: u64,
     pub bookmarks: VecDeque<PostId>,
@@ -83,7 +80,6 @@ impl User {
             karma: 0,
             rewarded_karma: 0,
             timestamp,
-            posts: Default::default(),
             num_posts: 0,
             bookmarks: Default::default(),
             feeds: Default::default(),
