@@ -508,11 +508,9 @@ impl Post {
         let trusted_user = user.trusted();
         let future_id = state.next_post_id;
         state.charge(user_id, costs, format!("new post {}", future_id))?;
-        state
-            .users
-            .get_mut(&user_id)
-            .expect("no user found")
-            .num_posts += 1;
+        let user = state.users.get_mut(&user_id).expect("no user found");
+        user.num_posts += 1;
+        user.last_activity = timestamp;
         let id = state.new_post_id();
         post.id = id;
         if let Some(realm) = realm.and_then(|name| state.realms.get_mut(&name)) {
