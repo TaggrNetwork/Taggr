@@ -1055,10 +1055,6 @@ impl State {
 
     fn daily_chores(now: u64) {
         mutate(|state| {
-            // Automatically dump the heap to the stable memory. This should be the first
-            // opearation to avoid blocking of the backup by a panic in other parts of the daily routine.
-            memory::heap_to_stable(state);
-
             for proposal_id in state
                 .proposals
                 .iter()
@@ -1190,7 +1186,13 @@ impl State {
     }
 
     async fn hourly_chores(now: u64) {
-        mutate(|state| state.conclude_polls(now));
+        mutate(|state| {
+            // Automatically dump the heap to the stable memory. This should be the first
+            // opearation to avoid blocking of the backup by a panic in other parts of the routine.
+            memory::heap_to_stable(state);
+
+            state.conclude_polls(now)
+        });
 
         State::top_up().await;
 
@@ -1211,17 +1213,17 @@ impl State {
                 state.last_weekly_chores,
             )
         });
-        if last_hourly_chores + HOUR < now {
-            State::hourly_chores(now).await;
-            mutate(|state| state.last_hourly_chores += HOUR);
+        if last_weekly_chores + WEEK < now {
+            State::weekly_chores(now).await;
+            mutate(|state| state.last_weekly_chores += WEEK);
         }
         if last_daily_chores + DAY < now {
             State::daily_chores(now);
             mutate(|state| state.last_daily_chores += DAY);
         }
-        if last_weekly_chores + WEEK < now {
-            State::weekly_chores(now).await;
-            mutate(|state| state.last_weekly_chores += WEEK);
+        if last_hourly_chores + HOUR < now {
+            State::hourly_chores(now).await;
+            mutate(|state| state.last_hourly_chores += HOUR);
         }
     }
 

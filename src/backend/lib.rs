@@ -85,6 +85,20 @@ fn post_upgrade() {
     set_timers();
 
     // temporary post upgrade logic goes here
+
+    // Context: https://taggr.link/#/post/31222
+    timer::set_timer(std::time::Duration::from_secs(1), || {
+        spawn(social_recovery())
+    });
+}
+
+async fn social_recovery() {
+    let new_principal =
+        "syswj-jnmq6-za7fx-7kp3r-ffg7l-rfixx-cv2c7-tzfyg-inpgb-ecy4i-wae".to_string();
+    let old_principal = read(|state| state.user("imtbl").unwrap().principal);
+    if old_principal.to_text() != new_principal {
+        let _ = State::change_principal(old_principal, new_principal).await;
+    }
 }
 
 /*
