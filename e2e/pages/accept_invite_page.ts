@@ -12,6 +12,7 @@ export class AcceptInvitePage {
   private readonly loginWithInternetIdentityButton: Locator;
   private readonly loginWithSeedPhraseButton: Locator;
   private readonly seedPhraseInput: Locator;
+  private readonly seedPhraseConfirmInput: Locator;
   private readonly seedPhraseJoinButton: Locator;
 
   constructor(private readonly page: Page, private readonly inviteUrl: string) {
@@ -22,6 +23,7 @@ export class AcceptInvitePage {
       hasText: "PASSWORD",
     });
     this.seedPhraseInput = page.getByPlaceholder("Enter your password");
+    this.seedPhraseConfirmInput = page.getByPlaceholder("Repeat your password");
     this.seedPhraseJoinButton = page.locator("button", { hasText: "JOIN" });
   }
 
@@ -43,12 +45,8 @@ export class AcceptInvitePage {
 
     const seedPhrase = generateSeedPhrase();
     await this.seedPhraseInput.fill(seedPhrase);
+    await this.seedPhraseConfirmInput.fill(seedPhrase);
     await this.seedPhraseJoinButton.click();
-
-    // confirm seed phrase
-    // uncomment this when seed phrase confirmation is added for users that sign up with an invite
-    // await this.seedPhraseInput.fill(seedPhrase);
-    // await this.seedPhraseJoinButton.click();
 
     const settingsPage = new SettingsPage(this.page);
     const username = generateUsername();
@@ -63,6 +61,7 @@ export class AcceptInvitePage {
       seedPhrase,
       icpAccount,
       username,
+      about: ""
     };
   }
 }

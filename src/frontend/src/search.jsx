@@ -30,11 +30,13 @@ export const Search = () => {
     </div>;
 }
 
-const renderResult = ({result, id, relevant, user_id}) => {
+const renderResult = ({result, id, relevant, user_id, generic_id}) => {
     if (result == "user")
         return <span>User <a href={`#/user/${id}`}>{`@${backendCache.users[id]}`}</a>: {relevant || "no info."}</span>;
     if (result == "tag")
         return <span>Hashtag <a href={`#/feed/${relevant}`}>{`#${relevant}`}</a></span>;
+    if (result == "realm")
+        return <span>Realm <a href={`#/realm/${generic_id}`}>{`#${generic_id}`}</a>: {relevant}</span>;
     if (result == "post")
         return <span><a href={`#/post/${id}`}>{`Post ${id}`}</a> by&nbsp;
             <a href={`#/user/${user_id}`}>{`@${backendCache.users[user_id]}`}</a>:&nbsp;

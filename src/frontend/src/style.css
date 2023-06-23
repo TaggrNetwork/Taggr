@@ -215,6 +215,14 @@ path { fill: $text; }
     grid-template-columns: auto auto;
 }
 
+footer {
+    padding: 2em;
+    justify-content: center;
+    align-items: center;
+    font-size: small;
+    font-family: monospace
+}
+
 header {
     display: flex; 
     height: 2em;

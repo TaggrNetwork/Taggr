@@ -52,10 +52,11 @@ pub struct NNSProposal {
     pub summary: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct SearchResult {
     pub id: PostId,
     pub user_id: UserId,
+    pub generic_id: String,
     pub result: String,
     pub relevant: String,
 }
@@ -674,7 +675,7 @@ impl State {
     pub fn search(&self, principal: Principal, mut term: String) -> Vec<SearchResult> {
         const SNIPPET_LEN: usize = 100;
         term = term.to_lowercase();
-        let boddy_snippet = |body: &str, i: usize| {
+        let snippet = |body: &str, i: usize| {
             if body.len() < SNIPPET_LEN {
                 body.to_string()
             } else {
@@ -696,23 +697,41 @@ impl State {
                 {
                     return Some(SearchResult {
                         id: *id,
-                        user_id: 0,
                         relevant: about.clone(),
                         result: "user".to_string(),
+                        ..Default::default()
                     });
                 }
                 None
             })
+            .chain(self.realms.iter().filter_map(|(id, realm)| {
+                if id.to_lowercase().contains(&term) {
+                    return Some(SearchResult {
+                        generic_id: id.clone(),
+                        relevant: snippet(realm.description.as_str(), 0),
+                        result: "realm".to_string(),
+                        ..Default::default()
+                    });
+                }
+                if let Some(i) = realm.description.to_lowercase().find(&term) {
+                    return Some(SearchResult {
+                        generic_id: id.clone(),
+                        relevant: snippet(realm.description.as_str(), i),
+                        result: "realm".to_string(),
+                        ..Default::default()
+                    });
+                }
+                None
+            }))
             .chain(
                 self.recent_tags(principal, 500)
                     .into_iter()
                     .filter_map(|(tag, _)| {
                         if format!("#{} {0}", tag).to_lowercase().contains(&term) {
                             return Some(SearchResult {
-                                id: 0,
-                                user_id: 0,
                                 relevant: tag,
                                 result: "tag".to_string(),
+                                ..Default::default()
                             });
                         }
                         None
@@ -724,8 +743,9 @@ impl State {
                         return Some(SearchResult {
                             id: *id,
                             user_id: *user,
-                            relevant: boddy_snippet(body, 0),
+                            relevant: snippet(body, 0),
                             result: "post".to_string(),
+                            ..Default::default()
                         });
                     }
                     let search_body = body.to_lowercase();
@@ -733,8 +753,9 @@ impl State {
                         return Some(SearchResult {
                             id: *id,
                             user_id: *user,
-                            relevant: boddy_snippet(body, i),
+                            relevant: snippet(body, i),
                             result: "post".to_string(),
+                            ..Default::default()
                         });
                     }
                     None

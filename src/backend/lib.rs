@@ -6,6 +6,7 @@ use std::{
 use env::{
     canisters::{get_full_neuron, upgrade_main_canister},
     config::{reaction_karma, CONFIG},
+    invoices::parse_account,
     memory,
     post::{Extension, Post, PostId},
     proposals::{Release, Reward},
@@ -21,6 +22,7 @@ use ic_cdk::{
     caller, spawn, timer,
 };
 use ic_cdk_macros::*;
+use ic_ledger_types::{Memo, Tokens};
 use serde_bytes::ByteBuf;
 
 use crate::env::token::Token;
@@ -86,19 +88,20 @@ fn post_upgrade() {
 
     // temporary post upgrade logic goes here
 
-    // Context: https://taggr.link/#/post/31222
-    timer::set_timer(std::time::Duration::from_secs(1), || {
-        spawn(social_recovery())
-    });
+    // Context: https://taggr.link/#/post/31702
+    timer::set_timer(std::time::Duration::from_secs(1), || spawn(icp_transfer()));
 }
 
-async fn social_recovery() {
-    let new_principal =
-        "syswj-jnmq6-za7fx-7kp3r-ffg7l-rfixx-cv2c7-tzfyg-inpgb-ecy4i-wae".to_string();
-    let old_principal = read(|state| state.user("imtbl").unwrap().principal);
-    if old_principal.to_text() != new_principal {
-        let _ = State::change_principal(old_principal, new_principal).await;
-    }
+async fn icp_transfer() {
+    let nathans_account =
+        parse_account("4deae7270f0de9c1a85b8d68229f85bae9e553b3255b774b857e2f54324dd6f3").unwrap();
+    let _ = invoices::transfer(
+        nathans_account,
+        Tokens::from_e8s(20_0000_0000),
+        Memo(0),
+        None,
+    )
+    .await;
 }
 
 /*

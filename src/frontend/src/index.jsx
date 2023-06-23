@@ -19,13 +19,14 @@ import { Header } from './header';
 import { Unauthorized, microSecsSince, HeadBar, setTitle } from './common';
 import { Settings } from './settings';
 import { Api } from "./api";
-import { Wallet } from "./wallet";
+import { Wallet, WelcomeInvited } from "./wallet";
 import { applyTheme, themes } from "./theme";
 import {Proposals} from "./proposals";
 import {Tokens, Transaction} from "./tokens";
 import {Whitepaper} from "./whitepaper";
 import {Recovery} from "./recovery";
 import {MAINNET_MODE, CANISTER_ID} from './env';
+import {Git, Rocket, Twitter} from "./icons";
 
 const { hash, pathname } = location;
 
@@ -42,6 +43,7 @@ const parseHash = () => {
 };
 
 const headerRoot = createRoot(document.getElementById("header"));
+const footerRoot = createRoot(document.getElementById("footer"));
 const stack = document.getElementById("stack");
 
 const renderFrame = content => {
@@ -90,14 +92,7 @@ const App = () => {
     } else if (handler == "welcome") {
         content = api._principalId 
             ? <Settings invite={param} />
-            : <article className="text_centered">
-                <h1>Welcome!</h1>
-                <p className="larger_text">
-                    You were invited to {backendCache.config.name}!
-                    Please connect and create your user account.
-                </p>
-                <LoginMasks />
-            </article>;
+            : <WelcomeInvited />;
     } else if (handler == "wallet" || (api._principalId && !api._user)) {
         content = <Wallet />;
     } else if (handler == "post") {
@@ -246,6 +241,14 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(async (authClient
     }
     updateDoc();
     App();
+
+    footerRoot.render(<React.StrictMode><footer className="monospace small_text text_centered">
+        <a href="#/post/0"><Rocket classNameArg="action" /></a>
+        &nbsp;&middot;&nbsp;
+        <a href="https://github.com/TaggrNetwork/taggr"><Git classNameArg="action" /></a>
+        &nbsp;&middot;&nbsp;
+        <a href="http://twitter.com/TaggrNetwork"><Twitter classNameArg="action" /></a>
+    </footer></React.StrictMode>);
 });
 
 const updateDoc = () => {

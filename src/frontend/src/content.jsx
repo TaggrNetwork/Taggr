@@ -37,7 +37,7 @@ export const Content = ({post, value = "", blobs = [], collapse, preview, primeM
     const [urls, setUrls] = React.useState({});
 
     if (!post) return <ReactMarkdown 
-        components={{ a: linkRenderer }}
+        components={{ a: linkRenderer(preview) }}
         children={linkTagsAndUsers(value)} remarkPlugins={[remarkGfm]} className={classNameArg}
     />;
 
@@ -63,17 +63,17 @@ export const Content = ({post, value = "", blobs = [], collapse, preview, primeM
     extValue = linkTagsAndUsers(extValue);
 
     return React.useMemo(() => <>
-        {markdownizer(value, urls, setUrls, blobs, className)}
+        {markdownizer(value, urls, setUrls, blobs, preview, className)}
         {shortened && <>
             {collapse && <ArrowDown />}
-            {markdownizer(collapse ? null : extValue, urls, setUrls, blobs)}
+            {markdownizer(collapse ? null : extValue, urls, setUrls, blobs, preview)}
         </>}
     </>, [value, extValue, blobs, collapse]);
 }
 
 const isALink = val => val.match(/^https?:\/\/.+$/) || val.match(/^www\..+$/);
 
-const linkRenderer = ({ node, children = [], ...props}) => {
+const linkRenderer = preview => ({ node, children = [], ...props}) => {
     let target = "_self";
     let className = null;
     let label = children;
@@ -83,7 +83,7 @@ const linkRenderer = ({ node, children = [], ...props}) => {
         let matches = child.match(/https:\/\/(www\.)?(youtu.be\/|youtube.com\/watch\?v=)([a-zA-Z0-9\-_]+)/);
         if(matches) { 
             const id = matches.pop();
-            return <YouTube id={id} />;
+            return <YouTube id={id} preview={preview} />;
         }
 
         matches = isALink(child) || isALink(props.href);
@@ -114,11 +114,11 @@ const linkRenderer = ({ node, children = [], ...props}) => {
     return <a target={target} className={className} {...props}>{label}</a>;
 };
 
-const markdownizer = (value, urls, setUrls, blobs, className = null) => !value
+const markdownizer = (value, urls, setUrls, blobs, preview = false, className = null) => !value
     ? null
     : <ReactMarkdown children={value} remarkPlugins={[remarkGfm]} className={className}
         components={{
-            a: linkRenderer,
+            a: linkRenderer(preview),
             p: ({ node, children, ...props}) => {
                 const isPic = c => c.type && c.type.name == "img";
                 const pics = children.filter(isPic).length;
@@ -163,8 +163,8 @@ const Gallery = ({children}) => {
     </div>;
 }
 
-const YouTube = ({id}) => {
-    const [open, setOpen] = React.useState(false);
+const YouTube = ({id, preview}) => {
+    const [open, setOpen] = React.useState(!preview);
     if (open) return <span className="video-container" style={{display: "block"}}>
         <iframe loading="lazy" allowFullScreen={true} referrerPolicy="origin" frameBorder="0" 
             src={`https://youtube.com/embed/${id}`}></iframe>

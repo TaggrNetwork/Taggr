@@ -1,7 +1,7 @@
 import {CopyToClipboard, HeadBar, Loading, hex, ICPAccountBalance, tokenBalance, icpCode, ButtonWithLoading, bigScreen, IcpAccountLink} from "./common";
 import * as React from "react";
 import {Transactions} from "./tokens";
-import {logout, SeedPhraseForm} from "./logins";
+import {LoginMasks, logout, SeedPhraseForm} from "./logins";
 import { Ed25519KeyIdentity } from "@dfinity/identity"
 
 const Welcome = () => {
@@ -203,3 +203,12 @@ export const Wallet = () => {
         </div>
     </>;
 };
+
+export const WelcomeInvited = ({}) => <div className="text_centered">
+    <h1>Welcome!</h1>
+    <p className="larger_text">
+        You were invited to {backendCache.config.name}!
+        Please connect and create your user account.
+    </p>
+    <LoginMasks confirmationRequired={true} />
+</div>;
