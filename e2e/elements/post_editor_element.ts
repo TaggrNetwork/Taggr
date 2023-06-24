@@ -13,6 +13,10 @@ export class PostEditorElement {
     this.filePickerButton = element.getByTestId("file-picker");
   }
 
+  public async setText(text: string): Promise<void> {
+    await this.inputTextArea.fill(text);
+  }
+
   public async addText(text: string): Promise<void> {
     const currentContent = await this.inputTextArea.inputValue();
 

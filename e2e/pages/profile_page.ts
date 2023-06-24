@@ -8,6 +8,8 @@ export class ProfilePage {
   private readonly postCount: Locator;
   private readonly tokenBalance: Locator;
   private readonly posts: Locator;
+  private readonly tagsTab: Locator;
+  private readonly rewardedPostsTab: Locator;
 
   constructor(private readonly page: Page, private readonly user: CommonUser) {
     this.cycles = page
@@ -23,6 +25,20 @@ export class ProfilePage {
       .locator("div:has-text('TOKENS') > code")
       .locator("visible=true");
     this.posts = page.getByTestId("post-body").locator("visible=true");
+    this.tagsTab = page
+      .locator("button", { hasText: "TAGS" })
+      .locator("visible=true");
+    this.rewardedPostsTab = page
+      .locator("button", { hasText: "REWARDED" })
+      .locator("visible=true");
+  }
+
+  public async showTagPosts(): Promise<void> {
+    await this.tagsTab.click();
+  }
+
+  public async showRewardedPosts(): Promise<void> {
+    await this.rewardedPostsTab.click();
   }
 
   public async goto(): Promise<void> {

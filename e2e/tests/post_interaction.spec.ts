@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   createPost,
+  createPostWithText,
   createSeedPhraseUser,
   performInNewContext,
 } from "../support";
@@ -174,4 +175,51 @@ test("react with fire and comment on a post", async ({ page, browser }) => {
   await page.reload();
 
   await postReactionContext.close();
+});
+
+test("test tabs on the profile page", async ({ page, browser }) => {
+  test.setTimeout(60000);
+
+  // new user creates a new post
+  const user = await test.step("create user", async () => {
+    return await createSeedPhraseUser(page);
+  });
+  
+  const globalNavigation = new GlobalNavigationElement(page, user);
+  const postContent = await test.step("create post", async () => {
+    return await createPost(page, user);
+  });
+
+  let message = `Hello @${user.username}`;
+  const [ctx] =
+      await test.step("create user, mention and react", async () => {
+          return await performInNewContext(browser, async (page) => {
+              const user = await test.step("create user", async () => {
+                  return await createSeedPhraseUser(page);
+              });
+              const globalNavigation = new GlobalNavigationElement(page, user);
+              const homePage = await globalNavigation.goToHomePage();
+              await homePage.showNewPosts();
+              const post = await homePage.getPostByContent(postContent);
+              await post.giveFireReaction();
+              const fireReaction = post.getFireReaction();
+              expect(fireReaction).toBeVisible();
+
+              await test.step("create post", async () => {
+                  return await createPostWithText(page, user, message);
+              });
+          });
+      });
+
+  await ctx.close();
+
+  const profilePage = await globalNavigation.goToProfilePage();
+  await profilePage.showTagPosts();
+  const taggingPost = await profilePage.getPostByContent(message);
+  await expect(taggingPost.element).toBeVisible();
+  
+  await profilePage.showRewardedPosts();
+  const rewardedPost = await profilePage.getPostByContent(postContent);
+  await expect(rewardedPost.element).toBeVisible();
+  
 });

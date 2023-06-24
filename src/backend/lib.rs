@@ -782,6 +782,38 @@ fn user_posts() {
     });
 }
 
+#[export_name = "canister_query rewarded_posts"]
+fn rewarded_posts() {
+    let (handle, page): (String, usize) = parse(&arg_data_raw());
+    read(|state| {
+        resolve_handle(Some(handle)).map(|user| {
+            reply(
+                user.posts(state)
+                    .filter(|post| !post.reactions.is_empty())
+                    .skip(CONFIG.feed_page_size * page)
+                    .take(CONFIG.feed_page_size)
+                    .collect::<Vec<_>>(),
+            )
+        })
+    });
+}
+
+#[export_name = "canister_query user_tags"]
+fn user_tags() {
+    let (handle, page): (String, usize) = parse(&arg_data_raw());
+    let tag = format!("@{}", handle);
+    read(|state| {
+        reply(
+            state
+                .last_posts(None, true)
+                .filter(|post| post.body.contains(&tag))
+                .skip(CONFIG.feed_page_size * page)
+                .take(CONFIG.feed_page_size)
+                .collect::<Vec<_>>(),
+        )
+    });
+}
+
 #[export_name = "canister_query user"]
 fn user() {
     let input: Vec<String> = parse(&arg_data_raw());

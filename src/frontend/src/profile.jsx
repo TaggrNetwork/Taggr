@@ -10,6 +10,7 @@ export const Profile = ({handle}) => {
     const [profile, setProfile] = React.useState({ loadingStatus: 0 });
     const [allEndorsememnts, setAllEndorsements] = React.useState(false);
     const [fullAccounting, setFullAccounting] = React.useState(false);
+    const [tab, setTab] = React.useState("LAST");
 
     const updateState = async () => {
         const profile = await api.query("user", [handle]);
@@ -45,6 +46,11 @@ export const Profile = ({handle}) => {
     const karma_from_last_posts = Object.entries(profile.karma_from_last_posts).filter(([_, karma]) => karma >= 0);
     karma_from_last_posts.sort(([_id1, e1], [_id2, e2]) => e2 - e1);
     const endorsementsTotal = karma_from_last_posts.reduce((acc, [_, karma]) => acc + karma, 0);
+
+    const title = <div className="text_centered vertically_spaced">
+        {["LAST", "TAGS", "REWARDED"].map(id => <button key={id} onClick={() => setTab(id)}
+                className={"medium_text " + (tab == id ? "active" :"unselected")}>{id}</button>)}
+    </div>;
 
     return <>
         <HeadBar title={<UserName profile={profile} />} shareLink={`user/${profile.id}`}
@@ -130,11 +136,13 @@ export const Profile = ({handle}) => {
             <hr />
         </>}
         <PostFeed 
-            title={<h2 className="spaced">Latest posts</h2>}
+            title={title}
             feedLoader={async page => {
                 if (profile.loadingStatus != 1) return;
+                if(tab == "TAGS")  return await api.query("user_tags", profile.name, page);
+                if(tab == "REWARDED") return await api.query("rewarded_posts", profile.id.toString(), page);
                 return await api.query("user_posts", profile.id.toString(), page);
-            }} heartbeat={profile.id} />
+            }} heartbeat={profile.id + tab} />
     </>;
 };
 

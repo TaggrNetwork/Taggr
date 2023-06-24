@@ -59,3 +59,18 @@ export async function createPostWithHashTag(
 
   return postTextContent;
 }
+
+export async function createPostWithText(
+  page: Page,
+  user: CommonUser,
+  text: string
+): Promise<string> {
+  const newPostPage = await initPost(page, user);
+
+  await newPostPage.editor.setText(text);
+
+  const postTextContent = await newPostPage.editor.getContent();
+  await newPostPage.submit();
+
+  return postTextContent;
+}
