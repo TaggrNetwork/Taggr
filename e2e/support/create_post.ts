@@ -1,6 +1,6 @@
 import { Page, expect } from "@playwright/test";
 import { GlobalNavigationElement } from "../elements";
-import { NewPostPage } from "../pages";
+import { NewPostPage, RealmPage } from "../pages";
 import { generateHashTag, generateText } from "./random_data";
 import { CommonUser } from "./create_user";
 
@@ -28,6 +28,18 @@ export async function createPost(
   const postTextContent = await newPostPage.editor.getContent();
   await newPostPage.submit();
 
+  return postTextContent;
+}
+
+export async function createRealmPost(
+  page: Page,
+  user: CommonUser
+): Promise<string> {
+  const globalNavigation = new GlobalNavigationElement(page, user);
+  const newPostPage = await globalNavigation.goToNewPostPage();
+  const postTextContent = generateText();
+  await newPostPage.editor.addText(postTextContent);
+  await newPostPage.submit();
   return postTextContent;
 }
 

@@ -13,7 +13,7 @@ export class RealmListPage {
 
   public async createNewRealm(): Promise<NewRealmPage> {
     await this.createButton.click();
-    expect(new URL(this.page.url()).hash).toEqual("#/realm//new");
+    expect(new URL(this.page.url()).hash).toEqual("#/realms/create");
 
     return new NewRealmPage(this.page);
   }
@@ -33,7 +33,7 @@ export class RealmListPage {
 
     await realmLink.click();
 
-    await this.page.waitForURL(`/#/realm/${realmName}`, {
+    await this.page.waitForURL(`/#/realm/${realmName.toUpperCase()}`, {
       timeout: 6000,
     });
     return new RealmPage(this.page, realmName);

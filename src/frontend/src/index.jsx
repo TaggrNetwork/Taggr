@@ -10,13 +10,13 @@ import { Thread } from "./thread";
 import { Invites } from "./invites";
 import { Inbox } from "./inbox";
 import { Journal } from "./journal";
-import { RealmForm, Realms, RealmPage } from "./realms";
+import { RealmForm, Realms } from "./realms";
 import { Dashboard } from "./dashboard";
 import { PostSubmissionForm } from "./new";
 import { Profile } from './profile';
 import { Landing } from './landing';
 import { Header } from './header';
-import { Unauthorized, microSecsSince, HeadBar, setTitle } from './common';
+import { Unauthorized, microSecsSince, HeadBar, setTitle, currentRealm } from './common';
 import { Settings } from './settings';
 import { Api } from "./api";
 import { Wallet, WelcomeInvited } from "./wallet";
@@ -80,8 +80,14 @@ const App = () => {
     let subtle = false;
     let inboxMode = false;
     let content = null;
+    let realm = "";
 
     setTitle(handler);
+    if (handler == "realm") {
+        realm = param;
+        localStorage.setItem("realm", realm);
+    }
+    setColorTheme();
 
     if (handler == "settings") {
         content = auth(<Settings />);
@@ -106,12 +112,14 @@ const App = () => {
     } else if (handler == "new") {
         subtle = true;
         content = auth(<PostSubmissionForm repost={parseInt(param2)} />);
-    } else if (handler == "realm" || handler == "realms") {
-        const name = param;
-        const action = param2;
-        if (action) content = auth(<RealmForm existingName={name.toUpperCase()} />);
-        else if (!name) content = <Realms />;
-        else content = <RealmPage name={decodeURI(name.toUpperCase())} />;
+    } else if (handler == "realms") {
+        if (param) content = auth(<RealmForm existingName={realm.toUpperCase()} />);
+        else content = <Realms />;
+    } else if (handler == "realm") {
+        if (realm) {
+            if (param2) content = auth(<PostSubmissionForm repost={parseInt(param2)} />);
+            else content = <Landing heartbeat={heartbeat} />;
+        } else content = <Realms />;
     } else if (handler == "inbox") {
         content = auth(<Inbox />);
         inboxMode = true;
@@ -141,18 +149,28 @@ const App = () => {
     } else if (handler == "recovery") {
         content = <Recovery />;
     } else {
-        content = <Landing heartbeat={heartbeat} />;
+        content = <Landing heartbeat={heartbeat + currentRealm()} />;
     }
 
     headerRoot.render(<React.StrictMode><Header subtle={subtle} inboxMode={inboxMode} user={api._user} route={window.location.hash} /></React.StrictMode>);
     renderFrame(<React.StrictMode>{content}</React.StrictMode>);
 }
 
+const setColorTheme = () => {
+    const realm = currentRealm()
+    if (realm) api.query("realm", realm).then(result => {
+        let realmTheme = result.Ok?.theme;
+        if (realmTheme) applyTheme(JSON.parse(realmTheme));
+    });
+    else if (api._user) applyTheme(themes[api._user.settings.theme]);
+    else applyTheme();
+};
+
 const reloadCache = async () => {
     window.backendCache = window.backendCache || { users: [], recent_tags: [] };
     const [users, recent_tags, stats, config, realms] = await Promise.all([
         window.api.query("users"), 
-        window.api.query("recent_tags", 500), 
+        window.api.query("recent_tags", "", 500), 
         window.api.query("stats"),
         window.api.query("config"),
         window.api.query("realms_data"),
@@ -220,16 +238,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(async (authClient
                     api._last_visit = api._user.last_activity;
                     api.call("update_last_activity");
                 } else if (api._last_visit == 0) api._last_visit = api._user.last_activity;
-                if (data.current_realm) {
-                    const result = await api.query("realm", data.current_realm);
-                    let realmTheme = result.Ok?.theme;
-                    if (realmTheme) {
-                        applyTheme(JSON.parse(realmTheme));
-                        return;
-                    }
-                }
-                applyTheme(themes[api._user.settings.theme]);
-            } else applyTheme();
+            }
         };
         setInterval(async () => { 
             await api._reloadUser();

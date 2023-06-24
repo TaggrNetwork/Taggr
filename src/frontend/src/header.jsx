@@ -1,7 +1,8 @@
 import * as React from "react";
-import {BurgerButton, ButtonWithLoading, HeadBar, Loading, ReactionToggleButton, realmColors, RealmSpan, ToggleButton} from "./common";
+import {BurgerButton, ButtonWithLoading, currentRealm, HeadBar, ReactionToggleButton, RealmSpan, ToggleButton} from "./common";
 import { LoginMasks, logout} from "./logins";
-import {Balloon, Bars, Bell, CarretDown, Close, Cycles, Document, Gear, Gem, Home, Journal, Logout, Realm, Save, Ticket, User, Wallet} from "./icons";
+import {Balloon, Bars, Bell, CarretDown, Cycles, Document, Gear, Gem, Journal, Logout, Realm, Save, Ticket, User, Wallet} from "./icons";
+import {RealmHeader} from "./realms";
 
 let interval = null;
 
@@ -9,16 +10,15 @@ export const Header = ({subtle, route, inboxMode, user}) => {
     const [showLogins, setShowLogins] = React.useState(!user && location.href.includes("?join"));
     const [showButtonBar, toggleButtonBar] = React.useState(false);
     const [showRealms, toggleRealms] = React.useState(false);
-    const [loading, setLoading] = React.useState(false);
-    const [currentRealm, setCurrentRealm] = React.useState(user && user.current_realm);
-    const [colors, setColors] = React.useState(realmColors(user?.current_realm));
     const [messages, setMessages] = React.useState(0);
+
+    const realm = currentRealm();
+
     const inboxEmpty = !user || messages == 0;
     const refreshMessageCounter = () => setMessages(user ? Object.keys(user.inbox).length : 0);
     React.useEffect(() => { document.getElementById("logo").innerHTML = backendCache.config.logo; }, []);
     React.useEffect(() => { toggleButtonBar(false); toggleRealms(false); }, [route]);
     React.useEffect(refreshMessageCounter, [user]);
-    React.useEffect(() => setColors(realmColors(currentRealm)), [currentRealm]);
     React.useEffect(() => {
         if (inboxMode) interval = setInterval(refreshMessageCounter, 1000);
         else clearInterval(interval);
@@ -64,33 +64,9 @@ export const Header = ({subtle, route, inboxMode, user}) => {
         {showRealms && <div className="dynamic_table monospace top_spaced stands_out">
             {user.realms.map(realm => <RealmSpan key={realm}
                 classNameArg="left_half_spaced right_half_spaced clickable padded_rounded text_centered"
-                onClick={async () => {
-                    setLoading(true);
-                    toggleRealms(false);
-                    await api.call("enter_realm", realm);
-                    api._reloadUser().then(() => setCurrentRealm(realm)).then(() => setLoading(false));
-                    location.href = `/#/${realm}/home/`;
-                }} name={realm} />)}
+                onClick={() => location.href = `#/realm/${realm}`} name={realm} />)}
         </div>}
-        {loading && <Loading />}
-        {currentRealm &&
-            <HeadBar title={currentRealm} shareLink={`realm/${currentRealm.toLowerCase()}`} 
-                styleArg={colors} content={<>
-                    <button style={colors} onClick={() =>location.href = `#/realm/${currentRealm}`} >
-                        <Home styleArg={{fill: colors.color}} />
-                    </button>
-                    <ButtonWithLoading classNameArg="left_half_spaced monospace" styleArg={colors}
-                        onClick={async () =>{
-                            setLoading(true);
-                            setCurrentRealm("");
-                            await api.call("enter_realm", "");
-                            api._reloadUser().then(() => setLoading(false));
-                            location.href = "/#/main";
-                        }}
-                        label={<div className="vcentered"><Close styleArg={{fill: colors.color}} small={true} /></div>}
-                    />
-                </>}
-            />}
+        {realm && <RealmHeader name={realm} />}
     </>;
 }
 

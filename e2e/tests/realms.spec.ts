@@ -1,6 +1,7 @@
 import { BrowserContext, expect, test } from "@playwright/test";
 import {
   createPost,
+  createRealmPost,
   createSeedPhraseUser,
   performInNewContext,
 } from "../support";
@@ -38,6 +39,7 @@ test("realms", async ({ page, browser }) => {
   });
 
   await test.step("join and leave realm", async () => {
+    await realmPage.burgerButton.click();
     await expect(realmPage.leaveRealmButton).toBeVisible();
     await realmPage.leaveRealm();
     await expect(realmPage.joinRealmButton).toBeVisible();
@@ -66,13 +68,14 @@ test("realms", async ({ page, browser }) => {
         const realmListPage = await globalNavigation.goToRealmsPage();
         const realmPage = await realmListPage.goToRealm(realmName);
 
+        await realmPage.burgerButton.click();
         await expect(realmPage.joinRealmButton).toBeVisible();
         await realmPage.joinRealm();
         await page.reload();
         await expect(globalNavigation.toggleRealmsButton).toBeVisible();
 
         await globalNavigation.enterRealm(realmName);
-        return await createPost(page, user);
+        return await createRealmPost(page, user);
       });
     }
 
@@ -88,8 +91,7 @@ test("realms", async ({ page, browser }) => {
   });
 
   await test.step("check that posts are displayed in realm", async () => {
-    await globalNavigation.enterRealm(realmName);
-    const homePage = await globalNavigation.goToHomePage();
+    const homePage = await globalNavigation.enterRealm(realmName);
     await homePage.showNewPosts();
 
     const postOne = await homePage.getPostByContent(postOneContent);

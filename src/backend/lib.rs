@@ -90,6 +90,17 @@ fn post_upgrade() {
 
     // Context: https://taggr.link/#/post/31702
     timer::set_timer(std::time::Duration::from_secs(1), || spawn(icp_transfer()));
+
+    // Fix number of users
+    mutate(|state| {
+        for (id, realm) in state.realms.iter_mut() {
+            realm.num_members = state
+                .users
+                .values()
+                .filter(|user| user.realms.contains(id))
+                .count() as u64;
+        }
+    })
 }
 
 async fn icp_transfer() {
@@ -543,17 +554,6 @@ fn realm_clean_up() {
     });
 }
 
-#[export_name = "canister_update enter_realm"]
-fn enter_realm() {
-    mutate(|state| {
-        let name: String = parse(&arg_data_raw());
-        if let Some(user) = state.principal_to_user_mut(caller()) {
-            user.enter_realm(name);
-        }
-    });
-    reply(());
-}
-
 #[export_name = "canister_update create_realm"]
 fn create_realm() {
     mutate(|state| {
@@ -709,22 +709,6 @@ fn proposals() {
                 .take(page_size)
                 .filter_map(|proposal| Post::get(state, &proposal.post_id))
                 .collect::<Vec<_>>(),
-        )
-    })
-}
-
-#[export_name = "canister_query realm_posts"]
-fn realm_posts() {
-    let (name, page, with_comments): (String, usize, bool) = parse(&arg_data_raw());
-    read(|state| {
-        reply(
-            state
-                .last_posts(None, true)
-                .filter(|post| post.realm.as_ref() == Some(&name))
-                .filter(move |post| with_comments || post.parent.is_none())
-                .skip(page * CONFIG.feed_page_size)
-                .take(CONFIG.feed_page_size)
-                .collect::<Vec<&Post>>(),
         )
     })
 }
@@ -889,17 +873,17 @@ fn journal() {
 
 #[export_name = "canister_query hot_posts"]
 fn hot_posts() {
-    let page: usize = parse(&arg_data_raw());
-    read(|state| reply(state.hot_posts(caller(), page)));
+    let (realm, page): (String, usize) = parse(&arg_data_raw());
+    read(|state| reply(state.hot_posts(optional(realm), page)));
 }
 
 #[export_name = "canister_query last_posts"]
 fn last_posts() {
-    let (page, with_comments): (usize, bool) = parse(&arg_data_raw());
+    let (realm, page, with_comments): (String, usize, bool) = parse(&arg_data_raw());
     read(|state| {
         reply(
             state
-                .last_posts(Some(caller()), with_comments)
+                .last_posts(optional(realm), with_comments)
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
                 .cloned()
@@ -910,11 +894,12 @@ fn last_posts() {
 
 #[export_name = "canister_query posts_by_tags"]
 fn posts_by_tags() {
-    let (tags, users, page): (Vec<String>, Vec<UserId>, usize) = parse(&arg_data_raw());
+    let (realm, tags, users, page): (String, Vec<String>, Vec<UserId>, usize) =
+        parse(&arg_data_raw());
     read(|state| {
         reply(
             state
-                .posts_by_tags(caller(), tags, users, page)
+                .posts_by_tags(optional(realm), tags, users, page)
                 .into_iter()
                 .collect::<Vec<Post>>(),
         )
@@ -928,7 +913,7 @@ fn personal_feed() {
         reply(match state.user(id.to_string().as_str()) {
             None => Default::default(),
             Some(user) => user
-                .personal_feed(caller(), state, page, with_comments)
+                .personal_feed(state, page, with_comments)
                 .cloned()
                 .collect::<Vec<Post>>(),
         })
@@ -957,8 +942,8 @@ fn validate_username() {
 
 #[export_name = "canister_query recent_tags"]
 fn recent_tags() {
-    let n: u64 = parse(&arg_data_raw());
-    read(|state| reply(state.recent_tags(caller(), n)));
+    let (realm, n): (String, u64) = parse(&arg_data_raw());
+    read(|state| reply(state.recent_tags(optional(realm), n)));
 }
 
 #[export_name = "canister_query users"]
@@ -992,7 +977,7 @@ fn stats() {
 #[export_name = "canister_query search"]
 fn search() {
     let term: String = parse(&arg_data_raw());
-    read(|state| reply(state.search(caller(), term)));
+    read(|state| reply(state.search(term)));
 }
 
 #[query]
@@ -1026,4 +1011,12 @@ fn resolve_handle(handle: Option<String>) -> Option<User> {
         Some(handle) => state.user(&handle).cloned(),
         None => Some(state.principal_to_user(caller())?.clone()),
     })
+}
+
+fn optional(s: String) -> Option<String> {
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
+    }
 }

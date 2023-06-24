@@ -1,5 +1,5 @@
 import * as React from "react";
-import {HeadBar, setTitle} from "./common";
+import {currentRealm, HeadBar, setTitle} from "./common";
 import {ToggleButton} from './common';
 import {PostFeed} from "./post_feed";
 
@@ -22,7 +22,7 @@ export const Feed = ({params, heartbeat}) => {
                 if (token.startsWith("@")) users.push(userId(token));
                 else tags.push(token);
             });
-            return await api.query("posts_by_tags", tags, users, page);
+            return await api.query("posts_by_tags", currentRealm(), tags, users, page);
         }}
             heartbeat={heartbeat + filter + params} />
     </div>;

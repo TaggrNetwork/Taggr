@@ -174,7 +174,7 @@ export const UserInfo = ({profile}) => {
     const realms = profile.realms.length > 0 
         ? <div className="row_container top_spaced" style={{alignItems: "center"}}>{profile.realms.map(name => 
             <RealmSpan key={name} name={name}  onClick={() => location.href = `/#/realm/${name}`}
-                classNameArg={`clickable padded_rounded right_half_spaced top_half_spaced ${profile.current_realm == name ? "current_realm" : ""}`} />)}
+                classNameArg="clickable padded_rounded right_half_spaced top_half_spaced" />)}
         </div>
         : null;
     const inviter = profile.invited_by;

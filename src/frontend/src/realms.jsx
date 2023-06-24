@@ -1,9 +1,9 @@
 import * as React from "react";
 import {PostFeed} from "./post_feed";
 import {loadFile} from "./form";
-import {bigScreen, ButtonWithLoading, HeadBar, Loading, NotFound, RealmRibbon, setTitle, userList, } from "./common";
+import {bigScreen, BurgerButton, ButtonWithLoading, HeadBar, Loading, NotFound, realmColors, RealmRibbon, setTitle, userList, } from "./common";
 import { Content } from './content';
-import {Edit} from "./icons";
+import {Edit, Close} from "./icons";
 import {themes} from "./theme";
 
 export const RealmForm = ({existingName}) => {
@@ -151,8 +151,10 @@ export const RealmForm = ({existingName}) => {
     </div>
 }
 
-export const RealmPage = ({name}) => {
+export const RealmHeader = ({name}) => {
     const [realm, setRealm] = React.useState(null);
+    const [showInfo, toggleInfo] = React.useState(false);
+
     const loadRealm = async () => {
         let result = await api.query("realm", name);
         if ("Err" in result) {
@@ -161,21 +163,40 @@ export const RealmPage = ({name}) => {
         }
         setRealm(result.Ok);
     };
-    React.useEffect(() => { loadRealm(); }, []);
-    if (realm == 404) return <NotFound />;
-    if (!realm) return <Loading />;
+
+    React.useEffect(() => { loadRealm(); toggleInfo(false) }, [name]);
+
     setTitle(`realm ${name}`);
+
+    if (!realm) return <Loading />;
+
+    const colors = realmColors(name);
     const user = api._user;
     return <>
         <HeadBar title={<div className="vcentered max_width_col">
-            {realm.logo && <img alt="Logo" className="right_half_spaced" style={{ maxWidth: "40px"}} src={`data:image/png;base64, ${realm.logo}`} />}
+            {realm && realm.logo && <img alt="Logo" className="right_half_spaced" style={{ maxWidth: "40px"}} src={`data:image/png;base64, ${realm.logo}`} />}
             {name}
-        </div>} shareLink={`realm/${name.toLowerCase()}`} shareTitle={`Realm ${name} on ${backendCache.name}`}
+        </div>}
+            shareLink={`realm/${name.toLowerCase()}`} shareTitle={`Realm ${name} on ${backendCache.name}`} styleArg={colors} 
             content={<>
-                {user && realm.controllers.includes(user.id) && 
-                <button className="right_half_spaced" onClick={() => location.href = `/#/realm/${name}/edit`}><Edit /></button>}
-                {user && !user.realms.includes(name) && <ButtonWithLoading
-                    label="JOIN" classNameArg="active right_half_spaced"
+                <ButtonWithLoading classNameArg="left_half_spaced monospace" styleArg={colors} testId="realm-close-button"
+                        onClick={async () => {
+                            localStorage.removeItem("realm");
+                            location.href = "/#/home";
+                        }}
+                        label={<Close styleArg={{fill: colors.color}} small={true} />}
+                    />
+                <BurgerButton styleArg={colors} onClick={() => toggleInfo(!showInfo) } pressed={showInfo} testId="realm-burger-button" />
+            </>}
+        />
+        {showInfo && <div className="stands_out">
+            <Content value={realm.description} />
+            <code>{realm.num_posts}</code> posts, <code>{realm.num_members}</code> members,
+            controlled by: {userList(realm.controllers)}
+            {user && <div className="row_container top_spaced flex_ended">
+                {realm.controllers.includes(user.id) && <button className="right_half_spaced" onClick={() => location.href = `/#/realm/${name}/edit`}>EDIT</button>}
+                {!user.realms.includes(name) && 
+                <ButtonWithLoading label="JOIN" classNameArg="active"
                     onClick={async () => {
                         if (!confirm(`By joining the realm ${name} you confirm that you understand its description ` +
                             `and agree with all terms and conditions mentioned there. ` +
@@ -183,16 +204,14 @@ export const RealmPage = ({name}) => {
                             `moving out of the post with penalty of ${backendCache.config.realm_cleanup_penalty} points.`))
                             return false;
                         return api.call("toggle_realm_membership", name).then(api._reloadUser).then(loadRealm);
-                    }} />}
-                {user && user.realms.includes(name) && <ButtonWithLoading classNameArg="right_half_spaced" label="LEAVE"
+                    }} />
+                }
+                {user.realms.includes(name) && <ButtonWithLoading classNameArg="active" label="LEAVE"
                     onClick={async () => api.call("toggle_realm_membership", name).then(api._reloadUser).then(loadRealm)} />}
-            </>} />
-        <Content classNameArg="spaced" value={realm.description} />
-        <hr />
-        <PostFeed title={<h2 className="spaced">Latest Posts</h2>}
-            grid={true} feedLoader={async page => await api.query("realm_posts", name, page, false)} />
+            </div>}
+        </div>}
     </>;
-}
+};
 
 export const Realms = () => {
     const [realms, setRealms] = React.useState([]);
@@ -208,8 +227,7 @@ export const Realms = () => {
     React.useEffect(() => { loadRealms(); }, [page]);
     const user = api._user;
     return <>
-        <HeadBar title="Realms" shareLink="realms"
-            content={user && <button className="active" onClick={() => location.href = "/#/realm//new"}>CREATE</button>} />
+        <HeadBar title="Realms" shareLink="realms" content={user && <button className="active" onClick={() => location.href = "/#/realms/create"}>CREATE</button>} />
         <div className={bigScreen() ? "two_column_grid_flex" : null} style={{rowGap: 0, columnGap: "1em"}}>
             {realms.map(([name, realm]) =>{
                 return <div key={name} className="stands_out" style={{position: "relative"}}>
@@ -217,14 +235,14 @@ export const Realms = () => {
                     <h3 className="vcentered">
                         {realm.logo && <img alt="Logo" className="right_spaced" style={{ maxWidth: "70px"}} src={`data:image/png;base64, ${realm.logo}`} />}
                         <span className="max_width_col">
-                            <a href={`/#/realm/${name.toLowerCase()}`}>{name}</a>
+                            <a href={`/#/realm/${name}`}>{name}</a>
                         </span>
                     </h3>
                     <Content value={realm.description.split("\n")[0]} classNameArg="bottom_spaced" />
-                    <div>
+                    <>
                         <code>{realm.num_posts}</code> posts, <code>{realm.num_members}</code> members,
                         controlled by: {userList(realm.controllers)}
-                    </div>
+                    </>
                 </div>;})}
         </div>
         {!noMoreData && <div style={{display:"flex", justifyContent: "center"}}>

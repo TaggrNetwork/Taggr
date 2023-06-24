@@ -338,10 +338,6 @@ p > img {
 
 .prime img { border-radius: 5px; }
 
-.current_realm::before {
-    content: "📍" ;
-}
-
 .comment img { 
     max-width: 80%;
     border-radius: 5px;

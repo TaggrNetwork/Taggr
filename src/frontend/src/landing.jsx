@@ -3,17 +3,18 @@ import {Content} from './content';
 import {PostFeed} from "./post_feed";
 import { Dashboard } from './dashboard';
 import {Search} from './search';
-import {bigScreen, Loading, RealmSpan, setTitle} from './common';
+import {bigScreen, currentRealm, Loading, RealmSpan, setTitle} from './common';
 import {New, User, Fire } from './icons';
 
 const FEED_KEY = "_feed";
 
 export const Landing = ({heartbeat}) => {
     const user = api._user;
+    const realm = currentRealm();
     const [feed, setFeed] = React.useState(localStorage.getItem(FEED_KEY) || "HOT");
     const headline = `# Welcome aboard\nof a **fully decentralized** social network.\n\n[WHITE PAPER &#x279C;](/#/whitepaper)`;
     const title = <div className="text_centered vertically_spaced">
-        {[ {icon: <New />, id: "NEW"}, {icon: <Fire />, id: "HOT"}, user && { icon: <User />, id: "FOLLOWED" }].filter(Boolean).map(
+        {[ {icon: <New />, id: "NEW"}, {icon: <Fire />, id: "HOT"}, user && !realm && { icon: <User />, id: "FOLLOWED" }].filter(Boolean).map(
             ({icon, id}) => <button key={id} onClick={() => {localStorage.setItem(FEED_KEY, id); setFeed(id)}}
                 className={"medium_text " + (feed == id ? "active" :"unselected")}>
                 {icon} {id}
@@ -21,19 +22,19 @@ export const Landing = ({heartbeat}) => {
         )}
     </div>;
     return <>
-        {!api._user && <Content value={headline} classNameArg="spaced text_centered" />}
+        {!user && !realm && <Content value={headline} classNameArg="spaced text_centered" />}
         <Search />
-        {!api._user && <>
+        {!user && !realm && <>
             <Dashboard />
             <RealmsDashboard />
         </>}
-        <TagCloud size={bigScreen() ? 60 : 30} heartbeat={heartbeat} />
+        <TagCloud size={bigScreen() ? 60 : 30} heartbeat={heartbeat} realm={realm} />
         <PostFeed heartbeat={heartbeat + feed} title={title} grid={true} feedLoader={
             async page => {
                 setTitle(feed);
                 if (feed == "FOLLOWED") return await api.query("personal_feed", user.id, page, false);
-                if (feed == "HOT") return await api.query("hot_posts", page);
-                else return await api.query("last_posts", page, false);
+                if (feed == "HOT") return await api.query("hot_posts", realm, page);
+                else return await api.query("last_posts", realm, page, false);
             }} />
     </>;
 }; 
@@ -50,10 +51,10 @@ const RealmsDashboard = () => {
     </div>;
 }
 
-export const TagCloud = ({size, heartbeat}) => {
+export const TagCloud = ({size, heartbeat, realm}) => {
     const [tags, setTags] = React.useState(null);
     const loadTags = async () => {
-        let tags = await api.query("recent_tags", size);
+        let tags = await api.query("recent_tags", realm, size);
         const occurences = tags.map(([_, N]) => parseInt(N));
         const min = Math.min(...occurences);
         const max = Math.max(...occurences);

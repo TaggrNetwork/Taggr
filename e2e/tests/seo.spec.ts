@@ -166,8 +166,8 @@ test("seo and metadata", async ({ page, baseURL, browser }) => {
       const realmListPage = await globalNavigation.goToRealmsPage();
       const newRealmPage = await realmListPage.createNewRealm();
 
-      const [_, realmName, realmDescription] =
-        await newRealmPage.fillAndSaveRealmForm();
+      const [realmPage, realmName, realmDescription] = await newRealmPage.fillAndSaveRealmForm();
+      await realmPage.closeButton.click();
 
       await topUpCycles(page, user);
 

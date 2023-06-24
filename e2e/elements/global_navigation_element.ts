@@ -7,7 +7,6 @@ import {
   InvitesPage,
   WalletPage,
   RealmListPage,
-  RealmPage,
   BookmarksPage,
   JournalPage,
   ProposalsPage,
@@ -46,7 +45,7 @@ export class GlobalNavigationElement {
 
   public async goToHomePage(): Promise<HomePage> {
     await this.homeLink.click();
-    expect(new URL(this.page.url()).hash).toEqual("#/");
+    expect(new URL(this.page.url()).hash).toEqual("#/home");
 
     return new HomePage(this.page);
   }
@@ -118,7 +117,7 @@ export class GlobalNavigationElement {
     return new ProposalsPage(this.page);
   }
 
-  public async enterRealm(realmName: string): Promise<RealmPage> {
+  public async enterRealm(realmName: string): Promise<HomePage> {
     await this.toggleRealmsButton.click();
     await this.page
       .locator("span:near(header)", {
@@ -127,7 +126,7 @@ export class GlobalNavigationElement {
       .locator("visible=true")
       .click();
 
-    await this.page.waitForURL(`/#/${realmName.toUpperCase()}/home/`);
-    return new RealmPage(this.page, realmName);
+    await this.page.waitForURL(`/#/realm/${realmName.toUpperCase()}`);
+    return new HomePage(this.page);
   }
 }

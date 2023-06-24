@@ -481,11 +481,10 @@ impl Post {
             ));
         }
         let realm = match parent.and_then(|id| Post::get(state, &id)) {
-            Some(post) => post.realm.clone(),
+            Some(parent) => parent.realm.clone(),
             None => match picked_realm {
                 Some(value) if value.to_lowercase() == CONFIG.name.to_lowercase() => None,
-                Some(value) => Some(value),
-                None => user.current_realm.clone(),
+                value => value,
             },
         };
         if let Some(name) = &realm {
@@ -652,8 +651,17 @@ pub fn change_realm(state: &mut State, root_post_id: PostId, new_realm: Option<S
     let mut post_ids = vec![root_post_id];
 
     while let Some(post_id) = post_ids.pop() {
-        let Post { children, .. } = Post::get(state, &post_id).expect("no post found").clone();
+        let Post {
+            children, realm, ..
+        } = Post::get(state, &post_id).expect("no post found").clone();
         post_ids.extend_from_slice(&children);
+
+        if let Some(id) = realm {
+            state.realms.get_mut(&id).expect("no realm found").num_posts -= 1;
+        }
+        if let Some(id) = &new_realm {
+            state.realms.get_mut(id).expect("no realm found").num_posts += 1;
+        }
 
         Post::mutate(state, &post_id, |post| {
             post.realm = new_realm.clone();

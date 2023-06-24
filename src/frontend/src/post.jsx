@@ -142,7 +142,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
     const deletedByModeration = post.report && post.report.closed && post.report.confirmed_by.length > post.report.rejected_by.length;
     const isComment = !isRoot(post);
     const commentAsPost = isComment && !isCommentView;
-    const realmPost = (!isComment || !isCommentView) && post.realm && (!user || user.current_realm != post.realm);
+    const realmPost = (!isComment || !isCommentView) && post.realm;
     const isGallery = post.effBody.startsWith("![");
     const postCreated = post.patches.length > 0 ? post.patches[0][0] : post.timestamp;
     const isPrime = !isCommentView && !isFeedItem && !repost;

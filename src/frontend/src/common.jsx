@@ -41,12 +41,14 @@ export const RealmRibbon = ({col, name}) =>
 
 export const HeadBar = ({title, shareLink, shareTitle, content, menu, styleArg, burgerTestId = null}) => {
     const [showMenu, setShowMenu] = React.useState(false);
+    const effStyle = {...styleArg} || {};
+    effStyle.flex = 0;
     return <div className="column_container stands_out bottom_spaced" style={styleArg}>
         <div className="vcentered">
             <div className={`max_width_col ${bigScreen() ? "x_large_text" : "larger_text"}`}>{title}</div>
             <div className="vcentered flex_ended">
-                {shareLink && <ShareButton styleArg={styleArg} url={shareLink} title={shareTitle} classNameArg="right_half_spaced" />}
-                {menu && <BurgerButton onClick={() => setShowMenu(!showMenu)} pressed={showMenu} testId={burgerTestId} />}
+                {shareLink && <ShareButton styleArg={effStyle} url={shareLink} title={shareTitle} classNameArg="right_half_spaced" />}
+                {menu && <BurgerButton styleArg={effStyle} onClick={() => setShowMenu(!showMenu)} pressed={showMenu} testId={burgerTestId} />}
                 {!menu && content}
             </div>
         </div>
@@ -64,7 +66,8 @@ export const realmColors = (name, col) => {
         return brightness > 155;
     };
     const effCol = col || (backendCache.realms[name] || [])[0] || "#ffffff";
-    return {background: effCol, color: light(effCol) ? "black" : "white" };
+    const color = light(effCol) ? "black" : "white";
+    return {background: effCol, color, fill: color  };
 };
 
 export const RealmSpan = ({col, name, classNameArg, onClick}) => {
@@ -73,12 +76,10 @@ export const RealmSpan = ({col, name, classNameArg, onClick}) => {
     return <span className={classNameArg || null} onClick={onClick} style={{background, color, whiteSpace: "nowrap"}}>{name}</span>;
 };
 
+export const currentRealm = () => localStorage.getItem("realm") || "";
 
 export const ShareButton = ({classNameArg = null, title = "Check this out", url, styleArg}) => {
-    const effStyle = {...styleArg} || {};
-    effStyle.flex = 0;
-    effStyle.fill = effStyle.color;
-    return <button className={classNameArg} style={effStyle}
+    return <button className={classNameArg} style={styleArg}
         onClick={async _ => { 
             const fullUlr = `https://${backendCache.config.domains[0]}/${url}`;
             if (navigator.share) navigator.share({title, url: fullUlr});
@@ -86,7 +87,7 @@ export const ShareButton = ({classNameArg = null, title = "Check this out", url,
                 await navigator.clipboard.writeText(fullUlr);
                 alert(`Copied to clipboard: ${fullUlr}`);
             } 
-        }}><Share styleArg={effStyle} />
+        }}><Share styleArg={styleArg} />
     </button>;
 };
 
@@ -107,10 +108,10 @@ export const getTokens = (prefix, value) => {
 
 export const setTitle = value => document.getElementsByTagName("title")[0]?.innerText = `TAGGR: ${value}`;
 
-export const ButtonWithLoading = ({label, onClick, classNameArg, styleArg}) => {
+export const ButtonWithLoading = ({label, onClick, classNameArg, styleArg, testId}) => {
     let [loading, setLoading] = React.useState(false);
     if (loading) return <Loading spaced={false} />;
-    return <button className={`${classNameArg}`} style={styleArg || null} onClick={async e => {
+    return <button className={`${classNameArg}`} style={styleArg || null} data-testid={testId} onClick={async e => {
         e.preventDefault();
         setLoading(true);
         await onClick();
@@ -216,12 +217,20 @@ export const token = n => Math.ceil(n / Math.pow(10, backendCache.config.token_d
 
 export const ReactionToggleButton = ({icon, onClick, pressed, classNameArg, testId = null}) => 
     <button data-meta="skipClicks" onClick={e => { e.preventDefault(); onClick(e)}}
-        data-testid={testId}
-        className={`${pressed ? "" : "un"}selected reaction_button vcentered ${classNameArg}`}>
+        data-testid={testId} className={`${pressed ? "" : "un"}selected reaction_button vcentered ${classNameArg}`}>
         {icon}
     </button>;
 
-export const BurgerButton = ({onClick, pressed, testId = null}) => <ReactionToggleButton onClick={onClick} pressed={pressed} icon={<Menu />} testId={testId} />
+export const BurgerButton = ({onClick, pressed, testId = null, styleArg}) => {
+    const effStyle = {...styleArg};
+    if (pressed) {
+        const color = effStyle.color;
+        effStyle.color = effStyle.background;
+        effStyle.fill = effStyle.background;
+        effStyle.background = color;
+    }
+    return <ReactionToggleButton onClick={onClick} pressed={pressed} icon={<Menu styleArg={effStyle} />} testId={testId} />;
+}
 
 export const loadPostBlobs = async (files) => {
     const ids = Object.keys(files);

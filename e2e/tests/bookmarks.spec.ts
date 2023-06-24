@@ -14,7 +14,7 @@ test("bookmarks", async ({ page, browser }) => {
     [postTwoContext, postTwoContent],
     [postThreeContext, postThreeContent],
   ] = await test.step("create posts", async () => {
-    function createUserAndPostInRealm(): Promise<[BrowserContext, string]> {
+    function createUserAndPost(): Promise<[BrowserContext, string]> {
       return performInNewContext(browser, async (page) => {
         const user = await createSeedPhraseUser(page);
         return await createPost(page, user);
@@ -22,9 +22,9 @@ test("bookmarks", async ({ page, browser }) => {
     }
 
     return await Promise.all([
-      createUserAndPostInRealm(),
-      createUserAndPostInRealm(),
-      createUserAndPostInRealm(),
+      createUserAndPost(),
+      createUserAndPost(),
+      createUserAndPost(),
     ]);
   });
 

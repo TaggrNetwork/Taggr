@@ -50,7 +50,6 @@ pub struct User {
     pub invited_by: Option<UserId>,
     pub accounting: VecDeque<(u64, String, i64, String)>,
     pub realms: Vec<String>,
-    pub current_realm: Option<String>,
     pub balance: Token,
     pub active_weeks: u32,
     pub principal: Principal,
@@ -91,7 +90,6 @@ impl User {
             stalwart: false,
             invited_by: None,
             realms: Default::default(),
-            current_realm: None,
             messages: 0,
             inbox: Default::default(),
             balance: 0,
@@ -109,14 +107,6 @@ impl User {
                 .last_posts(None, true)
                 .filter(move |post| post.user == id),
         )
-    }
-
-    pub fn enter_realm(&mut self, name: String) {
-        if self.realms.contains(&name) {
-            self.current_realm = Some(name);
-            return;
-        }
-        self.current_realm = None;
     }
 
     pub fn update(&mut self, about: String, principals: Vec<String>, settings: String) {
@@ -169,17 +159,14 @@ impl User {
 
     pub fn personal_feed<'a>(
         &'a self,
-        principal: Principal,
         state: &'a State,
         page: usize,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let posts_by_tags = Box::new(state.last_posts(Some(principal), with_comments).filter(
-            move |post| {
-                let lc_tags: BTreeSet<_> = post.tags.iter().map(|t| t.to_lowercase()).collect();
-                covered_by_feeds(&self.feeds, &lc_tags, false).is_some()
-            },
-        ));
+        let posts_by_tags = Box::new(state.last_posts(None, with_comments).filter(move |post| {
+            let lc_tags: BTreeSet<_> = post.tags.iter().map(|t| t.to_lowercase()).collect();
+            covered_by_feeds(&self.feeds, &lc_tags, false).is_some()
+        }));
 
         let mut iterators: Vec<Box<dyn Iterator<Item = &'a Post> + 'a>> = self
             .followees
@@ -195,15 +182,12 @@ impl User {
                 iterators: iterators.into_iter().map(|i| i.peekable()).collect(),
             }
             .filter(move |post| with_comments || post.parent.is_none())
+            // if the post if from a realm, it's only included if user if part of it
             .filter(move |post| {
-                // Either  the user is in no realm or in the realm of the post
-                (self.current_realm.is_none() || post.realm == self.current_realm)
-                   // if the post if from a realm, it's only included if user if part of it
-                    && post
-                        .realm
-                        .as_ref()
-                        .map(|id| self.realms.contains(id))
-                        .unwrap_or(true)
+                post.realm
+                    .as_ref()
+                    .map(|id| self.realms.contains(id))
+                    .unwrap_or(true)
             })
             .skip(page * CONFIG.feed_page_size)
             .take(CONFIG.feed_page_size),

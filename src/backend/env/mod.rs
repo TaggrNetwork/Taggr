@@ -258,6 +258,10 @@ impl State {
         self.charge(user_id, penalty, msg)
             .expect("couldn't charge user");
         post::change_realm(self, post_id, None);
+        self.realms
+            .get_mut(&realm)
+            .expect("no realm found")
+            .num_posts -= 1;
         Ok(())
     }
 
@@ -345,14 +349,11 @@ impl State {
         self.last_hourly_chores = time();
     }
 
-    pub fn hot_posts(&self, principal: Principal, page: usize) -> Vec<Post> {
-        let current_realm = self
-            .principal_to_user(principal)
-            .and_then(|u| u.current_realm.clone());
+    pub fn hot_posts(&self, realm: Option<String>, page: usize) -> Vec<Post> {
         self.hot
             .iter()
             .filter_map(|post_id| Post::get(self, post_id))
-            .filter(|post| current_realm.is_none() || post.realm == current_realm)
+            .filter(|post| realm.is_none() || post.realm == realm)
             .skip(page * CONFIG.feed_page_size)
             .take(CONFIG.feed_page_size)
             .cloned()
@@ -369,12 +370,17 @@ impl State {
         };
         if user.realms.contains(&name) {
             user.realms.retain(|realm| realm != &name);
-            if user.current_realm == Some(name.clone()) {
-                user.current_realm = None
-            }
+            self.realms
+                .get_mut(&name)
+                .expect("no realm found")
+                .num_members -= 1;
             return false;
         }
         user.realms.push(name.clone());
+        self.realms
+            .get_mut(&name)
+            .expect("no realm found")
+            .num_members += 1;
         true
     }
 
@@ -672,7 +678,7 @@ impl State {
         }
     }
 
-    pub fn search(&self, principal: Principal, mut term: String) -> Vec<SearchResult> {
+    pub fn search(&self, mut term: String) -> Vec<SearchResult> {
         const SNIPPET_LEN: usize = 100;
         term = term.to_lowercase();
         let snippet = |body: &str, i: usize| {
@@ -724,7 +730,7 @@ impl State {
                 None
             }))
             .chain(
-                self.recent_tags(principal, 500)
+                self.recent_tags(None, 500)
                     .into_iter()
                     .filter_map(|(tag, _)| {
                         if format!("#{} {0}", tag).to_lowercase().contains(&term) {
@@ -737,30 +743,31 @@ impl State {
                         None
                     }),
             )
-            .chain(self.last_posts(Some(principal), true).filter_map(
-                |Post { id, body, user, .. }| {
-                    if id.to_string() == term {
-                        return Some(SearchResult {
-                            id: *id,
-                            user_id: *user,
-                            relevant: snippet(body, 0),
-                            result: "post".to_string(),
-                            ..Default::default()
-                        });
-                    }
-                    let search_body = body.to_lowercase();
-                    if let Some(i) = search_body.find(&term) {
-                        return Some(SearchResult {
-                            id: *id,
-                            user_id: *user,
-                            relevant: snippet(body, i),
-                            result: "post".to_string(),
-                            ..Default::default()
-                        });
-                    }
-                    None
-                },
-            ))
+            .chain(
+                self.last_posts(None, true)
+                    .filter_map(|Post { id, body, user, .. }| {
+                        if id.to_string() == term {
+                            return Some(SearchResult {
+                                id: *id,
+                                user_id: *user,
+                                relevant: snippet(body, 0),
+                                result: "post".to_string(),
+                                ..Default::default()
+                            });
+                        }
+                        let search_body = body.to_lowercase();
+                        if let Some(i) = search_body.find(&term) {
+                            return Some(SearchResult {
+                                id: *id,
+                                user_id: *user,
+                                relevant: snippet(body, i),
+                                result: "post".to_string(),
+                                ..Default::default()
+                            });
+                        }
+                        None
+                    }),
+            )
             .take(100)
             .collect()
     }
@@ -1507,13 +1514,13 @@ impl State {
 
     pub fn posts_by_tags(
         &self,
-        principal: Principal,
+        realm: Option<String>,
         tags: Vec<String>,
         users: Vec<UserId>,
         page: usize,
     ) -> Vec<Post> {
         let query: HashSet<_> = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
-        self.last_posts(Some(principal), true)
+        self.last_posts(realm, true)
             .filter(|post| {
                 (users.is_empty() || users.contains(&post.user))
                     && post
@@ -1531,7 +1538,7 @@ impl State {
 
     pub fn last_posts<'a>(
         &'a self,
-        principal: Option<Principal>,
+        realm: Option<String>,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         let iter = {
@@ -1540,21 +1547,18 @@ impl State {
         }
         .filter_map(move |i| Post::get(self, &i))
         .filter(move |post| !post.is_deleted() && (with_comments || post.parent.is_none()));
-        match principal
-            .and_then(|principal| self.principal_to_user(principal))
-            .and_then(|user| user.current_realm.as_ref())
-        {
+        match realm {
             None => Box::new(iter),
-            id => Box::new(iter.filter(move |post| post.realm.as_ref() == id)),
+            id => Box::new(iter.filter(move |post| post.realm.as_ref() == id.as_ref())),
         }
     }
 
-    pub fn recent_tags(&self, principal: Principal, n: u64) -> Vec<(String, u64)> {
+    pub fn recent_tags(&self, realm: Option<String>, n: u64) -> Vec<(String, u64)> {
         // normalized hashtag -> (user spelled hashtag, occurences)
         let mut tags: HashMap<String, (String, u64)> = Default::default();
         let mut tags_found = 0;
         'OUTER: for post in self
-            .last_posts(Some(principal), true)
+            .last_posts(realm, true)
             .take_while(|post| !post.archived)
         {
             for tag in &post.tags {
@@ -2664,30 +2668,13 @@ pub(crate) mod tests {
                 new_description
             );
 
-            // Entering a realm without joining does not work
-            state
-                .principal_to_user_mut(p1)
-                .unwrap()
-                .enter_realm(name.clone());
-            assert!(state.users.get(&_u1).unwrap().realms.is_empty());
-            assert_eq!(state.users.get(&_u1).unwrap().current_realm, None);
-
             // wrong user and wrong realm joining
             assert!(!state.toggle_realm_membership(pr(2), name.clone()));
             assert!(!state.toggle_realm_membership(p1, "WRONGNAME".to_string()));
 
             assert!(state.toggle_realm_membership(p1, name.clone()));
             assert!(state.users.get(&_u1).unwrap().realms.contains(&name));
-            assert_eq!(state.users.get(&_u1).unwrap().current_realm, None);
-
-            state
-                .principal_to_user_mut(p1)
-                .unwrap()
-                .enter_realm(name.clone());
-            assert_eq!(
-                state.users.get(&_u1).unwrap().current_realm,
-                Some(name.clone())
-            );
+            assert_eq!(state.realms.get(&name).unwrap().num_members, 1);
 
             // creating a post in a realm
             let post_id = Post::create(
@@ -2697,10 +2684,11 @@ pub(crate) mod tests {
                 p1,
                 0,
                 None,
-                Some("TAGGRDAO".into()),
+                Some(name.clone()),
                 None,
             )
             .unwrap();
+            assert_eq!(state.realms.get(&name).unwrap().num_posts, 1);
 
             assert_eq!(
                 Post::get(state, &post_id).unwrap().realm,
@@ -2708,7 +2696,7 @@ pub(crate) mod tests {
             );
             assert!(realm_posts(state, &name).contains(&post_id));
 
-            // Posting without realm creates the post in the current realm of the user
+            // Posting without realm creates the post in the global realm
             let post_id = Post::create(
                 state,
                 "Realm post".to_string(),
@@ -2721,10 +2709,7 @@ pub(crate) mod tests {
             )
             .unwrap();
 
-            assert_eq!(
-                Post::get(state, &post_id).unwrap().realm,
-                Some("TAGGRDAO".into())
-            );
+            assert_eq!(Post::get(state, &post_id).unwrap().realm, None,);
 
             // comments not possible if user is not in the realm
             assert_eq!(
@@ -2742,6 +2727,7 @@ pub(crate) mod tests {
             );
 
             assert!(state.toggle_realm_membership(p0, name.clone()));
+            assert_eq!(state.realms.get(&name).unwrap().num_members, 2);
 
             assert_eq!(
                 Post::create(
@@ -2760,10 +2746,6 @@ pub(crate) mod tests {
             assert!(realm_posts(state, &name).contains(&2));
 
             // Create post without a realm
-            state
-                .principal_to_user_mut(p1)
-                .unwrap()
-                .enter_realm(Default::default());
 
             let post_id = Post::create(
                 state,
@@ -2841,6 +2823,9 @@ pub(crate) mod tests {
             assert!(state.toggle_realm_membership(p1, realm_name.clone()));
             assert!(state.users.get(&_u1).unwrap().realms.contains(&name));
 
+            assert_eq!(state.realms.get(&realm_name).unwrap().num_members, 1);
+            assert_eq!(state.realms.get(&realm_name).unwrap().num_posts, 0);
+
             assert_eq!(
                 Post::create(
                     state,
@@ -2854,6 +2839,7 @@ pub(crate) mod tests {
                 ),
                 Ok(5)
             );
+            assert_eq!(state.realms.get(&realm_name).unwrap().num_posts, 1);
 
             assert!(state
                 .users
@@ -2880,10 +2866,9 @@ pub(crate) mod tests {
         );
 
         read(|state| {
-            // Move post to TAGGRDAO realms
             assert_eq!(Post::get(state, &5).unwrap().realm, Some(realm_name));
+            assert_eq!(state.realms.get("TAGGRDAO").unwrap().num_posts, 2);
         });
-
         assert_eq!(
             Post::edit(
                 5,
@@ -2899,6 +2884,8 @@ pub(crate) mod tests {
         );
 
         read(|state| {
+            assert_eq!(state.realms.get("NEW_REALM").unwrap().num_posts, 0);
+            assert_eq!(state.realms.get("TAGGRDAO").unwrap().num_posts, 3);
             assert_eq!(
                 Post::get(state, &5).unwrap().realm,
                 Some("TAGGRDAO".to_string())
@@ -2995,7 +2982,6 @@ pub(crate) mod tests {
                 None,
             )
             .unwrap();
-            let anon = Principal::anonymous();
 
             // create a user and make sure his feed is empty
             let pr1 = pr(1);
@@ -3003,7 +2989,7 @@ pub(crate) mod tests {
             assert!(state
                 .user(&user_id.to_string())
                 .unwrap()
-                .personal_feed(anon, state, 0, true)
+                .personal_feed(state, 0, true)
                 .next()
                 .is_none());
 
@@ -3016,7 +3002,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(anon, state, 0, true)
+                .personal_feed(state, 0, true)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 1);
@@ -3035,7 +3021,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(anon, state, 0, true)
+                .personal_feed(state, 0, true)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 1);
@@ -3061,7 +3047,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(anon, state, 0, true)
+                .personal_feed(state, 0, true)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -3088,7 +3074,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(anon, state, 0, true)
+                .personal_feed(state, 0, true)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -3104,7 +3090,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(anon, state, 0, true)
+                .personal_feed(state, 0, true)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 3);
@@ -3119,7 +3105,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(anon, state, 0, true)
+                .personal_feed(state, 0, true)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);

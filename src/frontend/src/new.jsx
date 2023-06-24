@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Form } from './form';
-import { getPatch, loadPostBlobs, loadPost } from './common';
+import { getPatch, loadPostBlobs, loadPost, currentRealm } from './common';
 
 export const PostSubmissionForm = ({id, repost}) => {
     const [post, setPost] = React.useState(null);
@@ -41,7 +41,7 @@ export const PostSubmissionForm = ({id, repost}) => {
 
     return <div className="spaced top_spaced">
         <Form submitCallback={callback} postId={id} content={post?.body || ""} blobs={blobs} expanded={true}
-            repost={repost} realmArg={post?.realm || api._user.current_realm}/>
+            repost={repost} realmArg={post?.realm || currentRealm()}/>
         <h3>Tipps</h3>
         <ul>
             <li>Use <a target="_blank" href="https://commonmark.org/help/">Markdown</a> for formatting.</li>
