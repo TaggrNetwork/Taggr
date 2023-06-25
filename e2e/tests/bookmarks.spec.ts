@@ -72,7 +72,7 @@ test("bookmarks", async ({ page, browser }) => {
     await expect(bookmarkedPostThree.element).toBeVisible();
 
     await bookmarkedPostTwo.toggleBookmark();
-    await page.reload();
+    await page.reload({ waitUntil: "networkidle" });
     await expect(bookmarkedPostOne.element).toBeVisible();
     await expect(bookmarkedPostTwo.element).not.toBeVisible();
     await expect(bookmarkedPostThree.element).toBeVisible();

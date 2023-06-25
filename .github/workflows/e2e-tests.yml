@@ -42,7 +42,7 @@ jobs:
       - name: Build frontend
         run: |
           dfx canister create --all
-          NODE_ENV=production DFX_NETWORK=local npm run build --quiet
+          TEST_MODE=true NODE_ENV=production DFX_NETWORK=local npm run build --quiet
 
       - name: Build canister
         run: |

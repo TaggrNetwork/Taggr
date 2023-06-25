@@ -27,7 +27,7 @@ fe:
 e2e_test:
 	npm run install:e2e
 	dfx canister create --all
-	npm run build
+	TEST_MODE=true npm run build
 	./build.sh bucket
 	./build.sh taggr
 	make start || true # don't fail if DFX is already running

@@ -1,6 +1,6 @@
 import { Page, expect } from "@playwright/test";
 import { GlobalNavigationElement } from "../elements";
-import { NewPostPage, RealmPage } from "../pages";
+import { NewPostPage } from "../pages";
 import { generateHashTag, generateText } from "./random_data";
 import { CommonUser } from "./create_user";
 

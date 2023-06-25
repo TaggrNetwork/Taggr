@@ -36,7 +36,7 @@ test("user invite", async ({ page, browser }) => {
 
   await test.step("check open invites after accepting", async () => {
     const invitesPage = await globalNavigation.goToInvitesPage();
-    await page.reload();
+    await page.reload({ waitUntil: "networkidle" });
     const openInvitesAfterAccepting = await invitesPage.getOpenInvites();
     expect(openInvitesAfterAccepting).toHaveLength(0);
   });

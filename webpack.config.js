@@ -96,6 +96,7 @@ module.exports = {
         new webpack.EnvironmentPlugin({
             NODE_ENV: "development",
             DFX_NETWORK: NETWORK,
+            TEST_MODE: process.env.TEST_MODE || false,
             ...canisterEnvVariables,
         }),
         new webpack.ProvidePlugin({

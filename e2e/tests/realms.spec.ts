@@ -71,7 +71,7 @@ test("realms", async ({ page, browser }) => {
         await realmPage.burgerButton.click();
         await expect(realmPage.joinRealmButton).toBeVisible();
         await realmPage.joinRealm();
-        await page.reload();
+        await page.reload({ waitUntil: "networkidle" });
         await expect(globalNavigation.toggleRealmsButton).toBeVisible();
 
         await globalNavigation.enterRealm(realmName);

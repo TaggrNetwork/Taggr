@@ -65,7 +65,7 @@ test("love heart a post", async ({ page, browser }) => {
         expect(heartReaction).toBeVisible();
 
         await globalNavigation.goToProfilePage();
-        await page.reload();
+        await page.reload({ waitUntil: "networkidle" });
         const updatedCyclesBalance = await profilePage.getCyclesBalance();
         expect(updatedCyclesBalance).toEqual(cyclesBalance - 2);
       });
@@ -73,7 +73,7 @@ test("love heart a post", async ({ page, browser }) => {
 
   await test.step("check cycles and new karma after post reaction", async () => {
     const profilePage = await globalNavigation.goToProfilePage();
-    await page.reload();
+    await page.reload({ waitUntil: "networkidle" });
     const post = await profilePage.getPostByContent(postContent);
 
     const updatedKarmaBalance = await profilePage.getNewKarmaBalance();
@@ -148,7 +148,7 @@ test("react with fire and comment on a post", async ({ page, browser }) => {
         expect(comment.element).toBeVisible();
 
         await globalNavigation.goToProfilePage();
-        await page.reload();
+        await page.reload({ waitUntil: "networkidle" });
         const cyclesBalanceAfterReaction = await profilePage.getCyclesBalance();
         expect(cyclesBalanceAfterReaction).toEqual(originalCyclesBalance - 8);
 
@@ -158,7 +158,7 @@ test("react with fire and comment on a post", async ({ page, browser }) => {
 
   await test.step("check cycles and new karma after post reaction", async () => {
     const profilePage = await globalNavigation.goToProfilePage();
-    await page.reload();
+    await page.reload({ waitUntil: "networkidle" });
     const post = await profilePage.getPostByContent(postContent);
 
     const updatedKarmaBalance = await profilePage.getNewKarmaBalance();
@@ -172,7 +172,7 @@ test("react with fire and comment on a post", async ({ page, browser }) => {
     await expect(comment.element).toBeVisible();
   });
 
-  await page.reload();
+  await page.reload({ waitUntil: "networkidle" });
 
   await postReactionContext.close();
 });

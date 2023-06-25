@@ -45,7 +45,7 @@ export class GlobalNavigationElement {
 
   public async goToHomePage(): Promise<HomePage> {
     await this.homeLink.click();
-    expect(new URL(this.page.url()).hash).toEqual("#/home");
+    expect(new URL(this.page.url()).hash).toEqual("#/");
 
     return new HomePage(this.page);
   }
@@ -112,7 +112,10 @@ export class GlobalNavigationElement {
   public async goToProposalsPage(): Promise<ProposalsPage> {
     await this.burgerButton.click();
     await this.proposalsLink.click();
-    expect(new URL(this.page.url()).hash).toEqual("#/proposals");
+    await this.page.waitForURL("/#/proposals", {
+      waitUntil: "networkidle",
+      timeout: 6000,
+    });
 
     return new ProposalsPage(this.page);
   }

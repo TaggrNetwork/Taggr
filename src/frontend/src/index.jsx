@@ -25,7 +25,7 @@ import {Proposals} from "./proposals";
 import {Tokens, Transaction} from "./tokens";
 import {Whitepaper} from "./whitepaper";
 import {Recovery} from "./recovery";
-import {MAINNET_MODE, CANISTER_ID} from './env';
+import {MAINNET_MODE, TEST_MODE, CANISTER_ID} from './env';
 import {Git, Rocket, Twitter} from "./icons";
 
 const { hash, pathname } = location;
@@ -47,17 +47,32 @@ const footerRoot = createRoot(document.getElementById("footer"));
 const stack = document.getElementById("stack");
 
 const renderFrame = content => {
+
+    // don't use the cache in testing mode
+    if (TEST_MODE) {
+        console.log("RUNNING IN TEST MODE!");
+        if (!window.stackRoot) {
+            window.stackRoot = createRoot(stack);
+        }
+        if (location.hash == "#/home") location.href = "#/";
+        else window.stackRoot.render(content);
+        return;
+    }
+
     const frames = Array.from(stack.children);
-    frames.forEach(e => e.style.display = "none");
-    const currentFrame = frames[frames.length-1];
-    const lastFrame = frames[frames.length-2]
 
     // This resets the stack.
     if (location.hash == "#/home") {
         frames.forEach(frame => frame.remove());
         location.href = "#/";
         return;
-    } else if (lastFrame && lastFrame.dataset.hash == location.hash) {
+    }
+
+    frames.forEach(e => e.style.display = "none");
+    const currentFrame = frames[frames.length-1];
+    const lastFrame = frames[frames.length-2]
+
+    if (lastFrame && lastFrame.dataset.hash == location.hash) {
         currentFrame.remove();
         lastFrame.style.display = "block";
         return;
