@@ -3,7 +3,7 @@ import { Form } from './form';
 import { Content, CUT } from './content';
 import { Poll } from './poll';
 import { isRoot, BurgerButton, timeAgo, ToggleButton, NotFound, applyPatch, loadPostBlobs, ShareButton, commaSeparated, Loading, objectReduce, reactionCosts, postUserToPost, loadPost,
-    ReactionToggleButton, RealmRibbon, setTitle, ButtonWithLoading, bigScreen, UserLink, FlagButton, ReportBanner, icp } from './common';
+    ReactionToggleButton, RealmRibbon, setTitle, ButtonWithLoading, bigScreen, UserLink, FlagButton, ReportBanner, icp, currentRealm } from './common';
 import {PostFeed} from "./post_feed";
 import {reaction2icon, Edit, Save, Unsave, Watch, Unwatch, Repost, Coin, New, CommentArrow, CarretRight, Trash, Comment, Close } from "./icons";
 import {Proposal} from "./proposals";
@@ -142,7 +142,7 @@ export const Post = ({id, data, version, isFeedItem, repost, classNameArg, isCom
     const deletedByModeration = post.report && post.report.closed && post.report.confirmed_by.length > post.report.rejected_by.length;
     const isComment = !isRoot(post);
     const commentAsPost = isComment && !isCommentView;
-    const realmPost = (!isComment || !isCommentView) && post.realm;
+    const realmPost = (!isComment || !isCommentView) && post.realm && post.realm != currentRealm();
     const isGallery = post.effBody.startsWith("![");
     const postCreated = post.patches.length > 0 ? post.patches[0][0] : post.timestamp;
     const isPrime = !isCommentView && !isFeedItem && !repost;

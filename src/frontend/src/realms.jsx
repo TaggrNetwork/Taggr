@@ -181,7 +181,7 @@ export const RealmHeader = ({name}) => {
             content={<>
                 <ButtonWithLoading classNameArg="left_half_spaced monospace" styleArg={colors} testId="realm-close-button"
                         onClick={async () => {
-                            localStorage.removeItem("realm");
+                            window.realm = "";
                             location.href = "/#/home";
                         }}
                         label={<Close styleArg={{fill: colors.color}} small={true} />}
@@ -194,7 +194,10 @@ export const RealmHeader = ({name}) => {
             <code>{realm.num_posts}</code> posts, <code>{realm.num_members}</code> members,
             controlled by: {userList(realm.controllers)}
             {user && <div className="row_container top_spaced flex_ended">
-                {realm.controllers.includes(user.id) && <button className="right_half_spaced" onClick={() => location.href = `/#/realm/${name}/edit`}>EDIT</button>}
+                {realm.controllers.includes(user.id) && <button className="right_half_spaced" onClick={() => {
+                    location.href = `/#/realm/${name}/edit`;
+                    toggleInfo(false);
+                }}>EDIT</button>}
                 {!user.realms.includes(name) && 
                 <ButtonWithLoading label="JOIN" classNameArg="active"
                     onClick={async () => {

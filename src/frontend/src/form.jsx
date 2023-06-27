@@ -112,10 +112,13 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
             tmpBlobs[key] = resized_content;
             setTmpBlobs(tmpBlobs);
             image = await loadImage(resized_content);
-            fileLinks += `![${image.width}x${image.height}, ${size}kb](/blob/${key})\n`;
+            fileLinks += `![${image.width}x${image.height}, ${size}kb](/blob/${key})`;
             setDragAndDropping(false);
         }
-        setValue(value.slice(0, cursor) + "\n" + fileLinks + "\n" + value.slice(cursor));
+        const result = insertNewPicture(value, cursor, fileLinks); 
+        setValue(result.newValue);
+        setFocus()
+        setCursor(result.newCursor);
         setBusy(false);
     };
 
@@ -276,6 +279,15 @@ export const Form = ({postId = null, comment, realmArg = "", expanded, submitCal
         </div>}
         {!previewAtLeft && showPreview && preview}
     </div>;
+}
+
+const insertNewPicture = (value, cursor, fileLinks) => {
+    const preCursorLine = value.slice(0, cursor).split("\n").pop();
+    const newLineNeeded = !!preCursorLine && !preCursorLine.startsWith("![");
+    return {
+        newValue: value.slice(0, cursor) + (newLineNeeded ? "\n\n" : "") + fileLinks + "\n" + value.slice(cursor),
+        newCursor: cursor + fileLinks.length + (newLineNeeded ? 3 : 1)
+    };
 }
 
 const costs = (value, poll) => {

@@ -46,8 +46,13 @@ const headerRoot = createRoot(document.getElementById("header"));
 const footerRoot = createRoot(document.getElementById("footer"));
 const stack = document.getElementById("stack");
 
-const renderFrame = content => {
+const cleanUICache = () => {
+    if (TEST_MODE) return;
+    const frames = Array.from(stack.children);
+    frames.forEach(frame => frame.remove());
+};
 
+const renderFrame = content => {
     // don't use the cache in testing mode
     if (TEST_MODE) {
         console.log("RUNNING IN TEST MODE!");
@@ -59,15 +64,15 @@ const renderFrame = content => {
         return;
     }
 
-    const frames = Array.from(stack.children);
 
     // This resets the stack.
     if (location.hash == "#/home") {
-        frames.forEach(frame => frame.remove());
+        cleanUICache();
         location.href = "#/";
         return;
     }
 
+    const frames = Array.from(stack.children);
     frames.forEach(e => e.style.display = "none");
     const currentFrame = frames[frames.length-1];
     const lastFrame = frames[frames.length-2]
@@ -95,12 +100,11 @@ const App = () => {
     let subtle = false;
     let inboxMode = false;
     let content = null;
-    let realm = "";
 
     setTitle(handler);
     if (handler == "realm") {
-        realm = param;
-        localStorage.setItem("realm", realm);
+        if (currentRealm() != param) cleanUICache();
+        window.realm = param;
     }
     setColorTheme();
 
@@ -128,11 +132,11 @@ const App = () => {
         subtle = true;
         content = auth(<PostSubmissionForm repost={parseInt(param2)} />);
     } else if (handler == "realms") {
-        if (param) content = auth(<RealmForm existingName={realm.toUpperCase()} />);
+        if (param == "create") content = auth(<RealmForm />);
         else content = <Realms />;
     } else if (handler == "realm") {
-        if (realm) {
-            if (param2) content = auth(<PostSubmissionForm repost={parseInt(param2)} />);
+        if (param) {
+            if (param2 == "edit") content = auth(<RealmForm existingName={param.toUpperCase()} />);
             else content = <Landing heartbeat={heartbeat} />;
         } else content = <Realms />;
     } else if (handler == "inbox") {
@@ -176,6 +180,7 @@ const setColorTheme = () => {
     if (realm) api.query("realm", realm).then(result => {
         let realmTheme = result.Ok?.theme;
         if (realmTheme) applyTheme(JSON.parse(realmTheme));
+        else applyTheme();
     });
     else if (api._user) applyTheme(themes[api._user.settings.theme]);
     else applyTheme();

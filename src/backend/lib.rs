@@ -6,7 +6,6 @@ use std::{
 use env::{
     canisters::{get_full_neuron, upgrade_main_canister},
     config::{reaction_karma, CONFIG},
-    invoices::parse_account,
     memory,
     post::{Extension, Post, PostId},
     proposals::{Release, Reward},
@@ -22,7 +21,6 @@ use ic_cdk::{
     caller, spawn, timer,
 };
 use ic_cdk_macros::*;
-use ic_ledger_types::{Memo, Tokens};
 use serde_bytes::ByteBuf;
 
 use crate::env::token::Token;
@@ -87,32 +85,42 @@ fn post_upgrade() {
     set_timers();
 
     // temporary post upgrade logic goes here
-
-    // Context: https://taggr.link/#/post/31702
-    timer::set_timer(std::time::Duration::from_secs(1), || spawn(icp_transfer()));
-
-    // Fix number of users
     mutate(|state| {
-        for (id, realm) in state.realms.iter_mut() {
-            realm.num_members = state
-                .users
-                .values()
-                .filter(|user| user.realms.contains(id))
-                .count() as u64;
+        for post in state.posts.values_mut() {
+            if !post.patches.is_empty() {
+                continue;
+            }
+            post.body = fix_images(&post.body);
         }
     })
 }
 
-async fn icp_transfer() {
-    let nathans_account =
-        parse_account("4deae7270f0de9c1a85b8d68229f85bae9e553b3255b774b857e2f54324dd6f3").unwrap();
-    let _ = invoices::transfer(
-        nathans_account,
-        Tokens::from_e8s(20_0000_0000),
-        Memo(0),
-        None,
-    )
-    .await;
+// removes all empty lines between consecutives images
+fn fix_images(s: &str) -> String {
+    let mut stack: Vec<String> = Vec::default();
+    let lines = s.split('\n');
+    let mut last_line_was_image = false;
+    let is_image = |s: &str| s.starts_with("![");
+    for line in lines {
+        if is_image(line) {
+            if !last_line_was_image {
+                last_line_was_image = true;
+            } else {
+                loop {
+                    if let Some(val) = stack.last() {
+                        if val.as_str() != "" {
+                            break;
+                        }
+                        stack.pop();
+                    }
+                }
+            }
+        } else if !line.is_empty() {
+            last_line_was_image = false
+        };
+        stack.push(line.to_string());
+    }
+    stack.join("\n")
 }
 
 /*

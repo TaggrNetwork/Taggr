@@ -76,7 +76,7 @@ export const RealmSpan = ({col, name, classNameArg, onClick}) => {
     return <span className={classNameArg || null} onClick={onClick} style={{background, color, whiteSpace: "nowrap"}}>{name}</span>;
 };
 
-export const currentRealm = () => localStorage.getItem("realm") || "";
+export const currentRealm = () => window.realm || "";
 
 export const ShareButton = ({classNameArg = null, title = "Check this out", url, styleArg}) => {
     return <button className={classNameArg} style={styleArg}
