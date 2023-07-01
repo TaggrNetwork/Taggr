@@ -10,14 +10,20 @@ const NETWORK = process.env.DFX_NETWORK || (isDevelopment ? "local" : "ic");
 function initCanisterEnv() {
     let localCanisters, prodCanisters;
     try {
-        localCanisters = require(path.resolve( ".dfx", "local", "canister_ids.json"));
+        localCanisters = require(path.resolve(
+            ".dfx",
+            "local",
+            "canister_ids.json"
+        ));
     } catch (error) {
         console.log("No local canister_ids.json found. Continuing production");
     }
     try {
         prodCanisters = require(path.resolve("canister_ids.json"));
     } catch (error) {
-        console.log("No production canister_ids.json found. Continuing with local");
+        console.log(
+            "No production canister_ids.json found. Continuing with local"
+        );
     }
 
     const canisterConfig = NETWORK === "local" ? localCanisters : prodCanisters;
@@ -49,7 +55,7 @@ module.exports = {
     resolve: {
         extensions: [".js", ".ts", ".jsx", ".tsx"],
         fallback: {
-            buffer: require.resolve("buffer/")
+            buffer: require.resolve("buffer/"),
         },
     },
     output: {
@@ -67,28 +73,35 @@ module.exports = {
         rules: [
             // { test: /\.css$/, use: ['style-loader','css-loader'] },
             { test: /\.(ts|tsx|jsx)$/, loader: "ts-loader" },
-            { test: /\.(md|css|svg)/i, use: 'raw-loader', }
-        ]
+            { test: /\.(md|css|svg)/i, use: "raw-loader" },
+        ],
     },
     plugins: [
         new HtmlWebpackPlugin({
             template: path.join(__dirname, asset_entry),
             cache: false,
-            minify: isDevelopment ? false : {
-                minifyCSS: true,
-                collapseWhitespace: true,
-                keepClosingSlash: true,
-                removeComments: true,
-                removeRedundantAttributes: true,
-                removeScriptTypeAttributes: true,
-                removeStyleLinkTypeAttributes: true,
-                useShortDoctype: true
-            }
+            minify: isDevelopment
+                ? false
+                : {
+                      minifyCSS: true,
+                      collapseWhitespace: true,
+                      keepClosingSlash: true,
+                      removeComments: true,
+                      removeRedundantAttributes: true,
+                      removeScriptTypeAttributes: true,
+                      removeStyleLinkTypeAttributes: true,
+                      useShortDoctype: true,
+                  },
         }),
         new CopyPlugin({
             patterns: [
                 {
-                    from: path.join(__dirname, "src", frontendDirectory, "assets"),
+                    from: path.join(
+                        __dirname,
+                        "src",
+                        frontendDirectory,
+                        "assets"
+                    ),
                     to: path.join(__dirname, "dist", frontendDirectory),
                 },
             ],
@@ -106,7 +119,7 @@ module.exports = {
     ],
     // proxy /api to port 8000 during development
     devServer: {
-        host: 'localhost',
+        host: "localhost",
         proxy: {
             "/api": {
                 target: "http://127.0.0.1:55554",

@@ -14,6 +14,8 @@
 # rust
 target/
 release-artifacts/
+src/backend/
+src/bucket/
 
 # frontend code
 node_modules/

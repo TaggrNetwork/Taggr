@@ -5,19 +5,19 @@ import { GlobalNavigationElement } from "../elements";
 import { icpToE8s } from "./conversion";
 
 export async function topUpCycles(
-  page: Page,
-  user: CommonUser,
-  kiloCycles = 1
+    page: Page,
+    user: CommonUser,
+    kiloCycles = 1
 ): Promise<void> {
-  const ledger = await createLedgerClient();
+    const ledger = await createLedgerClient();
 
-  const globalNavigation = new GlobalNavigationElement(page, user);
-  await globalNavigation.goToHomePage();
-  const walletPage = await globalNavigation.goToWalletPage();
+    const globalNavigation = new GlobalNavigationElement(page, user);
+    await globalNavigation.goToHomePage();
+    const walletPage = await globalNavigation.goToWalletPage();
 
-  const amount = icpToE8s(10);
-  const to = await walletPage.getIcpAccount();
-  await ledger.transfer({ amount, to });
+    const amount = icpToE8s(10);
+    const to = await walletPage.getIcpAccount();
+    await ledger.transfer({ amount, to });
 
-  await walletPage.mintCycles(kiloCycles);
+    await walletPage.mintCycles(kiloCycles);
 }

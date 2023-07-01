@@ -1,37 +1,31 @@
 {
-  "compilerOptions": {
-    // output
-    "target": "es2015",
-    "jsx": "react-jsx",
-    "outDir": "./dist/frontend",
-    // modules
-    "module": "esnext",
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "isolatedModules": true,
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    // type checking
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "allowJs": true,
-    "checkJs": false,
-    "skipLibCheck": true,
-    // strictness
-    "strict": true,
-    "noFallthroughCasesInSwitch": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": true,
-    "noImplicitOverride": true,
-    "noImplicitReturns": true,
-    "noImplicitThis": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true
-  },
-  "include": [
-    "src/frontend/**/*"
-  ]
+    "compilerOptions": {
+        // output
+        "target": "es2015",
+        "jsx": "react-jsx",
+        "outDir": "./dist/frontend",
+        // modules
+        "module": "esnext",
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "isolatedModules": true,
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        // type checking
+        "lib": ["dom", "dom.iterable", "esnext"],
+        "allowJs": true,
+        "checkJs": false,
+        "skipLibCheck": true,
+        // strictness
+        "strict": true,
+        "noFallthroughCasesInSwitch": true,
+        "forceConsistentCasingInFileNames": true,
+        "noImplicitAny": true,
+        "noImplicitOverride": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true
+    },
+    "include": ["src/frontend/**/*"]
 }

@@ -2,19 +2,17 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Build the release binary image
-      run: make release
-    - name: Print the git commit and the binary hash
-      run: make hashes
+      - uses: actions/checkout@v3
+      - name: Build the release binary image
+        run: make release
+      - name: Print the git commit and the binary hash
+        run: make hashes

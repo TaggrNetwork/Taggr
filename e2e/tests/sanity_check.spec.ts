@@ -2,9 +2,9 @@ import { test, expect } from "@playwright/test";
 import { HomePage } from "../pages";
 
 test("home page loads", async ({ page }) => {
-  const homePage = new HomePage(page);
+    const homePage = new HomePage(page);
 
-  await homePage.goto();
+    await homePage.goto();
 
-  await expect(homePage.welcomeAboardHeader).toHaveText("Welcome aboard");
+    await expect(homePage.welcomeAboardHeader).toHaveText("Welcome aboard");
 });

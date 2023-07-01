@@ -33,3 +33,6 @@ jobs:
 
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
+
+      - name: Check Frontend formatting
+        run: npm run format:check

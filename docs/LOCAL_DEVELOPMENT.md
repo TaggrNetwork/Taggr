@@ -18,11 +18,11 @@ Make sure to follow the steps outlined in the rest of this file before using the
 
 ## System Dependencies
 
-- Install [DFX](https://internetcomputer.org/docs/current/developer-docs/setup/install/).
-- Install [NodeJS](https://nodejs.org/).
-- Install [Rust](https://www.rust-lang.org/).
-- Install [Docker](https://www.docker.com/).
-- Install [Git](https://git-scm.com/).
+-   Install [DFX](https://internetcomputer.org/docs/current/developer-docs/setup/install/).
+-   Install [NodeJS](https://nodejs.org/).
+-   Install [Rust](https://www.rust-lang.org/).
+-   Install [Docker](https://www.docker.com/).
+-   Install [Git](https://git-scm.com/).
 
 ## First Time Setup
 
@@ -44,13 +44,13 @@ Create or edit `~/.config/dfx/networks.json`, and add the following, note that `
 
 ```json
 {
-  "local": {
-    "bind": "127.0.0.1:8080",
-    "type": "ephemeral",
-    "replica": {
-      "subnet_type": "system"
+    "local": {
+        "bind": "127.0.0.1:8080",
+        "type": "ephemeral",
+        "replica": {
+            "subnet_type": "system"
+        }
     }
-  }
 }
 ```
 
@@ -168,16 +168,16 @@ dfx canister call taggr peasantmode '("${username}")'
 
 1. Pull the backup from Taggr (heap only):
 
-   - As a stalwart, in the browser console, execute:
-     ```js
-     api.call("heap_to_stable");
-     ```
-   - Locally run:
-     ```shell
-     ./backup.sh /path/to/backup
-     ```
+    - As a stalwart, in the browser console, execute:
+        ```js
+        api.call("heap_to_stable");
+        ```
+    - Locally run:
+        ```shell
+        ./backup.sh /path/to/backup
+        ```
 
 2. Restore the backup to the local canister:
-   ```shell
-   ./backup.sh /path/to/backup restore
-   ```
+    ```shell
+    ./backup.sh /path/to/backup restore
+    ```
