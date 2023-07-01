@@ -140,7 +140,7 @@ const markdownizer = (value, urls, setUrls, blobs, preview = false, className = 
                         props.src = fillerImg;
                     }
                 }
-                return <img {...props} onClick={() => { if (!props.thumbnail) previewImg(props.src) } } />
+                return <img loading="lazy" {...props} onClick={() => { if (!props.thumbnail) previewImg(props.src) } } />
             }
         }}
     />;

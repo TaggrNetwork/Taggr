@@ -6,11 +6,11 @@ import {Search} from './search';
 import {bigScreen, currentRealm, Loading, RealmSpan, setTitle} from './common';
 import {New, User, Fire } from './icons';
 
-const FEED_KEY = "_feed";
 
 export const Landing = ({heartbeat}) => {
     const user = api._user;
     const realm = currentRealm();
+    const FEED_KEY = `${realm}_feed`;
     const [feed, setFeed] = React.useState(localStorage.getItem(FEED_KEY) || "HOT");
     const headline = `# Welcome aboard\nof a **fully decentralized** social network.\n\n[WHITE PAPER &#x279C;](/#/whitepaper)`;
     const title = <div className="text_centered vertically_spaced">
@@ -42,9 +42,11 @@ export const Landing = ({heartbeat}) => {
 const RealmsDashboard = () => {
     const realmNames = Object.keys(backendCache.realms);
     return <div className="vertically_spaced text_centered">
-        <div className="row_container" style={{opacity: 0.8, margin: "0.5em", marginBottom: "1em"}}>
+        <div className="row_container" style={{margin: "0.5em", marginBottom: "1em"}}>
             {realmNames.slice(0, 10).map(name => 
-            <RealmSpan key={name} col={backendCache.realms[name][0]} name={name} onClick={() => location.href = `/#/realm/${name}`}
+            <RealmSpan key={name} col={backendCache.realms[name][0]} name={name}
+                styleArg={{padding: "1em"}}
+                onClick={() => location.href = `/#/realm/${name}`}
                 classNameArg="clickable max_width_col medium_text monospace padded_rounded marginized" />)}
         </div>
         <a href="#/realms">ALL REALMS &#x279C;</a>

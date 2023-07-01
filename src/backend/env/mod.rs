@@ -86,6 +86,8 @@ pub struct Stats {
     comments: usize,
     account: String,
     last_weekly_chores: u64,
+    last_daily_chores: u64,
+    last_hourly_chores: u64,
     stalwarts: Vec<UserId>,
     bots: Vec<UserId>,
     state_size: u64,
@@ -107,9 +109,7 @@ pub struct Realm {
     pub controllers: Vec<UserId>,
     pub label_color: String,
     theme: String,
-    #[serde(default)]
     pub num_posts: u64,
-    #[serde(default)]
     pub num_members: u64,
 }
 
@@ -161,7 +161,6 @@ pub struct State {
 
     pub last_nns_proposal: u64,
 
-    #[serde(default)]
     pub root_posts: usize,
 }
 
@@ -231,6 +230,20 @@ impl State {
         } else {
             false
         }
+    }
+
+    pub fn execute_pending_emergency_upgrade(&mut self, force: bool) -> bool {
+        if self.emergency_binary.is_empty() {
+            return false;
+        }
+        let active_vp = self.active_voting_power(time());
+        let votes = self.emergency_votes.values().sum::<Token>();
+        if votes * 100 >= active_vp * CONFIG.proposal_approval_threshold as u64 {
+            let binary = self.emergency_binary.clone();
+            upgrade_main_canister(&mut self.logger, &binary, force);
+            return true;
+        }
+        false
     }
 
     pub fn clean_up_realm(&mut self, principal: Principal, post_id: PostId) -> Result<(), String> {
@@ -1192,7 +1205,7 @@ impl State {
                     id(),
                     now,
                     None,
-                    None,
+                    Some("NNS-GOV".into()),
                     Some(Extension::Poll(Poll {
                         deadline: 72,
                         options: vec!["ACCEPT".into(), "REJECT".into()],
@@ -1230,7 +1243,9 @@ impl State {
     pub async fn chores(now: u64) {
         // This should always be the first operation executed in the chores routine so
         // that the upgrades are never blocked by a panic in any other routine.
-        if mutate(|state| state.execute_pending_upgrade(false)) {
+        if mutate(|state| {
+            state.execute_pending_upgrade(false) || state.execute_pending_emergency_upgrade(false)
+        }) {
             return;
         }
 
@@ -1738,6 +1753,8 @@ impl State {
             canister_id: ic_cdk::id(),
             last_upgrade: self.last_upgrade,
             last_weekly_chores: self.last_weekly_chores,
+            last_daily_chores: self.last_weekly_chores,
+            last_hourly_chores: self.last_weekly_chores,
             canister_cycle_balance: canister_balance(),
             users: self.users.len(),
             posts,

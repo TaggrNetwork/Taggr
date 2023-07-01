@@ -37,7 +37,6 @@ impl Default for Api {
 #[derive(Default, Serialize, Deserialize)]
 pub struct Memory {
     api: Api,
-    #[serde(default)]
     pub posts: ObjectManager<PostId>,
     #[serde(skip)]
     api_ref: Rc<RefCell<Api>>,

@@ -70,10 +70,11 @@ export const realmColors = (name, col) => {
     return {background: effCol, color, fill: color  };
 };
 
-export const RealmSpan = ({col, name, classNameArg, onClick}) => {
+export const RealmSpan = ({col, name, classNameArg, onClick, styleArg}) => {
     if (!name) return null;
     const {background, color} = realmColors(name, col);
-    return <span className={classNameArg || null} onClick={onClick} style={{background, color, whiteSpace: "nowrap"}}>{name}</span>;
+    return <span className={classNameArg || null} 
+        onClick={onClick} style={{background, color, whiteSpace: "nowrap", ...styleArg}}>{name}</span>;
 };
 
 export const currentRealm = () => window.realm || "";

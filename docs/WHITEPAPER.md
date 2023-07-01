@@ -43,17 +43,7 @@ Every new user goes through a "bootcamp" period of `$trusted_user_min_age_weeks`
 During this time the user is marked with *️⃣ on their profile and cannot affect anybody's karma through the engagements, cannot downvote posts or vote on proposals.
 If after the bootcamp period the user still has less than `$trusted_user_min_karma` karma points, the user stays in the bootcamp until the karma threshold is reached.
 
-## Realms
-
-Realms represent sub-communities grouped by a certain topic.
-Every realm can have its own term and conditions, so that any violation of them can lead to
-
-- flagging of user's post to stalwarts,
-- moving of the post of of the realm which is penalized with `$realm_cleanup_penalty` cycles and karma points.
-
-By joining a realm, a user implicitly agrees with its terms and conditions.
-
-## STALWARTS
+## Stalwarts
 
 Stalwarts are the top `$stalwart_percentage%` of users with the highest karma being active during the last `$min_stalwart_activity_weeks` consecutive weeks, with accounts older than `$min_stalwart_account_age_weeks` weeks and at least `$proposal_rejection_penalty` karma points.
 They are marked with ⚔️ on their profiles and count as trusted members of the community.
@@ -70,6 +60,16 @@ The content allowed on $name is the content tolerated by the community which agr
 The policy is vague on purpose and will require a social consensus among the stalwarts.
 
 **Posts violating this policy are a subject to moderation.**
+
+## Realms
+
+Realms represent sub-communities grouped by a certain topic.
+Every realm can have its own term and conditions, so that any violation of them can lead to
+
+- flagging of user's post to stalwarts,
+- moving of the post of of the realm which is penalized with `$realm_cleanup_penalty` cycles and karma points.
+
+By joining a realm, a user implicitly agrees with its terms and conditions.
 
 ## Moderation
 

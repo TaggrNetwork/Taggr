@@ -4,7 +4,7 @@ use std::{
 };
 
 use env::{
-    canisters::{get_full_neuron, upgrade_main_canister},
+    canisters::get_full_neuron,
     config::{reaction_karma, CONFIG},
     memory,
     post::{Extension, Post, PostId},
@@ -22,8 +22,6 @@ use ic_cdk::{
 };
 use ic_cdk_macros::*;
 use serde_bytes::ByteBuf;
-
-use crate::env::token::Token;
 
 mod assets;
 mod env;
@@ -85,42 +83,6 @@ fn post_upgrade() {
     set_timers();
 
     // temporary post upgrade logic goes here
-    mutate(|state| {
-        for post in state.posts.values_mut() {
-            if !post.patches.is_empty() {
-                continue;
-            }
-            post.body = fix_images(&post.body);
-        }
-    })
-}
-
-// removes all empty lines between consecutives images
-fn fix_images(s: &str) -> String {
-    let mut stack: Vec<String> = Vec::default();
-    let lines = s.split('\n');
-    let mut last_line_was_image = false;
-    let is_image = |s: &str| s.starts_with("![");
-    for line in lines {
-        if is_image(line) {
-            if !last_line_was_image {
-                last_line_was_image = true;
-            } else {
-                loop {
-                    if let Some(val) = stack.last() {
-                        if val.as_str() != "" {
-                            break;
-                        }
-                        stack.pop();
-                    }
-                }
-            }
-        } else if !line.is_empty() {
-            last_line_was_image = false
-        };
-        stack.push(line.to_string());
-    }
-    stack.join("\n")
 }
 
 /*
@@ -198,10 +160,9 @@ mod dev {
         use candid::Principal;
         mutate(|state| {
             state.storage.buckets.clear();
-            state
-                .storage
-                .buckets
-                .insert(Principal::from_text(id).unwrap(), 0);
+            if let Ok(id) = Principal::from_text(id) {
+                state.storage.buckets.insert(id, 0);
+            };
         });
     }
 
@@ -620,16 +581,18 @@ fn confirm_emergency_release() {
             hasher.update(&state.emergency_binary);
             if hash == format!("{:x}", hasher.finalize()) {
                 state.emergency_votes.insert(principal, *balance);
-                let active_vp = state.active_voting_power(time());
-                let votes = state.emergency_votes.values().sum::<Token>();
-                if votes * 100 >= active_vp * CONFIG.proposal_approval_threshold as u64 {
-                    let binary = state.emergency_binary.clone();
-                    upgrade_main_canister(&mut state.logger, &binary, true);
-                }
             }
         }
         reply_raw(&[]);
     })
+}
+
+// This function is the last resort of triggering the emergency upgrade and is expected to be used.
+#[export_name = "canister_update force_emergency_upgrade"]
+fn force_emergency_upgrade() {
+    reply(mutate(|state| {
+        state.execute_pending_emergency_upgrade(true)
+    }))
 }
 
 /*

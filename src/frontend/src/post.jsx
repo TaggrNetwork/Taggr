@@ -5,7 +5,7 @@ import { Poll } from './poll';
 import { isRoot, BurgerButton, timeAgo, ToggleButton, NotFound, applyPatch, loadPostBlobs, ShareButton, commaSeparated, Loading, objectReduce, reactionCosts, postUserToPost, loadPost,
     ReactionToggleButton, RealmRibbon, setTitle, ButtonWithLoading, bigScreen, UserLink, FlagButton, ReportBanner, icp, currentRealm } from './common';
 import {PostFeed} from "./post_feed";
-import {reaction2icon, Edit, Save, Unsave, Watch, Unwatch, Repost, Coin, New, CommentArrow, CarretRight, Trash, Comment, Close } from "./icons";
+import {reaction2icon, Edit, Save, Unsave, Repost, Coin, New, CommentArrow, CarretRight, Trash, Comment, Close, Bell, BellOff } from "./icons";
 import {Proposal} from "./proposals";
 
 export const postDataProvider = (id, preloadedData = null, rootOnly = false) => {
@@ -218,7 +218,7 @@ const PostInfo = ({post, version, postCreated, callback}) => {
     return <>
         {api._user && <div className="row_container top_half_spaced">
             {!postAuthor && <FlagButton id={post.id} domain="post" /> }
-            <ToggleButton classNameArg="max_width_col" offLabel={<Watch />} onLabel={<Unwatch />}
+            <ToggleButton classNameArg="max_width_col" offLabel={<Bell />} onLabel={<BellOff />}
                 currState={() => post.watchers.includes(api._user?.id)} 
                 toggler={() => api.call("toggle_following_post", post.id)} />
             <button className="max_width_col" onClick={() => {

@@ -36,7 +36,7 @@ const renderResult = ({result, id, relevant, user_id, generic_id}) => {
     if (result == "tag")
         return <span>Hashtag <a href={`#/feed/${relevant}`}>{`#${relevant}`}</a></span>;
     if (result == "realm")
-        return <span>Realm <a href={`#/realm/${generic_id}`}>{`#${generic_id}`}</a>: {relevant}</span>;
+        return <span>Realm <a href={`#/realm/${generic_id}`}>{generic_id}</a>: {relevant}</span>;
     if (result == "post")
         return <span><a href={`#/post/${id}`}>{`Post ${id}`}</a> by&nbsp;
             <a href={`#/user/${user_id}`}>{`@${backendCache.users[user_id]}`}</a>:&nbsp;

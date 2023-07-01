@@ -34,7 +34,7 @@ export const Header = ({subtle, route, inboxMode, user}) => {
             <div className="vcentered max_width_col flex_ended">
                 {!subtle &&  <>
                     {user && !inboxEmpty && <span className="clickable vcentered" onClick={() => location.href = "#/inbox"}>
-                        <Bell /><code className="left_half_spaced right_spaced">{`${messages}`}</code>
+                        <Bell classNameArg="accent" /><code className="left_half_spaced right_spaced">{`${messages}`}</code>
                     </span>}
                     {user && inboxEmpty && <div className="vcentered"><Cycles /><code className="left_half_spaced right_spaced">{`${user.cycles.toLocaleString()}`}</code></div>}
                     {user && <PostButton classNameArg="right_half_spaced" />}
