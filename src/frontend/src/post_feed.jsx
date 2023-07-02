@@ -1,9 +1,8 @@
 import * as React from "react";
-import { bigScreen, isRoot, Loading, postUserToPost } from "./common";
-import { Post, postDataProvider } from "./post";
+import { bigScreen, isRoot, Loading, expandUser } from "./common";
+import { Post } from "./post";
 
 export const PostFeed = ({
-    data,
     classNameArg = null,
     focusedPost,
     feedLoader,
@@ -26,7 +25,7 @@ export const PostFeed = ({
     const loadPage = async (page) => {
         setLoading(true);
         let next_posts = (await feedLoader(page, includeComments)).map(
-            postUserToPost
+            expandUser
         );
         if (next_posts.length < backendCache.config.feed_page_size)
             setNoMoreData(true);
@@ -54,7 +53,7 @@ export const PostFeed = ({
         <Post
             id={post.id}
             key={post.id}
-            data={data || postDataProvider(post.id, post)}
+            data={post}
             level={level}
             highlighted={highlighted}
             isFeedItem={true}
@@ -81,7 +80,9 @@ export const PostFeed = ({
             {loading && <Loading />}
             {!noMoreData && !loading && posts.length > 0 && (
                 <div style={{ display: "flex", justifyContent: "center" }}>
-                    <button onClick={() => setPage(page + 1)}>MORE</button>
+                    <button id="pageFlipper" onClick={() => setPage(page + 1)}>
+                        MORE
+                    </button>
                 </div>
             )}
         </div>

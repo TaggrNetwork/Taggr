@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Form } from "./form";
-import { getPatch, loadPostBlobs, loadPost, currentRealm } from "./common";
+import { getPatch, loadPostBlobs, loadPosts, currentRealm } from "./common";
 
 export const PostSubmissionForm = ({ id, repost }) => {
     const [post, setPost] = React.useState(null);
@@ -8,7 +8,7 @@ export const PostSubmissionForm = ({ id, repost }) => {
 
     const load = async () => {
         if (!id) return;
-        const post = await loadPost(api, id);
+        const post = (await loadPosts([id])).pop();
         setPost(post);
         setBlobs(await loadPostBlobs(post.files));
     };
@@ -48,6 +48,7 @@ export const PostSubmissionForm = ({ id, repost }) => {
             }
             postId = result.Ok;
         }
+        window.cleanUICache();
         location.href = `#/post/${postId}`;
     };
 

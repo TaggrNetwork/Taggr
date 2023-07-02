@@ -732,12 +732,6 @@ fn realms() {
     })
 }
 
-#[export_name = "canister_query tree"]
-fn tree() {
-    let post_id: PostId = parse(&arg_data_raw());
-    read(|state| reply(state.tree(post_id)));
-}
-
 #[export_name = "canister_query user_posts"]
 fn user_posts() {
     let (handle, page): (String, usize) = parse(&arg_data_raw());

@@ -533,16 +533,6 @@ impl State {
         })
     }
 
-    pub fn tree(&self, id: PostId) -> BTreeMap<PostId, &'_ Post> {
-        let mut backlog = vec![id];
-        let mut posts: BTreeMap<_, _> = Default::default();
-        while let Some(post) = backlog.pop().and_then(|id| Post::get(self, &id)) {
-            backlog.extend_from_slice(post.children.as_slice());
-            posts.insert(post.id, post);
-        }
-        posts
-    }
-
     fn new_user(&mut self, principal: Principal, timestamp: u64, name: String) -> UserId {
         let id = self.new_user_id();
         let mut user = User::new(principal, id, timestamp, name);

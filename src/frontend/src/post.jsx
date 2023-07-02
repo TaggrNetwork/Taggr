@@ -15,8 +15,7 @@ import {
     Loading,
     objectReduce,
     reactionCosts,
-    postUserToPost,
-    loadPost,
+    loadPosts,
     ReactionToggleButton,
     RealmRibbon,
     setTitle,
@@ -47,40 +46,13 @@ import {
 } from "./icons";
 import { Proposal } from "./proposals";
 
-export const postDataProvider = (
-    id,
-    preloadedData = null,
-    rootOnly = false
-) => {
-    const provider = { root: id, source: {} };
-    const load = async () => {
-        if (rootOnly) {
-            const post = await loadPost(api, id);
-            if (!post) provider.notFound = true;
-            else provider.source[id] = post;
-            return;
-        }
-        const tree = await api.query("tree", id);
-        if (Object.keys(tree).length == 0) {
-            provider.notFound = true;
-            return;
-        }
-        Object.keys(tree).forEach(
-            (id) => (tree[id] = postUserToPost(tree[id]))
-        );
-        provider.source = tree;
-    };
-    provider.load = load;
-    if (preloadedData) provider.source[id] = preloadedData;
-    return provider;
-};
-
 export const Post = ({
     id,
     data,
     version,
     isFeedItem,
     repost,
+    prime,
     classNameArg,
     isCommentView,
     isThreadView,
@@ -88,7 +60,8 @@ export const Post = ({
     highlighted = [],
     level = 0,
 }) => {
-    const [post, setPost] = React.useState(data.source[id]);
+    const [post, setPost] = React.useState(data);
+    const [notFound, setNotFound] = React.useState(false);
     const [blobs, setBlobs] = React.useState({});
     const [showComments, toggleComments] = React.useState(
         !isFeedItem && !repost
@@ -105,39 +78,29 @@ export const Post = ({
 
     const refPost = React.useRef();
 
-    const loadData = async (force) => {
-        const fullTreeLoadRequired =
-            id in data.source &&
-            showComments &&
-            data.source[id].children.length + 1 >
-                Object.keys(data.source).length;
-        if (force || !(id in data.source) || fullTreeLoadRequired) {
-            setFullTreeIsLoading(true);
-            await data.load();
-            setFullTreeIsLoading(false);
-            if (data.notFound) {
-                setPost(null);
-                return;
-            }
+    const loadData = async () => {
+        const data = (await loadPosts([id])).pop();
+        if (!data) {
+            setNotFound(true);
+            return;
         }
-        const newData = data.source[id];
         if (post) {
             // This is needed, becasue reactions are updated optimistically and we might have new ones in-flight.
-            newData.reactions = post.reactions;
+            data.reactions = post.reactions;
         }
-        setPost(newData);
-        setBlobs(await loadPostBlobs(newData.files));
+        setPost(data);
+        setBlobs(await loadPostBlobs(data.files));
     };
 
     React.useEffect(() => {
         loadData();
-    }, [version, data, showComments]);
+    }, [id, version]);
     React.useEffect(() => {
         setRendering(false);
     }, []);
 
     if (!post) {
-        if (data.notFound) return <NotFound />;
+        if (notFound) return <NotFound />;
         return <Loading />;
     }
 
@@ -154,8 +117,6 @@ export const Post = ({
         if (result.Err) {
             return alert(`Error: ${result.Err}`);
         }
-        // delete outdated root post data
-        delete data.source[id];
         await loadData();
         toggleInfo(false);
         toggleComments(true);
@@ -219,9 +180,6 @@ export const Post = ({
             (acc, id, users) => acc + costTable[parseInt(id)] * users.length,
             0
         ) < 0 || post.user.karma < 0;
-    const treeLoaded = Object.keys(data.source).length > 1;
-    const highlightOp =
-        treeLoaded && post.user.id == data.source[data.root]?.user.id;
     const user = api._user;
     const showReport =
         post.report && !post.report.closed && user && user.stalwart;
@@ -239,7 +197,6 @@ export const Post = ({
     const isGallery = post.effBody.startsWith("![");
     const postCreated =
         post.patches.length > 0 ? post.patches[0][0] : post.timestamp;
-    const isPrime = !isCommentView && !isFeedItem && !repost;
     const isNSFW =
         post.effBody.toLowerCase().includes("#nsfw") &&
         isFeedItem &&
@@ -250,7 +207,7 @@ export const Post = ({
             ? post.patches.length
             : version;
 
-    if (isPrime)
+    if (prime)
         setTitle(`Post #${post.id} by @${backendCache.users[post.user.id]}`);
 
     if (deletedByModeration)
@@ -331,7 +288,7 @@ export const Post = ({
                 {!isNSFW && (
                     <article
                         onClick={expand}
-                        className={isPrime ? "prime" : null}
+                        className={prime ? "prime" : null}
                     >
                         {/* The key is needed to render different content for different versions to avoid running into diffrrent
                  number of memorized pieces inside content */}
@@ -355,11 +312,6 @@ export const Post = ({
                 {showExtension && "Repost" in post.extension && (
                     <Post
                         id={post.extension.Repost}
-                        data={postDataProvider(
-                            post.extension.Repost,
-                            null,
-                            "post_only"
-                        )}
                         repost={true}
                         classNameArg="post_extension repost"
                     />
@@ -370,7 +322,6 @@ export const Post = ({
                 <PostBar
                     post={post}
                     react={react}
-                    highlightOp={highlightOp}
                     repost={repost}
                     highlighted={highlighted}
                     showComments={showComments}
@@ -430,33 +381,26 @@ export const Post = ({
                                 post={post}
                                 version={version}
                                 postCreated={postCreated}
-                                callback={async () => await loadData(true)}
+                                callback={async () => await loadData()}
                             />
                         }
                     </div>
                 </div>
             )}
-            {fullTreeIsLoading && <Loading />}
-            {!fullTreeIsLoading &&
-                showComments &&
-                treeLoaded &&
-                post.children.length > 0 && (
-                    <PostFeed
-                        data={data}
-                        heartbeat={
-                            post.id + "_" + Object.keys(data.source).length
-                        }
-                        comments={true}
-                        level={level + 1}
-                        feedLoader={async () =>
-                            post.children.map((comment_id) => {
-                                return { ...data.source[comment_id] };
-                            })
-                        }
-                        highlighted={highlighted}
-                        classNameArg="left_spaced"
-                    />
-                )}
+            {(showComments || prime) && post.children.length > 0 && (
+                <PostFeed
+                    heartbeat={`${post.id}_${
+                        Object.keys(post.children).length
+                    }_${showComments}`}
+                    comments={true}
+                    level={level + 1}
+                    feedLoader={async () =>
+                        Object.values(await loadPosts(post.children))
+                    }
+                    highlighted={highlighted}
+                    classNameArg="left_spaced"
+                />
+            )}
         </div>
     );
 };
@@ -691,7 +635,6 @@ const PostBar = ({
     post,
     react,
     highlighted,
-    highlightOp,
     repost,
     showInfo,
     toggleInfo,
@@ -718,10 +661,7 @@ const PostBar = ({
     return (
         <div className="post_bar vcentered smaller_text flex_ended">
             <div className="row_container" style={{ alignItems: "center" }}>
-                <a
-                    className={highlightOp ? "accent" : null}
-                    href={`#/user/${post.user.id}`}
-                >{`${post.user.name}`}</a>
+                <a href={`#/user/${post.user.id}`}>{`${post.user.name}`}</a>
                 <div className="left_half_spaced no_wrap vcentered">
                     {time}
                     {newPost && <New classNameArg="left_half_spaced accent" />}

@@ -2,7 +2,7 @@ import * as React from "react";
 import { AuthClient } from "@dfinity/auth-client";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { createRoot } from "react-dom/client";
-import { Post, postDataProvider } from "./post";
+import { Post } from "./post";
 import { LoginMasks } from "./logins";
 import { PostFeed } from "./post_feed";
 import { Feed } from "./feed";
@@ -51,12 +51,6 @@ const parseHash = () => {
 const headerRoot = createRoot(document.getElementById("header"));
 const footerRoot = createRoot(document.getElementById("footer"));
 const stack = document.getElementById("stack");
-
-const cleanUICache = () => {
-    if (TEST_MODE) return;
-    const frames = Array.from(stack.children);
-    frames.forEach((frame) => frame.remove());
-};
 
 const renderFrame = (content) => {
     // don't use the cache in testing mode
@@ -131,9 +125,7 @@ const App = () => {
         const id = parseInt(param);
         const version = parseInt(param2);
         subtle = true;
-        content = (
-            <Post id={id} data={postDataProvider(id)} version={version} />
-        );
+        content = <Post id={id} version={version} prime={true} />;
     } else if (handler == "edit") {
         const id = parseInt(param);
         content = auth(<PostSubmissionForm id={id} />);
@@ -246,6 +238,11 @@ const reloadCache = async () => {
         stats,
         config,
     };
+    window.cleanUICache = () => {
+        if (TEST_MODE) return;
+        const frames = Array.from(stack.children);
+        frames.forEach((frame) => frame.remove());
+    };
     if (window.lastSavedUpgrade == 0) {
         window.lastSavedUpgrade = backendCache.stats.last_upgrade;
     } else if (lastSavedUpgrade != backendCache.stats.last_upgrade) {
@@ -352,6 +349,17 @@ const updateDoc = () => {
         lastActivity = new Date();
         window.scrollUpButton.style.display =
             window.scrollY > 1500 ? "flex" : "none";
+        const h = document.documentElement,
+            b = document.body,
+            st = "scrollTop",
+            sh = "scrollHeight";
+
+        const percent =
+            ((h[st] || b[st]) / ((h[sh] || b[sh]) - h.clientHeight)) * 100;
+        if (percent > 80) {
+            const pageFlipper = document.getElementById("pageFlipper");
+            if (pageFlipper) pageFlipper.click();
+        }
     });
     window.addEventListener("keyup", () => {
         lastActivity = new Date();

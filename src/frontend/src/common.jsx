@@ -330,12 +330,10 @@ export const Loading = ({ classNameArg, spaced = true }) => {
     );
 };
 
-export const loadPost = async (api, id) => {
-    const posts = (await api.query("posts", [id])).map(postUserToPost);
-    return posts[0] || null;
-};
+export const loadPosts = async (ids) =>
+    (await api.query("posts", ids)).map(expandUser);
 
-export const postUserToPost = (post) => {
+export const expandUser = (post) => {
     const id = post.user;
     const { users, karma } = window.backendCache;
     post.user = { id, name: users[id], karma: karma[id] };

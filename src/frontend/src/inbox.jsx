@@ -2,7 +2,7 @@ import * as React from "react";
 import { HeadBar } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
-import { Post, postDataProvider } from "./post";
+import { Post } from "./post";
 
 export const Inbox = () => {
     const [inbox, setInbox] = React.useState(api._user.inbox);
@@ -83,7 +83,6 @@ export const Inbox = () => {
                                     id={id}
                                     classNameArg="top_framed"
                                     isFeedItem={true}
-                                    data={postDataProvider(id)}
                                     highlighted={message.WatchedPostEntries}
                                 />
                             )}
