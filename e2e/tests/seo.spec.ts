@@ -163,9 +163,8 @@ test("seo and metadata", async ({ page, baseURL, browser }) => {
         checkMetadata(html, url, title, user.about, "website");
     });
 
-    const [realmName, realmDescription] = await test.step(
-        "create realm",
-        async () => {
+    const [realmName, realmDescription] =
+        await test.step("create realm", async () => {
             const realmListPage = await globalNavigation.goToRealmsPage();
             const newRealmPage = await realmListPage.createNewRealm();
 
@@ -176,8 +175,7 @@ test("seo and metadata", async ({ page, baseURL, browser }) => {
             await topUpCycles(page, user);
 
             return [realmName, realmDescription];
-        }
-    );
+        });
 
     await test.step("check realm metadata", async () => {
         const html = await get(`${baseURL}/realm/${realmName}`);

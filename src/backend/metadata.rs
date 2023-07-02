@@ -49,7 +49,7 @@ pub fn set_metadata(
     .replace('\n', "");
 
     String::from_utf8_lossy(body)
-        .replace(r#"<meta name="mark" content="OG">"#, &metadata)
+        .replace(r#"<meta name="mark" content="OG"/>"#, &metadata)
         .as_bytes()
         .to_vec()
 }

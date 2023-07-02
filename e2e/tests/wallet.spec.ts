@@ -24,9 +24,8 @@ test("wallet", async ({ page }) => {
         return await globalNavigation.goToWalletPage();
     });
 
-    const icpAfterDeposit = await test.step(
-        "transfer ICP to wallet",
-        async () => {
+    const icpAfterDeposit =
+        await test.step("transfer ICP to wallet", async () => {
             const initialAmountOnPage = await walletPage.getIcpAmount();
             expect(initialAmountOnPage).toEqual(BigInt(0));
 
@@ -39,12 +38,10 @@ test("wallet", async ({ page }) => {
             expect(amountOnPage).toEqual(amount);
 
             return amountOnPage;
-        }
-    );
+        });
 
-    const icpAfterWithdraw = await test.step(
-        "transfer ICP out of wallet",
-        async () => {
+    const icpAfterWithdraw =
+        await test.step("transfer ICP out of wallet", async () => {
             const amountToWithdraw = 5;
             const e8sToWithdraw = icpToE8s(amountToWithdraw);
             const subAccount = generateSubAccount();
@@ -71,8 +68,7 @@ test("wallet", async ({ page }) => {
             expect(amountOnPage).toEqual(icpAfterDeposit - e8sToWithdraw);
 
             return amountOnPage;
-        }
-    );
+        });
 
     await test.step("mint cycles", async () => {
         const initialCyclesAmount = await walletPage.getCyclesAmount();

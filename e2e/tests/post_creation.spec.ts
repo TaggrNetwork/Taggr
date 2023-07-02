@@ -148,20 +148,17 @@ test("post creation with image", async ({ page }) => {
     });
     const globalNavigation = new GlobalNavigationElement(page, user);
 
-    const cyclesBalance = await test.step(
-        "check initial cycles on profile page",
-        async () => {
+    const cyclesBalance =
+        await test.step("check initial cycles on profile page", async () => {
             const profilePage = await globalNavigation.goToProfilePage();
             const cyclesBalance = await profilePage.getCyclesBalance();
             expect(cyclesBalance).toEqual(1000);
 
             return cyclesBalance;
-        }
-    );
+        });
 
-    const [postContent, postPage] = await test.step(
-        "create post with image",
-        async () => {
+    const [postContent, postPage] =
+        await test.step("create post with image", async () => {
             const imagePath = resolve(__dirname, "..", "assets", "smash.jpg");
             const newPostPage = await initPost(page, user);
             await newPostPage.editor.addImage(imagePath);
@@ -171,8 +168,7 @@ test("post creation with image", async ({ page }) => {
             const postPage = await newPostPage.submit();
 
             return [postContent, postPage];
-        }
-    );
+        });
 
     await test.step("check uploaded image", async () => {
         const uploadedImage = postPage.postBody.locator("img");
@@ -188,29 +184,25 @@ test("post creation with image", async ({ page }) => {
         await expect(postPage.imagePreview).not.toBeVisible();
     });
 
-    await test.step(
-        "check updated cycles and post on profile page",
-        async () => {
-            const profilePage = await globalNavigation.goToProfilePage();
-            const updatedCyclesBalance = await profilePage.getCyclesBalance();
-            expect(updatedCyclesBalance).toEqual(cyclesBalance - 12);
+    await test.step("check updated cycles and post on profile page", async () => {
+        const profilePage = await globalNavigation.goToProfilePage();
+        const updatedCyclesBalance = await profilePage.getCyclesBalance();
+        expect(updatedCyclesBalance).toEqual(cyclesBalance - 12);
 
-            const postCount = await profilePage.getPostCount();
-            expect(postCount).toEqual(1);
+        const postCount = await profilePage.getPostCount();
+        expect(postCount).toEqual(1);
 
-            const post = await profilePage.getPostByContent(postContent);
-            await expect(post.element).toBeVisible();
-        }
-    );
+        const post = await profilePage.getPostByContent(postContent);
+        await expect(post.element).toBeVisible();
+    });
 });
 
 test("journal", async ({ page }) => {
     const user = await createSeedPhraseUser(page);
     const globalNavigation = new GlobalNavigationElement(page, user);
 
-    const [postOneContent, postTwoContent, postThreeContent] = await test.step(
-        "create posts",
-        async () => {
+    const [postOneContent, postTwoContent, postThreeContent] =
+        await test.step("create posts", async () => {
             const profilePage = await globalNavigation.goToProfilePage();
             const cyclesBalance = await profilePage.getCyclesBalance();
             expect(cyclesBalance).toEqual(1000);
@@ -225,8 +217,7 @@ test("journal", async ({ page }) => {
             expect(updatedCyclesBalance).toEqual(cyclesBalance - 6);
 
             return [postOneContent, postTwoContent, postThreeContent];
-        }
-    );
+        });
 
     await test.step("find created posts in journal", async () => {
         const journalPage = await globalNavigation.goToJournalPage();

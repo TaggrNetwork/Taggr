@@ -58,9 +58,8 @@ test.afterAll(async () => {
 test("adopt a release proposal", async () => {
     test.setTimeout(40000);
 
-    const [buildHash, proposalDescription] = await test.step(
-        "create proposal",
-        async () => {
+    const [buildHash, proposalDescription] =
+        await test.step("create proposal", async () => {
             return await performInExistingContext(
                 stalwartContext,
                 async (page) => {
@@ -92,8 +91,7 @@ test("adopt a release proposal", async () => {
                     return [buildHash, description];
                 }
             );
-        }
-    );
+        });
 
     await test.step("accept proposal", async () => {
         await performInExistingContext(trustedUserContext, async (page) => {

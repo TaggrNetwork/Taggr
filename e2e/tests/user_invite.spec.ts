@@ -22,9 +22,8 @@ test("user invite", async ({ page, browser }) => {
         return inviteUrl;
     });
 
-    const [acceptInviteContext] = await test.step(
-        "sign up new user using invite",
-        async () => {
+    const [acceptInviteContext] =
+        await test.step("sign up new user using invite", async () => {
             return await performInNewContext(browser, async (page) => {
                 const acceptInvitePage = new AcceptInvitePage(page, inviteUrl);
                 await acceptInvitePage.goto();
@@ -38,8 +37,7 @@ test("user invite", async ({ page, browser }) => {
                 const cyclesBalance = await profilePage.getCyclesBalance();
                 expect(cyclesBalance).toEqual(inviteCycles);
             });
-        }
-    );
+        });
 
     await test.step("check open invites after accepting", async () => {
         const invitesPage = await globalNavigation.goToInvitesPage();

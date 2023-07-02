@@ -15,9 +15,8 @@ test("love heart a post", async ({ page, browser }) => {
     });
     const globalNavigation = new GlobalNavigationElement(page, user);
 
-    const cyclesBalance = await test.step(
-        "check initial cycles and new karma",
-        async () => {
+    const cyclesBalance =
+        await test.step("check initial cycles and new karma", async () => {
             const profilePage = await globalNavigation.goToProfilePage();
 
             const cyclesBalance = await profilePage.getCyclesBalance();
@@ -27,32 +26,27 @@ test("love heart a post", async ({ page, browser }) => {
             expect(newKarmaBalance).toEqual(0);
 
             return cyclesBalance;
-        }
-    );
+        });
 
     const postContent = await test.step("create post", async () => {
         return await createPost(page, user);
     });
 
-    await test.step(
-        "check cycles and new karma after post creation",
-        async () => {
-            const profilePage = await globalNavigation.goToProfilePage();
+    await test.step("check cycles and new karma after post creation", async () => {
+        const profilePage = await globalNavigation.goToProfilePage();
 
-            const updatedCyclesBalance = await profilePage.getCyclesBalance();
-            expect(updatedCyclesBalance).toEqual(cyclesBalance - 2);
+        const updatedCyclesBalance = await profilePage.getCyclesBalance();
+        expect(updatedCyclesBalance).toEqual(cyclesBalance - 2);
 
-            const postCount = await profilePage.getPostCount();
-            expect(postCount).toEqual(1);
+        const postCount = await profilePage.getPostCount();
+        expect(postCount).toEqual(1);
 
-            const post = await profilePage.getPostByContent(postContent);
-            await expect(post.element).toBeVisible();
-        }
-    );
+        const post = await profilePage.getPostByContent(postContent);
+        await expect(post.element).toBeVisible();
+    });
 
-    const [postReactionContext] = await test.step(
-        "create user and react to post",
-        async () => {
+    const [postReactionContext] =
+        await test.step("create user and react to post", async () => {
             return await performInNewContext(browser, async (page) => {
                 const user = await createSeedPhraseUser(page);
                 const globalNavigation = new GlobalNavigationElement(
@@ -79,23 +73,19 @@ test("love heart a post", async ({ page, browser }) => {
                     await profilePage.getCyclesBalance();
                 expect(updatedCyclesBalance).toEqual(cyclesBalance - 2);
             });
-        }
-    );
+        });
 
-    await test.step(
-        "check cycles and new karma after post reaction",
-        async () => {
-            const profilePage = await globalNavigation.goToProfilePage();
-            await page.reload({ waitUntil: "networkidle" });
-            const post = await profilePage.getPostByContent(postContent);
+    await test.step("check cycles and new karma after post reaction", async () => {
+        const profilePage = await globalNavigation.goToProfilePage();
+        await page.reload({ waitUntil: "networkidle" });
+        const post = await profilePage.getPostByContent(postContent);
 
-            const updatedKarmaBalance = await profilePage.getNewKarmaBalance();
-            expect(updatedKarmaBalance).toEqual(0);
+        const updatedKarmaBalance = await profilePage.getNewKarmaBalance();
+        expect(updatedKarmaBalance).toEqual(0);
 
-            const heartReaction = post.getHeartReaction();
-            expect(heartReaction).toBeVisible();
-        }
-    );
+        const heartReaction = post.getHeartReaction();
+        expect(heartReaction).toBeVisible();
+    });
 
     await postReactionContext.close();
 });
@@ -108,9 +98,8 @@ test("react with fire and comment on a post", async ({ page, browser }) => {
     });
     const globalNavigation = new GlobalNavigationElement(page, user);
 
-    const cyclesBalance = await test.step(
-        "check initial cycles and new karma",
-        async () => {
+    const cyclesBalance =
+        await test.step("check initial cycles and new karma", async () => {
             const profilePage = await globalNavigation.goToProfilePage();
 
             const cyclesBalance = await profilePage.getCyclesBalance();
@@ -120,32 +109,27 @@ test("react with fire and comment on a post", async ({ page, browser }) => {
             expect(newKarmaBalance).toEqual(0);
 
             return cyclesBalance;
-        }
-    );
+        });
 
     const postContent = await test.step("create post", async () => {
         return await createPost(page, user);
     });
 
-    await test.step(
-        "check cycles and new karma after post creation",
-        async () => {
-            const profilePage = await globalNavigation.goToProfilePage();
+    await test.step("check cycles and new karma after post creation", async () => {
+        const profilePage = await globalNavigation.goToProfilePage();
 
-            const updatedCyclesBalance = await profilePage.getCyclesBalance();
-            expect(updatedCyclesBalance).toEqual(cyclesBalance - 2);
+        const updatedCyclesBalance = await profilePage.getCyclesBalance();
+        expect(updatedCyclesBalance).toEqual(cyclesBalance - 2);
 
-            const postCount = await profilePage.getPostCount();
-            expect(postCount).toEqual(1);
+        const postCount = await profilePage.getPostCount();
+        expect(postCount).toEqual(1);
 
-            const post = await profilePage.getPostByContent(postContent);
-            await expect(post.element).toBeVisible();
-        }
-    );
+        const post = await profilePage.getPostByContent(postContent);
+        await expect(post.element).toBeVisible();
+    });
 
-    const [postReactionContext, commentContent] = await test.step(
-        "create user then comment and react to post",
-        async () => {
+    const [postReactionContext, commentContent] =
+        await test.step("create user then comment and react to post", async () => {
             return await performInNewContext(browser, async (page) => {
                 const user = await createSeedPhraseUser(page);
                 const globalNavigation = new GlobalNavigationElement(
@@ -181,27 +165,23 @@ test("react with fire and comment on a post", async ({ page, browser }) => {
 
                 return commentContent;
             });
-        }
-    );
+        });
 
-    await test.step(
-        "check cycles and new karma after post reaction",
-        async () => {
-            const profilePage = await globalNavigation.goToProfilePage();
-            await page.reload({ waitUntil: "networkidle" });
-            const post = await profilePage.getPostByContent(postContent);
+    await test.step("check cycles and new karma after post reaction", async () => {
+        const profilePage = await globalNavigation.goToProfilePage();
+        await page.reload({ waitUntil: "networkidle" });
+        const post = await profilePage.getPostByContent(postContent);
 
-            const updatedKarmaBalance = await profilePage.getNewKarmaBalance();
-            expect(updatedKarmaBalance).toEqual(0);
+        const updatedKarmaBalance = await profilePage.getNewKarmaBalance();
+        expect(updatedKarmaBalance).toEqual(0);
 
-            const fireReaction = post.getFireReaction();
-            expect(fireReaction).toBeVisible();
+        const fireReaction = post.getFireReaction();
+        expect(fireReaction).toBeVisible();
 
-            await post.toggleComments();
-            const comment = post.getCommentByContent(commentContent);
-            await expect(comment.element).toBeVisible();
-        }
-    );
+        await post.toggleComments();
+        const comment = post.getCommentByContent(commentContent);
+        await expect(comment.element).toBeVisible();
+    });
 
     await page.reload({ waitUntil: "networkidle" });
 
@@ -222,9 +202,8 @@ test("test tabs on the profile page", async ({ page, browser }) => {
     });
 
     let message = `Hello @${user.username}`;
-    const [ctx] = await test.step(
-        "create user, mention and react",
-        async () => {
+    const [ctx] =
+        await test.step("create user, mention and react", async () => {
             return await performInNewContext(browser, async (page) => {
                 const user = await test.step("create user", async () => {
                     return await createSeedPhraseUser(page);
@@ -244,8 +223,7 @@ test("test tabs on the profile page", async ({ page, browser }) => {
                     return await createPostWithText(page, user, message);
                 });
             });
-        }
-    );
+        });
 
     await ctx.close();
 
