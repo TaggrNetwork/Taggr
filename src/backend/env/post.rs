@@ -177,17 +177,17 @@ impl Post {
     }
 
     pub async fn save_blobs(post_id: PostId, blobs: Vec<(String, Blob)>) -> Result<(), String> {
-        for (id, blob) in blobs.into_iter() {
-            // only if the id is new, add it.
-            if read(|state| {
-                Post::get(state, &post_id)
-                    .map(|post| post.files.keys().any(|file_id| file_id.contains(&id)))
-            })
-            .unwrap_or_default()
-            {
-                continue;
-            }
-            match Storage::write_to_bucket(blob.as_slice()).await.clone() {
+        let existing_blobs = read(|state| {
+            Post::get(state, &post_id)
+                .map(|post| post.files.keys().cloned().collect::<BTreeSet<_>>())
+        })
+        .unwrap_or_default();
+
+        for (id, blob) in blobs
+            .into_iter()
+            .filter(|(id, _)| !existing_blobs.contains(id))
+        {
+            match Storage::write_to_bucket(blob.as_slice()).await {
                 Ok((bucket_id, offset)) => mutate(|state| {
                     Post::mutate(state, &post_id, |post| {
                         post.files
@@ -285,10 +285,9 @@ impl Post {
             return;
         }
 
-        let prev_len = hot_list.len();
         hot_list.retain(|post_id| *post_id != self.id);
         hot_list.push_front(self.id);
-        if hot_list.len() > prev_len {
+        if hot_list.len() > CONFIG.num_hot_posts {
             hot_list.pop_back();
         }
     }

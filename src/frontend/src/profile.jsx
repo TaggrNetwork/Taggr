@@ -478,7 +478,7 @@ export const UserInfo = ({ profile }) => {
 
 const day = 24 * 3600 * 1000;
 
-const trusted = (profile) =>
+export const trusted = (profile) =>
     profile.karma >= backendCache.config.trusted_user_min_karma &&
     Number(new Date()) - parseInt(profile.timestamp) / 1000000 >=
         backendCache.config.trusted_user_min_age_weeks * 7 * day;
@@ -495,7 +495,7 @@ const stalwart = (profile) =>
 const stalwartMinKarma = () =>
     Math.min(
         backendCache.config.proposal_rejection_penalty,
-        backendCache.karma[backendCache.stats.stalwarts.at(-1)]
+        backendCache.karma[backendCache.stats.stalwarts.at(-1)] || 0
     );
 
 const linkPost = (line) => {

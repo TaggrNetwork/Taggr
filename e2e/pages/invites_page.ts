@@ -13,7 +13,7 @@ export class InvitesPage {
         this.inviteCyclesInput = page.locator("input").locator("visible=true");
         this.loadingSpinner = page.getByTestId("loading-spinner");
         this.openInvites = page.locator("code", {
-            hasText: /taggr.link\/#\/welcome\/.*/,
+            hasText: /\/#\/welcome\/.*/,
         });
     }
 

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { CopyToClipboard, HeadBar, Loading } from "./common";
 import { Cycles } from "./icons";
+import { trusted } from "./profile";
 
 export const Invites = () => {
     const [cycles, setCycles] = React.useState(
@@ -16,6 +17,17 @@ export const Invites = () => {
     React.useEffect(() => {
         loadInvites();
     }, []);
+
+    if (!trusted(api._user)) {
+        return (
+            <>
+                <HeadBar title="Invites" shareLink="invites" />
+                <div className="spaced">
+                    Only trusted users can create invites.
+                </div>
+            </>
+        );
+    }
 
     return (
         <>
@@ -34,11 +46,17 @@ export const Invites = () => {
                         </code>{" "}
                         cycles: you will be charged once the invite is used.
                     </li>
-                    <li>Invites are not cancelable.</li>
                     <li>
-                        The invite will not work if your cycle balance drops
-                        below the amount attached to the invite.
+                        Active users have a budget of free cycles for invites.
+                        This budget is topped up weekly. Your current cycles
+                        budget is <code>{api._user.invites_budget}</code>{" "}
+                        cycles.
                     </li>
+                    <li>
+                        The invite will not work if your invite budget or cycle
+                        balance drops below the amount attached to the invite.
+                    </li>
+                    <li>Invites are not cancelable.</li>
                 </ul>
                 <div className="vcentered">
                     <input
@@ -68,20 +86,39 @@ export const Invites = () => {
                         </button>
                     )}
                 </div>
-                {invites.length > 0 && <h3>Your open invites</h3>}
+                {invites.length > 0 && <h3>Your invites</h3>}
                 {busy && <Loading />}
                 {!busy && invites.length > 0 && (
-                    <ul>
-                        {invites.map(([code, _cycles]) => (
-                            <li key={code}>
-                                <CopyToClipboard
-                                    value={`${backendCache.config.domains[0]}/#/welcome/${code}`}
-                                    map={(url) => `https://${url}`}
-                                />
-                                : <Cycles />
-                            </li>
-                        ))}
-                    </ul>
+                    <table className="monospace" style={{ width: "100%" }}>
+                        <thead>
+                            <tr>
+                                <th align="right">
+                                    <Cycles />
+                                </th>
+                                <th align="right">CODE</th>
+                                <th align="right">URL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {invites.map(([code, cycles]) => (
+                                <tr key={code}>
+                                    <td align="right">
+                                        <code>{cycles}</code>
+                                    </td>
+                                    <td align="right">
+                                        <CopyToClipboard
+                                            value={code.toUpperCase()}
+                                        />
+                                    </td>
+                                    <td align="right">
+                                        <CopyToClipboard
+                                            value={`${location.protocol}//${location.host}/#/welcome/${code}`}
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 )}
             </div>
         </>

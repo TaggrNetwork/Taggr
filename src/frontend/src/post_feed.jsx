@@ -20,22 +20,20 @@ export const PostFeed = ({
     // this flag helps us avoid double loading of the data on the first rendering
     const [init, setInit] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
-    const [noMoreData, setNoMoreData] = React.useState(false);
+    const [noMoreData, setNoMoreData] = React.useState(comments);
 
     const loadPage = async (page) => {
         setLoading(true);
-        let next_posts = (await feedLoader(page, includeComments)).map(
+        let nextPosts = (await feedLoader(page, includeComments)).map(
             expandUser
         );
-        if (next_posts.length < backendCache.config.feed_page_size)
+        if (nextPosts.length < backendCache.config.feed_page_size)
             setNoMoreData(true);
         const loaded = new Set(posts.map((post) => post.id));
         setPosts(
             page == 0
-                ? next_posts
-                : posts.concat(
-                      next_posts.filter((post) => !loaded.has(post.id))
-                  )
+                ? nextPosts
+                : posts.concat(nextPosts.filter((post) => !loaded.has(post.id)))
         );
         setLoading(false);
     };
@@ -67,16 +65,17 @@ export const PostFeed = ({
     );
 
     const useGrid = grid && bigScreen() && api._user?.settings.columns != "off";
-    let columnFeed = posts.map((item, i) =>
-        itemRendering(item, i == posts.length - 1)
+    let renderColumns = () =>
+        posts.map((item, i) => itemRendering(item, i == posts.length - 1));
+    const renderGrid = () => (
+        <GridFeed posts={posts} itemRendering={itemRendering} />
     );
-    const gridFeed = <GridFeed posts={posts} itemRendering={itemRendering} />;
 
     return (
         <div className={classNameArg}>
             {title && title}
             {(!loading || page > 0) &&
-                (useGrid && !comments ? gridFeed : columnFeed)}
+                (useGrid && !comments ? renderGrid() : renderColumns())}
             {loading && <Loading />}
             {!noMoreData && !loading && posts.length > 0 && (
                 <div style={{ display: "flex", justifyContent: "center" }}>

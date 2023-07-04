@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use candid::utils::{ArgumentDecoder, ArgumentEncoder};
-use ic_cdk::api::call::CallResult;
+use ic_cdk::api::call::{CallResult, RejectionCode};
 use ic_cdk::export::candid::{CandidType, Principal};
 use ic_cdk::id;
 use ic_cdk::{
@@ -105,23 +105,30 @@ pub struct StatusCallResult {
 }
 
 pub async fn settings(canister_id: Principal) -> Result<StatusCallResult, String> {
+    let result = management_canister_call(canister_id, "canister_status").await;
+    let (result,): (StatusCallResult,) =
+        result.map_err(|err| format!("couldn't get canister status: {:?}", err))?;
+    Ok(result)
+}
+
+pub async fn management_canister_call<T: for<'a> ArgumentDecoder<'a>>(
+    canister_id: Principal,
+    method: &str,
+) -> Result<T, (RejectionCode, String)> {
     #[derive(CandidType)]
     struct In {
         canister_id: Principal,
     }
 
-    open_call("canister_status");
+    open_call(method);
     let result = call(
         Principal::management_canister(),
-        "canister_status",
+        method,
         (In { canister_id },),
     )
     .await;
-    close_call("canister_status");
-
-    let (result,): (StatusCallResult,) =
-        result.map_err(|err| format!("couldn't get canister status: {:?}", err))?;
-    Ok(result)
+    close_call(method);
+    result
 }
 
 #[derive(CandidType)]

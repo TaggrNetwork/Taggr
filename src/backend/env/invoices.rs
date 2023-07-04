@@ -93,7 +93,7 @@ impl Invoices {
                 }
             });
         } else if kilo_cycles > 0 {
-            return Err("ICP balance too low".into());
+            return Err(format!("ICP balance too low (needed: {} ICP)", costs));
         }
         read(|state| state.accounting.invoices.get(invoice_id).cloned())
             .ok_or("no invoice found".into())

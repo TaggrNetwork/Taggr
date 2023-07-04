@@ -31,7 +31,7 @@ export const Api = (
             identity
         );
         if (response.status != "replied") {
-            console.error(response.status);
+            console.error(response);
             return null;
         }
         return response.reply.arg;

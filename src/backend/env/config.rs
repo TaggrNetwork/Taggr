@@ -41,6 +41,8 @@ pub struct Config {
 
     pub minimal_tip: Cycles,
 
+    pub num_hot_posts: usize,
+
     pub trusted_user_min_karma: Karma,
     pub trusted_user_min_age_weeks: u64,
 
@@ -79,6 +81,7 @@ pub struct Config {
     pub max_blob_size_bytes: usize,
 
     pub min_cycles_for_inviting: Cycles,
+    pub invites_budget_cycles: Cycles,
 
     pub online_activity_minutes: u64,
 
@@ -145,6 +148,8 @@ pub const CONFIG: &Config = &Config {
 
     min_cycle_balance_main: 2 * ICP_CYCLES_PER_XDR,
 
+    num_hot_posts: 10000,
+
     #[cfg(feature = "dev")]
     report_confirmation_percentage: 1,
     #[cfg(test)]
@@ -175,6 +180,7 @@ pub const CONFIG: &Config = &Config {
     reporting_penalty_misbehaviour: 1000,
 
     min_cycles_for_inviting: 50,
+    invites_budget_cycles: 300,
 
     post_cost: 2,
     tag_cost: 3,

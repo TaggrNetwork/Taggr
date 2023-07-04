@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { createSeedPhraseUser, performInNewContext } from "../support";
+import {
+    createSeedPhraseUser,
+    demiGodMode,
+    performInNewContext,
+} from "../support";
 import { GlobalNavigationElement } from "../elements";
 import { AcceptInvitePage } from "../pages";
 
@@ -9,6 +13,11 @@ test("user invite", async ({ page, browser }) => {
     const user = await test.step("create user", async () => {
         return await createSeedPhraseUser(page);
     });
+
+    await demiGodMode(user.username);
+    // We need to load user's new data after promoting it to demigod
+    await page.reload({ waitUntil: "networkidle" });
+
     const globalNavigation = new GlobalNavigationElement(page, user);
     const invitesPage = await globalNavigation.goToInvitesPage();
 

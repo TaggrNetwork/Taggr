@@ -206,6 +206,12 @@ export const Wallet = () => {
         <>
             <HeadBar title={"Wallets"} shareLink="wallets" />
             <div className="spaced">
+                {user.cycles <= 50 && (
+                    <div className="banner">
+                        You are low on cycles! Please transfer some ICP to your
+                        account displayed below and press the MINT button.
+                    </div>
+                )}
                 <div className="stands_out">
                     <div className="vcentered">
                         <h2 className="max_width_col">ICP</h2>
@@ -283,6 +289,7 @@ export const Wallet = () => {
                     <div className="vcentered">
                         <h2 className="max_width_col">{name} Cycles</h2>
                         <ButtonWithLoading
+                            classNameArg="active"
                             onClick={async () => {
                                 const kilo_cycles = parseInt(
                                     prompt(
@@ -384,8 +391,10 @@ export const WelcomeInvited = ({}) => (
     <div className="text_centered">
         <h1>Welcome!</h1>
         <p className="larger_text">
-            You were invited to {backendCache.config.name}! Please connect and
-            create your user account.
+            You were invited to {backendCache.config.name}!
+        </p>
+        <p className="large_text">
+            Please select an authentication method and create your user account.
         </p>
         <LoginMasks confirmationRequired={true} />
     </div>

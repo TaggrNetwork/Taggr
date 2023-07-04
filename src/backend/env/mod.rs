@@ -554,21 +554,32 @@ impl State {
             if let Some(user) = state.principal_to_user(principal) {
                 return Err(format!("principal already assigned to user @{}", user.name));
             }
-            if let Some((user_id, cycles)) = invite.and_then(|code| state.invites.remove(&code)) {
-                let id = state.new_user(principal, time(), name.clone());
-                state
-                    .cycle_transfer(
-                        user_id,
-                        id,
-                        cycles,
-                        0,
-                        Destination::Cycles,
-                        "claimed by invited user",
-                    )
-                    .map_err(|err| format!("couldn't use the invite: {}", err))?;
-                let user = state.users.get_mut(&id).expect("no user found");
-                user.invited_by = Some(user_id);
-                if let Some(inviter) = state.users.get_mut(&user_id) {
+            if let Some((inviter_id, cycles)) = invite.and_then(|code| state.invites.remove(&code))
+            {
+                let inviter = state.users.get_mut(&inviter_id).ok_or("no user found")?;
+                let new_user_id = if inviter.invites_budget > cycles {
+                    inviter.invites_budget = inviter.invites_budget.saturating_sub(cycles);
+                    state.spend(cycles, "user invite");
+                    state.new_user(principal, time(), name.clone())
+                } else if inviter.cycles() > cycles {
+                    let new_user_id = state.new_user(principal, time(), name.clone());
+                    state
+                        .cycle_transfer(
+                            inviter_id,
+                            new_user_id,
+                            cycles,
+                            0,
+                            Destination::Cycles,
+                            "claimed by invited user",
+                        )
+                        .map_err(|err| format!("couldn't use the invite: {}", err))?;
+                    new_user_id
+                } else {
+                    return Err("inviter has not enough cycles".into());
+                };
+                let user = state.users.get_mut(&new_user_id).expect("no user found");
+                user.invited_by = Some(inviter_id);
+                if let Some(inviter) = state.users.get_mut(&inviter_id) {
                     inviter.notify(format!(
                         "Your invite was used by @{}! Thanks for helping #{} grow! 🤗",
                         name, CONFIG.name
@@ -617,6 +628,9 @@ impl State {
         }
         if user.cycles() < cycles {
             return Err("not enough cycles".into());
+        }
+        if !user.trusted() {
+            return Err("bootcamp users cannot invite others".into());
         }
         let mut hasher = Sha256::new();
         hasher.update(principal.as_slice());
@@ -846,6 +860,12 @@ impl State {
             .iter()
             .map(|(_, balance)| balance)
             .sum();
+        for (user_id, _) in active_user_balances.iter() {
+            let user = self.users.get_mut(user_id).expect("no user found");
+            if user.trusted() {
+                user.invites_budget = user.invites_budget.max(CONFIG.invites_budget_cycles);
+            }
+        }
         active_user_balances
             .into_iter()
             .map(|(user_id, balance)| {
@@ -3336,10 +3356,10 @@ pub(crate) mod tests {
 
     #[actix_rt::test]
     async fn test_invites() {
+        let principal = pr(1);
         let (id, code, prev_balance) = STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
-            let principal = pr(1);
             let id = create_user(state, principal);
 
             // use too many cycles
@@ -3362,10 +3382,36 @@ pub(crate) mod tests {
         });
 
         // use the invite
-        let err = State::create_user(pr(2), "name".to_string(), Some(code.clone())).await;
+        assert!(State::create_user(pr(2), "name".to_string(), Some(code))
+            .await
+            .is_ok());
 
         let new_balance = mutate(|state| state.users.get(&id).unwrap().cycles());
         assert_eq!(new_balance, prev_balance - 111);
-        assert!(err.is_ok())
+
+        // Subsidized invite
+        let (id, code, prev_balance) = mutate(|state| {
+            let user = state.users.get_mut(&id).unwrap();
+            user.invites_budget = 300;
+            let prev_balance = user.cycles();
+            assert_eq!(state.create_invite(principal, 222), Ok(()));
+            let invite = state.invites(principal);
+            let (code, cycles) = invite.get(0).unwrap().clone();
+            assert_eq!(cycles, 222);
+            (id, code, prev_balance)
+        });
+
+        let prev_revenue = read(|state| state.burned_cycles);
+
+        assert!(State::create_user(pr(3), "name2".to_string(), Some(code))
+            .await
+            .is_ok());
+
+        let user = read(|state| state.users.get(&id).unwrap().clone());
+        // Make sure didn't pay with own cycles
+        assert_eq!(user.cycles(), prev_balance);
+        // Make sure Taggr payed for the invite
+        assert_eq!(user.invites_budget, 300 - 222);
+        assert_eq!(read(|state| state.burned_cycles), prev_revenue - 222);
     }
 }

@@ -56,6 +56,8 @@ pub struct User {
     pub report: Option<Report>,
     pub karma_from_last_posts: BTreeMap<UserId, Karma>,
     pub treasury_e8s: u64,
+    #[serde(default)]
+    pub invites_budget: Cycles,
 }
 
 impl User {
@@ -93,6 +95,7 @@ impl User {
             principal,
             karma_from_last_posts: Default::default(),
             treasury_e8s: 0,
+            invites_budget: 0,
         }
     }
 

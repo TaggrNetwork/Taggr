@@ -114,6 +114,7 @@ const App = () => {
     } else if (handler == "dashboard" || handler == "stats") {
         content = <Dashboard fullMode={true} />;
     } else if (handler == "welcome") {
+        subtle = !api._principalId;
         content = api._principalId ? (
             <Settings invite={param} />
         ) : (
