@@ -6,6 +6,7 @@ use std::{
 use env::{
     canisters::get_full_neuron,
     config::{reaction_karma, CONFIG},
+    invoices::user_icp_account,
     memory,
     post::{Extension, Post, PostId},
     proposals::{Release, Reward},
@@ -21,6 +22,7 @@ use ic_cdk::{
     caller, spawn, timer,
 };
 use ic_cdk_macros::*;
+use ic_ledger_types::{Memo, Tokens};
 use serde_bytes::ByteBuf;
 
 mod assets;
@@ -85,6 +87,16 @@ fn post_upgrade() {
     set_timers();
 
     // temporary post upgrade logic goes here
+
+    // Clear treasury from debt
+    let debt: u64 = read(|state| state.users.values().map(|u| u.treasury_e8s).sum());
+    timer::set_timer_interval(std::time::Duration::from_secs(1), move || {
+        spawn(transfer_debt(debt))
+    });
+}
+
+async fn transfer_debt(debt: u64) {
+    let _ = invoices::transfer(user_icp_account(), Tokens::from_e8s(debt), Memo(4545), None).await;
 }
 
 /*
@@ -493,11 +505,9 @@ fn confirm_emergency_release() {
 }
 
 // This function is the last resort of triggering the emergency upgrade and is expected to be used.
-#[export_name = "canister_update force_emergency_upgrade"]
+#[update]
 fn force_emergency_upgrade() {
-    reply(mutate(|state| {
-        state.execute_pending_emergency_upgrade(true)
-    }))
+    mutate(|state| state.execute_pending_emergency_upgrade(true));
 }
 
 /*

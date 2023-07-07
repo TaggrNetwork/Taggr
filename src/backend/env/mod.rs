@@ -1,5 +1,5 @@
 use self::canisters::{upgrade_main_canister, NNSVote};
-use self::invoices::{parse_account, Invoice};
+use self::invoices::{parse_account, user_icp_account, Invoice, USER_ICP_SUBACCOUNT};
 use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
 use self::proposals::{Payload, Status};
 use self::reports::Report;
@@ -984,7 +984,7 @@ impl State {
         recipient: String,
         amount: &str,
     ) -> Result<Tokens, String> {
-        State::claim_e8s_from_treasury(principal).await?;
+        State::claim_user_icp(principal).await?;
 
         fn parse(amount: &str) -> Result<Tokens, String> {
             let parse = |s: &str| {
@@ -1023,15 +1023,15 @@ impl State {
         revenue: HashMap<UserId, u64>,
     ) -> HashMap<UserId, Karma> {
         let treasury_balance = invoices::main_account_balance().await.e8s();
-        mutate(|state| {
-            let mut user_ids: HashMap<UserId, Karma> = Default::default();
+        let (distr_info, debt) = mutate(|state| {
+            let mut distr_info: HashMap<UserId, Karma> = Default::default();
             let total_payout =
                 rewards.values().copied().sum::<u64>() + revenue.values().copied().sum::<u64>();
             if treasury_balance < total_payout {
                 state
                     .logger
                     .info("Treasury is too small, skipping the distributions...");
-                return user_ids;
+                return (distr_info, 0);
             }
             let mut payments = Vec::default();
             let bootcampers = state
@@ -1039,8 +1039,8 @@ impl State {
                 .values()
                 .filter_map(|u| (!u.trusted()).then_some(u.id))
                 .collect::<HashSet<_>>();
-            let mut user_rewards = 0;
-            let mut user_revenues = 0;
+            let mut total_rewards = 0;
+            let mut total_revenue = 0;
             for user in state.users.values_mut() {
                 let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
                 let user_revenue = revenue.get(&user.id).copied().unwrap_or_default();
@@ -1049,9 +1049,9 @@ impl State {
                     continue;
                 }
                 user.treasury_e8s += e8s;
-                user_rewards += user_reward;
-                user_revenues += user_revenue;
-                user_ids.insert(user.id, user.karma_to_reward());
+                total_rewards += user_reward;
+                total_revenue += user_revenue;
+                distr_info.insert(user.id, user.karma_to_reward());
                 user.apply_rewards();
                 payments.push(format!("`{}` to @{}", e8s_to_icp(e8s), &user.name));
                 user.notify(format!(
@@ -1062,12 +1062,12 @@ impl State {
             }
             state.spend(state.burned_cycles as Cycles, "revenue distribution");
             state.burned_cycles_total += state.burned_cycles as Cycles;
-            state.total_rewards_shared += user_rewards;
-            state.total_revenue_shared += user_revenues;
+            state.total_rewards_shared += total_rewards;
+            state.total_revenue_shared += total_revenue;
             state.logger.info(format!(
                 "Paid out `{}` ICP as rewards and `{}` ICP as revenue as follows: {}",
-                e8s_to_icp(user_rewards),
-                e8s_to_icp(user_revenues),
+                e8s_to_icp(total_rewards),
+                e8s_to_icp(total_revenue),
                 payments.join(", ")
             ));
             let mut graduation_list = Vec::new();
@@ -1087,8 +1087,20 @@ impl State {
                     graduation_list.join(", ")
                 ));
             }
-            user_ids
-        })
+            (distr_info, total_rewards + total_revenue)
+        });
+
+        if let Err(err) =
+            invoices::transfer(user_icp_account(), Tokens::from_e8s(debt), Memo(4545), None).await
+        {
+            mutate(|state| {
+                state.logger.error(format!(
+                    "user ICPs couldn't be transferred from the registry: {err}"
+                ))
+            });
+        }
+
+        distr_info
     }
 
     fn conclude_polls(&mut self, now: u64) {
@@ -1434,7 +1446,7 @@ impl State {
     }
 
     // Check if user has some unclaimed e8s in the Treasury and transfers them to user's account.
-    async fn claim_e8s_from_treasury(principal: Principal) -> Result<(), String> {
+    async fn claim_user_icp(principal: Principal) -> Result<(), String> {
         let user = match read(|state| state.principal_to_user(principal).cloned()) {
             Some(user) => user,
             None => return Ok(()),
@@ -1444,7 +1456,7 @@ impl State {
                 parse_account(&user.account)?,
                 Tokens::from_e8s(user.treasury_e8s),
                 Memo(777),
-                None,
+                Some(USER_ICP_SUBACCOUNT),
             )
             .await?;
             mutate(|state| {
@@ -1457,7 +1469,7 @@ impl State {
     }
 
     pub async fn mint_cycles(principal: Principal, kilo_cycles: u64) -> Result<Invoice, String> {
-        State::claim_e8s_from_treasury(principal).await?;
+        State::claim_user_icp(principal).await?;
 
         let invoice = match Invoices::outstanding(&principal, kilo_cycles).await {
             Ok(val) => val,

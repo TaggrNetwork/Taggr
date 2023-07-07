@@ -119,6 +119,12 @@ pub fn main_account() -> AccountIdentifier {
     AccountIdentifier::new(&id(), &DEFAULT_SUBACCOUNT)
 }
 
+pub const USER_ICP_SUBACCOUNT: Subaccount = Subaccount([1; 32]);
+
+pub fn user_icp_account() -> AccountIdentifier {
+    AccountIdentifier::new(&id(), &USER_ICP_SUBACCOUNT)
+}
+
 pub async fn main_account_balance() -> Tokens {
     account_balance(main_account()).await
 }

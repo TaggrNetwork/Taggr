@@ -30,7 +30,7 @@ thread_local! {
 }
 
 pub fn open_call(id: &str) {
-    // Before opeining a new casniter call, we first check whether an upgrade was intiated within the last 5 minutes and panic if it is the case.
+    // Before opening a new canister call, we first check whether an upgrade was initiated within the last 5 minutes and panic if it is the case.
     // If something goes wrong and the canister was not upgraded (and hence the timer reset), after 5 minutes we start ignoring the timestamp.
     UPGRADE_TIMESTAMP.with(|cell| {
         let upgrading_attempt = cell.borrow();
@@ -179,7 +179,7 @@ pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: boo
                 "Upgrade execution failed due to open canister calls: {:?}",
                 cell.borrow()
                     .iter()
-                    .map(|(_, calls)| *calls > 0)
+                    .filter(|(_, calls)| **calls > 0)
                     .collect::<Vec<_>>()
             ))
         });

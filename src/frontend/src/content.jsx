@@ -200,7 +200,6 @@ const markdownizer = (
                     }
                     return (
                         <img
-                            loading="lazy"
                             {...props}
                             onClick={() => {
                                 if (!props.thumbnail) previewImg(props.src);
