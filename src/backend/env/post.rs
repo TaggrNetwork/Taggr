@@ -506,6 +506,11 @@ impl Post {
         state.charge(user_id, costs, format!("new post {}", future_id))?;
         let user = state.users.get_mut(&user_id).expect("no user found");
         user.num_posts += 1;
+        // reorder realms
+        if let Some(name) = &realm {
+            user.realms.retain(|id| id != name);
+            user.realms.push(name.clone());
+        }
         user.last_activity = timestamp;
         let id = state.new_post_id();
         post.id = id;

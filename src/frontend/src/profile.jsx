@@ -14,6 +14,7 @@ import {
     ReportBanner,
     UserLink,
     percentage,
+    ShareButton,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -86,35 +87,44 @@ export const Profile = ({ handle }) => {
     return (
         <>
             <HeadBar
-                title={<UserName profile={profile} />}
-                shareLink={`user/${profile.id}`}
+                title={profile.name}
+                button1={
+                    <button
+                        onClick={() =>
+                            (location.href = `/#/journal/${profile.name}`)
+                        }
+                    >
+                        <Journal />
+                    </button>
+                }
+                button2={
+                    user ? (
+                        <ToggleButton
+                            classNameArg="left_half_spaced right_half_spaced"
+                            currState={() =>
+                                user.followees.includes(profile.id)
+                            }
+                            toggler={() =>
+                                api
+                                    .call("toggle_following_user", profile.id)
+                                    .then(api._reloadUser)
+                            }
+                        />
+                    ) : null
+                }
+                menu={true}
                 content={
                     <div className="row_container">
-                        <FlagButton id={profile.id} domain="misbehaviour" />
-                        <button
-                            className="left_half_spaced"
-                            onClick={() =>
-                                (location.href = `/#/journal/${profile.name}`)
-                            }
-                        >
-                            <Journal />
-                        </button>
-                        {user && (
-                            <ToggleButton
-                                classNameArg="left_half_spaced max_width_col"
-                                currState={() =>
-                                    user.followees.includes(profile.id)
-                                }
-                                toggler={() =>
-                                    api
-                                        .call(
-                                            "toggle_following_user",
-                                            profile.id
-                                        )
-                                        .then(api._reloadUser)
-                                }
-                            />
-                        )}
+                        <FlagButton
+                            id={profile.id}
+                            domain="misbehaviour"
+                            text={true}
+                        />
+                        <ShareButton
+                            url={`/user/${profile.name}`}
+                            classNameArg="left_half_spaced max_width_col"
+                            text={true}
+                        />
                     </div>
                 }
             />
@@ -227,13 +237,11 @@ export const Profile = ({ handle }) => {
                                             (backendCache.config
                                                 .min_stalwart_account_age_weeks *
                                                 7 *
-                                                day -
-                                                (Number(new Date()) -
-                                                    parseInt(
-                                                        profile.timestamp
-                                                    ) /
-                                                        1000000)) /
-                                                day /
+                                                daySeconds -
+                                                secondsSince(
+                                                    profile.timestamp
+                                                )) /
+                                                daySeconds /
                                                 7
                                         )
                                     )}{" "}
@@ -279,16 +287,13 @@ export const Profile = ({ handle }) => {
                                     {Math.ceil(
                                         Math.max(
                                             0,
-                                            (backendCache.config
+                                            backendCache.config
                                                 .trusted_user_min_age_weeks *
-                                                7 *
-                                                day -
-                                                (Number(new Date()) -
-                                                    parseInt(
-                                                        profile.timestamp
-                                                    ) /
-                                                        1000000)) /
-                                                day
+                                                7 -
+                                                secondsSince(
+                                                    profile.timestamp
+                                                ) /
+                                                    daySeconds
                                         )
                                     )}{" "}
                                     DAYS
@@ -319,17 +324,6 @@ export const Profile = ({ handle }) => {
                 }}
                 heartbeat={profile.id + tab}
             />
-        </>
-    );
-};
-
-export const UserName = ({ profile }) => {
-    return (
-        <>
-            {profile.name}
-            {profile.stalwart && <sup className="small_text">⚔️</sup>}
-            {isBot(profile) && <sup className="small_text">🤖</sup>}
-            {!trusted(profile) && <sup className="small_text">*️⃣</sup>}
         </>
     );
 };
@@ -404,17 +398,14 @@ export const UserInfo = ({ profile }) => {
             </div>
         ) : null;
     const inviter = profile.invited_by;
+
     return (
         <div className="spaced">
+            {getLabels(profile)}
             {profile.about && (
-                <>
-                    <Content
-                        classNameArg="larger_text "
-                        value={profile.about}
-                    />
-                    <hr />
-                </>
+                <Content classNameArg="larger_text " value={profile.about} />
             )}
+            <hr />
             <div className="dynamic_table monospace">
                 <div className="db_cell">
                     KARMA
@@ -476,19 +467,69 @@ export const UserInfo = ({ profile }) => {
     );
 };
 
-const day = 24 * 3600 * 1000;
+export const getLabels = (profile) => {
+    const labels = [];
+    // Account created before end of 2022
+    if (isBot(profile)) {
+        labels.push(["BOT", "RoyalBlue"]);
+    } else if (profile.timestamp < 1672500000000000000) {
+        labels.push(["OG", "PaleVioletRed"]);
+    }
+    if (profile.stalwart) {
+        labels.push(["STALWART", "Salmon"]);
+    } else if (!trusted(profile)) {
+        labels.push(["BOOTCAMP", "OliveDrab"]);
+    }
+    if (profile.active_weeks > 12) {
+        labels.push(["FREQUENTER", "SlateBlue"]);
+    }
+    if (api._user && profile.followees.includes(api._user.id)) {
+        labels.push(["FOLLOWS YOU", "SeaGreen"]);
+    }
+    if (
+        secondsSince(profile.last_activity) / daySeconds >
+        backendCache.config.revenue_share_activity_weeks * 7
+    ) {
+        labels.push(["INACTIVE", "White"]);
+    }
+
+    if (labels.length == 0) return null;
+    return (
+        <div className="small_text monospace">
+            {labels.map(([text, color]) => (
+                <span
+                    key={text}
+                    style={{
+                        borderRadius: "3px",
+                        padding: "0.2em",
+                        color: "black",
+                        background: color,
+                        marginRight: "0.3em",
+                    }}
+                >
+                    {text}
+                </span>
+            ))}
+        </div>
+    );
+};
+
+const daySeconds = 24 * 3600;
+
+const secondsSince = (val) =>
+    (Number(new Date()) - parseInt(val) / 1000000) / 1000;
 
 export const trusted = (profile) =>
     profile.karma >= backendCache.config.trusted_user_min_karma &&
-    Number(new Date()) - parseInt(profile.timestamp) / 1000000 >=
-        backendCache.config.trusted_user_min_age_weeks * 7 * day;
+    secondsSince(profile.timestamp) >=
+        backendCache.config.trusted_user_min_age_weeks * 7 * daySeconds;
 
 const isBot = (profile) => profile.controllers.find((p) => p.length == 27);
 
 const stalwart = (profile) =>
     !isBot(profile) &&
-    Number(new Date()) - parseInt(profile.timestamp) / 1000000 >=
-        backendCache.config.min_stalwart_account_age_weeks * 7 * day &&
+    secondsSince(profile.timestamp) >=
+        backendCache.config.min_stalwart_account_age_weeks * 7 * daySeconds &&
     profile.active_weeks >= backendCache.config.min_stalwart_activity_weeks &&
     profile.karma >= stalwartMinKarma();
 

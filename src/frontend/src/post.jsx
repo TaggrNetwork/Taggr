@@ -302,7 +302,7 @@ export const Post = ({
                         />
                     </article>
                 )}
-                {showExtension && post.extension.Poll && (
+                {showExtension && "Poll" in post.extension && (
                     <Poll
                         poll={post.extension.Poll}
                         post_id={post.id}
@@ -316,7 +316,7 @@ export const Post = ({
                         classNameArg="post_extension repost"
                     />
                 )}
-                {showExtension && post.extension.Proposal && (
+                {showExtension && "Proposal" in post.extension && (
                     <Proposal postId={post.id} id={post.extension.Proposal} />
                 )}
                 <PostBar

@@ -2,6 +2,7 @@ import * as React from "react";
 import { Loading, ShareButton } from "./common";
 import { Content } from "./content";
 import { PostFeed } from "./post_feed";
+import { getLabels } from "./profile";
 
 export const Journal = ({ handle }) => {
     const [profile, setProfile] = React.useState(null);

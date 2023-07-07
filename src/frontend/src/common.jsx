@@ -67,6 +67,8 @@ export const HeadBar = ({
     title,
     shareLink,
     shareTitle,
+    button1 = null,
+    button2 = null,
     content,
     menu,
     styleArg,
@@ -97,6 +99,8 @@ export const HeadBar = ({
                             classNameArg="right_half_spaced"
                         />
                     )}
+                    {button1}
+                    {button2}
                     {menu && (
                         <BurgerButton
                             styleArg={effStyle}
@@ -148,6 +152,7 @@ export const ShareButton = ({
     title = "Check this out",
     url,
     styleArg,
+    text,
 }) => {
     return (
         <button
@@ -162,7 +167,7 @@ export const ShareButton = ({
                 }
             }}
         >
-            <Share styleArg={styleArg} />
+            {text ? "SHARE" : <Share styleArg={styleArg} />}
         </button>
     );
 };
@@ -483,7 +488,7 @@ export const intToBEBytes = (val) => {
     return bytes;
 };
 
-export const FlagButton = ({ id, domain }) => (
+export const FlagButton = ({ id, domain, text }) => (
     <ButtonWithLoading
         classNameArg="max_width_col"
         onClick={async () => {
@@ -508,7 +513,7 @@ export const FlagButton = ({ id, domain }) => (
                 alert("Report accepted! Thank you!");
             }
         }}
-        label={<Flag />}
+        label={text ? "REPORT" : <Flag />}
     />
 );
 

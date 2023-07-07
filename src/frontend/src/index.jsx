@@ -291,10 +291,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                 let data = await api.query("user", []);
                 if (data) {
                     api._user = data;
-                    let realmNames = Object.keys(backendCache.realms);
-                    api._user.realms.sort(
-                        (a, b) => realmNames.indexOf(a) - realmNames.indexOf(b)
-                    );
+                    api._user.realms.reverse();
                     api._user.settings = JSON.parse(api._user.settings || "{}");
                     if (600000 < microSecsSince(api._user.last_activity)) {
                         api._last_visit = api._user.last_activity;
@@ -357,7 +354,7 @@ const updateDoc = () => {
 
         const percent =
             ((h[st] || b[st]) / ((h[sh] || b[sh]) - h.clientHeight)) * 100;
-        if (percent > 80) {
+        if (percent > 60) {
             const pageFlipper = document.getElementById("pageFlipper");
             if (pageFlipper) pageFlipper.click();
         }

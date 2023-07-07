@@ -38,13 +38,13 @@ The utility of tokens is governance and ownership of $name's revenue.
 ## Bootcamp
 
 Every new user goes through a "bootcamp" period of `$trusted_user_min_age_weeks` weeks.
-During this time the user is marked with \*️⃣ on their profile and cannot affect anybody's karma through the engagements, cannot downvote posts or vote on proposals.
+During this time the user cannot affect anybody's karma through the engagements, cannot downvote posts or vote on proposals.
 If after the bootcamp period the user still has less than `$trusted_user_min_karma` karma points, the user stays in the bootcamp until the karma threshold is reached.
 
 ## Stalwarts
 
 Stalwarts are the top `$stalwart_percentage%` of users with the highest karma being active during the last `$min_stalwart_activity_weeks` consecutive weeks, with accounts older than `$min_stalwart_account_age_weeks` weeks and at least `$proposal_rejection_penalty` karma points.
-They are marked with ⚔️ on their profiles and count as trusted members of the community.
+They count as trusted members of the community.
 Stalwarts can carry out moderating actions and submit proposals.
 
 ## The content policy
@@ -147,7 +147,6 @@ Still vesting tokens:
 ## Bots
 
 Every $name user can be turned into a bot by adding one or more principal ids in the account settings.
-Bots are marked with the 🤖 emoji on their profiles.
 Those principal ids (canisters or self-authenticating) can then call $name's `add_post` method specified in Candid format as follows:
 
     "add_post": (text, vec record { text; blob}, opt nat64, opt text) -> (variant { Ok: nat64; Err: text });
