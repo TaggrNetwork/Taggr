@@ -572,7 +572,7 @@ impl State {
                             Destination::Cycles,
                             "claimed by invited user",
                         )
-                        .map_err(|err| format!("couldn't use the invite: {}", err))?;
+                        .unwrap_or_else(|err| panic!("couldn't use the invite: {}", err));
                     new_user_id
                 } else {
                     return Err("inviter has not enough cycles".into());

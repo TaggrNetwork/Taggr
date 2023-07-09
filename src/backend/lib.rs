@@ -6,7 +6,7 @@ use std::{
 use env::{
     canisters::get_full_neuron,
     config::{reaction_karma, CONFIG},
-    invoices::user_icp_account,
+    invoices::{main_account, user_icp_account, USER_ICP_SUBACCOUNT},
     memory,
     post::{Extension, Post, PostId},
     proposals::{Release, Reward},
@@ -89,14 +89,21 @@ fn post_upgrade() {
     // temporary post upgrade logic goes here
 
     // Clear treasury from debt
-    let debt: u64 = read(|state| state.users.values().map(|u| u.treasury_e8s).sum());
-    timer::set_timer_interval(std::time::Duration::from_secs(1), move || {
-        spawn(transfer_debt(debt))
+    timer::set_timer(std::time::Duration::from_secs(1), move || {
+        spawn(transfer_debt())
     });
 }
 
-async fn transfer_debt(debt: u64) {
-    let _ = invoices::transfer(user_icp_account(), Tokens::from_e8s(debt), Memo(4545), None).await;
+async fn transfer_debt() {
+    // this was the debt that was trasnferred 3 times until the treasury balance went too low
+    let debt = 2201123471 * 2;
+    let _ = invoices::transfer(
+        main_account(),
+        Tokens::from_e8s(debt),
+        Memo(4545),
+        Some(USER_ICP_SUBACCOUNT),
+    )
+    .await;
 }
 
 /*
