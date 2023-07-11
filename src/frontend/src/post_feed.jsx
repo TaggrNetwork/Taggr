@@ -17,8 +17,6 @@ export const PostFeed = ({
 }) => {
     const [page, setPage] = React.useState(0);
     const [posts, setPosts] = React.useState([]);
-    // this flag helps us avoid double loading of the data on the first rendering
-    const [init, setInit] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const [noMoreData, setNoMoreData] = React.useState(comments);
 
@@ -27,19 +25,15 @@ export const PostFeed = ({
         let nextPosts = (await feedLoader(page, includeComments)).map(
             expandUser
         );
-        if (nextPosts.length < backendCache.config.feed_page_size)
-            setNoMoreData(true);
         const loaded = new Set(posts.map((post) => post.id));
         setPosts(page == 0 ? nextPosts : posts.concat(nextPosts));
+        if (nextPosts.length < backendCache.config.feed_page_size)
+            setNoMoreData(true);
         setLoading(false);
     };
 
     React.useEffect(() => {
-        if (init) loadPage(page);
-    }, [page]);
-    React.useEffect(() => {
         setPage(0);
-        setInit(true);
         loadPage(0);
     }, [heartbeat]);
 
@@ -75,7 +69,14 @@ export const PostFeed = ({
             {loading && <Loading />}
             {!noMoreData && !loading && posts.length > 0 && (
                 <div style={{ display: "flex", justifyContent: "center" }}>
-                    <button id="pageFlipper" onClick={() => setPage(page + 1)}>
+                    <button
+                        id="pageFlipper"
+                        onClick={async () => {
+                            const nextPage = page + 1;
+                            setPage(nextPage);
+                            await loadPage(nextPage);
+                        }}
+                    >
                         MORE
                     </button>
                 </div>
