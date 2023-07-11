@@ -38,6 +38,7 @@ e2e_test:
 release:
 	docker build -t taggr .
 	docker run --rm -v $(shell pwd)/release-artifacts:/target/wasm32-unknown-unknown/release taggr
+	make hashes
 
 hashes:
 	git rev-parse HEAD

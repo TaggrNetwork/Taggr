@@ -1131,6 +1131,10 @@ impl State {
                 }
             }
 
+            if !state.emergency_binary.is_empty() {
+                state.logger.info("An emergency release is pending! 🚨");
+            }
+
             if let Err(err) = state.archive_cold_data() {
                 state
                     .logger

@@ -17,7 +17,7 @@ export const Landing = ({ heartbeat }) => {
     const realm = currentRealm();
     const FEED_KEY = `${realm}_feed`;
     const [feed, setFeed] = React.useState(
-        localStorage.getItem(FEED_KEY) || "HOT"
+        localStorage.getItem(FEED_KEY) || (realm ? "NEW" : "HOT")
     );
     const headline = `# Welcome aboard\nof a **fully decentralized** social network.\n\n[WHITE PAPER &#x279C;](/#/whitepaper)`;
     const title = (

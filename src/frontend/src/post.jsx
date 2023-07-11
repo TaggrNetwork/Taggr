@@ -68,7 +68,7 @@ export const Post = ({
     );
     const [showInfo, toggleInfo] = React.useState(false);
     const [expanded, toggleExpansion] = React.useState(
-        (!isFeedItem && !repost) || isThreadView
+        focused || (!isFeedItem && !repost) || isThreadView
     );
     const [fullTreeIsLoading, setFullTreeIsLoading] = React.useState(false);
     const [rendering, setRendering] = React.useState(true);
@@ -356,9 +356,7 @@ export const Post = ({
                             !user.realms.includes(post.realm) && (
                                 <div className="text_centered framed">
                                     JOIN REALM{" "}
-                                    <a
-                                        href={`#/realm/${post.realm.toLowerCase()}`}
-                                    >
+                                    <a href={`#/realm/${post.realm}`}>
                                         {post.realm}
                                     </a>{" "}
                                     TO COMMENT

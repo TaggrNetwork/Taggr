@@ -47,7 +47,9 @@ export const Recovery = () => {
                                     "confirm_emergency_release",
                                     hash
                                 );
-                                alert("Thanks!");
+                                alert(
+                                    "Your vote was submitted. If the hash was correct, your principal will appear in the list of supporters."
+                                );
                                 location.reload();
                             }}
                             label="SUBMIT"
