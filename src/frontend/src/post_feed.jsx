@@ -30,11 +30,7 @@ export const PostFeed = ({
         if (nextPosts.length < backendCache.config.feed_page_size)
             setNoMoreData(true);
         const loaded = new Set(posts.map((post) => post.id));
-        setPosts(
-            page == 0
-                ? nextPosts
-                : posts.concat(nextPosts.filter((post) => !loaded.has(post.id)))
-        );
+        setPosts(page == 0 ? nextPosts : posts.concat(nextPosts));
         setLoading(false);
     };
 

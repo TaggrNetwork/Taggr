@@ -197,6 +197,8 @@ const App = () => {
 };
 
 const setColorTheme = () => {
+    if (api._user) applyTheme(themes[api._user.settings.theme]);
+    else applyTheme();
     const realm = currentRealm();
     if (realm)
         api.query("realm", realm).then((result) => {
@@ -204,8 +206,6 @@ const setColorTheme = () => {
             if (realmTheme) applyTheme(JSON.parse(realmTheme));
             else applyTheme();
         });
-    else if (api._user) applyTheme(themes[api._user.settings.theme]);
-    else applyTheme();
 };
 
 const reloadCache = async () => {
