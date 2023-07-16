@@ -27,7 +27,7 @@ export class GlobalNavigationElement {
 
     constructor(
         private readonly page: Page,
-        private readonly user?: CommonUser
+        private readonly user?: CommonUser,
     ) {
         this.burgerButton = page.getByTestId("burger-button");
         this.homeLink = page.getByTestId("home-page-link");
@@ -57,7 +57,7 @@ export class GlobalNavigationElement {
         await this.burgerButton.click();
         await this.profileLink.click();
         expect(new URL(this.page.url()).hash).toEqual(
-            `#/user/${this.user?.username ?? ""}`
+            `#/user/${this.user?.username ?? ""}`,
         );
 
         return new ProfilePage(this.page, this.user);
@@ -106,7 +106,7 @@ export class GlobalNavigationElement {
         await this.burgerButton.click();
         await this.journalLink.click();
         expect(new URL(this.page.url()).hash).toEqual(
-            `#/journal/${this.user?.username ?? ""}`
+            `#/journal/${this.user?.username ?? ""}`,
         );
 
         return new JournalPage(this.page);

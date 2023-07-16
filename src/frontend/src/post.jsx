@@ -64,11 +64,11 @@ export const Post = ({
     const [notFound, setNotFound] = React.useState(false);
     const [blobs, setBlobs] = React.useState({});
     const [showComments, toggleComments] = React.useState(
-        !isFeedItem && !repost
+        !isFeedItem && !repost,
     );
     const [showInfo, toggleInfo] = React.useState(false);
     const [expanded, toggleExpansion] = React.useState(
-        focused || (!isFeedItem && !repost) || isThreadView
+        focused || (!isFeedItem && !repost) || isThreadView,
     );
     const [fullTreeIsLoading, setFullTreeIsLoading] = React.useState(false);
     const [rendering, setRendering] = React.useState(true);
@@ -165,7 +165,7 @@ export const Post = ({
                     if ("Err" in response) alert(`Error: ${response.Err}`);
                     api._reloadUser();
                 }),
-            4000
+            4000,
         );
         setReactionTimer(timer);
         users.push(userId);
@@ -178,7 +178,7 @@ export const Post = ({
         objectReduce(
             post.reactions,
             (acc, id, users) => acc + costTable[parseInt(id)] * users.length,
-            0
+            0,
         ) < 0 || post.user.karma < 0;
     const user = api._user;
     const showReport =
@@ -445,19 +445,19 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                         classNameArg="max_width_col"
                         onClick={async () => {
                             const amount = prompt(
-                                `Tip @${post.user.name} with ICP:`
+                                `Tip @${post.user.name} with ICP:`,
                             );
                             if (
                                 amount == null ||
                                 !confirm(
-                                    `Transfer ${amount} ICP to @${post.user.name} as a tip?`
+                                    `Transfer ${amount} ICP to @${post.user.name} as a tip?`,
                                 )
                             )
                                 return;
                             let response = await api.call(
                                 "tip",
                                 post.id,
-                                amount
+                                amount,
                             );
                             if ("Err" in response) {
                                 alert(`Error: ${response.Err}`);
@@ -471,7 +471,7 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                             onClick={async () => {
                                 if (
                                     !confirm(
-                                        "Do you want to remove the post from this realm?"
+                                        "Do you want to remove the post from this realm?",
                                     )
                                 )
                                     return;
@@ -505,14 +505,14 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                                                             users.length
                                                     );
                                                 },
-                                                0
+                                                0,
                                             ) +
                                             post_cost +
                                             post.tree_size *
                                                 post_deletion_penalty_factor;
                                         if (
                                             !confirm(
-                                                `Please confirm the post deletion: it will costs ${cost} cycles.`
+                                                `Please confirm the post deletion: it will costs ${cost} cycles.`,
                                             )
                                         )
                                             return;
@@ -527,7 +527,7 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                                                 post.patches[i];
                                             current = applyPatch(
                                                 current,
-                                                patch
+                                                patch,
                                             )[0];
                                             versions.push(current);
                                         }
@@ -535,7 +535,7 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                                         let response = await api.call(
                                             "delete_post",
                                             post.id,
-                                            versions
+                                            versions,
                                         );
                                         if ("Err" in response) {
                                             alert(`Error: ${response.Err}`);
@@ -577,8 +577,8 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                                             >{`${v}`}</a>{" "}
                                             ({timeAgo(timestamp)})
                                         </span>
-                                    )
-                                )
+                                    ),
+                                ),
                         )}
                     </div>
                 )}
@@ -588,7 +588,7 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                         {commaSeparated(
                             post.watchers.map((id) => (
                                 <UserLink key={id} id={id} />
-                            ))
+                            )),
                         )}
                     </div>
                 )}
@@ -601,7 +601,7 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                                     <code>{icp(tip, "with_decimals")}</code>{" "}
                                     from {<UserLink id={id} />}
                                 </span>
-                            ))
+                            )),
                         )}
                     </div>
                 )}
@@ -617,10 +617,10 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                                     {commaSeparated(
                                         users.map((id) => (
                                             <UserLink key={id} id={id} />
-                                        ))
+                                        )),
                                     )}
                                 </div>
-                            )
+                            ),
                         )}
                     </div>
                 )}

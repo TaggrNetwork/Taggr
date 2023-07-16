@@ -32,7 +32,7 @@ export const RealmForm = ({ existingName }) => {
     const [description, setDescription] = React.useState("");
     const [theme, setTheme] = React.useState(null);
     const [controllersString, setControllersString] = React.useState(
-        users[userId]
+        users[userId],
     );
     const [controllers, setControllers] = React.useState([userId]);
 
@@ -49,7 +49,7 @@ export const RealmForm = ({ existingName }) => {
         if (realm.theme) setTheme(JSON.parse(realm.theme));
         setLabelColor(realm.label_color || "#ffffff");
         setControllersString(
-            realm.controllers.map((id) => users[id]).join(", ")
+            realm.controllers.map((id) => users[id]).join(", "),
         );
     };
     React.useEffect(() => {
@@ -87,7 +87,7 @@ export const RealmForm = ({ existingName }) => {
                                 const file = (ev.dataTransfer || ev.target)
                                     .files[0];
                                 const content = new Uint8Array(
-                                    await loadFile(file)
+                                    await loadFile(file),
                                 );
                                 const actualSize = content.byteLength,
                                     expectedSize =
@@ -98,10 +98,10 @@ export const RealmForm = ({ existingName }) => {
                                 ) {
                                     alert(
                                         `Logo size must be below ${Math.ceil(
-                                            expectedSize / 1024
+                                            expectedSize / 1024,
                                         )}KB, while yours has ${Math.ceil(
-                                            actualSize / 1024
-                                        )}KB.`
+                                            actualSize / 1024,
+                                        )}KB.`,
                                     );
                                     return;
                                 }
@@ -109,9 +109,9 @@ export const RealmForm = ({ existingName }) => {
                                     btoa(
                                         String.fromCharCode.apply(
                                             null,
-                                            new Uint8Array(content)
-                                        )
-                                    )
+                                            new Uint8Array(content),
+                                        ),
+                                    ),
                                 );
                             }}
                         />
@@ -183,7 +183,7 @@ export const RealmForm = ({ existingName }) => {
                             const ids = input
                                 .split(",")
                                 .map(
-                                    (id) => name2Id[id.replace("@", "").trim()]
+                                    (id) => name2Id[id.replace("@", "").trim()],
                                 )
                                 .filter(Boolean);
                             setControllersString(input);
@@ -295,7 +295,7 @@ export const RealmForm = ({ existingName }) => {
                             labelColor,
                             theme ? JSON.stringify(theme) : "",
                             description,
-                            controllers.map((id) => parseInt(id))
+                            controllers.map((id) => parseInt(id)),
                         );
                         if ("Err" in response) {
                             alert(`Error: ${response.Err}`);
@@ -417,14 +417,14 @@ export const RealmHeader = ({ name }) => {
                                                 `By joining the realm ${name} you confirm that you understand its description ` +
                                                     `and agree with all terms and conditions mentioned there. ` +
                                                     `Any rule violation can lead to a moderation by stalwarts or ` +
-                                                    `moving out of the post with penalty of ${backendCache.config.realm_cleanup_penalty} points.`
+                                                    `moving out of the post with penalty of ${backendCache.config.realm_cleanup_penalty} points.`,
                                             )
                                         )
                                             return false;
                                         return api
                                             .call(
                                                 "toggle_realm_membership",
-                                                name
+                                                name,
                                             )
                                             .then(api._reloadUser)
                                             .then(loadRealm);
@@ -439,7 +439,7 @@ export const RealmHeader = ({ name }) => {
                                         api
                                             .call(
                                                 "toggle_realm_membership",
-                                                name
+                                                name,
                                             )
                                             .then(api._reloadUser)
                                             .then(loadRealm)

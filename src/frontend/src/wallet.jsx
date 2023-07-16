@@ -52,8 +52,8 @@ const Welcome = () => {
                                 const hash = new Uint8Array(
                                     await crypto.subtle.digest(
                                         "SHA-256",
-                                        new TextEncoder().encode(seed)
-                                    )
+                                        new TextEncoder().encode(seed),
+                                    ),
                                 );
                                 let identity =
                                     Ed25519KeyIdentity.generate(hash);
@@ -61,7 +61,7 @@ const Welcome = () => {
                                     identity.getPrincipal() != api._principalId
                                 ) {
                                     alert(
-                                        "The seed phrase does not match! Please log-out and try again."
+                                        "The seed phrase does not match! Please log-out and try again.",
                                     );
                                     return;
                                 } else setSeedPhraseConfirmed(true);
@@ -190,7 +190,7 @@ export const Wallet = () => {
         const txs = await window.api.query(
             "transactions",
             0,
-            api._user.principal
+            api._user.principal,
         );
         setTransactions(txs);
     };
@@ -219,23 +219,23 @@ export const Wallet = () => {
                             label="TRANSFER"
                             onClick={async () => {
                                 const amount = prompt(
-                                    "Enter the amount (fee: 0.0001 ICP)"
+                                    "Enter the amount (fee: 0.0001 ICP)",
                                 );
                                 if (!amount) return;
                                 const recipient = prompt(
-                                    "Enter the recipient address"
+                                    "Enter the recipient address",
                                 );
                                 if (!recipient) return;
                                 if (
                                     !confirm(
-                                        `You are transferring\n\n${amount} ICP\n\nto\n\n${recipient}`
+                                        `You are transferring\n\n${amount} ICP\n\nto\n\n${recipient}`,
                                     )
                                 )
                                     return;
                                 let result = await api.call(
                                     "transfer_icp",
                                     recipient,
-                                    amount
+                                    amount,
                                 );
                                 await api._reloadUser();
                                 if ("Err" in result) {
@@ -294,14 +294,14 @@ export const Wallet = () => {
                                 const kilo_cycles = parseInt(
                                     prompt(
                                         "Enter the number of 1000s of cycles to mint",
-                                        1
-                                    )
+                                        1,
+                                    ),
                                 );
                                 if (isNaN(kilo_cycles)) {
                                     return;
                                 }
                                 const result = await mintCycles(
-                                    Math.max(1, kilo_cycles)
+                                    Math.max(1, kilo_cycles),
                                 );
                                 if ("Err" in result) {
                                     alert(`Error: ${result.Err}`);
@@ -338,23 +338,23 @@ export const Wallet = () => {
                                 const amount = prompt(
                                     `Enter the amount (fee: ${
                                         1 / Math.pow(10, token_decimals)
-                                    } ${token_symbol})`
+                                    } ${token_symbol})`,
                                 );
                                 if (!amount) return;
                                 const recipient = prompt(
-                                    "Enter the recipient principal"
+                                    "Enter the recipient principal",
                                 );
                                 if (!recipient) return;
                                 if (
                                     !confirm(
-                                        `You are transferring\n\n${amount} ${token_symbol}\n\nto\n\n${recipient}`
+                                        `You are transferring\n\n${amount} ${token_symbol}\n\nto\n\n${recipient}`,
                                     )
                                 )
                                     return;
                                 let result = await api.call(
                                     "transfer_tokens",
                                     recipient,
-                                    amount
+                                    amount,
                                 );
                                 if ("Err" in result) {
                                     alert(`Error: ${result.Err}`);

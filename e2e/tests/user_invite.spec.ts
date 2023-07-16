@@ -23,7 +23,7 @@ test("user invite", async ({ page, browser }) => {
 
     const inviteUrl = await test.step("create invite", async () => {
         const inviteUrl = await invitesPage.createInviteWithCycles(
-            inviteCycles
+            inviteCycles,
         );
         const openInvites = await invitesPage.getOpenInvites();
         expect(openInvites).toHaveLength(1);
@@ -40,7 +40,7 @@ test("user invite", async ({ page, browser }) => {
 
                 const globalNavigation = new GlobalNavigationElement(
                     page,
-                    user
+                    user,
                 );
                 const profilePage = await globalNavigation.goToProfilePage();
                 const cyclesBalance = await profilePage.getCyclesBalance();

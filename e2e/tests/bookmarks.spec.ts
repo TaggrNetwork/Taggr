@@ -57,17 +57,17 @@ test("bookmarks", async ({ page, browser }) => {
         const bookmarksPage = await globalNavigation.goToBookmarksPage();
 
         const bookmarkedPostOne = await bookmarksPage.getPostByContent(
-            postOneContent
+            postOneContent,
         );
         await expect(bookmarkedPostOne.element).toBeVisible();
 
         const bookmarkedPostTwo = await bookmarksPage.getPostByContent(
-            postTwoContent
+            postTwoContent,
         );
         await expect(bookmarkedPostTwo.element).toBeVisible();
 
         const bookmarkedPostThree = await bookmarksPage.getPostByContent(
-            postThreeContent
+            postThreeContent,
         );
         await expect(bookmarkedPostThree.element).toBeVisible();
 

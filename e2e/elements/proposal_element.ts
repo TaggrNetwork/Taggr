@@ -6,7 +6,10 @@ export class ProposalElement {
     private readonly acceptButton: Locator;
     private readonly rejectButton: Locator;
 
-    constructor(private readonly page: Page, public readonly element: Locator) {
+    constructor(
+        private readonly page: Page,
+        public readonly element: Locator,
+    ) {
         this.loadingSpinner = element.getByTestId("loading-spinner");
         this.acceptButton = element.locator("button", { hasText: "ACCEPT" });
         this.rejectButton = element.locator("button", { hasText: "REJECT" });

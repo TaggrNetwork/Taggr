@@ -51,7 +51,7 @@ test("love heart a post", async ({ page, browser }) => {
                 const user = await createSeedPhraseUser(page);
                 const globalNavigation = new GlobalNavigationElement(
                     page,
-                    user
+                    user,
                 );
 
                 const profilePage = await globalNavigation.goToProfilePage();
@@ -134,7 +134,7 @@ test("react with fire and comment on a post", async ({ page, browser }) => {
                 const user = await createSeedPhraseUser(page);
                 const globalNavigation = new GlobalNavigationElement(
                     page,
-                    user
+                    user,
                 );
 
                 const profilePage = await globalNavigation.goToProfilePage();
@@ -160,7 +160,7 @@ test("react with fire and comment on a post", async ({ page, browser }) => {
                 const cyclesBalanceAfterReaction =
                     await profilePage.getCyclesBalance();
                 expect(cyclesBalanceAfterReaction).toEqual(
-                    originalCyclesBalance - 8
+                    originalCyclesBalance - 8,
                 );
 
                 return commentContent;
@@ -210,7 +210,7 @@ test("test tabs on the profile page", async ({ page, browser }) => {
                 });
                 const globalNavigation = new GlobalNavigationElement(
                     page,
-                    user
+                    user,
                 );
                 const homePage = await globalNavigation.goToHomePage();
                 await homePage.showNewPosts();

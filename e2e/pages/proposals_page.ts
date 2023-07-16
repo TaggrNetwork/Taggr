@@ -13,17 +13,17 @@ export class ProposalsPage {
 
     constructor(readonly page: Page) {
         this.proposalsBurgerButton = page.getByTestId(
-            "proposals-burger-button"
+            "proposals-burger-button",
         );
         this.createReleaseProposalButton = page.locator("button", {
             hasText: "RELEASE",
         });
         this.releaseCommitInput = page.locator(
-            "div:has-text('COMMIT') > input"
+            "div:has-text('COMMIT') > input",
         );
         this.binaryFilePickerButton = page.locator('input[type="file"]');
         this.descriptionTextArea = page.locator(
-            "div:has-text('description') + textarea"
+            "div:has-text('description') + textarea",
         );
         this.submitButton = page.locator("button", { hasText: "SUBMIT" });
         this.loadingSpinner = page.getByTestId("loading-spinner").first();
@@ -33,7 +33,7 @@ export class ProposalsPage {
     public async createReleaseProposal(
         commit: string,
         binaryPath: string,
-        description: string
+        description: string,
     ): Promise<void> {
         await this.proposalsBurgerButton.click();
         await this.createReleaseProposalButton.click();
@@ -53,7 +53,7 @@ export class ProposalsPage {
     }
 
     public async getProposalByContent(
-        proposalContent: string
+        proposalContent: string,
     ): Promise<ProposalElement> {
         const proposal = this.proposals.filter({ hasText: proposalContent });
         return new ProposalElement(this.page, proposal);

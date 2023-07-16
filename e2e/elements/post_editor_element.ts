@@ -6,7 +6,10 @@ export class PostEditorElement {
     private readonly inputTextArea: Locator;
     private readonly filePickerButton: Locator;
 
-    constructor(private readonly page: Page, readonly element: Locator) {
+    constructor(
+        private readonly page: Page,
+        readonly element: Locator,
+    ) {
         this.cycleCost = element.getByTestId("cycle-cost");
         this.sendButton = element.locator("button", { hasText: "SEND" });
         this.inputTextArea = element.locator("textarea");

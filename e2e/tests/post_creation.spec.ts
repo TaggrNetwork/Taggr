@@ -22,7 +22,7 @@ test("post creation", async ({ page, browser }) => {
                 const user = await createSeedPhraseUser(page);
                 const globalNavigation = new GlobalNavigationElement(
                     page,
-                    user
+                    user,
                 );
 
                 const profilePage = await globalNavigation.goToProfilePage();
@@ -87,7 +87,7 @@ test("post creation with hashtag", async ({ page, browser }) => {
                 const user = await createSeedPhraseUser(page);
                 const globalNavigation = new GlobalNavigationElement(
                     page,
-                    user
+                    user,
                 );
 
                 const profilePage = await globalNavigation.goToProfilePage();
@@ -97,7 +97,7 @@ test("post creation with hashtag", async ({ page, browser }) => {
                 const postContent = await createPostWithHashTag(
                     page,
                     user,
-                    hashTag
+                    hashTag,
                 );
 
                 await globalNavigation.goToProfilePage();

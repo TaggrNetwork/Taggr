@@ -30,7 +30,7 @@ export const Feed = ({ params, heartbeat }) => {
                         currentRealm(),
                         tags,
                         users,
-                        page
+                        page,
                     );
                 }}
                 heartbeat={heartbeat + filter + params}

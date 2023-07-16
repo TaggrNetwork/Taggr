@@ -17,7 +17,7 @@ export class AcceptInvitePage {
 
     constructor(
         private readonly page: Page,
-        private readonly inviteUrl: string
+        private readonly inviteUrl: string,
     ) {
         this.loginWithInternetIdentityButton = page.locator("button", {
             hasText: "INTERNET IDENTITY",
@@ -27,7 +27,7 @@ export class AcceptInvitePage {
         });
         this.seedPhraseInput = page.getByPlaceholder("Enter your password");
         this.seedPhraseConfirmInput = page.getByPlaceholder(
-            "Repeat your password"
+            "Repeat your password",
         );
         this.seedPhraseJoinButton = page.locator("button", { hasText: "JOIN" });
     }

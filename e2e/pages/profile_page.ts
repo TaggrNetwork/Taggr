@@ -13,7 +13,7 @@ export class ProfilePage {
 
     constructor(
         private readonly page: Page,
-        private readonly user: CommonUser
+        private readonly user: CommonUser,
     ) {
         this.cycles = page
             .locator("div:has-text('CYCLES') > code")
@@ -75,7 +75,7 @@ export class ProfilePage {
     public async getPostByContent(content: string): Promise<PostElement> {
         return new PostElement(
             this.page,
-            this.posts.filter({ hasText: content })
+            this.posts.filter({ hasText: content }),
         );
     }
 }

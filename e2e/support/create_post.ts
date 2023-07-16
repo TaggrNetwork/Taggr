@@ -6,7 +6,7 @@ import { CommonUser } from "./create_user";
 
 export async function initPost(
     page: Page,
-    user: CommonUser
+    user: CommonUser,
 ): Promise<NewPostPage> {
     const globalNavigation = new GlobalNavigationElement(page, user);
     await globalNavigation.goToHomePage();
@@ -22,7 +22,7 @@ export async function initPost(
 
 export async function createPost(
     page: Page,
-    user: CommonUser
+    user: CommonUser,
 ): Promise<string> {
     const newPostPage = await initPost(page, user);
     const postTextContent = await newPostPage.editor.getContent();
@@ -33,7 +33,7 @@ export async function createPost(
 
 export async function createRealmPost(
     page: Page,
-    user: CommonUser
+    user: CommonUser,
 ): Promise<string> {
     const globalNavigation = new GlobalNavigationElement(page, user);
     const newPostPage = await globalNavigation.goToNewPostPage();
@@ -46,7 +46,7 @@ export async function createRealmPost(
 export async function createPostWithHashTag(
     page: Page,
     user: CommonUser,
-    hashtag?: string
+    hashtag?: string,
 ): Promise<string> {
     const newPostPage = await initPost(page, user);
 
@@ -63,7 +63,7 @@ export async function createPostWithHashTag(
 export async function createPostWithText(
     page: Page,
     user: CommonUser,
-    text: string
+    text: string,
 ): Promise<string> {
     const newPostPage = await initPost(page, user);
 

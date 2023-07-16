@@ -11,7 +11,7 @@ export const percentage = (n, total) => {
 
 export const hex = (arr) =>
     Array.from(arr, (byte) =>
-        ("0" + (byte & 0xff).toString(16)).slice(-2)
+        ("0" + (byte & 0xff).toString(16)).slice(-2),
     ).join("");
 
 export const FileUploadInput = ({ classNameArg, callback }) => (
@@ -24,7 +24,7 @@ export const FileUploadInput = ({ classNameArg, callback }) => (
             const content = new Uint8Array(await loadFile(file));
             if (content.byteLength > MAX_POST_SIZE_BYTES) {
                 alert(
-                    `Error: the binary cannot be larger than ${MAX_POST_SIZE_BYTES} bytes.`
+                    `Error: the binary cannot be larger than ${MAX_POST_SIZE_BYTES} bytes.`,
                 );
                 return;
             }
@@ -329,7 +329,7 @@ export const Loading = ({ classNameArg, spaced = true }) => {
                     </span>
                 ) : (
                     v
-                )
+                ),
             )}
         </div>
     );
@@ -347,7 +347,7 @@ export const expandUser = (post) => {
 
 export const blobToUrl = (blob) =>
     URL.createObjectURL(
-        new Blob([new Uint8Array(blob).buffer], { type: "image/png" })
+        new Blob([new Uint8Array(blob).buffer], { type: "image/png" }),
     );
 
 export const isRoot = (post) => post.parent == null;
@@ -361,7 +361,7 @@ export const userList = (ids = []) =>
 
 export const token = (n) =>
     Math.ceil(
-        n / Math.pow(10, backendCache.config.token_decimals)
+        n / Math.pow(10, backendCache.config.token_decimals),
     ).toLocaleString();
 
 export const ReactionToggleButton = ({
@@ -411,18 +411,18 @@ export const loadPostBlobs = async (files) => {
             const [blobId, bucket_id] = id.split("@");
             const [offset, len] = files[id];
             const arg = Buffer.from(
-                intToBEBytes(offset).concat(intToBEBytes(len))
+                intToBEBytes(offset).concat(intToBEBytes(len)),
             );
             // This allows us to see the bucket pics in dev mode.
             const api = backendCache.stats.buckets.every(
-                ([id]) => id != bucket_id
+                ([id]) => id != bucket_id,
             )
                 ? window.mainnet_api
                 : window.api;
             return api
                 .query_raw(bucket_id, "read", arg)
                 .then((blob) => [blobId, blob]);
-        })
+        }),
     );
     return blobs.reduce((acc, [blobId, blob]) => {
         acc[blobId] = blob;
@@ -502,7 +502,7 @@ export const FlagButton = ({ id, domain, text }) => (
                             ? "reporting_penalty_post"
                             : "reporting_penalty_misbehaviour"
                     ] +
-                    ` cycles and karma. If you want to continue, please justify the report.`
+                    ` cycles and karma. If you want to continue, please justify the report.`,
             );
             if (reason) {
                 let response = await api.call("report", domain, id, reason);
@@ -558,7 +558,7 @@ export const ReportBanner = ({ id, reportArg, domain }) => {
                                     "vote_on_report",
                                     domain,
                                     id,
-                                    val
+                                    val,
                                 );
                                 if ("Err" in result) {
                                     alert(`Error: ${result.Err}`);
@@ -570,7 +570,7 @@ export const ReportBanner = ({ id, reportArg, domain }) => {
                                         : await api.query("user", [
                                               id.toString(),
                                           ])
-                                    ).report
+                                    ).report,
                                 );
                             }}
                             label={label}

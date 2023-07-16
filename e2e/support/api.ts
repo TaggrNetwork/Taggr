@@ -8,7 +8,7 @@ const canisterId = process.env["CANISTER_ID"];
 async function call(
     agent: HttpAgent,
     methodName: string,
-    arg: ArrayBuffer
+    arg: ArrayBuffer,
 ): Promise<void> {
     let { requestId } = await agent.call(canisterId, {
         methodName,
@@ -18,7 +18,7 @@ async function call(
         agent,
         Principal.fromText(canisterId),
         requestId,
-        polling.defaultStrategy()
+        polling.defaultStrategy(),
     );
 }
 

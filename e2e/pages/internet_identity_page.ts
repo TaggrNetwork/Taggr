@@ -29,7 +29,7 @@ export class InternetIdentityPage {
         });
 
         this.readonlyAnchorInput = page.locator(
-            "label:has-text('Identity Anchor:') + div"
+            "label:has-text('Identity Anchor:') + div",
         );
         this.anchorContinueButton = page.locator("button", {
             hasText: "Continue",

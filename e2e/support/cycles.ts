@@ -7,7 +7,7 @@ import { icpToE8s } from "./conversion";
 export async function topUpCycles(
     page: Page,
     user: CommonUser,
-    kiloCycles = 1
+    kiloCycles = 1,
 ): Promise<void> {
     const ledger = await createLedgerClient();
 

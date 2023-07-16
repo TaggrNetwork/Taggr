@@ -60,12 +60,12 @@ export const Profile = ({ handle }) => {
     const showReport =
         profile.report && !profile.report.closed && user && user.stalwart;
     const karma_from_last_posts = Object.entries(
-        profile.karma_from_last_posts
+        profile.karma_from_last_posts,
     ).filter(([_, karma]) => karma >= 0);
     karma_from_last_posts.sort(([_id1, e1], [_id2, e2]) => e2 - e1);
     const endorsementsTotal = karma_from_last_posts.reduce(
         (acc, [_, karma]) => acc + karma,
-        0
+        0,
     );
 
     const title = (
@@ -224,7 +224,7 @@ export const Profile = ({ handle }) => {
                                 <code>
                                     {Math.max(
                                         0,
-                                        stalwartMinKarma() - profile.karma
+                                        stalwartMinKarma() - profile.karma,
                                     )}
                                 </code>
                             </div>
@@ -239,11 +239,11 @@ export const Profile = ({ handle }) => {
                                                 7 *
                                                 daySeconds -
                                                 secondsSince(
-                                                    profile.timestamp
+                                                    profile.timestamp,
                                                 )) /
                                                 daySeconds /
-                                                7
-                                        )
+                                                7,
+                                        ),
                                     )}{" "}
                                     WEEKS
                                 </code>
@@ -255,7 +255,7 @@ export const Profile = ({ handle }) => {
                                         0,
                                         backendCache.config
                                             .min_stalwart_activity_weeks -
-                                            profile.active_weeks
+                                            profile.active_weeks,
                                     )}{" "}
                                     WEEKS
                                 </code>
@@ -277,7 +277,7 @@ export const Profile = ({ handle }) => {
                                         0,
                                         backendCache.config
                                             .trusted_user_min_karma -
-                                            profile.karma
+                                            profile.karma,
                                     )}
                                 </code>
                             </div>
@@ -291,10 +291,10 @@ export const Profile = ({ handle }) => {
                                                 .trusted_user_min_age_weeks *
                                                 7 -
                                                 secondsSince(
-                                                    profile.timestamp
+                                                    profile.timestamp,
                                                 ) /
-                                                    daySeconds
-                                        )
+                                                    daySeconds,
+                                        ),
                                     )}{" "}
                                     DAYS
                                 </code>
@@ -314,12 +314,12 @@ export const Profile = ({ handle }) => {
                         return await api.query(
                             "rewarded_posts",
                             profile.id.toString(),
-                            page
+                            page,
                         );
                     return await api.query(
                         "user_posts",
                         profile.id.toString(),
-                        page
+                        page,
                     );
                 }}
                 heartbeat={profile.id + tab}
@@ -352,7 +352,7 @@ export const UserInfo = ({ profile }) => {
                     followeesVisible,
                     setFolloweesVisibility,
                     profile.followees.length,
-                    userList(profile.followees)
+                    userList(profile.followees),
                 )}
             </div>
         ) : null;
@@ -364,7 +364,7 @@ export const UserInfo = ({ profile }) => {
                     followersVisible,
                     setFollowersVisibility,
                     profile.followers.length,
-                    userList(profile.followers)
+                    userList(profile.followers),
                 )}
             </div>
         ) : null;
@@ -378,7 +378,7 @@ export const UserInfo = ({ profile }) => {
                               {feedRepr}
                           </a>
                       );
-                  })
+                  }),
               )
             : null;
     const realms =
@@ -536,7 +536,7 @@ const stalwart = (profile) =>
 const stalwartMinKarma = () =>
     Math.min(
         backendCache.config.proposal_rejection_penalty,
-        backendCache.karma[backendCache.stats.stalwarts.at(-1)] || 0
+        backendCache.karma[backendCache.stats.stalwarts.at(-1)] || 0,
     );
 
 const linkPost = (line) => {

@@ -17,7 +17,7 @@ export class WalletPage {
             "button:near(h2:has-text('ICP'))",
             {
                 hasText: "TRANSFER",
-            }
+            },
         );
         this.cyclesAmountElement = page.getByTestId("cycles-amount");
         this.mintCyclesAmountButton = page.locator("button", {

@@ -28,7 +28,7 @@ export const PostSubmissionForm = ({ id, repost }) => {
                 text,
                 blobs,
                 patch,
-                optionalRealm
+                optionalRealm,
             );
             if ("Err" in response) {
                 alert(`Error: ${response.Err}`);
@@ -41,7 +41,7 @@ export const PostSubmissionForm = ({ id, repost }) => {
                 blobs,
                 [],
                 optionalRealm,
-                encodeExtension(extension)
+                encodeExtension(extension),
             );
             if ("Err" in result) {
                 return alert(`Error: ${result.Err}`);

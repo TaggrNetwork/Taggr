@@ -67,7 +67,7 @@ export const applyTheme = (palette) => {
     const styleNode = document.getElementById("style");
     styleNode.innerText = Object.keys(effPalette).reduce(
         (acc, color) => acc.replaceAll(`$${color}`, effPalette[color]),
-        template
+        template,
     );
     document.getElementsByName("theme-color")[0].content =
         effPalette.background;

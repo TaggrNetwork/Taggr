@@ -65,7 +65,7 @@ export class HomePage {
     public async getPostByContent(content: string): Promise<PostElement> {
         return new PostElement(
             this.page,
-            this.posts.filter({ hasText: content })
+            this.posts.filter({ hasText: content }),
         );
     }
 }

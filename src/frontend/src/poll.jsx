@@ -15,7 +15,7 @@ export const Poll = ({ poll, post_id, created }) => {
         .map((votes) => votes.length)
         .reduce((acc, e) => acc + e, 0);
     const createdHoursAgo = Math.floor(
-        (Number(new Date()) - parseInt(created) / 1000000) / 1000 / 3600
+        (Number(new Date()) - parseInt(created) / 1000000) / 1000 / 3600,
     );
     const expired = createdHoursAgo >= poll.deadline;
     const showVoting = !isNaN(user_id) && !voted && !expired;
@@ -23,7 +23,7 @@ export const Poll = ({ poll, post_id, created }) => {
         Object.keys(obj).reduce(
             ([maxKey, maxVal], key) =>
                 obj[key] > maxVal ? [key, obj[key]] : [maxKey, maxVal],
-            [null, 0]
+            [null, 0],
         )[0];
 
     return (
@@ -54,14 +54,14 @@ export const Poll = ({ poll, post_id, created }) => {
                                     let vote = e.target.value;
                                     if (
                                         !confirm(
-                                            `Please confirm your choice: ${data.options[vote]}`
+                                            `Please confirm your choice: ${data.options[vote]}`,
                                         )
                                     )
                                         return;
                                     api.call(
                                         "vote_on_poll",
                                         post_id,
-                                        parseInt(vote)
+                                        parseInt(vote),
                                     ).then((response) => {
                                         if (response.Err) {
                                             alert(`Error: ${response.Err}!`);

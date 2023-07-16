@@ -45,7 +45,7 @@ function canonicalRegex(url: string): RegExp {
 
     return new RegExp(
         `<link\\s*href="${escapedUrl}"\\s*rel="canonical"\\s*/>`,
-        "i"
+        "i",
     );
 }
 
@@ -54,7 +54,7 @@ function ogUrlRegex(url: string): RegExp {
 
     return new RegExp(
         `<meta\\s*content="${escapedUrl}"\\s*property="og:url"\\s*/>`,
-        "i"
+        "i",
     );
 }
 
@@ -64,13 +64,13 @@ function titleRegex(title: string): RegExp {
 
 function ogTitleRegex(title: string): RegExp {
     return new RegExp(
-        `<meta\\s*content="${title}"\\s*property="og:title"\\s*/>`
+        `<meta\\s*content="${title}"\\s*property="og:title"\\s*/>`,
     );
 }
 
 function twitterTitleRegex(title: string): RegExp {
     return new RegExp(
-        `<meta\\s*content="${title}"\\s*property="twitter:title"\\s*/>`
+        `<meta\\s*content="${title}"\\s*property="twitter:title"\\s*/>`,
     );
 }
 
@@ -94,7 +94,7 @@ function descriptionRegex(description: string): RegExp {
     const seoDescription = prepareDescription(description);
 
     return new RegExp(
-        `<meta\\s*content="${seoDescription}"\\s*name="description"\\s*/>`
+        `<meta\\s*content="${seoDescription}"\\s*name="description"\\s*/>`,
     );
 }
 
@@ -102,7 +102,7 @@ function ogDescriptionRegex(description: string): RegExp {
     const seoDescription = prepareDescription(description);
 
     return new RegExp(
-        `<meta\\s*content="${seoDescription}"\\s*property="og:description"\\s*/>`
+        `<meta\\s*content="${seoDescription}"\\s*property="og:description"\\s*/>`,
     );
 }
 
@@ -110,7 +110,7 @@ function twitterDescriptionRegex(description: string): RegExp {
     const seoDescription = prepareDescription(description);
 
     return new RegExp(
-        `<meta\\s*content="${seoDescription}"\\s*property="twitter:description"\\s*/>`
+        `<meta\\s*content="${seoDescription}"\\s*property="twitter:description"\\s*/>`,
     );
 }
 
@@ -123,7 +123,7 @@ function checkMetadata(
     url: string,
     title: string,
     description: string,
-    type: string
+    type: string,
 ): void {
     expect(html).toMatch(canonicalRegex(url));
     expect(html).toMatch(ogUrlRegex(url));
@@ -213,7 +213,7 @@ test("seo and metadata", async ({ page, baseURL, browser }) => {
                 const user = await createSeedPhraseUser(page);
                 const globalNavigation = new GlobalNavigationElement(
                     page,
-                    user
+                    user,
                 );
 
                 const homePage = await globalNavigation.goToHomePage();

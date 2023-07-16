@@ -61,7 +61,7 @@ test("wallet", async ({ page }) => {
             });
             const fee = await ledger.transactionFee();
             expect(transferredAmount).toEqual(
-                originalBalance + e8sToWithdraw - fee
+                originalBalance + e8sToWithdraw - fee,
             );
 
             const amountOnPage = await walletPage.getIcpAmount();
@@ -78,7 +78,7 @@ test("wallet", async ({ page }) => {
         await walletPage.mintCycles(kiloCycles);
         const updatedCyclesAmount = await walletPage.getCyclesAmount();
         expect(updatedCyclesAmount).toEqual(
-            initialCyclesAmount + kiloCycles * 1_000
+            initialCyclesAmount + kiloCycles * 1_000,
         );
 
         const icpAmountAfterCycleMinting = await walletPage.getIcpAmount();
@@ -88,7 +88,7 @@ test("wallet", async ({ page }) => {
             (amountToDeduct / BigInt(100_000)) * BigInt(100_000);
 
         expect(icpAmountAfterCycleMinting).toEqual(
-            icpAfterWithdraw - roundedAmountToDeduct
+            icpAfterWithdraw - roundedAmountToDeduct,
         );
     });
 });

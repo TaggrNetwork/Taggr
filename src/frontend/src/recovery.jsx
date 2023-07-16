@@ -15,7 +15,7 @@ export const Recovery = () => {
                     callback={async (binary) => {
                         if (
                             !confirm(
-                                "Do you really want to upload a new binary? This will reset all existing votes."
+                                "Do you really want to upload a new binary? This will reset all existing votes.",
                             )
                         )
                             return;
@@ -33,29 +33,30 @@ export const Recovery = () => {
                         </ul>
                     </>
                 )}
-                {api._user && !emergency_votes.includes(api._user.principal) && (
-                    <>
-                        <h2>Confirm binary</h2>
-                        <input
-                            type="text"
-                            value={hash}
-                            onChange={(e) => setHash(e.target.value)}
-                        />
-                        <ButtonWithLoading
-                            onClick={async () => {
-                                await api.call(
-                                    "confirm_emergency_release",
-                                    hash
-                                );
-                                alert(
-                                    "Your vote was submitted. If the hash was correct, your principal will appear in the list of supporters."
-                                );
-                                location.reload();
-                            }}
-                            label="SUBMIT"
-                        />
-                    </>
-                )}
+                {api._user &&
+                    !emergency_votes.includes(api._user.principal) && (
+                        <>
+                            <h2>Confirm binary</h2>
+                            <input
+                                type="text"
+                                value={hash}
+                                onChange={(e) => setHash(e.target.value)}
+                            />
+                            <ButtonWithLoading
+                                onClick={async () => {
+                                    await api.call(
+                                        "confirm_emergency_release",
+                                        hash,
+                                    );
+                                    alert(
+                                        "Your vote was submitted. If the hash was correct, your principal will appear in the list of supporters.",
+                                    );
+                                    location.reload();
+                                }}
+                                label="SUBMIT"
+                            />
+                        </>
+                    )}
             </div>
         </>
     );

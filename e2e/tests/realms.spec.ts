@@ -64,10 +64,10 @@ test("realms", async ({ page, browser }) => {
                 const user = await createSeedPhraseUser(page);
                 const globalNavigation = new GlobalNavigationElement(
                     page,
-                    user
+                    user,
                 );
                 await expect(
-                    globalNavigation.toggleRealmsButton
+                    globalNavigation.toggleRealmsButton,
                 ).not.toBeVisible();
 
                 const realmListPage = await globalNavigation.goToRealmsPage();

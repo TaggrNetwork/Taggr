@@ -21,7 +21,10 @@ export class PostElement {
     private readonly bookmarkButton: Locator;
     private readonly linkButton: Locator;
 
-    constructor(private readonly page: Page, public readonly element: Locator) {
+    constructor(
+        private readonly page: Page,
+        public readonly element: Locator,
+    ) {
         this.editor = new PostEditorElement(page, element.locator("form"));
         this.infoToggleButton = element.getByTestId("post-info-toggle");
         this.commentsToggleButton = element.getByTestId("post-comments-toggle");
@@ -53,7 +56,7 @@ export class PostElement {
     public getCommentByContent(content: string): PostElement {
         return new PostElement(
             this.page,
-            this.comments.filter({ hasText: content })
+            this.comments.filter({ hasText: content }),
         );
     }
 
@@ -100,7 +103,7 @@ export class PostElement {
         await this.infoToggleButton.click();
 
         const heartReactionButton = this.element.getByTestId(
-            `give-${reaction}-reaction`
+            `give-${reaction}-reaction`,
         );
         await heartReactionButton.click();
 

@@ -35,7 +35,7 @@ export const Tokens = () => {
         const txs = await window.api.query(
             "transactions",
             txPage,
-            userToPrincipal[term.toLowerCase()] || term
+            userToPrincipal[term.toLowerCase()] || term,
         );
         if (txs.length == 0) {
             setNoMoreData(true);
@@ -76,7 +76,7 @@ export const Tokens = () => {
                             <code>
                                 {1 <<
                                     Math.floor(
-                                        (10 * mintedSupply) / total_supply
+                                        (10 * mintedSupply) / total_supply,
                                     )}
                                 :1
                             </code>
@@ -189,7 +189,7 @@ export const Transaction = ({ id }) => {
     const [tx, setTransaction] = React.useState(null);
     React.useEffect(() => {
         api.query("transaction", id).then((result) =>
-            setTransaction("Err" in result ? 404 : result.Ok)
+            setTransaction("Err" in result ? 404 : result.Ok),
         );
     }, []);
     if (!tx) return <Loading />;
@@ -205,7 +205,7 @@ export const Transaction = ({ id }) => {
                     TIMESTAMP:{" "}
                     <code>
                         {new Date(
-                            parseInt(tx.timestamp) / 1000000
+                            parseInt(tx.timestamp) / 1000000,
                         ).toLocaleString()}
                     </code>
                 </div>

@@ -3,11 +3,11 @@ import { customAlphabet, nanoid } from "nanoid";
 const generateAlphaString = customAlphabet("abcdefghijklmnopqrstuvxzy");
 
 const generateAlphanumericalString = customAlphabet(
-    "0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvxzy"
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvxzy",
 );
 
 const generateLowerAlphanumericalString = customAlphabet(
-    "0123456789abcdefghijklmnopqrstuvxzy"
+    "0123456789abcdefghijklmnopqrstuvxzy",
 );
 
 export function randomIntInRange(low = 0, high = 10): number {
@@ -43,7 +43,7 @@ export function generateText(numWords = 30): string {
 }
 
 export function generateUsername(
-    usernameLength = randomIntInRange(2, 16)
+    usernameLength = randomIntInRange(2, 16),
 ): string {
     const username = generateAlphanumericalString(usernameLength);
 

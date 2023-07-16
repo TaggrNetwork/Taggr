@@ -14,7 +14,7 @@ export interface InternetIdentityUser extends CommonUser {
 
 // [TODO] - currently not used, use when agent-js@0.15.7 or higher is released
 export async function createInternetIdentityUser(
-    page: Page
+    page: Page,
 ): Promise<InternetIdentityUser> {
     const homePage = new HomePage(page);
     await homePage.goto();
@@ -36,7 +36,7 @@ export interface SeedPhraseUser extends CommonUser {
 }
 
 export async function createSeedPhraseUser(
-    page: Page
+    page: Page,
 ): Promise<SeedPhraseUser> {
     const homePage = new HomePage(page);
     await homePage.goto();

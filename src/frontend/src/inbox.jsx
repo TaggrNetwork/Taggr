@@ -52,7 +52,7 @@ export const Inbox = () => {
                         msg = `\`${
                             message.WatchedPostEntries.length
                         }\` new thread updates ${message.WatchedPostEntries.map(
-                            (id) => `[#${id}](#/thread/${id})`
+                            (id) => `[#${id}](#/thread/${id})`,
                         ).join(", ")} on the watched post`;
                     }
                     return (

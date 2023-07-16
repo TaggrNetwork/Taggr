@@ -10,7 +10,7 @@ export class NewRealmPage {
     constructor(private readonly page: Page) {
         this.realmNameInput = page.getByPlaceholder("ALPHANUMERIC");
         this.realmDescriptionInput = page.locator(
-            "textarea:near(div:has-text('DESCRIPTION'))"
+            "textarea:near(div:has-text('DESCRIPTION'))",
         );
         this.createButton = page
             .locator("button", { hasText: "CREATE" })

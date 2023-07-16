@@ -28,7 +28,7 @@ export const Search = () => {
                             setSearching(true);
                             setResults(await api.query("search", term));
                             setSearching(false);
-                        }, 300)
+                        }, 300),
                     );
                 }}
             />

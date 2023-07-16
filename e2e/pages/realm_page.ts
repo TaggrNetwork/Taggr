@@ -8,7 +8,7 @@ export class RealmPage {
 
     constructor(
         private readonly page: Page,
-        public readonly realmName: string
+        public readonly realmName: string,
     ) {
         this.leaveRealmButton = page.locator("button", { hasText: "LEAVE" });
         this.joinRealmButton = page.locator("button", { hasText: "JOIN" });

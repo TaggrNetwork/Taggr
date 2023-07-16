@@ -13,7 +13,7 @@ function initCanisterEnv() {
         localCanisters = require(path.resolve(
             ".dfx",
             "local",
-            "canister_ids.json"
+            "canister_ids.json",
         ));
     } catch (error) {
         console.log("No local canister_ids.json found. Continuing production");
@@ -22,7 +22,7 @@ function initCanisterEnv() {
         prodCanisters = require(path.resolve("canister_ids.json"));
     } catch (error) {
         console.log(
-            "No production canister_ids.json found. Continuing with local"
+            "No production canister_ids.json found. Continuing with local",
         );
     }
 
@@ -100,7 +100,7 @@ module.exports = {
                         __dirname,
                         "src",
                         frontendDirectory,
-                        "assets"
+                        "assets",
                     ),
                     to: path.join(__dirname, "dist", frontendDirectory),
                 },

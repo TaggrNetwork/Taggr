@@ -29,7 +29,7 @@ export const authMethods = [
                 (location.href.includes(".raw") ||
                     location.href.includes("share.")) &&
                 confirm(
-                    "You're using the uncertified insecure frontend. Do you want to be re-routed to the certified one?"
+                    "You're using the uncertified insecure frontend. Do you want to be re-routed to the certified one?",
                 )
             ) {
                 location.href = location.href.replace(".raw", "");
@@ -56,11 +56,11 @@ export const authMethods = [
                     const hash = new Uint8Array(
                         await crypto.subtle.digest(
                             "SHA-256",
-                            new TextEncoder().encode(seed)
-                        )
+                            new TextEncoder().encode(seed),
+                        ),
                     );
                     let serializedIdentity = JSON.stringify(
-                        Ed25519KeyIdentity.generate(hash).toJSON()
+                        Ed25519KeyIdentity.generate(hash).toJSON(),
                     );
                     localStorage.setItem("IDENTITY", serializedIdentity);
                     localStorage.setItem("SEED_PHRASE", true);

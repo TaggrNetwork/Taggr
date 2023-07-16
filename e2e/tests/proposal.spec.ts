@@ -65,7 +65,7 @@ test("adopt a release proposal", async () => {
                 async (page) => {
                     const globalNavigation = new GlobalNavigationElement(
                         page,
-                        stalwart
+                        stalwart,
                     );
                     const proposalsPage =
                         await globalNavigation.goToProposalsPage();
@@ -77,19 +77,19 @@ test("adopt a release proposal", async () => {
                         "target",
                         "wasm32-unknown-unknown",
                         "release",
-                        "taggr.wasm.gz"
+                        "taggr.wasm.gz",
                     );
                     const description = generateText();
 
                     await proposalsPage.createReleaseProposal(
                         commitHash,
                         binaryPath,
-                        description
+                        description,
                     );
                     const buildHash = await hashFile(binaryPath);
 
                     return [buildHash, description];
-                }
+                },
             );
         });
 
@@ -97,12 +97,12 @@ test("adopt a release proposal", async () => {
         await performInExistingContext(trustedUserContext, async (page) => {
             const globalNavigation = new GlobalNavigationElement(
                 page,
-                trustedUser
+                trustedUser,
             );
             const proposalsPage = await globalNavigation.goToProposalsPage();
 
             const proposal = await proposalsPage.getProposalByContent(
-                proposalDescription
+                proposalDescription,
             );
             expect(proposal.statusElement).toHaveText("OPEN");
 
@@ -119,7 +119,7 @@ test("reject a release proposal", async () => {
         return await performInExistingContext(stalwartContext, async (page) => {
             const globalNavigation = new GlobalNavigationElement(
                 page,
-                stalwart
+                stalwart,
             );
             const proposalsPage = await globalNavigation.goToProposalsPage();
             const commitHash = generateGitCommitHash();
@@ -130,14 +130,14 @@ test("reject a release proposal", async () => {
                 "target",
                 "wasm32-unknown-unknown",
                 "release",
-                "taggr.wasm.gz"
+                "taggr.wasm.gz",
             );
             const description = generateText();
 
             await proposalsPage.createReleaseProposal(
                 commitHash,
                 binaryPath,
-                description
+                description,
             );
 
             return description;
@@ -148,12 +148,12 @@ test("reject a release proposal", async () => {
         await performInExistingContext(trustedUserContext, async (page) => {
             const globalNavigation = new GlobalNavigationElement(
                 page,
-                trustedUser
+                trustedUser,
             );
             const proposalsPage = await globalNavigation.goToProposalsPage();
 
             const proposal = await proposalsPage.getProposalByContent(
-                proposalDescription
+                proposalDescription,
             );
             expect(proposal.statusElement).toHaveText("OPEN");
 
@@ -164,11 +164,11 @@ test("reject a release proposal", async () => {
         await performInExistingContext(stalwartContext, async (page) => {
             const globalNavigation = new GlobalNavigationElement(
                 page,
-                stalwart
+                stalwart,
             );
             const proposalsPage = await globalNavigation.goToProposalsPage();
             const proposal = await proposalsPage.getProposalByContent(
-                proposalDescription
+                proposalDescription,
             );
 
             await proposal.reject();

@@ -6,7 +6,7 @@ import { CANISTER_ID } from "./env";
 export const Api = (
     defaultCanisterId: string,
     identity: Identity,
-    mainnetMode: boolean
+    mainnetMode: boolean,
 ) => {
     let defaultPrincipal = Principal.fromText(defaultCanisterId);
     const options: HttpAgentOptions = { identity };
@@ -15,7 +15,7 @@ export const Api = (
     if (!mainnetMode)
         agent.fetchRootKey().catch((err) => {
             console.warn(
-                "Unable to fetch root key. Check to ensure that your local replica is running"
+                "Unable to fetch root key. Check to ensure that your local replica is running",
             );
             console.error(err);
         });
@@ -23,12 +23,12 @@ export const Api = (
     const query_raw = async (
         canisterId = defaultCanisterId,
         methodName: string,
-        arg = new ArrayBuffer(0)
+        arg = new ArrayBuffer(0),
     ): Promise<ArrayBuffer | null> => {
         let response = await agent.query(
             canisterId,
             { methodName, arg },
-            identity
+            identity,
         );
         if (response.status != "replied") {
             console.error(response);
@@ -43,7 +43,7 @@ export const Api = (
         arg1: unknown,
         arg2: unknown,
         arg3: unknown,
-        arg4: unknown
+        arg4: unknown,
     ): Promise<T | null> => {
         let effParams = getEffParams([arg0, arg1, arg2, arg3, arg4]);
         const arg = Buffer.from(JSON.stringify(effParams));
@@ -58,12 +58,12 @@ export const Api = (
     const call_raw = async (
         canisterId = defaultPrincipal,
         methodName: string,
-        arg: ArrayBuffer
+        arg: ArrayBuffer,
     ): Promise<ArrayBuffer | null> => {
         let { response, requestId } = await agent.call(
             canisterId,
             { methodName, arg },
-            identity
+            identity,
         );
         if (!response.ok) {
             console.error(`Call error: ${response.statusText}`);
@@ -73,7 +73,7 @@ export const Api = (
             agent,
             canisterId,
             requestId,
-            polling.defaultStrategy()
+            polling.defaultStrategy(),
         );
     };
 
@@ -84,13 +84,13 @@ export const Api = (
         arg2: unknown,
         arg3: unknown,
         arg4: unknown,
-        arg5: unknown
+        arg5: unknown,
     ): Promise<T | null> => {
         const effParams = getEffParams([arg0, arg1, arg2, arg3, arg4, arg5]);
         const responseBytes = await call_raw(
             undefined,
             methodName,
-            Buffer.from(JSON.stringify(effParams))
+            Buffer.from(JSON.stringify(effParams)),
         );
         if (!responseBytes || !responseBytes.byteLength) {
             return null;
@@ -103,13 +103,13 @@ export const Api = (
         query_raw,
         call,
         set_emergency_release: async (
-            blob: Uint8Array
+            blob: Uint8Array,
         ): Promise<JsonValue | null> => {
             const arg = IDL.encode([IDL.Vec(IDL.Nat8)], [blob]);
             const response = await call_raw(
                 undefined,
                 "set_emergency_release",
-                arg
+                arg,
             );
             if (!response) {
                 return null;
@@ -119,11 +119,11 @@ export const Api = (
         propose_release: async (
             text: string,
             commit: string,
-            blob: Uint8Array
+            blob: Uint8Array,
         ): Promise<JsonValue | null> => {
             const arg = IDL.encode(
                 [IDL.Text, IDL.Text, IDL.Vec(IDL.Nat8)],
-                [text, commit, blob]
+                [text, commit, blob],
             );
             const response = await call_raw(undefined, "propose_release", arg);
             if (!response) {
@@ -131,7 +131,7 @@ export const Api = (
             }
             return IDL.decode(
                 [IDL.Variant({ Ok: IDL.Nat32, Err: IDL.Text })],
-                response
+                response,
             )[0];
         },
         add_post: async (
@@ -139,7 +139,7 @@ export const Api = (
             blobs: [string, Uint8Array][],
             parent?: number,
             realm?: string,
-            extension?: Uint8Array
+            extension?: Uint8Array,
         ): Promise<JsonValue | null> => {
             const arg = IDL.encode(
                 [
@@ -149,7 +149,7 @@ export const Api = (
                     IDL.Opt(IDL.Text),
                     IDL.Opt(IDL.Vec(IDL.Nat8)),
                 ],
-                [text, blobs, parent, realm, extension]
+                [text, blobs, parent, realm, extension],
             );
             const response = await call_raw(undefined, "add_post", arg);
             if (!response) {
@@ -157,7 +157,7 @@ export const Api = (
             }
             return IDL.decode(
                 [IDL.Variant({ Ok: IDL.Nat64, Err: IDL.Text })],
-                response
+                response,
             )[0];
         },
         edit_post: async (
@@ -165,7 +165,7 @@ export const Api = (
             text: string,
             blobs: [string, Uint8Array][],
             patch: string,
-            realm?: string
+            realm?: string,
         ): Promise<JsonValue | null> => {
             const arg = IDL.encode(
                 [
@@ -175,7 +175,7 @@ export const Api = (
                     IDL.Text,
                     IDL.Opt(IDL.Text),
                 ],
-                [id, text, blobs, patch, realm]
+                [id, text, blobs, patch, realm],
             );
             const response = await call_raw(undefined, "edit_post", arg);
             if (!response) {
@@ -183,18 +183,18 @@ export const Api = (
             }
             return IDL.decode(
                 [IDL.Variant({ Ok: IDL.Null, Err: IDL.Text })],
-                response
+                response,
             )[0];
         },
         account_balance: async (address: string): Promise<number | null> => {
             const arg = IDL.encode(
                 [IDL.Record({ account: IDL.Vec(IDL.Nat8) })],
-                [{ account: hexToBytes(address) }]
+                [{ account: hexToBytes(address) }],
             );
             const response = await query_raw(
                 "ryjl3-tyaaa-aaaaa-aaaba-cai",
                 "account_balance",
-                arg
+                arg,
             );
 
             if (!response) {

@@ -17,7 +17,7 @@ function base64ToUInt8Array(base64String: string): Uint8Array {
 
 const mintingIdentity = Ed25519KeyIdentity.fromKeyPair(
     base64ToUInt8Array(publicKey),
-    base64ToUInt8Array(privateKey)
+    base64ToUInt8Array(privateKey),
 );
 
 export const mintingPrincipal = mintingIdentity.getPrincipal();
@@ -44,7 +44,7 @@ export async function icpToTaggrCyclesRate(): Promise<bigint> {
         canisterId: Principal.fromUint8Array(
             new Uint8Array([
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x01, 0x01,
-            ])
+            ]),
         ),
     });
 

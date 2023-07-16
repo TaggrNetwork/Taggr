@@ -44,7 +44,7 @@ export const Settings = ({ invite = null }) => {
             "update_user",
             about,
             principal_ids,
-            JSON.stringify(settings)
+            JSON.stringify(settings),
         );
         if ("Err" in response) {
             alert(`Error: ${response.Err}`);
@@ -81,17 +81,17 @@ export const Settings = ({ invite = null }) => {
                                                 api
                                                     .query(
                                                         "validate_username",
-                                                        name
+                                                        name,
                                                     )
                                                     .then((result) =>
                                                         setLabel(
                                                             "Err" in result
                                                                 ? result.Err
-                                                                : "free!"
-                                                        )
+                                                                : "free!",
+                                                        ),
                                                     ),
-                                            300
-                                        )
+                                            300,
+                                        ),
                                     );
                                 setName(name);
                             }}
@@ -184,7 +184,7 @@ export const Settings = ({ invite = null }) => {
                                 onClick={async () => {
                                     let response = await api.call(
                                         "change_principal",
-                                        principal
+                                        principal,
                                     );
                                     if ("Err" in response) {
                                         alert(`Error: ${response.Err}`);
