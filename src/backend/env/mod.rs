@@ -840,7 +840,7 @@ impl State {
         }
     }
 
-    pub fn distribute_revenue(&mut self, e8s_for_1000_kps: u64) -> HashMap<UserId, u64> {
+    pub fn distribute_revenue(&mut self, e8s_for_one_xdr: u64) -> HashMap<UserId, u64> {
         let burned_cycles = self.burned_cycles;
         if burned_cycles <= 0 {
             return Default::default();
@@ -871,7 +871,7 @@ impl State {
             .map(|(user_id, balance)| {
                 let revenue_share =
                     burned_cycles as f64 * balance as f64 / supply_of_active_users as f64;
-                let e8s = (revenue_share / 1000.0 * e8s_for_1000_kps as f64) as u64;
+                let e8s = (revenue_share / 1000.0 * e8s_for_one_xdr as f64) as u64;
                 (user_id, e8s)
             })
             .collect()
@@ -962,7 +962,7 @@ impl State {
         }
     }
 
-    pub fn distribute_rewards(&mut self, e8s_for_1000_kps: u64) -> HashMap<UserId, u64> {
+    pub fn distribute_rewards(&mut self, e8s_for_one_xdr: u64) -> HashMap<UserId, u64> {
         for user in self.users.values_mut() {
             user.accounting.clear();
         }
@@ -973,7 +973,7 @@ impl State {
                 if user.karma() < 0 {
                     return None;
                 }
-                let e8s = (user.karma_to_reward() as f64 / 1000.0 * e8s_for_1000_kps as f64) as u64;
+                let e8s = (user.karma_to_reward() as f64 / 1000.0 * e8s_for_one_xdr as f64) as u64;
                 Some((user.id, e8s))
             })
             .collect()
@@ -1019,6 +1019,7 @@ impl State {
     }
 
     async fn distribute_icp(
+        e8s_for_one_xdr: u64,
         rewards: HashMap<UserId, u64>,
         revenue: HashMap<UserId, u64>,
     ) -> HashMap<UserId, Karma> {
@@ -1027,7 +1028,9 @@ impl State {
             let mut distr_info: HashMap<UserId, Karma> = Default::default();
             let total_payout =
                 rewards.values().copied().sum::<u64>() + revenue.values().copied().sum::<u64>();
-            if treasury_balance < total_payout {
+            // We stop distributions if the treasury balance falls below 38 XDRs ~ $50.
+            let minimal_treasury_balance = 38 * e8s_for_one_xdr;
+            if treasury_balance < total_payout || treasury_balance < minimal_treasury_balance {
                 state
                     .logger
                     .info("Treasury is too small, skipping the distributions...");
@@ -1302,14 +1305,14 @@ impl State {
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
             let user_ids = match invoices::get_xdr_in_e8s().await {
-                Ok(e8s_for_1000_kps) => {
+                Ok(e8s_for_one_xdr) => {
                     let (rewards, revenues) = mutate(|state| {
                         (
-                            state.distribute_rewards(e8s_for_1000_kps),
-                            state.distribute_revenue(e8s_for_1000_kps),
+                            state.distribute_rewards(e8s_for_one_xdr),
+                            state.distribute_revenue(e8s_for_one_xdr),
                         )
                     });
-                    State::distribute_icp(rewards, revenues).await
+                    State::distribute_icp(e8s_for_one_xdr, rewards, revenues).await
                 }
                 Err(err) => {
                     mutate(|state| {
