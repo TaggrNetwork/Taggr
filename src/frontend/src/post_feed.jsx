@@ -18,11 +18,15 @@ export const PostFeed = ({
     const [page, setPage] = React.useState(0);
     const [posts, setPosts] = React.useState([]);
     const [loading, setLoading] = React.useState(false);
-    const [displayPageFlipper, setPageVlipperVisibility] = React.useState(!comments && !thread);
+    const [displayPageFlipper, setPageVlipperVisibility] = React.useState(
+        !comments && !thread,
+    );
 
     const loadPage = async (page) => {
         setLoading(true);
-        let nextPosts = (await feedLoader(page, includeComments)).map(expandUser);
+        let nextPosts = (await feedLoader(page, includeComments)).map(
+            expandUser,
+        );
         const loaded = new Set(posts.map((post) => post.id));
         setPosts(page == 0 ? nextPosts : posts.concat(nextPosts));
         if (nextPosts.length < backendCache.config.feed_page_size)
