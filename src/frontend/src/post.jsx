@@ -93,7 +93,7 @@ export const Post = ({
     };
 
     React.useEffect(() => {
-        loadData();
+        if (!data) loadData();
     }, [id, version]);
     React.useEffect(() => {
         setRendering(false);
@@ -393,7 +393,7 @@ export const Post = ({
                     comments={true}
                     level={level + 1}
                     feedLoader={async () =>
-                        Object.values(await loadPosts(post.children))
+                        Object.values(await api.query("posts", post.children))
                     }
                     highlighted={highlighted}
                     classNameArg="left_spaced"

@@ -18,15 +18,15 @@ export const PostFeed = ({
     const [page, setPage] = React.useState(0);
     const [posts, setPosts] = React.useState([]);
     const [loading, setLoading] = React.useState(false);
-    const [noMoreData, setNoMoreData] = React.useState(comments);
+    const [displayPageFlipper, setPageVlipperVisibility] = React.useState(!comments && !thread);
 
     const loadPage = async (page) => {
         setLoading(true);
-        let nextPosts = await feedLoader(page, includeComments);
+        let nextPosts = (await feedLoader(page, includeComments)).map(expandUser);
         const loaded = new Set(posts.map((post) => post.id));
         setPosts(page == 0 ? nextPosts : posts.concat(nextPosts));
         if (nextPosts.length < backendCache.config.feed_page_size)
-            setNoMoreData(true);
+            setPageVlipperVisibility(false);
         setLoading(false);
     };
 
@@ -65,7 +65,7 @@ export const PostFeed = ({
             {(!loading || page > 0) &&
                 (useGrid && !comments ? renderGrid() : renderColumns())}
             {loading && <Loading />}
-            {!noMoreData && !loading && posts.length > 0 && (
+            {displayPageFlipper && !loading && posts.length > 0 && (
                 <div style={{ display: "flex", justifyContent: "center" }}>
                     <button
                         id="pageFlipper"
