@@ -27,8 +27,9 @@ export class RealmListPage {
             !(await realmLink.isVisible()) &&
             (await this.moreButton.isVisible())
         ) {
-            this.moreButton.click();
-            await this.page.waitForResponse("**/query");
+            await this.moreButton.click();
+            // wait for the update and read_state calls to complete
+            await this.page.waitForResponse("**/query", { timeout: 6000 });
         }
 
         await realmLink.click();

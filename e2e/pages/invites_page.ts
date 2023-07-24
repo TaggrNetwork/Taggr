@@ -3,15 +3,13 @@ import { Locator, Page, expect } from "@playwright/test";
 export class InvitesPage {
     private readonly createInviteButton: Locator;
     private readonly inviteCyclesInput: Locator;
-    private readonly loadingSpinner: Locator;
     private readonly openInvites: Locator;
 
     private existingInvites: string[] = [];
 
-    constructor(page: Page) {
+    constructor(private readonly page: Page) {
         this.createInviteButton = page.locator("button", { hasText: "CREATE" });
         this.inviteCyclesInput = page.locator("input").locator("visible=true");
-        this.loadingSpinner = page.getByTestId("loading-spinner");
         this.openInvites = page.locator("code", {
             hasText: /\/#\/welcome\/.*/,
         });
@@ -31,8 +29,8 @@ export class InvitesPage {
     public async createInviteWithCycles(cycles: number = 50): Promise<string> {
         await this.inviteCyclesInput.fill(String(cycles));
         await this.createInviteButton.click();
-        await this.loadingSpinner.waitFor({ state: "visible" });
-        await this.loadingSpinner.waitFor({ state: "hidden" });
+        // wait for the update and read_state calls to complete
+        await this.page.waitForResponse("**/query", { timeout: 6000 });
 
         let newInvites: string[] = [];
         for (const invite of await this.openInvites.all()) {

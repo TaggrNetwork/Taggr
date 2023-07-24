@@ -24,14 +24,16 @@ test:
 fe:
 	npm run build --quiet
 
+e2e_build:
+	TEST_MODE=true NODE_ENV=production DFX_NETWORK=local npm run build
+	FEATURES=dev ./build.sh bucket
+	FEATURES=dev ./build.sh taggr
+
 e2e_test:
 	npm run install:e2e
 	dfx canister create --all
-	TEST_MODE=true npm run build
-	./build.sh bucket
-	./build.sh taggr
+	make e2e_build
 	make start || true # don't fail if DFX is already running
-	make dev_deploy
 	npm run test:e2e
 	dfx stop
 

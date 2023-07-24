@@ -171,6 +171,8 @@ test("post creation with image", async ({ page }) => {
         });
 
     await test.step("check uploaded image", async () => {
+        // wait for image to load, find a more reliable way to handle this
+        await page.waitForTimeout(3000);
         const uploadedImage = postPage.postBody.locator("img");
         await expect(uploadedImage).toBeVisible();
 

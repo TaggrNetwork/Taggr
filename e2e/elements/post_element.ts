@@ -77,6 +77,8 @@ export class PostElement {
         await this.bookmarkButton.click();
         // wait for the update and read_state calls to complete
         await this.page.waitForResponse("**/query", { timeout: 6000 });
+        // and wait a little longer to make sure it's done :(
+        await this.page.waitForTimeout(3000);
     }
 
     public getHeartReaction(): Locator {

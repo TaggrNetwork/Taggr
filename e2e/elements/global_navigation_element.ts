@@ -97,7 +97,10 @@ export class GlobalNavigationElement {
     public async goToBookmarksPage(): Promise<BookmarksPage> {
         await this.burgerButton.click();
         await this.bookmarksLink.click();
-        expect(new URL(this.page.url()).hash).toEqual("#/bookmarks");
+        await this.page.waitForURL("/#/bookmarks", {
+            waitUntil: "networkidle",
+            timeout: 6000,
+        });
 
         return new BookmarksPage(this.page);
     }

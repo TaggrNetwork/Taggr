@@ -48,6 +48,7 @@ export const PostSubmissionForm = ({ id, repost }) => {
             }
             postId = result.Ok;
         }
+        await window.reloadCache();
         window.cleanUICache();
         // If we have created the very first post, we need to fetch the bucket ids from the backend.
         if (backendCache.stats.buckets.length == 0 && blobs.length > 0)

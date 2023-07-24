@@ -1,4 +1,6 @@
+export * from "./agent";
 export * from "./api";
+export * from "./command";
 export * from "./context";
 export * from "./conversion";
 export * from "./create_post";

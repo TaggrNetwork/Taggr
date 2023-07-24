@@ -49,6 +49,7 @@ pub fn set_metadata(
     .replace('\n', "");
 
     String::from_utf8_lossy(body)
+        // We have to remove the space before the last "/" so that the test passes on the minimized version.
         .replace(r#"<meta name="mark" content="OG"/>"#, &metadata)
         .as_bytes()
         .to_vec()
