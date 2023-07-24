@@ -78,8 +78,8 @@ export const Post = ({
 
     const refPost = React.useRef();
 
-    const loadData = async () => {
-        const data = (await loadPosts([id])).pop();
+    const loadData = async (preloadedData) => {
+        const data = preloadedData || (await loadPosts([id])).pop();
         if (!data) {
             setNotFound(true);
             return;
@@ -93,7 +93,7 @@ export const Post = ({
     };
 
     React.useEffect(() => {
-        if (!data) loadData();
+        loadData(data);
     }, [id, version]);
     React.useEffect(() => {
         setRendering(false);
