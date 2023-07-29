@@ -25,6 +25,15 @@ pub enum Notification {
     WatchedPostEntries(Vec<u64>),
 }
 
+// This struct will hold user's new post until it's saved.
+#[derive(Clone)]
+pub struct Draft {
+    pub body: String,
+    pub realm: Option<String>,
+    pub extension: Option<Blob>,
+    pub blobs: Vec<(String, Blob)>,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: UserId,
@@ -56,8 +65,9 @@ pub struct User {
     pub report: Option<Report>,
     pub karma_from_last_posts: BTreeMap<UserId, Karma>,
     pub treasury_e8s: u64,
-    #[serde(default)]
     pub invites_budget: Cycles,
+    #[serde(skip)]
+    pub draft: Option<Draft>,
 }
 
 impl User {
@@ -96,6 +106,7 @@ impl User {
             karma_from_last_posts: Default::default(),
             treasury_e8s: 0,
             invites_budget: 0,
+            draft: None,
         }
     }
 

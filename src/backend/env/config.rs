@@ -164,7 +164,7 @@ pub const CONFIG: &Config = &Config {
 
     realm_cleanup_penalty: 10,
 
-    max_bucket_size: 1024 * 1024 * 1024 * 31, // 31Gb
+    max_bucket_size: 1024 * 1024 * 1024 * 48, // 48Gb
 
     #[cfg(feature = "dev")]
     max_posts_per_hour: 15,

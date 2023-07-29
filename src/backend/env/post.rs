@@ -198,7 +198,7 @@ impl Post {
                 Err(err) => {
                     let msg = format!("Couldn't write a blob to bucket: {:?}", err);
                     mutate(|state| state.logger.error(&msg));
-                    return Err(err);
+                    Err(err)
                 }
             }?
         }

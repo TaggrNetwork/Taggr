@@ -1,6 +1,12 @@
 import * as React from "react";
 import { Form } from "./form";
-import { getPatch, loadPostBlobs, loadPosts, currentRealm } from "./common";
+import {
+    getPatch,
+    loadPostBlobs,
+    loadPosts,
+    currentRealm,
+    MAX_POST_SIZE_BYTES,
+} from "./common";
 
 export const PostSubmissionForm = ({ id, repost }) => {
     const [post, setPost] = React.useState(null);
@@ -32,27 +38,48 @@ export const PostSubmissionForm = ({ id, repost }) => {
             );
             if ("Err" in response) {
                 alert(`Error: ${response.Err}`);
-                return;
+                return false;
             }
             postId = post.id;
         } else {
-            const result = await api.add_post(
-                text,
-                blobs,
-                [],
-                optionalRealm,
-                encodeExtension(extension),
-            );
+            const postSize =
+                text.length +
+                blobs.reduce((acc, [_, blob]) => acc + blob.length, 0);
+            let result;
+            // If the post has too many blobs, upload them separately.
+            if (postSize > MAX_POST_SIZE_BYTES) {
+                await api.add_post_data(
+                    text,
+                    optionalRealm,
+                    encodeExtension(extension),
+                );
+                let results = await Promise.all(
+                    blobs.map(([id, blob]) => api.add_post_blob(id, blob)),
+                );
+                let error = results.find((result) => "Err" in result);
+                if (error) {
+                    alert(`Error: ${error.Err}`);
+                    return;
+                }
+                result = await api.commit_post();
+            } else {
+                result = await api.add_post(
+                    text,
+                    blobs,
+                    [],
+                    optionalRealm,
+                    encodeExtension(extension),
+                );
+            }
             if ("Err" in result) {
-                return alert(`Error: ${result.Err}`);
+                alert(`Error: ${result.Err}`);
+                return false;
             }
             postId = result.Ok;
         }
         window.cleanUICache();
-        // If we have created the very first post, we need to fetch the bucket ids from the backend.
-        if (backendCache.stats.buckets.length == 0 && blobs.length > 0)
-            await window.reloadCache();
         location.href = `#/post/${postId}`;
+        return true;
     };
 
     if (!isNaN(id) && !post) return null;

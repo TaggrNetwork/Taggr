@@ -25,7 +25,6 @@ import { Post } from "./post";
 
 const MAX_IMG_SIZE = 16777216;
 const MAX_SUGGESTED_TAGS = 5;
-export const MAX_POST_SIZE_BYTES = Math.ceil(1024 * 1024 * 1.9);
 
 export const Form = ({
     postId = null,
@@ -87,20 +86,15 @@ export const Form = ({
             }
             return acc;
         }, []);
-        const postSize =
-            value.length +
-            blobArrays.reduce((acc, [_, blob]) => acc + blob.length, 0);
-        if (postSize > MAX_POST_SIZE_BYTES) {
-            alert(
-                "Currently a single post cannot be larger than 2MB to be submitted.",
-            );
-        } else if (
+        if (
             (value.match(/!\[.*?\]\(\/blob\/.*?\)/g) || []).length !=
             blobArrays.length
         ) {
             alert(
                 "You're referencing pictures that are not attached anymore. Please re-upload.",
             );
+            setSubmitting(false);
+            return;
         } else {
             let extension;
             if (poll) {
@@ -108,13 +102,20 @@ export const Form = ({
             } else if (repost) {
                 extension = { Repost: repost };
             }
-            await submitCallback(value, blobArrays, extension, realm);
-            setValue("");
-            clearTimeout(choresTimer);
-            localStorage.removeItem(draftKey);
+            const result = await submitCallback(
+                value,
+                blobArrays,
+                extension,
+                realm,
+            );
+            if (result) {
+                setValue("");
+                clearTimeout(choresTimer);
+                localStorage.removeItem(draftKey);
+                setLines(3);
+                setShowTextField(false);
+            }
         }
-        setLines(3);
-        setShowTextField(false);
         setSubmitting(false);
     };
 
@@ -127,7 +128,7 @@ export const Form = ({
         ev.preventDefault();
         setBusy(true);
         const files = (ev.dataTransfer || ev.target).files;
-        let fileLinks = "";
+        const fileLinks = [];
         for (let i = 0; i < files.length; i++) {
             let file = files[i];
             let content = await loadFile(file);
@@ -161,11 +162,14 @@ export const Form = ({
             tmpBlobs[key] = resized_content;
             setTmpBlobs(tmpBlobs);
             image = await loadImage(resized_content);
-            fileLinks += `![${image.width}x${image.height}, ${size}kb](/blob/${key})`;
+            fileLinks.push(
+                `![${image.width}x${image.height}, ${size}kb](/blob/${key})`,
+            );
             setDragAndDropping(false);
         }
         const result = insertNewPicture(value, cursor, fileLinks);
         setValue(result.newValue);
+        localStorage.setItem(draftKey, result.newValue);
         setFocus();
         setCursor(result.newCursor);
         setBusy(false);
@@ -289,6 +293,9 @@ export const Form = ({
             {content}
         </button>
     );
+    const user = api._user;
+    const totalCosts = costs(value, poll ? 1 : 0);
+    const tooExpensive = user.cycles < totalCosts;
 
     return (
         <div
@@ -296,6 +303,12 @@ export const Form = ({
             onDragOver={dragOverHandler}
             className="column_container"
         >
+            {tooExpensive && (
+                <div className="banner vertically_spaced">
+                    You are low on cycles! Please mint cycles in{" "}
+                    <a href="#/wallet">your wallet</a> to create this post.
+                </div>
+            )}
             {!showTextField && (
                 <input
                     type="text"
@@ -399,7 +412,7 @@ export const Form = ({
                                 <code
                                     className="left_half_spaced"
                                     data-testid="cycle-cost"
-                                >{`${costs(value, poll ? 1 : 0)}`}</code>
+                                >{`${totalCosts}`}</code>
                                 <label
                                     id="file_picker_label"
                                     htmlFor="file-picker"
@@ -413,7 +426,7 @@ export const Form = ({
                                     style={{ display: "none" }}
                                     type="file"
                                     multiple
-                                    accept="image/*"
+                                    accept=".png, .jpg, .jpeg, .gif"
                                     onChange={dropHandler}
                                 />
                                 {postId == null && !isRepost && (
@@ -438,7 +451,7 @@ export const Form = ({
                                         }
                                     />
                                 )}
-                                {!comment && api._user.realms.length > 0 && (
+                                {!comment && user.realms.length > 0 && (
                                     <select
                                         value={realm || ""}
                                         className="small_text left_spaced"
@@ -449,18 +462,20 @@ export const Form = ({
                                         <option value="">
                                             {backendCache.config.name.toUpperCase()}
                                         </option>
-                                        {api._user.realms.map((name) => (
+                                        {user.realms.map((name) => (
                                             <option key={name} value={name}>
                                                 {name}
                                             </option>
                                         ))}
                                     </select>
                                 )}
-                                <ButtonWithLoading
-                                    classNameArg="active left_spaced"
-                                    label="SEND"
-                                    onClick={handleSubmit}
-                                />
+                                {!tooExpensive && (
+                                    <ButtonWithLoading
+                                        classNameArg="active left_spaced"
+                                        label="SEND"
+                                        onClick={handleSubmit}
+                                    />
+                                )}
                             </div>
                         </div>
                     )}
@@ -507,14 +522,16 @@ export const Form = ({
 const insertNewPicture = (value, cursor, fileLinks) => {
     const preCursorLine = value.slice(0, cursor).split("\n").pop();
     const newLineNeeded = !!preCursorLine && !preCursorLine.startsWith("![");
+    const insertion = fileLinks.join("\n");
+    const insertionLength = insertion.length;
     return {
         newValue:
             value.slice(0, cursor) +
             (newLineNeeded ? "\n\n" : "") +
-            fileLinks +
+            insertion +
             "\n" +
             value.slice(cursor),
-        newCursor: cursor + fileLinks.length + (newLineNeeded ? 3 : 1),
+        newCursor: cursor + insertionLength + (newLineNeeded ? 3 : 1),
     };
 };
 

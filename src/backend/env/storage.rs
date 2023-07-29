@@ -17,13 +17,13 @@ const BUCKET_WASM_GZ: &[u8] =
     include_bytes!("../../../target/wasm32-unknown-unknown/release/bucket.wasm.gz");
 
 impl Storage {
-    async fn allocate_space(max_bucket_size: u64) -> Result<Principal, String> {
+    pub async fn allocate_space() -> Result<Principal, String> {
         if let Some(id) = read(|state| {
             state
                 .storage
                 .buckets
                 .iter()
-                .find_map(|(id, size)| (*size < max_bucket_size).then_some(*id))
+                .find_map(|(id, size)| (*size < CONFIG.max_bucket_size).then_some(*id))
         }) {
             return Ok(id);
         }
@@ -50,7 +50,7 @@ impl Storage {
     }
 
     pub async fn write_to_bucket(blob: &[u8]) -> Result<(Principal, u64), String> {
-        let id = Storage::allocate_space(CONFIG.max_bucket_size).await?;
+        let id = Storage::allocate_space().await?;
         let response = canisters::call_canister_raw(id, "write", blob)
             .await
             .map_err(|err| format!("couldn't call write on a bucket: {:?}", err))?;

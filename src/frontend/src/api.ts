@@ -160,6 +160,46 @@ export const Api = (
                 response,
             )[0];
         },
+        add_post_data: async (
+            text: string,
+            realm?: string,
+            extension?: Uint8Array,
+        ): Promise<null> => {
+            const arg = IDL.encode(
+                [IDL.Text, IDL.Opt(IDL.Text), IDL.Opt(IDL.Vec(IDL.Nat8))],
+                [text, realm, extension],
+            );
+            const response = await call_raw(undefined, "add_post_data", arg);
+            if (!response) {
+                return null;
+            }
+            return null;
+        },
+        add_post_blob: async (
+            id: string,
+            blob: Uint8Array,
+        ): Promise<JsonValue | null> => {
+            const arg = IDL.encode([IDL.Text, IDL.Vec(IDL.Nat8)], [id, blob]);
+            const response = await call_raw(undefined, "add_post_blob", arg);
+            if (!response) {
+                return null;
+            }
+            return IDL.decode(
+                [IDL.Variant({ Ok: IDL.Null, Err: IDL.Text })],
+                response,
+            )[0];
+        },
+        commit_post: async (): Promise<JsonValue | null> => {
+            const arg = IDL.encode([], []);
+            const response = await call_raw(undefined, "commit_post", arg);
+            if (!response) {
+                return null;
+            }
+            return IDL.decode(
+                [IDL.Variant({ Ok: IDL.Nat64, Err: IDL.Text })],
+                response,
+            )[0];
+        },
         edit_post: async (
             id: number,
             text: string,

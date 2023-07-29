@@ -9,8 +9,9 @@ use env::{
     memory,
     post::{Extension, Post, PostId},
     proposals::{Release, Reward},
+    storage::Storage,
     token::account,
-    user::{User, UserId},
+    user::{Draft, User, UserId},
     State, *,
 };
 use ic_cdk::{
@@ -63,6 +64,13 @@ fn set_timers() {
 fn init() {
     mutate(|state| state.load());
     set_timers();
+    timer::set_timer(std::time::Duration::from_secs(1), || {
+        spawn(async {
+            if let Err(err) = Storage::allocate_space().await {
+                mutate(|state| state.logger.error(err));
+            }
+        })
+    });
 }
 
 #[pre_upgrade]
@@ -318,12 +326,13 @@ fn cancel_proposal() {
 }
 
 #[update]
+/// This method adds a post atomically (from the user's point of view).
 async fn add_post(
     body: String,
     blobs: Vec<(String, Blob)>,
     parent: Option<PostId>,
     realm: Option<String>,
-    extension: Option<ByteBuf>,
+    extension: Option<Blob>,
 ) -> Result<PostId, String> {
     let post_id = mutate(|state| {
         let extension: Option<Extension> = extension.map(|bytes| parse(&bytes));
@@ -338,8 +347,63 @@ async fn add_post(
             extension,
         )
     })?;
-    Post::save_blobs(post_id, blobs).await?;
-    Ok(post_id)
+    let call_name = format!("blobs_storing_for_{}", post_id);
+    canisters::open_call(&call_name);
+    let result = Post::save_blobs(post_id, blobs).await;
+    canisters::close_call(&call_name);
+    result.map(|_| post_id)
+}
+
+#[update]
+/// This method initiates an asynchronous post creation.
+fn add_post_data(body: String, realm: Option<String>, extension: Option<Blob>) {
+    mutate(|state| {
+        if let Some(user) = state.principal_to_user_mut(caller()) {
+            user.draft = Some(Draft {
+                body,
+                realm,
+                extension,
+                blobs: Default::default(),
+            });
+        };
+    })
+}
+
+#[update]
+/// This method adds a blob to a post being created
+fn add_post_blob(id: String, blob: Blob) -> Result<(), String> {
+    mutate(|state| {
+        if let Some(user) = state.principal_to_user_mut(caller()) {
+            let cycles = user.cycles();
+            if let Some(draft) = user.draft.as_mut() {
+                if cycles < (draft.blobs.len() + 1) as u64 * CONFIG.blob_cost {
+                    user.draft.take();
+                    return;
+                }
+                draft.blobs.push((id, blob))
+            }
+        }
+    });
+    Ok(())
+}
+
+#[update]
+/// This method finalizes the post creation.
+async fn commit_post() -> Result<PostId, String> {
+    if let Some(Some(Draft {
+        body,
+        realm,
+        extension,
+        blobs,
+    })) = mutate(|state| {
+        state
+            .principal_to_user_mut(caller())
+            .map(|user| user.draft.take())
+    }) {
+        add_post(body, blobs, None, realm, extension).await
+    } else {
+        Err("no post data found".into())
+    }
 }
 
 #[update]

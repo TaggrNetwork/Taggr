@@ -2,7 +2,9 @@ import * as React from "react";
 import { Content } from "./content";
 import DiffMatchPatch from "diff-match-patch";
 import { Clipboard, ClipboardCheck, Flag, Menu, Share } from "./icons";
-import { loadFile, MAX_POST_SIZE_BYTES } from "./form";
+import { loadFile } from "./form";
+
+export const MAX_POST_SIZE_BYTES = Math.ceil(1024 * 1024 * 1.9);
 
 export const percentage = (n, total) => {
     let p = Math.ceil((parseInt(n) / (total || 1)) * 10000) / 100;

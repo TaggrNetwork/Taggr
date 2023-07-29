@@ -115,11 +115,13 @@ export const Post = ({
     const commentSubmissionCallback = async (comment, blobs) => {
         const result = await api.add_post(comment, blobs, [post.id], [], []);
         if (result.Err) {
-            return alert(`Error: ${result.Err}`);
+            alert(`Error: ${result.Err}`);
+            return false;
         }
         await loadData();
         toggleInfo(false);
         toggleComments(true);
+        return true;
     };
 
     const showCarret = level > (refPost.current?.clientWidth > 900 ? 13 : 3);

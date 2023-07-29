@@ -206,7 +206,7 @@ export const Wallet = () => {
         <>
             <HeadBar title={"Wallets"} shareLink="wallets" />
             <div className="spaced">
-                {user.cycles <= 50 && (
+                {user.cycles <= 200 && (
                     <div className="banner">
                         You are low on cycles! Please transfer some ICP to your
                         account displayed below and press the MINT button.
