@@ -527,7 +527,7 @@ mod tests {
             // make sure the karma accounting was correct
             assert_eq!(
                 state.principal_to_user(proposer).unwrap().karma_to_reward(),
-                1000_i64
+                1000
             );
             assert_eq!(
                 state.principal_to_user(proposer).unwrap().karma(),
@@ -756,7 +756,7 @@ mod tests {
             assert!(state.principal_to_user(pr(1)).unwrap().cycles() > 0);
             let proposer = state.principal_to_user(pr(1)).unwrap();
             let data = &"".to_string();
-            let proposers_karma = proposer.karma() + proposer.karma_to_reward();
+            let proposers_karma = proposer.karma() + proposer.karma_to_reward() as Karma;
             for i in 2..4 {
                 assert_eq!(
                     vote_on_proposal(state, time(), pr(i), prop_id, false, data),

@@ -284,20 +284,20 @@ mod tests {
             let reporter = state.principal_to_user(reporter).unwrap();
             assert_eq!(
                 reporter.karma_to_reward(),
-                CONFIG.reporting_penalty_post as Karma / 2
+                CONFIG.reporting_penalty_post / 2
             );
             // stalwarts rewarded too
             assert_eq!(
                 state.principal_to_user(pr(3)).unwrap().karma_to_reward(),
-                CONFIG.stalwart_moderation_reward as Karma
+                CONFIG.stalwart_moderation_reward
             );
             assert_eq!(
                 state.principal_to_user(pr(6)).unwrap().karma_to_reward(),
-                CONFIG.stalwart_moderation_reward as Karma
+                CONFIG.stalwart_moderation_reward
             );
             assert_eq!(
                 state.principal_to_user(pr(12)).unwrap().karma_to_reward(),
-                CONFIG.stalwart_moderation_reward as Karma
+                CONFIG.stalwart_moderation_reward
             );
         });
 
@@ -368,12 +368,12 @@ mod tests {
 
             assert_eq!(
                 state.principal_to_user(pr(9)).unwrap().karma_to_reward(),
-                CONFIG.stalwart_moderation_reward as Karma
+                CONFIG.stalwart_moderation_reward
             );
             // he voted twice
             assert_eq!(
                 state.principal_to_user(pr(6)).unwrap().karma_to_reward(),
-                CONFIG.stalwart_moderation_reward as Karma * 2
+                CONFIG.stalwart_moderation_reward * 2
             );
         })
     }

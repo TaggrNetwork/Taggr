@@ -73,7 +73,7 @@ pub struct Stats {
     team_tokens: HashMap<UserId, Token>,
     emergency_release: String,
     emergency_votes: Vec<Principal>,
-    weekly_karma_leaders: Vec<(UserId, Karma)>,
+    weekly_karma_leaders: Vec<(UserId, u64)>,
     users: usize,
     bootcamp_users: usize,
     cycles: Cycles,
@@ -883,7 +883,7 @@ impl State {
         1 << factor
     }
 
-    pub fn mint(&mut self, rewards: HashMap<UserId, Karma>) {
+    pub fn mint(&mut self, rewards: HashMap<UserId, u64>) {
         let mut minted_tokens = 0;
         let mut minters = Vec::new();
         let base = 10_u64.pow(CONFIG.token_decimals as u32);
@@ -896,7 +896,7 @@ impl State {
                     _ => continue,
                 };
                 let acc = account(user.principal);
-                let minted = user_karma.max(0) as u64 / ratio * base;
+                let minted = user_karma / ratio * base;
                 if minted == 0 {
                     continue;
                 }
@@ -970,7 +970,9 @@ impl State {
             .values_mut()
             .filter(|u| u.karma_to_reward() > 0)
             .filter_map(|user| {
+                let _ = user.top_up_cycles_from_rewards();
                 if user.karma() < 0 {
+                    user.apply_rewards();
                     return None;
                 }
                 let e8s = (user.karma_to_reward() as f64 / 1000.0 * e8s_for_one_xdr as f64) as u64;
@@ -1022,10 +1024,10 @@ impl State {
         e8s_for_one_xdr: u64,
         rewards: HashMap<UserId, u64>,
         revenue: HashMap<UserId, u64>,
-    ) -> HashMap<UserId, Karma> {
+    ) -> HashMap<UserId, u64> {
         let treasury_balance = invoices::main_account_balance().await.e8s();
         let (distr_info, debt) = mutate(|state| {
-            let mut distr_info: HashMap<UserId, Karma> = Default::default();
+            let mut distr_info: HashMap<UserId, u64> = Default::default();
             let total_payout =
                 rewards.values().copied().sum::<u64>() + revenue.values().copied().sum::<u64>();
             // We stop distributions if the treasury balance falls below 38 XDRs ~ $50.
@@ -1046,7 +1048,8 @@ impl State {
             let mut total_revenue = 0;
             for user in state.users.values_mut() {
                 let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
-                let user_revenue = revenue.get(&user.id).copied().unwrap_or_default();
+                let mut user_revenue = revenue.get(&user.id).copied().unwrap_or_default();
+                let _ = user.top_up_cycles_from_revenue(&mut user_revenue, e8s_for_one_xdr);
                 let e8s = user_reward + user_revenue;
                 if e8s < invoices::fee() * 100 {
                     continue;
@@ -2472,7 +2475,7 @@ pub(crate) mod tests {
 
             assert_eq!(
                 state.users.get(&id).unwrap().karma_to_reward(),
-                10 + 5 + 2 * CONFIG.response_reward as Karma
+                10 + 5 + 2 * CONFIG.response_reward
             );
 
             assert_eq!(

@@ -45,7 +45,7 @@ pub struct User {
     pub account: String,
     pub settings: String,
     karma: Karma,
-    pub rewarded_karma: Karma,
+    pub rewarded_karma: u64,
     pub cycles: Cycles,
     pub feeds: Vec<BTreeSet<String>>,
     pub followees: BTreeSet<UserId>,
@@ -279,20 +279,20 @@ impl User {
         if amount > 0 {
             if self.karma >= 0 {
                 // if total karma is positivie and the amount is positive, increase rewards
-                self.rewarded_karma += amount;
+                self.rewarded_karma += amount as u64;
             } else {
                 // if total karma is negative and the amount positive, increase total karma, not
                 // rewards
                 self.karma += amount;
             }
-        } else if amount.abs() > self.rewarded_karma {
+        } else if amount.abs() > self.rewarded_karma as Karma {
             // if amount is negative and larger than collected rewards, destroy them and
             // subtract from total karma the rest.
-            self.karma -= amount.abs() - self.rewarded_karma;
+            self.karma -= amount.abs() - self.rewarded_karma as Karma;
             self.rewarded_karma = 0;
         } else {
             // if amount is negative and small than collected rewards, subtract from rewards
-            self.rewarded_karma += amount;
+            self.rewarded_karma = self.rewarded_karma.saturating_sub(amount.unsigned_abs());
         }
         if self.karma < 0 {
             self.rewarded_karma = 0;
@@ -301,12 +301,12 @@ impl User {
             .push_front((time(), "KRM".to_string(), amount, log.to_string()));
     }
 
-    pub fn karma_to_reward(&self) -> Karma {
+    pub fn karma_to_reward(&self) -> u64 {
         self.rewarded_karma
     }
 
     pub fn apply_rewards(&mut self) {
-        self.karma += self.rewarded_karma;
+        self.karma += self.rewarded_karma as Karma;
         self.rewarded_karma = 0;
     }
 
@@ -316,6 +316,40 @@ impl User {
 
     pub fn karma(&self) -> Karma {
         self.karma
+    }
+
+    pub fn top_up_cycles_from_rewards(&mut self) -> Result<(), String> {
+        let cycles_needed = 1000_u64.saturating_sub(self.cycles());
+        let top_up = cycles_needed.min(self.rewarded_karma);
+        if top_up == 0 {
+            return Ok(());
+        }
+        self.change_karma(-(top_up as Karma), "topped up cycles from karma");
+        self.change_cycles(
+            top_up as Cycles,
+            CyclesDelta::Plus,
+            "topped up cycles from karma",
+        )
+    }
+
+    pub fn top_up_cycles_from_revenue(
+        &mut self,
+        revenue: &mut u64,
+        e8s_for_one_xdr: u64,
+    ) -> Result<(), String> {
+        let cycles_needed = 1000_u64.saturating_sub(self.cycles());
+        if *revenue > 0 && cycles_needed > 0 {
+            let e8s_needed = cycles_needed * e8s_for_one_xdr / 1000;
+            let top_up_e8s = e8s_needed.min(*revenue);
+            let cycles = top_up_e8s as f32 / e8s_for_one_xdr as f32 * 1000.0;
+            *revenue = (*revenue).saturating_sub(top_up_e8s);
+            self.change_cycles(
+                cycles as Cycles,
+                CyclesDelta::Plus,
+                "automatic cycles top-up",
+            )?;
+        }
+        Ok(())
     }
 }
 
@@ -350,6 +384,67 @@ impl<'a, T: Clone + PartialOrd> Iterator for IteratorMerger<'a, T> {
 mod tests {
     use super::*;
     use crate::env::tests::pr;
+
+    #[test]
+    fn test_automatic_top_up() {
+        let mut user = User::new(pr(0), 66, 0, Default::default());
+        let e8s_for_one_xdr = 3095_0000;
+
+        // no top up triggered
+        user.cycles = 1000;
+        user.rewarded_karma = 30;
+        user.top_up_cycles_from_rewards().unwrap();
+        assert_eq!(user.rewarded_karma, 30);
+        let mut revenue = 2000_0000;
+        user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
+            .unwrap();
+        assert_eq!(revenue, 2000_0000);
+        assert_eq!(user.cycles(), 1000);
+
+        // rewards are enough
+        user.cycles = 980;
+        user.rewarded_karma = 30;
+        user.top_up_cycles_from_rewards().unwrap();
+        assert_eq!(user.rewarded_karma, 10);
+        let mut revenue = 2000_0000;
+        user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
+            .unwrap();
+        assert_eq!(revenue, 2000_0000);
+        assert_eq!(user.cycles(), 1000);
+
+        // rewards are still enough
+        user.cycles = 0;
+        user.rewarded_karma = 3000;
+        user.top_up_cycles_from_rewards().unwrap();
+        assert_eq!(user.rewarded_karma, 2000);
+        let mut revenue = 2000_0000;
+        user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
+            .unwrap();
+        assert_eq!(revenue, 2000_0000);
+        assert_eq!(user.cycles(), 1000);
+
+        // rewards are not enough
+        user.cycles = 0;
+        user.rewarded_karma = 500;
+        user.top_up_cycles_from_rewards().unwrap();
+        assert_eq!(user.rewarded_karma, 0);
+        let mut revenue = 2000_0000;
+        user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
+            .unwrap();
+        assert_eq!(revenue, 452_5000);
+        assert_eq!(user.cycles(), 1000);
+
+        // rewards and revenue not enough
+        user.cycles = 0;
+        user.rewarded_karma = 500;
+        user.top_up_cycles_from_rewards().unwrap();
+        assert_eq!(user.rewarded_karma, 0);
+        let mut revenue = 1000_0000;
+        user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
+            .unwrap();
+        assert_eq!(revenue, 0);
+        assert_eq!(user.cycles(), 823);
+    }
 
     #[test]
     fn test_rewarding() {
