@@ -1,7 +1,6 @@
 use super::MINUTE;
 use crate::*;
-use candid::{CandidType, Deserialize};
-use ic_cdk::export::candid::Principal;
+use candid::{CandidType, Deserialize, Principal};
 use serde::Serialize;
 
 type Timestamp = u64;

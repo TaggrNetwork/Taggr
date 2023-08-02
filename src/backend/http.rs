@@ -3,7 +3,7 @@ use crate::assets::{index_html_headers, INDEX_HTML};
 use crate::post::Post;
 use crate::read;
 use crate::{config::CONFIG, metadata::set_metadata};
-use ic_cdk::export::candid::CandidType;
+use candid::CandidType;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 

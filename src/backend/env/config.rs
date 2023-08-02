@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use crate::token::Token;
 
 use super::{Cycles, Karma};
-use ic_cdk::export::candid::CandidType;
+use candid::CandidType;
 use serde::Serialize;
 
 pub const ICP_CYCLES_PER_XDR: u64 = 1_000_000_000_000;

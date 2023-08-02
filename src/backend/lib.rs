@@ -19,9 +19,10 @@ use ic_cdk::{
         self,
         call::{arg_data_raw, reply_raw},
     },
-    caller, spawn, timer,
+    caller, spawn,
 };
 use ic_cdk_macros::*;
+use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
 
 mod assets;
@@ -52,10 +53,10 @@ where
 }
 
 fn set_timers() {
-    timer::set_timer(std::time::Duration::from_secs(1), || {
+    set_timer(std::time::Duration::from_secs(1), || {
         spawn(State::finalize_upgrade())
     });
-    timer::set_timer_interval(std::time::Duration::from_secs(15 * 60), || {
+    set_timer_interval(std::time::Duration::from_secs(15 * 60), || {
         spawn(State::chores(api::time()))
     });
 }
@@ -64,7 +65,7 @@ fn set_timers() {
 fn init() {
     mutate(|state| state.load());
     set_timers();
-    timer::set_timer(std::time::Duration::from_secs(1), || {
+    set_timer(std::time::Duration::from_secs(1), || {
         spawn(async {
             if let Err(err) = Storage::allocate_space().await {
                 mutate(|state| state.logger.error(err));
@@ -93,7 +94,7 @@ fn post_upgrade() {
     set_timers();
 
     // temporary post upgrade logic goes here
-    // timer::set_timer(std::time::Duration::from_secs(1), move || {
+    // set_timer(std::time::Duration::from_secs(1), move || {
     //     spawn(post_upgrade_fixtures())
     // });
 }

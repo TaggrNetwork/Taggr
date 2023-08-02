@@ -1,5 +1,5 @@
+use candid::{CandidType, Principal};
 use ic_cdk::api::{id, time};
-use ic_cdk::export::candid::{CandidType, Principal};
 use ic_ledger_types::{
     AccountBalanceArgs, AccountIdentifier, BlockIndex, Memo, Subaccount, Tokens, TransferArgs,
     TransferResult, DEFAULT_FEE, DEFAULT_SUBACCOUNT, MAINNET_CYCLES_MINTING_CANISTER_ID,

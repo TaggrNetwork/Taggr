@@ -5,7 +5,7 @@ use super::user::Predicate;
 use super::{user::UserId, State};
 use super::{Karma, HOUR};
 use crate::token::Token;
-use ic_cdk::export::candid::Principal;
+use candid::Principal;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

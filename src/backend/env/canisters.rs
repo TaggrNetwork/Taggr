@@ -1,10 +1,11 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::str::FromStr;
-
-use candid::utils::{ArgumentDecoder, ArgumentEncoder};
+use super::{time, Logger, MINUTE};
+use crate::env::config::CONFIG;
+use crate::env::NNSProposal;
+use candid::{
+    utils::{ArgumentDecoder, ArgumentEncoder},
+    CandidType, IDLArgs, Principal,
+};
 use ic_cdk::api::call::{CallResult, RejectionCode};
-use ic_cdk::export::candid::{CandidType, Principal};
 use ic_cdk::id;
 use ic_cdk::{
     api::{
@@ -15,11 +16,8 @@ use ic_cdk::{
 };
 use ic_ledger_types::MAINNET_GOVERNANCE_CANISTER_ID;
 use serde::{Deserialize, Serialize};
-
-use crate::env::config::CONFIG;
-use crate::env::NNSProposal;
-
-use super::{time, Logger, MINUTE};
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 const CYCLES_FOR_NEW_CANISTER: u64 = 1_000_000_000_000;
 
@@ -339,7 +337,7 @@ pub async fn get_full_neuron(neuron_id: u64) -> Result<String, String> {
 }
 
 pub async fn vote_on_nns_proposal(proposal_id: u64, vote: NNSVote) -> Result<(), String> {
-    let args = candid::IDLArgs::from_str(&format!(
+    let args = &format!(
         r#"(record {{
                 id = opt record {{ id = {} : nat64 }};
                 command = opt variant {{
@@ -350,7 +348,8 @@ pub async fn vote_on_nns_proposal(proposal_id: u64, vote: NNSVote) -> Result<(),
                 }}
             }})"#,
         CONFIG.neuron_id, vote as i32, proposal_id
-    ))
+    )
+    .parse::<IDLArgs>()
     .map_err(|err| format!("couldn't parse args: {:?}", err))?
     .to_bytes()
     .map_err(|err| format!("couldn't serialize args: {:?}", err))?;

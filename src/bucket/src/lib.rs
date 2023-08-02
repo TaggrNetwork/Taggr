@@ -1,11 +1,9 @@
-use ic_cdk::{
-    api::{
-        self,
-        call::{arg_data_raw, reply_raw},
-        canister_balance,
-        stable::*,
-    },
-    export::Principal,
+use candid::Principal;
+use ic_cdk::api::{
+    self,
+    call::{arg_data_raw, reply_raw},
+    canister_balance,
+    stable::*,
 };
 
 static mut CONTROLLER: Option<Principal> = None;

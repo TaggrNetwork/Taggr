@@ -59,10 +59,10 @@ async fn peasantmode(username: String) {
 async fn clear_buckets() {
     use canisters::management_canister_call;
     for (canister_id, _) in mutate(|state| std::mem::take(&mut state.storage.buckets)) {
-        let (_,): ((),) = management_canister_call(canister_id, "stop_canister")
+        let _: () = management_canister_call(canister_id, "stop_canister")
             .await
             .expect("couldn't stop canister");
-        let (_,): ((),) = management_canister_call(canister_id, "delete_canister")
+        let _: () = management_canister_call(canister_id, "delete_canister")
             .await
             .expect("couldn't delete canister");
     }
