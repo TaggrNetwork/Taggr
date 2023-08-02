@@ -16,6 +16,7 @@ pub struct Config {
     pub logo: &'static str,
 
     pub transaction_fee: u64,
+    pub cycle_transaction_fee: u64,
     pub token_decimals: u8,
     pub token_symbol: &'static str,
     pub total_supply: Token,
@@ -131,6 +132,7 @@ pub const CONFIG: &Config = &Config {
     token_symbol: "TAGGR",
     token_decimals: 2,
     transaction_fee: 1,
+    cycle_transaction_fee: 1,
 
     #[cfg(feature = "dev")]
     supply_threshold_for_transfer_percentage: 10,

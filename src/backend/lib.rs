@@ -225,6 +225,26 @@ fn create_user() {
     });
 }
 
+#[export_name = "canister_update transfer_cycles"]
+fn transfer_cycles() {
+    let (recipient, amount): (UserId, Cycles) = parse(&arg_data_raw());
+    reply(mutate(|state| {
+        let sender = state.principal_to_user(caller()).expect("no user found");
+        let recipient_name = &state.users.get(&recipient).expect("no user found").name;
+        state.cycle_transfer(
+            sender.id,
+            recipient,
+            amount,
+            CONFIG.cycle_transaction_fee,
+            Destination::Cycles,
+            format!(
+                "cycle transfer from @{} to @{}",
+                sender.name, recipient_name
+            ),
+        )
+    }))
+}
+
 #[export_name = "canister_update transfer_icp"]
 fn transfer_icp() {
     spawn(async {

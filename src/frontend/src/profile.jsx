@@ -15,6 +15,7 @@ import {
     UserLink,
     percentage,
     ShareButton,
+    ButtonWithLoading,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -124,6 +125,33 @@ export const Profile = ({ handle }) => {
                             url={`/user/${profile.name}`}
                             classNameArg="left_half_spaced max_width_col"
                             text={true}
+                        />
+                        <ButtonWithLoading
+                            label="SEND CYCLES"
+                            classNameArg="max_width_col"
+                            onClick={async () => {
+                                const amount = parseInt(
+                                    prompt(`Enter the amount (fee: 1 cycle)`),
+                                );
+                                if (!amount) return;
+                                if (
+                                    !confirm(
+                                        `You are transferring ${amount} cycles to @${profile.name}`,
+                                    )
+                                )
+                                    return;
+                                let result = await api.call(
+                                    "transfer_cycles",
+                                    profile.id,
+                                    amount,
+                                );
+                                if ("Err" in result) {
+                                    alert(`Error: ${result.Err}`);
+                                    return;
+                                }
+                                api._reloadUser();
+                                await updateState();
+                            }}
                         />
                     </div>
                 }
