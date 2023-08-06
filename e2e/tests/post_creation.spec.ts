@@ -234,3 +234,24 @@ test("journal", async ({ page }) => {
         await expect(postThree.element).toBeVisible();
     });
 });
+
+test("post creation with a poll", async ({ page }) => {
+    const user = await test.step("create user", async () => {
+        return await createSeedPhraseUser(page);
+    });
+
+    await test.step("create post with a poll", async () => {
+        const newPostPage = await initPost(page, user);
+        await newPostPage.editor.addText("Post with poll");
+        await newPostPage.editor.createPoll("Red pill\nBlue pill");
+
+        const postPage = await newPostPage.submit();
+
+        const postText = postPage.getElementByValue("Post with poll");
+        await expect(postText).toBeVisible();
+        const bluePillOption = postPage.getElementByValue("Blue pill");
+        await expect(bluePillOption).toBeVisible();
+        const redPillOption = postPage.getElementByValue("Red pill");
+        await expect(redPillOption).toBeVisible();
+    });
+});

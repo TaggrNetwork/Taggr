@@ -80,8 +80,6 @@ const renderFrame = (content) => {
         currentFrame.remove();
         lastFrame.style.display = "block";
         return;
-    } else if (currentFrame && currentFrame.dataset.hash == location.hash) {
-        currentFrame.remove();
     }
 
     let frame = document.createElement("div");
@@ -95,7 +93,6 @@ const App = () => {
     const api = window.api;
     const auth = (content) => (api._principalId ? content : <Unauthorized />);
     const [handler = "", param, param2] = parseHash();
-    const heartbeat = new Date().toTimeString();
     let subtle = false;
     let inboxMode = false;
     let content = null;
@@ -142,7 +139,7 @@ const App = () => {
                 content = auth(
                     <RealmForm existingName={param.toUpperCase()} />,
                 );
-            else content = <Landing heartbeat={heartbeat} />;
+            else content = <Landing />;
         } else content = <Realms />;
     } else if (handler == "inbox") {
         content = auth(<Inbox />);
@@ -167,9 +164,9 @@ const App = () => {
         content = auth(<Invites />);
     } else if (handler == "feed") {
         const params = param.split(/\+/).map(decodeURIComponent);
-        content = <Feed heartbeat={heartbeat} params={params} />;
+        content = <Feed params={params} />;
     } else if (handler == "thread") {
-        content = <Thread heartbeat={heartbeat} id={parseInt(param)} />;
+        content = <Thread id={parseInt(param)} />;
     } else if (handler == "user") {
         setTitle(`profile: @${param}`);
         content = <Profile handle={param} />;
@@ -180,7 +177,7 @@ const App = () => {
     } else if (handler == "recovery") {
         content = <Recovery />;
     } else {
-        content = <Landing heartbeat={heartbeat + currentRealm()} />;
+        content = <Landing />;
     }
 
     headerRoot.render(
@@ -309,9 +306,6 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
             setInterval(async () => {
                 await api._reloadUser();
                 await reloadCache();
-                if (new Date() - window.lastActivity < REFRESH_RATE_SECS * 1000)
-                    return;
-                App();
             }, REFRESH_RATE_SECS * 1000);
             await api._reloadUser();
         }

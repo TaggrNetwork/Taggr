@@ -12,7 +12,20 @@ import {
 } from "./common";
 import { New, User, Fire } from "./icons";
 
-export const Landing = ({ heartbeat }) => {
+const REFRESH_RATE_SECS = 10 * 60;
+
+export const Landing = () => {
+    const [heartbeat, setHeartbeat] = React.useState(0);
+
+    React.useEffect(() => {
+        let t = setTimeout(async () => {
+            if (new Date() - window.lastActivity >= REFRESH_RATE_SECS * 1000) {
+                setHeartbeat(heartbeat + 1);
+            }
+            return () => clearTimeout(t);
+        }, REFRESH_RATE_SECS * 1000);
+    }, [heartbeat]);
+
     const user = api._user;
     const realm = currentRealm();
     const FEED_KEY = `${realm}_feed`;
@@ -45,6 +58,7 @@ export const Landing = ({ heartbeat }) => {
                 ))}
         </div>
     );
+
     return (
         <>
             {!user && !realm && (

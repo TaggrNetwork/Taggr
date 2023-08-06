@@ -14,4 +14,8 @@ export class PostPage {
 
         return postId;
     }
+
+    public getElementByValue(value: string): Locator {
+        return this.page.getByText(value);
+    }
 }

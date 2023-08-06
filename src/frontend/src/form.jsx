@@ -431,6 +431,7 @@ export const Form = ({
                                 />
                                 {postId == null && !isRepost && (
                                     <ReactionToggleButton
+                                        id="pollButton"
                                         classNameArg="left_spaced"
                                         icon={<Bars />}
                                         pressed={!!poll}
@@ -479,40 +480,42 @@ export const Form = ({
                             </div>
                         </div>
                     )}
+                    {poll && (
+                        <div className="monospace column_container bottom_spaced">
+                            <h2>Poll</h2>
+                            VARIANTS (ONE PER LINE):
+                            <textarea
+                                id="pollEditor"
+                                rows={poll.options.length + 2}
+                                className="monospace bottom_spaced"
+                                value={poll.options.join("\n")}
+                                onChange={(e) =>
+                                    setPoll({
+                                        ...poll,
+                                        options: e.target.value.split("\n"),
+                                    })
+                                }
+                            ></textarea>
+                            EXPIRATION:
+                            <select
+                                value={poll.deadline}
+                                onChange={(e) =>
+                                    setPoll({
+                                        ...poll,
+                                        deadline: parseInt(e.target.value),
+                                    })
+                                }
+                            >
+                                {[1, 2, 3, 4, 5, 6, 7].map((d) => (
+                                    <option
+                                        key={d}
+                                        value={`${d * 24}`}
+                                    >{`${d} DAY${d == 1 ? "" : "S"}`}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </form>
-            )}
-            {poll && (
-                <div className="monospace column_container bottom_spaced">
-                    <h2>Poll</h2>
-                    VARIANTS (ONE PER LINE):
-                    <textarea
-                        rows={poll.options.length + 2}
-                        className="monospace bottom_spaced"
-                        value={poll.options.join("\n")}
-                        onChange={(e) =>
-                            setPoll({
-                                ...poll,
-                                options: e.target.value.split("\n"),
-                            })
-                        }
-                    ></textarea>
-                    EXPIRATION:
-                    <select
-                        value={poll.deadline}
-                        onChange={(e) =>
-                            setPoll({
-                                ...poll,
-                                deadline: parseInt(e.target.value),
-                            })
-                        }
-                    >
-                        {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-                            <option key={d} value={`${d * 24}`}>{`${d} DAY${
-                                d == 1 ? "" : "S"
-                            }`}</option>
-                        ))}
-                    </select>
-                </div>
             )}
             {!previewAtLeft && showPreview && preview}
         </div>

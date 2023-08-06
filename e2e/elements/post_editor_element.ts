@@ -3,7 +3,9 @@ import { Locator, Page } from "@playwright/test";
 export class PostEditorElement {
     public readonly cycleCost: Locator;
     private readonly sendButton: Locator;
+    private readonly pollButton: Locator;
     private readonly inputTextArea: Locator;
+    private readonly pollEditor: Locator;
     private readonly filePickerButton: Locator;
 
     constructor(
@@ -12,6 +14,8 @@ export class PostEditorElement {
     ) {
         this.cycleCost = element.getByTestId("cycle-cost");
         this.sendButton = element.locator("button", { hasText: "SEND" });
+        this.pollButton = element.locator("#pollButton");
+        this.pollEditor = element.locator("#pollEditor");
         this.inputTextArea = element.locator("textarea");
         this.filePickerButton = element.getByTestId("file-picker");
     }
@@ -24,6 +28,11 @@ export class PostEditorElement {
         const currentContent = await this.inputTextArea.inputValue();
 
         await this.inputTextArea.fill(currentContent + text);
+    }
+
+    public async createPoll(values: string): Promise<void> {
+        await this.pollButton.click();
+        await this.pollEditor.fill(values);
     }
 
     public async addImage(imagePath: string): Promise<void> {

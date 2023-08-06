@@ -11,7 +11,7 @@ const userId = (handle) => {
     }
 };
 
-export const Feed = ({ params, heartbeat }) => {
+export const Feed = ({ params }) => {
     const [filter, setFilter] = React.useState(params);
     React.useEffect(() => setFilter(params), [params]);
     return (
@@ -33,7 +33,7 @@ export const Feed = ({ params, heartbeat }) => {
                         page,
                     );
                 }}
-                heartbeat={heartbeat + filter + params}
+                heartbeat={filter + params}
             />
         </div>
     );

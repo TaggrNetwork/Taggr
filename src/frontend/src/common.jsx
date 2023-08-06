@@ -367,6 +367,7 @@ export const token = (n) =>
     ).toLocaleString();
 
 export const ReactionToggleButton = ({
+    id = null,
     icon,
     onClick,
     pressed,
@@ -374,6 +375,7 @@ export const ReactionToggleButton = ({
     testId = null,
 }) => (
     <button
+        id={id}
         data-meta="skipClicks"
         onClick={(e) => {
             e.preventDefault();
