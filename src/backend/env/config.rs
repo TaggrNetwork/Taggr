@@ -21,6 +21,10 @@ pub struct Config {
     pub token_symbol: &'static str,
     pub total_supply: Token,
 
+    pub native_cycles_per_xdr: Cycles,
+
+    pub min_treasury_balance_xdrs: u64,
+
     pub supply_threshold_for_transfer_percentage: u64,
 
     pub proposal_approval_threshold: u16,
@@ -36,7 +40,6 @@ pub struct Config {
 
     pub feed_page_size: usize,
 
-    pub min_cycles_minted: Cycles,
     pub reporting_penalty_post: Cycles,
     pub reporting_penalty_misbehaviour: Cycles,
 
@@ -134,6 +137,10 @@ pub const CONFIG: &Config = &Config {
     transaction_fee: 1,
     cycle_transaction_fee: 1,
 
+    native_cycles_per_xdr: 1000,
+
+    min_treasury_balance_xdrs: 38, // ~$50
+
     #[cfg(feature = "dev")]
     supply_threshold_for_transfer_percentage: 10,
     #[cfg(not(feature = "dev"))]
@@ -175,8 +182,6 @@ pub const CONFIG: &Config = &Config {
     max_comments_per_hour: 15,
 
     feed_page_size: 10,
-
-    min_cycles_minted: 1000,
 
     reporting_penalty_post: 200,
     reporting_penalty_misbehaviour: 1000,

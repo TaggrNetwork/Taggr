@@ -12,7 +12,7 @@ body {
     padding-right: 3%;
     max-width: 1200px;
     font-size: large;
-    font-family: "Helvetica Neue", sans-serif;
+    font-family: Tahoma, "Helvetica Neue", sans-serif;
 }
 
 .db_cell {
@@ -536,7 +536,7 @@ div.thumbnails {
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0, 0, 0, 0.75);
+    background-color: rgba(0, 0, 0, 0.8);
 }
 
 #preview > img {

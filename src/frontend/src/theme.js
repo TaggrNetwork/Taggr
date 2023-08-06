@@ -39,7 +39,7 @@ export const themes = {
         accent: "OrangeRed",
     },
     dark: {
-        text: "#d0d0bf",
+        text: "#e0e0c8",
         background: "#1e1e23",
         code: "White",
         clickable: "#30d5c8",

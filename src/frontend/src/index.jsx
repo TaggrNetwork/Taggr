@@ -289,6 +289,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
         window.api = api;
         window.mainnet_api = Api(CANISTER_ID, identity, true);
         window.reloadCache = reloadCache;
+        window.setUI = setUI;
         await reloadCache();
 
         if (api) {

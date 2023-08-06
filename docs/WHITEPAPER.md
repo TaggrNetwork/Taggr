@@ -1,9 +1,11 @@
-$name is a fully autonomous decentralized social network.
+# $name
+
+$name aims at becoming a public good providing decentralized and censorship-resistant services for publishing content and communication.
+It runs on the public compute infrastructure powered by the [Internet Computer](https://internetcomputer.org).
 
 ## Key Points
 
--   #$name is a blend of forums and blogs.
--   Its purpose is to be a simple way to publish content on a public compute infrastructure.
+-   $name is a blend of forums and blogs.
 -   [Posts](#/post/0) containing #tags will appear in feeds comprised of these tags.
 -   Users can follow tag [feeds](#/feed/$name), other [users](#/user/0) and watch activity on posts.
 -   $name is owned and governed by its community.
@@ -14,7 +16,7 @@ $name is a fully autonomous decentralized social network.
 The experimental part of $name is that _the community_ decides what the rules are.
 The auto-regulation is enforced through a scheme of incentives:
 
--   Every user starts with at least `$min_cycles_minted` cycles minted for `1` [XDR](https://en.wikipedia.org/wiki/Special_drawing_rights) in ICP.
+-   Every user starts with an invite or by minting at least `$native_cycles_per_xdr` cycles for paying `1` [XDR](https://en.wikipedia.org/wiki/Special_drawing_rights) in ICP.
 -   Every mutable operation on $name burns user's cycles.
 -   Users earn or lose "karma" by writing posts and getting reactions and comments.
 -   Users can mint new cycles at any point paying at least `1` XDR in ICP.
@@ -22,8 +24,10 @@ The auto-regulation is enforced through a scheme of incentives:
 
 ## Tokenomics
 
-$name has a total supply of `$total_supply`tokens. Tokens can only be mined. Currently, all users who earn karma, automatically mine`$token_symbol` tokens.
-The token minting happens weekly by converting the earned karma to `$token_symbol`tokens at an exponentially declining ratio. The ratio starts with`1:1`for the first`10%`of supply, then drops to`2:1`for the next`10%`, then to `4:1`and so on. Hence the last`10%`of supply will be minted at the ratio`512:1`.
+$name has a total supply of `$total_supply`  tokens. Tokens can only be mined. Currently, all users who earn karma, automatically mine  `$token_symbol` tokens.
+The token minting happens weekly by converting the earned karma to `$token_symbol`  tokens at an exponentially declining ratio.
+The ratio starts with  `1:1`  for the first  `10%`  of supply, then drops to  `2:1`  for the next  `10%`, then to `4:1`  and so on.
+Hence the last   `10%`  of supply will be minted at the ratio  `512:1`.
 
 The utility of tokens is governance and ownership of $name's revenue.
 
@@ -31,7 +35,7 @@ The utility of tokens is governance and ownership of $name's revenue.
 
 -   During positive engagements users can receive karma from other users.
 -   The received karma points will be converted to rewards during the next distribution.
--   The rewards are computed by converting `$min_cycles_minted` karma points to ICP at the same rate as cycle minting (`1 XDR` for `$min_cycles_minted` karma points).
+-   The rewards are computed by converting `$native_cycles_per_xdr` karma points to ICP at the same rate as cycle minting (`1 XDR` for `$native_cycles_per_xdr` karma points).
 -   Additionally to rewards, users that own tokens and were active within the last `$revenue_share_activity_weeks` weeks receive a share of $name's revenue proportional to their token share.
 -   Users are excluded from both distributions if their ICP amount are smaller than `100` times the transaction fee. These users carry over their accumulated karma to the next round. Note that in this case the minting is delayed as well.
 

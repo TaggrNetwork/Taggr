@@ -199,12 +199,7 @@ const markdownizer = (
                         }
                     }
                     return (
-                        <img
-                            {...props}
-                            onClick={() => {
-                                if (!props.thumbnail) previewImg(props.src);
-                            }}
-                        />
+                        <img {...props} onClick={() => previewImg(props.src)} />
                     );
                 },
             }}
@@ -212,28 +207,14 @@ const markdownizer = (
     );
 
 const Gallery = ({ children }) => {
-    const [currentPic, setCurrentPic] = React.useState(0);
     const pictures = children.filter((c) => c.type && c.type.name == "img");
     const nonPictures = children.filter((c) => !c.type || c.type.name != "img");
     return (
         <div className="gallery">
-            {pictures[currentPic]}
+            {pictures[0]}
             {pictures.length > 1 && (
                 <div className="thumbnails row_container">
-                    {pictures.map((p, i) => {
-                        const pic = React.cloneElement(p, {
-                            thumbnail: "true",
-                        });
-                        return i == currentPic ? (
-                            <div key={i} className="current">
-                                {pic}
-                            </div>
-                        ) : (
-                            <div key={i} onClick={() => setCurrentPic(i)}>
-                                {pic}
-                            </div>
-                        );
-                    })}
+                    {pictures.slice(1)}
                 </div>
             )}
             {nonPictures.length > 0 && <p>{nonPictures}</p>}

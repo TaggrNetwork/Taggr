@@ -319,12 +319,12 @@ impl User {
     }
 
     pub fn top_up_cycles_from_rewards(&mut self) -> Result<(), String> {
-        let cycles_needed = 1000_u64.saturating_sub(self.cycles());
+        let cycles_needed = CONFIG.native_cycles_per_xdr.saturating_sub(self.cycles());
         let top_up = cycles_needed.min(self.rewarded_karma);
         if top_up == 0 {
             return Ok(());
         }
-        self.change_karma(-(top_up as Karma), "topped up cycles from karma");
+        self.change_karma(-(top_up as Karma), "cycles top-up from karma");
         self.change_cycles(
             top_up as Cycles,
             CyclesDelta::Plus,
@@ -337,16 +337,17 @@ impl User {
         revenue: &mut u64,
         e8s_for_one_xdr: u64,
     ) -> Result<(), String> {
-        let cycles_needed = 1000_u64.saturating_sub(self.cycles());
+        let cycles_needed = CONFIG.native_cycles_per_xdr.saturating_sub(self.cycles());
         if *revenue > 0 && cycles_needed > 0 {
-            let e8s_needed = cycles_needed * e8s_for_one_xdr / 1000;
+            let e8s_needed = cycles_needed * e8s_for_one_xdr / CONFIG.native_cycles_per_xdr;
             let top_up_e8s = e8s_needed.min(*revenue);
-            let cycles = top_up_e8s as f32 / e8s_for_one_xdr as f32 * 1000.0;
+            let cycles =
+                top_up_e8s as f32 / e8s_for_one_xdr as f32 * CONFIG.native_cycles_per_xdr as f32;
             *revenue = (*revenue).saturating_sub(top_up_e8s);
             self.change_cycles(
                 cycles as Cycles,
                 CyclesDelta::Plus,
-                "automatic cycles top-up",
+                "cycles top-up from revenue",
             )?;
         }
         Ok(())

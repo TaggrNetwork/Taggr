@@ -280,10 +280,6 @@ export const RealmForm = ({ existingName }) => {
                     </div>
                 )}
 
-                <br />
-                <hr />
-                <br />
-
                 <ButtonWithLoading
                     classNameArg={valid ? "active" : "inactive"}
                     onClick={async () => {

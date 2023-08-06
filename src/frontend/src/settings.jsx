@@ -53,6 +53,8 @@ export const Settings = ({ invite = null }) => {
         if (!user) location.href = "/";
         else if (uiRefresh) {
             await api._reloadUser();
+            delete window.uiInitialized;
+            window.setUI();
             updateData(api._user);
         }
     };

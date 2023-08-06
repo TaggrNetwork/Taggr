@@ -126,33 +126,37 @@ export const Profile = ({ handle }) => {
                             classNameArg="left_half_spaced max_width_col"
                             text={true}
                         />
-                        <ButtonWithLoading
-                            label="SEND CYCLES"
-                            classNameArg="max_width_col"
-                            onClick={async () => {
-                                const amount = parseInt(
-                                    prompt(`Enter the amount (fee: 1 cycle)`),
-                                );
-                                if (!amount) return;
-                                if (
-                                    !confirm(
-                                        `You are transferring ${amount} cycles to @${profile.name}`,
+                        {user.id != profile.id && (
+                            <ButtonWithLoading
+                                label="SEND CYCLES"
+                                classNameArg="left_half_spaced max_width_col"
+                                onClick={async () => {
+                                    const amount = parseInt(
+                                        prompt(
+                                            `Enter the amount (fee: 1 cycle)`,
+                                        ),
+                                    );
+                                    if (!amount) return;
+                                    if (
+                                        !confirm(
+                                            `You are transferring ${amount} cycles to @${profile.name}`,
+                                        )
                                     )
-                                )
-                                    return;
-                                let result = await api.call(
-                                    "transfer_cycles",
-                                    profile.id,
-                                    amount,
-                                );
-                                if ("Err" in result) {
-                                    alert(`Error: ${result.Err}`);
-                                    return;
-                                }
-                                api._reloadUser();
-                                await updateState();
-                            }}
-                        />
+                                        return;
+                                    let result = await api.call(
+                                        "transfer_cycles",
+                                        profile.id,
+                                        amount,
+                                    );
+                                    if ("Err" in result) {
+                                        alert(`Error: ${result.Err}`);
+                                        return;
+                                    }
+                                    api._reloadUser();
+                                    await updateState();
+                                }}
+                            />
+                        )}
                     </div>
                 }
             />
@@ -511,7 +515,11 @@ export const getLabels = (profile) => {
     if (profile.active_weeks > 12) {
         labels.push(["FREQUENTER", "SlateBlue"]);
     }
-    if (api._user && profile.followees.includes(api._user.id)) {
+    if (
+        api._user &&
+        profile.followees.includes(api._user.id) &&
+        api._user.id != profile.id
+    ) {
         labels.push(["FOLLOWS YOU", "SeaGreen"]);
     }
     if (

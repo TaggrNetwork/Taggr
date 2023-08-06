@@ -840,7 +840,7 @@ impl State {
         }
     }
 
-    pub fn distribute_revenue(&mut self, e8s_for_one_xdr: u64) -> HashMap<UserId, u64> {
+    pub fn distribute_revenue(&mut self, now: u64, e8s_for_one_xdr: u64) -> HashMap<UserId, u64> {
         let burned_cycles = self.burned_cycles;
         if burned_cycles <= 0 {
             return Default::default();
@@ -850,7 +850,7 @@ impl State {
             .iter()
             .filter_map(|(acc, balance)| {
                 let user = self.principal_to_user(acc.owner)?;
-                if user.active_within_weeks(time(), CONFIG.revenue_share_activity_weeks) {
+                if user.active_within_weeks(now, CONFIG.revenue_share_activity_weeks) {
                     return Some((user.id, *balance));
                 }
                 None
@@ -871,7 +871,8 @@ impl State {
             .map(|(user_id, balance)| {
                 let revenue_share =
                     burned_cycles as f64 * balance as f64 / supply_of_active_users as f64;
-                let e8s = (revenue_share / 1000.0 * e8s_for_one_xdr as f64) as u64;
+                let e8s = (revenue_share / CONFIG.native_cycles_per_xdr as f64
+                    * e8s_for_one_xdr as f64) as u64;
                 (user_id, e8s)
             })
             .collect()
@@ -970,12 +971,13 @@ impl State {
             .values_mut()
             .filter(|u| u.karma_to_reward() > 0)
             .filter_map(|user| {
+                let e8s = (user.karma_to_reward() as f64 / CONFIG.native_cycles_per_xdr as f64
+                    * e8s_for_one_xdr as f64) as u64;
                 let _ = user.top_up_cycles_from_rewards();
                 if user.karma() < 0 {
                     user.apply_rewards();
                     return None;
                 }
-                let e8s = (user.karma_to_reward() as f64 / 1000.0 * e8s_for_one_xdr as f64) as u64;
                 Some((user.id, e8s))
             })
             .collect()
@@ -1030,8 +1032,8 @@ impl State {
             let mut distr_info: HashMap<UserId, u64> = Default::default();
             let total_payout =
                 rewards.values().copied().sum::<u64>() + revenue.values().copied().sum::<u64>();
-            // We stop distributions if the treasury balance falls below 38 XDRs ~ $50.
-            let minimal_treasury_balance = 38 * e8s_for_one_xdr;
+            // We stop distributions if the treasury balance falls below the minimum balance.
+            let minimal_treasury_balance = CONFIG.min_treasury_balance_xdrs * e8s_for_one_xdr;
             if treasury_balance < total_payout || treasury_balance < minimal_treasury_balance {
                 state
                     .logger
@@ -1048,6 +1050,11 @@ impl State {
             let mut total_revenue = 0;
             for user in state.users.values_mut() {
                 let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
+                // If the user was active and earned reward, mint tokens for them.
+                if user_reward > 0 {
+                    distr_info.insert(user.id, user_reward);
+                    user.apply_rewards();
+                }
                 let mut user_revenue = revenue.get(&user.id).copied().unwrap_or_default();
                 let _ = user.top_up_cycles_from_revenue(&mut user_revenue, e8s_for_one_xdr);
                 let e8s = user_reward + user_revenue;
@@ -1057,8 +1064,6 @@ impl State {
                 user.treasury_e8s += e8s;
                 total_rewards += user_reward;
                 total_revenue += user_revenue;
-                distr_info.insert(user.id, user.karma_to_reward());
-                user.apply_rewards();
                 payments.push(format!("`{}` to @{}", e8s_to_icp(e8s), &user.name));
                 user.notify(format!(
                     "You received `{}` ICP as rewards and `{}` ICP as revenue! 💸",
@@ -1312,7 +1317,7 @@ impl State {
                     let (rewards, revenues) = mutate(|state| {
                         (
                             state.distribute_rewards(e8s_for_one_xdr),
-                            state.distribute_revenue(e8s_for_one_xdr),
+                            state.distribute_revenue(time(), e8s_for_one_xdr),
                         )
                     });
                     State::distribute_icp(e8s_for_one_xdr, rewards, revenues).await
@@ -1496,11 +1501,11 @@ impl State {
         };
 
         mutate(|state| {
-            let min_cycles_minted = CONFIG.min_cycles_minted;
             if invoice.paid {
                 if let Some(user) = state.principal_to_user_mut(principal) {
                     user.change_cycles(
-                        ((invoice.paid_e8s as f64 / invoice.e8s as f64) * min_cycles_minted as f64)
+                        ((invoice.paid_e8s as f64 / invoice.e8s as f64)
+                            * CONFIG.native_cycles_per_xdr as f64)
                             as Cycles,
                         CyclesDelta::Plus,
                         "top up with ICP".to_string(),
@@ -3199,8 +3204,8 @@ pub(crate) mod tests {
             assert!(!author.trusted());
             assert!(!farmer.trusted());
             assert!(lurker.trusted());
-            assert_eq!(author.cycles(), c.min_cycles_minted - c.post_cost);
-            assert_eq!(lurker.cycles(), c.min_cycles_minted);
+            assert_eq!(author.cycles(), c.native_cycles_per_xdr - c.post_cost);
+            assert_eq!(lurker.cycles(), c.native_cycles_per_xdr);
 
             assert_eq!(author.karma(), 0);
 
@@ -3211,7 +3216,7 @@ pub(crate) mod tests {
             let burned_cycles_by_reaction_from_untrusted = 11;
             assert_eq!(
                 state.users.get(&post_author_id).unwrap().cycles(),
-                c.min_cycles_minted - c.post_cost
+                c.native_cycles_per_xdr - c.post_cost
             );
             assert!(state.react(p, post_id, 50, 0).is_ok());
             assert!(state.react(p, post_id, 100, 0).is_err());
@@ -3224,7 +3229,7 @@ pub(crate) mod tests {
             assert!(state.react(p0, post_id, 100, 0).is_err());
 
             let author = state.users.get(&post_author_id).unwrap();
-            assert_eq!(author.cycles(), c.min_cycles_minted - c.post_cost);
+            assert_eq!(author.cycles(), c.native_cycles_per_xdr - c.post_cost);
             assert_eq!(author.karma_to_reward(), rewards_from_reactions);
             assert_eq!(
                 state.burned_cycles as Cycles,
@@ -3232,7 +3237,7 @@ pub(crate) mod tests {
             );
 
             let lurker = state.users.get(&lurker_id).unwrap();
-            assert_eq!(lurker.cycles(), c.min_cycles_minted - reaction_costs_1);
+            assert_eq!(lurker.cycles(), c.native_cycles_per_xdr - reaction_costs_1);
 
             // downvote
             assert!(state.react(p3, post_id, 1, 0).is_ok());
@@ -3242,10 +3247,10 @@ pub(crate) mod tests {
             let lurker_3 = state.principal_to_user(p3).unwrap();
             assert_eq!(
                 author.cycles(),
-                c.min_cycles_minted - c.post_cost - reaction_penalty
+                c.native_cycles_per_xdr - c.post_cost - reaction_penalty
             );
             assert_eq!(author.karma_to_reward(), rewards_from_reactions);
-            assert_eq!(lurker_3.cycles(), c.min_cycles_minted - 3);
+            assert_eq!(lurker_3.cycles(), c.native_cycles_per_xdr - 3);
             assert_eq!(
                 state.burned_cycles,
                 (c.post_cost
@@ -3267,7 +3272,7 @@ pub(crate) mod tests {
             let author = state.users.get(&post_author_id).unwrap();
             assert_eq!(
                 author.cycles(),
-                c.min_cycles_minted - c.post_cost - c.post_cost - reaction_penalty
+                c.native_cycles_per_xdr - c.post_cost - c.post_cost - reaction_penalty
             );
 
             let author = state.users.get_mut(&post_author_id).unwrap();
