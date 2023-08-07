@@ -278,7 +278,7 @@ pub async fn fetch_proposals() -> Result<Vec<NNSProposal>, String> {
     let args = ListProposalInfo {
         include_reward_status: Default::default(),
         before_proposal: Default::default(),
-        limit: 15,
+        limit: 25,
         exclude_topic: Default::default(),
         include_status: Default::default(),
     };

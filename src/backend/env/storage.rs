@@ -41,14 +41,6 @@ impl Storage {
         Ok(id)
     }
 
-    #[allow(dead_code)]
-    async fn upgrade_buckets(&self) -> Result<(), String> {
-        for id in self.buckets.keys() {
-            canisters::install(*id, BUCKET_WASM_GZ, CanisterInstallMode::Upgrade).await?;
-        }
-        Ok(())
-    }
-
     pub async fn write_to_bucket(blob: &[u8]) -> Result<(Principal, u64), String> {
         let id = Storage::allocate_space().await?;
         let response = canisters::call_canister_raw(id, "write", blob)
@@ -60,4 +52,22 @@ impl Storage {
         mutate(|state| state.storage.buckets.insert(id, offset + blob.len() as u64));
         Ok((id, offset))
     }
+}
+
+pub async fn upgrade_buckets() {
+    for id in read(|state| state.storage.buckets.keys().cloned().collect::<Vec<_>>()) {
+        if let Err(err) = canisters::install(id, BUCKET_WASM_GZ, CanisterInstallMode::Upgrade).await
+        {
+            mutate(|state| {
+                state
+                    .logger
+                    .error(format!("couldn't upgrade bucket {}: {}", id, err))
+            });
+        };
+    }
+    mutate(|state| {
+        state
+            .logger
+            .info("Successfully upgraded all storage buckets.")
+    });
 }

@@ -1208,12 +1208,51 @@ impl State {
                 Default::default()
             }
         };
+
         for proposal in proposals
             .into_iter()
             .filter(|proposal| proposal.id > last_known_proposal_id)
         {
-            // Reject all non-supported proposals (except network economics, governance, SNS & replica-management)
-            if ![3, 4, 13, 14].contains(&proposal.topic) {
+            // Vote only on proposals with topics network economics, governance, SNS & replica-management.
+            if [3, 4, 13, 14].contains(&proposal.topic) {
+                let post = format!(
+                    "# #NNS-Proposal [{0}](https://dashboard.internetcomputer.org/proposal/{0})\n## {1}\n",
+                    proposal.id, proposal.title,
+                ) + &format!(
+                    "Proposer: [{0}](https://dashboard.internetcomputer.org/neuron/{0})\n\n\n\n{1}",
+                    proposal.proposer, proposal.summary
+                );
+
+                match mutate(|state| {
+                    state.last_nns_proposal = state.last_nns_proposal.max(proposal.id);
+                    Post::create(
+                        state,
+                        post,
+                        Default::default(),
+                        id(),
+                        now,
+                        None,
+                        Some("NNS-GOV".into()),
+                        Some(Extension::Poll(Poll {
+                            deadline: 72,
+                            options: vec!["ACCEPT".into(), "REJECT".into()],
+                            ..Default::default()
+                        })),
+                    )
+                }) {
+                    Ok(post_id) => {
+                        mutate(|state| state.pending_nns_proposals.insert(proposal.id, post_id));
+                        continue;
+                    }
+                    Err(err) => {
+                        mutate(|state| {
+                            state
+                                .logger
+                                .error(format!("couldn't create a NNS proposal post: {:?}", err))
+                        });
+                    }
+                };
+
                 if let Err(err) =
                     canisters::vote_on_nns_proposal(proposal.id, NNSVote::Reject).await
                 {
@@ -1224,42 +1263,7 @@ impl State {
                         ))
                     });
                 };
-                continue;
             }
-            let post = format!(
-                "# #NNS-Proposal [{0}](https://dashboard.internetcomputer.org/proposal/{0})\n## {1}\n",
-                proposal.id, proposal.title,
-            ) + &format!(
-                "Proposer: [{0}](https://dashboard.internetcomputer.org/neuron/{0})\n\n\n\n{1}",
-                proposal.proposer, proposal.summary
-            );
-
-            mutate(|state| {
-                match Post::create(
-                    state,
-                    post,
-                    Default::default(),
-                    id(),
-                    now,
-                    None,
-                    Some("NNS-GOV".into()),
-                    Some(Extension::Poll(Poll {
-                        deadline: 72,
-                        options: vec!["ACCEPT".into(), "REJECT".into()],
-                        ..Default::default()
-                    })),
-                ) {
-                    Err(err) => {
-                        state
-                            .logger
-                            .error(format!("couldn't create a NNS proposal post: {:?}", err));
-                    }
-                    Ok(post_id) => {
-                        state.pending_nns_proposals.insert(proposal.id, post_id);
-                    }
-                };
-                state.last_nns_proposal = state.last_nns_proposal.max(proposal.id);
-            })
         }
     }
 

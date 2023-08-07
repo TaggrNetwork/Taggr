@@ -16,7 +16,9 @@ export function randomIntInRange(low = 0, high = 10): number {
     return Math.floor(Math.random() * offset + low);
 }
 
-function generateRandomWord(wordLength = randomIntInRange(2, 12)): string {
+export function generateRandomWord(
+    wordLength = randomIntInRange(2, 12),
+): string {
     return generateAlphaString(wordLength);
 }
 

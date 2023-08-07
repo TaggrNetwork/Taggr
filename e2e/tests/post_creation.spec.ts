@@ -5,6 +5,7 @@ import {
     createPostWithHashTag,
     createSeedPhraseUser,
     generateHashTag,
+    generateRandomWord,
     initPost,
     performInNewContext,
 } from "../support";
@@ -242,16 +243,18 @@ test("post creation with a poll", async ({ page }) => {
 
     await test.step("create post with a poll", async () => {
         const newPostPage = await initPost(page, user);
-        await newPostPage.editor.addText("Post with poll");
+        await newPostPage.editor.addText(
+            "Post with poll " + generateRandomWord(),
+        );
         await newPostPage.editor.createPoll("Red pill\nBlue pill");
 
-        const postPage = await newPostPage.submit();
+        await newPostPage.submit();
 
-        const postText = postPage.getElementByValue("Post with poll");
+        const postText = page.getByText("Post with poll");
         await expect(postText).toBeVisible();
-        const bluePillOption = postPage.getElementByValue("Blue pill");
+        const bluePillOption = page.getByText("Blue pill");
         await expect(bluePillOption).toBeVisible();
-        const redPillOption = postPage.getElementByValue("Red pill");
+        const redPillOption = page.getByText("Red pill");
         await expect(redPillOption).toBeVisible();
     });
 });

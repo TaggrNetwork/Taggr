@@ -12,7 +12,11 @@ body {
     padding-right: 3%;
     max-width: 1200px;
     font-size: large;
-    font-family: Tahoma, "Helvetica Neue", sans-serif;
+    font-family:
+        ui-sans-serif,
+        -apple-system,
+        "Helvetica Neue",
+        sans-serif;
 }
 
 .db_cell {
@@ -76,8 +80,8 @@ h5 {
 }
 
 .monospace {
-    font-family: "Menlo", "Consolas", "Roboto Mono", "DejaVu Sans Mono",
-        monospace;
+    font-family: ui-monospace, "Menlo", "Consolas", "Roboto Mono",
+        "DejaVu Sans Mono", monospace;
 }
 
 #search_field,

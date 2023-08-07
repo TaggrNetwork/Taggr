@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 base64 = "0.21.2"
 candid = { version = "0.9.0", features = ["parser"] }
 hex = "0.4.3"
-ic-cdk = { version = "0.10.0" }
+ic-cdk = "0.10.0"
 ic-cdk-macros = "0.7.1"
 ic-cdk-timers = "0.4.0"
 ic-certified-map = "0.4.0"
@@ -27,3 +27,7 @@ actix-rt = "*"
 
 [features]
 dev = []
+
+[profile.release]
+lto = true
+opt-level = 2

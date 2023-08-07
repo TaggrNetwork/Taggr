@@ -451,7 +451,7 @@ impl Post {
         }
 
         let limit = if principal == id() {
-            10 // canister itself can post up to 10 posts per hour to not skip NNS proposals
+            4 // canister itself can post up to 4 posts per hour to not skip NNS proposals
         } else if user.is_bot() {
             1
         } else if parent.is_none() {
