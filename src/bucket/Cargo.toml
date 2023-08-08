@@ -12,7 +12,3 @@ candid = "0.9.0"
 
 [features]
 dev = []
-
-[profile.release]
-lto = true
-opt-level = 2

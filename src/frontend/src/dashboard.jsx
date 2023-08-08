@@ -220,7 +220,7 @@ export const Dashboard = ({ fullMode }) => {
                         </div>
                         <div className="db_cell">
                             <label>
-                                <Cash /> WEEK'S REVENUE
+                                <Cycles /> REVENUE
                             </label>
                             {show(stats.burned_cycles)}
                         </div>

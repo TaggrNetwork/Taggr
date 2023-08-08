@@ -27,7 +27,3 @@ actix-rt = "*"
 
 [features]
 dev = []
-
-[profile.release]
-lto = true
-opt-level = 2

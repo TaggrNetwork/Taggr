@@ -205,7 +205,7 @@ pub const CONFIG: &Config = &Config {
     response_reward: 1,
 
     inactivity_penalty: 45,
-    inactivity_duration_weeks: 4,
+    inactivity_duration_weeks: 26,
     revenue_share_activity_weeks: 2,
     voting_power_activity_weeks: 8,
 

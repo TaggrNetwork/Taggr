@@ -395,8 +395,16 @@ impl Post {
             post.tags = tags(CONFIG.max_tag_length, &body);
             post.body = body;
             post.valid(&blobs)?;
-            let files_before = post.files.len();
-            let costs = post.costs(post.files.len().saturating_sub(files_before));
+            let old_blob_ids = post
+                .files
+                .keys()
+                .filter_map(|key| key.split('@').next())
+                .collect::<BTreeSet<_>>();
+            let new_blobs = blobs
+                .iter()
+                .filter(|(id, _)| !old_blob_ids.contains(id.as_str()))
+                .count();
+            let costs = post.costs(new_blobs);
             state.charge(user_id, costs, format!("editing of post {}", id))?;
             post.patches.push((post.timestamp, patch));
             post.timestamp = timestamp;
@@ -450,11 +458,7 @@ impl Post {
             return Err("Bots can't create comments currently".into());
         }
 
-        let limit = if principal == id() {
-            4 // canister itself can post up to 4 posts per hour to not skip NNS proposals
-        } else if user.is_bot() {
-            1
-        } else if parent.is_none() {
+        let limit = if parent.is_none() {
             CONFIG.max_posts_per_hour
         } else {
             CONFIG.max_comments_per_hour

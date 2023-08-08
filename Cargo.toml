@@ -3,3 +3,7 @@ members = [
     "src/backend",
     "src/bucket",
 ]
+
+[profile.release]
+lto = true
+opt-level = 2

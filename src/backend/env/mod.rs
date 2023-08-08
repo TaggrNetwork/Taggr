@@ -1037,7 +1037,7 @@ impl State {
             if treasury_balance < total_payout || treasury_balance < minimal_treasury_balance {
                 state
                     .logger
-                    .info("Treasury is too small, skipping the distributions...");
+                    .info("Treasury balance is too low; skipping the payouts...");
                 return (distr_info, 0);
             }
             let mut payments = Vec::default();
@@ -1311,8 +1311,8 @@ impl State {
         }
     }
 
-    async fn weekly_chores(_now: u64) {
-        mutate(|state| state.clean_up());
+    async fn weekly_chores(now: u64) {
+        mutate(|state| state.clean_up(now));
 
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
@@ -1345,8 +1345,7 @@ impl State {
         }
     }
 
-    fn clean_up(&mut self) {
-        let now = time();
+    fn clean_up(&mut self, now: u64) {
         for user in self.users.values_mut() {
             if user.active_within_weeks(now, 1) {
                 user.active_weeks += 1;
@@ -1366,17 +1365,20 @@ impl State {
         }
         let mut inactive_users = 0;
         let mut cycles_total = 0;
+        let inactive_user_balance_threshold = CONFIG.inactivity_penalty * 4;
         for (id, cycles) in self
             .users
             .values()
             .filter(|user| {
                 !user.active_within_weeks(now, CONFIG.inactivity_duration_weeks)
-                    && user.cycles() > 0
+                    && user.cycles() > inactive_user_balance_threshold
             })
             .map(|u| (u.id, u.cycles()))
             .collect::<Vec<_>>()
         {
-            let costs = CONFIG.inactivity_penalty.min(cycles);
+            let costs = CONFIG
+                .inactivity_penalty
+                .min(cycles - inactive_user_balance_threshold);
             if let Err(err) = self.charge(id, costs, "inactivity penalty".to_string()) {
                 self.logger
                     .error(format!("Couldn't charge inactivity penalty: {:?}", err));
@@ -2198,11 +2200,15 @@ pub(crate) mod tests {
     }
 
     pub fn create_user(state: &mut State, p: Principal) -> UserId {
-        create_user_with_params(state, p, &p.to_string().replace('-', ""), true)
+        create_user_with_params(state, p, &p.to_string().replace('-', ""), true, 1000)
+    }
+
+    pub fn create_user_with_cycles(state: &mut State, p: Principal, cycles: Cycles) -> UserId {
+        create_user_with_params(state, p, &p.to_string().replace('-', ""), true, cycles)
     }
 
     pub fn create_untrusted_user(state: &mut State, p: Principal) -> UserId {
-        create_user_with_params(state, p, &p.to_string().replace('-', ""), false)
+        create_user_with_params(state, p, &p.to_string().replace('-', ""), false, 1000)
     }
 
     fn create_user_with_params(
@@ -2210,10 +2216,11 @@ pub(crate) mod tests {
         p: Principal,
         name: &str,
         trusted: bool,
+        cycles: Cycles,
     ) -> UserId {
         let id = state.new_user(p, 0, name.to_string());
         let u = state.users.get_mut(&id).unwrap();
-        u.change_cycles(1000, CyclesDelta::Plus, "").unwrap();
+        u.change_cycles(cycles, CyclesDelta::Plus, "").unwrap();
         if trusted {
             u.change_karma(CONFIG.trusted_user_min_karma, "");
             u.apply_rewards();
@@ -2540,8 +2547,8 @@ pub(crate) mod tests {
             let state = &mut *cell.borrow_mut();
             let p0 = pr(0);
             let p1 = pr(1);
-            let _u0 = create_user_with_params(state, p0, "user1", true);
-            let _u1 = create_user_with_params(state, p1, "user2", true);
+            let _u0 = create_user_with_params(state, p0, "user1", true, 1000);
+            let _u1 = create_user_with_params(state, p1, "user2", true, 1000);
 
             let user1 = state.users.get_mut(&_u1).unwrap();
             assert_eq!(user1.cycles(), 1000);
@@ -3007,9 +3014,9 @@ pub(crate) mod tests {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
-            let u1 = create_user_with_params(state, pr(0), "user1", true);
-            let u2 = create_user_with_params(state, pr(1), "user2", true);
-            let u3 = create_user_with_params(state, pr(2), "user3", true);
+            let u1 = create_user_with_params(state, pr(0), "user1", true, 1000);
+            let u2 = create_user_with_params(state, pr(1), "user2", true, 1000);
+            let u3 = create_user_with_params(state, pr(2), "user3", true, 1000);
 
             assert_eq!(state.user("user1").unwrap().id, u1);
             assert_eq!(state.user("0").unwrap().id, u1);
@@ -3170,6 +3177,49 @@ pub(crate) mod tests {
             assert!(feed.contains(&post_id));
             assert!(feed.contains(&post_id2));
         });
+    }
+
+    #[test]
+    fn test_clean_up() {
+        STATE.with(|cell| cell.replace(Default::default()));
+        mutate(|state| {
+            let inactive_id1 = create_user_with_cycles(state, pr(1), 500);
+            let inactive_id2 = create_user_with_cycles(state, pr(2), 100);
+            let inactive_id3 = create_user_with_cycles(state, pr(3), 200);
+            let active_id = create_user_with_cycles(state, pr(3), 300);
+
+            let user = state.users.get_mut(&inactive_id1).unwrap();
+            assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
+            let user = state.users.get_mut(&inactive_id3).unwrap();
+            assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
+            let user = state.users.get_mut(&active_id).unwrap();
+            assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
+
+            let now = WEEK * 27;
+            state.users.get_mut(&active_id).unwrap().last_activity = now;
+
+            state.clean_up(now);
+
+            let penalty = CONFIG.inactivity_penalty;
+
+            // penalized
+            let user = state.users.get_mut(&inactive_id1).unwrap();
+            assert_eq!(user.cycles(), 500 - penalty);
+            assert_eq!(user.karma(), 0);
+            // not penalized due to low balance, but karma penalized
+            let user = state.users.get_mut(&inactive_id2).unwrap();
+            assert_eq!(user.cycles(), 100);
+            assert_eq!(user.karma(), 0);
+            // penalized to the minimum balance
+            assert_eq!(
+                state.users.get_mut(&inactive_id3).unwrap().cycles(),
+                penalty * 4
+            );
+            // Active user not penalized
+            let user = state.users.get_mut(&active_id).unwrap();
+            assert_eq!(user.cycles(), 300);
+            assert_eq!(user.karma(), CONFIG.trusted_user_min_karma)
+        })
     }
 
     #[test]
