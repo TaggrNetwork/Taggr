@@ -100,7 +100,22 @@ fn post_upgrade() {
 }
 
 async fn post_upgrade_fixtures() {
-    crate::storage::upgrade_buckets().await;
+    mutate(|state| {
+        state.balances.clear();
+        let e8s_per_xdr = 33340000;
+        for t in &mut state.ledger {
+            if t.timestamp > state.last_weekly_chores {
+                t.amount = (t.amount / e8s_per_xdr * 1000).max(1);
+            }
+        }
+        match token::balances_from_ledger(&state.ledger) {
+            Ok(value) => state.balances = value,
+            Err(err) => state.logger.log(
+                format!("the token ledger is inconsistent: {}", err),
+                "CRITICAL".into(),
+            ),
+        }
+    });
 }
 
 /*
@@ -243,6 +258,10 @@ fn transfer_cycles() {
                 "cycle transfer from @{} to @{}",
                 sender.name, recipient_name
             ),
+            Some(format!(
+                "You have received `{}` cycles from @{}.",
+                amount, sender.name
+            )),
         )
     }))
 }

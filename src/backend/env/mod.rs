@@ -178,7 +178,7 @@ impl Logger {
         self.log(message, "INFO".to_string());
     }
 
-    fn log<T: ToString>(&mut self, message: T, level: String) {
+    pub fn log<T: ToString>(&mut self, message: T, level: String) {
         self.events.push(Event {
             timestamp: time(),
             message: message.to_string(),
@@ -327,6 +327,7 @@ impl State {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn cycle_transfer<T: ToString>(
         &mut self,
         sender: UserId,
@@ -335,18 +336,25 @@ impl State {
         fee: Cycles,
         destination: Destination,
         log: T,
+        notification: Option<String>,
     ) -> Result<(), String> {
         let sender = self.users.get_mut(&sender).expect("no sender found");
         sender.change_cycles(amount + fee, CyclesDelta::Minus, log.to_string())?;
         let receiver = self.users.get_mut(&receiver).expect("no receiver found");
         self.burned_cycles += fee as i64;
-        match destination {
+        let result = match destination {
             Destination::Karma => {
                 receiver.change_karma(amount as Karma, log);
                 Ok(())
             }
             Destination::Cycles => receiver.change_cycles(amount, CyclesDelta::Plus, log),
+        };
+        if result.is_ok() {
+            if let Some(message) = notification {
+                receiver.notify(message);
+            }
         }
+        result
     }
 
     pub fn load(&mut self) {
@@ -571,6 +579,7 @@ impl State {
                             0,
                             Destination::Cycles,
                             "claimed by invited user",
+                            None,
                         )
                         .unwrap_or_else(|err| panic!("couldn't use the invite: {}", err));
                     new_user_id
@@ -840,7 +849,7 @@ impl State {
         }
     }
 
-    pub fn distribute_revenue(&mut self, now: u64, e8s_for_one_xdr: u64) -> HashMap<UserId, u64> {
+    pub fn collect_revenue(&mut self, now: u64, e8s_for_one_xdr: u64) -> HashMap<UserId, u64> {
         let burned_cycles = self.burned_cycles;
         if burned_cycles <= 0 {
             return Default::default();
@@ -963,7 +972,7 @@ impl State {
         }
     }
 
-    pub fn distribute_rewards(&mut self, e8s_for_one_xdr: u64) -> HashMap<UserId, u64> {
+    pub fn collect_new_karma(&mut self) -> HashMap<UserId, u64> {
         for user in self.users.values_mut() {
             user.accounting.clear();
         }
@@ -971,14 +980,13 @@ impl State {
             .values_mut()
             .filter(|u| u.karma_to_reward() > 0)
             .filter_map(|user| {
-                let e8s = (user.karma_to_reward() as f64 / CONFIG.native_cycles_per_xdr as f64
-                    * e8s_for_one_xdr as f64) as u64;
+                let karma = user.karma_to_reward();
                 let _ = user.top_up_cycles_from_rewards();
                 if user.karma() < 0 {
                     user.apply_rewards();
                     return None;
                 }
-                Some((user.id, e8s))
+                Some((user.id, karma))
             })
             .collect()
     }
@@ -1024,12 +1032,21 @@ impl State {
 
     async fn distribute_icp(
         e8s_for_one_xdr: u64,
-        rewards: HashMap<UserId, u64>,
+        karma: &HashMap<UserId, u64>,
         revenue: HashMap<UserId, u64>,
-    ) -> HashMap<UserId, u64> {
+    ) {
         let treasury_balance = invoices::main_account_balance().await.e8s();
-        let (distr_info, debt) = mutate(|state| {
-            let mut distr_info: HashMap<UserId, u64> = Default::default();
+        let debt = mutate(|state| {
+            let rewards = karma
+                .iter()
+                .map(|(id, karma)| {
+                    (
+                        id,
+                        (*karma as f64 / CONFIG.native_cycles_per_xdr as f64
+                            * e8s_for_one_xdr as f64) as u64,
+                    )
+                })
+                .collect::<HashMap<_, _>>();
             let total_payout =
                 rewards.values().copied().sum::<u64>() + revenue.values().copied().sum::<u64>();
             // We stop distributions if the treasury balance falls below the minimum balance.
@@ -1038,7 +1055,7 @@ impl State {
                 state
                     .logger
                     .info("Treasury balance is too low; skipping the payouts...");
-                return (distr_info, 0);
+                return 0;
             }
             let mut payments = Vec::default();
             let bootcampers = state
@@ -1052,7 +1069,6 @@ impl State {
                 let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
                 // If the user was active and earned reward, mint tokens for them.
                 if user_reward > 0 {
-                    distr_info.insert(user.id, user_reward);
                     user.apply_rewards();
                 }
                 let mut user_revenue = revenue.get(&user.id).copied().unwrap_or_default();
@@ -1098,7 +1114,7 @@ impl State {
                     graduation_list.join(", ")
                 ));
             }
-            (distr_info, total_rewards + total_revenue)
+            total_rewards + total_revenue
         });
 
         if let Err(err) =
@@ -1110,8 +1126,6 @@ impl State {
                 ))
             });
         }
-
-        distr_info
     }
 
     fn conclude_polls(&mut self, now: u64) {
@@ -1316,15 +1330,16 @@ impl State {
 
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
-            let user_ids = match invoices::get_xdr_in_e8s().await {
+            let karma = match invoices::get_xdr_in_e8s().await {
                 Ok(e8s_for_one_xdr) => {
-                    let (rewards, revenues) = mutate(|state| {
+                    let (karma, revenues) = mutate(|state| {
                         (
-                            state.distribute_rewards(e8s_for_one_xdr),
-                            state.distribute_revenue(time(), e8s_for_one_xdr),
+                            state.collect_new_karma(),
+                            state.collect_revenue(time(), e8s_for_one_xdr),
                         )
                     });
-                    State::distribute_icp(e8s_for_one_xdr, rewards, revenues).await
+                    State::distribute_icp(e8s_for_one_xdr, &karma, revenues).await;
+                    karma
                 }
                 Err(err) => {
                     mutate(|state| {
@@ -1335,7 +1350,7 @@ impl State {
                     return;
                 }
             };
-            mutate(|state| state.mint(user_ids));
+            mutate(|state| state.mint(karma));
         } else {
             mutate(|state| {
                 state
@@ -2008,6 +2023,7 @@ impl State {
                     0,
                     Destination::Cycles,
                     format!("rewards refund after deletion of post {}", post.id),
+                    None,
                 )?;
                 karma_penalty += amount as Karma;
             }
@@ -2114,6 +2130,7 @@ impl State {
                 CONFIG.reaction_fee,
                 Destination::Karma,
                 log,
+                None,
             )?;
             post.make_hot(&mut self.hot, self.users.len(), user.id);
         }

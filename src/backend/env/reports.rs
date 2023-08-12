@@ -79,6 +79,7 @@ pub fn finalize_report(
                 0,
                 Destination::Karma,
                 format!("moderation rewards for {}", subject),
+                None,
             )
             .map_err(|err| format!("couldn't reward reporter: {}", err))?;
         (user_id, unit)
@@ -117,6 +118,7 @@ pub fn finalize_report(
                 0,
                 Destination::Karma,
                 log,
+                None,
             )
             .map_err(|err| format!("couldn't reward stalwarts: {}", err))?;
         total_stalwart_rewards += stalwart_reward;

@@ -217,7 +217,7 @@ pub const CONFIG: &Config = &Config {
     hot_post_engagement_percentage: 0.01,
 
     max_post_length: 15000,
-    max_tag_length: 20,
+    max_tag_length: 30,
     max_user_info_length: 500,
     max_blob_size_bytes: 460800,
 
