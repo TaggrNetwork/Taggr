@@ -45,7 +45,7 @@ const REFRESH_RATE_SECS = 10 * 60;
 const parseHash = () => {
     const parts = window.location.hash.replace("#", "").split("/");
     parts.shift();
-    return parts;
+    return parts.map(decodeURI);
 };
 
 const headerRoot = createRoot(document.getElementById("header"));

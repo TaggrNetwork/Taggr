@@ -982,8 +982,8 @@ impl State {
             .filter_map(|user| {
                 let karma = user.karma_to_reward();
                 let _ = user.top_up_cycles_from_rewards();
+                user.apply_rewards();
                 if user.karma() < 0 {
-                    user.apply_rewards();
                     return None;
                 }
                 Some((user.id, karma))
@@ -1049,6 +1049,10 @@ impl State {
                 .collect::<HashMap<_, _>>();
             let total_payout =
                 rewards.values().copied().sum::<u64>() + revenue.values().copied().sum::<u64>();
+            if total_payout == 0 {
+                state.logger.info("No payouts to distribute...");
+                return 0;
+            }
             // We stop distributions if the treasury balance falls below the minimum balance.
             let minimal_treasury_balance = CONFIG.min_treasury_balance_xdrs * e8s_for_one_xdr;
             if treasury_balance < total_payout || treasury_balance < minimal_treasury_balance {
@@ -1066,13 +1070,9 @@ impl State {
             let mut total_rewards = 0;
             let mut total_revenue = 0;
             for user in state.users.values_mut() {
-                let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
-                // If the user was active and earned reward, mint tokens for them.
-                if user_reward > 0 {
-                    user.apply_rewards();
-                }
                 let mut user_revenue = revenue.get(&user.id).copied().unwrap_or_default();
                 let _ = user.top_up_cycles_from_revenue(&mut user_revenue, e8s_for_one_xdr);
+                let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
                 let e8s = user_reward + user_revenue;
                 if e8s < invoices::fee() * 100 {
                     continue;
@@ -1122,7 +1122,7 @@ impl State {
         {
             mutate(|state| {
                 state.logger.error(format!(
-                    "user ICPs couldn't be transferred from the registry: {err}"
+                    "user ICPs couldn't be transferred from the treasury: {err}"
                 ))
             });
         }
@@ -2243,6 +2243,42 @@ pub(crate) mod tests {
             u.apply_rewards();
         }
         id
+    }
+
+    #[test]
+    fn test_new_karma_collection() {
+        STATE.with(|cell| {
+            cell.replace(Default::default());
+            let state = &mut *cell.borrow_mut();
+
+            for (i, (karma_to_reward, total_karma)) in
+                vec![(125, 0), (34, -22), (0, 55)].into_iter().enumerate()
+            {
+                let id = create_user(state, pr(i as u8));
+                let user = state.users.get_mut(&id).unwrap();
+                // remove first whatever karma is there
+                user.change_karma(-user.karma(), "");
+                user.change_karma(total_karma, "");
+                user.apply_rewards();
+                user.change_karma(karma_to_reward, "");
+            }
+
+            let new_karma = state.collect_new_karma();
+
+            let user = state.principal_to_user(pr(0)).unwrap();
+            assert_eq!(*new_karma.get(&user.id).unwrap(), 125);
+            assert_eq!(user.karma(), 125);
+
+            let user = state.principal_to_user(pr(1)).unwrap();
+            // no new karma was collected
+            assert!(!new_karma.contains_key(&user.id));
+            assert_eq!(user.karma(), -22 + 34);
+
+            let user = state.principal_to_user(pr(2)).unwrap();
+            // no new karma was collected
+            assert!(!new_karma.contains_key(&user.id));
+            assert_eq!(user.karma(), 55);
+        });
     }
 
     #[test]

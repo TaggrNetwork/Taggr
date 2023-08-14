@@ -94,29 +94,12 @@ fn post_upgrade() {
     set_timers();
 
     // temporary post upgrade logic goes here
-    set_timer(std::time::Duration::from_secs(1), move || {
-        spawn(post_upgrade_fixtures())
-    });
+    // set_timer(std::time::Duration::from_secs(1), move || {
+    //     spawn(post_upgrade_fixtures())
+    // });
 }
 
-async fn post_upgrade_fixtures() {
-    mutate(|state| {
-        state.balances.clear();
-        let e8s_per_xdr = 33340000;
-        for t in &mut state.ledger {
-            if t.timestamp > state.last_weekly_chores {
-                t.amount = (t.amount / e8s_per_xdr * 1000).max(1);
-            }
-        }
-        match token::balances_from_ledger(&state.ledger) {
-            Ok(value) => state.balances = value,
-            Err(err) => state.logger.log(
-                format!("the token ledger is inconsistent: {}", err),
-                "CRITICAL".into(),
-            ),
-        }
-    });
-}
+// async fn post_upgrade_fixtures() {}
 
 /*
  * UPDATES
