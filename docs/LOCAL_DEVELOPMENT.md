@@ -126,7 +126,7 @@ To collect a static trace for tests:
 npm run test:e2e -- --trace on
 ```
 
-To help determine if tests are flaky, run them multiple times, note that only the file's name is required, not its full path. If the filename is ommited then all tests will be run multiple times:
+To help determine if tests are flaky, run them multiple times, note that only the file's name is required, not its full path. If the filename is omitted then all tests will be run multiple times:
 
 ```shell
 npm run test:e2e -- ${test_filename}.spec.ts --trace on --repeat-each 10

@@ -88,7 +88,7 @@ Upon joining a realm, users implicitly agree to its terms and conditions.
 
 Decentralization does not equate to lawlessness!
 Content permitted on $name aligns with community-approved moderation guidelines.
-Content not permitted on $name falls into one fo the following caterogies:
+Content not permitted on $name falls into one of the following categories:
 
 -   Posts that jeopardize $name as a public service (e.g., those illegal in many jurisdictions).
 -   Posts created with malicious intent, such as gaming the $name system, or posing threats to the community, sustainability, or decentralization of $name.
