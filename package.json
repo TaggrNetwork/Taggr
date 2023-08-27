@@ -2,11 +2,7 @@
     "name": "frontend",
     "version": "0.1.0",
     "description": "Internet Computer starter application",
-    "keywords": [
-        "Internet Computer",
-        "JavaScript",
-        "Canister"
-    ],
+    "keywords": ["Internet Computer", "JavaScript", "Canister"],
     "scripts": {
         "build": "webpack",
         "postbuild": "gzip -9n dist/frontend/index.js",
@@ -17,11 +13,11 @@
         "format:check": "prettier --check ."
     },
     "devDependencies": {
-        "@dfinity/cmc": "0.0.14",
-        "@dfinity/ic-management": "0.0.4",
-        "@dfinity/identity": "0.15.5",
-        "@dfinity/nns": "0.16.3",
-        "@dfinity/principal": "0.15.5",
+        "@dfinity/cmc": "0.0.16",
+        "@dfinity/ic-management": "0.0.6",
+        "@dfinity/identity": "0.19.2",
+        "@dfinity/nns": "0.16.5",
+        "@dfinity/principal": "0.19.2",
         "@playwright/test": "1.35.1",
         "@types/isomorphic-fetch": "^0.0.36",
         "@types/react-dom": "^18.2.6",
@@ -46,9 +42,9 @@
         "last 2 edge version"
     ],
     "dependencies": {
-        "@dfinity/agent": "0.15.5",
-        "@dfinity/auth-client": "0.15.5",
-        "@dfinity/candid": "0.15.5",
+        "@dfinity/agent": "0.19.2",
+        "@dfinity/auth-client": "0.19.2",
+        "@dfinity/candid": "0.19.2",
         "assert": "^2.0.0",
         "diff-match-patch": "^1.0.5",
         "react": "18.2.0",
