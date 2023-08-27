@@ -142,8 +142,8 @@ fn certificate_header(path: &str) -> (String, String) {
         "IC-Certificate".to_string(),
         format!(
             "certificate=:{}:, tree=:{}:",
-            general_purpose::STANDARD_NO_PAD.encode(certificate),
-            general_purpose::STANDARD_NO_PAD.encode(serializer.into_inner())
+            general_purpose::STANDARD.encode(certificate),
+            general_purpose::STANDARD.encode(serializer.into_inner())
         ),
     )
 }

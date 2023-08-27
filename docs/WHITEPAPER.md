@@ -8,19 +8,14 @@ It operates on the public compute infrastructure powered by the [Internet Comput
 -   $name combines features of forums and blogs.
 -   [Posts](#/post/0) containing #tags will appear in feeds associated with those tags.
 -   Users can follow tag [feeds](#/feed/$name), other [users](#/user/0), and monitor activity on posts.
--   $name is owned and governed by its community.
--   $name rewards its users with ICP and shares its revenue with token holders.
-
-## THE SOCIAL EXPERIMENT
-
-The experimental aspect of $name lies in letting _the community_ determine the rules.
-This self-regulation is facilitated through a scheme of incentives:
-
+-   $name is tokenized and is owned and governed by its token holders.
+-   $name distributes rewards to active users and shares its revenue with token holders.
 -   Every user starts with an invite or by minting at least `$native_cycles_per_xdr` cycles, paying `1` [XDR](https://en.wikipedia.org/wiki/Special_drawing_rights) in ICP.
 -   Each interaction with users on $name consumes user's cycles.
 -   Users earn or lose "karma" based on post writing, reactions, and comments.
 -   Users can mint new cycles at any point by paying at least `1` XDR in ICP.
--   All payments go to [$name's Treasury](https://dashboard.internetcomputer.org/account/dee15d98a70029163c79ace6ec9cf33b21917355f1766f44f87b4cb9f4d3b393), holding ICP rewards and $name's revenue.
+-   All payments go to [$name's Treasury](https://dashboard.internetcomputer.org/account/dee15d98a70029163c79ace6ec9cf33b21917355f1766f44f87b4cb9f4d3b393) used to distribute rewards and the revenue.
+-   $name automatically tops up low cycle balances of users eligible for rewards or revenue sharing.
 
 ## Autonomy
 

@@ -328,7 +328,7 @@ impl User {
         self.change_cycles(
             top_up as Cycles,
             CyclesDelta::Plus,
-            "topped up cycles from karma",
+            "cycles top-up from karma",
         )
     }
 
