@@ -543,6 +543,26 @@ div.thumbnails {
     background-color: rgba(0, 0, 0, 0.8);
 }
 
+#preview > .button {
+    opacity: 0.8;
+    cursor: pointer;
+    position: absolute;
+    bottom: 1em;
+    font-size: xx-large;
+}
+
+#preview > .close {
+    left: 50%;
+}
+
+#preview > .left_arrow {
+    left: 1em;
+}
+
+#preview > .right_arrow {
+    right: 1em;
+}
+
 #preview > img {
     max-width: 100%;
     max-height: 100vh;

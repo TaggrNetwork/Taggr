@@ -79,7 +79,6 @@ export const Landing = () => {
             <PostFeed
                 heartbeat={heartbeat + feed}
                 title={title}
-                grid={true}
                 feedLoader={async (page) => {
                     setTitle(feed);
                     if (feed == "FOLLOWED")

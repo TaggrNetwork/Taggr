@@ -11,7 +11,6 @@ export const PostFeed = ({
     comments,
     thread,
     includeComments,
-    grid,
     level,
     highlighted,
 }) => {
@@ -56,7 +55,7 @@ export const PostFeed = ({
         />
     );
 
-    const useGrid = grid && bigScreen() && api._user?.settings.columns != "off";
+    const useGrid = bigScreen() && api._user?.settings.columns != "off";
     let renderColumns = () =>
         posts.map((item, i) => itemRendering(item, i == posts.length - 1));
     const renderGrid = () => (

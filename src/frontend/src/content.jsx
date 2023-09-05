@@ -6,18 +6,62 @@ import { CarretDown } from "./icons";
 
 export const CUT = "\n\n\n\n";
 
-const previewImg = (src) => {
+// We need this becasue the native modulo function doesn't work on negative numbers as expected.
+function mod(n, m) {
+    return ((n % m) + m) % m;
+}
+
+const previewImg = (src, id, gallery, urls) => {
     const preview = document.getElementById("preview");
-    if (preview.hasChildNodes()) {
-        preview.removeChild(preview.children[0]);
+    while (preview.hasChildNodes()) {
+        preview.removeChild(preview.firstChild);
     }
     preview.style.display = "flex";
     const pic = document.createElement("img");
     pic.src = src;
-    preview.onclick = () => {
-        preview.style.display = "none";
+    pic.isMap = true;
+
+    const notGallery = !gallery || gallery.length == 1;
+
+    let slide = (next) => {
+        if (notGallery) return;
+        const pos = gallery.indexOf(id);
+        if (pos < 0) return;
+        const newId = gallery[mod(pos + (next ? 1 : -1), gallery.length)];
+        pic.src = urls[newId];
+        id = newId;
+    };
+
+    pic.onclick = (event) => {
+        const next = pic.clientWidth / 2 < event.offsetX;
+        slide(next);
     };
     preview.appendChild(pic);
+
+    preview.onclick = (event) => {
+        if (event.target.id == "preview" || notGallery)
+            preview.style.display = "none";
+    };
+
+    if (notGallery) return;
+
+    const leftArrow = document.createElement("div");
+    leftArrow.className = "button left_arrow";
+    leftArrow.innerHTML = "&#8592;";
+    leftArrow.onclick = () => slide(false);
+    preview.appendChild(leftArrow);
+
+    const rightArrow = document.createElement("div");
+    rightArrow.className = "button right_arrow";
+    rightArrow.innerHTML = "&#8594;";
+    rightArrow.onclick = () => slide(true);
+    preview.appendChild(rightArrow);
+
+    const closeButton = document.createElement("div");
+    closeButton.className = "button close";
+    closeButton.innerHTML = "&#215;";
+    closeButton.onclick = () => (preview.style.display = "none");
+    preview.appendChild(closeButton);
 };
 
 const linkTagsAndUsers = (value) => {
@@ -184,8 +228,9 @@ const markdownizer = (
                     return <p {...props}>{children}</p>;
                 },
                 img: ({ node, ...props }) => {
+                    let id;
                     if (props.src.startsWith("/blob/")) {
-                        const id = props.src.replace("/blob/", "");
+                        id = props.src.replace("/blob/", "");
                         if (id in urls) {
                             props.src = urls[id];
                         } else if (id in blobs) {
@@ -199,7 +244,12 @@ const markdownizer = (
                         }
                     }
                     return (
-                        <img {...props} onClick={() => previewImg(props.src)} />
+                        <img
+                            {...props}
+                            onClick={() =>
+                                previewImg(props.src, id, props.gallery, urls)
+                            }
+                        />
                     );
                 },
             }}
@@ -207,7 +257,9 @@ const markdownizer = (
     );
 
 const Gallery = ({ children }) => {
-    const pictures = children.filter((c) => c.type && c.type.name == "img");
+    let pictures = children.filter((c) => c.type && c.type.name == "img");
+    const urls = pictures.map((pic) => pic.props.src.replace("/blob/", ""));
+    pictures = pictures.map((e) => React.cloneElement(e, { gallery: urls }));
     const nonPictures = children.filter((c) => !c.type || c.type.name != "img");
     return (
         <div className="gallery">

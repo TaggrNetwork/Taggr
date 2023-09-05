@@ -44,7 +44,6 @@ export const Journal = ({ handle }) => {
                 </div>
             )}
             <PostFeed
-                grid={true}
                 feedLoader={async (page) =>
                     await api.query("journal", handle, page)
                 }

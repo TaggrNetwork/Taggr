@@ -126,7 +126,7 @@ export const Profile = ({ handle }) => {
                             classNameArg="left_half_spaced max_width_col"
                             text={true}
                         />
-                        {user.id != profile.id && (
+                        {user && user.id != profile.id && (
                             <ButtonWithLoading
                                 label="SEND CYCLES"
                                 classNameArg="left_half_spaced max_width_col"
