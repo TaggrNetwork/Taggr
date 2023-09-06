@@ -125,20 +125,17 @@ export const Post = ({
     };
 
     const showCarret = level > (refPost.current?.clientWidth > 900 ? 13 : 3);
-    const goInside = () => (location.href = `#/post/${post.id}`);
-
-    const expand = (e) => {
+    const goInside = (e) => {
         if (repost) location.href = `/#/post/${id}`;
-        if (!isFeedItem || window.getSelection().toString().length > 0) return;
         if (
+            // Selected text is clicked
+            window.getSelection().toString().length > 0 ||
+            !isFeedItem ||
             ["A", "IMG", "INPUT"].includes(e.target.tagName) ||
             skipClicks(e.target)
         )
             return;
-        toggleInfo(false);
-        if (showCarret) goInside();
-        else toggleComments(!expanded);
-        toggleExpansion(!expanded);
+        location.href = `#/post/${post.id}`;
     };
 
     const react = (id) => {
@@ -222,8 +219,6 @@ export const Post = ({
     }
 
     const showExtension = !isNSFW && post.extension && !repost;
-    const postIsClickable =
-        post.children.length > 0 || post.effBody.includes(CUT);
 
     return (
         <div
@@ -236,9 +231,9 @@ export const Post = ({
         >
             <div
                 ref={refPost}
-                className={`post_box ${isInactive ? "inactive" : ""} ${cls} ${
-                    postIsClickable ? "clickable" : ""
-                }`}
+                className={`post_box ${
+                    isInactive ? "inactive" : ""
+                } ${cls} clickable`}
                 style={{ position: "relative" }}
             >
                 {showReport && (
@@ -289,7 +284,7 @@ export const Post = ({
                 )}
                 {!isNSFW && (
                     <article
-                        onClick={expand}
+                        onClick={goInside}
                         className={prime ? "prime" : null}
                     >
                         {/* The key is needed to render different content for different versions to avoid running into diffrrent
@@ -337,35 +332,25 @@ export const Post = ({
                 />
             </div>
             {showInfo && (
-                <div className="top_framed top_spaced">
-                    <div className="left_half_spaced right_half_spaced bottom_spaced top_spaced">
-                        <div className="vcentered bottom_spaced flex_ended">
-                            <a href={`#/post/${post.id}`}>#</a>
-                            <ShareButton
-                                classNameArg="left_spaced"
-                                url={`${isComment ? "thread" : "post"}/${
-                                    post.id
-                                }${versionSpecified ? "/" + version : ""}`}
-                                title={`Post ${post.id} on ${backendCache.config.name}`}
+                <div className="left_half_spaced right_half_spaced top_half_spaced">
+                    {user && (
+                        <>
+                            <ReactionsPicker
+                                user={user}
+                                post={post}
+                                react={react}
                             />
-                            <div className="max_width_col"></div>
-                            {user && (
-                                <ReactionsPicker post={post} react={react} />
-                            )}
-                        </div>
-                        {user &&
-                            post.realm &&
-                            !user.realms.includes(post.realm) && (
-                                <div className="text_centered framed">
-                                    JOIN REALM{" "}
-                                    <a href={`#/realm/${post.realm}`}>
-                                        {post.realm}
-                                    </a>{" "}
-                                    TO COMMENT
-                                </div>
-                            )}
-                        {user &&
-                            (!post.realm ||
+                            {post.realm &&
+                                !user.realms.includes(post.realm) && (
+                                    <div className="text_centered framed">
+                                        JOIN REALM{" "}
+                                        <a href={`#/realm/${post.realm}`}>
+                                            {post.realm}
+                                        </a>{" "}
+                                        TO COMMENT
+                                    </div>
+                                )}
+                            {(!post.realm ||
                                 user.realms.includes(post.realm)) && (
                                 <Form
                                     submitCallback={commentSubmissionCallback}
@@ -376,15 +361,17 @@ export const Post = ({
                                     comment={true}
                                 />
                             )}
-                        {
-                            <PostInfo
-                                post={post}
-                                version={version}
-                                postCreated={postCreated}
-                                callback={async () => await loadData()}
-                            />
-                        }
-                    </div>
+                        </>
+                    )}
+                    {
+                        <PostInfo
+                            post={post}
+                            version={version}
+                            versionSpecified={versionSpecified}
+                            postCreated={postCreated}
+                            callback={async () => await loadData()}
+                        />
+                    }
                 </div>
             )}
             {(showComments || prime) && post.children.length > 0 && (
@@ -405,15 +392,30 @@ export const Post = ({
     );
 };
 
-const PostInfo = ({ post, version, postCreated, callback }) => {
+const PostInfo = ({
+    post,
+    version,
+    postCreated,
+    callback,
+    versionSpecified,
+}) => {
     const postAuthor = api._user?.id == post.user.id;
     const realmController = post.realm && backendCache.realms[post.realm][1];
     return (
         <>
             {api._user && (
                 <div className="row_container top_half_spaced">
+                    <ShareButton
+                        classNameArg="max_width_col"
+                        url={`${post.parent ? "thread" : "post"}/${post.id}${
+                            versionSpecified ? "/" + version : ""
+                        }`}
+                        title={`Post ${post.id} on ${backendCache.config.name}`}
+                    />
                     {!postAuthor && <FlagButton id={post.id} domain="post" />}
                     <ToggleButton
+                        onTitle="Unwatch post"
+                        offTitle="Watch post"
                         classNameArg="max_width_col"
                         offLabel={<Bell />}
                         onLabel={<BellOff />}
@@ -423,6 +425,7 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                         }
                     />
                     <button
+                        title="Repost"
                         className="max_width_col"
                         onClick={() => {
                             api.call("toggle_following_post", post.id);
@@ -432,6 +435,8 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                         <Repost />
                     </button>
                     <ToggleButton
+                        offTitle="Bookmark post"
+                        onTitle="Remove from bookmarks"
                         classNameArg="max_width_col"
                         offLabel={<Save />}
                         onLabel={<Unsave />}
@@ -444,6 +449,7 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                         testId="bookmark-post"
                     />
                     <ButtonWithLoading
+                        title="Tip"
                         classNameArg="max_width_col"
                         onClick={async () => {
                             const amount = prompt(
@@ -469,6 +475,7 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                     />
                     {realmController && isRoot(post) && (
                         <ButtonWithLoading
+                            title="Remove from realm"
                             classNameArg="max_width_col"
                             onClick={async () => {
                                 if (
@@ -487,6 +494,7 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                         <>
                             {post.hashes.length == 0 && (
                                 <ButtonWithLoading
+                                    title="Delete post"
                                     classNameArg="max_width_col"
                                     onClick={async () => {
                                         const {
@@ -547,6 +555,7 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                                 />
                             )}
                             <button
+                                title="Edit"
                                 className="max_width_col"
                                 onClick={() =>
                                     (location.href = `/#/edit/${post.id}`)
@@ -558,7 +567,7 @@ const PostInfo = ({ post, version, postCreated, callback }) => {
                     )}
                 </div>
             )}
-            <div className="small_text top_spaced">
+            <div className="small_text top_spaced bottom_spaced">
                 <div>
                     <b>CREATED</b>:{" "}
                     {new Date(parseInt(postCreated) / 1000000).toLocaleString()}
@@ -726,20 +735,30 @@ const PostBar = ({
     );
 };
 
-export const ReactionsPicker = ({ react }) => (
-    <>
-        {backendCache.config.reactions.map(([id, _]) => (
-            <button
-                key={id}
-                className="left_half_spaced"
-                onClick={() => react(id)}
-                data-testid={"give-" + id + "-reaction"}
-            >
-                {reaction2icon(id)}
-            </button>
-        ))}
-    </>
-);
+export const ReactionsPicker = ({ react, post, user }) => {
+    if (!user || post.user.id == user.id) return null;
+    // Don't show reactions picker if the user reacted already
+    if (
+        Array.prototype.concat
+            .apply([], Object.values(post.reactions))
+            .includes(user.id)
+    )
+        return;
+    return (
+        <div className="framed vcentered bottom_half_spaced row_container">
+            {backendCache.config.reactions.map(([id, cost]) => (
+                <ReactionToggleButton
+                    title={`Karma points: ${cost}`}
+                    key={id}
+                    classNameArg="max_width_col centered"
+                    onClick={() => react(id)}
+                    testId={"give-" + id + "-reaction"}
+                    icon={reaction2icon(id)}
+                />
+            ))}
+        </div>
+    );
+};
 
 export const Reactions = ({ reactionsMap, react }) => {
     if (Object.keys(reactionsMap).length == 0) return null;

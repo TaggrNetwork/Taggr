@@ -153,6 +153,7 @@ const App = () => {
     } else if (handler == "bookmarks") {
         content = auth(
             <PostFeed
+                useList={true}
                 title={<HeadBar title="Bookmarks" shareLink="bookmarks" />}
                 includeComments={true}
                 feedLoader={async () =>

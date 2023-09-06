@@ -156,12 +156,13 @@ export const ShareButton = ({
     styleArg,
     text,
 }) => {
+    const fullUlr = `https://${backendCache.config.domains[0]}/${url}`;
     return (
         <button
+            title={`Share link to ${fullUlr}`}
             className={classNameArg}
             style={styleArg}
             onClick={async (_) => {
-                const fullUlr = `https://${backendCache.config.domains[0]}/${url}`;
                 if (navigator.share) navigator.share({ title, url: fullUlr });
                 else {
                     await navigator.clipboard.writeText(fullUlr);
@@ -197,6 +198,7 @@ export const setTitle = (value) => {
 
 export const ButtonWithLoading = ({
     label,
+    title,
     onClick,
     classNameArg,
     styleArg,
@@ -206,6 +208,7 @@ export const ButtonWithLoading = ({
     if (loading) return <Loading spaced={false} />;
     return (
         <button
+            title={title}
             className={`${classNameArg}`}
             style={styleArg || null}
             data-testid={testId}
@@ -223,6 +226,8 @@ export const ButtonWithLoading = ({
 
 export const ToggleButton = ({
     toggler,
+    offTitle,
+    onTitle,
     classNameArg,
     currState,
     offLabel = "FOLLOW",
@@ -234,6 +239,7 @@ export const ToggleButton = ({
     let on = status == 1 || (status == 0 && currState());
     return (
         <button
+            title={on ? onTitle : offTitle}
             className={`${classNameArg}`}
             onClick={(e) => {
                 e.preventDefault();
@@ -368,6 +374,7 @@ export const token = (n) =>
 
 export const ReactionToggleButton = ({
     id = null,
+    title,
     icon,
     onClick,
     pressed,
@@ -375,6 +382,7 @@ export const ReactionToggleButton = ({
     testId = null,
 }) => (
     <button
+        title={title}
         id={id}
         data-meta="skipClicks"
         onClick={(e) => {
@@ -400,6 +408,7 @@ export const BurgerButton = ({ onClick, pressed, testId = null, styleArg }) => {
     }
     return (
         <ReactionToggleButton
+            title="Menu"
             onClick={onClick}
             pressed={pressed}
             icon={<Menu styleArg={effStyle} />}
@@ -467,7 +476,8 @@ export const CopyToClipboard = ({
     const [copied, setCopied] = React.useState(false);
     return (
         <span
-            className="no_wrap"
+            title="Copy to clipboard"
+            className="no_wrap clickable"
             onClick={async () => {
                 const cb = navigator.clipboard;
                 await cb.writeText(map(value));
@@ -494,6 +504,7 @@ export const intToBEBytes = (val) => {
 
 export const FlagButton = ({ id, domain, text }) => (
     <ButtonWithLoading
+        title="Flag post"
         classNameArg="max_width_col"
         onClick={async () => {
             let reason = prompt(

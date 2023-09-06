@@ -13,6 +13,7 @@ export const PostFeed = ({
     includeComments,
     level,
     highlighted,
+    useList,
 }) => {
     const [page, setPage] = React.useState(0);
     const [posts, setPosts] = React.useState([]);
@@ -55,7 +56,8 @@ export const PostFeed = ({
         />
     );
 
-    const useGrid = bigScreen() && api._user?.settings.columns != "off";
+    const useGrid =
+        !useList && bigScreen() && api._user?.settings.columns != "off";
     let renderColumns = () =>
         posts.map((item, i) => itemRendering(item, i == posts.length - 1));
     const renderGrid = () => (
