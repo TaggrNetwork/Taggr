@@ -13,6 +13,7 @@ export const Thread = ({ id }) => {
                 thread={true}
                 focusedPost={id}
                 classNameArg="thread"
+                useList={true}
                 feedLoader={async () => await api.query("thread", id)}
             />
         </>

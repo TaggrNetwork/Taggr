@@ -79,14 +79,14 @@ const Welcome = () => {
                                 <h2>JOINING</h2>
                                 <p>
                                     To join {backendCache.config.name} you need
-                                    to have "cycles". Cycles are special in-app
-                                    tokens which you spend as a "gas" while
-                                    using the dapp. You can mint cycles yourself
-                                    or you can use an invite pre-charged with
-                                    cycles created by another{" "}
+                                    "cycles". Cycles are app-internal tokens
+                                    which you spend as a "gas" while using the
+                                    app. You can mint cycles yourself or you can
+                                    use an invite pre-charged with cycles
+                                    created by another{" "}
                                     {backendCache.config.name} user. Ask around
                                     on socials for an invite or keep reading to
-                                    get onboard faster!
+                                    get onboard faster.
                                 </p>
                                 <p>
                                     To mint cycles, you need to transfer a small

@@ -19,7 +19,7 @@ export class PostElement {
     private readonly loadingSpinner: Locator;
     private readonly comments: Locator;
     private readonly bookmarkButton: Locator;
-    private readonly linkButton: Locator;
+    private readonly article: Locator;
 
     constructor(
         private readonly page: Page,
@@ -34,7 +34,7 @@ export class PostElement {
             .locator("visible=true");
         this.comments = element.getByTestId("post-body");
         this.bookmarkButton = element.getByTestId("bookmark-post");
-        this.linkButton = element.locator("a", { hasText: "#" });
+        this.article = element.locator("article");
     }
 
     public async giveComment(): Promise<string> {
@@ -62,7 +62,7 @@ export class PostElement {
 
     public async goToPostPage(): Promise<PostPage> {
         await this.infoToggleButton.click();
-        await this.linkButton.click();
+        await this.article.click();
         expect(new URL(this.page.url()).hash).toMatch(/#\/post\/\d+/);
 
         return new PostPage(this.page);

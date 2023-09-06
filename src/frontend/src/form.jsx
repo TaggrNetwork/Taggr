@@ -312,7 +312,6 @@ export const Form = ({
             {!showTextField && (
                 <input
                     type="text"
-                    className="bottom_half_spaced"
                     placeholder="Reply here..."
                     onFocus={() => setShowTextField(true)}
                 />

@@ -91,6 +91,7 @@ export const Profile = ({ handle }) => {
                 title={profile.name}
                 button1={
                     <button
+                        title={`${profile.name}'s journal`}
                         onClick={() =>
                             (location.href = `/#/journal/${profile.name}`)
                         }
@@ -338,6 +339,7 @@ export const Profile = ({ handle }) => {
             )}
             <PostFeed
                 title={title}
+                useList={true}
                 feedLoader={async (page) => {
                     if (profile.loadingStatus != 1) return;
                     if (tab == "TAGS")

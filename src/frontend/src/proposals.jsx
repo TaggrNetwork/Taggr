@@ -241,6 +241,7 @@ export const Proposals = () => {
             </div>
             <PostFeed
                 heartbeat={proposal}
+                useList={true}
                 feedLoader={async (page) => await api.query("proposals", page)}
             />
         </>

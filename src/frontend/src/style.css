@@ -427,6 +427,11 @@ table {
     font-size: 3.3em;
 }
 
+.centered {
+    text-align: center;
+    justify-content: center;
+}
+
 .text_centered {
     text-align: center;
 }
