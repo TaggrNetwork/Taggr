@@ -1303,7 +1303,7 @@ impl State {
         // This should always be the first operation executed in the chores routine so
         // that the upgrades are never blocked by a panic in any other routine.
         if mutate(|state| {
-            state.execute_pending_upgrade(false) || state.execute_pending_emergency_upgrade(false)
+            state.execute_pending_emergency_upgrade(false) || state.execute_pending_upgrade(false)
         }) {
             return;
         }
