@@ -1091,8 +1091,10 @@ impl State {
                     e8s_to_icp(user_revenue)
                 ));
             }
-            state.spend(state.burned_cycles as Cycles, "revenue distribution");
-            state.burned_cycles_total += state.burned_cycles as Cycles;
+            if state.burned_cycles > 0 {
+                state.spend(state.burned_cycles as Cycles, "revenue distribution");
+                state.burned_cycles_total += state.burned_cycles as Cycles;
+            }
             state.total_rewards_shared += total_rewards;
             state.total_revenue_shared += total_revenue;
             state.logger.info(format!(
