@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Loading, ShareButton } from "./common";
+import { bigScreen, Loading, ShareButton } from "./common";
 import { Content } from "./content";
 import { PostFeed } from "./post_feed";
 import { getLabels } from "./profile";
@@ -21,7 +21,7 @@ export const Journal = ({ handle }) => {
     const { name } = backendCache.config;
 
     return (
-        <div>
+        <>
             {profile && (
                 <div className="text_centered">
                     <h1>
@@ -44,10 +44,13 @@ export const Journal = ({ handle }) => {
                 </div>
             )}
             <PostFeed
+                classNameArg={bigScreen() ? "journal" : null}
+                useList={true}
+                journal={true}
                 feedLoader={async (page) =>
                     await api.query("journal", handle, page)
                 }
             />
-        </div>
+        </>
     );
 };

@@ -253,7 +253,7 @@ export const ToggleButton = ({
     );
 };
 
-export const timeAgo = (timestamp, absolute) => {
+export const timeAgo = (timestamp, absolute, format = "short") => {
     timestamp = parseInt(timestamp) / 1000000;
     const diff = Number(new Date()) - timestamp;
     const minute = 60 * 1000;
@@ -269,13 +269,13 @@ export const timeAgo = (timestamp, absolute) => {
             return Math.round(diff / hour) + "h ago";
         case diff < 90 * day:
             return `${new Intl.DateTimeFormat("default", {
-                month: "short",
+                month: format,
                 day: "numeric",
             }).format(timestamp)}`;
         default:
             return `${new Intl.DateTimeFormat("default", {
                 year: "2-digit",
-                month: "short",
+                month: format,
                 day: "numeric",
             }).format(timestamp)}`;
     }

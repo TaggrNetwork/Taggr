@@ -56,6 +56,7 @@ export const Post = ({
     classNameArg,
     isCommentView,
     isThreadView,
+    isJournalView,
     focused,
     highlighted = [],
     level = 0,
@@ -328,6 +329,7 @@ export const Post = ({
                     showInfo={showInfo}
                     toggleInfo={toggleInfo}
                     isThreadView={isThreadView}
+                    isJournalView={isJournalView}
                     goInside={goInside}
                 />
             </div>
@@ -653,8 +655,13 @@ const PostBar = ({
     isThreadView,
     goInside,
     showCarret,
+    isJournalView,
 }) => {
-    const time = timeAgo(postCreated);
+    const time = timeAgo(
+        postCreated,
+        "absolute",
+        isJournalView ? "long" : "short",
+    );
     const replies = post.tree_size;
     const createdRecently =
         Number(new Date()) - parseInt(postCreated) / 1000000 < 30 * 60 * 1000;
@@ -670,7 +677,9 @@ const PostBar = ({
     return (
         <div className="post_bar vcentered smaller_text flex_ended">
             <div className="row_container" style={{ alignItems: "center" }}>
-                <a href={`#/user/${post.user.id}`}>{`${post.user.name}`}</a>
+                {!isJournalView && (
+                    <a href={`#/user/${post.user.id}`}>{`${post.user.name}`}</a>
+                )}
                 <div className="left_half_spaced no_wrap vcentered">
                     {time}
                     {newPost && <New classNameArg="left_half_spaced accent" />}

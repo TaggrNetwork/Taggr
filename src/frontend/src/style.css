@@ -29,6 +29,12 @@ input[type="color"] {
     width: 4em;
 }
 
+.journal {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 60%;
+}
+
 .db_cell code {
     font-size: xx-large;
 }

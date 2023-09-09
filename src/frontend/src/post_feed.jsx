@@ -14,6 +14,7 @@ export const PostFeed = ({
     level,
     highlighted,
     useList,
+    journal,
 }) => {
     const [page, setPage] = React.useState(0);
     const [posts, setPosts] = React.useState([]);
@@ -39,7 +40,7 @@ export const PostFeed = ({
         loadPage(0);
     }, [heartbeat]);
 
-    const itemRendering = (post, lastItem) => (
+    const itemRenderer = (post, lastItem) => (
         <Post
             id={post.id}
             key={post.id}
@@ -47,6 +48,7 @@ export const PostFeed = ({
             level={level}
             highlighted={highlighted}
             isFeedItem={true}
+            isJournalView={journal}
             classNameArg={`${
                 !isRoot(post) && (comments || thread) ? "comment" : "feed_item"
             }`}
@@ -59,9 +61,9 @@ export const PostFeed = ({
     const useGrid =
         !useList && bigScreen() && api._user?.settings.columns != "off";
     let renderColumns = () =>
-        posts.map((item, i) => itemRendering(item, i == posts.length - 1));
+        posts.map((item, i) => itemRenderer(item, i == posts.length - 1));
     const renderGrid = () => (
-        <GridFeed posts={posts} itemRendering={itemRendering} />
+        <GridFeed posts={posts} itemRenderer={itemRenderer} />
     );
 
     return (
@@ -88,16 +90,16 @@ export const PostFeed = ({
     );
 };
 
-const GridFeed = ({ posts, itemRendering }) => {
+const GridFeed = ({ posts, itemRenderer }) => {
     const columnLeft = posts.filter((_, i) => i % 2 == 0);
     const columnRight = posts.filter((_, i) => i % 2 == 1);
     return (
         <div className="row_container">
             <div className="grid_column" style={{ marginRight: "auto" }}>
-                {columnLeft.map(itemRendering)}
+                {columnLeft.map(itemRenderer)}
             </div>
             <div className="grid_column" style={{ marginLeft: "auto" }}>
-                {columnRight.map(itemRendering)}
+                {columnRight.map(itemRenderer)}
             </div>
         </div>
     );
