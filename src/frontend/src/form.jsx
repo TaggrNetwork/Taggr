@@ -59,12 +59,14 @@ export const Form = ({
     const { max_post_length, max_blob_size_bytes } = backendCache.config;
 
     const handleSubmit = async () => {
+        let cutElement = ref.current?.getElementsByTagName("hr")[0];
+        const postHasCut = value.trim().includes(CUT);
         if (
-            ref.current?.clientHeight > window.innerHeight &&
-            !value.trim().includes(CUT)
+            (postHasCut && cutElement.offsetTop > window.innerHeight) ||
+            (!postHasCut && ref.current?.clientHeight > window.innerHeight)
         ) {
             alert(
-                "Your post does not fit on screen without scrolling.\n\nPlease add a cut line (three empty lines) after the introductory part.",
+                "Your post does not fit on screen without scrolling.\n\nPlease add three empty lines after the introductory part to hide the rest of the post.",
             );
             return false;
         }
