@@ -1272,18 +1272,17 @@ impl State {
                         });
                     }
                 };
-
-                if let Err(err) =
-                    canisters::vote_on_nns_proposal(proposal.id, NNSVote::Reject).await
-                {
-                    mutate(|state| {
-                        state.logger.error(format!(
-                            "couldn't vote on NNS proposal {}: {}",
-                            proposal.id, err
-                        ))
-                    });
-                };
             }
+
+            if let Err(err) = canisters::vote_on_nns_proposal(proposal.id, NNSVote::Reject).await {
+                mutate(|state| {
+                    state.last_nns_proposal = state.last_nns_proposal.max(proposal.id);
+                    state.logger.error(format!(
+                        "couldn't vote on NNS proposal {}: {}",
+                        proposal.id, err
+                    ))
+                });
+            };
         }
     }
 
