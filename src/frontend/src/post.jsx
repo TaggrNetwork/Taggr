@@ -126,14 +126,14 @@ export const Post = ({
     };
 
     const showCarret = level > (refPost.current?.clientWidth > 900 ? 13 : 3);
-    const goInside = (e) => {
-        if (repost) location.href = `/#/post/${id}`;
+    const goInside = (e, force) => {
         if (
+            !force &&
             // Selected text is clicked
-            window.getSelection().toString().length > 0 ||
-            !isFeedItem ||
-            ["A", "IMG", "INPUT"].includes(e.target.tagName) ||
-            skipClicks(e.target)
+            (window.getSelection().toString().length > 0 ||
+                prime ||
+                ["A", "IMG", "INPUT"].includes(e.target.tagName) ||
+                skipClicks(e.target))
         )
             return;
         location.href = `#/post/${post.id}`;
@@ -701,7 +701,7 @@ const PostBar = ({
                                 testId="post-comments-toggle"
                                 onClick={
                                     showCarret
-                                        ? goInside
+                                        ? (event) => goInside(event, "force")
                                         : () => {
                                               toggleInfo(false);
                                               toggleComments(!showComments);
