@@ -461,7 +461,10 @@ export const UserInfo = ({ profile }) => {
                 </div>
                 <div className="db_cell">
                     LAST ACTIVE
-                    <span>{`${timeAgo(profile.last_activity, "date")}`}</span>
+                    <span>{`${timeAgo(
+                        profile.last_activity,
+                        "absolute",
+                    )}`}</span>
                 </div>
                 <div className="db_cell">
                     ACTIVE WEEKS
