@@ -58,11 +58,16 @@ export const Form = ({
     const users = Object.values(window.backendCache.users);
     const { max_post_length, max_blob_size_bytes } = backendCache.config;
 
+    const previewAtLeft = bigScreen() && !comment;
+
     const handleSubmit = async () => {
         let cutElement = ref.current?.getElementsByTagName("hr")[0];
         const postHasCut = value.trim().includes(CUT);
+        const cutOffset =
+            cutElement.offsetTop -
+            (previewAtLeft ? 0 : textarea.current?.clientHeight);
         if (
-            (postHasCut && cutElement.offsetTop > window.innerHeight) ||
+            (postHasCut && cutOffset > window.innerHeight) ||
             (!postHasCut && ref.current?.clientHeight > window.innerHeight)
         ) {
             alert(
@@ -246,7 +251,6 @@ export const Form = ({
         completionList = suggestedUsers;
     }
 
-    const previewAtLeft = bigScreen() && !comment;
     const isRepost = repost != null && !isNaN(repost);
     const showPreview = value || isRepost;
 
