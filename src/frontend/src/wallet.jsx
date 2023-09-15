@@ -58,7 +58,8 @@ const Welcome = () => {
                                 let identity =
                                     Ed25519KeyIdentity.generate(hash);
                                 if (
-                                    identity.getPrincipal() != api._principalId
+                                    identity.getPrincipal() !=
+                                    window.principalId
                                 ) {
                                     alert(
                                         "The seed phrase does not match! Please log-out and try again.",
@@ -75,7 +76,7 @@ const Welcome = () => {
                             <div className="bottom_spaced">
                                 <h2>New user detected</h2>
                                 Your {backendCache.config.name} principal:{" "}
-                                <CopyToClipboard value={api._principalId} />
+                                <CopyToClipboard value={window.principalId} />
                                 <h2>JOINING</h2>
                                 <p>
                                     To join {backendCache.config.name} you need
@@ -178,7 +179,7 @@ const Welcome = () => {
 };
 
 export const Wallet = () => {
-    const [user, setUser] = React.useState(api._user);
+    const [user, setUser] = React.useState(window.user);
     const [mintStatus, setMintStatus] = React.useState(null);
     const [transferStatus, setTransferStatus] = React.useState(null);
     const mintCycles = async (kilo_cycles) =>
@@ -186,11 +187,11 @@ export const Wallet = () => {
     const [transactions, setTransactions] = React.useState([]);
 
     const loadTransactions = async () => {
-        if (!api._user) return;
+        if (!window.user) return;
         const txs = await window.api.query(
             "transactions",
             0,
-            api._user.principal,
+            window.user.principal,
         );
         setTransactions(txs);
     };
@@ -237,7 +238,7 @@ export const Wallet = () => {
                                     recipient,
                                     amount,
                                 );
-                                await api._reloadUser();
+                                await window.reloadUser();
                                 if ("Err" in result) {
                                     alert(`Error: ${result.Err}`);
                                     return;
@@ -309,8 +310,8 @@ export const Wallet = () => {
                                 }
                                 const invoice = result.Ok;
                                 if (invoice.paid) {
-                                    await api._reloadUser();
-                                    setUser(api._user);
+                                    await window.reloadUser();
+                                    setUser(window.user);
                                 }
                                 setMintStatus("SUCCESS!");
                             }}
@@ -360,8 +361,8 @@ export const Wallet = () => {
                                     alert(`Error: ${result.Err}`);
                                     return;
                                 }
-                                await api._reloadUser();
-                                setUser(api._user);
+                                await window.reloadUser();
+                                setUser(window.user);
                             }}
                         />
                     </div>

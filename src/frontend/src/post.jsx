@@ -140,8 +140,8 @@ export const Post = ({
     };
 
     const react = (id) => {
-        if (!api._user) return;
-        let userId = api._user?.id;
+        if (!window.user) return;
+        let userId = window.user?.id;
         if (!(id in post.reactions)) {
             post.reactions[id] = [];
         }
@@ -163,7 +163,7 @@ export const Post = ({
             () =>
                 api.call("react", post.id, parseInt(id)).then((response) => {
                     if ("Err" in response) alert(`Error: ${response.Err}`);
-                    api._reloadUser();
+                    window.reloadUser();
                 }),
             4000,
         );
@@ -180,7 +180,7 @@ export const Post = ({
             (acc, id, users) => acc + costTable[parseInt(id)] * users.length,
             0,
         ) < 0 || post.user.karma < 0;
-    const user = api._user;
+    const user = window.user;
     const showReport =
         post.report && !post.report.closed && user && user.stalwart;
     const deleted = post.hashes.length > 0;
@@ -401,11 +401,11 @@ const PostInfo = ({
     callback,
     versionSpecified,
 }) => {
-    const postAuthor = api._user?.id == post.user.id;
+    const postAuthor = window.user?.id == post.user.id;
     const realmController = post.realm && backendCache.realms[post.realm][1];
     return (
         <>
-            {api._user && (
+            {window.user && (
                 <div className="row_container top_half_spaced">
                     <ShareButton
                         classNameArg="max_width_col"
@@ -421,7 +421,9 @@ const PostInfo = ({
                         classNameArg="max_width_col"
                         offLabel={<Bell />}
                         onLabel={<BellOff />}
-                        currState={() => post.watchers.includes(api._user?.id)}
+                        currState={() =>
+                            post.watchers.includes(window.user?.id)
+                        }
                         toggler={() =>
                             api.call("toggle_following_post", post.id)
                         }
@@ -442,11 +444,13 @@ const PostInfo = ({
                         classNameArg="max_width_col"
                         offLabel={<Save />}
                         onLabel={<Unsave />}
-                        currState={() => api._user.bookmarks.includes(post.id)}
+                        currState={() =>
+                            window.user.bookmarks.includes(post.id)
+                        }
                         toggler={() =>
                             api
                                 .call("toggle_bookmark", post.id)
-                                .then(api._reloadUser)
+                                .then(window.reloadUser)
                         }
                         testId="bookmark-post"
                     />
@@ -665,11 +669,11 @@ const PostBar = ({
         Number(new Date()) - parseInt(post.tree_update) / 1000000 <
         30 * 60 * 1000;
     const newPost =
-        (api._user && highlighted.includes(post.id)) ||
-        postCreated > api._last_visit ||
+        (window.user && highlighted.includes(post.id)) ||
+        postCreated > window.lastVisit ||
         createdRecently;
     const newComments =
-        api._user && (post.tree_update > api._last_visit || updatedRecently);
+        window.user && (post.tree_update > window.lastVisit || updatedRecently);
     return (
         <div className="post_bar vcentered smaller_text flex_ended">
             <div className="row_container" style={{ alignItems: "center" }}>
@@ -771,7 +775,7 @@ export const Reactions = ({ reactionsMap, react }) => {
         <div className="vcentered flex_ended">
             {Object.entries(reactionsMap).map(([reactId, users]) => {
                 if (users.length == 0) return null;
-                const reacted = users.includes(api._user?.id);
+                const reacted = users.includes(window.user?.id);
                 return (
                     <button
                         data-meta="skipClicks"

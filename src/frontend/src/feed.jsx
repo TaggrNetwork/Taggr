@@ -71,14 +71,14 @@ const FeedExtender = ({ filterVal, setFilterVal, refilter, filter }) => {
                     EXTEND
                 </button>
             )}
-            {!extending && api._user && (
+            {!extending && window.user && (
                 <ToggleButton
                     classNameArg="max_width_col left_half_spaced"
-                    currState={() => contains(api._user.feeds, filter)}
+                    currState={() => contains(window.user.feeds, filter)}
                     toggler={() =>
                         api
                             .call("toggle_following_feed", filter)
-                            .then(api._reloadUser)
+                            .then(window.reloadUser)
                     }
                 />
             )}

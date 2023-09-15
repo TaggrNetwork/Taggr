@@ -14,7 +14,7 @@ import {
 } from "./common";
 import { Content } from "./content";
 import { Edit, Close } from "./icons";
-import { themes } from "./theme";
+import { getTheme } from "./theme";
 
 export const RealmForm = ({ existingName }) => {
     const editing = !!existingName;
@@ -23,7 +23,7 @@ export const RealmForm = ({ existingName }) => {
         acc[users[id]] = id;
         return acc;
     }, {});
-    const userId = api._user.id;
+    const userId = window.user.id;
 
     const [name, setName] = React.useState("");
     const [logo, setLogo] = React.useState("");
@@ -202,7 +202,9 @@ export const RealmForm = ({ existingName }) => {
                     <input
                         type="checkbox"
                         checked={!!theme}
-                        onChange={() => setTheme(theme ? null : themes.classic)}
+                        onChange={() =>
+                            setTheme(theme ? null : getTheme("classic"))
+                        }
                         id="own_theme"
                     />
                     <label className="left_half_spaced" htmlFor="own_theme">
@@ -301,7 +303,7 @@ export const RealmForm = ({ existingName }) => {
                         }
                         await Promise.all([
                             window.reloadCache(),
-                            api._reloadUser(),
+                            window.reloadUser(),
                         ]);
                         if (!editing) {
                             location.href = `#/realm/${name}`;
@@ -337,7 +339,7 @@ export const RealmHeader = ({ name }) => {
     if (!realm) return <Loading />;
 
     const colors = realmColors(name);
-    const user = api._user;
+    const user = window.user;
     return (
         <>
             <HeadBar
@@ -421,7 +423,7 @@ export const RealmHeader = ({ name }) => {
                                                 "toggle_realm_membership",
                                                 name,
                                             )
-                                            .then(api._reloadUser)
+                                            .then(window.reloadUser)
                                             .then(loadRealm);
                                     }}
                                 />
@@ -436,7 +438,7 @@ export const RealmHeader = ({ name }) => {
                                                 "toggle_realm_membership",
                                                 name,
                                             )
-                                            .then(api._reloadUser)
+                                            .then(window.reloadUser)
                                             .then(loadRealm)
                                     }
                                 />
@@ -463,7 +465,7 @@ export const Realms = () => {
     React.useEffect(() => {
         loadRealms();
     }, [page]);
-    const user = api._user;
+    const user = window.user;
     return (
         <>
             <HeadBar

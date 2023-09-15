@@ -312,8 +312,8 @@ export const Proposal = ({ id, postId }) => {
     };
 
     const voted =
-        !api._user ||
-        proposal.bulletins.some((vote) => api._user.id == vote[0]);
+        !window.user ||
+        proposal.bulletins.some((vote) => window.user.id == vote[0]);
     const adopted = proposal.bulletins.reduce(
         (acc, [_, adopted, votes]) => (adopted ? acc + votes : acc),
         0,
@@ -452,7 +452,7 @@ export const Proposal = ({ id, postId }) => {
                         )}
                 </div>
             </div>
-            {api._user && open && !voted && (
+            {window.user && open && !voted && (
                 <>
                     <div className="row_container">
                         <ButtonWithLoading
@@ -468,7 +468,7 @@ export const Proposal = ({ id, postId }) => {
                     </div>
                 </>
             )}
-            {api._user && api._user.id == proposal.proposer && open && (
+            {window.user && window.user.id == proposal.proposer && open && (
                 <ButtonWithLoading
                     onClick={async () => {
                         if (!confirm("Do you want to cancel your proposal?"))

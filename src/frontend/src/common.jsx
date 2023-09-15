@@ -56,7 +56,12 @@ export const NotFound = () => (
 );
 
 export const Unauthorized = () => (
-    <Content classNameArg="spaced" value="# 401 Unauthorized" />
+    <div className="text_centered vertically_spaced">
+        <h1 style={{ fontSize: "4em" }}>
+            <code>401</code>
+        </h1>
+        Unauthorized
+    </div>
 );
 
 export const bigScreen = () => window.screen.availWidth >= 1024;
@@ -540,7 +545,7 @@ export const FlagButton = ({ id, domain, text }) => (
 export const ReportBanner = ({ id, reportArg, domain }) => {
     const [report, setReport] = React.useState(reportArg);
     const { reporter, confirmed_by, rejected_by } = report;
-    let tookAction = rejected_by.concat(confirmed_by).includes(api._user.id);
+    let tookAction = rejected_by.concat(confirmed_by).includes(window.user.id);
     return (
         <div className="post_head banner">
             <h3>

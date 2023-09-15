@@ -2,7 +2,7 @@ export const MAINNET_MODE = process.env.DFX_NETWORK == "ic";
 
 export const TEST_MODE = process.env.TEST_MODE;
 
-export const CANISTER_ID = process.env.CANISTER_ID;
+export const CANISTER_ID = process.env.CANISTER_ID || "";
 
 export const II_URL = MAINNET_MODE
     ? "https://identity.ic0.app"

@@ -33,8 +33,8 @@ export const Recovery = () => {
                         </ul>
                     </>
                 )}
-                {api._user &&
-                    !emergency_votes.includes(api._user.principal) && (
+                {window.user &&
+                    !emergency_votes.includes(window.user.principal) && (
                         <>
                             <h2>Confirm binary</h2>
                             <input

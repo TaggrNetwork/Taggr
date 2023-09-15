@@ -53,7 +53,7 @@ module.exports = {
     entry: {
         // The frontend.entrypoint points to the HTML file for this build, so we need
         // to replace the extension to `.js`.
-        index: path.join(__dirname, asset_entry).replace(/\.html$/, ".jsx"),
+        index: path.join(__dirname, asset_entry).replace(/\.html$/, ".tsx"),
     },
     devtool: isDevelopment ? "source-map" : false,
     optimization: {

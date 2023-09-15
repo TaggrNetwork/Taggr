@@ -9,7 +9,7 @@ export const Poll = ({ poll, post_id, created }) => {
     React.useEffect(() => setData(poll), [poll]);
 
     const radio_group_name = post_id ? `${post_id}-poll` : "poll";
-    const user_id = api._user?.id;
+    const user_id = window.user?.id;
     const voted = Object.values(data.votes).flat().includes(user_id);
     const totalVotes = Object.values(data.votes)
         .map((votes) => votes.length)
@@ -49,7 +49,7 @@ export const Poll = ({ poll, post_id, created }) => {
                                 className="right_spaced"
                                 style={{ marginTop: 0 }}
                                 onChange={(e) => {
-                                    if (isNaN(post_id) || !api._user) return;
+                                    if (isNaN(post_id) || !window.user) return;
                                     e.preventDefault();
                                     let vote = e.target.value;
                                     if (

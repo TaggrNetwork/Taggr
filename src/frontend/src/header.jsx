@@ -98,7 +98,7 @@ export const Header = ({ subtle, route, inboxMode, user }) => {
                             {user && (
                                 <PostButton classNameArg="right_half_spaced" />
                             )}
-                            {!api._principalId && (
+                            {!window.principalId && (
                                 <ToggleButton
                                     classNameArg={!showLogins && "active"}
                                     toggler={() => setShowLogins(!showLogins)}
@@ -109,7 +109,7 @@ export const Header = ({ subtle, route, inboxMode, user }) => {
                             )}
                         </>
                     )}
-                    {api._principalId && (
+                    {window.principalId && (
                         <BurgerButton
                             onClick={() => {
                                 toggleButtonBar(!showButtonBar);

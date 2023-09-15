@@ -16,7 +16,9 @@ var shade = function (color, percent) {
         .slice(1);
 };
 
-export const themes = {
+export const getTheme = (name) => themes[name];
+
+const themes = {
     calm: {
         text: "#e0e0c8",
         background: "#343541",

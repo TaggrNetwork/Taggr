@@ -26,7 +26,7 @@ export const Landing = () => {
         }, REFRESH_RATE_SECS * 1000);
     }, [heartbeat]);
 
-    const user = api._user;
+    const user = window.user;
     const realm = currentRealm();
     const FEED_KEY = `${realm}_feed`;
     const [feed, setFeed] = React.useState(

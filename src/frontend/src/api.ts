@@ -3,11 +3,74 @@ import { HttpAgent, HttpAgentOptions, Identity, polling } from "@dfinity/agent";
 import { IDL, JsonValue } from "@dfinity/candid";
 import { CANISTER_ID } from "./env";
 
-export const Api = (
-    defaultCanisterId: string,
-    identity: Identity,
+export type Backend = {
+    query: <T>(
+        methodName: string,
+        arg0?: unknown,
+        arg1?: unknown,
+        arg2?: unknown,
+        arg3?: unknown,
+        arg4?: unknown,
+    ) => Promise<T | null>;
+
+    query_raw: (
+        canisterId: string,
+        methodName: string,
+        arg: ArrayBuffer,
+    ) => Promise<ArrayBuffer | null>;
+
+    call: <T>(
+        methodName: string,
+        arg0?: unknown,
+        arg1?: unknown,
+        arg2?: unknown,
+        arg3?: unknown,
+        arg4?: unknown,
+        arg5?: unknown,
+    ) => Promise<T | null>;
+
+    set_emergency_release: (blob: Uint8Array) => Promise<JsonValue | null>;
+
+    propose_release: (
+        text: string,
+        commit: string,
+        blob: Uint8Array,
+    ) => Promise<JsonValue | null>;
+
+    add_post: (
+        text: string,
+        blobs: [string, Uint8Array][],
+        parent?: number,
+        realm?: string,
+        extension?: Uint8Array,
+    ) => Promise<JsonValue | null>;
+
+    add_post_data: (
+        text: string,
+        realm?: string,
+        extension?: Uint8Array,
+    ) => Promise<null>;
+
+    add_post_blob: (id: string, blob: Uint8Array) => Promise<JsonValue | null>;
+
+    commit_post: () => Promise<JsonValue | null>;
+
+    edit_post: (
+        id: number,
+        text: string,
+        blobs: [string, Uint8Array][],
+        patch: string,
+        realm?: string,
+    ) => Promise<JsonValue | null>;
+
+    account_balance: (address: string) => Promise<number | null>;
+};
+
+export const ApiGenerator = (
     mainnetMode: boolean,
-) => {
+    defaultCanisterId: string,
+    identity?: Identity,
+): Backend => {
     let defaultPrincipal = Principal.fromText(defaultCanisterId);
     const options: HttpAgentOptions = { identity };
     if (mainnetMode) options.host = `https://${CANISTER_ID}.ic0.app`;
@@ -39,11 +102,11 @@ export const Api = (
 
     const query = async <T>(
         methodName: string,
-        arg0: unknown,
-        arg1: unknown,
-        arg2: unknown,
-        arg3: unknown,
-        arg4: unknown,
+        arg0?: unknown,
+        arg1?: unknown,
+        arg2?: unknown,
+        arg3?: unknown,
+        arg4?: unknown,
     ): Promise<T | null> => {
         let effParams = getEffParams([arg0, arg1, arg2, arg3, arg4]);
         const arg = Buffer.from(JSON.stringify(effParams));
@@ -79,12 +142,12 @@ export const Api = (
 
     const call = async <T>(
         methodName: string,
-        arg0: unknown,
-        arg1: unknown,
-        arg2: unknown,
-        arg3: unknown,
-        arg4: unknown,
-        arg5: unknown,
+        arg0?: unknown,
+        arg1?: unknown,
+        arg2?: unknown,
+        arg3?: unknown,
+        arg4?: unknown,
+        arg5?: unknown,
     ): Promise<T | null> => {
         const effParams = getEffParams([arg0, arg1, arg2, arg3, arg4, arg5]);
         const responseBytes = await call_raw(

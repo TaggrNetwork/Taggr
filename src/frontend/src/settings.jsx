@@ -2,8 +2,8 @@ import * as React from "react";
 import { ButtonWithLoading, HeadBar } from "./common";
 
 export const Settings = ({ invite = null }) => {
-    const user = api._user;
-    const [principal, setPrincipal] = React.useState(api._principalId);
+    const user = window.user;
+    const [principal, setPrincipal] = React.useState(window.principalId);
     const [name, setName] = React.useState("");
     const [about, setAbout] = React.useState("");
     const [settings, setSettings] = React.useState({});
@@ -52,10 +52,10 @@ export const Settings = ({ invite = null }) => {
         }
         if (!user) location.href = "/";
         else if (uiRefresh) {
-            await api._reloadUser();
+            await window.reloadUser();
             delete window.uiInitialized;
             window.setUI();
-            updateData(api._user);
+            updateData(window.user);
         }
     };
 
@@ -156,7 +156,7 @@ export const Settings = ({ invite = null }) => {
                     onClick={submit}
                     label="SAVE"
                 />
-                {api._user && (
+                {window.user && (
                     <>
                         <hr />
                         <div className="column_container top_spaced">
@@ -179,7 +179,7 @@ export const Settings = ({ invite = null }) => {
                         {
                             <ButtonWithLoading
                                 classNameArg={
-                                    principal != api._principalId
+                                    principal != window.principalId
                                         ? ""
                                         : "inactive"
                                 }

@@ -57,7 +57,7 @@ export const Profile = ({ handle }) => {
             return <NotFound />;
     }
     const { feed_page_size } = backendCache.config;
-    const user = api._user;
+    const user = window.user;
     const showReport =
         profile.report && !profile.report.closed && user && user.stalwart;
     const karma_from_last_posts = Object.entries(
@@ -109,7 +109,7 @@ export const Profile = ({ handle }) => {
                             toggler={() =>
                                 api
                                     .call("toggle_following_user", profile.id)
-                                    .then(api._reloadUser)
+                                    .then(window.reloadUser)
                             }
                         />
                     ) : null
@@ -153,7 +153,7 @@ export const Profile = ({ handle }) => {
                                         alert(`Error: ${result.Err}`);
                                         return;
                                     }
-                                    api._reloadUser();
+                                    window.reloadUser();
                                     await updateState();
                                 }}
                             />
@@ -521,9 +521,9 @@ export const getLabels = (profile) => {
         labels.push(["FREQUENTER", "SlateBlue"]);
     }
     if (
-        api._user &&
-        profile.followees.includes(api._user.id) &&
-        api._user.id != profile.id
+        window.user &&
+        profile.followees.includes(window.user.id) &&
+        window.user.id != profile.id
     ) {
         labels.push(["FOLLOWS YOU", "SeaGreen"]);
     }

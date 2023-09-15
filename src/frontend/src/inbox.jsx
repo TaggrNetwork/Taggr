@@ -5,7 +5,7 @@ import { Close } from "./icons";
 import { Post } from "./post";
 
 export const Inbox = () => {
-    const [inbox, setInbox] = React.useState(api._user.inbox);
+    const [inbox, setInbox] = React.useState(window.user.inbox);
     const ids = Object.keys(inbox);
     if (ids.length == 0) {
         location.href = "#/";
@@ -24,7 +24,7 @@ export const Inbox = () => {
                 content={
                     <button
                         onClick={() => {
-                            api._user.inbox = {};
+                            window.user.inbox = {};
                             api.call("clear_notifications", Object.keys(inbox));
                             location.href = "#/";
                         }}
@@ -71,7 +71,7 @@ export const Inbox = () => {
                                     onClick={() => {
                                         api.call("clear_notifications", [k]);
                                         delete inbox[k];
-                                        delete api._user.inbox[k];
+                                        delete window.user.inbox[k];
                                         setInbox({ ...inbox });
                                     }}
                                 >

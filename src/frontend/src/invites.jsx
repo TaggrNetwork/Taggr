@@ -18,7 +18,7 @@ export const Invites = () => {
         loadInvites();
     }, []);
 
-    if (!trusted(api._user)) {
+    if (!trusted(window.user)) {
         return (
             <>
                 <HeadBar title="Invites" shareLink="invites" />
@@ -49,7 +49,7 @@ export const Invites = () => {
                     <li>
                         Active users have a budget of free cycles for invites.
                         This budget is topped up weekly. Your current cycles
-                        budget is <code>{api._user.invites_budget}</code>{" "}
+                        budget is <code>{window.user.invites_budget}</code>{" "}
                         cycles.
                     </li>
                     <li>

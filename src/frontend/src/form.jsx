@@ -300,7 +300,7 @@ export const Form = ({
             {content}
         </button>
     );
-    const user = api._user;
+    const user = window.user;
     const totalCosts = costs(value, poll ? 1 : 0);
     const tooExpensive = user.cycles < totalCosts;
 
