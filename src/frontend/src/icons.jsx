@@ -444,7 +444,7 @@ export const Star = () => (
     </svg>
 );
 
-export const NotFound = () => (
+export const QuestionMark = () => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className="vertically_aligned"
@@ -929,5 +929,5 @@ export const reaction2icon = (id) => {
         case 10:
             return <Heart />;
     }
-    return <NotFound />;
+    return <QuestionMark />;
 };

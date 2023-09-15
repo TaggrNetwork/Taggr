@@ -8,10 +8,11 @@ import {
     percentage,
     FileUploadInput,
     tokenBalance,
+    NotFound,
 } from "./common";
 import * as React from "react";
 import { Content } from "./content";
-import { HourGlass, NotFound } from "./icons";
+import { HourGlass } from "./icons";
 import { PostFeed } from "./post_feed";
 
 const REPO_RELEASE = "https://github.com/TaggrNetwork/taggr/releases/latest";

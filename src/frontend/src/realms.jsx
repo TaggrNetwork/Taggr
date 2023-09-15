@@ -7,7 +7,6 @@ import {
     ButtonWithLoading,
     HeadBar,
     Loading,
-    NotFound,
     realmColors,
     RealmRibbon,
     setTitle,

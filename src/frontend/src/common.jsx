@@ -47,7 +47,12 @@ export const interleaved = (items, link) =>
     items.length ? items.reduce((prev, curr) => [prev, link, curr]) : [];
 
 export const NotFound = () => (
-    <Content classNameArg="spaced" value="# 404 Not found" />
+    <div className="text_centered vertically_spaced">
+        <h1 style={{ fontSize: "4em" }}>
+            <code>404</code>
+        </h1>
+        Not found
+    </div>
 );
 
 export const Unauthorized = () => (
