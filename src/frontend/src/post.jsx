@@ -65,11 +65,11 @@ export const Post = ({
     const [notFound, setNotFound] = React.useState(false);
     const [blobs, setBlobs] = React.useState({});
     const [showComments, toggleComments] = React.useState(
-        !isFeedItem && !repost,
+        !isFeedItem && !repost
     );
     const [showInfo, toggleInfo] = React.useState(false);
     const [expanded, toggleExpansion] = React.useState(
-        focused || (!isFeedItem && !repost) || isThreadView,
+        focused || (!isFeedItem && !repost) || isThreadView
     );
     const [fullTreeIsLoading, setFullTreeIsLoading] = React.useState(false);
     const [rendering, setRendering] = React.useState(true);
@@ -165,7 +165,7 @@ export const Post = ({
                     if ("Err" in response) alert(`Error: ${response.Err}`);
                     api._reloadUser();
                 }),
-            4000,
+            4000
         );
         setReactionTimer(timer);
         users.push(userId);
@@ -178,7 +178,7 @@ export const Post = ({
         objectReduce(
             post.reactions,
             (acc, id, users) => acc + costTable[parseInt(id)] * users.length,
-            0,
+            0
         ) < 0 || post.user.karma < 0;
     const user = api._user;
     const showReport =
@@ -455,19 +455,19 @@ const PostInfo = ({
                         classNameArg="max_width_col"
                         onClick={async () => {
                             const amount = prompt(
-                                `Tip @${post.user.name} with ICP:`,
+                                `Tip @${post.user.name} with ICP:`
                             );
                             if (
                                 amount == null ||
                                 !confirm(
-                                    `Transfer ${amount} ICP to @${post.user.name} as a tip?`,
+                                    `Transfer ${amount} ICP to @${post.user.name} as a tip?`
                                 )
                             )
                                 return;
                             let response = await api.call(
                                 "tip",
                                 post.id,
-                                amount,
+                                amount
                             );
                             if ("Err" in response) {
                                 alert(`Error: ${response.Err}`);
@@ -482,7 +482,7 @@ const PostInfo = ({
                             onClick={async () => {
                                 if (
                                     !confirm(
-                                        "Do you want to remove the post from this realm?",
+                                        "Do you want to remove the post from this realm?"
                                     )
                                 )
                                     return;
@@ -517,14 +517,14 @@ const PostInfo = ({
                                                             users.length
                                                     );
                                                 },
-                                                0,
+                                                0
                                             ) +
                                             post_cost +
                                             post.tree_size *
                                                 post_deletion_penalty_factor;
                                         if (
                                             !confirm(
-                                                `Please confirm the post deletion: it will costs ${cost} cycles.`,
+                                                `Please confirm the post deletion: it will costs ${cost} cycles.`
                                             )
                                         )
                                             return;
@@ -539,7 +539,7 @@ const PostInfo = ({
                                                 post.patches[i];
                                             current = applyPatch(
                                                 current,
-                                                patch,
+                                                patch
                                             )[0];
                                             versions.push(current);
                                         }
@@ -547,7 +547,7 @@ const PostInfo = ({
                                         let response = await api.call(
                                             "delete_post",
                                             post.id,
-                                            versions,
+                                            versions
                                         );
                                         if ("Err" in response) {
                                             alert(`Error: ${response.Err}`);
@@ -590,8 +590,8 @@ const PostInfo = ({
                                             >{`${v}`}</a>{" "}
                                             ({timeAgo(timestamp)})
                                         </span>
-                                    ),
-                                ),
+                                    )
+                                )
                         )}
                     </div>
                 )}
@@ -601,7 +601,7 @@ const PostInfo = ({
                         {commaSeparated(
                             post.watchers.map((id) => (
                                 <UserLink key={id} id={id} />
-                            )),
+                            ))
                         )}
                     </div>
                 )}
@@ -614,7 +614,7 @@ const PostInfo = ({
                                     <code>{icp(tip, "with_decimals")}</code>{" "}
                                     from {<UserLink id={id} />}
                                 </span>
-                            )),
+                            ))
                         )}
                     </div>
                 )}
@@ -630,10 +630,10 @@ const PostInfo = ({
                                     {commaSeparated(
                                         users.map((id) => (
                                             <UserLink key={id} id={id} />
-                                        )),
+                                        ))
                                     )}
                                 </div>
-                            ),
+                            )
                         )}
                     </div>
                 )}
@@ -660,7 +660,7 @@ const PostBar = ({
     const time = timeAgo(
         postCreated,
         "absolute",
-        isJournalView ? "long" : "short",
+        isJournalView ? "long" : "short"
     );
     const replies = post.tree_size;
     const createdRecently =
@@ -754,7 +754,7 @@ export const ReactionsPicker = ({ react, post, user }) => {
     )
         return;
     return (
-        <div className="framed vcentered bottom_half_spaced row_container">
+        <div className="framed vcentered bottom_spaced top_spaced row_container">
             {backendCache.config.reactions.map(([id, cost]) => (
                 <ReactionToggleButton
                     title={`Karma points: ${cost}`}
