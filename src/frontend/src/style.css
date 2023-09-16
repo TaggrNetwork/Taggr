@@ -476,19 +476,6 @@ article img {
     object-fit: cover;
 }
 
-div.thumbnails img {
-    height: 6vh;
-    width: 6vh;
-    object-fit: cover;
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: 0;
-    margin-bottom: 0.2em;
-    margin-left: 0.2em;
-    margin-right: 0.2em;
-    border-radius: 3px;
-}
-
 .padded_rounded {
     border-radius: 3px;
     padding-left: 0.5em;
@@ -499,10 +486,27 @@ div.thumbnails img {
     border: 2px solid $accent;
 }
 
-div.thumbnails {
+div.thumbnails img {
+    height: 4vh;
+    width: 4vh;
+    object-fit: cover;
+    margin: 0.2em;
+    border-radius: 3px;
+}
+
+.gallery {
+    position: relative;
+    display: flex;
     justify-content: center;
-    margin-top: 0.4em;
-    margin-bottom: 1em;
+}
+
+div.thumbnails {
+    position: absolute;
+    width: 100%;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    justify-content: center;
+    padding: 0.2em 0 0.2em 0;
 }
 
 .reply_tag {

@@ -262,15 +262,17 @@ const Gallery = ({ children }) => {
     pictures = pictures.map((e) => React.cloneElement(e, { gallery: urls }));
     const nonPictures = children.filter((c) => !c.type || c.type.name != "img");
     return (
-        <div className="gallery">
-            {pictures[0]}
-            {pictures.length > 1 && (
-                <div className="thumbnails row_container">
-                    {pictures.slice(1)}
-                </div>
-            )}
+        <>
+            <div className="gallery">
+                {pictures[0]}
+                {pictures.length > 1 && (
+                    <div className="thumbnails row_container">
+                        {pictures.slice(1)}
+                    </div>
+                )}
+            </div>
             {nonPictures.length > 0 && <p>{nonPictures}</p>}
-        </div>
+        </>
     );
 };
 
