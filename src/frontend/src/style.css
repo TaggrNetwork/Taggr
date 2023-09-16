@@ -562,8 +562,9 @@ div.thumbnails {
     opacity: 0.8;
     cursor: pointer;
     position: absolute;
-    bottom: 1em;
+    bottom: 0.5em;
     font-size: xx-large;
+    color: white;
 }
 
 #preview > .close {
