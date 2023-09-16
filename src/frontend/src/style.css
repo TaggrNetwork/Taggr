@@ -487,8 +487,8 @@ article img {
 }
 
 div.thumbnails img {
-    height: 4vh;
-    width: 4vh;
+    height: 5vh;
+    width: 5vh;
     object-fit: cover;
     margin: 0.2em;
     border-radius: 3px;
@@ -506,7 +506,7 @@ div.thumbnails {
     bottom: 0;
     background: rgba(0, 0, 0, 0.7);
     justify-content: center;
-    padding: 0.2em 0 0.2em 0;
+    padding: 0.1em 0 0.1em 0;
 }
 
 .reply_tag {
