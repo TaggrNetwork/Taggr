@@ -63,7 +63,7 @@ export type Backend = {
         realm?: string,
     ) => Promise<JsonValue | null>;
 
-    account_balance: (address: string) => Promise<number | null>;
+    account_balance: (address: string) => Promise<number>;
 };
 
 export const ApiGenerator = (
@@ -289,7 +289,7 @@ export const ApiGenerator = (
                 response,
             )[0];
         },
-        account_balance: async (address: string): Promise<number | null> => {
+        account_balance: async (address: string): Promise<number> => {
             const arg = IDL.encode(
                 [IDL.Record({ account: IDL.Vec(IDL.Nat8) })],
                 [{ account: hexToBytes(address) }],
@@ -301,7 +301,7 @@ export const ApiGenerator = (
             );
 
             if (!response) {
-                return null;
+                return -1;
             }
             return (
                 IDL.decode([IDL.Record({ e8s: IDL.Nat64 })], response)[0] as any

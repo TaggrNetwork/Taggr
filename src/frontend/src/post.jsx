@@ -13,7 +13,6 @@ import {
     ShareButton,
     commaSeparated,
     Loading,
-    objectReduce,
     reactionCosts,
     loadPosts,
     ReactionToggleButton,
@@ -179,7 +178,7 @@ export const Post = ({
             post.reactions,
             (acc, id, users) => acc + costTable[parseInt(id)] * users.length,
             0,
-        ) < 0 || post.user.karma < 0;
+        ) < 0 || post.userObject.karma < 0;
     const user = window.user;
     const showReport =
         post.report && !post.report.closed && user && user.stalwart;
@@ -208,7 +207,9 @@ export const Post = ({
             : version;
 
     if (prime)
-        setTitle(`Post #${post.id} by @${backendCache.users[post.user.id]}`);
+        setTitle(
+            `Post #${post.id} by @${backendCache.users[post.userObject.id]}`,
+        );
 
     if (deletedByModeration)
         return <h4 className="banner">DELETED VIA MODERATION</h4>;
@@ -401,7 +402,7 @@ const PostInfo = ({
     callback,
     versionSpecified,
 }) => {
-    const postAuthor = window.user?.id == post.user.id;
+    const postAuthor = window.user?.id == post.userObject.id;
     const realmController = post.realm && backendCache.realms[post.realm][1];
     return (
         <>
@@ -459,12 +460,12 @@ const PostInfo = ({
                         classNameArg="max_width_col"
                         onClick={async () => {
                             const amount = prompt(
-                                `Tip @${post.user.name} with ICP:`,
+                                `Tip @${post.userObject.name} with ICP:`,
                             );
                             if (
                                 amount == null ||
                                 !confirm(
-                                    `Transfer ${amount} ICP to @${post.user.name} as a tip?`,
+                                    `Transfer ${amount} ICP to @${post.userObject.name} as a tip?`,
                                 )
                             )
                                 return;
@@ -678,7 +679,9 @@ const PostBar = ({
         <div className="post_bar vcentered smaller_text flex_ended">
             <div className="row_container" style={{ alignItems: "center" }}>
                 {!isJournalView && (
-                    <a href={`#/user/${post.user.id}`}>{`${post.user.name}`}</a>
+                    <a
+                        href={`#/user/${post.userObject.id}`}
+                    >{`${post.userObject.name}`}</a>
                 )}
                 <div className="left_half_spaced no_wrap vcentered">
                     {time}
@@ -745,7 +748,7 @@ const PostBar = ({
 };
 
 export const ReactionsPicker = ({ react, post, user }) => {
-    if (!user || post.user.id == user.id) return null;
+    if (!user || post.userObject.id == user.id) return null;
     // Don't show reactions picker if the user reacted already
     if (
         Array.prototype.concat
@@ -798,3 +801,6 @@ export const Reactions = ({ reactionsMap, react }) => {
 const skipClicks = (elem) =>
     elem &&
     (elem.dataset["meta"] == "skipClicks" || skipClicks(elem.parentElement));
+
+const objectReduce = (obj, f, initVal) =>
+    Object.keys(obj).reduce((acc, key) => f(acc, key, obj[key]), initVal);

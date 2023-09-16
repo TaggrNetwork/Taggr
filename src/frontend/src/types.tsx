@@ -6,13 +6,29 @@ export type PostId = number;
 
 export type UserId = number;
 
+export type Post = {
+    parent: PostId | null;
+    user: UserId;
+    userObject: { id: UserId; name: string; karma: number };
+    report?: Report;
+};
+
 export type User = {
     name: string;
     id: UserId;
     bookmarks: number[];
-    last_activity: number;
+    last_activity: BigInt;
     settings: { theme: string };
     realms: string[];
+    karma: number;
+    report?: Report;
+};
+
+export type Report = {
+    reason: string;
+    reporter: UserId;
+    confirmed_by: UserId[];
+    rejected_by: UserId[];
 };
 
 declare global {
@@ -24,7 +40,7 @@ declare global {
         reloadCache: () => Promise<void>;
         setUI: () => void;
         lastActivity: Date;
-        lastVisit: number;
+        lastVisit: BigInt;
         api: Backend;
         mainnet_api: Backend;
         principalId: string;
@@ -38,8 +54,14 @@ declare global {
             karma: { [name: UserId]: number };
             recent_tags: string[];
             realms: { [name: string]: [string, boolean] };
-            stats: { last_upgrade: number };
-            config: any;
+            stats: { last_upgrade: number; buckets: [string, number][] };
+            config: {
+                reactions: [number, number][];
+                token_decimals: number;
+                domains: string[];
+                reporting_penalty_post: number;
+                reporting_penalty_misbehaviour: number;
+            };
         };
     }
 }

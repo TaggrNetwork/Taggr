@@ -1,28 +1,39 @@
 import * as React from "react";
-import { Content } from "./content";
+// @ts-ignore
 import DiffMatchPatch from "diff-match-patch";
 import { Clipboard, ClipboardCheck, Flag, Menu, Share } from "./icons";
 import { loadFile } from "./form";
+import { Post, PostId, Report, User, UserId } from "./types";
 
 export const MAX_POST_SIZE_BYTES = Math.ceil(1024 * 1024 * 1.9);
 
-export const percentage = (n, total) => {
+export const percentage = (n: string, total: number) => {
     let p = Math.ceil((parseInt(n) / (total || 1)) * 10000) / 100;
     return `${p}%`;
 };
 
-export const hex = (arr) =>
+export const hex = (arr: number[]) =>
     Array.from(arr, (byte) =>
         ("0" + (byte & 0xff).toString(16)).slice(-2),
     ).join("");
 
-export const FileUploadInput = ({ classNameArg, callback }) => (
+export const FileUploadInput = ({
+    classNameArg,
+    callback,
+}: {
+    classNameArg?: string;
+    callback: (arg: Uint8Array) => void;
+}) => (
     <input
         type="file"
         className={classNameArg}
         style={{ maxWidth: "90%" }}
         onChange={async (ev) => {
-            const file = (ev.dataTransfer || ev.target).files[0];
+            const files = (
+                (ev as unknown as DragEvent).dataTransfer || ev.target
+            )?.files;
+            if (!files) return;
+            const file = files[0];
             const content = new Uint8Array(await loadFile(file));
             if (content.byteLength > MAX_POST_SIZE_BYTES) {
                 alert(
@@ -35,16 +46,23 @@ export const FileUploadInput = ({ classNameArg, callback }) => (
     />
 );
 
-export const microSecsSince = (timestamp) =>
-    Number(new Date()) - parseInt(timestamp) / 1000000;
+export const microSecsSince = (timestamp: BigInt) =>
+    Number(new Date()) - Number(timestamp) / 1000000;
 
-export const hoursTillNext = (interval, last) =>
+export const hoursTillNext = (interval: number, last: BigInt) =>
     Math.ceil(interval / 1000000 / 3600000 - microSecsSince(last) / 3600000);
 
-export const commaSeparated = (items) => interleaved(items, ", ");
+export const commaSeparated = (items: JSX.Element[] = []) =>
+    items.length == 0 ? [] : interleaved(items, <span>, </span>);
 
-export const interleaved = (items, link) =>
-    items.length ? items.reduce((prev, curr) => [prev, link, curr]) : [];
+export const interleaved = (items: JSX.Element[], link: JSX.Element) =>
+    items.reduce((prev, curr) => (
+        <>
+            {prev}
+            {link}
+            {curr}
+        </>
+    ));
 
 export const NotFound = () => (
     <div className="text_centered vertically_spaced">
@@ -66,7 +84,7 @@ export const Unauthorized = () => (
 
 export const bigScreen = () => window.screen.availWidth >= 1024;
 
-export const RealmRibbon = ({ col, name }) => (
+export const RealmRibbon = ({ col, name }: { col: string; name: string }) => (
     <RealmSpan
         name={name}
         col={col}
@@ -79,12 +97,22 @@ export const HeadBar = ({
     title,
     shareLink,
     shareTitle,
-    button1 = null,
-    button2 = null,
+    button1,
+    button2,
     content,
     menu,
     styleArg,
     burgerTestId = null,
+}: {
+    title: string;
+    shareLink: string;
+    shareTitle: string;
+    button1?: JSX.Element;
+    button2?: JSX.Element;
+    content: JSX.Element;
+    menu: boolean;
+    styleArg?: any;
+    burgerTestId?: any;
 }) => {
     const [showMenu, setShowMenu] = React.useState(false);
     const effStyle = { ...styleArg } || {};
@@ -129,8 +157,8 @@ export const HeadBar = ({
     );
 };
 
-export const realmColors = (name, col) => {
-    const light = (col) => {
+export const realmColors = (name: string, col: string) => {
+    const light = (col: string) => {
         const hex = col.replace("#", "");
         const c_r = parseInt(hex.substring(0, 0 + 2), 16);
         const c_g = parseInt(hex.substring(2, 2 + 2), 16);
@@ -138,17 +166,30 @@ export const realmColors = (name, col) => {
         const brightness = (c_r * 299 + c_g * 587 + c_b * 114) / 1000;
         return brightness > 155;
     };
-    const effCol = col || (backendCache.realms[name] || [])[0] || "#ffffff";
+    const effCol =
+        col || (window.backendCache.realms[name] || [])[0] || "#ffffff";
     const color = light(effCol) ? "black" : "white";
     return { background: effCol, color, fill: color };
 };
 
-export const RealmSpan = ({ col, name, classNameArg, onClick, styleArg }) => {
+export const RealmSpan = ({
+    col,
+    name,
+    classNameArg,
+    onClick,
+    styleArg,
+}: {
+    col: string;
+    name: string;
+    classNameArg?: string;
+    onClick: () => void;
+    styleArg?: any;
+}) => {
     if (!name) return null;
     const { background, color } = realmColors(name, col);
     return (
         <span
-            className={classNameArg || null}
+            className={classNameArg}
             onClick={onClick}
             style={{ background, color, whiteSpace: "nowrap", ...styleArg }}
         >
@@ -160,13 +201,19 @@ export const RealmSpan = ({ col, name, classNameArg, onClick, styleArg }) => {
 export const currentRealm = () => window.realm || "";
 
 export const ShareButton = ({
-    classNameArg = null,
+    classNameArg,
     title = "Check this out",
     url,
     styleArg,
     text,
+}: {
+    classNameArg?: string;
+    title?: string;
+    url: string;
+    styleArg?: any;
+    text?: boolean;
 }) => {
-    const fullUlr = `https://${backendCache.config.domains[0]}/${url}`;
+    const fullUlr = `https://${window.backendCache.config.domains[0]}/${url}`;
     return (
         <button
             title={`Share link to ${fullUlr}`}
@@ -186,22 +233,23 @@ export const ShareButton = ({
 };
 
 const regexp = /[\p{Letter}\p{Mark}|\d|\-|_]+/gu;
-export const getTokens = (prefix, value) => {
+export const getTokens = (prefix: string, value: string) => {
     const tokens = value
         .split(/\s+/g)
         .filter((token) => {
             const postfix = token.slice(1);
-            if (!postfix.match(regexp) || !isNaN(postfix)) return false;
+            if (!postfix.match(regexp) || !isNaN(parseInt(postfix)))
+                return false;
             for (let c of prefix) if (c == token[0]) return true;
             return false;
         })
-        .map((token) => token.match(regexp)[0]);
+        .map((token) => (token.match(regexp) || [])[0]);
     const list = [...new Set(tokens)];
-    list.sort((b, a) => a.length - b.length);
+    list.sort((b = "", a = "") => a.length - b.length);
     return list;
 };
 
-export const setTitle = (value) => {
+export const setTitle = (value: string) => {
     const titleElement = document.getElementsByTagName("title")[0];
     if (titleElement) titleElement.innerText = `TAGGR: ${value}`;
 };
@@ -213,6 +261,13 @@ export const ButtonWithLoading = ({
     classNameArg,
     styleArg,
     testId,
+}: {
+    label: any;
+    title: string;
+    onClick: () => void;
+    classNameArg?: string;
+    styleArg?: any;
+    testId?: any;
 }) => {
     let [loading, setLoading] = React.useState(false);
     if (loading) return <Loading spaced={false} />;
@@ -243,6 +298,15 @@ export const ToggleButton = ({
     offLabel = "FOLLOW",
     onLabel = "UNFOLLOW",
     testId = null,
+}: {
+    toggler: () => void;
+    offTitle: string;
+    onTitle: string;
+    classNameArg?: string;
+    currState: () => boolean;
+    offLabel: string;
+    onLabel: string;
+    testId?: any;
 }) => {
     // -1: not following, 0: unknown, 1: following
     let [status, setStatus] = React.useState(0);
@@ -263,8 +327,12 @@ export const ToggleButton = ({
     );
 };
 
-export const timeAgo = (timestamp, absolute, format = "short") => {
-    timestamp = parseInt(timestamp) / 1000000;
+export const timeAgo = (
+    originalTimestamp: string,
+    absolute: boolean,
+    format: "short" | "long",
+) => {
+    const timestamp = parseInt(originalTimestamp) / 1000000;
     const diff = Number(new Date()) - timestamp;
     const minute = 60 * 1000;
     const hour = minute * 60;
@@ -291,34 +359,50 @@ export const timeAgo = (timestamp, absolute, format = "short") => {
     }
 };
 
-export const tokenBalance = (balance) =>
+export const tokenBalance = (balance: number) =>
     (
-        balance / Math.pow(10, backendCache.config.token_decimals)
+        balance / Math.pow(10, window.backendCache.config.token_decimals)
     ).toLocaleString();
 
-export const icpCode = (e8s, decimals, units = true) => (
+export const icpCode = (e8s: string, decimals: boolean, units = true) => (
     <code className="xx_large_text">
         {icp(e8s, decimals)}
         {units && " ICP"}
     </code>
 );
 
-export const icp = (e8s, decimals = false) => {
+export const icp = (e8s: string, decimals = false) => {
     let n = parseInt(e8s);
     let base = Math.pow(10, 8);
     let v = n / base;
     return (decimals ? v : Math.floor(v)).toLocaleString();
 };
 
-export const ICPAccountBalance = ({ address, decimals, units, heartbeat }) => {
-    const [e8s, setE8s] = React.useState(0);
+export const ICPAccountBalance = ({
+    address,
+    decimals,
+    units,
+    heartbeat,
+}: {
+    address: string;
+    decimals: boolean;
+    units: boolean;
+    heartbeat: any;
+}) => {
+    const [e8s, setE8s] = React.useState("0");
     React.useEffect(() => {
-        api.account_balance(address).then(setE8s);
+        window.api.account_balance(address).then((n) => setE8s(n.toString()));
     }, [address, heartbeat]);
     return icpCode(e8s, decimals, units);
 };
 
-export const IcpAccountLink = ({ address, label }) => (
+export const IcpAccountLink = ({
+    address,
+    label,
+}: {
+    address: string;
+    label: string;
+}) => (
     <a
         target="_blank"
         href={`https://dashboard.internetcomputer.org/account/${address}`}
@@ -327,7 +411,13 @@ export const IcpAccountLink = ({ address, label }) => (
     </a>
 );
 
-export const Loading = ({ classNameArg, spaced = true }) => {
+export const Loading = ({
+    classNameArg,
+    spaced = true,
+}: {
+    classNameArg?: string;
+    spaced: boolean;
+}) => {
     const [dot, setDot] = React.useState(0);
     const md = <span> ■ </span>;
     React.useEffect(() => {
@@ -353,47 +443,52 @@ export const Loading = ({ classNameArg, spaced = true }) => {
     );
 };
 
-export const loadPosts = async (ids) =>
-    (await api.query("posts", ids)).map(expandUser);
+export const loadPosts = async (ids: PostId[]) =>
+    ((await window.api.query<Post[]>("posts", ids)) || []).map(expandUser);
 
-export const expandUser = (post) => {
+export const expandUser = (post: Post) => {
     const id = post.user;
     const { users, karma } = window.backendCache;
-    post.user = { id, name: users[id], karma: karma[id] };
+    post.userObject = { id, name: users[id], karma: karma[id] };
     return post;
 };
 
-export const blobToUrl = (blob) =>
+export const blobToUrl = (blob: number[]) =>
     URL.createObjectURL(
         new Blob([new Uint8Array(blob).buffer], { type: "image/png" }),
     );
 
-export const isRoot = (post) => post.parent == null;
+export const isRoot = (post: Post) => post.parent == null;
 
-export const UserLink = ({ id }) => (
-    <a href={`#/user/${id}`}>{backendCache.users[id] || "?"}</a>
+export const UserLink = ({ id }: { id: UserId }) => (
+    <a href={`#/user/${id}`}>{window.backendCache.users[id] || "?"}</a>
 );
 
-export const userList = (ids = []) =>
+export const userList = (ids: UserId[] = []) =>
     commaSeparated(ids.map((id) => <UserLink key={id} id={id} />));
 
-export const token = (n) =>
+export const token = (n: number) =>
     Math.ceil(
-        n / Math.pow(10, backendCache.config.token_decimals),
+        n / Math.pow(10, window.backendCache.config.token_decimals),
     ).toLocaleString();
 
 export const ReactionToggleButton = ({
-    id = null,
     title,
     icon,
     onClick,
     pressed,
     classNameArg,
     testId = null,
+}: {
+    title: string;
+    icon: any;
+    onClick: (arg: any) => void;
+    pressed: boolean;
+    classNameArg?: string;
+    testId?: any;
 }) => (
     <button
         title={title}
-        id={id}
         data-meta="skipClicks"
         onClick={(e) => {
             e.preventDefault();
@@ -408,7 +503,17 @@ export const ReactionToggleButton = ({
     </button>
 );
 
-export const BurgerButton = ({ onClick, pressed, testId = null, styleArg }) => {
+export const BurgerButton = ({
+    onClick,
+    pressed,
+    testId = null,
+    styleArg,
+}: {
+    onClick: () => void;
+    pressed: boolean;
+    testId?: any;
+    styleArg?: { [name: string]: string };
+}) => {
     const effStyle = { ...styleArg };
     if (pressed) {
         const color = effStyle.color;
@@ -421,15 +526,18 @@ export const BurgerButton = ({ onClick, pressed, testId = null, styleArg }) => {
             title="Menu"
             onClick={onClick}
             pressed={pressed}
+            // @ts-ignore
             icon={<Menu styleArg={effStyle} />}
             testId={testId}
         />
     );
 };
 
-export const loadPostBlobs = async (files) => {
+export const loadPostBlobs = async (files: {
+    [id: string]: [number, number];
+}) => {
     const ids = Object.keys(files);
-    const blobs = await Promise.all(
+    const blobs: [string, ArrayBuffer][] = await Promise.all(
         ids.map(async (id) => {
             const [blobId, bucket_id] = id.split("@");
             const [offset, len] = files[id];
@@ -437,37 +545,43 @@ export const loadPostBlobs = async (files) => {
                 intToBEBytes(offset).concat(intToBEBytes(len)),
             );
             // This allows us to see the bucket pics in dev mode.
-            const api = backendCache.stats.buckets.every(
+            const api = window.backendCache.stats.buckets.every(
                 ([id]) => id != bucket_id,
             )
                 ? window.mainnet_api
                 : window.api;
             return api
                 .query_raw(bucket_id, "read", arg)
-                .then((blob) => [blobId, blob]);
+                .then((blob) => [blobId, blob || new ArrayBuffer(0)]);
         }),
     );
-    return blobs.reduce((acc, [blobId, blob]) => {
-        acc[blobId] = blob;
-        return acc;
-    }, {});
+    return blobs.reduce(
+        (acc, [blobId, blob]) => {
+            acc[blobId] = blob;
+            return acc;
+        },
+        {} as { [id: string]: ArrayBuffer },
+    );
 };
 
-export const objectReduce = (obj, f, initVal) =>
-    Object.keys(obj).reduce((acc, key) => f(acc, key, obj[key]), initVal);
-
 const dmp = new DiffMatchPatch();
-export const getPatch = (A, B) => dmp.patch_toText(dmp.patch_make(A, B));
-export const applyPatch = (text, patch) =>
+
+export const getPatch = (A: string, B: string) =>
+    dmp.patch_toText(dmp.patch_make(A, B));
+
+export const applyPatch = (text: string, patch: string) =>
     dmp.patch_apply(dmp.patch_fromText(patch), text);
 
 export const reactionCosts = () =>
-    backendCache.config.reactions.reduce((acc, [id, cost, _]) => {
-        acc[id] = cost;
-        return acc;
-    }, {});
+    window.backendCache.config.reactions.reduce(
+        (acc, [id, cost]) => {
+            acc[id] = cost;
+            return acc;
+        },
+        {} as { [id: number]: number },
+    );
 
-export const CopyToClipboard = ({
+export function CopyToClipboard({
     value,
     pre = (value) => (
         <span>
@@ -481,8 +595,15 @@ export const CopyToClipboard = ({
     ),
     displayMap = (e) => e,
     map = (e) => e,
-    testId = null,
-}) => {
+    testId,
+}: {
+    value: string;
+    testId?: any;
+    map: (arg: string) => string;
+    displayMap: (arg: string) => string;
+    pre: (arg: string) => JSX.Element;
+    post: (arg: string) => JSX.Element;
+}): JSX.Element {
     const [copied, setCopied] = React.useState(false);
     return (
         <span
@@ -498,12 +619,12 @@ export const CopyToClipboard = ({
             {copied ? post(displayMap(value)) : pre(displayMap(value))}
         </span>
     );
-};
+}
 
-export const intFromBEBytes = (bytes) =>
+export const intFromBEBytes = (bytes: number[]) =>
     bytes.reduce((acc, value) => acc * 256 + value, 0);
 
-export const intToBEBytes = (val) => {
+export const intToBEBytes = (val: number) => {
     const bytes = [0, 0, 0, 0, 0, 0, 0, 0];
     for (let index = bytes.length - 1; index >= 0; index--) {
         bytes[index] = val & 0xff;
@@ -512,7 +633,15 @@ export const intToBEBytes = (val) => {
     return bytes;
 };
 
-export const FlagButton = ({ id, domain, text }) => (
+export const FlagButton = ({
+    id,
+    domain,
+    text,
+}: {
+    id: number;
+    domain: string;
+    text: string;
+}) => (
     <ButtonWithLoading
         title="Flag post"
         classNameArg="max_width_col"
@@ -522,7 +651,7 @@ export const FlagButton = ({ id, domain, text }) => (
                     domain == "post" ? "post" : "user"
                 } to stalwarts. ` +
                     `If the report gets rejected, you'll lose ` +
-                    backendCache.config[
+                    window.backendCache.config[
                         domain == "post"
                             ? "reporting_penalty_post"
                             : "reporting_penalty_misbehaviour"
@@ -530,8 +659,13 @@ export const FlagButton = ({ id, domain, text }) => (
                     ` cycles and karma. If you want to continue, please justify the report.`,
             );
             if (reason) {
-                let response = await api.call("report", domain, id, reason);
-                if ("Err" in response) {
+                let response = await window.api.call<{ [name: string]: any }>(
+                    "report",
+                    domain,
+                    id,
+                    reason,
+                );
+                if (response && "Err" in response) {
                     alert(`Error: ${response.Err}`);
                     return;
                 }
@@ -542,17 +676,29 @@ export const FlagButton = ({ id, domain, text }) => (
     />
 );
 
-export const ReportBanner = ({ id, reportArg, domain }) => {
+export const ReportBanner = ({
+    id,
+    reportArg,
+    domain,
+}: {
+    id: number;
+    reportArg: Report;
+    domain: string;
+}) => {
     const [report, setReport] = React.useState(reportArg);
     const { reporter, confirmed_by, rejected_by } = report;
     let tookAction = rejected_by.concat(confirmed_by).includes(window.user.id);
+    let buttons: [string, boolean][] = [
+        ["🛑 DISAGREE", false],
+        ["✅ AGREE", true],
+    ];
     return (
         <div className="post_head banner">
             <h3>
                 This {domain == "post" ? "post" : "user"} was <b>REPORTED</b>{" "}
                 by&nbsp;
                 <a href={`/#/user/${reporter}`}>
-                    {backendCache.users[reporter]}
+                    {window.backendCache.users[reporter]}
                 </a>
                 . Please confirm the deletion or reject the report.
             </h3>
@@ -572,31 +718,28 @@ export const ReportBanner = ({ id, reportArg, domain }) => {
                     className="row_container"
                     style={{ justifyContent: "center" }}
                 >
-                    {[
-                        ["🛑 DISAGREE", false],
-                        ["✅ AGREE", true],
-                    ].map(([label, val]) => (
+                    {buttons.map(([label, val]) => (
                         <ButtonWithLoading
+                            title={label}
                             key={label}
                             onClick={async () => {
-                                let result = await api.call(
-                                    "vote_on_report",
-                                    domain,
-                                    id,
-                                    val,
-                                );
-                                if ("Err" in result) {
+                                let result = await window.api.call<{
+                                    [name: string]: any;
+                                }>("vote_on_report", domain, id, val);
+                                if (result && "Err" in result) {
                                     alert(`Error: ${result.Err}`);
                                     return;
                                 }
-                                setReport(
-                                    (domain == "post"
-                                        ? await loadPost(api, id)
-                                        : await api.query("user", [
-                                              id.toString(),
-                                          ])
-                                    ).report,
-                                );
+                                const updatedReport =
+                                    domain == "post"
+                                        ? (await loadPosts([id]))[0].report
+                                        : (
+                                              await window.api.query<User>(
+                                                  "user",
+                                                  [id.toString()],
+                                              )
+                                          )?.report;
+                                if (updatedReport) setReport(updatedReport);
                             }}
                             label={label}
                         />

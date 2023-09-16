@@ -144,7 +144,7 @@ const App = () => {
         if (param) {
             if (param2 == "edit")
                 content = auth(
-                    <RealmForm existingName={param.toUpperCase()} />
+                    <RealmForm existingName={param.toUpperCase()} />,
                 );
             else content = <Landing />;
         } else content = <Realms />;
@@ -168,7 +168,7 @@ const App = () => {
                 feedLoader={async () =>
                     await api.query("posts", window.user.bookmarks)
                 }
-            />
+            />,
         );
     } else if (handler == "invites") {
         content = auth(<Invites />);
@@ -198,7 +198,7 @@ const App = () => {
                 user={window.user}
                 route={window.location.hash}
             />
-        </React.StrictMode>
+        </React.StrictMode>,
     );
     renderFrame(<React.StrictMode>{content}</React.StrictMode>);
 };
@@ -288,13 +288,13 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
             const hash = localStorage.getItem("IDENTITY_DEPRECATED");
             if (hash) {
                 identity = Ed25519KeyIdentity.generate(
-                    new TextEncoder().encode(hash).slice(0, 32)
+                    new TextEncoder().encode(hash).slice(0, 32),
                 );
             }
         }
         const api = ApiGenerator(MAINNET_MODE, CANISTER_ID, identity);
         if (identity) window.principalId = identity.getPrincipal().toString();
-        window.lastVisit = 0;
+        window.lastVisit = BigInt(0);
         window.api = api;
         window.mainnet_api = ApiGenerator(true, CANISTER_ID, identity);
         window.reloadCache = reloadCache;
@@ -311,7 +311,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                     if (600000 < microSecsSince(window.user.last_activity)) {
                         window.lastVisit = window.user.last_activity;
                         api.call("update_last_activity");
-                    } else if (window.lastVisit == 0)
+                    } else if (window.lastVisit == BigInt(0))
                         window.lastVisit = window.user.last_activity;
                 }
             };
@@ -339,9 +339,9 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                         <Twitter classNameArg="action" />
                     </a>
                 </footer>
-            </React.StrictMode>
+            </React.StrictMode>,
         );
-    }
+    },
 );
 
 const updateDoc = () => {
@@ -352,7 +352,7 @@ const updateDoc = () => {
     scroll_up_button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" fill="currentColor" class="bi bi-arrow-up-circle-fill" viewBox="0 0 16 16"><path d="M16 8A8 8 0 1 0 0 8a8 8 0 0 0 16 0zm-7.5 3.5a.5.5 0 0 1-1 0V5.707L5.354 7.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 5.707V11.5z"/></svg>`;
     document.body.appendChild(scroll_up_button);
     window.scrollUpButton = document.getElementById(
-        "scroll_up_button"
+        "scroll_up_button",
     ) as HTMLElement;
     window.scrollUpButton.style.display = "none";
     window.scrollUpButton.onclick = () =>
