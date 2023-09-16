@@ -1,7 +1,7 @@
 import * as React from "react";
 import { AuthClient } from "@dfinity/auth-client";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot } from "react-dom/client";
 import { Post } from "./post";
 import { PostFeed } from "./post_feed";
 import { Feed } from "./feed";
@@ -23,7 +23,7 @@ import {
     currentRealm,
 } from "./common";
 import { Settings } from "./settings";
-import { Backend, ApiGenerator } from "./api";
+import { ApiGenerator } from "./api";
 import { Wallet, WelcomeInvited } from "./wallet";
 import { applyTheme, getTheme } from "./theme";
 import { Proposals } from "./proposals";
@@ -32,46 +32,7 @@ import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
 import { MAINNET_MODE, TEST_MODE, CANISTER_ID } from "./env";
 import { Git, Rocket, Twitter } from "./icons";
-
-type UserId = number;
-
-type User = {
-    name: string;
-    id: UserId;
-    bookmarks: number[];
-    last_activity: number;
-    settings: { theme: string };
-    realms: string[];
-};
-
-declare global {
-    interface Window {
-        authClient: AuthClient;
-        stackRoot: Root;
-        cleanUICache: () => void;
-        reloadUser: () => Promise<void>;
-        reloadCache: () => Promise<void>;
-        setUI: () => void;
-        lastActivity: Date;
-        lastVisit: number;
-        api: Backend;
-        mainnet_api: Backend;
-        principalId: string;
-        realm: string;
-        user: User;
-        scrollUpButton: HTMLElement;
-        lastSavedUpgrade: number;
-        uiInitialized: boolean;
-        backendCache: {
-            users: { [name: UserId]: string };
-            karma: { [name: UserId]: number };
-            recent_tags: string[];
-            realms: { [name: string]: [string, boolean] };
-            stats: { last_upgrade: number };
-            config: any;
-        };
-    }
-}
+import { UserId } from "./types";
 
 const { hash, pathname } = location;
 
@@ -145,6 +106,7 @@ const App = () => {
     }
 
     if (handler == "settings") {
+        // @ts-ignore
         content = auth(<Settings />);
     } else if (handler == "whitepaper" || handler == "about") {
         content = <Whitepaper />;
@@ -182,7 +144,7 @@ const App = () => {
         if (param) {
             if (param2 == "edit")
                 content = auth(
-                    <RealmForm existingName={param.toUpperCase()} />,
+                    <RealmForm existingName={param.toUpperCase()} />
                 );
             else content = <Landing />;
         } else content = <Realms />;
@@ -206,7 +168,7 @@ const App = () => {
                 feedLoader={async () =>
                     await api.query("posts", window.user.bookmarks)
                 }
-            />,
+            />
         );
     } else if (handler == "invites") {
         content = auth(<Invites />);
@@ -236,7 +198,7 @@ const App = () => {
                 user={window.user}
                 route={window.location.hash}
             />
-        </React.StrictMode>,
+        </React.StrictMode>
     );
     renderFrame(<React.StrictMode>{content}</React.StrictMode>);
 };
@@ -326,7 +288,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
             const hash = localStorage.getItem("IDENTITY_DEPRECATED");
             if (hash) {
                 identity = Ed25519KeyIdentity.generate(
-                    new TextEncoder().encode(hash).slice(0, 32),
+                    new TextEncoder().encode(hash).slice(0, 32)
                 );
             }
         }
@@ -377,9 +339,9 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                         <Twitter classNameArg="action" />
                     </a>
                 </footer>
-            </React.StrictMode>,
+            </React.StrictMode>
         );
-    },
+    }
 );
 
 const updateDoc = () => {
@@ -390,7 +352,7 @@ const updateDoc = () => {
     scroll_up_button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" fill="currentColor" class="bi bi-arrow-up-circle-fill" viewBox="0 0 16 16"><path d="M16 8A8 8 0 1 0 0 8a8 8 0 0 0 16 0zm-7.5 3.5a.5.5 0 0 1-1 0V5.707L5.354 7.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 5.707V11.5z"/></svg>`;
     document.body.appendChild(scroll_up_button);
     window.scrollUpButton = document.getElementById(
-        "scroll_up_button",
+        "scroll_up_button"
     ) as HTMLElement;
     window.scrollUpButton.style.display = "none";
     window.scrollUpButton.onclick = () =>
