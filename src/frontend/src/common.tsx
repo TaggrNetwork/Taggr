@@ -270,10 +270,10 @@ export const ButtonWithLoading = ({
     testId?: any;
 }) => {
     let [loading, setLoading] = React.useState(false);
-    if (loading) return <Loading spaced={false} />;
     return (
         <button
             title={title}
+            disabled={loading}
             className={`${classNameArg}`}
             style={styleArg || null}
             data-testid={testId}
@@ -284,7 +284,7 @@ export const ButtonWithLoading = ({
                 setLoading(false);
             }}
         >
-            {label}
+            {loading ? <Loading spaced={false} /> : label}
         </button>
     );
 };
