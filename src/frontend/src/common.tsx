@@ -687,7 +687,9 @@ export const ReportBanner = ({
 }) => {
     const [report, setReport] = React.useState(reportArg);
     const { reporter, confirmed_by, rejected_by } = report;
-    let tookAction = rejected_by.concat(confirmed_by).includes(window.user.id);
+    let tookAction =
+        window.user?.id == report.reporter ||
+        rejected_by.concat(confirmed_by).includes(window.user.id);
     let buttons: [string, boolean][] = [
         ["🛑 DISAGREE", false],
         ["✅ AGREE", true],
