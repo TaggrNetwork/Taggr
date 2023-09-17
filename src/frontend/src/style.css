@@ -135,7 +135,7 @@ select {
 .feed_item {
     background: $light_background;
     border-bottom: 1px solid $dark_background;
-    margin-bottom: 2px;
+    margin-bottom: 1em;
     border-radius: 5px;
 }
 
@@ -836,6 +836,10 @@ a.accent,
         > img {
         border-top-left-radius: 0px;
         border-top-right-radius: 0px;
+    }
+
+    .feed_item {
+        margin-bottom: 4px;
     }
 
     .spaced {
