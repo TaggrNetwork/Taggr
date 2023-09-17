@@ -135,7 +135,7 @@ select {
 .feed_item {
     background: $light_background;
     border-bottom: 1px solid $dark_background;
-    margin-bottom: 1em;
+    margin-bottom: 2px;
     border-radius: 5px;
 }
 
