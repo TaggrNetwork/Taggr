@@ -14,8 +14,8 @@ export class PostEditorElement {
     ) {
         this.cycleCost = element.getByTestId("cycle-cost");
         this.sendButton = element.locator("button", { hasText: "SEND" });
-        this.pollButton = element.locator("#pollButton");
-        this.pollEditor = element.locator("#pollEditor");
+        this.pollButton = element.getByTestId("poll-button");
+        this.pollEditor = element.getByTestId("poll-editor");
         this.inputTextArea = element.locator("textarea");
         this.filePickerButton = element.getByTestId("file-picker");
     }

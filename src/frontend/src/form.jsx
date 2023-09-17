@@ -436,7 +436,7 @@ export const Form = ({
                                 />
                                 {postId == null && !isRepost && (
                                     <ReactionToggleButton
-                                        id="pollButton"
+                                        testId="poll-button"
                                         classNameArg="left_spaced"
                                         icon={<Bars />}
                                         pressed={!!poll}
@@ -490,7 +490,7 @@ export const Form = ({
                             <h2>Poll</h2>
                             VARIANTS (ONE PER LINE):
                             <textarea
-                                id="pollEditor"
+                                data-testid="poll-editor"
                                 rows={poll.options.length + 2}
                                 className="monospace bottom_spaced"
                                 value={poll.options.join("\n")}
