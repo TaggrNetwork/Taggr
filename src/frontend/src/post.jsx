@@ -141,6 +141,7 @@ export const Post = ({
     const react = (id) => {
         if (!window.user) return;
         let userId = window.user?.id;
+        if (post.user == userId) return;
         if (!(id in post.reactions)) {
             post.reactions[id] = [];
         }

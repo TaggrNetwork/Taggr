@@ -264,7 +264,7 @@ export const ButtonWithLoading = ({
 }: {
     label: any;
     title: string;
-    onClick: () => void;
+    onClick: () => Promise<void>;
     classNameArg?: string;
     styleArg?: any;
     testId?: any;

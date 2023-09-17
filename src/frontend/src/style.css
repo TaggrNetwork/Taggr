@@ -763,6 +763,7 @@ a.accent,
 .post_head {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
+    margin-bottom: 0.5em;
 }
 
 .active {
