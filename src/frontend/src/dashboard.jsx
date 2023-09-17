@@ -46,7 +46,7 @@ const show = (number, unit = null) => (
     </code>
 );
 
-export const Dashboard = ({ fullMode }) => {
+export const Dashboard = ({}) => {
     const stats = window.backendCache.stats;
     const [logs, setLogs] = React.useState([]);
 
@@ -62,323 +62,248 @@ export const Dashboard = ({ fullMode }) => {
     } = backendCache;
     return (
         <>
-            {fullMode && <HeadBar title="Dashboard" shareLink="dashboard" />}
-            {!fullMode && (
-                <div className="text_centered">
-                    <div className="dynamic_table monospace bottom_spaced">
-                        <div className="db_cell">
-                            <label>
-                                <User /> USERS
-                            </label>
-                            {show(stats.users)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <ActiveUser /> ACTIVE (7d)
-                            </label>
-                            {show(stats.active_users)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Online /> ONLINE
-                            </label>
-                            {show(Math.max(1, backendCache.stats.users_online))}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Comment /> POSTS
-                            </label>
-                            {show(stats.posts + stats.comments)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Box /> APP STATE
-                            </label>
-                            {sizeMb(
-                                stats.state_size +
-                                    stats.buckets.reduce(
-                                        (acc, [, e]) => acc + e,
-                                        0,
-                                    ),
-                                "xx_large_text",
-                            )}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Gem /> <a href="#/tokens">TOKEN SUPPLY</a>
-                            </label>
-                            <code className="xx_large_text">
-                                {token(stats.circulating_supply)}
-                            </code>
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <CashCoin /> REWARDS SHARED
-                            </label>
-                            {icpCode(stats.total_rewards_shared)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Cash /> REVENUE SHARED
-                            </label>
-                            {icpCode(stats.total_revenue_shared)}
-                        </div>
+            <HeadBar title="Dashboard" shareLink="dashboard" />
+            <div className="text_centered">
+                <div className="dynamic_table monospace">
+                    <div className="db_cell">
+                        <label>
+                            <User /> USERS
+                        </label>
+                        {show(stats.users)}
                     </div>
-                    <a className="top_spaced bottom_spaced" href="/#/dashboard">
-                        DASHBOARD &#x279C;
-                    </a>
-                </div>
-            )}
-            {fullMode && (
-                <div className="text_centered">
-                    <div className="dynamic_table monospace">
-                        <div className="db_cell">
-                            <label>
-                                <User /> USERS
-                            </label>
-                            {show(stats.users)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <ActiveUser /> ACTIVE (7d)
-                            </label>
-                            {show(stats.active_users)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Online /> ONLINE
-                            </label>
-                            {show(Math.max(1, backendCache.stats.users_online))}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Crowd /> INVITED
-                            </label>
-                            {show(stats.invited_users)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Post /> POSTS
-                            </label>
-                            {show(stats.posts)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Comment /> COMMENTS
-                            </label>
-                            {show(stats.comments)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Bootcamp /> BOOTCAMPERS
-                            </label>
-                            {show(stats.bootcamp_users)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Box /> APP STATE
-                            </label>
-                            {sizeMb(
-                                stats.state_size +
-                                    stats.buckets.reduce(
-                                        (acc, [, e]) => acc + e,
-                                        0,
-                                    ),
-                                "xx_large_text",
-                            )}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Treasury />{" "}
-                                <IcpAccountLink
-                                    address={stats.account}
-                                    label={"TREASURY"}
-                                />
-                            </label>
-                            <ICPAccountBalance address={stats.account} />
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <HourGlass /> DISTRIBUTION
-                            </label>
-                            <code className="xx_large_text">{`${hoursTillNext(
-                                604800000000000,
-                                last_weekly_chores,
-                            )}h`}</code>
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Cycles /> CYCLES SUPPLY
-                            </label>
-                            {show(stats.cycles)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Fire /> CYCLES BURNED
-                            </label>
-                            {show(stats.burned_cycles_total)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Cycles /> REVENUE
-                            </label>
-                            {show(stats.burned_cycles)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Gem /> <a href="#/tokens">TOKEN SUPPLY</a>
-                            </label>
-                            <code className="xx_large_text">
-                                {token(stats.circulating_supply)}
-                            </code>
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <CashCoin /> REWARDS SHARED
-                            </label>
-                            {icpCode(stats.total_rewards_shared)}
-                        </div>
-                        <div className="db_cell">
-                            <label>
-                                <Cash /> REVENUE SHARED
-                            </label>
-                            {icpCode(stats.total_revenue_shared)}
-                        </div>
+                    <div className="db_cell">
+                        <label>
+                            <ActiveUser /> ACTIVE (7d)
+                        </label>
+                        {show(stats.active_users)}
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Online /> ONLINE
+                        </label>
+                        {show(Math.max(1, backendCache.stats.users_online))}
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Crowd /> INVITED
+                        </label>
+                        {show(stats.invited_users)}
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Post /> POSTS
+                        </label>
+                        {show(stats.posts)}
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Comment /> COMMENTS
+                        </label>
+                        {show(stats.comments)}
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Bootcamp /> BOOTCAMPERS
+                        </label>
+                        {show(stats.bootcamp_users)}
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Box /> APP STATE
+                        </label>
+                        {sizeMb(
+                            stats.state_size +
+                                stats.buckets.reduce(
+                                    (acc, [, e]) => acc + e,
+                                    0,
+                                ),
+                            "xx_large_text",
+                        )}
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Treasury />{" "}
+                            <IcpAccountLink
+                                address={stats.account}
+                                label={"TREASURY"}
+                            />
+                        </label>
+                        <ICPAccountBalance address={stats.account} />
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <HourGlass /> DISTRIBUTION
+                        </label>
+                        <code className="xx_large_text">{`${hoursTillNext(
+                            604800000000000,
+                            last_weekly_chores,
+                        )}h`}</code>
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Cycles /> CYCLES SUPPLY
+                        </label>
+                        {show(stats.cycles)}
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Fire /> CYCLES BURNED
+                        </label>
+                        {show(stats.burned_cycles_total)}
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Cycles /> REVENUE
+                        </label>
+                        {show(stats.burned_cycles)}
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Gem /> <a href="#/tokens">TOKEN SUPPLY</a>
+                        </label>
+                        <code className="xx_large_text">
+                            {token(stats.circulating_supply)}
+                        </code>
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <CashCoin /> REWARDS SHARED
+                        </label>
+                        {icpCode(stats.total_rewards_shared)}
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Cash /> REVENUE SHARED
+                        </label>
+                        {icpCode(stats.total_revenue_shared)}
                     </div>
                 </div>
-            )}
-            {fullMode && (
-                <div className="monospace spaced">
-                    <hr />
-                    <div className="text_centered">
-                        <h2>
-                            <Canisters /> Canisters
-                        </h2>
-                        <div className="dynamic_table">
+            </div>
+            <div className="monospace spaced">
+                <hr />
+                <div className="text_centered">
+                    <h2>
+                        <Canisters /> Canisters
+                    </h2>
+                    <div className="dynamic_table">
+                        <div className="db_cell">
+                            <a
+                                href={`https://dashboard.internetcomputer.org/canister/${backendCache.stats.canister_id}`}
+                            >
+                                <Canister /> MAIN
+                            </a>
+                            <div className="db_cell top_spaced bottom_spaced">
+                                <label>
+                                    <Box /> STATE
+                                </label>{" "}
+                                {sizeMb(stats.state_size)}
+                            </div>
                             <div className="db_cell">
+                                <label>
+                                    <Cycles /> IC-CYCLES
+                                </label>{" "}
+                                {show(
+                                    stats.canister_cycle_balance / 10 ** 12,
+                                    "T",
+                                )}
+                            </div>
+                        </div>
+                        {stats.buckets.map(([bucket_id, size], i) => (
+                            <div key={bucket_id} className="db_cell">
                                 <a
-                                    href={`https://dashboard.internetcomputer.org/canister/${backendCache.stats.canister_id}`}
+                                    href={`https://dashboard.internetcomputer.org/canister/${bucket_id}`}
                                 >
-                                    <Canister /> MAIN
+                                    <StorageCanister /> STORAGE {i}
                                 </a>
                                 <div className="db_cell top_spaced bottom_spaced">
                                     <label>
                                         <Box /> STATE
                                     </label>{" "}
-                                    {sizeMb(stats.state_size)}
+                                    {sizeMb(size)}
                                 </div>
                                 <div className="db_cell">
                                     <label>
                                         <Cycles /> IC-CYCLES
                                     </label>{" "}
-                                    {show(
-                                        stats.canister_cycle_balance / 10 ** 12,
-                                        "T",
-                                    )}
+                                    <CycleBalance id={bucket_id} />
                                 </div>
-                            </div>
-                            {stats.buckets.map(([bucket_id, size], i) => (
-                                <div key={bucket_id} className="db_cell">
-                                    <a
-                                        href={`https://dashboard.internetcomputer.org/canister/${bucket_id}`}
-                                    >
-                                        <StorageCanister /> STORAGE {i}
-                                    </a>
-                                    <div className="db_cell top_spaced bottom_spaced">
-                                        <label>
-                                            <Box /> STATE
-                                        </label>{" "}
-                                        {sizeMb(size)}
-                                    </div>
-                                    <div className="db_cell">
-                                        <label>
-                                            <Cycles /> IC-CYCLES
-                                        </label>{" "}
-                                        <CycleBalance id={bucket_id} />
-                                    </div>
-                                </div>
-                            ))}
-                            <div className="db_cell bottom_spaced">
-                                <label>
-                                    <Gear /> LAST UPGRADE
-                                </label>
-                                <code>{timeAgo(stats.last_upgrade)}</code>
-                            </div>
-                            <div className="db_cell">
-                                <label>
-                                    <Binary /> VERSION
-                                </label>
-                                <a
-                                    className="monospace xx_large_text"
-                                    href="#/proposals"
-                                >
-                                    {(stats.module_hash || "").slice(0, 8)}
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    <hr />
-                    <div className="text_centered">
-                        <h2>
-                            <Globe /> Domains
-                        </h2>
-                        <div
-                            className="dynamic_table"
-                            style={{ rowGap: "1em" }}
-                        >
-                            {backendCache.config.domains.map((domain) => (
-                                <a key={domain} href={`https://${domain}`}>
-                                    {domain}
-                                </a>
-                            ))}
-                        </div>
-                    </div>
-                    <hr />
-                    <div
-                        className={bigScreen() ? "two_column_grid_flex" : null}
-                    >
-                        <div>
-                            <h2>⚔️ Stalwarts</h2>
-                            {userList(stats.stalwarts)}
-                        </div>
-                        <div>
-                            <h2>🤖 Bots</h2>
-                            {userList(stats.bots)}
-                        </div>
-                    </div>
-                    <hr />
-                    <h2>
-                        <Trophy /> WEEKLY KARMA LEADERS
-                    </h2>
-                    <hr />
-                    <div className="dynamic_table">
-                        {stats.weekly_karma_leaders.map(([id, karma]) => (
-                            <div className="db_cell" key={id}>
-                                <UserLink id={id} />
-                                <code>{karma.toLocaleString()}</code>
                             </div>
                         ))}
+                        <div className="db_cell bottom_spaced">
+                            <label>
+                                <Gear /> LAST UPGRADE
+                            </label>
+                            <code>{timeAgo(stats.last_upgrade)}</code>
+                        </div>
+                        <div className="db_cell">
+                            <label>
+                                <Binary /> VERSION
+                            </label>
+                            <a
+                                className="monospace xx_large_text"
+                                href="#/proposals"
+                            >
+                                {(stats.module_hash || "").slice(0, 8)}
+                            </a>
+                        </div>
                     </div>
-                    <hr />
-                    <h2>
-                        <Document /> Logs
-                    </h2>
-                    <hr />
-                    <Content
-                        value={logs
-                            .map(
-                                ({ timestamp, level, message }) =>
-                                    `\`${shortDate(
-                                        new Date(parseInt(timestamp) / 1000000),
-                                    )}\`: ` +
-                                    `${level2icon(level)} ` +
-                                    `${message}`,
-                            )
-                            .join("\n- - -\n")}
-                        classNameArg="monospace"
-                    />
                 </div>
-            )}
+                <hr />
+                <div className="text_centered">
+                    <h2>
+                        <Globe /> Domains
+                    </h2>
+                    <div className="dynamic_table" style={{ rowGap: "1em" }}>
+                        {backendCache.config.domains.map((domain) => (
+                            <a key={domain} href={`https://${domain}`}>
+                                {domain}
+                            </a>
+                        ))}
+                    </div>
+                </div>
+                <hr />
+                <div className={bigScreen() ? "two_column_grid_flex" : null}>
+                    <div>
+                        <h2>⚔️ Stalwarts</h2>
+                        {userList(stats.stalwarts)}
+                    </div>
+                    <div>
+                        <h2>🤖 Bots</h2>
+                        {userList(stats.bots)}
+                    </div>
+                </div>
+                <hr />
+                <h2>
+                    <Trophy /> WEEKLY KARMA LEADERS
+                </h2>
+                <hr />
+                <div className="dynamic_table">
+                    {stats.weekly_karma_leaders.map(([id, karma]) => (
+                        <div className="db_cell" key={id}>
+                            <UserLink id={id} />
+                            <code>{karma.toLocaleString()}</code>
+                        </div>
+                    ))}
+                </div>
+                <hr />
+                <h2>
+                    <Document /> Logs
+                </h2>
+                <hr />
+                <Content
+                    value={logs
+                        .map(
+                            ({ timestamp, level, message }) =>
+                                `\`${shortDate(
+                                    new Date(parseInt(timestamp) / 1000000),
+                                )}\`: ` +
+                                `${level2icon(level)} ` +
+                                `${message}`,
+                        )
+                        .join("\n- - -\n")}
+                    classNameArg="monospace"
+                />
+            </div>
         </>
     );
 };

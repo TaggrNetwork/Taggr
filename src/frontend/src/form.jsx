@@ -47,7 +47,7 @@ export const Form = ({
     const [busy, setBusy] = React.useState(false);
     const [poll, setPoll] = React.useState(null);
     const [showTextField, setShowTextField] = React.useState(
-        !!localStorage.getItem(draftKey) || expanded
+        !!localStorage.getItem(draftKey) || expanded,
     );
     const [suggestedTags, setSuggestedTags] = React.useState([]);
     const [suggestedUsers, setSuggestedUsers] = React.useState([]);
@@ -71,7 +71,7 @@ export const Form = ({
             (!postHasCut && ref.current?.clientHeight > window.innerHeight)
         ) {
             alert(
-                "Your post does not fit on screen without scrolling.\n\nPlease add three empty lines after the introductory part to hide the rest of the post."
+                "Your post does not fit on screen without scrolling.\n\nPlease add three empty lines after the introductory part to hide the rest of the post.",
             );
             return false;
         }
@@ -82,7 +82,7 @@ export const Form = ({
         }
         if (value.length == 0 || value.length > max_post_length) {
             alert(
-                `Post length should be larger than 0 and shorter than ${max_post_length} characters.`
+                `Post length should be larger than 0 and shorter than ${max_post_length} characters.`,
             );
             return false;
         }
@@ -98,7 +98,7 @@ export const Form = ({
             blobArrays.length
         ) {
             alert(
-                "You're referencing pictures that are not attached anymore. Please re-upload."
+                "You're referencing pictures that are not attached anymore. Please re-upload.",
             );
             setSubmitting(false);
             return;
@@ -113,7 +113,7 @@ export const Form = ({
                 value,
                 blobArrays,
                 extension,
-                realm
+                realm,
             );
             if (result) {
                 setValue("");
@@ -170,7 +170,7 @@ export const Form = ({
             setTmpBlobs(tmpBlobs);
             image = await loadImage(resized_content);
             fileLinks.push(
-                `![${image.width}x${image.height}, ${size}kb](/blob/${key})`
+                `![${image.width}x${image.height}, ${size}kb](/blob/${key})`,
             );
             setDragAndDropping(false);
         }
@@ -191,7 +191,7 @@ export const Form = ({
         const suggestedUsers = suggestTokens(cursor, value, users, "@");
         setSuggestedUsers(suggestedUsers);
         setChoresTimer(
-            setTimeout(() => localStorage.setItem(draftKey, value), 1500)
+            setTimeout(() => localStorage.setItem(draftKey, value), 1500),
         );
         writingCallback(value);
     };
@@ -276,7 +276,7 @@ export const Form = ({
                     () => (
                         <Post id={repost} repost={true} classNameArg="repost" />
                     ),
-                    [repost]
+                    [repost],
                 )}
         </article>
     );
@@ -291,7 +291,7 @@ export const Form = ({
                 const end = element.selectionEnd;
                 const selection = element.value.substring(start, end);
                 setValue(
-                    value.slice(0, start) + map(selection) + value.slice(end)
+                    value.slice(0, start) + map(selection) + value.slice(end),
                 );
                 element.focus();
             }}
@@ -346,25 +346,25 @@ export const Form = ({
                                     v
                                         .split("\n")
                                         .map((line) => "- " + line)
-                                        .join("\n")
+                                        .join("\n"),
                                 )}
                                 {formButton(<ListNumbered />, (v) =>
                                     v
                                         .split("\n")
                                         .map((line, i) => i + 1 + ". " + line)
-                                        .join("\n")
+                                        .join("\n"),
                                 )}
                                 {formButton(<Quote />, (v) => `> ${v}`)}
                                 {formButton(
                                     <Link />,
-                                    (v) => `[${v}](${prompt("URL:")})`
+                                    (v) => `[${v}](${prompt("URL:")})`,
                                 )}
                                 {formButton(
                                     <Pic />,
                                     (v) =>
                                         `![${prompt("Image name")}](${prompt(
-                                            "URL"
-                                        )})`
+                                            "URL",
+                                        )})`,
                                 )}
                                 {formButton(<Code />, (v) => `\`${v}\``)}
                                 {formButton(<Table />, (_) => tableTemplate)}
@@ -452,7 +452,7 @@ export const Form = ({
                                                           ],
                                                           votes: {},
                                                           deadline: 24,
-                                                      }
+                                                      },
                                             )
                                         }
                                     />
@@ -580,8 +580,8 @@ const canvasToBlob = (canvas) =>
         canvas.toBlob(
             (blob) => blob.arrayBuffer().then(resolve),
             "image/jpeg",
-            0.5
-        )
+            0.5,
+        ),
     );
 
 const hash = async (buffer) => {
@@ -608,10 +608,10 @@ const suggestTokens = (cursor, value, tokens, trigger) => {
         const result = tokens
             .filter((tag) => tag.length > currentTag.length)
             .filter((tag) =>
-                tag.toLowerCase().startsWith(currentTag.toLowerCase())
+                tag.toLowerCase().startsWith(currentTag.toLowerCase()),
             )
             .map(
-                (tag) => currentTag + tag.slice(currentTag.length, tag.length)
+                (tag) => currentTag + tag.slice(currentTag.length, tag.length),
             );
         result.sort((a, b) => {
             if (a.length != b.length) {

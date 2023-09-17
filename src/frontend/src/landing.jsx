@@ -67,7 +67,6 @@ export const Landing = () => {
             <Search />
             {!user && !realm && (
                 <>
-                    <Dashboard />
                     <RealmsDashboard />
                 </>
             )}

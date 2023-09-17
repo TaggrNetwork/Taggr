@@ -110,7 +110,7 @@ const App = () => {
     } else if (handler == "whitepaper" || handler == "about") {
         content = <Whitepaper />;
     } else if (handler == "dashboard" || handler == "stats") {
-        content = <Dashboard fullMode={true} />;
+        content = <Dashboard />;
     } else if (handler == "welcome") {
         subtle = !window.principalId;
         content = window.principalId ? (
