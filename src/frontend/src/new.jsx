@@ -77,7 +77,7 @@ export const PostSubmissionForm = ({ id, repost }) => {
             }
             postId = result.Ok;
         }
-        window.cleanUICache();
+        window.resetUI();
         location.href = `#/post/${postId}`;
         return true;
     };

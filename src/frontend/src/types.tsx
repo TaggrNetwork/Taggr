@@ -35,10 +35,10 @@ declare global {
     interface Window {
         authClient: AuthClient;
         stackRoot: Root;
-        cleanUICache: () => void;
+        resetUI: () => void;
         reloadUser: () => Promise<void>;
         reloadCache: () => Promise<void>;
-        setUI: () => void;
+        setUI: (force?: boolean) => void;
         lastActivity: Date;
         lastVisit: BigInt;
         api: Backend;

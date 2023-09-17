@@ -66,7 +66,7 @@ const renderFrame = (content: React.ReactNode) => {
 
     // This resets the stack.
     if (location.hash == "#/home") {
-        window.cleanUICache();
+        window.resetUI();
         location.href = "#/";
         return;
     }
@@ -101,7 +101,6 @@ const App = () => {
     setTitle(handler);
     setUI();
     if (handler == "realm" && currentRealm() != param) {
-        window.realm = param;
         setRealmUI(param);
     }
 
@@ -204,17 +203,18 @@ const App = () => {
 };
 
 const setRealmUI = (realm: string) => {
-    window.cleanUICache();
+    window.resetUI();
+    window.realm = realm;
     window.api.query("realm", realm).then((result: any) => {
         let realmTheme = result.Ok?.theme;
         if (realmTheme) applyTheme(JSON.parse(realmTheme));
-        else setUI();
+        else setUI(true);
     });
 };
 
 // If no realm is selected, set styling once.
-const setUI = () => {
-    if (currentRealm() || window.uiInitialized) return;
+const setUI = (force?: boolean) => {
+    if (!force && (currentRealm() || window.uiInitialized)) return;
     applyTheme(getTheme(window.user?.settings.theme));
     window.uiInitialized = true;
 };
@@ -250,7 +250,7 @@ const reloadCache = async () => {
         stats,
         config,
     };
-    window.cleanUICache = () => {
+    window.resetUI = () => {
         if (TEST_MODE) return;
         const frames = Array.from(stack.children);
         frames.forEach((frame) => frame.remove());
