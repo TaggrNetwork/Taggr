@@ -123,13 +123,13 @@ export const HeadBar = ({
             style={styleArg}
         >
             <div className="vcentered">
-                <div
+                <h1
                     className={`max_width_col ${
                         bigScreen() ? "x_large_text" : "larger_text"
                     }`}
                 >
                     {title}
-                </div>
+                </h1>
                 <div className="vcentered flex_ended">
                     {shareLink && (
                         <ShareButton

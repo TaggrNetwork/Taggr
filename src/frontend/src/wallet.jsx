@@ -205,184 +205,175 @@ export const Wallet = () => {
 
     return (
         <>
-            <HeadBar title={"Wallets"} shareLink="wallets" />
-            <div className="spaced">
-                {user.cycles <= 200 && (
-                    <div className="banner">
-                        You are low on cycles! Please transfer some ICP to your
-                        account displayed below and press the MINT button.
-                    </div>
-                )}
-                <div className="stands_out">
-                    <div className="vcentered">
-                        <h2 className="max_width_col">ICP</h2>
-                        <ButtonWithLoading
-                            label="TRANSFER"
-                            onClick={async () => {
-                                const amount = prompt(
-                                    "Enter the amount (fee: 0.0001 ICP)",
-                                );
-                                if (!amount) return;
-                                const recipient = prompt(
-                                    "Enter the recipient address",
-                                );
-                                if (!recipient) return;
-                                if (
-                                    !confirm(
-                                        `You are transferring\n\n${amount} ICP\n\nto\n\n${recipient}`,
-                                    )
-                                )
-                                    return;
-                                let result = await api.call(
-                                    "transfer_icp",
-                                    recipient,
-                                    amount,
-                                );
-                                await window.reloadUser();
-                                if ("Err" in result) {
-                                    alert(`Error: ${result.Err}`);
-                                    return;
-                                }
-                                setTransferStatus("DONE!");
-                            }}
-                        />
-                    </div>
-                    <div className="vcentered">
-                        {!transferStatus && (
-                            <code className="max_width_col">
-                                <CopyToClipboard
-                                    value={user.account}
-                                    displayMap={(val) => (
-                                        <IcpAccountLink
-                                            label={
-                                                bigScreen()
-                                                    ? val
-                                                    : val.slice(0, 16)
-                                            }
-                                            address={user.account}
-                                        />
-                                    )}
-                                />
-                            </code>
-                        )}
-                        {transferStatus && (
-                            <code className="max_width_col">
-                                {transferStatus}
-                            </code>
-                        )}
-                        <code data-testid="icp-amount">
-                            <ICPAccountBalance
-                                heartbeat={new Date()}
-                                address={user.account}
-                                units={false}
-                                decimals={true}
-                            />
-                        </code>
-                    </div>
-                    <div className="vcentered top_spaced">
-                        <div className="monospace max_width_col">TREASURY</div>
-                        <code className="accent">
-                            {icpCode(user.treasury_e8s, 2, false)}
-                        </code>
-                    </div>
+            <HeadBar title="Wallet" shareLink="wallets" />
+            {user.cycles <= 200 && (
+                <div className="banner">
+                    You are low on cycles! Please transfer some ICP to your
+                    account displayed below and press the MINT button.
                 </div>
-                <div className="stands_out">
-                    <div className="vcentered">
-                        <h2 className="max_width_col">{name} Cycles</h2>
-                        <ButtonWithLoading
-                            classNameArg="active"
-                            onClick={async () => {
-                                const kilo_cycles = parseInt(
-                                    prompt(
-                                        "Enter the number of 1000s of cycles to mint",
-                                        1,
-                                    ),
-                                );
-                                if (isNaN(kilo_cycles)) {
-                                    return;
-                                }
-                                const result = await mintCycles(
-                                    Math.max(1, kilo_cycles),
-                                );
-                                if ("Err" in result) {
-                                    alert(`Error: ${result.Err}`);
-                                    return;
-                                }
-                                const invoice = result.Ok;
-                                if (invoice.paid) {
-                                    await window.reloadUser();
-                                    setUser(window.user);
-                                }
-                                setMintStatus("SUCCESS!");
-                            }}
-                            label="MINT"
-                        />
-                    </div>
-                    <div className="vcentered">
-                        <div className="max_width_col">
-                            {mintStatus && <code>{mintStatus}</code>}
-                        </div>
-                        <code
-                            className="xx_large_text"
-                            data-testid="cycles-amount"
-                        >
-                            {user.cycles.toLocaleString()}
-                        </code>
-                    </div>
-                </div>
-                <div className="stands_out">
-                    <div className="vcentered">
-                        <h2 className="max_width_col">{token_symbol} TOKENS</h2>
-                        <ButtonWithLoading
-                            label="TRANSFER"
-                            onClick={async () => {
-                                const amount = prompt(
-                                    `Enter the amount (fee: ${
-                                        1 / Math.pow(10, token_decimals)
-                                    } ${token_symbol})`,
-                                );
-                                if (!amount) return;
-                                const recipient = prompt(
-                                    "Enter the recipient principal",
-                                );
-                                if (!recipient) return;
-                                if (
-                                    !confirm(
-                                        `You are transferring\n\n${amount} ${token_symbol}\n\nto\n\n${recipient}`,
-                                    )
+            )}
+            <div className="stands_out">
+                <div className="vcentered">
+                    <h2 className="max_width_col">ICP</h2>
+                    <ButtonWithLoading
+                        label="TRANSFER"
+                        onClick={async () => {
+                            const amount = prompt(
+                                "Enter the amount (fee: 0.0001 ICP)",
+                            );
+                            if (!amount) return;
+                            const recipient = prompt(
+                                "Enter the recipient address",
+                            );
+                            if (!recipient) return;
+                            if (
+                                !confirm(
+                                    `You are transferring\n\n${amount} ICP\n\nto\n\n${recipient}`,
                                 )
-                                    return;
-                                let result = await api.call(
-                                    "transfer_tokens",
-                                    recipient,
-                                    amount,
-                                );
-                                if ("Err" in result) {
-                                    alert(`Error: ${result.Err}`);
-                                    return;
-                                }
-                                await window.reloadUser();
-                                setUser(window.user);
-                            }}
-                        />
-                    </div>
-                    <div className="vcentered">
+                            )
+                                return;
+                            let result = await api.call(
+                                "transfer_icp",
+                                recipient,
+                                amount,
+                            );
+                            await window.reloadUser();
+                            if ("Err" in result) {
+                                alert(`Error: ${result.Err}`);
+                                return;
+                            }
+                            setTransferStatus("DONE!");
+                        }}
+                    />
+                </div>
+                <div className="vcentered">
+                    {!transferStatus && (
                         <code className="max_width_col">
                             <CopyToClipboard
-                                value={user.principal}
-                                displayMap={(val) =>
-                                    bigScreen() ? val : val.split("-")[0]
-                                }
+                                value={user.account}
+                                displayMap={(val) => (
+                                    <IcpAccountLink
+                                        label={
+                                            bigScreen() ? val : val.slice(0, 16)
+                                        }
+                                        address={user.account}
+                                    />
+                                )}
                             />
                         </code>
-                        <code className="xx_large_text">
-                            {tokenBalance(user.balance)}
-                        </code>
-                    </div>
-                    <hr />
-                    <h2>Latest Transactions</h2>
-                    <Transactions transactions={transactions} />
+                    )}
+                    {transferStatus && (
+                        <code className="max_width_col">{transferStatus}</code>
+                    )}
+                    <code data-testid="icp-amount">
+                        <ICPAccountBalance
+                            heartbeat={new Date()}
+                            address={user.account}
+                            units={false}
+                            decimals={true}
+                        />
+                    </code>
                 </div>
+                <div className="vcentered top_spaced">
+                    <div className="monospace max_width_col">TREASURY</div>
+                    <code className="accent">
+                        {icpCode(user.treasury_e8s, 2, false)}
+                    </code>
+                </div>
+            </div>
+            <div className="stands_out">
+                <div className="vcentered">
+                    <h2 className="max_width_col">{name} Cycles</h2>
+                    <ButtonWithLoading
+                        classNameArg="active"
+                        onClick={async () => {
+                            const kilo_cycles = parseInt(
+                                prompt(
+                                    "Enter the number of 1000s of cycles to mint",
+                                    1,
+                                ),
+                            );
+                            if (isNaN(kilo_cycles)) {
+                                return;
+                            }
+                            const result = await mintCycles(
+                                Math.max(1, kilo_cycles),
+                            );
+                            if ("Err" in result) {
+                                alert(`Error: ${result.Err}`);
+                                return;
+                            }
+                            const invoice = result.Ok;
+                            if (invoice.paid) {
+                                await window.reloadUser();
+                                setUser(window.user);
+                            }
+                            setMintStatus("SUCCESS!");
+                        }}
+                        label="MINT"
+                    />
+                </div>
+                <div className="vcentered">
+                    <div className="max_width_col">
+                        {mintStatus && <code>{mintStatus}</code>}
+                    </div>
+                    <code className="xx_large_text" data-testid="cycles-amount">
+                        {user.cycles.toLocaleString()}
+                    </code>
+                </div>
+            </div>
+            <div className="stands_out">
+                <div className="vcentered">
+                    <h2 className="max_width_col">{token_symbol} TOKENS</h2>
+                    <ButtonWithLoading
+                        label="TRANSFER"
+                        onClick={async () => {
+                            const amount = prompt(
+                                `Enter the amount (fee: ${
+                                    1 / Math.pow(10, token_decimals)
+                                } ${token_symbol})`,
+                            );
+                            if (!amount) return;
+                            const recipient = prompt(
+                                "Enter the recipient principal",
+                            );
+                            if (!recipient) return;
+                            if (
+                                !confirm(
+                                    `You are transferring\n\n${amount} ${token_symbol}\n\nto\n\n${recipient}`,
+                                )
+                            )
+                                return;
+                            let result = await api.call(
+                                "transfer_tokens",
+                                recipient,
+                                amount,
+                            );
+                            if ("Err" in result) {
+                                alert(`Error: ${result.Err}`);
+                                return;
+                            }
+                            await window.reloadUser();
+                            setUser(window.user);
+                        }}
+                    />
+                </div>
+                <div className="vcentered">
+                    <code className="max_width_col">
+                        <CopyToClipboard
+                            value={user.principal}
+                            displayMap={(val) =>
+                                bigScreen() ? val : val.split("-")[0]
+                            }
+                        />
+                    </code>
+                    <code className="xx_large_text">
+                        {tokenBalance(user.balance)}
+                    </code>
+                </div>
+                <hr />
+                <h2>Latest Transactions</h2>
+                <Transactions transactions={transactions} />
             </div>
         </>
     );

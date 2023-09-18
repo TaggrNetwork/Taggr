@@ -179,8 +179,7 @@ select {
     background: $light_background;
     border-radius: 5px;
     border-bottom: 1px solid $dark_background;
-    padding: 1em;
-    margin-top: 1em;
+    padding: 0.5em;
     margin-bottom: 1em;
 }
 
@@ -299,6 +298,7 @@ footer {
 header {
     display: flex;
     height: 2em;
+    margin-bottom: 1em;
 }
 
 .yt_preview {
@@ -694,9 +694,6 @@ a.accent,
     margin-left: 0.5rem;
 }
 
-.bottom_spaced {
-    margin-bottom: 1em;
-}
 .bottom_half_spaced {
     margin-bottom: 0.3em;
 }
@@ -838,10 +835,6 @@ a.accent,
         border-top-right-radius: 0px;
     }
 
-    .feed_item {
-        margin-bottom: 4px;
-    }
-
     .spaced {
         padding: 0.5em;
     }
@@ -849,6 +842,7 @@ a.accent,
     .stands_out,
     .feed_item {
         border-radius: 0;
+        margin-bottom: 4px;
     }
 
     a:hover {
@@ -869,4 +863,8 @@ a.accent,
     .desktop_only {
         display: none;
     }
+}
+
+.bottom_spaced {
+    margin-bottom: 1em;
 }
