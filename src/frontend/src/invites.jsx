@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CopyToClipboard, HeadBar, Loading } from "./common";
+import { bigScreen, CopyToClipboard, HeadBar, Loading } from "./common";
 import { Cycles } from "./icons";
 import { trusted } from "./profile";
 
@@ -113,6 +113,9 @@ export const Invites = () => {
                                     <td align="right">
                                         <CopyToClipboard
                                             value={`${location.protocol}//${location.host}/#/welcome/${code}`}
+                                            displayMap={(url) =>
+                                                bigScreen() ? url : "<too long>"
+                                            }
                                         />
                                     </td>
                                 </tr>
