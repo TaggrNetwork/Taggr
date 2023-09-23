@@ -189,7 +189,7 @@ export const RealmSpan = ({
     const { background, color } = realmColors(name, col);
     return (
         <span
-            className={classNameArg}
+            className={`${classNameArg} realm_span`}
             onClick={onClick}
             style={{ background, color, whiteSpace: "nowrap", ...styleArg }}
         >

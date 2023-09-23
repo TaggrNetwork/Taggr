@@ -37,7 +37,9 @@ jobs:
         run: dfx start --background
 
       - name: Set up NNS canisters
-        run: dfx nns install
+        run: |
+          dfx extension install nns
+          dfx nns install
 
       - name: Build canister
         run: |

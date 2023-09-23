@@ -367,7 +367,7 @@ hr {
     align-items: center;
 }
 
-button:hover {
+.reaction_button:hover {
     background: $dark_background;
 }
 
@@ -683,6 +683,10 @@ a.accent,
 
 .action path {
     fill: $clickable;
+}
+
+.realm_span:hover {
+    filter: brightness(120%);
 }
 
 .clickable {
