@@ -32,7 +32,7 @@ export const Landing = () => {
     const [feed, setFeed] = React.useState(
         localStorage.getItem(FEED_KEY) || (realm ? "NEW" : "HOT"),
     );
-    const headline = `# Welcome aboard\nof a **fully decentralized** social network.\n\n[WHITE PAPER &#x279C;](/#/whitepaper)`;
+    const headline = `# WELCOME ABOARD\nof a **fully decentralized** social network.\n\n[WHITE PAPER &#x279C;](/#/whitepaper)`;
     const title = (
         <div className="text_centered vertically_spaced">
             {[
