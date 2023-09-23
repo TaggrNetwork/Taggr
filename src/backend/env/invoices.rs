@@ -111,8 +111,8 @@ pub fn parse_account(acc: &str) -> Result<AccountIdentifier, String> {
     AccountIdentifier::try_from(id).map_err(|err| format!("couldn't parse account: {:?}", err))
 }
 
-pub fn fee() -> u64 {
-    DEFAULT_FEE.e8s()
+pub fn fee() -> Tokens {
+    DEFAULT_FEE
 }
 
 pub fn main_account() -> AccountIdentifier {

@@ -1026,7 +1026,7 @@ impl State {
         let amount = parse(amount)?;
         invoices::transfer(
             parse_account(&recipient)?,
-            amount,
+            amount + invoices::fee(),
             Memo(1),
             Some(principal_to_subaccount(&principal)),
         )
@@ -1078,7 +1078,7 @@ impl State {
                 let _ = user.top_up_cycles_from_revenue(&mut user_revenue, e8s_for_one_xdr);
                 let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
                 let e8s = user_reward + user_revenue;
-                if e8s < invoices::fee() * 100 {
+                if e8s < invoices::fee().e8s() * 100 {
                     continue;
                 }
                 user.treasury_e8s += e8s;
