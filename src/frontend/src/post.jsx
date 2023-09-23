@@ -207,7 +207,7 @@ export const Post = ({
             ? post.patches.length
             : version;
     const blogTitle =
-        prime && post.effBody.startsWith("# ")
+        prime && post.effBody.length > 750 && post.effBody.startsWith("# ")
             ? { author: post.user, created: postCreated }
             : null;
 
