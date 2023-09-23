@@ -1,6 +1,6 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { getTokens, blobToUrl } from "./common";
+import { getTokens, blobToUrl, timeAgo } from "./common";
 import remarkGfm from "remark-gfm";
 import { CarretDown } from "./icons";
 
@@ -86,6 +86,7 @@ const linkTagsAndUsers = (value) => {
 
 export const Content = ({
     post,
+    blogTitle,
     value = "",
     blobs = [],
     collapse,
@@ -131,7 +132,15 @@ export const Content = ({
     return React.useMemo(
         () => (
             <>
-                {markdownizer(value, urls, setUrls, blobs, preview, className)}
+                {markdownizer(
+                    value,
+                    urls,
+                    setUrls,
+                    blobs,
+                    blogTitle,
+                    preview,
+                    className,
+                )}
                 {shortened && (
                     <>
                         {collapse && <ArrowDown />}
@@ -140,6 +149,7 @@ export const Content = ({
                             urls,
                             setUrls,
                             blobs,
+                            blogTitle,
                             preview,
                         )}
                     </>
@@ -210,6 +220,7 @@ const markdownizer = (
     urls,
     setUrls,
     blobs,
+    blogTitle,
     preview = false,
     className = null,
 ) =>
@@ -219,6 +230,23 @@ const markdownizer = (
             remarkPlugins={[remarkGfm]}
             className={className}
             components={{
+                h1: ({ node, children, ...props }) => {
+                    if (!blogTitle) return <h1 {...props}>{children}</h1>;
+                    let { author, created } = blogTitle;
+                    return (
+                        <>
+                            <h1>{children}</h1>
+                            <p className="blog_title medium_text vertically_spaced">
+                                By{" "}
+                                <a href={`#/journal/${author}`}>
+                                    @{window.backendCache.users[author]}
+                                </a>{" "}
+                                on {timeAgo(created, true, "long")},{" "}
+                                {Math.ceil(value.length / 300)} minutes read
+                            </p>
+                        </>
+                    );
+                },
                 a: linkRenderer(preview),
                 p: ({ node, children, ...props }) => {
                     const isPic = (c) => c.type && c.type.name == "img";

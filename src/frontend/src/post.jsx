@@ -206,6 +206,10 @@ export const Post = ({
         isNaN(version) && post.patches.length > 0
             ? post.patches.length
             : version;
+    const blogTitle =
+        prime && post.effBody.startsWith("# ")
+            ? { author: post.user, created: postCreated }
+            : null;
 
     if (prime)
         setTitle(
@@ -293,6 +297,7 @@ export const Post = ({
                         {/* The key is needed to render different content for different versions to avoid running into diffrrent
                  number of memorized pieces inside content */}
                         <Content
+                            blogTitle={blogTitle}
                             key={post.effBody}
                             post={true}
                             value={post.effBody}
@@ -321,6 +326,7 @@ export const Post = ({
                 )}
                 <PostBar
                     post={post}
+                    blogTitle={blogTitle}
                     react={react}
                     repost={repost}
                     highlighted={highlighted}
@@ -650,6 +656,7 @@ const PostInfo = ({
 
 const PostBar = ({
     post,
+    blogTitle,
     react,
     highlighted,
     repost,
@@ -678,20 +685,24 @@ const PostBar = ({
         window.user && (post.tree_update > window.lastVisit || updatedRecently);
     return (
         <div className="post_bar vcentered smaller_text flex_ended">
-            <div className="row_container" style={{ alignItems: "center" }}>
-                {!isJournalView && (
-                    <a
-                        href={`#/user/${post.userObject.id}`}
-                    >{`${post.userObject.name}`}</a>
-                )}
-                <div className="left_half_spaced no_wrap vcentered">
-                    {time}
-                    {newPost && <New classNameArg="left_half_spaced accent" />}
-                    {post.tips.length > 0 && (
-                        <Coin classNameArg="accent left_half_spaced" />
+            {!blogTitle && (
+                <div className="row_container" style={{ alignItems: "center" }}>
+                    {!isJournalView && (
+                        <a
+                            href={`#/user/${post.userObject.id}`}
+                        >{`${post.userObject.name}`}</a>
                     )}
+                    <div className="left_half_spaced no_wrap vcentered">
+                        {time}
+                        {newPost && (
+                            <New classNameArg="left_half_spaced accent" />
+                        )}
+                        {post.tips.length > 0 && (
+                            <Coin classNameArg="accent left_half_spaced" />
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
             <div className="vcentered max_width_col flex_ended">
                 {!repost && (
                     <>
