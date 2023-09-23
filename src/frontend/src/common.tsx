@@ -274,7 +274,9 @@ export const ButtonWithLoading = ({
         <button
             title={title}
             disabled={loading}
-            className={`${classNameArg}`}
+            className={`${
+                loading ? classNameArg?.replaceAll("active", "") : classNameArg
+            }`}
             style={styleArg || null}
             data-testid={testId}
             onClick={async (e) => {
