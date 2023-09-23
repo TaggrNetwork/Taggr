@@ -76,6 +76,7 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                name: string;
                 proposal_rejection_penalty: number;
                 revenue_share_activity_weeks: number;
                 trusted_user_min_karma: number;

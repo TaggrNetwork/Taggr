@@ -418,7 +418,7 @@ export const Loading = ({
     spaced = true,
 }: {
     classNameArg?: string;
-    spaced: boolean;
+    spaced?: boolean;
 }) => {
     const [dot, setDot] = React.useState(0);
     const md = <span> ■ </span>;
