@@ -416,7 +416,6 @@ const PostInfo = ({
                         }`}
                         title={`Post ${post.id} on ${backendCache.config.name}`}
                     />
-                    {!postAuthor && <FlagButton id={post.id} domain="post" />}
                     <ToggleButton
                         onTitle="Unwatch post"
                         offTitle="Watch post"
@@ -498,6 +497,7 @@ const PostInfo = ({
                             label={<Close />}
                         />
                     )}
+                    {!postAuthor && <FlagButton id={post.id} domain="post" />}
                     {postAuthor && (
                         <>
                             {post.hashes.length == 0 && (
