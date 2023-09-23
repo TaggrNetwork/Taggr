@@ -7,8 +7,8 @@ import { Post, PostId, Report, User, UserId } from "./types";
 
 export const MAX_POST_SIZE_BYTES = Math.ceil(1024 * 1024 * 1.9);
 
-export const percentage = (n: string, total: number) => {
-    let p = Math.ceil((parseInt(n) / (total || 1)) * 10000) / 100;
+export const percentage = (n: number | BigInt, total: number) => {
+    let p = Math.ceil((Number(n) / (total || 1)) * 10000) / 100;
     return `${p}%`;
 };
 
@@ -105,8 +105,8 @@ export const HeadBar = ({
     burgerTestId = null,
 }: {
     title: string;
-    shareLink: string;
-    shareTitle: string;
+    shareLink?: string;
+    shareTitle?: string;
     button1?: JSX.Element;
     button2?: JSX.Element;
     content: JSX.Element;
@@ -157,7 +157,7 @@ export const HeadBar = ({
     );
 };
 
-export const realmColors = (name: string, col: string) => {
+export const realmColors = (name: string, col?: string) => {
     const light = (col: string) => {
         const hex = col.replace("#", "");
         const c_r = parseInt(hex.substring(0, 0 + 2), 16);
@@ -179,7 +179,7 @@ export const RealmSpan = ({
     onClick,
     styleArg,
 }: {
-    col: string;
+    col?: string;
     name: string;
     classNameArg?: string;
     onClick: () => void;
@@ -263,7 +263,7 @@ export const ButtonWithLoading = ({
     testId,
 }: {
     label: any;
-    title: string;
+    title?: string;
     onClick: () => Promise<void>;
     classNameArg?: string;
     styleArg?: any;
@@ -297,13 +297,13 @@ export const ToggleButton = ({
     onTitle,
     classNameArg,
     currState,
-    offLabel = "FOLLOW",
-    onLabel = "UNFOLLOW",
+    offLabel,
+    onLabel,
     testId = null,
 }: {
     toggler: () => void;
-    offTitle: string;
-    onTitle: string;
+    offTitle?: string;
+    onTitle?: string;
     classNameArg?: string;
     currState: () => boolean;
     offLabel: string;
@@ -330,11 +330,11 @@ export const ToggleButton = ({
 };
 
 export const timeAgo = (
-    originalTimestamp: string,
-    absolute: boolean,
+    originalTimestamp: BigInt | number,
+    absolute?: boolean,
     format: "short" | "long" = "short",
 ) => {
-    const timestamp = parseInt(originalTimestamp) / 1000000;
+    const timestamp = Number(originalTimestamp) / 1000000;
     const diff = Number(new Date()) - timestamp;
     const minute = 60 * 1000;
     const hour = minute * 60;
@@ -642,7 +642,7 @@ export const FlagButton = ({
 }: {
     id: number;
     domain: string;
-    text: string;
+    text: boolean;
 }) => (
     <ButtonWithLoading
         title="Flag post"

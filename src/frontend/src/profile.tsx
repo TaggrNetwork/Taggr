@@ -21,48 +21,51 @@ import { Content } from "./content";
 import { Journal } from "./icons";
 import { PostFeed } from "./post_feed";
 import { Cycles, YinYan } from "./icons";
+import { User, UserId } from "./types";
 
-export const Profile = ({ handle }) => {
-    // loadingStatus: 0 initial, 1 loaded, -1 not found
-    const [profile, setProfile] = React.useState({ loadingStatus: 0 });
+export const Profile = ({ handle }: { handle: string }) => {
+    const [status, setStatus] = React.useState(0);
+    const [profile, setProfile] = React.useState({} as User);
     const [allEndorsememnts, setAllEndorsements] = React.useState(false);
     const [fullAccounting, setFullAccounting] = React.useState(false);
     const [tab, setTab] = React.useState("LAST");
 
     const updateState = async () => {
-        const profile = await api.query("user", [handle]);
+        const profile = await window.api.query<User>("user", [handle]);
         if (!profile) {
-            setProfile({ loadingStatus: -1 });
+            setStatus(-1);
             return;
         }
-        profile.loadingStatus = 1;
+        setStatus(1);
         setProfile(profile);
     };
 
     React.useEffect(() => {
-        if (profile.loadingStatus == 0) {
+        if (status == 0) {
             updateState();
             return;
         }
-        let { id, name } = profile;
+        let { id, name }: { id: number; name: string } = profile;
         const user_id = parseInt(handle);
         const lhs = isNaN(user_id) ? name : id;
         if (handle != lhs) updateState();
     }, [handle]);
 
-    switch (profile.loadingStatus) {
+    switch (status) {
         case 0:
+            // @ts-ignore
             return <Loading />;
         case -1:
             return <NotFound />;
     }
-    const { feed_page_size } = backendCache.config;
     const user = window.user;
     const showReport =
         profile.report && !profile.report.closed && user && user.stalwart;
-    const karma_from_last_posts = Object.entries(
+    const karma_from_last_posts: [UserId, number][] = Object.entries(
         profile.karma_from_last_posts,
-    ).filter(([_, karma]) => karma >= 0);
+    )
+        .filter(([_, karma]) => karma >= 0)
+        .map(([user_id, karma]) => [parseInt(user_id), karma]);
     karma_from_last_posts.sort(([_id1, e1], [_id2, e2]) => e2 - e1);
     const endorsementsTotal = karma_from_last_posts.reduce(
         (acc, [_, karma]) => acc + karma,
@@ -96,23 +99,28 @@ export const Profile = ({ handle }) => {
                             (location.href = `/#/journal/${profile.name}`)
                         }
                     >
-                        <Journal />
+                        {
+                            // @ts-ignore
+                            <Journal />
+                        }
                     </button>
                 }
                 button2={
                     user ? (
                         <ToggleButton
+                            offLabel="FOLLOW"
+                            onLabel="UNFOLLOW"
                             classNameArg="left_half_spaced right_half_spaced"
                             currState={() =>
                                 user.followees.includes(profile.id)
                             }
                             toggler={() =>
-                                api
+                                window.api
                                     .call("toggle_following_user", profile.id)
                                     .then(window.reloadUser)
                             }
                         />
-                    ) : null
+                    ) : undefined
                 }
                 menu={true}
                 content={
@@ -135,7 +143,7 @@ export const Profile = ({ handle }) => {
                                     const amount = parseInt(
                                         prompt(
                                             `Enter the amount (fee: 1 cycle)`,
-                                        ),
+                                        ) || "",
                                     );
                                     if (!amount) return;
                                     if (
@@ -144,7 +152,7 @@ export const Profile = ({ handle }) => {
                                         )
                                     )
                                         return;
-                                    let result = await api.call(
+                                    let result = await window.api.call<any>(
                                         "transfer_cycles",
                                         profile.id,
                                         amount,
@@ -161,7 +169,7 @@ export const Profile = ({ handle }) => {
                     </div>
                 }
             />
-            {showReport && (
+            {showReport && profile.report && (
                 <ReportBanner
                     id={profile.id}
                     reportArg={profile.report}
@@ -171,8 +179,8 @@ export const Profile = ({ handle }) => {
             <UserInfo profile={profile} />
             <div className="spaced">
                 <h2>
-                    Karma from last {backendCache.config.feed_page_size * 3}{" "}
-                    posts
+                    Karma from last{" "}
+                    {window.backendCache.config.feed_page_size * 3} posts
                 </h2>
                 <div className="dynamic_table">
                     {(allEndorsememnts
@@ -226,7 +234,7 @@ export const Profile = ({ handle }) => {
                                             {delta > 0 ? "+" : ""}
                                             {delta}{" "}
                                             {type == "KRM" ? (
-                                                <YinYan />
+                                                <YinYan classNameArg="" />
                                             ) : (
                                                 <Cycles />
                                             )}
@@ -267,7 +275,7 @@ export const Profile = ({ handle }) => {
                                     {Math.ceil(
                                         Math.max(
                                             0,
-                                            (backendCache.config
+                                            (window.backendCache.config
                                                 .min_stalwart_account_age_weeks *
                                                 7 *
                                                 daySeconds -
@@ -286,7 +294,7 @@ export const Profile = ({ handle }) => {
                                 <code>
                                     {Math.max(
                                         0,
-                                        backendCache.config
+                                        window.backendCache.config
                                             .min_stalwart_activity_weeks -
                                             profile.active_weeks,
                                     )}{" "}
@@ -308,7 +316,7 @@ export const Profile = ({ handle }) => {
                                 <code>
                                     {Math.max(
                                         0,
-                                        backendCache.config
+                                        window.backendCache.config
                                             .trusted_user_min_karma -
                                             profile.karma,
                                     )}
@@ -320,7 +328,7 @@ export const Profile = ({ handle }) => {
                                     {Math.ceil(
                                         Math.max(
                                             0,
-                                            backendCache.config
+                                            window.backendCache.config
                                                 .trusted_user_min_age_weeks *
                                                 7 -
                                                 secondsSince(
@@ -337,35 +345,47 @@ export const Profile = ({ handle }) => {
                     <hr />
                 </>
             )}
-            <PostFeed
-                title={title}
-                useList={true}
-                feedLoader={async (page) => {
-                    if (profile.loadingStatus != 1) return;
-                    if (tab == "TAGS")
-                        return await api.query("user_tags", profile.name, page);
-                    if (tab == "REWARDED")
-                        return await api.query(
-                            "rewarded_posts",
+            {
+                // @ts-ignore
+                <PostFeed
+                    title={title}
+                    useList={true}
+                    feedLoader={async (page: number) => {
+                        if (status != 1) return;
+                        if (tab == "TAGS")
+                            return await window.api.query(
+                                "user_tags",
+                                profile.name,
+                                page,
+                            );
+                        if (tab == "REWARDED")
+                            return await window.api.query(
+                                "rewarded_posts",
+                                profile.id.toString(),
+                                page,
+                            );
+                        return await window.api.query(
+                            "user_posts",
                             profile.id.toString(),
                             page,
                         );
-                    return await api.query(
-                        "user_posts",
-                        profile.id.toString(),
-                        page,
-                    );
-                }}
-                heartbeat={profile.id + tab}
-            />
+                    }}
+                    heartbeat={profile.id + tab}
+                />
+            }
         </>
     );
 };
 
-export const UserInfo = ({ profile }) => {
+export const UserInfo = ({ profile }: { profile: User }) => {
     const [followeesVisible, setFolloweesVisibility] = React.useState(false);
     const [followersVisible, setFollowersVisibility] = React.useState(false);
-    const placeholder = (status, unfold, label, content) =>
+    const placeholder = (
+        status: boolean,
+        unfold: any,
+        label: number,
+        content: any,
+    ) =>
         status ? (
             <div className="small_text">{content}</div>
         ) : (
@@ -408,7 +428,7 @@ export const UserInfo = ({ profile }) => {
                   profile.feeds.map((feed) => {
                       let feedRepr = feed.join("+");
                       return (
-                          <a key={feed} href={`#/feed/${feedRepr}`}>
+                          <a key={feedRepr} href={`#/feed/${feedRepr}`}>
                               {feedRepr}
                           </a>
                       );
@@ -437,6 +457,7 @@ export const UserInfo = ({ profile }) => {
         <div className="spaced">
             {getLabels(profile)}
             {profile.about && (
+                // @ts-ignore
                 <Content classNameArg="larger_text " value={profile.about} />
             )}
             <hr />
@@ -461,10 +482,7 @@ export const UserInfo = ({ profile }) => {
                 </div>
                 <div className="db_cell">
                     LAST ACTIVE
-                    <span>{`${timeAgo(
-                        profile.last_activity,
-                        "absolute",
-                    )}`}</span>
+                    <span>{`${timeAgo(profile.last_activity, true)}`}</span>
                 </div>
                 <div className="db_cell">
                     ACTIVE WEEKS
@@ -480,13 +498,13 @@ export const UserInfo = ({ profile }) => {
                 </div>
                 {followees}
                 {followers}
-                {inviter && (
+                {inviter != undefined && (
                     <div className="db_cell">
                         INVITED BY
                         <span>
                             <a
                                 href={`/#/user/${inviter}`}
-                            >{`${backendCache.users[inviter]}`}</a>
+                            >{`${window.backendCache.users[inviter]}`}</a>
                         </span>
                     </div>
                 )}
@@ -504,12 +522,12 @@ export const UserInfo = ({ profile }) => {
     );
 };
 
-export const getLabels = (profile) => {
+export const getLabels = (profile: User) => {
     const labels = [];
     // Account created before end of 2022
     if (isBot(profile)) {
         labels.push(["BOT", "RoyalBlue"]);
-    } else if (profile.timestamp < 1672500000000000000) {
+    } else if (Number(profile.timestamp) < 1672500000000000000) {
         labels.push(["OG", "PaleVioletRed"]);
     }
     if (profile.stalwart) {
@@ -529,7 +547,7 @@ export const getLabels = (profile) => {
     }
     if (
         secondsSince(profile.last_activity) / daySeconds >
-        backendCache.config.revenue_share_activity_weeks * 7
+        window.backendCache.config.revenue_share_activity_weeks * 7
     ) {
         labels.push(["INACTIVE", "White"]);
     }
@@ -557,30 +575,36 @@ export const getLabels = (profile) => {
 
 const daySeconds = 24 * 3600;
 
-const secondsSince = (val) =>
-    (Number(new Date()) - parseInt(val) / 1000000) / 1000;
+const secondsSince = (val: BigInt) =>
+    (Number(new Date()) - Number(val) / 1000000) / 1000;
 
-export const trusted = (profile) =>
-    profile.karma >= backendCache.config.trusted_user_min_karma &&
+export const trusted = (profile: User) =>
+    profile.karma >= window.backendCache.config.trusted_user_min_karma &&
     secondsSince(profile.timestamp) >=
-        backendCache.config.trusted_user_min_age_weeks * 7 * daySeconds;
+        window.backendCache.config.trusted_user_min_age_weeks * 7 * daySeconds;
 
-const isBot = (profile) => profile.controllers.find((p) => p.length == 27);
+const isBot = (profile: User) =>
+    profile.controllers.find((p) => p.length == 27);
 
-const stalwart = (profile) =>
+const stalwart = (profile: User) =>
     !isBot(profile) &&
     secondsSince(profile.timestamp) >=
-        backendCache.config.min_stalwart_account_age_weeks * 7 * daySeconds &&
-    profile.active_weeks >= backendCache.config.min_stalwart_activity_weeks &&
+        window.backendCache.config.min_stalwart_account_age_weeks *
+            7 *
+            daySeconds &&
+    profile.active_weeks >=
+        window.backendCache.config.min_stalwart_activity_weeks &&
     profile.karma >= stalwartMinKarma();
 
 const stalwartMinKarma = () =>
     Math.min(
-        backendCache.config.proposal_rejection_penalty,
-        backendCache.karma[backendCache.stats.stalwarts.at(-1)] || 0,
+        window.backendCache.config.proposal_rejection_penalty,
+        window.backendCache.karma[
+            window.backendCache.stats.stalwarts.at(-1) || 0
+        ] || 0,
     );
 
-const linkPost = (line) => {
+const linkPost = (line: string) => {
     const [prefix, id] = line.split(" post ");
     if (id) {
         return (

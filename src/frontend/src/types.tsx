@@ -22,6 +22,21 @@ export type User = {
     realms: string[];
     karma: number;
     report?: Report;
+    stalwart: boolean;
+    karma_from_last_posts: { [id: UserId]: number };
+    followees: UserId[];
+    followers: UserId[];
+    feeds: string[][];
+    accounting: [number, string, number, string][];
+    timestamp: BigInt;
+    active_weeks: number;
+    invited_by?: UserId;
+    about: string;
+    rewarded_karma: number;
+    cycles: number;
+    num_posts: number;
+    balance: number;
+    controllers: string[];
 };
 
 export type Report = {
@@ -29,6 +44,7 @@ export type Report = {
     reporter: UserId;
     confirmed_by: UserId[];
     rejected_by: UserId[];
+    closed: boolean;
 };
 
 declare global {
@@ -54,8 +70,19 @@ declare global {
             karma: { [name: UserId]: number };
             recent_tags: string[];
             realms: { [name: string]: [string, boolean] };
-            stats: { last_upgrade: number; buckets: [string, number][] };
+            stats: {
+                last_upgrade: number;
+                buckets: [string, number][];
+                stalwarts: UserId[];
+            };
             config: {
+                proposal_rejection_penalty: number;
+                revenue_share_activity_weeks: number;
+                trusted_user_min_karma: number;
+                trusted_user_min_age_weeks: number;
+                min_stalwart_account_age_weeks: number;
+                min_stalwart_activity_weeks: number;
+                feed_page_size: number;
                 reactions: [number, number][];
                 token_decimals: number;
                 domains: string[];
