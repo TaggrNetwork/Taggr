@@ -330,7 +330,7 @@ export const ToggleButton = ({
 export const timeAgo = (
     originalTimestamp: string,
     absolute: boolean,
-    format: "short" | "long",
+    format: "short" | "long" = "short",
 ) => {
     const timestamp = parseInt(originalTimestamp) / 1000000;
     const diff = Number(new Date()) - timestamp;
