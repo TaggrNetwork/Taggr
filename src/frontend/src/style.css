@@ -213,10 +213,11 @@ button {
 }
 
 button:hover {
-    filter: brightness(110%);
+    filter: brightness(130%);
 }
+
 button:active {
-    filter: brightness(120%);
+    filter: brightness(150%);
 }
 
 code {
@@ -360,6 +361,10 @@ hr {
     padding: 0.5em;
     display: flex;
     align-items: center;
+}
+
+.reaction_button:hover {
+    background: $dark_background;
 }
 
 .reaction_button path {
