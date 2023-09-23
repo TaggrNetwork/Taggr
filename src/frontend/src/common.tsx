@@ -128,7 +128,7 @@ export const HeadBar = ({
                         bigScreen() ? "x_large_text" : "larger_text"
                     }`}
                 >
-                    {title.toUpperCase()}
+                    {title}
                 </h1>
                 <div className="vcentered flex_ended">
                     {shareLink && (

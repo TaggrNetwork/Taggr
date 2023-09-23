@@ -84,7 +84,7 @@ export const Tokens = () => {
 
     return (
         <>
-            <HeadBar title="Tokens" shareLink="tokens" />
+            <HeadBar title="TOKENS" shareLink="tokens" />
             <div className="spaced">
                 <div className="dynamic_table monospace vertically_spaced">
                     <div className="db_cell">
@@ -220,7 +220,7 @@ export const Transaction = ({ id }: { id: number }) => {
     return (
         <div className="spaced">
             <HeadBar
-                title={`Transaction #${id}`}
+                title={`TRANSACTION #${id}`}
                 shareLink={`transaction/${id}`}
             />
             <div className="monospace">

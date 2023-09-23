@@ -162,7 +162,7 @@ const App = () => {
             <PostFeed
                 useList={true}
                 // @ts-ignore
-                title={<HeadBar title="Bookmarks" shareLink="bookmarks" />}
+                title={<HeadBar title="BOOKMARKS" shareLink="bookmarks" />}
                 includeComments={true}
                 feedLoader={async () =>
                     await api.query("posts", window.user.bookmarks)

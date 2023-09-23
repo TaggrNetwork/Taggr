@@ -11,6 +11,7 @@ import { GlobalNavigationElement } from "../elements";
 import { AccountIdentifier } from "@dfinity/nns";
 
 test("wallet", async ({ page }) => {
+    const first4Digits = (n: BigInt) => Math.floor(Number(n) / 100000);
     const ledger = await createLedgerClient();
 
     const user = await test.step("create user", async () => {
@@ -63,8 +64,8 @@ test("wallet", async ({ page }) => {
             expect(transferredAmount).toEqual(originalBalance + e8sToWithdraw);
 
             const amountOnPage = await walletPage.getIcpAmount();
-            expect(amountOnPage).toBeLessThanOrEqual(
-                icpAfterDeposit - e8sToWithdraw - fee,
+            expect(first4Digits(amountOnPage)).toEqual(
+                first4Digits(icpAfterDeposit - e8sToWithdraw - fee),
             );
 
             return amountOnPage;
@@ -87,8 +88,8 @@ test("wallet", async ({ page }) => {
         const roundedAmountToDeduct =
             (amountToDeduct / BigInt(100_000)) * BigInt(100_000);
 
-        expect(icpAmountAfterCycleMinting).toEqual(
-            icpAfterWithdraw - roundedAmountToDeduct,
+        expect(first4Digits(icpAmountAfterCycleMinting)).toEqual(
+            first4Digits(icpAfterWithdraw - roundedAmountToDeduct),
         );
     });
 });

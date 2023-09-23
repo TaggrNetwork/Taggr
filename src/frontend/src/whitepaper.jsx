@@ -22,7 +22,7 @@ export const Whitepaper = () => {
     }, template);
     return (
         <>
-            <HeadBar title="White Paper" shareLink="whitepaper" />
+            <HeadBar title="WHITE PAPER" shareLink="whitepaper" />
             <Content classNameArg="spaced prime" value={value} />
         </>
     );

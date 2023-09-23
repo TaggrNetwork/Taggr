@@ -41,7 +41,7 @@ const Welcome = () => {
 
     return (
         <>
-            <HeadBar title={"Welcome!"} shareLink="welcome" />
+            <HeadBar title={"WELCOME!"} shareLink="welcome" />
             <div className="spaced">
                 {passwordConfirmationRequired && (
                     <>
@@ -205,7 +205,7 @@ export const Wallet = () => {
 
     return (
         <>
-            <HeadBar title="Wallet" shareLink="wallets" />
+            <HeadBar title="WALLET" shareLink="wallets" />
             {user.cycles <= 200 && (
                 <div className="banner">
                     You are low on cycles! Please transfer some ICP to your

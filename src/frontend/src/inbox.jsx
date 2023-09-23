@@ -20,7 +20,7 @@ export const Inbox = () => {
     return (
         <>
             <HeadBar
-                title="Inbox"
+                title="INBOX"
                 content={
                     <button
                         onClick={() => {

@@ -19,6 +19,6 @@
             "type": "persistent"
         }
     },
-    "dfx": "0.15.0",
+    "dfx": "0.14.4",
     "version": 1
 }

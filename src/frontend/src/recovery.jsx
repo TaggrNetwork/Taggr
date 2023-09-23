@@ -6,7 +6,7 @@ export const Recovery = () => {
     const { emergency_release, emergency_votes } = backendCache.stats;
     return (
         <>
-            <HeadBar title="Recovery" />
+            <HeadBar title="RECOVERY" />
             <div className="spaced">
                 <h2>Status</h2>
                 <code>{emergency_release || "No emergencies today! ☀️"}</code>

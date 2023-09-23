@@ -61,7 +61,7 @@ export const Settings = ({ invite = null }) => {
 
     return (
         <>
-            <HeadBar title="Settings" shareLink="setting" />
+            <HeadBar title="SETTINGS" shareLink="setting" />
             <div className="spaced monospace column_container">
                 {!user && (
                     <div className="column_container bottom_spaced">

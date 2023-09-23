@@ -76,7 +76,12 @@ export const Header = ({ subtle, route, inboxMode, user }) => {
                     subtle ? "subtle" : ""
                 }`}
             >
-                <a href="#/home" id="logo" data-testid="home-page-link"></a>
+                <a
+                    href="#/home"
+                    id="logo"
+                    className="left_half_spaced"
+                    data-testid="home-page-link"
+                ></a>
                 {user && user.realms.length > 0 && !subtle && (
                     <ReactionToggleButton
                         classNameArg="left_half_spaced"

@@ -30,7 +30,7 @@ export const Proposals = () => {
     return (
         <>
             <HeadBar
-                title="Proposals"
+                title="PROPOSALS"
                 shareLink="proposals"
                 menu={true}
                 burgerTestId="proposals-burger-button"

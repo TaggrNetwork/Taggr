@@ -21,7 +21,7 @@ export const Invites = () => {
     if (!trusted(window.user)) {
         return (
             <>
-                <HeadBar title="Invites" shareLink="invites" />
+                <HeadBar title="INVITES" shareLink="invites" />
                 <div className="spaced">
                     Only trusted users can create invites.
                 </div>
@@ -31,7 +31,7 @@ export const Invites = () => {
 
     return (
         <>
-            <HeadBar title="Invites" shareLink="invites" />
+            <HeadBar title="INVITES" shareLink="invites" />
             <div className="spaced">
                 <h2>Create an invite</h2>
                 <ul>

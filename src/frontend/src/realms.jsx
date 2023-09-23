@@ -469,7 +469,7 @@ export const Realms = () => {
     return (
         <>
             <HeadBar
-                title="Realms"
+                title="REALMS"
                 shareLink="realms"
                 content={
                     user && (

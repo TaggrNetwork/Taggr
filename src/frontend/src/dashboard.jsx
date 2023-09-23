@@ -62,7 +62,7 @@ export const Dashboard = ({}) => {
     } = backendCache;
     return (
         <>
-            <HeadBar title="Dashboard" shareLink="dashboard" />
+            <HeadBar title="DASHBOARD" shareLink="dashboard" />
             <div className="text_centered">
                 <div className="dynamic_table monospace">
                     <div className="db_cell">
