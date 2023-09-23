@@ -70,16 +70,16 @@ const linkTagsAndUsers = (value) => {
     const tags = getTokens("#$", value);
     value = tags.reduce(
         (r, tag) => r.replaceAll("$" + tag, `[\$${tag}](#/feed/${tag})`),
-        value
+        value,
     );
     value = tags.reduce(
         (r, tag) => r.replaceAll("#" + tag, `[&#x23;${tag}](#/feed/${tag})`),
-        value
+        value,
     );
     value = users.reduce(
         (r, handle) =>
             r.replaceAll("@" + handle, `[&commat;${handle}](#/user/${handle})`),
-        value
+        value,
     );
     return value;
 };
@@ -116,7 +116,7 @@ export const Content = ({
         if (preview) value += "\n\n- - -\n\n";
     }
     const complexPost = ["# ", "## ", "!["].some((pref) =>
-        value.startsWith(pref)
+        value.startsWith(pref),
     );
     const words = value.split(" ").length;
     const lines = value.split("\n").length;
@@ -139,7 +139,7 @@ export const Content = ({
                     blobs,
                     blogTitle,
                     preview,
-                    className
+                    className,
                 )}
                 {shortened && (
                     <>
@@ -150,13 +150,13 @@ export const Content = ({
                             setUrls,
                             blobs,
                             blogTitle,
-                            preview
+                            preview,
                         )}
                     </>
                 )}
             </>
         ),
-        [value, extValue, blobs, collapse]
+        [value, extValue, blobs, collapse],
     );
 };
 
@@ -172,7 +172,7 @@ const linkRenderer =
         if (typeof child == "string") {
             // YouTube
             let matches = child.match(
-                /https:\/\/(www\.)?(youtu.be\/|youtube.com\/watch\?v=)([a-zA-Z0-9\-_]+)/
+                /https:\/\/(www\.)?(youtu.be\/|youtube.com\/watch\?v=)([a-zA-Z0-9\-_]+)/,
             );
             if (matches) {
                 const id = matches.pop();
@@ -193,7 +193,7 @@ const linkRenderer =
                     // Internal links
                     if (
                         backendCache.config.domains.some((domain) =>
-                            url.hostname.includes(domain)
+                            url.hostname.includes(domain),
                         )
                     ) {
                         let link = url.href.replace(url.origin + "/", "");
@@ -222,7 +222,7 @@ const markdownizer = (
     blobs,
     blogTitle,
     preview = false,
-    className = null
+    className = null,
 ) =>
     !value ? null : (
         <ReactMarkdown

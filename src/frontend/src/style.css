@@ -59,6 +59,7 @@ h5,
 th {
     font-weight: bold;
     filter: brightness(110%);
+    text-transform: capitalize;
 }
 
 h1 {
