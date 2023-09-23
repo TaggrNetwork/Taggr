@@ -128,6 +128,7 @@ pub const CONFIG: &Config = &Config {
         "taggr.top",
         "taggr.blog",
         "taggr.wtf",
+        "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io",
     ],
     logo: include_str!("../../frontend/assets/logo.min.svg"),
     twitter: "TaggrNetwork",

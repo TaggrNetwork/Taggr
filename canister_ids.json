@@ -1,5 +1,9 @@
 {
+    "__Candid_UI": {
+        "staging": "a4gq6-oaaaa-aaaab-qaa4q-cai"
+    },
     "taggr": {
-        "ic": "6qfxa-ryaaa-aaaai-qbhsq-cai"
+        "ic": "6qfxa-ryaaa-aaaai-qbhsq-cai",
+        "staging": "e4i5g-biaaa-aaaao-ai7ja-cai"
     }
 }

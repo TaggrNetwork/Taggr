@@ -27,6 +27,7 @@ import {
     Wallet,
 } from "./icons";
 import { RealmHeader } from "./realms";
+import { STAGING_MODE } from "./env";
 
 let interval = null;
 
@@ -59,6 +60,17 @@ export const Header = ({ subtle, route, inboxMode, user }) => {
 
     return (
         <>
+            {STAGING_MODE && (
+                <div className="banner vertically_spaced">
+                    THIS IS THE STAGING VERSION OF{" "}
+                    <a
+                        href={`https://${window.backendCache.config.domains[0]}`}
+                    >
+                        {window.backendCache.config.name.toUpperCase()}
+                    </a>
+                    !
+                </div>
+            )}
             <header
                 className={`spaced top_half_spaced vcentered ${
                     subtle ? "subtle" : ""

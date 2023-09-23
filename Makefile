@@ -1,13 +1,18 @@
 start:
 	dfx start --background --host 127.0.0.1:55554 -qqqq
 
-dev_deploy:
+deploy_staging:
+	NODE_ENV=production DFX_NETWORK=staging make fe
+	./build.sh bucket
+	dfx --identity prod deploy --network staging taggr
+
+deploy_local:
 	FEATURES=dev dfx deploy
 
-dev_build:
+build_dev:
 	FEATURES=dev dfx build
 
-dev_reinstall:
+reinstall:
 	make fe
 	FEATURES=dev dfx deploy --mode=reinstall taggr -y
 

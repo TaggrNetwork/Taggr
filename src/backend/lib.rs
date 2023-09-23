@@ -63,7 +63,12 @@ fn set_timers() {
 
 #[init]
 fn init() {
-    mutate(|state| state.load());
+    mutate(|state| {
+        state.load();
+        state.last_weekly_chores = time();
+        state.last_daily_chores = time();
+        state.last_hourly_chores = time();
+    });
     set_timers();
     set_timer(std::time::Duration::from_secs(1), || {
         spawn(async {

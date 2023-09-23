@@ -12,7 +12,7 @@ Make sure to follow the steps outlined in the rest of this file before using the
 | Build the frontend                | npm run build                                       |                                                         |
 | Production frontend               | NODE_ENV=production npm run build                   |                                                         |
 | Production frontend local network | NODE_ENV=production DFX_NETWORK=local npm run build |                                                         |
-| Deploy the canister locally       | make dev_deploy                                     |                                                         |
+| Deploy the canister locally       | make deploy_local                                   |                                                         |
 | Set up and run e2e tests          | make e2e_test                                       | If you're using Ubuntu, it must be an LTS version.      |
 | Run e2e tests                     | npm run test:e2e                                    | Assumes e2e setup is already done (see `make e2e_test`) |
 
@@ -69,6 +69,7 @@ dfx start --clean --background
 Install NNS canisters (see the [DFX docs](https://github.com/dfinity/sdk/blob/master/docs/cli-reference/dfx-nns.md)):
 
 ```shell
+dfx extensions install nns
 dfx nns install
 ```
 

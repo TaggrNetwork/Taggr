@@ -8,13 +8,17 @@
             "build": "./build.sh taggr"
         }
     },
-    "defaults": {
-        "build": {
-            "args": "",
-            "packtool": ""
+    "networks": {
+        "staging": {
+            "config": {
+                "FETCH_ROOT_KEY": true,
+                "API_HOST": "https://icp-api.io",
+                "STATIC_HOST": "https://icp0.io"
+            },
+            "providers": ["https://icp-api.io/"],
+            "type": "persistent"
         }
     },
-    "networks": {},
-    "dfx": "0.14.4",
+    "dfx": "0.15.0",
     "version": 1
 }
