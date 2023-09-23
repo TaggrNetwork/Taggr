@@ -34,7 +34,7 @@ export const Tokens = () => {
     const [term, setTerm] = React.useState("");
     const [noMoreData, setNoMoreData] = React.useState(false);
     const [transactions, setTransactions] = React.useState(
-        [] as [number, Transaction][]
+        [] as [number, Transaction][],
     );
     const [txPage, setTxPage] = React.useState(0);
     const [balPage, setBalPage] = React.useState(0);
@@ -55,7 +55,7 @@ export const Tokens = () => {
             (await window.api.query<[number, Transaction][]>(
                 "transactions",
                 txPage,
-                userToPrincipal[term.toLowerCase()] || term
+                userToPrincipal[term.toLowerCase()] || term,
             )) || [];
         if (txs?.length == 0) {
             setNoMoreData(true);
@@ -77,7 +77,7 @@ export const Tokens = () => {
             if (userName) acc[userName.toLowerCase()] = balance[0];
             return acc;
         },
-        {} as { [name: string]: string }
+        {} as { [name: string]: string },
     );
     const { total_supply, proposal_approval_threshold } =
         window.backendCache.config;
@@ -228,7 +228,7 @@ export const Transaction = ({ id }: { id: number }) => {
                     TIMESTAMP:{" "}
                     <code>
                         {new Date(
-                            Number(tx.timestamp) / 1000000
+                            Number(tx.timestamp) / 1000000,
                         ).toLocaleString()}
                     </code>
                 </div>

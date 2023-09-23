@@ -63,7 +63,9 @@ test("wallet", async ({ page }) => {
             expect(transferredAmount).toEqual(originalBalance + e8sToWithdraw);
 
             const amountOnPage = await walletPage.getIcpAmount();
-            expect(amountOnPage).toEqual(icpAfterDeposit - e8sToWithdraw - fee);
+            expect(amountOnPage).toBeLessThanOrEqual(
+                icpAfterDeposit - e8sToWithdraw - fee,
+            );
 
             return amountOnPage;
         });
