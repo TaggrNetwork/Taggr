@@ -38,6 +38,9 @@ const previewImg = (src, id, gallery, urls) => {
     };
     preview.appendChild(pic);
 
+    const closePreview = () => (preview.style.display = "none");
+
+    document.onscroll = closePreview;
     preview.onclick = (event) => {
         if (event.target.id == "preview" || notGallery)
             preview.style.display = "none";
@@ -60,7 +63,7 @@ const previewImg = (src, id, gallery, urls) => {
     const closeButton = document.createElement("div");
     closeButton.className = "button close";
     closeButton.innerHTML = "&#215;";
-    closeButton.onclick = () => (preview.style.display = "none");
+    closeButton.onclick = closePreview;
     preview.appendChild(closeButton);
 };
 

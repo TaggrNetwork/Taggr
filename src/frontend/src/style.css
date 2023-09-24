@@ -572,7 +572,7 @@ div.thumbnails {
     opacity: 0.8;
     cursor: pointer;
     position: absolute;
-    bottom: 0.5em;
+    bottom: 1em;
     font-size: xx-large;
     color: white;
 }
