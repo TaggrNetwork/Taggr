@@ -366,20 +366,23 @@ export const tokenBalance = (balance: number) =>
         balance / Math.pow(10, window.backendCache.config.token_decimals)
     ).toLocaleString();
 
-export const icpCode = (e8s: BigInt, decimals: boolean, units = true) => (
+export const icpCode = (e8s: BigInt, decimals: number, units = true) => (
     <code className="xx_large_text">
         {icp(e8s, decimals)}
         {units && " ICP"}
     </code>
 );
 
-export const icp = (e8s: BigInt, decimals = false) => {
+export const icp = (e8s: BigInt, decimals: number = 2) => {
     let n = Number(e8s);
     let base = Math.pow(10, 8);
     let v = n / base;
-    return (decimals ? v : Math.floor(v)).toLocaleString(undefined, {
-        minimumFractionDigits: 4,
-    });
+    return (decimals == undefined ? Math.floor(v) : v).toLocaleString(
+        undefined,
+        {
+            minimumFractionDigits: decimals,
+        },
+    );
 };
 
 export const ICPAccountBalance = ({
@@ -389,7 +392,7 @@ export const ICPAccountBalance = ({
     heartbeat,
 }: {
     address: string;
-    decimals: boolean;
+    decimals: number;
     units: boolean;
     heartbeat: any;
 }) => {
@@ -604,9 +607,9 @@ export function CopyToClipboard({
     value: string;
     testId?: any;
     map?: (arg: string) => string;
-    displayMap?: (arg: string) => string;
-    pre?: (arg: string) => JSX.Element;
-    post?: (arg: string) => JSX.Element;
+    displayMap?: (arg: any) => any;
+    pre?: (arg: JSX.Element) => JSX.Element;
+    post?: (arg: JSX.Element) => JSX.Element;
 }): JSX.Element {
     const [copied, setCopied] = React.useState(false);
     return (

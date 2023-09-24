@@ -6,5 +6,5 @@ test("home page loads", async ({ page }) => {
 
     await homePage.goto();
 
-    await expect(homePage.welcomeAboardHeader).toHaveText("Welcome aboard");
+    await expect(homePage.welcomeAboardHeader).toHaveText("WELCOME ABOARD");
 });

@@ -13,9 +13,25 @@ export type Post = {
     report?: Report;
 };
 
+export type Account = {
+    owner: string;
+};
+
+export type Transaction = {
+    timestamp: number;
+    from: Account;
+    to: Account;
+    amount: number;
+    fee: number;
+    memo?: number[];
+};
+
 export type User = {
     name: string;
     id: UserId;
+    account: string;
+    treasury_e8s: BigInt;
+    principal: string;
     bookmarks: number[];
     last_activity: BigInt;
     settings: { theme: string };
@@ -76,6 +92,7 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                token_symbol: string;
                 total_supply: number;
                 proposal_approval_threshold: number;
                 name: string;

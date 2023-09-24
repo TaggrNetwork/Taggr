@@ -12,22 +12,9 @@ import {
     UserLink,
 } from "./common";
 import * as React from "react";
-import { UserId } from "./types";
+import { UserId, Transaction } from "./types";
 
 type Balances = [string, number, UserId][];
-
-type Account = {
-    owner: string;
-};
-
-type Transaction = {
-    timestamp: number;
-    from: Account;
-    to: Account;
-    amount: number;
-    fee: number;
-    memo?: number[];
-};
 
 export const Tokens = () => {
     const [balances, setBalances] = React.useState([] as Balances);
@@ -202,7 +189,7 @@ export const Tokens = () => {
     );
 };
 
-export const Transaction = ({ id }: { id: number }) => {
+export const TransactionView = ({ id }: { id: number }) => {
     const [status, setStatus] = React.useState(0);
     const [tx, setTransaction] = React.useState({} as Transaction);
     React.useEffect(() => {
