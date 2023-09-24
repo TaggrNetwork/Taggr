@@ -272,7 +272,6 @@ export const Post = ({
                         </ol>
                     </div>
                 )}
-                {realmPost && <RealmRibbon name={post.realm} />}
                 {commentAsPost && (
                     <a
                         className="reply_tag external monospace"
@@ -307,6 +306,7 @@ export const Post = ({
                         />
                     </article>
                 )}
+                {realmPost && <RealmRibbon name={post.realm} />}
                 {showExtension && "Poll" in post.extension && (
                     <Poll
                         poll={post.extension.Poll}
