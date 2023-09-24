@@ -12,7 +12,7 @@ const BASE_DOMAIN = "https://taggr.link";
 
 // force URLs to be resolved on localhost
 // this is required because we are using URLs in this form:
-//   http://bw4dl-smaaa-aaaaa-qaacq-cai.localhost:55554/
+//   http://bw4dl-smaaa-aaaaa-qaacq-cai.localhost:8080/
 // this is supported by browsers, but not by node.js
 const agent = new http.Agent({
     lookup: (_hostname, _options, cb) => {

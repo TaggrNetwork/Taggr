@@ -4,17 +4,17 @@
 
 Make sure to follow the steps outlined in the rest of this file before using these commands.
 
-| Description                       | Command                                             | Note                                                    |
-| --------------------------------- | --------------------------------------------------- | ------------------------------------------------------- |
-| Build the canister                | make build                                          |                                                         |
-| Start the local replica           | make start                                          |                                                         |
-| Start the frontend server         | npm start                                           |                                                         |
-| Build the frontend                | npm run build                                       |                                                         |
-| Production frontend               | NODE_ENV=production npm run build                   |                                                         |
-| Production frontend local network | NODE_ENV=production DFX_NETWORK=local npm run build |                                                         |
-| Deploy the canister locally       | make deploy_local                                   |                                                         |
-| Set up and run e2e tests          | make e2e_test                                       | If you're using Ubuntu, it must be an LTS version.      |
-| Run e2e tests                     | npm run test:e2e                                    | Assumes e2e setup is already done (see `make e2e_test`) |
+| Description                       | Command                                       | Note                                                    |
+| --------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
+| Start the local replica           | make start                                    |                                                         |
+| Start the frontend server         | npm start                                     |                                                         |
+| Build the canister                | make build                                    |                                                         |
+| Build the frontend                | npm run build                                 |                                                         |
+| Production frontend               | make fe                                       |                                                         |
+| Production frontend local network | NODE_ENV=production DFX_NETWORK=local make fe |                                                         |
+| Deploy the canister locally       | make deploy_local                             |                                                         |
+| Set up and run e2e tests          | make e2e_test                                 | If you're using Ubuntu, it must be an LTS version.      |
+| Run e2e tests                     | npm run test:e2e                              | Assumes e2e setup is already done (see `make e2e_test`) |
 
 ## System Dependencies
 
@@ -66,6 +66,12 @@ Start DFX with a clean environment:
 dfx start --clean --background
 ```
 
+Install Taggr canister:
+
+```shell
+make deploy_local
+```
+
 Install NNS canisters (see the [DFX docs](https://github.com/dfinity/sdk/blob/master/docs/cli-reference/dfx-nns.md)):
 
 ```shell
@@ -97,12 +103,6 @@ Change to the new identity in DFX:
 
 ```shell
 dfx identity use local-minter
-```
-
-Stop running DFX, Taggr is setup with the assumption that DFX runs on port `55554` so use the `make start` command from now on to start DFX:
-
-```shell
-dfx stop
 ```
 
 At this point, you can refer to the [command reference](#command-reference) to deploy and run Taggr, create a new account and grab your account ID. Then you can transfer ICP to that account with this command:
@@ -164,21 +164,3 @@ Return a user to bootcamp:
 ```shell
 dfx canister call taggr peasantmode '("${username}")'
 ```
-
-## Creating and Restoring backups
-
-1. Pull the backup from Taggr (heap only):
-
-    - As a stalwart, in the browser console, execute:
-        ```js
-        api.call("heap_to_stable");
-        ```
-    - Locally run:
-        ```shell
-        ./backup.sh /path/to/backup
-        ```
-
-2. Restore the backup to the local canister:
-    ```shell
-    ./backup.sh /path/to/backup restore
-    ```

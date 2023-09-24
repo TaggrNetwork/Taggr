@@ -1,5 +1,5 @@
 start:
-	dfx start --background --host 127.0.0.1:55554 -qqqq
+	dfx start --background -qqqq
 
 deploy_staging:
 	NODE_ENV=production DFX_NETWORK=staging make fe
