@@ -67,7 +67,7 @@ export const Inbox = () => {
                                     classNameArg="medium_text left_spaced right_spaced max_width_col"
                                 />
                                 <button
-                                    className="reaction_button unselected"
+                                    className="unselected right_half_spaced"
                                     onClick={() => {
                                         api.call("clear_notifications", [k]);
                                         delete inbox[k];
@@ -75,7 +75,7 @@ export const Inbox = () => {
                                         setInbox({ ...inbox });
                                     }}
                                 >
-                                    <Close classNameArg="action right_half_spaced" />
+                                    <Close classNameArg="action" />
                                 </button>
                             </div>
                             {id && (
