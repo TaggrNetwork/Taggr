@@ -377,12 +377,9 @@ export const icp = (e8s: BigInt, decimals: number = 2) => {
     let n = Number(e8s);
     let base = Math.pow(10, 8);
     let v = n / base;
-    return (decimals == undefined ? Math.floor(v) : v).toLocaleString(
-        undefined,
-        {
-            minimumFractionDigits: decimals,
-        },
-    );
+    return (decimals ? v : Math.floor(v)).toLocaleString(undefined, {
+        minimumFractionDigits: decimals,
+    });
 };
 
 export const ICPAccountBalance = ({

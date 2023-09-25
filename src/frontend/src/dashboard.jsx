@@ -186,7 +186,7 @@ export const Dashboard = ({}) => {
                 <hr />
                 <div className="text_centered">
                     <h2>
-                        <Canisters /> Canisters
+                        <Canisters /> CANISTERS
                     </h2>
                     <div className="dynamic_table">
                         <div className="db_cell">
@@ -254,7 +254,7 @@ export const Dashboard = ({}) => {
                 <hr />
                 <div className="text_centered">
                     <h2>
-                        <Globe /> Domains
+                        <Globe /> DOMAINS
                     </h2>
                     <div className="dynamic_table" style={{ rowGap: "1em" }}>
                         {backendCache.config.domains.map((domain) => (
@@ -267,11 +267,11 @@ export const Dashboard = ({}) => {
                 <hr />
                 <div className={bigScreen() ? "two_column_grid_flex" : null}>
                     <div>
-                        <h2>⚔️ Stalwarts</h2>
+                        <h2>⚔️ STALWARTS</h2>
                         {userList(stats.stalwarts)}
                     </div>
                     <div>
-                        <h2>🤖 Bots</h2>
+                        <h2>🤖 BOTS</h2>
                         {userList(stats.bots)}
                     </div>
                 </div>
@@ -290,7 +290,7 @@ export const Dashboard = ({}) => {
                 </div>
                 <hr />
                 <h2>
-                    <Document /> Logs
+                    <Document /> LOGS
                 </h2>
                 <hr />
                 <Content
