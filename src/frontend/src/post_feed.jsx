@@ -1,6 +1,6 @@
 import * as React from "react";
 import { bigScreen, isRoot, Loading, expandUser } from "./common";
-import { Post } from "./post";
+import { PostView } from "./post";
 
 export const PostFeed = ({
     classNameArg = null,
@@ -41,7 +41,7 @@ export const PostFeed = ({
     }, [heartbeat]);
 
     const itemRenderer = (post, lastItem) => (
-        <Post
+        <PostView
             id={post.id}
             key={post.id}
             data={post}

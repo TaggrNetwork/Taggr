@@ -91,7 +91,7 @@ export const Dashboard = ({}) => {
                     </div>
                     <div className="db_cell">
                         <label>
-                            <Post /> POSTS
+                            <PostView /> POSTS
                         </label>
                         {show(stats.posts)}
                     </div>

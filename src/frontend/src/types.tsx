@@ -6,11 +6,42 @@ export type PostId = number;
 
 export type UserId = number;
 
+export type Extension =
+    | {
+          ["Poll"]: any;
+      }
+    | {
+          ["Repost"]: any;
+      }
+    | {
+          ["Proposal"]: any;
+      };
+
 export type Post = {
-    parent: PostId | null;
+    id: PostId;
+    parent?: PostId;
+    watchers: UserId[];
+    children: PostId[];
     user: UserId;
     userObject: { id: UserId; name: string; karma: number };
     report?: Report;
+    body: string;
+    effBody: string;
+    reactions: { [id: number]: UserId[] };
+    files: { [id: string]: [number, number] };
+    patches: [BigInt, string][];
+    tips: [UserId, BigInt][];
+    hashes: string[];
+    realm?: string;
+    timestamp: BigInt;
+    extension: Extension;
+    tree_size: number;
+    tree_update: BigInt;
+};
+
+export type BlogTitle = {
+    author: UserId;
+    created: BigInt;
 };
 
 export type Account = {
@@ -92,6 +123,8 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                post_cost: number;
+                post_deletion_penalty_factor: number;
                 token_symbol: string;
                 total_supply: number;
                 proposal_approval_threshold: number;

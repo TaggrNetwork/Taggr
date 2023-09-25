@@ -2,7 +2,7 @@ import * as React from "react";
 import { AuthClient } from "@dfinity/auth-client";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { createRoot } from "react-dom/client";
-import { Post } from "./post";
+import { PostView } from "./post";
 import { PostFeed } from "./post_feed";
 import { Feed } from "./feed";
 import { Thread } from "./thread";
@@ -126,7 +126,7 @@ const App = () => {
         const version = parseInt(param2);
         subtle = true;
         // @ts-ignore
-        content = <Post id={id} version={version} prime={true} />;
+        content = <PostView id={id} version={version} prime={true} />;
     } else if (handler == "edit") {
         const id = parseInt(param);
         // @ts-ignore
