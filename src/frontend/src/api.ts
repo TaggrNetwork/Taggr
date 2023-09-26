@@ -40,9 +40,9 @@ export type Backend = {
     add_post: (
         text: string,
         blobs: [string, Uint8Array][],
-        parent?: number,
-        realm?: string,
-        extension?: Uint8Array,
+        parent: number[],
+        realm: string[],
+        extension: number[],
     ) => Promise<JsonValue | null>;
 
     add_post_data: (
@@ -200,9 +200,9 @@ export const ApiGenerator = (
         add_post: async (
             text: string,
             blobs: [string, Uint8Array][],
-            parent?: number,
-            realm?: string,
-            extension?: Uint8Array,
+            parent: number[],
+            realm: string[],
+            extension: number[],
         ): Promise<JsonValue | null> => {
             const arg = IDL.encode(
                 [

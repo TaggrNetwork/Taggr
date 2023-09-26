@@ -123,7 +123,13 @@ export const PostView = ({
         comment: string,
         blobs: [string, Uint8Array][],
     ) => {
-        const result: any = await window.api.add_post(comment, blobs, post.id);
+        const result: any = await window.api.add_post(
+            comment,
+            blobs,
+            [post.id],
+            [],
+            [],
+        );
         if (result.Err) {
             alert(`Error: ${result.Err}`);
             return false;
