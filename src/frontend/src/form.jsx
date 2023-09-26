@@ -21,7 +21,7 @@ import {
     Quote,
     Table,
 } from "./icons";
-import { Post } from "./post";
+import { PostView } from "./post";
 
 const MAX_IMG_SIZE = 16777216;
 const MAX_SUGGESTED_TAGS = 5;
@@ -274,7 +274,11 @@ export const Form = ({
             {isRepost &&
                 React.useMemo(
                     () => (
-                        <Post id={repost} repost={true} classNameArg="repost" />
+                        <PostView
+                            id={repost}
+                            repost={true}
+                            classNameArg="repost"
+                        />
                     ),
                     [repost],
                 )}

@@ -2,7 +2,7 @@ import * as React from "react";
 import { HeadBar } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
-import { Post } from "./post";
+import { PostView } from "./post";
 
 export const Inbox = () => {
     const [inbox, setInbox] = React.useState(window.user.inbox);
@@ -79,7 +79,7 @@ export const Inbox = () => {
                                 </button>
                             </div>
                             {id && (
-                                <Post
+                                <PostView
                                     id={id}
                                     classNameArg="top_framed"
                                     isFeedItem={true}

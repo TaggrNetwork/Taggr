@@ -52,10 +52,13 @@ export const microSecsSince = (timestamp: BigInt) =>
 export const hoursTillNext = (interval: number, last: BigInt) =>
     Math.ceil(interval / 1000000 / 3600000 - microSecsSince(last) / 3600000);
 
-export const commaSeparated = (items: JSX.Element[] = []) =>
+export const commaSeparated = (items: (JSX.Element | string)[] = []) =>
     items.length == 0 ? [] : interleaved(items, <span>, </span>);
 
-export const interleaved = (items: JSX.Element[], link: JSX.Element) =>
+export const interleaved = (
+    items: (JSX.Element | string)[],
+    link: JSX.Element,
+) =>
     items.reduce((prev, curr) => (
         <>
             {prev}
@@ -84,7 +87,7 @@ export const Unauthorized = () => (
 
 export const bigScreen = () => window.screen.availWidth >= 1024;
 
-export const RealmRibbon = ({ col, name }: { col: string; name: string }) => (
+export const RealmRibbon = ({ col, name }: { col?: string; name: string }) => (
     <RealmSpan
         name={name}
         col={col}
@@ -306,8 +309,8 @@ export const ToggleButton = ({
     onTitle?: string;
     classNameArg?: string;
     currState: () => boolean;
-    offLabel: string;
-    onLabel: string;
+    offLabel: JSX.Element | string;
+    onLabel: JSX.Element | string;
     testId?: any;
 }) => {
     // -1: not following, 0: unknown, 1: following
@@ -484,10 +487,10 @@ export const ReactionToggleButton = ({
     classNameArg,
     testId = null,
 }: {
-    title: string;
+    title?: string;
     icon: any;
     onClick: (arg: any) => void;
-    pressed: boolean;
+    pressed?: boolean;
     classNameArg?: string;
     testId?: any;
 }) => (
@@ -644,7 +647,7 @@ export const FlagButton = ({
 }: {
     id: number;
     domain: string;
-    text: boolean;
+    text?: boolean;
 }) => (
     <ButtonWithLoading
         title="Flag post"

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Form } from "./form";
-import { Content, CUT } from "./content";
+import { Content } from "./content";
 import { Poll } from "./poll";
 import {
     isRoot,
@@ -44,8 +44,9 @@ import {
     BellOff,
 } from "./icons";
 import { Proposal } from "./proposals";
+import { BlogTitle, Post, PostId, User, UserId } from "./types";
 
-export const Post = ({
+export const PostView = ({
     id,
     data,
     version,
@@ -59,26 +60,35 @@ export const Post = ({
     focused,
     highlighted = [],
     level = 0,
+}: {
+    id: PostId;
+    data?: Post;
+    version?: number;
+    isFeedItem?: boolean;
+    repost?: boolean;
+    prime?: boolean;
+    classNameArg?: string;
+    isCommentView?: boolean;
+    isThreadView?: boolean;
+    isJournalView?: boolean;
+    focused?: boolean;
+    highlighted?: PostId[];
+    level?: number;
 }) => {
     const [post, setPost] = React.useState(data);
     const [notFound, setNotFound] = React.useState(false);
     const [blobs, setBlobs] = React.useState({});
     const [showComments, toggleComments] = React.useState(
-        !isFeedItem && !repost,
+        !isFeedItem && !repost
     );
     const [showInfo, toggleInfo] = React.useState(false);
-    const [expanded, toggleExpansion] = React.useState(
-        focused || (!isFeedItem && !repost) || isThreadView,
-    );
-    const [fullTreeIsLoading, setFullTreeIsLoading] = React.useState(false);
-    const [rendering, setRendering] = React.useState(true);
     const [safeToOpen, setSafeToOpen] = React.useState(false);
     const [commentIncoming, setCommentIncoming] = React.useState(false);
     const [reactionTimer, setReactionTimer] = React.useState(null);
 
     const refPost = React.useRef();
 
-    const loadData = async (preloadedData) => {
+    const loadData = async (preloadedData?: Post) => {
         const data = preloadedData || (await loadPosts([id])).pop();
         if (!data) {
             setNotFound(true);
@@ -95,9 +105,6 @@ export const Post = ({
     React.useEffect(() => {
         loadData(data);
     }, [id, version]);
-    React.useEffect(() => {
-        setRendering(false);
-    }, []);
 
     if (!post) {
         if (notFound) return <NotFound />;
@@ -105,15 +112,18 @@ export const Post = ({
     }
 
     post.effBody = post.body;
-    if (!isNaN(version)) {
+    if (version != undefined && !isNaN(version)) {
         for (let i = post.patches.length - 1; i >= version; i--) {
             const [_timestamp, patch] = post.patches[i];
             post.effBody = applyPatch(post.effBody, patch)[0];
         }
     }
 
-    const commentSubmissionCallback = async (comment, blobs) => {
-        const result = await api.add_post(comment, blobs, [post.id], [], []);
+    const commentSubmissionCallback = async (
+        comment: string,
+        blobs: [string, Uint8Array][]
+    ) => {
+        const result: any = await window.api.add_post(comment, blobs, post.id);
         if (result.Err) {
             alert(`Error: ${result.Err}`);
             return false;
@@ -124,12 +134,13 @@ export const Post = ({
         return true;
     };
 
-    const showCarret = level > (refPost.current?.clientWidth > 900 ? 13 : 3);
-    const goInside = (e, force) => {
+    const showCarret =
+        level > ((refPost.current as any)?.clientWidth > 900 ? 13 : 3);
+    const goInside = (e: any, force?: boolean) => {
         if (
             !force &&
             // Selected text is clicked
-            (window.getSelection().toString().length > 0 ||
+            ((window.getSelection() || "").toString().length > 0 ||
                 prime ||
                 ["A", "IMG", "INPUT"].includes(e.target.tagName) ||
                 skipClicks(e.target))
@@ -138,7 +149,7 @@ export const Post = ({
         location.href = `#/post/${post.id}`;
     };
 
-    const react = (id) => {
+    const react = (id: number) => {
         if (!window.user) return;
         let userId = window.user?.id;
         if (post.user == userId) return;
@@ -158,27 +169,28 @@ export const Post = ({
             }
             return;
         }
-        clearTimeout(reactionTimer);
+        clearTimeout(reactionTimer as any);
         const timer = setTimeout(
             () =>
-                api.call("react", post.id, parseInt(id)).then((response) => {
+                window.api.call<any>("react", post.id, id).then((response) => {
                     if ("Err" in response) alert(`Error: ${response.Err}`);
                     window.reloadUser();
                 }),
-            4000,
+            4000
         );
-        setReactionTimer(timer);
+        setReactionTimer(timer as any);
         users.push(userId);
         setPost({ ...post });
         toggleInfo(commentIncoming);
     };
 
+    const expanded = focused || (!isFeedItem && !repost) || isThreadView;
     const costTable = reactionCosts();
     const isInactive =
         objectReduce(
             post.reactions,
-            (acc, id, users) => acc + costTable[parseInt(id)] * users.length,
-            0,
+            (acc, id, users) => acc + costTable[id as any] * users.length,
+            0
         ) < 0 || post.userObject.karma < 0;
     const user = window.user;
     const showReport =
@@ -201,19 +213,21 @@ export const Post = ({
         post.effBody.toLowerCase().includes("#nsfw") &&
         isFeedItem &&
         !safeToOpen;
-    const versionSpecified = !isNaN(version);
+    const versionSpecified = version != undefined && !isNaN(version);
     version =
-        isNaN(version) && post.patches.length > 0
+        !versionSpecified && post.patches.length > 0
             ? post.patches.length
             : version;
     const blogTitle =
         prime && post.effBody.length > 750 && post.effBody.startsWith("# ")
             ? { author: post.user, created: postCreated }
-            : null;
+            : undefined;
 
     if (prime)
         setTitle(
-            `Post #${post.id} by @${backendCache.users[post.userObject.id]}`,
+            `Post #${post.id} by @${
+                window.backendCache.users[post.userObject.id]
+            }`
         );
 
     if (deletedByModeration)
@@ -230,20 +244,20 @@ export const Post = ({
     return (
         <div
             ref={(post) => {
-                if (post && focused && rendering)
+                if (post && focused)
                     post.scrollIntoView({ behavior: "smooth" });
             }}
-            className={classNameArg || null}
+            className={classNameArg}
             data-testid="post-body"
         >
             <div
-                ref={refPost}
+                ref={refPost as any}
                 className={`post_box ${
                     isInactive ? "inactive" : ""
                 } ${cls} clickable`}
                 style={{ position: "relative" }}
             >
-                {showReport && (
+                {showReport && post.report && (
                     <ReportBanner
                         id={post.id}
                         reportArg={post.report}
@@ -290,8 +304,8 @@ export const Post = ({
                 )}
                 {!isNSFW && (
                     <article
-                        onClick={goInside}
-                        className={prime ? "prime" : null}
+                        onClick={(e) => goInside(e)}
+                        className={prime ? "prime" : undefined}
                     >
                         {/* The key is needed to render different content for different versions to avoid running into diffrrent
                  number of memorized pieces inside content */}
@@ -300,13 +314,14 @@ export const Post = ({
                             key={post.effBody}
                             post={true}
                             value={post.effBody}
+                            // @ts-ignore
                             blobs={blobs}
                             collapse={!expanded}
                             primeMode={isRoot(post) && !repost}
                         />
                     </article>
                 )}
-                {realmPost && <RealmRibbon name={post.realm} />}
+                {realmPost && post.realm && <RealmRibbon name={post.realm} />}
                 {showExtension && "Poll" in post.extension && (
                     <Poll
                         poll={post.extension.Poll}
@@ -315,7 +330,7 @@ export const Post = ({
                     />
                 )}
                 {showExtension && "Repost" in post.extension && (
-                    <Post
+                    <PostView
                         id={post.extension.Repost}
                         repost={true}
                         classNameArg="post_extension repost"
@@ -364,6 +379,7 @@ export const Post = ({
                                 user.realms.includes(post.realm)) && (
                                 <Form
                                     submitCallback={commentSubmissionCallback}
+                                    // @ts-ignore
                                     postId={post.id}
                                     writingCallback={() =>
                                         setCommentIncoming(true)
@@ -392,9 +408,10 @@ export const Post = ({
                     comments={true}
                     level={level + 1}
                     feedLoader={async () =>
-                        Object.values(await api.query("posts", post.children))
+                        await window.api.query("posts", post.children)
                     }
                     highlighted={highlighted}
+                    // @ts-ignore
                     classNameArg="left_spaced"
                 />
             )}
@@ -408,9 +425,16 @@ const PostInfo = ({
     postCreated,
     callback,
     versionSpecified,
+}: {
+    post: Post;
+    version?: number;
+    postCreated: BigInt;
+    callback: () => Promise<void>;
+    versionSpecified?: boolean;
 }) => {
     const postAuthor = window.user?.id == post.userObject.id;
-    const realmController = post.realm && backendCache.realms[post.realm][1];
+    const realmController =
+        post.realm && window.backendCache.realms[post.realm][1];
     return (
         <>
             {window.user && (
@@ -420,26 +444,26 @@ const PostInfo = ({
                         url={`${post.parent ? "thread" : "post"}/${post.id}${
                             versionSpecified ? "/" + version : ""
                         }`}
-                        title={`Post ${post.id} on ${backendCache.config.name}`}
+                        title={`Post ${post.id} on ${window.backendCache.config.name}`}
                     />
                     <ToggleButton
                         onTitle="Unwatch post"
                         offTitle="Watch post"
                         classNameArg="max_width_col"
-                        offLabel={<Bell />}
-                        onLabel={<BellOff />}
+                        offLabel={<Bell classNameArg="" />}
+                        onLabel={<BellOff classNameArg="" />}
                         currState={() =>
                             post.watchers.includes(window.user?.id)
                         }
                         toggler={() =>
-                            api.call("toggle_following_post", post.id)
+                            window.api.call("toggle_following_post", post.id)
                         }
                     />
                     <button
                         title="Repost"
                         className="max_width_col"
                         onClick={() => {
-                            api.call("toggle_following_post", post.id);
+                            window.api.call("toggle_following_post", post.id);
                             location.href = `/#/new/repost/${post.id}`;
                         }}
                     >
@@ -449,13 +473,13 @@ const PostInfo = ({
                         offTitle="Bookmark post"
                         onTitle="Remove from bookmarks"
                         classNameArg="max_width_col"
-                        offLabel={<Save />}
+                        offLabel={<Save classNameArg="" />}
                         onLabel={<Unsave />}
                         currState={() =>
                             window.user.bookmarks.includes(post.id)
                         }
                         toggler={() =>
-                            api
+                            window.api
                                 .call("toggle_bookmark", post.id)
                                 .then(window.reloadUser)
                         }
@@ -466,25 +490,25 @@ const PostInfo = ({
                         classNameArg="max_width_col"
                         onClick={async () => {
                             const amount = prompt(
-                                `Tip @${post.userObject.name} with ICP:`,
+                                `Tip @${post.userObject.name} with ICP:`
                             );
                             if (
                                 amount == null ||
                                 !confirm(
-                                    `Transfer ${amount} ICP to @${post.userObject.name} as a tip?`,
+                                    `Transfer ${amount} ICP to @${post.userObject.name} as a tip?`
                                 )
                             )
                                 return;
-                            let response = await api.call(
+                            let response = await window.api.call<any>(
                                 "tip",
                                 post.id,
-                                amount,
+                                amount
                             );
                             if ("Err" in response) {
                                 alert(`Error: ${response.Err}`);
                             } else await callback();
                         }}
-                        label={<Coin />}
+                        label={<Coin classNameArg="" />}
                     />
                     {realmController && isRoot(post) && (
                         <ButtonWithLoading
@@ -493,14 +517,17 @@ const PostInfo = ({
                             onClick={async () => {
                                 if (
                                     !confirm(
-                                        "Do you want to remove the post from this realm?",
+                                        "Do you want to remove the post from this realm?"
                                     )
                                 )
                                     return;
-                                await api.call("realm_clean_up", post.id);
+                                await window.api.call(
+                                    "realm_clean_up",
+                                    post.id
+                                );
                                 alert("This post was removed from this realm.");
                             }}
-                            label={<Close />}
+                            label={<Close styleArg={{}} classNameArg="" />}
                         />
                     )}
                     {!postAuthor && <FlagButton id={post.id} domain="post" />}
@@ -514,11 +541,15 @@ const PostInfo = ({
                                         const {
                                             post_cost,
                                             post_deletion_penalty_factor,
-                                        } = backendCache.config;
+                                        } = window.backendCache.config;
                                         const cost =
                                             objectReduce(
                                                 post.reactions,
-                                                (acc, id, users) => {
+                                                (
+                                                    acc: number,
+                                                    id: string,
+                                                    users: UserId[]
+                                                ) => {
                                                     const costTable =
                                                         reactionCosts();
                                                     let cost =
@@ -529,14 +560,14 @@ const PostInfo = ({
                                                             users.length
                                                     );
                                                 },
-                                                0,
+                                                0
                                             ) +
                                             post_cost +
                                             post.tree_size *
                                                 post_deletion_penalty_factor;
                                         if (
                                             !confirm(
-                                                `Please confirm the post deletion: it will costs ${cost} cycles.`,
+                                                `Please confirm the post deletion: it will costs ${cost} cycles.`
                                             )
                                         )
                                             return;
@@ -551,16 +582,17 @@ const PostInfo = ({
                                                 post.patches[i];
                                             current = applyPatch(
                                                 current,
-                                                patch,
+                                                patch
                                             )[0];
                                             versions.push(current);
                                         }
                                         versions.reverse();
-                                        let response = await api.call(
-                                            "delete_post",
-                                            post.id,
-                                            versions,
-                                        );
+                                        let response =
+                                            await window.api.call<any>(
+                                                "delete_post",
+                                                post.id,
+                                                versions
+                                            );
                                         if ("Err" in response) {
                                             alert(`Error: ${response.Err}`);
                                         } else await callback();
@@ -584,7 +616,7 @@ const PostInfo = ({
             <div className="small_text top_spaced bottom_spaced">
                 <div>
                     <b>CREATED</b>:{" "}
-                    {new Date(parseInt(postCreated) / 1000000).toLocaleString()}
+                    {new Date(Number(postCreated) / 1000000).toLocaleString()}
                 </div>
                 {post.patches.length > 0 && (
                     <div>
@@ -602,8 +634,8 @@ const PostInfo = ({
                                             >{`${v}`}</a>{" "}
                                             ({timeAgo(timestamp)})
                                         </span>
-                                    ),
-                                ),
+                                    )
+                                )
                         )}
                     </div>
                 )}
@@ -613,7 +645,7 @@ const PostInfo = ({
                         {commaSeparated(
                             post.watchers.map((id) => (
                                 <UserLink key={id} id={id} />
-                            )),
+                            ))
                         )}
                     </div>
                 )}
@@ -622,11 +654,11 @@ const PostInfo = ({
                         <b>ICP TIPS</b>:{" "}
                         {commaSeparated(
                             post.tips.map(([id, tip]) => (
-                                <span key={id + tip}>
-                                    <code>{icp(tip, "with_decimals")}</code>{" "}
-                                    from {<UserLink id={id} />}
+                                <span key={id + Number(tip)}>
+                                    <code>{icp(tip, 2)}</code> from{" "}
+                                    {<UserLink id={id} />}
                                 </span>
-                            )),
+                            ))
                         )}
                     </div>
                 )}
@@ -642,10 +674,10 @@ const PostInfo = ({
                                     {commaSeparated(
                                         users.map((id) => (
                                             <UserLink key={id} id={id} />
-                                        )),
+                                        ))
                                     )}
                                 </div>
-                            ),
+                            )
                         )}
                     </div>
                 )}
@@ -658,7 +690,7 @@ const PostBar = ({
     post,
     blogTitle,
     react,
-    highlighted,
+    highlighted = [],
     repost,
     showInfo,
     toggleInfo,
@@ -669,13 +701,28 @@ const PostBar = ({
     goInside,
     showCarret,
     isJournalView,
+}: {
+    post: Post;
+    blogTitle?: BlogTitle;
+    react: (id: number) => void;
+    highlighted?: PostId[];
+    repost?: boolean;
+    showInfo: boolean;
+    toggleInfo: (flag: boolean) => void;
+    showComments: boolean;
+    toggleComments: (flag: boolean) => void;
+    postCreated: BigInt;
+    isThreadView?: boolean;
+    goInside: (arg: any, flag?: boolean) => void;
+    showCarret: boolean;
+    isJournalView?: boolean;
 }) => {
-    const time = timeAgo(postCreated, null, isJournalView ? "long" : "short");
+    const time = timeAgo(postCreated, false, isJournalView ? "long" : "short");
     const replies = post.tree_size;
     const createdRecently =
-        Number(new Date()) - parseInt(postCreated) / 1000000 < 30 * 60 * 1000;
+        Number(new Date()) - Number(postCreated) / 1000000 < 30 * 60 * 1000;
     const updatedRecently =
-        Number(new Date()) - parseInt(post.tree_update) / 1000000 <
+        Number(new Date()) - Number(post.tree_update) / 1000000 <
         30 * 60 * 1000;
     const newPost =
         (window.user && highlighted.includes(post.id)) ||
@@ -716,7 +763,7 @@ const PostBar = ({
                                 testId="post-comments-toggle"
                                 onClick={
                                     showCarret
-                                        ? (event) => goInside(event, "force")
+                                        ? (event) => goInside(event, true)
                                         : () => {
                                               toggleInfo(false);
                                               toggleComments(!showComments);
@@ -747,7 +794,7 @@ const PostBar = ({
                         {(isThreadView || showCarret) && (
                             <button
                                 className="reaction_button unselected"
-                                onClick={goInside}
+                                onClick={(e) => goInside(e)}
                             >
                                 <CarretRight />
                             </button>
@@ -759,7 +806,15 @@ const PostBar = ({
     );
 };
 
-export const ReactionsPicker = ({ react, post, user }) => {
+export const ReactionsPicker = ({
+    react,
+    post,
+    user,
+}: {
+    react: (id: number) => void;
+    post: Post;
+    user: User;
+}) => {
     if (!user || post.userObject.id == user.id) return null;
     // Don't show reactions picker if the user reacted already
     if (
@@ -767,10 +822,10 @@ export const ReactionsPicker = ({ react, post, user }) => {
             .apply([], Object.values(post.reactions))
             .includes(user.id)
     )
-        return;
+        return null;
     return (
         <div className="framed vcentered bottom_spaced top_spaced row_container">
-            {backendCache.config.reactions.map(([id, cost]) => (
+            {window.backendCache.config.reactions.map(([id, cost]) => (
                 <ReactionToggleButton
                     title={`Karma points: ${cost}`}
                     key={id}
@@ -784,7 +839,13 @@ export const ReactionsPicker = ({ react, post, user }) => {
     );
 };
 
-export const Reactions = ({ reactionsMap, react }) => {
+export const Reactions = ({
+    reactionsMap,
+    react,
+}: {
+    reactionsMap: { [id: number]: UserId[] };
+    react: (id: number) => void;
+}) => {
     if (Object.keys(reactionsMap).length == 0) return null;
     return (
         <div className="vcentered flex_ended">
@@ -799,7 +860,7 @@ export const Reactions = ({ reactionsMap, react }) => {
                             "reaction_button " +
                             (reacted ? "selected" : "unselected")
                         }
-                        onClick={() => react(reactId)}
+                        onClick={() => react(parseInt(reactId))}
                         data-testid={reactId + "-reaction"}
                     >
                         {reaction2icon(reactId)}&nbsp;{`${users.length}`}
@@ -810,9 +871,12 @@ export const Reactions = ({ reactionsMap, react }) => {
     );
 };
 
-const skipClicks = (elem) =>
-    elem &&
+const skipClicks = (elem: HTMLElement | null): boolean =>
+    elem != null &&
     (elem.dataset["meta"] == "skipClicks" || skipClicks(elem.parentElement));
 
-const objectReduce = (obj, f, initVal) =>
-    Object.keys(obj).reduce((acc, key) => f(acc, key, obj[key]), initVal);
+const objectReduce = (
+    obj: any,
+    f: (acc: number, key: string, val: UserId[]) => number,
+    initVal: number
+) => Object.keys(obj).reduce((acc, key) => f(acc, key, obj[key]), initVal);
