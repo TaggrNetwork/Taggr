@@ -93,6 +93,7 @@ pub fn load() {
             domains
                 .iter()
                 .map(|domain| format!("\"https://{}\"", &domain))
+                .chain(std::iter::once(CONFIG.staging.to_string()))
                 .collect::<Vec<_>>()
                 .join(",")
         )

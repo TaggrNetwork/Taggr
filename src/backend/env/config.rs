@@ -14,6 +14,7 @@ pub struct Config {
     pub domains: &'static [&'static str],
     pub twitter: &'static str,
     pub logo: &'static str,
+    pub staging: &'static str,
 
     pub transaction_fee: u64,
     pub cycle_transaction_fee: u64,
@@ -128,10 +129,10 @@ pub const CONFIG: &Config = &Config {
         "taggr.top",
         "taggr.blog",
         "taggr.wtf",
-        "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io",
     ],
     logo: include_str!("../../frontend/assets/logo.min.svg"),
     twitter: "TaggrNetwork",
+    staging: "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io",
 
     token_symbol: "TAGGR",
     token_decimals: 2,

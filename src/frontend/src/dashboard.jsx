@@ -115,9 +115,9 @@ export const Dashboard = ({}) => {
                             stats.state_size +
                                 stats.buckets.reduce(
                                     (acc, [, e]) => acc + e,
-                                    0
+                                    0,
                                 ),
-                            "xx_large_text"
+                            "xx_large_text",
                         )}
                     </div>
                     <div className="db_cell">
@@ -139,7 +139,7 @@ export const Dashboard = ({}) => {
                         </label>
                         <code className="xx_large_text">{`${hoursTillNext(
                             604800000000000,
-                            last_weekly_chores
+                            last_weekly_chores,
                         )}h`}</code>
                     </div>
                     <div className="db_cell">
@@ -207,7 +207,7 @@ export const Dashboard = ({}) => {
                                 </label>{" "}
                                 {show(
                                     stats.canister_cycle_balance / 10 ** 12,
-                                    "T"
+                                    "T",
                                 )}
                             </div>
                         </div>
@@ -298,10 +298,10 @@ export const Dashboard = ({}) => {
                         .map(
                             ({ timestamp, level, message }) =>
                                 `\`${shortDate(
-                                    new Date(parseInt(timestamp) / 1000000)
+                                    new Date(parseInt(timestamp) / 1000000),
                                 )}\`: ` +
                                 `${level2icon(level)} ` +
-                                `${message}`
+                                `${message}`,
                         )
                         .join("\n- - -\n")}
                     classNameArg="monospace"
@@ -345,7 +345,7 @@ const CycleBalance = ({ id }) => {
     const [cycles, setCycles] = React.useState(-1);
     React.useEffect(() => {
         api.query_raw(id, "balance").then((response) =>
-            setCycles(intFromBEBytes(Array.from(response)))
+            setCycles(intFromBEBytes(Array.from(response))),
         );
     }, [id]);
     return (
