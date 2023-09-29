@@ -85,7 +85,7 @@ export const Unauthorized = () => (
     </div>
 );
 
-export const bigScreen = () => window.screen.availWidth >= 1024;
+export const bigScreen = () => window.innerWidth >= 1024;
 
 export const RealmRibbon = ({ col, name }: { col?: string; name: string }) => (
     <RealmSpan
