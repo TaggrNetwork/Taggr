@@ -4,7 +4,7 @@ use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
 use self::proposals::{Payload, Status};
 use self::reports::Report;
 use self::token::account;
-use self::user::{Notification, Predicate};
+use self::user::{Filters, Notification, Predicate};
 use crate::env::invoices::principal_to_subaccount;
 use crate::env::user::CyclesDelta;
 use crate::proposals::Proposal;
@@ -756,7 +756,7 @@ impl State {
                 None
             }))
             .chain(
-                self.recent_tags(None, 500)
+                self.recent_tags(Principal::anonymous(), None, 500)
                     .into_iter()
                     .filter_map(|(tag, _)| {
                         if format!("#{} {0}", tag).to_lowercase().contains(&term) {
@@ -770,7 +770,7 @@ impl State {
                     }),
             )
             .chain(
-                self.last_posts(None, true)
+                self.last_posts(Principal::anonymous(), None, true)
                     .filter_map(|Post { id, body, user, .. }| {
                         if id.to_string() == term {
                             return Some(SearchResult {
@@ -1595,13 +1595,14 @@ impl State {
 
     pub fn posts_by_tags(
         &self,
+        caller: Principal,
         realm: Option<String>,
         tags: Vec<String>,
         users: Vec<UserId>,
         page: usize,
     ) -> Vec<Post> {
         let query: HashSet<_> = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
-        self.last_posts(realm, true)
+        self.last_posts(caller, realm, true)
             .filter(|post| {
                 (users.is_empty() || users.contains(&post.user))
                     && post
@@ -1619,27 +1620,59 @@ impl State {
 
     pub fn last_posts<'a>(
         &'a self,
+        caller: Principal,
         realm: Option<String>,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let iter = {
-            let last_id = self.next_post_id.saturating_sub(1);
-            Box::new((0..=last_id).rev())
-        }
-        .filter_map(move |i| Post::get(self, &i))
-        .filter(move |post| !post.is_deleted() && (with_comments || post.parent.is_none()));
-        match realm {
-            None => Box::new(iter),
-            id => Box::new(iter.filter(move |post| post.realm.as_ref() == id.as_ref())),
-        }
+        let inverse_filters = self.principal_to_user(caller).and_then(|user| {
+            let filters = &user.filters;
+            if filters.is_empty() {
+                None
+            } else {
+                Some(filters)
+            }
+        });
+        Box::new(
+            {
+                let last_id = self.next_post_id.saturating_sub(1);
+                Box::new((0..=last_id).rev())
+            }
+            .filter_map(move |i| Post::get(self, &i))
+            .filter(move |post| {
+                !post.is_deleted()
+                    && (with_comments || post.parent.is_none())
+                    && (realm.is_none() || post.realm == realm)
+                    && inverse_filters
+                        .map(
+                            |Filters {
+                                 users,
+                                 tags,
+                                 realms,
+                             }| {
+                                post.realm
+                                    .as_ref()
+                                    .map(|id| Some(id) == realm.as_ref() || !realms.contains(id))
+                                    .unwrap_or(true)
+                                    && !users.contains(&post.user)
+                                    && tags.is_disjoint(&post.tags)
+                            },
+                        )
+                        .unwrap_or(true)
+            }),
+        )
     }
 
-    pub fn recent_tags(&self, realm: Option<String>, n: u64) -> Vec<(String, u64)> {
+    pub fn recent_tags(
+        &self,
+        caller: Principal,
+        realm: Option<String>,
+        n: u64,
+    ) -> Vec<(String, u64)> {
         // normalized hashtag -> (user spelled hashtag, occurences)
         let mut tags: HashMap<String, (String, u64)> = Default::default();
         let mut tags_found = 0;
         'OUTER: for post in self
-            .last_posts(realm, true)
+            .last_posts(caller, realm, true)
             .take_while(|post| !post.archived)
         {
             for tag in &post.tags {
@@ -2215,6 +2248,7 @@ pub fn time() -> u64 {
 
 #[cfg(test)]
 pub(crate) mod tests {
+
     use super::*;
     use crate::STATE;
     use post::Post;
@@ -2600,7 +2634,7 @@ pub(crate) mod tests {
 
     fn realm_posts(state: &State, name: &str) -> Vec<PostId> {
         state
-            .last_posts(None, true)
+            .last_posts(Principal::anonymous(), None, true)
             .filter(|post| post.realm.as_ref() == Some(&name.to_string()))
             .map(|post| post.id)
             .collect::<Vec<_>>()
@@ -3203,6 +3237,76 @@ pub(crate) mod tests {
             assert_eq!(state.user("user3").unwrap().id, u3);
             assert_eq!(state.user("2").unwrap().id, u3);
             assert!(state.user("user22").is_none());
+        });
+    }
+
+    #[test]
+    fn test_inverse_filter() {
+        STATE.with(|cell| cell.replace(Default::default()));
+
+        mutate(|state| {
+            // create a post author and one post for its principal
+            let p = pr(0);
+            let post_author_id = create_user_with_cycles(state, p, 2000);
+
+            assert!(state
+                .create_realm(
+                    p,
+                    "TESTREALM".into(),
+                    Default::default(),
+                    Default::default(),
+                    Default::default(),
+                    Default::default(),
+                    vec![post_author_id],
+                )
+                .is_ok());
+            state.toggle_realm_membership(p, "TESTREALM".into());
+
+            let post_id = Post::create(
+                state,
+                "This is a post #abc".to_string(),
+                &[],
+                p,
+                0,
+                None,
+                Some("TESTREALM".into()),
+                None,
+            )
+            .unwrap();
+
+            let caller = pr(1);
+            let _ = create_user(state, caller);
+
+            // without filters we see the new post
+            let post_visible = |state: &State| {
+                state
+                    .last_posts(caller, None, true)
+                    .find(|post| post.id == post_id)
+                    .is_some()
+            };
+            assert!(post_visible(state));
+
+            // after muting with a filter we don't see the post and see again after unmuting
+            for (filter, value) in vec![
+                ("user", format!("{}", post_author_id).as_str()),
+                ("realm", "TESTREALM"),
+                ("tag", "abc"),
+            ]
+            .iter()
+            {
+                state
+                    .principal_to_user_mut(caller)
+                    .unwrap()
+                    .toggle_filter(filter.to_string(), value.to_string())
+                    .unwrap();
+                assert!(!post_visible(state));
+                state
+                    .principal_to_user_mut(caller)
+                    .unwrap()
+                    .toggle_filter(filter.to_string(), value.to_string())
+                    .unwrap();
+                assert!(post_visible(state));
+            }
         });
     }
 

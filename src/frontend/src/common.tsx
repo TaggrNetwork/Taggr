@@ -471,6 +471,16 @@ export const UserLink = ({ id }: { id: UserId }) => (
     <a href={`#/user/${id}`}>{window.backendCache.users[id] || "?"}</a>
 );
 
+export const realmList = (ids: string[] = []) =>
+    ids.map((name) => (
+        <RealmSpan
+            key={name}
+            name={name}
+            onClick={() => (location.href = `/#/realm/${name}`)}
+            classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
+        />
+    ));
+
 export const userList = (ids: UserId[] = []) =>
     commaSeparated(ids.map((id) => <UserLink key={id} id={id} />));
 

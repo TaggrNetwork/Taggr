@@ -10,6 +10,7 @@ import {
     realmColors,
     RealmRibbon,
     setTitle,
+    ToggleButton,
     userList,
 } from "./common";
 import { Content } from "./content";
@@ -404,6 +405,19 @@ export const RealmHeader = ({ name }) => {
                                     EDIT
                                 </button>
                             )}
+                            <ToggleButton
+                                offLabel="MUTE"
+                                onLabel="UNMUTE"
+                                className="right_half_spaced"
+                                currState={() =>
+                                    user.filters.realms.includes(name)
+                                }
+                                toggler={() =>
+                                    window.api
+                                        .call("toggle_filter", "realm", name)
+                                        .then(window.reloadUser)
+                                }
+                            />
                             {!user.realms.includes(name) && (
                                 <ButtonWithLoading
                                     label="JOIN"

@@ -57,6 +57,12 @@ export type Transaction = {
     memo?: number[];
 };
 
+type Filters = {
+    users: UserId[];
+    tags: string[];
+    realms: string[];
+};
+
 export type User = {
     name: string;
     id: UserId;
@@ -84,6 +90,7 @@ export type User = {
     num_posts: number;
     balance: number;
     controllers: string[];
+    filters: Filters;
 };
 
 export type Report = {

@@ -65,22 +65,41 @@ const FeedExtender = ({ filterVal, setFilterVal, refilter, filter }) => {
             )}
             {!extending && (
                 <button
-                    className="max_width_col right_half_spaced"
+                    className="max_width_col"
                     onClick={() => setExtending(!extending)}
                 >
                     EXTEND
                 </button>
             )}
             {!extending && window.user && (
-                <ToggleButton
-                    classNameArg="max_width_col left_half_spaced"
-                    currState={() => contains(window.user.feeds, filter)}
-                    toggler={() =>
-                        api
-                            .call("toggle_following_feed", filter)
-                            .then(window.reloadUser)
-                    }
-                />
+                <>
+                    <ToggleButton
+                        classNameArg="max_width_col"
+                        offLabel="FOLLOW"
+                        onLabel="UNFOLLOW"
+                        currState={() => contains(window.user.feeds, filter)}
+                        toggler={() =>
+                            api
+                                .call("toggle_following_feed", filter)
+                                .then(window.reloadUser)
+                        }
+                    />
+                    {filter.length == 1 && (
+                        <ToggleButton
+                            offLabel="MUTE"
+                            onLabel="UNMUTE"
+                            classNameArg="max_width_col"
+                            currState={() =>
+                                user.filters.tags.includes(filter[0])
+                            }
+                            toggler={() =>
+                                window.api
+                                    .call("toggle_filter", "tag", filter[0])
+                                    .then(window.reloadUser)
+                            }
+                        />
+                    )}
+                </>
             )}
         </div>
     );

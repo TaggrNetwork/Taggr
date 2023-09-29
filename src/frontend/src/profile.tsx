@@ -5,7 +5,6 @@ import {
     ToggleButton,
     commaSeparated,
     Loading,
-    RealmSpan,
     HeadBar,
     userList,
     bigScreen,
@@ -16,6 +15,7 @@ import {
     percentage,
     ShareButton,
     ButtonWithLoading,
+    realmList,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -125,46 +125,68 @@ export const Profile = ({ handle }: { handle: string }) => {
                 menu={true}
                 content={
                     <div className="row_container">
-                        <FlagButton
-                            id={profile.id}
-                            domain="misbehaviour"
-                            text={true}
-                        />
                         <ShareButton
                             url={`/user/${profile.name}`}
                             classNameArg="left_half_spaced max_width_col"
                             text={true}
                         />
-                        {user && user.id != profile.id && (
-                            <ButtonWithLoading
-                                label="SEND CYCLES"
-                                classNameArg="left_half_spaced max_width_col"
-                                onClick={async () => {
-                                    const amount = parseInt(
-                                        prompt(
-                                            `Enter the amount (fee: 1 cycle)`,
-                                        ) || "",
-                                    );
-                                    if (!amount) return;
-                                    if (
-                                        !confirm(
-                                            `You are transferring ${amount} cycles to @${profile.name}`,
-                                        )
-                                    )
-                                        return;
-                                    let result = await window.api.call<any>(
-                                        "transfer_cycles",
-                                        profile.id,
-                                        amount,
-                                    );
-                                    if ("Err" in result) {
-                                        alert(`Error: ${result.Err}`);
-                                        return;
+                        {user && (
+                            <>
+                                <FlagButton
+                                    id={profile.id}
+                                    domain="misbehaviour"
+                                    text={true}
+                                />
+                                {user.id != profile.id && (
+                                    <ButtonWithLoading
+                                        label="SEND CYCLES"
+                                        classNameArg="max_width_col"
+                                        onClick={async () => {
+                                            const amount = parseInt(
+                                                prompt(
+                                                    `Enter the amount (fee: 1 cycle)`,
+                                                ) || "",
+                                            );
+                                            if (!amount) return;
+                                            if (
+                                                !confirm(
+                                                    `You are transferring ${amount} cycles to @${profile.name}`,
+                                                )
+                                            )
+                                                return;
+                                            let result =
+                                                await window.api.call<any>(
+                                                    "transfer_cycles",
+                                                    profile.id,
+                                                    amount,
+                                                );
+                                            if ("Err" in result) {
+                                                alert(`Error: ${result.Err}`);
+                                                return;
+                                            }
+                                            window.reloadUser();
+                                            await updateState();
+                                        }}
+                                    />
+                                )}
+                                <ToggleButton
+                                    offLabel="MUTE"
+                                    onLabel="UNMUTE"
+                                    classNameArg="max_width_col"
+                                    currState={() =>
+                                        user.filters.users.includes(profile.id)
                                     }
-                                    window.reloadUser();
-                                    await updateState();
-                                }}
-                            />
+                                    toggler={() =>
+                                        window.api
+                                            .call(
+                                                "toggle_filter",
+                                                "user",
+                                                profile.id.toString(),
+                                            )
+                                            .then(window.reloadUser)
+                                    }
+                                />
+                            </>
                         )}
                     </div>
                 }
@@ -441,17 +463,11 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 className="row_container top_spaced"
                 style={{ alignItems: "center" }}
             >
-                {profile.realms.map((name) => (
-                    <RealmSpan
-                        key={name}
-                        name={name}
-                        onClick={() => (location.href = `/#/realm/${name}`)}
-                        classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
-                    />
-                ))}
+                {realmList(profile.realms)}
             </div>
         ) : null;
     const inviter = profile.invited_by;
+    const filters = profile.filters;
 
     return (
         <div className="spaced">
@@ -515,6 +531,30 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     <h2>INTERESTS</h2>
                     {feeds}
                     {realms}
+                    <hr />
+                </>
+            )}
+            {filters.users.length +
+                filters.tags.length +
+                filters.realms.length >
+                0 && (
+                <>
+                    <h2>MUTED</h2>
+                    <div className="bottom_spaced">
+                        {userList(filters.users)}
+                    </div>
+                    <div className="bottom_spaced">
+                        {realmList(filters.realms)}
+                    </div>
+                    <div className="bottom_spaced">
+                        {commaSeparated(
+                            filters.tags.map((tag) => (
+                                <a key={tag} href={`#/feed/${tag}`}>
+                                    {tag}
+                                </a>
+                            )),
+                        )}
+                    </div>
                     <hr />
                 </>
             )}

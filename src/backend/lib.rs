@@ -558,6 +558,18 @@ fn toggle_realm_membership() {
     })
 }
 
+#[export_name = "canister_update toggle_filter"]
+fn toggle_filter() {
+    mutate(|state| {
+        let (filter, value): (String, String) = parse(&arg_data_raw());
+        reply(if let Some(user) = state.principal_to_user_mut(caller()) {
+            user.toggle_filter(filter, value)
+        } else {
+            Err("no user found".into())
+        });
+    })
+}
+
 #[update]
 async fn set_emergency_release(binary: ByteBuf) {
     mutate(|state| {
@@ -778,7 +790,7 @@ fn user_tags() {
     read(|state| {
         reply(
             state
-                .last_posts(None, true)
+                .last_posts(caller(), None, true)
                 .filter(|post| post.body.contains(&tag))
                 .skip(CONFIG.feed_page_size * page)
                 .take(CONFIG.feed_page_size)
@@ -888,7 +900,7 @@ fn last_posts() {
     read(|state| {
         reply(
             state
-                .last_posts(optional(realm), with_comments)
+                .last_posts(caller(), optional(realm), with_comments)
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
                 .cloned()
@@ -904,7 +916,7 @@ fn posts_by_tags() {
     read(|state| {
         reply(
             state
-                .posts_by_tags(optional(realm), tags, users, page)
+                .posts_by_tags(caller(), optional(realm), tags, users, page)
                 .into_iter()
                 .collect::<Vec<Post>>(),
         )
@@ -913,9 +925,9 @@ fn posts_by_tags() {
 
 #[export_name = "canister_query personal_feed"]
 fn personal_feed() {
-    let (id, page, with_comments): (UserId, usize, bool) = parse(&arg_data_raw());
+    let (page, with_comments): (usize, bool) = parse(&arg_data_raw());
     read(|state| {
-        reply(match state.user(id.to_string().as_str()) {
+        reply(match state.principal_to_user(caller()) {
             None => Default::default(),
             Some(user) => user
                 .personal_feed(state, page, with_comments)
@@ -948,7 +960,7 @@ fn validate_username() {
 #[export_name = "canister_query recent_tags"]
 fn recent_tags() {
     let (realm, n): (String, u64) = parse(&arg_data_raw());
-    read(|state| reply(state.recent_tags(optional(realm), n)));
+    read(|state| reply(state.recent_tags(caller(), optional(realm), n)));
 }
 
 #[export_name = "canister_query users"]

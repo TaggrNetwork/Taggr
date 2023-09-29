@@ -4,6 +4,19 @@ use serde::{Deserialize, Serialize};
 
 pub type UserId = u64;
 
+#[derive(Clone, Default, Serialize, Deserialize)]
+pub struct Filters {
+    pub users: BTreeSet<UserId>,
+    pub tags: BTreeSet<String>,
+    pub realms: BTreeSet<String>,
+}
+
+impl Filters {
+    pub fn is_empty(&self) -> bool {
+        self.users.is_empty() && self.tags.is_empty() && self.realms.is_empty()
+    }
+}
+
 #[derive(PartialEq)]
 pub enum CyclesDelta {
     Plus,
@@ -68,6 +81,8 @@ pub struct User {
     pub invites_budget: Cycles,
     #[serde(skip)]
     pub draft: Option<Draft>,
+    #[serde(default)]
+    pub filters: Filters,
 }
 
 impl User {
@@ -107,6 +122,7 @@ impl User {
             treasury_e8s: 0,
             invites_budget: 0,
             draft: None,
+            filters: Default::default(),
         }
     }
 
@@ -114,7 +130,7 @@ impl User {
         let id = self.id;
         Box::new(
             state
-                .last_posts(None, true)
+                .last_posts(Principal::anonymous(), None, true)
                 .filter(move |post| post.user == id),
         )
     }
@@ -132,6 +148,33 @@ impl User {
         }
         self.bookmarks.push_front(post_id);
         true
+    }
+
+    pub fn toggle_filter(&mut self, filter: String, value: String) -> Result<(), String> {
+        match filter.as_str() {
+            "user" => match value.parse() {
+                Err(_) => Err("cannot parse user id".to_string()),
+                Ok(id) => {
+                    if !self.filters.users.remove(&id) {
+                        self.filters.users.insert(id);
+                    }
+                    Ok(())
+                }
+            },
+            "tag" => {
+                if !self.filters.tags.remove(&value) {
+                    self.filters.tags.insert(value);
+                }
+                Ok(())
+            }
+            "realm" => {
+                if !self.filters.realms.remove(&value) {
+                    self.filters.realms.insert(value);
+                }
+                Ok(())
+            }
+            _ => Err("filter unknown".into()),
+        }
     }
 
     pub fn active_within_weeks(&self, now: u64, n: u64) -> bool {
@@ -173,10 +216,14 @@ impl User {
         page: usize,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let posts_by_tags = Box::new(state.last_posts(None, with_comments).filter(move |post| {
-            let lc_tags: BTreeSet<_> = post.tags.iter().map(|t| t.to_lowercase()).collect();
-            covered_by_feeds(&self.feeds, &lc_tags, false).is_some()
-        }));
+        let posts_by_tags = Box::new(
+            state
+                .last_posts(self.principal, None, with_comments)
+                .filter(move |post| {
+                    let lc_tags: BTreeSet<_> = post.tags.iter().map(|t| t.to_lowercase()).collect();
+                    covered_by_feeds(&self.feeds, &lc_tags, false).is_some()
+                }),
+        );
 
         let mut iterators: Vec<Box<dyn Iterator<Item = &'a Post> + 'a>> = self
             .followees
