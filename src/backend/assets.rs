@@ -92,8 +92,8 @@ pub fn load() {
             "{{\"alternativeOrigins\": [ {} ]}}",
             domains
                 .iter()
+                .chain(std::iter::once(&CONFIG.staging))
                 .map(|domain| format!("\"https://{}\"", &domain))
-                .chain(std::iter::once(CONFIG.staging.to_string()))
                 .collect::<Vec<_>>()
                 .join(",")
         )
