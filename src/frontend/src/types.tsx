@@ -125,6 +125,8 @@ declare global {
             recent_tags: string[];
             realms: { [name: string]: [string, boolean] };
             stats: {
+                canister_id: string;
+                team_tokens: { [name: UserId]: number };
                 last_upgrade: number;
                 buckets: [string, number][];
                 stalwarts: UserId[];
