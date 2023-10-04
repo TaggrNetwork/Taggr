@@ -12,7 +12,6 @@ pub const ICP_CYCLES_PER_XDR: u64 = 1_000_000_000_000;
 pub struct Config {
     pub name: &'static str,
     pub domains: &'static [&'static str],
-    pub twitter: &'static str,
     pub logo: &'static str,
     pub staging: &'static str,
 
@@ -131,7 +130,6 @@ pub const CONFIG: &Config = &Config {
         "taggr.wtf",
     ],
     logo: include_str!("../../frontend/assets/logo.min.svg"),
-    twitter: "TaggrNetwork",
     staging: "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io",
 
     token_symbol: "TAGGR",

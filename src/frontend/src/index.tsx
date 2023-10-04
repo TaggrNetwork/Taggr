@@ -31,7 +31,7 @@ import { Tokens, TransactionView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
 import { MAINNET_MODE, TEST_MODE, CANISTER_ID } from "./env";
-import { Git, Rocket, Twitter } from "./icons";
+import { Git, Rocket } from "./icons";
 import { UserId } from "./types";
 
 const { hash, pathname } = location;
@@ -333,10 +333,6 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                     &nbsp;&middot;&nbsp;
                     <a href="https://github.com/TaggrNetwork/taggr">
                         <Git classNameArg="action" />
-                    </a>
-                    &nbsp;&middot;&nbsp;
-                    <a href="http://twitter.com/TaggrNetwork">
-                        <Twitter classNameArg="action" />
                     </a>
                 </footer>
             </React.StrictMode>,
