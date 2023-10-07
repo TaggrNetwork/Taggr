@@ -460,7 +460,7 @@ export const expandUser = (post: Post) => {
     return post;
 };
 
-export const blobToUrl = (blob: number[]) =>
+export const blobToUrl = (blob: ArrayBuffer) =>
     URL.createObjectURL(
         new Blob([new Uint8Array(blob).buffer], { type: "image/png" }),
     );

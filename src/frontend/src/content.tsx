@@ -3,18 +3,26 @@ import ReactMarkdown from "react-markdown";
 import { getTokens, blobToUrl, timeAgo } from "./common";
 import remarkGfm from "remark-gfm";
 import { CarretDown } from "./icons";
+import { BlogTitle } from "./types";
 
 export const CUT = "\n\n\n\n";
 
 // We need this becasue the native modulo function doesn't work on negative numbers as expected.
-function mod(n, m) {
+function mod(n: number, m: number) {
     return ((n % m) + m) % m;
 }
 
-const previewImg = (src, id, gallery, urls) => {
+const previewImg = (
+    src: string,
+    id: string,
+    gallery: string[],
+    urls: { [id: string]: string },
+) => {
     const preview = document.getElementById("preview");
+    if (!preview) return;
     while (preview.hasChildNodes()) {
-        preview.removeChild(preview.firstChild);
+        let firstChild = preview.firstChild;
+        if (firstChild) preview.removeChild(firstChild);
     }
     preview.style.display = "flex";
     const pic = document.createElement("img");
@@ -23,7 +31,7 @@ const previewImg = (src, id, gallery, urls) => {
 
     const notGallery = !gallery || gallery.length == 1;
 
-    let slide = (next) => {
+    let slide = (next: boolean) => {
         if (notGallery) return;
         const pos = gallery.indexOf(id);
         if (pos < 0) return;
@@ -42,7 +50,8 @@ const previewImg = (src, id, gallery, urls) => {
 
     document.onscroll = closePreview;
     preview.onclick = (event) => {
-        if (event.target.id == "preview" || notGallery)
+        let target: any = event.target;
+        if (target?.id == "preview" || notGallery)
             preview.style.display = "none";
     };
 
@@ -67,20 +76,22 @@ const previewImg = (src, id, gallery, urls) => {
     preview.appendChild(closeButton);
 };
 
-const linkTagsAndUsers = (value) => {
+const linkTagsAndUsers = (value: string) => {
     if (!value) return value;
     const users = getTokens("@", value);
     const tags = getTokens("#$", value);
     value = tags.reduce(
-        (r, tag) => r.replaceAll("$" + tag, `[\$${tag}](#/feed/${tag})`),
+        (r: string, tag) =>
+            r.replaceAll("$" + tag, `[\$${tag}](#/feed/${tag})`),
         value,
     );
     value = tags.reduce(
-        (r, tag) => r.replaceAll("#" + tag, `[&#x23;${tag}](#/feed/${tag})`),
+        (r: string, tag) =>
+            r.replaceAll("#" + tag, `[&#x23;${tag}](#/feed/${tag})`),
         value,
     );
     value = users.reduce(
-        (r, handle) =>
+        (r: string, handle) =>
             r.replaceAll("@" + handle, `[&commat;${handle}](#/user/${handle})`),
         value,
     );
@@ -90,19 +101,28 @@ const linkTagsAndUsers = (value) => {
 export const Content = ({
     post,
     blogTitle,
-    value = "",
-    blobs = [],
+    value,
+    blobs,
     collapse,
     preview,
     primeMode,
     classNameArg,
+}: {
+    post?: boolean;
+    blogTitle?: BlogTitle;
+    value: string;
+    blobs?: { [id: string]: ArrayBuffer };
+    collapse?: boolean;
+    preview?: boolean;
+    primeMode?: boolean;
+    classNameArg?: string;
 }) => {
     const [urls, setUrls] = React.useState({});
 
     if (!post)
         return (
             <ReactMarkdown
-                components={{ a: linkRenderer(preview) }}
+                components={{ a: linkRenderer(preview) } as unknown as any}
                 children={linkTagsAndUsers(value)}
                 remarkPlugins={[remarkGfm]}
                 className={classNameArg}
@@ -111,7 +131,7 @@ export const Content = ({
 
     let cutPos = value.indexOf(CUT);
     let shortened = cutPos >= 0;
-    let extValue;
+    let extValue: string = "";
 
     if (shortened) {
         extValue = value.slice(cutPos + CUT.length);
@@ -148,7 +168,7 @@ export const Content = ({
                     <>
                         {collapse && <ArrowDown />}
                         {markdownizer(
-                            collapse ? null : extValue,
+                            collapse ? "" : extValue,
                             urls,
                             setUrls,
                             blobs,
@@ -163,15 +183,16 @@ export const Content = ({
     );
 };
 
-const isALink = (val) => val.match(/^https?:\/\/.+$/) || val.match(/^www\..+$/);
+const isALink = (val: string) =>
+    val.match(/^https?:\/\/.+$/) || val.match(/^www\..+$/);
 
 const linkRenderer =
-    (preview) =>
-    ({ node, children = [], ...props }) => {
+    (preview?: boolean) =>
+    ({ node, children = [], ...props }: any) => {
         let target = "_self";
         let className = null;
-        let label = children;
-        let child = children[0];
+        let label: any = children;
+        let child: any = children[0];
         if (typeof child == "string") {
             // YouTube
             let matches = child.match(
@@ -179,7 +200,7 @@ const linkRenderer =
             );
             if (matches) {
                 const id = matches.pop();
-                return <YouTube id={id} preview={preview} />;
+                return id ? <YouTube id={id} preview={preview} /> : null;
             }
 
             matches = isALink(child) || isALink(props.href);
@@ -195,7 +216,7 @@ const linkRenderer =
 
                     // Internal links
                     if (
-                        backendCache.config.domains.some((domain) =>
+                        window.backendCache.config.domains.some((domain) =>
                             url.hostname.includes(domain),
                         )
                     ) {
@@ -219,13 +240,13 @@ const linkRenderer =
     };
 
 const markdownizer = (
-    value,
-    urls,
-    setUrls,
-    blobs,
-    blogTitle,
-    preview = false,
-    className = null,
+    value: string,
+    urls: { [id: string]: string },
+    setUrls: (arg: { [id: string]: string }) => void,
+    blobs?: { [id: string]: ArrayBuffer },
+    blogTitle?: BlogTitle,
+    preview?: boolean,
+    className?: string,
 ) =>
     !value ? null : (
         <ReactMarkdown
@@ -252,19 +273,19 @@ const markdownizer = (
                 },
                 a: linkRenderer(preview),
                 p: ({ node, children, ...props }) => {
-                    const isPic = (c) => c.type && c.type.name == "img";
+                    const isPic = (c: any) => c.type && c.type.name == "img";
                     const pics = children.filter(isPic).length;
                     if (pics >= 1 && isPic(children[0]))
                         return <Gallery children={children} />;
                     return <p {...props}>{children}</p>;
                 },
-                img: ({ node, ...props }) => {
-                    let id;
+                img: ({ node, ...props }: any) => {
+                    let id: string;
                     if (props.src.startsWith("/blob/")) {
                         id = props.src.replace("/blob/", "");
                         if (id in urls) {
                             props.src = urls[id];
-                        } else if (id in blobs) {
+                        } else if (blobs && id in blobs) {
                             const url = blobToUrl(blobs[id]);
                             urls[id] = url;
                             setUrls(urls);
@@ -287,11 +308,17 @@ const markdownizer = (
         />
     );
 
-const Gallery = ({ children }) => {
-    let pictures = children.filter((c) => c.type && c.type.name == "img");
-    const urls = pictures.map((pic) => pic.props.src.replace("/blob/", ""));
-    pictures = pictures.map((e) => React.cloneElement(e, { gallery: urls }));
-    const nonPictures = children.filter((c) => !c.type || c.type.name != "img");
+const Gallery = ({ children }: any) => {
+    let pictures = children.filter((c: any) => c.type && c.type.name == "img");
+    const urls = pictures.map((pic: any) =>
+        pic.props.src.replace("/blob/", ""),
+    );
+    pictures = pictures.map((e: any) =>
+        React.cloneElement(e, { gallery: urls }),
+    );
+    const nonPictures = children.filter(
+        (c: any) => !c.type || c.type.name != "img",
+    );
     return (
         <>
             <div className="gallery">
@@ -307,7 +334,7 @@ const Gallery = ({ children }) => {
     );
 };
 
-const YouTube = ({ id, preview }) => {
+const YouTube = ({ id, preview }: { id: string; preview?: boolean }) => {
     const [open, setOpen] = React.useState(!preview);
     if (open)
         return (
@@ -338,7 +365,7 @@ const ArrowDown = () => (
     </div>
 );
 
-const setDimensions = (props) => {
+const setDimensions = (props: any) => {
     const maxHeight = Math.ceil(window.innerHeight / 3);
     const [width, height] = (props.alt.match(/\d+x\d+/) || [
         `${window.innerWidth}x${maxHeight}`,

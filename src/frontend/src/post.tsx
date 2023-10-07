@@ -320,7 +320,6 @@ export const PostView = ({
                             key={post.effBody}
                             post={true}
                             value={post.effBody}
-                            // @ts-ignore
                             blobs={blobs}
                             collapse={!expanded}
                             primeMode={isRoot(post) && !repost}
