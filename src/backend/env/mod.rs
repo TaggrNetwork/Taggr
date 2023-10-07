@@ -3281,8 +3281,7 @@ pub(crate) mod tests {
             let post_visible = |state: &State| {
                 state
                     .last_posts(caller, None, true)
-                    .find(|post| post.id == post_id)
-                    .is_some()
+                    .any(|post| post.id == post_id)
             };
             assert!(post_visible(state));
 
