@@ -95,7 +95,7 @@ pub fn finalize_report(
         ));
         let unit = penalty.min(reporter.cycles());
         let log = format!("false report penalty for {}", subject);
-        reporter.change_karma(-(penalty as Karma) / 2, log);
+        reporter.change_karma(-(penalty as Karma), log);
         let reporter_id = reporter.id;
         (reporter_id, unit)
     };
@@ -366,7 +366,7 @@ mod tests {
             let reporter = state.principal_to_user(reporter).unwrap();
             let unit = CONFIG.reporting_penalty_post / 2;
             assert_eq!(reporter.cycles(), 777 - 2 * unit);
-            assert_eq!(reporter.karma(), 25);
+            assert_eq!(reporter.karma(), -75);
 
             assert_eq!(
                 state.principal_to_user(pr(9)).unwrap().karma_to_reward(),
