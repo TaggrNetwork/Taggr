@@ -830,7 +830,7 @@ impl State {
         // top up all children canisters
         let mut topped_up = Vec::new();
         for canister_id in children {
-            match crate::canisters::top_up(canister_id, ICP_CYCLES_PER_XDR).await {
+            match crate::canisters::top_up(canister_id, 2 * ICP_CYCLES_PER_XDR).await {
                 Ok(true) => topped_up.push(canister_id),
                 Err(err) => mutate(|state| state.critical(err)),
                 _ => {}
