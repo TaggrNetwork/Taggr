@@ -17,6 +17,7 @@ import { UserId, Transaction } from "./types";
 type Balances = [string, number, UserId][];
 
 export const Tokens = () => {
+    const [status, setStatus] = React.useState(0);
     const [balances, setBalances] = React.useState([] as Balances);
     const [term, setTerm] = React.useState("");
     const [noMoreData, setNoMoreData] = React.useState(false);
@@ -32,7 +33,11 @@ export const Tokens = () => {
 
     const loadBalances = async () => {
         const balances = await window.api.query<Balances>("balances");
-        if (!balances) return;
+        if (!balances || balances.length == 0) {
+            setStatus(-1);
+            return;
+        }
+        setStatus(1);
         balances.sort((a, b) => Number(b[1]) - Number(a[1]));
         setBalances(balances);
     };
@@ -68,6 +73,13 @@ export const Tokens = () => {
     );
     const { total_supply, proposal_approval_threshold } =
         window.backendCache.config;
+
+    switch (status) {
+        case 0:
+            return <Loading />;
+        case -1:
+            return <NotFound />;
+    }
 
     return (
         <>
