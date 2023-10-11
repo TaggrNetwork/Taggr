@@ -107,7 +107,7 @@ export const HeadBar = ({
     styleArg,
     burgerTestId = null,
 }: {
-    title: string;
+    title: JSX.Element | string;
     shareLink?: string;
     shareTitle?: string;
     button1?: JSX.Element;
