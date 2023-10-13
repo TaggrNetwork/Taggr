@@ -54,6 +54,7 @@ export const Form = ({
     const [choresTimer, setChoresTimer] = React.useState(null);
     const [cursor, setCursor] = React.useState(0);
     const textarea = React.useRef();
+    const form = React.useRef();
     const tags = window.backendCache.recent_tags;
     const users = Object.values(window.backendCache.users);
     const { max_post_length, max_blob_size_bytes } = backendCache.config;
@@ -65,7 +66,7 @@ export const Form = ({
         const postHasCut = value.trim().includes(CUT);
         const cutOffset =
             cutElement?.offsetTop -
-            (previewAtLeft ? 0 : textarea.current?.clientHeight);
+            (previewAtLeft ? 0 : form.current?.clientHeight);
         if (
             (postHasCut && cutOffset > window.innerHeight) ||
             (!postHasCut && ref.current?.clientHeight > window.innerHeight)
@@ -328,6 +329,7 @@ export const Form = ({
             )}
             {showTextField && (
                 <form
+                    ref={form}
                     className={`${
                         submitting ? "inactive" : ""
                     } column_container bottom_spaced`}

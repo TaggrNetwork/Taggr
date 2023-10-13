@@ -324,7 +324,10 @@ const Gallery = ({ children }: any) => {
             <div className="gallery">
                 {pictures[0]}
                 {pictures.length > 1 && (
-                    <div className="thumbnails row_container">
+                    <div
+                        data-meta="skipClicks"
+                        className="thumbnails row_container"
+                    >
                         {pictures.slice(1)}
                     </div>
                 )}

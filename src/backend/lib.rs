@@ -894,6 +894,12 @@ fn hot_posts() {
     read(|state| reply(state.hot_posts(optional(realm), page)));
 }
 
+#[export_name = "canister_query realms_posts"]
+fn realms_posts() {
+    let page: usize = parse(&arg_data_raw());
+    read(|state| reply(state.realms_posts(caller(), page)));
+}
+
 #[export_name = "canister_query last_posts"]
 fn last_posts() {
     let (realm, page, with_comments): (String, usize, bool) = parse(&arg_data_raw());

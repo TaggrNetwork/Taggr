@@ -1,5 +1,4 @@
 import * as React from "react";
-import { PostFeed } from "./post_feed";
 import { loadFile } from "./form";
 import {
     bigScreen,
@@ -14,35 +13,40 @@ import {
     userList,
 } from "./common";
 import { Content } from "./content";
-import { Edit, Close } from "./icons";
+import { Close } from "./icons";
 import { getTheme } from "./theme";
+import { Realm, Theme, UserId } from "./types";
 
-export const RealmForm = ({ existingName }) => {
+export const RealmForm = ({ existingName }: { existingName: string }) => {
     const editing = !!existingName;
     const users = window.backendCache.users;
-    const name2Id = Object.keys(users).reduce((acc, id) => {
-        acc[users[id]] = id;
-        return acc;
-    }, {});
+    const name2Id = Object.keys(users).reduce(
+        (acc, idStr) => {
+            let id = parseInt(idStr);
+            acc[users[id]] = id;
+            return acc;
+        },
+        {} as { [name: string]: UserId },
+    );
     const userId = window.user.id;
 
     const [name, setName] = React.useState("");
     const [logo, setLogo] = React.useState("");
     const [labelColor, setLabelColor] = React.useState("");
     const [description, setDescription] = React.useState("");
-    const [theme, setTheme] = React.useState(null);
+    const [theme, setTheme] = React.useState<Theme>();
     const [controllersString, setControllersString] = React.useState(
         users[userId],
     );
-    const [controllers, setControllers] = React.useState([userId]);
+    const [controllers, setControllers] = React.useState<UserId[]>([userId]);
 
     const loadRealm = async () => {
-        let result = await api.query("realm", existingName);
+        let result = await window.api.query<any>("realm", existingName);
         if ("Err" in result) {
             alert(`Error: ${result.Err}`);
             return;
         }
-        const realm = result.Ok;
+        const realm: Realm = result.Ok;
         setName(existingName);
         setDescription(realm.description);
         setControllers(realm.controllers);
@@ -77,13 +81,16 @@ export const RealmForm = ({ existingName }) => {
                     <div className="column_container bottom_spaced monospace">
                         <div className="bottom_half_spaced">
                             LOGO (
-                            {`${backendCache.config.max_realm_logo_len / 1024}`}
+                            {`${
+                                window.backendCache.config.max_realm_logo_len /
+                                1024
+                            }`}
                             KB MAX, resize{" "}
                             <a href="https://imageresizer.com">here</a>)
                         </div>
                         <input
                             type="file"
-                            onChange={async (ev) => {
+                            onChange={async (ev: any) => {
                                 const file = (ev.dataTransfer || ev.target)
                                     .files[0];
                                 const content = new Uint8Array(
@@ -91,10 +98,12 @@ export const RealmForm = ({ existingName }) => {
                                 );
                                 const actualSize = content.byteLength,
                                     expectedSize =
-                                        backendCache.config.max_realm_logo_len;
+                                        window.backendCache.config
+                                            .max_realm_logo_len;
                                 if (
                                     content.byteLength >
-                                    backendCache.config.max_realm_logo_len
+                                    window.backendCache.config
+                                        .max_realm_logo_len
                                 ) {
                                     alert(
                                         `Logo size must be below ${Math.ceil(
@@ -109,6 +118,7 @@ export const RealmForm = ({ existingName }) => {
                                     btoa(
                                         String.fromCharCode.apply(
                                             null,
+                                            // @ts-ignore
                                             new Uint8Array(content),
                                         ),
                                     ),
@@ -122,10 +132,10 @@ export const RealmForm = ({ existingName }) => {
                         <div className="bottom_half_spaced">
                             REALM NAME
                             {name.length >
-                                backendCache.config.max_realm_name && (
+                                window.backendCache.config.max_realm_name && (
                                 <span>
                                     &nbsp;[⚠️ MUST BE{" "}
-                                    {backendCache.config.max_realm_name}{" "}
+                                    {window.backendCache.config.max_realm_name}{" "}
                                     CHARACTERS OR LESS!]
                                 </span>
                             )}
@@ -185,7 +195,7 @@ export const RealmForm = ({ existingName }) => {
                                 .map(
                                     (id) => name2Id[id.replace("@", "").trim()],
                                 )
-                                .filter(Boolean);
+                                .filter((n) => !isNaN(n));
                             setControllersString(input);
                             setControllers(ids);
                         }}
@@ -271,7 +281,7 @@ export const RealmForm = ({ existingName }) => {
                             <input
                                 type="color"
                                 value={theme.accent}
-                                onChange={(ev) =>
+                                onChange={(ev: any) =>
                                     setTheme({
                                         ...theme,
                                         accent: ev.target.value,
@@ -286,21 +296,24 @@ export const RealmForm = ({ existingName }) => {
                     classNameArg={valid ? "active" : "inactive"}
                     onClick={async () => {
                         if (!valid) return;
-                        const response = await api.call(
+                        const response = await window.api.call<any>(
                             editing ? "edit_realm" : "create_realm",
                             name,
                             logo,
                             labelColor,
                             theme ? JSON.stringify(theme) : "",
                             description,
-                            controllers.map((id) => parseInt(id)),
+                            controllers,
                         );
                         if ("Err" in response) {
                             alert(`Error: ${response.Err}`);
                             return;
                         }
                         if (!editing) {
-                            await api.call("toggle_realm_membership", name);
+                            await window.api.call(
+                                "toggle_realm_membership",
+                                name,
+                            );
                         }
                         await Promise.all([
                             window.reloadCache(),
@@ -317,14 +330,13 @@ export const RealmForm = ({ existingName }) => {
     );
 };
 
-export const RealmHeader = ({ name }) => {
-    const [realm, setRealm] = React.useState(null);
+export const RealmHeader = ({ name }: { name: string }) => {
+    const [realm, setRealm] = React.useState<Realm>();
     const [showInfo, toggleInfo] = React.useState(false);
 
     const loadRealm = async () => {
-        let result = await api.query("realm", name);
+        let result = await window.api.query<any>("realm", name);
         if ("Err" in result) {
-            setRealm(404);
             return;
         }
         setRealm(result.Ok);
@@ -358,7 +370,7 @@ export const RealmHeader = ({ name }) => {
                     </div>
                 }
                 shareLink={`realm/${name.toLowerCase()}`}
-                shareTitle={`Realm ${name} on ${backendCache.name}`}
+                shareTitle={`Realm ${name} on ${window.backendCache.config.name}`}
                 styleArg={colors}
                 content={
                     <>
@@ -373,6 +385,7 @@ export const RealmHeader = ({ name }) => {
                             label={
                                 <Close
                                     styleArg={{ fill: colors.color }}
+                                    // @ts-ignore
                                     small={true}
                                 />
                             }
@@ -408,7 +421,7 @@ export const RealmHeader = ({ name }) => {
                             <ToggleButton
                                 offLabel="MUTE"
                                 onLabel="UNMUTE"
-                                className="right_half_spaced"
+                                classNameArg="right_half_spaced"
                                 currState={() =>
                                     user.filters.realms.includes(name)
                                 }
@@ -428,11 +441,11 @@ export const RealmHeader = ({ name }) => {
                                                 `By joining the realm ${name} you confirm that you understand its description ` +
                                                     `and agree with all terms and conditions mentioned there. ` +
                                                     `Any rule violation can lead to a moderation by stalwarts or ` +
-                                                    `moving out of the post with penalty of ${backendCache.config.realm_cleanup_penalty} points.`,
+                                                    `moving out of the post with penalty of ${window.backendCache.config.realm_cleanup_penalty} points.`,
                                             )
                                         )
-                                            return false;
-                                        return api
+                                            return;
+                                        return window.api
                                             .call(
                                                 "toggle_realm_membership",
                                                 name,
@@ -447,7 +460,7 @@ export const RealmHeader = ({ name }) => {
                                     classNameArg="active"
                                     label="LEAVE"
                                     onClick={async () =>
-                                        api
+                                        window.api
                                             .call(
                                                 "toggle_realm_membership",
                                                 name,
@@ -466,11 +479,11 @@ export const RealmHeader = ({ name }) => {
 };
 
 export const Realms = () => {
-    const [realms, setRealms] = React.useState([]);
+    const [realms, setRealms] = React.useState<[string, Realm][]>([]);
     const [page, setPage] = React.useState(0);
     const [noMoreData, setNoMoreData] = React.useState(false);
     const loadRealms = async () => {
-        let data = await api.query("realms", page);
+        let data = (await window.api.query<any>("realms", page)) || [];
         if (data.length == 0) {
             setNoMoreData(true);
         }
@@ -497,7 +510,7 @@ export const Realms = () => {
                 }
             />
             <div
-                className={bigScreen() ? "two_column_grid_flex" : null}
+                className={bigScreen() ? "two_column_grid_flex" : undefined}
                 style={{ rowGap: 0, columnGap: "1em" }}
             >
                 {realms.map(([name, realm]) => {
@@ -538,7 +551,7 @@ export const Realms = () => {
                 <div style={{ display: "flex", justifyContent: "center" }}>
                     <ButtonWithLoading
                         classNameArg="active"
-                        onClick={() => setPage(page + 1)}
+                        onClick={async () => setPage(page + 1)}
                         label="MORE"
                     />
                 </div>

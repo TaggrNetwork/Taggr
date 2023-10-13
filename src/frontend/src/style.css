@@ -575,6 +575,14 @@ div.thumbnails {
     bottom: 1em;
     font-size: xx-large;
     color: white;
+    width: 2em;
+    height: 2em;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.8);
 }
 
 #preview > .close {

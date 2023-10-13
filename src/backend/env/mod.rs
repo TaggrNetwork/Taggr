@@ -370,6 +370,27 @@ impl State {
         self.last_hourly_chores = time();
     }
 
+    pub fn realms_posts(&self, caller: Principal, page: usize) -> Vec<Post> {
+        let realm_ids = match self
+            .principal_to_user(caller)
+            .map(|user| user.realms.as_slice())
+        {
+            None | Some(&[]) => return Default::default(),
+            Some(ids) => ids.iter().collect::<BTreeSet<_>>(),
+        };
+        self.last_posts(caller, None, false)
+            .filter(|post| {
+                post.realm
+                    .as_ref()
+                    .map(|id| realm_ids.contains(&id))
+                    .unwrap_or_default()
+            })
+            .skip(page * CONFIG.feed_page_size)
+            .take(CONFIG.feed_page_size)
+            .cloned()
+            .collect()
+    }
+
     pub fn hot_posts(&self, realm: Option<String>, page: usize) -> Vec<Post> {
         self.hot
             .iter()
@@ -830,7 +851,7 @@ impl State {
         // top up all children canisters
         let mut topped_up = Vec::new();
         for canister_id in children {
-            match crate::canisters::top_up(canister_id, ICP_CYCLES_PER_XDR).await {
+            match crate::canisters::top_up(canister_id, 2 * ICP_CYCLES_PER_XDR).await {
                 Ok(true) => topped_up.push(canister_id),
                 Err(err) => mutate(|state| state.critical(err)),
                 _ => {}

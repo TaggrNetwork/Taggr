@@ -10,7 +10,7 @@ import {
     RealmSpan,
     setTitle,
 } from "./common";
-import { New, User, Fire } from "./icons";
+import { New, User, Fire, Realm } from "./icons";
 
 const REFRESH_RATE_SECS = 10 * 60;
 
@@ -34,11 +34,14 @@ export const Landing = () => {
     );
     const headline = `# WELCOME ABOARD\nof a **fully decentralized** social network.\n\n[WHITE PAPER &#x279C;](/#/whitepaper)`;
     const title = (
-        <div className="text_centered vertically_spaced">
+        <div className="text_centered vertically_spaced small_text">
             {[
                 { icon: <New />, id: "NEW" },
                 { icon: <Fire />, id: "HOT" },
                 user && !realm && { icon: <User />, id: "FOLLOWED" },
+                user &&
+                    !realm &&
+                    user.realms.length > 0 && { icon: <Realm />, id: "REALMS" },
             ]
                 .filter(Boolean)
                 .map(({ icon, id }) => (
@@ -48,10 +51,7 @@ export const Landing = () => {
                             localStorage.setItem(FEED_KEY, id);
                             setFeed(id);
                         }}
-                        className={
-                            "medium_text " +
-                            (feed == id ? "active" : "unselected")
-                        }
+                        className={feed == id ? "active" : "unselected"}
                     >
                         {icon} {id}
                     </button>
@@ -84,6 +84,8 @@ export const Landing = () => {
                         return await api.query("personal_feed", page, false);
                     if (feed == "HOT")
                         return await api.query("hot_posts", realm, page);
+                    if (feed == "REALMS")
+                        return await api.query("realms_posts", page);
                     else
                         return await api.query(
                             "last_posts",

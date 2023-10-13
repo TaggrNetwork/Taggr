@@ -17,6 +17,16 @@ export type Extension =
           ["Proposal"]: any;
       };
 
+export type Realm = {
+    description: string;
+    controllers: UserId[];
+    theme: string;
+    label_color: string;
+    logo: string;
+    num_posts: number;
+    num_members: number;
+};
+
 export type Post = {
     id: PostId;
     parent?: PostId;
@@ -101,6 +111,14 @@ export type Report = {
     closed: boolean;
 };
 
+export type Theme = {
+    text: string;
+    background: string;
+    code: string;
+    clickable: string;
+    accent: string;
+};
+
 declare global {
     interface Window {
         authClient: AuthClient;
@@ -132,6 +150,9 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                realm_cleanup_penalty: number;
+                max_realm_name: number;
+                max_realm_logo_len: number;
                 post_cost: number;
                 post_deletion_penalty_factor: number;
                 token_symbol: string;
