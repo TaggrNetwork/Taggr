@@ -587,6 +587,7 @@ div.thumbnails {
 
 #preview > .close {
     left: 50%;
+    transform: translate(-50%, 0%);
 }
 
 #preview > .left_arrow {
