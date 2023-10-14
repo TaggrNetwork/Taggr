@@ -810,6 +810,7 @@ fn user() {
                 .get(&token::account(user.principal))
                 .copied()
                 .unwrap_or_default();
+            user.karma_donations.clear();
             if own_profile_fetch {
                 user.accounting.clear();
             } else {

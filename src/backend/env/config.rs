@@ -27,6 +27,8 @@ pub struct Config {
 
     pub supply_threshold_for_transfer_percentage: u64,
 
+    pub karma_donation_decline_percentage: u32,
+
     pub proposal_approval_threshold: u16,
     pub proposal_controversy_threashold: u16,
     pub proposal_rejection_penalty: Cycles,
@@ -145,6 +147,8 @@ pub const CONFIG: &Config = &Config {
     supply_threshold_for_transfer_percentage: 10,
     #[cfg(not(feature = "dev"))]
     supply_threshold_for_transfer_percentage: 20,
+
+    karma_donation_decline_percentage: 15,
 
     #[cfg(feature = "dev")]
     proposal_approval_threshold: 1,

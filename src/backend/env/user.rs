@@ -81,8 +81,9 @@ pub struct User {
     pub invites_budget: Cycles,
     #[serde(skip)]
     pub draft: Option<Draft>,
-    #[serde(default)]
     pub filters: Filters,
+    #[serde(default)]
+    pub karma_donations: BTreeMap<UserId, u32>,
 }
 
 impl User {
@@ -123,6 +124,7 @@ impl User {
             invites_budget: 0,
             draft: None,
             filters: Default::default(),
+            karma_donations: Default::default(),
         }
     }
 
@@ -348,6 +350,15 @@ impl User {
             .push_front((time(), "KRM".to_string(), amount, log.to_string()));
     }
 
+    pub fn compute_karma_donation(&mut self, sender: UserId, amount: Cycles) -> Cycles {
+        let donations = self.karma_donations.entry(sender).or_insert(100);
+        let effective_amount = (*donations as u64 * amount / 100).max(1);
+        if amount > 1 {
+            *donations = (*donations).saturating_sub(CONFIG.karma_donation_decline_percentage);
+        }
+        effective_amount
+    }
+
     pub fn karma_to_reward(&self) -> u64 {
         self.rewarded_karma
     }
@@ -492,6 +503,26 @@ mod tests {
             .unwrap();
         assert_eq!(revenue, 0);
         assert_eq!(user.cycles(), 823);
+    }
+
+    #[test]
+    fn test_donation_decline() {
+        let mut u = User::new(pr(0), 66, 0, Default::default());
+        assert_eq!(u.compute_karma_donation(777, 10), 10);
+        assert_eq!(u.compute_karma_donation(777, 10), 8);
+        assert_eq!(u.compute_karma_donation(777, 1), 1);
+        assert_eq!(u.compute_karma_donation(777, 1), 1);
+        assert_eq!(u.compute_karma_donation(777, 1), 1);
+        assert_eq!(u.compute_karma_donation(777, 10), 7);
+        assert_eq!(u.compute_karma_donation(777, 5), 2);
+        assert_eq!(u.compute_karma_donation(777, 10), 4);
+        assert_eq!(u.compute_karma_donation(777, 1), 1);
+        assert_eq!(u.compute_karma_donation(777, 1), 1);
+        assert_eq!(u.compute_karma_donation(777, 1), 1);
+        assert_eq!(u.compute_karma_donation(777, 10), 2);
+        assert_eq!(u.compute_karma_donation(777, 10), 1);
+        assert_eq!(u.compute_karma_donation(777, 10), 1);
+        assert_eq!(u.compute_karma_donation(777, 10), 1);
     }
 
     #[test]

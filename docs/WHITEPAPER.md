@@ -124,9 +124,10 @@ Interactions with other users consume cycles. Below is a breakdown of costs.
 
 Notes:
 
-1. Each response to a post increases the author's karma by `$response_reward`.
-2. Inactive users' karma and cycles decrease by `$inactivity_penalty` per week after `$inactivity_duration_weeks` weeks of inactivity.
-3. Users with negative karma don't participate in distributions.
+1. Karma donated to the same user via engagements described above declines by `$karma_donation_decline_percentage%` every time when more than `1` karma point is donated.
+2. Each response to a post increases the author's karma by `$response_reward`.
+3. Inactive users' karma and cycles decrease by `$inactivity_penalty` per week after `$inactivity_duration_weeks` weeks of inactivity.
+4. Users with negative karma don't participate in distributions.
 
 ## Proposals
 

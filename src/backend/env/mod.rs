@@ -330,17 +330,18 @@ impl State {
     #[allow(clippy::too_many_arguments)]
     pub fn cycle_transfer<T: ToString>(
         &mut self,
-        sender: UserId,
-        receiver: UserId,
+        sender_id: UserId,
+        receiver_id: UserId,
         amount: Cycles,
         fee: Cycles,
         destination: Destination,
         log: T,
         notification: Option<String>,
     ) -> Result<(), String> {
-        let sender = self.users.get_mut(&sender).expect("no sender found");
+        let sender = self.users.get_mut(&sender_id).expect("no sender found");
         sender.change_cycles(amount + fee, CyclesDelta::Minus, log.to_string())?;
-        let receiver = self.users.get_mut(&receiver).expect("no receiver found");
+        let receiver = self.users.get_mut(&receiver_id).expect("no receiver found");
+        let amount = receiver.compute_karma_donation(sender_id, amount);
         self.burned_cycles += fee as i64;
         let result = match destination {
             Destination::Karma => {
@@ -1406,6 +1407,7 @@ impl State {
                     "inactivity_penalty".to_string(),
                 );
             }
+            user.karma_donations.clear();
         }
         let mut inactive_users = 0;
         let mut cycles_total = 0;
