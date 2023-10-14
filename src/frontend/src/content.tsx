@@ -313,25 +313,22 @@ const Gallery = ({ children }: any) => {
     const urls = pictures.map((pic: any) =>
         pic.props.src.replace("/blob/", ""),
     );
-    pictures = pictures.map((e: any) =>
-        React.cloneElement(e, { gallery: urls }),
-    );
     const nonPictures = children.filter(
         (c: any) => !c.type || c.type.name != "img",
     );
     return (
         <>
             <div className="gallery">
-                {pictures[0]}
-                {pictures.length > 1 && (
-                    <div
-                        data-meta="skipClicks"
-                        className="thumbnails row_container"
-                    >
-                        {pictures.slice(1)}
-                    </div>
-                )}
+                {React.cloneElement(pictures[0], { gallery: urls })}
             </div>
+            {pictures.length > 1 && (
+                <div
+                    data-meta="skipClicks"
+                    className="thumbnails row_container"
+                >
+                    {pictures}
+                </div>
+            )}
             {nonPictures.length > 0 && <p>{nonPictures}</p>}
         </>
     );

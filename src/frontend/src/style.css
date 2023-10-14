@@ -497,11 +497,12 @@ article img {
 }
 
 div.thumbnails img {
-    height: 5vh;
-    width: 5vh;
+    height: 15px;
+    width: 15px;
     object-fit: cover;
-    margin: 0.2em;
-    border-radius: 3px;
+    margin: 0.1em;
+    border-radius: 10px;
+    border: 1px solid $text;
 }
 
 .gallery {
@@ -511,11 +512,10 @@ div.thumbnails img {
 }
 
 div.thumbnails {
-    position: absolute;
     width: 100%;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
     justify-content: center;
+    margin-top: 0.2em;
     padding: 0.1em 0 0.1em 0;
 }
 
