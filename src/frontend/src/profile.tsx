@@ -199,32 +199,43 @@ export const Profile = ({ handle }: { handle: string }) => {
                 />
             )}
             <UserInfo profile={profile} />
-            <div className="spaced">
-                <h2>
-                    Karma from last{" "}
-                    {window.backendCache.config.feed_page_size * 3} posts
-                </h2>
-                <div className="dynamic_table">
-                    {(allEndorsememnts
-                        ? karma_from_last_posts
-                        : karma_from_last_posts.slice(0, bigScreen() ? 8 : 6)
-                    ).map(([userId, karma]) => (
-                        <div key={userId} className="db_cell">
-                            {<UserLink id={userId} />}
-                            <code>{percentage(karma, endorsementsTotal)}</code>
+            {karma_from_last_posts.length > 0 && (
+                <>
+                    <div className="spaced">
+                        <h2>
+                            Karma from last{" "}
+                            {window.backendCache.config.feed_page_size * 3}{" "}
+                            posts
+                        </h2>
+
+                        <div className="dynamic_table">
+                            {(allEndorsememnts
+                                ? karma_from_last_posts
+                                : karma_from_last_posts.slice(
+                                      0,
+                                      bigScreen() ? 8 : 6,
+                                  )
+                            ).map(([userId, karma]) => (
+                                <div key={userId} className="db_cell">
+                                    {<UserLink id={userId} />}
+                                    <code>
+                                        {percentage(karma, endorsementsTotal)}
+                                    </code>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
-                {!allEndorsememnts && (
-                    <button
-                        className="top_spaced"
-                        onClick={() => setAllEndorsements(true)}
-                    >
-                        SHOW ALL
-                    </button>
-                )}
-            </div>
-            <hr />
+                        {!allEndorsememnts && (
+                            <button
+                                className="top_spaced"
+                                onClick={() => setAllEndorsements(true)}
+                            >
+                                SHOW ALL
+                            </button>
+                        )}
+                    </div>
+                    <hr />
+                </>
+            )}
             {profile.accounting.length > 0 && (
                 <>
                     <div className="spaced">
@@ -528,7 +539,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             <hr />
             {(feeds || realms) && (
                 <>
-                    <h2>INTERESTS</h2>
+                    <h2>Interests</h2>
                     {feeds}
                     {realms}
                     <hr />
@@ -539,7 +550,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 filters.realms.length >
                 0 && (
                 <>
-                    <h2>MUTED</h2>
+                    <h2>Muted</h2>
                     <div className="bottom_spaced">
                         {userList(filters.users)}
                     </div>

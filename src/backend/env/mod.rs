@@ -1006,7 +1006,7 @@ impl State {
             .filter(|u| u.karma_to_reward() > 0)
             .filter_map(|user| {
                 let karma = user.karma_to_reward();
-                let _ = user.top_up_cycles_from_rewards();
+                let _ = user.top_up_cycles_from_karma();
                 user.apply_rewards();
                 if user.karma() < 0 {
                     return None;
