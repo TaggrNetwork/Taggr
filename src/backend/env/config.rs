@@ -144,7 +144,7 @@ pub const CONFIG: &Config = &Config {
     #[cfg(feature = "dev")]
     supply_threshold_for_transfer_percentage: 10,
     #[cfg(not(feature = "dev"))]
-    supply_threshold_for_transfer_percentage: 35,
+    supply_threshold_for_transfer_percentage: 20,
 
     #[cfg(feature = "dev")]
     proposal_approval_threshold: 1,
