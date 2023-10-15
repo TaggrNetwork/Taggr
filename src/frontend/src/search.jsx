@@ -8,7 +8,7 @@ export const Search = () => {
     const [searching, setSearching] = React.useState(false);
 
     return (
-        <div className="column_container spaced top_spaced bottom_spaced">
+        <div className="column_container spaced">
             <input
                 id="search_field"
                 className="monospace larger_text"

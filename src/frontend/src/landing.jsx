@@ -143,7 +143,7 @@ export const TagCloud = ({ size, heartbeat, realm }) => {
     }, [heartbeat]);
     if (tags == null) return <Loading />;
     return (
-        <div id="tag_cloud" className="row_container vertically_spaced">
+        <div id="tag_cloud" className="row_container ">
             {tags.map(([tag, size]) => (
                 <a
                     key={tag}
