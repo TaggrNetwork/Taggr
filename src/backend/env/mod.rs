@@ -196,6 +196,20 @@ pub enum Destination {
 }
 
 impl State {
+    pub fn voted_on_pending_proposal(&self, principal: Principal) -> bool {
+        if let Some(user) = self.principal_to_user(principal) {
+            self.proposals.iter().any(|proposal| {
+                proposal.status == Status::Open
+                    && proposal
+                        .bulletins
+                        .iter()
+                        .any(|(user_id, _, _)| &user.id == user_id)
+            })
+        } else {
+            false
+        }
+    }
+
     pub async fn finalize_upgrade() {
         let current_hash = canisters::settings(id())
             .await
@@ -1778,6 +1792,9 @@ impl State {
         principal: Principal,
         new_principal_str: String,
     ) -> Result<(), String> {
+        if read(|state| state.voted_on_pending_proposal(principal)) {
+            return Err("pending proposal with the current principal as voter exists".into());
+        }
         #[allow(unused_variables)]
         let account_identifier = mutate(|state| {
             let new_principal =
@@ -2581,7 +2598,7 @@ pub(crate) mod tests {
             for i in 1..3 {
                 let p = pr(i);
                 let id = create_user(state, p);
-                let user = state.users.get_mut(&id).unwrap();
+                let user = state.principal_to_user_mut(pr(i)).unwrap();
                 user.change_karma(i as Karma * 111, "test");
                 assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
                 assert!(user.trusted());
@@ -2593,11 +2610,36 @@ pub(crate) mod tests {
             assert_eq!(state.ledger.len(), 2);
             assert_eq!(*state.balances.get(&account(pr(1))).unwrap(), 11100);
 
-            let u_id = state.principal_to_user(pr(1)).unwrap().id;
-            u_id
+            let user = state.principal_to_user_mut(pr(1)).unwrap();
+            user.stalwart = true;
+            let user_id = user.id;
+            let proposal_id = proposals::propose(
+                state,
+                pr(1),
+                "test".into(),
+                Payload::Reward(proposals::Reward {
+                    receiver: pr(2).to_string(),
+                    votes: Default::default(),
+                    minted: 0,
+                }),
+                time(),
+            )
+            .expect("couldn't propose");
+            proposals::vote_on_proposal(state, 0, pr(1), proposal_id, false, "1").unwrap();
+            user_id
         });
+
         let new_principal_str: String =
             "yh4uw-lqajx-4dxcu-rwe6s-kgfyk-6dicz-yisbt-pjg7v-to2u5-morox-hae".into();
+
+        match State::change_principal(pr(1), new_principal_str.clone()).await {
+            Err(err)
+                if err.contains("pending proposal with the current principal as voter exist") => {}
+            val => panic!("unexpected outcome: {:?}", val),
+        };
+
+        mutate(|state| state.proposals.get_mut(0).unwrap().status = Status::Executed);
+
         assert!(State::change_principal(pr(1), new_principal_str.clone())
             .await
             .is_ok());

@@ -164,12 +164,12 @@ fn icrc1_transfer(args: TransferArgs) -> Result<u128, TransferError> {
             message: "No transfers from the minting account possible.".into(),
         }));
     }
-    mutate(|state| transfer(time(), state, owner, args))
+    mutate(|state| transfer(state, time(), owner, args))
 }
 
 fn transfer(
-    now: u64,
     state: &mut State,
+    now: u64,
     owner: Principal,
     args: TransferArgs,
 ) -> Result<u128, TransferError> {
@@ -182,6 +182,13 @@ fn transfer(
         memo,
         ..
     } = args;
+
+    if state.voted_on_pending_proposal(owner) {
+        return Err(TransferError::GenericError(GenericError {
+            error_code: 1,
+            message: "transfers locked: a vote on a pending proposal detected".to_string(),
+        }));
+    }
 
     // check the time
     let effective_time = created_at_time.unwrap_or(now);
@@ -253,8 +260,8 @@ pub fn account(owner: Principal) -> Account {
 pub fn mint(state: &mut State, account: Account, tokens: Token) {
     let now = time();
     let _result = transfer(
-        now,
         state,
+        now,
         icrc1_minting_account().expect("no minting account").owner,
         TransferArgs {
             from_subaccount: None,
@@ -273,8 +280,8 @@ pub fn move_funds(state: &mut State, from: &Account, to: Account) -> Result<u128
     if balance > 0 {
         let fee = icrc1_fee();
         n = transfer(
-            time(),
             state,
+            time(),
             from.owner,
             TransferArgs {
                 from_subaccount: from.subaccount.clone(),
@@ -290,7 +297,7 @@ pub fn move_funds(state: &mut State, from: &Account, to: Account) -> Result<u128
     Ok(n)
 }
 
-pub fn transfer_from_ui(state: &State, recipient: String, amount: String) -> Result<u64, String> {
+pub fn user_transfer(state: &State, recipient: String, amount: String) -> Result<u64, String> {
     let minted_supply: Token = state.balances.values().sum();
 
     if minted_supply * 100 < CONFIG.supply_threshold_for_transfer_percentage * CONFIG.total_supply {
@@ -336,6 +343,8 @@ pub fn transfer_from_ui(state: &State, recipient: String, amount: String) -> Res
 
 #[cfg(test)]
 mod tests {
+    use crate::env::proposals::{Proposal, Status};
+
     use super::*;
 
     fn pr(n: u8) -> Principal {
@@ -346,10 +355,12 @@ mod tests {
     #[test]
     fn test_transfers() {
         let mut state = State::default();
+        env::tests::create_user(&mut state, pr(0));
+
         assert_eq!(
             transfer(
-                1000 * MINUTE,
                 &mut state,
+                1000 * MINUTE,
                 pr(0),
                 TransferArgs {
                     from_subaccount: None,
@@ -367,8 +378,8 @@ mod tests {
 
         assert_eq!(
             transfer(
-                100 * MINUTE,
                 &mut state,
+                100 * MINUTE,
                 pr(0),
                 TransferArgs {
                     from_subaccount: None,
@@ -384,8 +395,8 @@ mod tests {
 
         assert_eq!(
             transfer(
-                100 * MINUTE,
                 &mut state,
+                100 * MINUTE,
                 pr(0),
                 TransferArgs {
                     from_subaccount: None,
@@ -403,10 +414,40 @@ mod tests {
 
         state.balances.insert(account(pr(0)), 1000);
 
+        // Create an open proposal with a pending vote
+        state.proposals.push(Proposal {
+            proposer: 0,
+            bulletins: vec![(0, true, 1)],
+            status: Status::Open,
+            ..Default::default()
+        });
+
         assert_eq!(
             transfer(
-                time(),
                 &mut state,
+                time(),
+                pr(0),
+                TransferArgs {
+                    from_subaccount: None,
+                    to: account(pr(1)),
+                    amount: 500,
+                    fee: Some(1),
+                    memo: None,
+                    created_at_time: None
+                }
+            ),
+            Err(TransferError::GenericError(GenericError {
+                error_code: 1,
+                message: "transfers locked: a vote on a pending proposal detected".to_string(),
+            })),
+        );
+
+        state.proposals.clear();
+
+        assert_eq!(
+            transfer(
+                &mut state,
+                time(),
                 pr(0),
                 TransferArgs {
                     from_subaccount: None,
@@ -424,8 +465,8 @@ mod tests {
 
         assert_eq!(
             transfer(
-                time(),
                 &mut state,
+                time(),
                 pr(0),
                 TransferArgs {
                     from_subaccount: None,
@@ -446,8 +487,8 @@ mod tests {
 
         assert_eq!(
             transfer(
-                time(),
                 &mut state,
+                time(),
                 pr(0),
                 TransferArgs {
                     from_subaccount: None,

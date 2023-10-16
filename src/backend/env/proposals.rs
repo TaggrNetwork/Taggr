@@ -53,7 +53,7 @@ pub struct Proposal {
     pub status: Status,
     pub payload: Payload,
     pub bulletins: Vec<(UserId, bool, Token)>,
-    voting_power: Token,
+    pub voting_power: Token,
 }
 
 impl Proposal {
@@ -243,14 +243,19 @@ pub fn propose(
     mut payload: Payload,
     time: u64,
 ) -> Result<u32, String> {
-    let user = state.principal_to_user(caller).ok_or("user not found")?;
+    payload.validate(state.minting_ratio())?;
+    let user = state
+        .principal_to_user_mut(caller)
+        .ok_or("proposer user not found")?;
     if !user.stalwart {
         return Err("only stalwarts can create proposals".to_string());
     }
     if description.is_empty() {
         return Err("description is empty".to_string());
     }
-    payload.validate(state.minting_ratio())?;
+    if !user.realms.contains(&CONFIG.dao_realm.to_owned()) {
+        user.realms.push(CONFIG.dao_realm.to_owned());
+    }
     let proposer = user.id;
     let proposer_name = user.name.clone();
     // invalidate some previous proposals depending on their type
@@ -548,7 +553,7 @@ mod tests {
             // check error cases on voting
             assert_eq!(
                 propose(state, pr(111), "".into(), Payload::Noop, 0),
-                Err("user not found".to_string())
+                Err("proposer user not found".to_string())
             );
             assert_eq!(
                 propose(state, proposer, "".into(), Payload::Noop, 0),

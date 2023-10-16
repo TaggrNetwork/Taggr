@@ -291,7 +291,7 @@ fn transfer_icp() {
 fn transfer_tokens() {
     mutate(|state| {
         let (recipient, amount): (String, String) = parse(&arg_data_raw());
-        reply(token::transfer_from_ui(state, recipient, amount))
+        reply(token::user_transfer(state, recipient, amount))
     });
 }
 
