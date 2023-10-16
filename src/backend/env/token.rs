@@ -297,8 +297,8 @@ pub fn move_funds(state: &mut State, from: &Account, to: Account) -> Result<u128
     Ok(n)
 }
 
-pub fn user_transfer(state: &State, recipient: String, amount: String) -> Result<u64, String> {
-    let minted_supply: Token = state.balances.values().sum();
+pub fn user_transfer(recipient: String, amount: String) -> Result<u64, String> {
+    let minted_supply: Token = read(|state| state.balances.values().sum());
 
     if minted_supply * 100 < CONFIG.supply_threshold_for_transfer_percentage * CONFIG.total_supply {
         return Err(format!(

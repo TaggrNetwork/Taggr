@@ -289,10 +289,8 @@ fn transfer_icp() {
 
 #[export_name = "canister_update transfer_tokens"]
 fn transfer_tokens() {
-    mutate(|state| {
-        let (recipient, amount): (String, String) = parse(&arg_data_raw());
-        reply(token::user_transfer(state, recipient, amount))
-    });
+    let (recipient, amount): (String, String) = parse(&arg_data_raw());
+    reply(token::user_transfer(recipient, amount))
 }
 
 #[export_name = "canister_update mint_cycles"]

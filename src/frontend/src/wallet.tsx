@@ -222,8 +222,7 @@ const shortenPrincipal = (principal: string) => {
 };
 
 export const Wallet = () => {
-    const [mintStatus, setMintStatus] = React.useState("");
-    const [transferStatus, setTransferStatus] = React.useState("");
+    const [user, setUser] = React.useState(window.user);
     const mintCycles = async (kilo_cycles: number) =>
         await window.api.call("mint_cycles", kilo_cycles);
     const [transactions, setTransactions] = React.useState(
@@ -243,8 +242,6 @@ export const Wallet = () => {
     React.useEffect(() => {
         loadTransactions();
     }, []);
-
-    const user = window.user;
 
     if (!user) return <Welcome />;
     let { token_symbol, token_decimals, name } = window.backendCache.config;
@@ -284,33 +281,26 @@ export const Wallet = () => {
                                 amount,
                             );
                             await window.reloadUser();
+                            setUser(window.user);
                             if ("Err" in result) {
                                 alert(`Error: ${result.Err}`);
                                 return;
                             }
-                            setTransferStatus("DONE!");
                         }}
                     />
                 </div>
                 <div className="vcentered">
-                    {!transferStatus && (
-                        <code className="max_width_col">
-                            <CopyToClipboard
-                                value={user.account}
-                                displayMap={(val) => (
-                                    <IcpAccountLink
-                                        label={
-                                            bigScreen() ? val : val.slice(0, 16)
-                                        }
-                                        address={user.account}
-                                    />
-                                )}
-                            />
-                        </code>
-                    )}
-                    {transferStatus && (
-                        <code className="max_width_col">{transferStatus}</code>
-                    )}
+                    <code className="max_width_col">
+                        <CopyToClipboard
+                            value={user.account}
+                            displayMap={(val) => (
+                                <IcpAccountLink
+                                    label={bigScreen() ? val : val.slice(0, 16)}
+                                    address={user.account}
+                                />
+                            )}
+                        />
+                    </code>
                     <code data-testid="icp-amount">
                         <ICPAccountBalance
                             heartbeat={new Date()}
@@ -352,16 +342,14 @@ export const Wallet = () => {
                             const invoice = result.Ok;
                             if (invoice.paid) {
                                 await window.reloadUser();
+                                setUser(window.user);
                             }
-                            setMintStatus("SUCCESS!");
                         }}
                         label="MINT"
                     />
                 </div>
                 <div className="vcentered">
-                    <div className="max_width_col">
-                        {mintStatus && <code>{mintStatus}</code>}
-                    </div>
+                    <div className="max_width_col"></div>
                     <code className="xx_large_text" data-testid="cycles-amount">
                         {user.cycles.toLocaleString()}
                     </code>
@@ -399,6 +387,7 @@ export const Wallet = () => {
                                 return;
                             }
                             await window.reloadUser();
+                            setUser(window.user);
                         }}
                     />
                 </div>
