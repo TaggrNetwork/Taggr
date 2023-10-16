@@ -106,7 +106,7 @@ pub struct Stats {
 pub struct Realm {
     logo: String,
     pub description: String,
-    pub controllers: Vec<UserId>,
+    pub controllers: BTreeSet<UserId>,
     pub label_color: String,
     theme: String,
     pub num_posts: u64,
@@ -367,6 +367,17 @@ impl State {
                 "CRITICAL".into(),
             ),
         }
+        if !self.realms.contains_key(CONFIG.dao_realm) {
+            self.realms.insert(
+                CONFIG.dao_realm.to_string(),
+                Realm {
+                    description:
+                        "The default DAO realm. Stalwarts are added and removed by default."
+                            .to_string(),
+                    ..Default::default()
+                },
+            );
+        }
         self.last_upgrade = time();
         self.last_hourly_chores = time();
     }
@@ -436,7 +447,7 @@ impl State {
         label_color: String,
         theme: String,
         description: String,
-        controllers: Vec<UserId>,
+        controllers: BTreeSet<UserId>,
     ) -> Result<(), String> {
         let user_id = self
             .principal_to_user_mut(principal)
@@ -468,7 +479,7 @@ impl State {
         label_color: String,
         theme: String,
         description: String,
-        controllers: Vec<UserId>,
+        controllers: BTreeSet<UserId>,
     ) -> Result<(), String> {
         if controllers.is_empty() {
             return Err("no controllers specified".into());
@@ -489,7 +500,10 @@ impl State {
             return Err("realm name should have at least on character".into());
         }
 
-        if CONFIG.name.to_lowercase() == name.to_lowercase() || self.realms.contains_key(&name) {
+        if CONFIG.name.to_lowercase() == name.to_lowercase()
+            || self.realms.contains_key(&name)
+            || CONFIG.dao_realm.to_lowercase() == name.to_lowercase()
+        {
             return Err("realm name taken".into());
         }
 
@@ -1448,6 +1462,9 @@ impl State {
         let mut stalwart_seats = users.len() * CONFIG.stalwart_percentage / 100;
         let mut left = Vec::new();
         let mut joined = Vec::new();
+        let mut left_logs = Vec::new();
+        let mut joined_logs = Vec::new();
+
         for u in users {
             if u.is_bot()
                 || !u.trusted()
@@ -1467,7 +1484,8 @@ impl State {
                 // User is qualified but seats left or they lost karma
                 (true, true, true, 0) | (true, _, false, _) => {
                     u.stalwart = false;
-                    left.push(format!("@{} (karma)", u.name));
+                    left.push(u.id);
+                    left_logs.push(format!("@{} (karma)", u.name));
                 }
                 // A user is qualified and is already a stalwart and seats available
                 (true, true, true, _) => {
@@ -1476,12 +1494,14 @@ impl State {
                 // A user is a stalwart but became inactive
                 (true, false, _, _) => {
                     u.stalwart = false;
-                    left.push(format!("@{} (inactivity)", u.name));
+                    left.push(u.id);
+                    left_logs.push(format!("@{} (inactivity)", u.name));
                 }
                 // A user is not a stalwart, but qualified and there are seats left
                 (false, true, true, seats) if seats > 0 => {
                     u.stalwart = true;
-                    joined.push(format!("@{}", u.name));
+                    joined.push(u.id);
+                    joined_logs.push(format!("@{}", u.name));
                     stalwart_seats = stalwart_seats.saturating_sub(1);
                     u.notify(format!(
                         "Congratulations! You are a {} stalwart now!",
@@ -1496,17 +1516,26 @@ impl State {
             return;
         }
 
+        if let Some(realm) = self.realms.get_mut(CONFIG.dao_realm) {
+            for user_id in joined {
+                realm.controllers.insert(user_id);
+            }
+            for user_id in left {
+                realm.controllers.remove(&user_id);
+            }
+        }
+
         self.logger.info(format!(
             "Stalwart election ⚔️: {} joined; {} have left; `{}` seats vacant.",
-            if joined.is_empty() {
+            if joined_logs.is_empty() {
                 "no new users".to_string()
             } else {
-                joined.join(", ")
+                joined_logs.join(", ")
             },
-            if left.is_empty() {
+            if left_logs.is_empty() {
                 "no users".to_string()
             } else {
-                left.join(", ")
+                left_logs.join(", ")
             },
             stalwart_seats
         ));
@@ -2792,7 +2821,7 @@ pub(crate) mod tests {
 
             let name = "TAGGRDAO".to_string();
             let description = "Test description".to_string();
-            let controllers = vec![_u0];
+            let controllers: BTreeSet<_> = vec![_u0].into_iter().collect();
 
             // simple creation and description change edge cases
             assert_eq!(
@@ -2844,7 +2873,7 @@ pub(crate) mod tests {
                     Default::default(),
                     Default::default(),
                     description.clone(),
-                    vec![]
+                    Default::default(),
                 ),
                 Err("no controllers specified".to_string())
             );
@@ -2906,7 +2935,7 @@ pub(crate) mod tests {
                     Default::default(),
                     Default::default(),
                     new_description.clone(),
-                    vec![]
+                    Default::default()
                 ),
                 Err("no controllers specified".to_string())
             );
@@ -3280,7 +3309,7 @@ pub(crate) mod tests {
                     Default::default(),
                     Default::default(),
                     Default::default(),
-                    vec![post_author_id],
+                    vec![post_author_id].into_iter().collect(),
                 )
                 .is_ok());
             state.toggle_realm_membership(p, "TESTREALM".into());
@@ -3715,6 +3744,15 @@ pub(crate) mod tests {
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
+            state.load();
+
+            assert!(state.realms.contains_key(CONFIG.dao_realm));
+            assert!(state
+                .realms
+                .get(CONFIG.dao_realm)
+                .unwrap()
+                .controllers
+                .is_empty());
 
             let now = CONFIG.min_stalwart_account_age_weeks as u64 * WEEK;
 
@@ -3740,6 +3778,12 @@ pub(crate) mod tests {
                 state.users.values().filter(|u| u.stalwart).count(),
                 CONFIG.stalwart_percentage * 2
             );
+            assert!(!state
+                .realms
+                .get(CONFIG.dao_realm)
+                .unwrap()
+                .controllers
+                .is_empty());
         })
     }
 

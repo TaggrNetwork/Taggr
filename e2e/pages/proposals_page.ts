@@ -56,6 +56,9 @@ export class ProposalsPage {
         proposalContent: string,
     ): Promise<ProposalElement> {
         const proposal = this.proposals.filter({ hasText: proposalContent });
-        return new ProposalElement(this.page, proposal);
+        return new ProposalElement(
+            this.page,
+            proposal.getByTestId("extension-proposal"),
+        );
     }
 }

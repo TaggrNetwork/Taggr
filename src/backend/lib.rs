@@ -505,7 +505,7 @@ fn edit_realm() {
             String,
             String,
             String,
-            Vec<UserId>,
+            BTreeSet<UserId>,
         ) = parse(&arg_data_raw());
         reply(state.edit_realm(
             caller(),
@@ -536,7 +536,7 @@ fn create_realm() {
             String,
             String,
             String,
-            Vec<UserId>,
+            BTreeSet<UserId>,
         ) = parse(&arg_data_raw());
         reply(state.create_realm(
             caller(),

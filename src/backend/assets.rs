@@ -1,6 +1,5 @@
 use crate::{config::CONFIG, metadata::set_index_metadata};
 use base64::{engine::general_purpose, Engine as _};
-use ic_cdk::id;
 use ic_certified_map::{labeled, labeled_hash, AsHashTree, Hash, RbTree};
 use serde_bytes::ByteBuf;
 use sha2::{Digest, Sha256};
@@ -80,7 +79,7 @@ pub fn load() {
     );
 
     let mut domains = Vec::from(CONFIG.domains);
-    let can_domain = format!("{}.ic0.app", id());
+    let can_domain = format!("{}.ic0.app", super::id());
     domains.push(&can_domain);
     add_asset(
         &["/.well-known/ii-alternative-origins"],
@@ -107,6 +106,14 @@ pub fn load() {
         domains.join("\n").as_bytes().to_vec(),
     );
 
+    set_certified_data(&labeled_hash(LABEL, &asset_hashes().root_hash()));
+}
+
+#[allow(unused_variables)]
+pub fn set_certified_data(data: &[u8]) {
+    #[cfg(test)]
+    return;
+    #[cfg(not(test))]
     ic_cdk::api::set_certified_data(&labeled_hash(LABEL, &asset_hashes().root_hash()));
 }
 

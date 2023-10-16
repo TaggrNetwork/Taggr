@@ -33,6 +33,8 @@ pub struct Config {
     pub proposal_controversy_threashold: u16,
     pub proposal_rejection_penalty: Cycles,
 
+    pub dao_realm: &'static str,
+
     pub min_cycle_balance_main: u64,
 
     pub max_bucket_size: u64,
@@ -149,6 +151,8 @@ pub const CONFIG: &Config = &Config {
     supply_threshold_for_transfer_percentage: 20,
 
     karma_donation_decline_percentage: 15,
+
+    dao_realm: "DAO",
 
     #[cfg(feature = "dev")]
     proposal_approval_threshold: 1,

@@ -341,6 +341,7 @@ export const Proposal = ({ id, postId }) => {
         <div
             key={proposal.timestamp}
             className="post_extension column_container monospace"
+            data-testid="extension-proposal"
         >
             <div className="bottom_half_spaced">ID: {proposal.id}</div>
             <div className="bottom_half_spaced">
