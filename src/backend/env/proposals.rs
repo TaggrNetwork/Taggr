@@ -275,7 +275,7 @@ pub fn propose(
         caller,
         time,
         None,
-        None,
+        Some(CONFIG.dao_realm.to_owned()),
         Some(Extension::Proposal(id)),
     )?;
 
