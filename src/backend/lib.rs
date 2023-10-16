@@ -99,12 +99,37 @@ fn post_upgrade() {
     set_timers();
 
     // temporary post upgrade logic goes here
-    // set_timer(std::time::Duration::from_secs(1), move || {
-    //     spawn(post_upgrade_fixtures())
-    // });
+    set_timer(std::time::Duration::from_secs(1), move || {
+        spawn(post_upgrade_fixtures())
+    });
 }
 
-// async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    mutate(|state| {
+        let oldname = "TAGGRDAO";
+        let value = state.realms.remove(oldname).unwrap();
+        state.realms.insert(CONFIG.dao_realm.to_owned(), value);
+        for post_id in 0..state.next_post_id.saturating_sub(1) {
+            Post::mutate(state, &post_id, |post| {
+                if post.realm == Some(oldname.to_owned()) {
+                    post.realm = Some(CONFIG.dao_realm.to_owned());
+                }
+                Ok(())
+            })
+            .unwrap();
+        }
+        let dao_realm = state.realms.get_mut(CONFIG.dao_realm).unwrap();
+        for user in state.users.values_mut() {
+            if user.realms.contains(&oldname.to_owned()) {
+                user.realms.retain(|name| name != &oldname.to_owned());
+                user.realms.push(CONFIG.dao_realm.to_string());
+            }
+            if user.stalwart {
+                dao_realm.controllers.insert(user.id);
+            }
+        }
+    })
+}
 
 /*
  * UPDATES
