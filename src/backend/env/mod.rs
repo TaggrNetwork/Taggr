@@ -947,16 +947,32 @@ impl State {
         let mut minters = Vec::new();
         let base = 10_u64.pow(CONFIG.token_decimals as u32);
         let ratio = self.minting_ratio();
+
+        let total_tokens_to_mint: u64 = karma.values().map(|karma| *karma / ratio * base).sum();
+
+        if ratio > 1
+            && total_tokens_to_mint * 100 / circulating_supply > CONFIG.minting_threshold_percentage
+        {
+            self.logger.info(format!(
+                "Skipping minting: `{}` tokens exceed the configured threshold of `{}`% of existing supply.",
+                total_tokens_to_mint, CONFIG.minting_threshold_percentage
+            ));
+            return;
+        }
+
         for (user_id, user_karma) in karma {
             let minted = user_karma / ratio * base;
             if minted == 0 {
                 continue;
             }
             // This is a circuit breaker to avoid unforeseen side-effectsdue to hacks or bugs.
-            if ratio > 1 && minted * 100 / circulating_supply > 2 {
+            if ratio > 1
+                && minted * 100 / circulating_supply
+                    > CONFIG.individual_minting_threshold_percentage
+            {
                 self.logger.info(format!(
-                    "Skiping minting of {} tokens for user_id={} due to a too high minting amount.",
-                    minted, user_id
+                    "Minting skipped: `{}` tokens for user_id=`{}` exceed the configured threshold of `{}`% of existing supply.",
+                    minted, user_id, CONFIG.individual_minting_threshold_percentage
                 ));
                 continue;
             }
@@ -2470,10 +2486,19 @@ pub(crate) mod tests {
             // Test circuit breaking
             let mut karma = HashMap::new();
             karma.insert(3, 301);
-            karma.insert(4, 30_000);
+            karma.insert(4, 60_000);
+            state.mint(karma.clone());
+
+            // Tokens were not minted to to circuit breaking
+            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 30100);
+            assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 40100);
+
+            // Imitate a healthy minting grow by increasing the supply
+            state.balances.insert(minting_acc.clone(), 20000000);
             state.mint(karma);
+
             // Tokens were minted for user 3
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 45100);
+            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 33800);
             // Tokens were not minted for user 4
             assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 40100);
         })

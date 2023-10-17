@@ -23,6 +23,9 @@ pub struct Config {
 
     pub native_cycles_per_xdr: Cycles,
 
+    pub individual_minting_threshold_percentage: u64,
+    pub minting_threshold_percentage: u64,
+
     pub min_treasury_balance_xdrs: u64,
 
     pub supply_threshold_for_transfer_percentage: u64,
@@ -144,6 +147,9 @@ pub const CONFIG: &Config = &Config {
     native_cycles_per_xdr: 1000,
 
     min_treasury_balance_xdrs: 38, // ~$50
+
+    individual_minting_threshold_percentage: 1,
+    minting_threshold_percentage: 5,
 
     #[cfg(feature = "dev")]
     supply_threshold_for_transfer_percentage: 10,
