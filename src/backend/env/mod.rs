@@ -772,20 +772,30 @@ impl State {
         };
         self.users
             .iter()
-            .filter_map(|(id, User { name, about, .. })| {
-                if format!("@{} {0} {} {}", name, id, about)
-                    .to_lowercase()
-                    .contains(&term)
-                {
-                    return Some(SearchResult {
-                        id: *id,
-                        relevant: about.clone(),
-                        result: "user".to_string(),
-                        ..Default::default()
-                    });
-                }
-                None
-            })
+            .filter_map(
+                |(
+                    id,
+                    User {
+                        name,
+                        about,
+                        previous_names,
+                        ..
+                    },
+                )| {
+                    if format!("@{} {0} {} {} {:?}", name, id, about, previous_names)
+                        .to_lowercase()
+                        .contains(&term)
+                    {
+                        return Some(SearchResult {
+                            id: *id,
+                            relevant: about.clone(),
+                            result: "user".to_string(),
+                            ..Default::default()
+                        });
+                    }
+                    None
+                },
+            )
             .chain(self.realms.iter().filter_map(|(id, realm)| {
                 if id.to_lowercase().contains(&term) {
                     return Some(SearchResult {
@@ -1647,11 +1657,12 @@ impl State {
 
     pub fn validate_username(&self, name: &str) -> Result<(), String> {
         let name = name.to_lowercase();
-        if self
-            .users
-            .values()
-            .any(|user| user.name.to_lowercase() == name)
-        {
+        if self.users.values().any(|user| {
+            std::iter::once(&user.name)
+                .chain(user.previous_names.iter())
+                .map(|name| name.to_lowercase())
+                .any(|existing_name| existing_name == name)
+        }) {
             return Err("taken".into());
         }
         if name.len() < 2 || name.len() > 16 {
@@ -1803,9 +1814,11 @@ impl State {
             .ok()
             .and_then(|id| self.users.get(&id))
             .or_else(|| {
-                self.users
-                    .values()
-                    .find(|user| user.name.to_lowercase() == handle.to_lowercase())
+                self.users.values().find(|user| {
+                    std::iter::once(&user.name)
+                        .chain(user.previous_names.iter())
+                        .any(|name| name.to_lowercase() == handle.to_lowercase())
+                })
             })
     }
 
@@ -2375,6 +2388,49 @@ pub(crate) mod tests {
             u.apply_rewards();
         }
         id
+    }
+
+    #[actix_rt::test]
+    async fn test_name_change() {
+        let id = STATE.with(|cell| {
+            cell.replace(Default::default());
+            let state = &mut *cell.borrow_mut();
+            create_user_with_params(state, pr(0), "peter", false, 10000)
+        });
+
+        let user = read(|state| state.users.get(&id).unwrap().clone());
+        assert_eq!(user.name, "peter".to_string());
+        assert!(user.previous_names.is_empty());
+
+        // update with wrong principal
+        assert!(User::update(
+            pr(1),
+            Some("john".into()),
+            Default::default(),
+            vec![],
+            Default::default()
+        )
+        .is_err());
+
+        // correct update
+        assert!(User::update(
+            pr(0),
+            Some("john".into()),
+            Default::default(),
+            vec![],
+            Default::default()
+        )
+        .is_ok());
+
+        let user = read(|state| state.users.get(&id).unwrap().clone());
+        assert_eq!(user.name, "john".to_string());
+        assert_eq!(user.previous_names.as_slice(), &["peter"]);
+
+        // The old name is reserved now
+        assert_eq!(
+            State::create_user(pr(2), "peter".into(), None).await,
+            Err("taken".to_string())
+        );
     }
 
     #[test]

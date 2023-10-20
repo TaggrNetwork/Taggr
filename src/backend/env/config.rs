@@ -63,6 +63,8 @@ pub struct Config {
     pub poll_cost: Cycles,
     pub realm_cost: Cycles,
 
+    pub name_change_cost: Cycles,
+
     pub max_realm_name: usize,
     pub max_realm_logo_len: usize,
 
@@ -208,6 +210,8 @@ pub const CONFIG: &Config = &Config {
     blob_cost: 10,
     poll_cost: 3,
     realm_cost: 1000,
+
+    name_change_cost: 1000,
 
     max_realm_name: 12,
     max_realm_logo_len: 16 * 1024,

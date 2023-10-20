@@ -82,8 +82,9 @@ pub struct User {
     #[serde(skip)]
     pub draft: Option<Draft>,
     pub filters: Filters,
-    #[serde(default)]
     pub karma_donations: BTreeMap<UserId, u32>,
+    #[serde(default)]
+    pub previous_names: Vec<String>,
 }
 
 impl User {
@@ -125,6 +126,7 @@ impl User {
             draft: None,
             filters: Default::default(),
             karma_donations: Default::default(),
+            previous_names: Default::default(),
         }
     }
 
@@ -135,12 +137,6 @@ impl User {
                 .last_posts(Principal::anonymous(), None, true)
                 .filter(move |post| post.user == id),
         )
-    }
-
-    pub fn update(&mut self, about: String, principals: Vec<String>, settings: String) {
-        self.about = about;
-        self.settings = settings;
-        self.controllers = principals;
     }
 
     pub fn toggle_bookmark(&mut self, post_id: PostId) -> bool {
@@ -405,6 +401,56 @@ impl User {
             )?;
         }
         Ok(())
+    }
+
+    pub fn update(
+        caller: Principal,
+        new_name: Option<String>,
+        about: String,
+        principals: Vec<String>,
+        settings: String,
+    ) -> Result<(), String> {
+        if !User::valid_info(&about, &settings) {
+            return Err("invalid user info".to_string());
+        }
+        if read(|state| {
+            state
+                .users
+                .values()
+                .filter(|user| user.principal != caller)
+                .flat_map(|user| user.controllers.iter())
+                .collect::<BTreeSet<_>>()
+                .intersection(&principals.iter().collect())
+                .count()
+        }) > 0
+        {
+            return Err("controller already assigned to another user".into());
+        }
+
+        mutate(|state| {
+            let user = state.principal_to_user(caller).ok_or("user not found")?;
+            let user_id = user.id;
+            let old_name = user.name.clone();
+            if let Some(name) = &new_name {
+                state.validate_username(name)?;
+                state.charge(user_id, CONFIG.name_change_cost, "name change")?;
+                state
+                    .logger
+                    .info(format!("@{} changed name to @{} ", old_name, name));
+            }
+            if let Some(user) = state.principal_to_user_mut(caller) {
+                user.about = about;
+                user.settings = settings;
+                user.controllers = principals;
+                if let Some(name) = new_name {
+                    user.previous_names.push(user.name.clone());
+                    user.name = name;
+                }
+                Ok(())
+            } else {
+                Err("no user found".into())
+            }
+        })
     }
 }
 

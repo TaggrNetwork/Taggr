@@ -83,6 +83,7 @@ export type User = {
     last_activity: BigInt;
     settings: { theme: string };
     realms: string[];
+    previous_names: string[];
     karma: number;
     report?: Report;
     stalwart: boolean;
@@ -119,6 +120,11 @@ export type Theme = {
     accent: string;
 };
 
+export type Result = {
+    Error: string;
+    Ok: any;
+};
+
 declare global {
     interface Window {
         authClient: AuthClient;
@@ -150,6 +156,7 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                name_change_cost: number;
                 realm_cleanup_penalty: number;
                 max_realm_name: number;
                 max_realm_logo_len: number;

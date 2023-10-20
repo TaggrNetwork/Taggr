@@ -193,33 +193,15 @@ fn change_principal() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    mutate(|state| {
-        let (about, principals, settings): (String, Vec<String>, String) = parse(&arg_data_raw());
-        let mut response: Result<(), String> = Ok(());
-        if !User::valid_info(&about, &settings) {
-            response = Err("invalid user info".to_string());
-            reply(response);
-            return;
-        }
-        let principal = caller();
-        if state
-            .users
-            .values()
-            .filter(|user| user.principal != principal)
-            .flat_map(|user| user.controllers.iter())
-            .collect::<BTreeSet<_>>()
-            .intersection(&principals.iter().collect())
-            .count()
-            > 0
-        {
-            response = Err("controller already assigned to another user".into());
-        } else if let Some(user) = state.principal_to_user_mut(principal) {
-            user.update(about, principals, settings);
-        } else {
-            response = Err("no user found".into());
-        }
-        reply(response);
-    });
+    let (new_name, about, principals, settings): (String, String, Vec<String>, String) =
+        parse(&arg_data_raw());
+    reply(User::update(
+        caller(),
+        optional(new_name),
+        about,
+        principals,
+        settings,
+    ))
 }
 
 #[export_name = "canister_update create_user"]
