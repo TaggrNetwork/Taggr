@@ -953,7 +953,7 @@ impl State {
         if ratio > 1
             && total_tokens_to_mint * 100 / circulating_supply > CONFIG.minting_threshold_percentage
         {
-            self.logger.info(format!(
+            self.logger.error(format!(
                 "Skipping minting: `{}` tokens exceed the configured threshold of `{}`% of existing supply.",
                 total_tokens_to_mint, CONFIG.minting_threshold_percentage
             ));
@@ -965,12 +965,12 @@ impl State {
             if minted == 0 {
                 continue;
             }
-            // This is a circuit breaker to avoid unforeseen side-effectsdue to hacks or bugs.
+            // This is a circuit breaker to avoid unforeseen side-effects due to hacks or bugs.
             if ratio > 1
                 && minted * 100 / circulating_supply
                     > CONFIG.individual_minting_threshold_percentage
             {
-                self.logger.info(format!(
+                self.logger.error(format!(
                     "Minting skipped: `{}` tokens for user_id=`{}` exceed the configured threshold of `{}`% of existing supply.",
                     minted, user_id, CONFIG.individual_minting_threshold_percentage
                 ));
