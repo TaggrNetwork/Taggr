@@ -382,7 +382,6 @@ pub(super) fn execute_proposal(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
 
     use super::*;
     use crate::{
@@ -514,7 +513,6 @@ mod tests {
             let state = &mut *cell.borrow_mut();
 
             // create voters, make each of them earn some karma
-            let mut eligigble = HashMap::default();
             for i in 1..11 {
                 let p = pr(i);
                 let id = create_user(state, p);
@@ -522,11 +520,10 @@ mod tests {
                 user.change_karma(1000, "test");
                 assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
                 assert!(user.trusted());
-                eligigble.insert(id, user.karma_to_reward());
             }
 
             // mint tokens
-            state.mint(eligigble);
+            state.mint();
             assert_eq!(state.ledger.len(), 10);
 
             // make sure the karma accounting was correct
@@ -690,19 +687,17 @@ mod tests {
             let state = &mut *cell.borrow_mut();
 
             // create voters, make each of them earn some karma
-            let mut eligigble = HashMap::default();
             for i in 1..=3 {
                 let p = pr(i);
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(100, "test");
                 assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
-                eligigble.insert(id, user.karma_to_reward());
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
             // mint tokens
-            state.mint(eligigble);
+            state.mint();
 
             let prop_id = propose(state, pr(1), "test".into(), Payload::Noop, time())
                 .expect("couldn't propose");
@@ -741,19 +736,17 @@ mod tests {
             let state = &mut *cell.borrow_mut();
 
             // create voters, make each of them earn some karma
-            let mut eligigble = HashMap::new();
             for i in 1..=5 {
                 let p = pr(i);
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(100, "test");
                 assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
-                eligigble.insert(id, user.karma_to_reward());
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
             // mint tokens
-            state.mint(eligigble);
+            state.mint();
 
             let prop_id =
                 propose(state, pr(1), "test".into(), Payload::Noop, 0).expect("couldn't propose");
@@ -788,19 +781,17 @@ mod tests {
             let state = &mut *cell.borrow_mut();
 
             // create voters, make each of them earn some karma
-            let mut eligigble = HashMap::new();
             for i in 1..=2 {
                 let p = pr(i);
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(100 * (1 << i), "test");
                 assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
-                eligigble.insert(id, user.karma_to_reward());
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
             // mint tokens
-            state.mint(eligigble);
+            state.mint();
 
             let prop_id = propose(
                 state,
@@ -829,20 +820,18 @@ mod tests {
             let state = &mut *cell.borrow_mut();
 
             // create voters, make each of them earn some karma
-            let mut eligigble = HashMap::new();
             for i in 1..=3 {
                 let p = pr(i);
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(100 * (1 << i), "test");
                 assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
-                eligigble.insert(id, user.karma_to_reward());
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
             state.principal_to_user_mut(pr(2)).unwrap().stalwart = true;
 
             // mint tokens
-            state.mint(eligigble);
+            state.mint();
 
             // Case 1: all agree
             let prop_id = propose(

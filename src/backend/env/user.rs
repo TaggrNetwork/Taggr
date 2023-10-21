@@ -376,18 +376,14 @@ impl User {
         self.karma
     }
 
-    pub fn top_up_cycles_from_karma(&mut self) -> Result<(), String> {
+    pub fn top_up_cycles_from_karma(&mut self) -> Result<Cycles, String> {
         let cycles_needed = CONFIG.native_cycles_per_xdr.saturating_sub(self.cycles());
-        let top_up = cycles_needed.min(self.rewarded_karma);
+        let top_up = cycles_needed.min(self.rewarded_karma) as Cycles;
         if top_up == 0 {
-            return Ok(());
+            return Ok(0);
         }
-        self.change_karma(-(top_up as Karma), "cycles top-up from karma");
-        self.change_cycles(
-            top_up as Cycles,
-            CyclesDelta::Plus,
-            "cycles top-up from karma",
-        )
+        self.change_cycles(top_up, CyclesDelta::Plus, "cycles top-up from karma")
+            .map(|_| top_up)
     }
 
     pub fn top_up_cycles_from_revenue(
@@ -463,8 +459,8 @@ mod tests {
         // rewards are enough
         user.cycles = 980;
         user.rewarded_karma = 30;
-        user.top_up_cycles_from_karma().unwrap();
-        assert_eq!(user.rewarded_karma, 10);
+        let cycles = user.top_up_cycles_from_karma().unwrap();
+        assert_eq!(cycles, 20);
         let mut revenue = 2000_0000;
         user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
@@ -474,8 +470,8 @@ mod tests {
         // rewards are still enough
         user.cycles = 0;
         user.rewarded_karma = 3000;
-        user.top_up_cycles_from_karma().unwrap();
-        assert_eq!(user.rewarded_karma, 2000);
+        let cycles = user.top_up_cycles_from_karma().unwrap();
+        assert_eq!(cycles, 1000);
         let mut revenue = 2000_0000;
         user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
@@ -485,8 +481,8 @@ mod tests {
         // rewards are not enough
         user.cycles = 0;
         user.rewarded_karma = 500;
-        user.top_up_cycles_from_karma().unwrap();
-        assert_eq!(user.rewarded_karma, 0);
+        let cycles = user.top_up_cycles_from_karma().unwrap();
+        assert_eq!(cycles, 500);
         let mut revenue = 2000_0000;
         user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
@@ -496,8 +492,8 @@ mod tests {
         // rewards and revenue not enough
         user.cycles = 0;
         user.rewarded_karma = 500;
-        user.top_up_cycles_from_karma().unwrap();
-        assert_eq!(user.rewarded_karma, 0);
+        let cycles = user.top_up_cycles_from_karma().unwrap();
+        assert_eq!(cycles, 500);
         let mut revenue = 1000_0000;
         user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();

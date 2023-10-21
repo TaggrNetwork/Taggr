@@ -937,7 +937,13 @@ impl State {
         1 << factor
     }
 
-    pub fn mint(&mut self, karma: HashMap<UserId, u64>) {
+    pub fn mint(&mut self) {
+        let karma = self
+            .users
+            .values()
+            .filter(|user| user.karma() > 0)
+            .map(|user| (user.id, user.karma_to_reward()))
+            .collect::<HashMap<_, _>>();
         let circulating_supply: Token = self.balances.values().sum();
         if circulating_supply >= CONFIG.total_supply {
             return;
@@ -1043,20 +1049,19 @@ impl State {
     }
 
     pub fn collect_new_karma(&mut self) -> HashMap<UserId, u64> {
-        for user in self.users.values_mut() {
-            user.accounting.clear();
-        }
         self.users
             .values_mut()
             .filter(|u| u.karma_to_reward() > 0)
             .filter_map(|user| {
                 let karma = user.karma_to_reward();
-                let _ = user.top_up_cycles_from_karma();
-                user.apply_rewards();
-                if user.karma() < 0 {
-                    return None;
+                if let Ok(cycles) = user.top_up_cycles_from_karma() {
+                    user.apply_rewards();
+                    if user.karma() < 0 {
+                        return None;
+                    }
+                    return Some((user.id, karma - cycles));
                 }
-                Some((user.id, karma))
+                None
             })
             .collect()
     }
@@ -1102,12 +1107,12 @@ impl State {
 
     async fn distribute_icp(
         e8s_for_one_xdr: u64,
-        karma: &HashMap<UserId, u64>,
+        karma_to_reward: HashMap<UserId, u64>,
         revenue: HashMap<UserId, u64>,
     ) {
         let treasury_balance = invoices::main_account_balance().await.e8s();
         let debt = mutate(|state| {
-            let rewards = karma
+            let rewards = karma_to_reward
                 .iter()
                 .map(|(id, karma)| {
                     (
@@ -1401,7 +1406,8 @@ impl State {
 
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
-            let karma = match invoices::get_xdr_in_e8s().await {
+            mutate(|state| state.mint());
+            match invoices::get_xdr_in_e8s().await {
                 Ok(e8s_for_one_xdr) => {
                     let (karma, revenues) = mutate(|state| {
                         (
@@ -1409,8 +1415,7 @@ impl State {
                             state.collect_revenue(time(), e8s_for_one_xdr),
                         )
                     });
-                    State::distribute_icp(e8s_for_one_xdr, &karma, revenues).await;
-                    karma
+                    State::distribute_icp(e8s_for_one_xdr, karma, revenues).await;
                 }
                 Err(err) => {
                     mutate(|state| {
@@ -1421,7 +1426,6 @@ impl State {
                     return;
                 }
             };
-            mutate(|state| state.mint(karma));
         } else {
             mutate(|state| {
                 state
@@ -1433,6 +1437,7 @@ impl State {
 
     fn clean_up(&mut self, now: u64) {
         for user in self.users.values_mut() {
+            user.accounting.clear();
             if user.active_within_weeks(now, 1) {
                 user.active_weeks += 1;
                 if user.trusted() {
@@ -2451,11 +2456,18 @@ pub(crate) mod tests {
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
-            let mut karma = HashMap::new();
+
+            let karma_insert = |state: &mut State, user_id, karma| {
+                state
+                    .users
+                    .get_mut(&user_id)
+                    .unwrap()
+                    .change_karma(karma as Karma, "")
+            };
 
             for i in 0..5 {
                 create_user(state, pr(i));
-                karma.insert(i as u64, 1 + i as u64 * 100);
+                karma_insert(state, i as u64, 1 + i as u64 * 100);
             }
 
             let minting_acc = account(Principal::anonymous());
@@ -2463,13 +2475,13 @@ pub(crate) mod tests {
                 .balances
                 .insert(minting_acc.clone(), CONFIG.total_supply);
 
-            state.mint(karma.clone());
+            state.mint();
 
             // no minting hapened due to max supply
             assert_eq!(state.balances.len(), 1);
 
             state.balances.remove(&minting_acc);
-            state.mint(karma);
+            state.mint();
 
             assert_eq!(state.balances.len(), 5);
             assert_eq!(*state.balances.get(&account(pr(0))).unwrap(), 100);
@@ -2484,10 +2496,9 @@ pub(crate) mod tests {
             assert_eq!(state.minting_ratio(), 2);
 
             // Test circuit breaking
-            let mut karma = HashMap::new();
-            karma.insert(3, 301);
-            karma.insert(4, 60_000);
-            state.mint(karma.clone());
+            karma_insert(state, 3, 301);
+            karma_insert(state, 4, 60_000);
+            state.mint();
 
             // Tokens were not minted to to circuit breaking
             assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 30100);
@@ -2495,10 +2506,10 @@ pub(crate) mod tests {
 
             // Imitate a healthy minting grow by increasing the supply
             state.balances.insert(minting_acc.clone(), 20000000);
-            state.mint(karma);
+            state.mint();
 
             // Tokens were minted for user 3
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 33800);
+            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 37600);
             // Tokens were not minted for user 4
             assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 40100);
         })
@@ -2542,7 +2553,6 @@ pub(crate) mod tests {
 
             // create users each having trusted_user_min_karma + i*10, e.g.
             // user 1: 35, user 2: 45, user 3: 55, etc...
-            let mut eligigble = HashMap::default();
             for i in 1..11 {
                 let p = pr(i);
                 let id = create_user(state, p);
@@ -2557,11 +2567,10 @@ pub(crate) mod tests {
                     i as Karma * 10 + CONFIG.trusted_user_min_karma
                 );
                 assert!(user.trusted());
-                eligigble.insert(id, user.karma_to_reward());
             }
 
             // mint tokens
-            state.mint(eligigble);
+            state.mint();
             assert_eq!(state.ledger.len(), 10);
 
             let post_id = Post::create(
@@ -2619,19 +2628,17 @@ pub(crate) mod tests {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
-            let mut eligigble = HashMap::default();
             for i in 1..3 {
                 let p = pr(i);
-                let id = create_user(state, p);
+                create_user(state, p);
                 let user = state.principal_to_user_mut(pr(i)).unwrap();
                 user.change_karma(i as Karma * 111, "test");
                 assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
                 assert!(user.trusted());
-                eligigble.insert(id, user.karma_to_reward());
             }
 
             // mint tokens
-            state.mint(eligigble);
+            state.mint();
             assert_eq!(state.ledger.len(), 2);
             assert_eq!(*state.balances.get(&account(pr(1))).unwrap(), 11100);
 
