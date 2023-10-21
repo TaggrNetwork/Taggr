@@ -62,14 +62,14 @@ export const Profile = ({ handle }: { handle: string }) => {
     const showReport =
         profile.report && !profile.report.closed && user && user.stalwart;
     const karma_from_last_posts: [UserId, number][] = Object.entries(
-        profile.karma_from_last_posts
+        profile.karma_from_last_posts,
     )
         .filter(([_, karma]) => karma >= 0)
         .map(([user_id, karma]) => [parseInt(user_id), karma]);
     karma_from_last_posts.sort(([_id1, e1], [_id2, e2]) => e2 - e1);
     const endorsementsTotal = karma_from_last_posts.reduce(
         (acc, [_, karma]) => acc + karma,
-        0
+        0,
     );
 
     const title = (
@@ -144,13 +144,13 @@ export const Profile = ({ handle }: { handle: string }) => {
                                         onClick={async () => {
                                             const amount = parseInt(
                                                 prompt(
-                                                    `Enter the amount (fee: 1 cycle)`
-                                                ) || ""
+                                                    `Enter the amount (fee: 1 cycle)`,
+                                                ) || "",
                                             );
                                             if (!amount) return;
                                             if (
                                                 !confirm(
-                                                    `You are transferring ${amount} cycles to @${profile.name}`
+                                                    `You are transferring ${amount} cycles to @${profile.name}`,
                                                 )
                                             )
                                                 return;
@@ -158,7 +158,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                                 await window.api.call<any>(
                                                     "transfer_cycles",
                                                     profile.id,
-                                                    amount
+                                                    amount,
                                                 );
                                             if ("Err" in result) {
                                                 alert(`Error: ${result.Err}`);
@@ -181,7 +181,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                             .call(
                                                 "toggle_filter",
                                                 "user",
-                                                profile.id.toString()
+                                                profile.id.toString(),
                                             )
                                             .then(window.reloadUser)
                                     }
@@ -213,7 +213,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                 ? karma_from_last_posts
                                 : karma_from_last_posts.slice(
                                       0,
-                                      bigScreen() ? 8 : 6
+                                      bigScreen() ? 8 : 6,
                                   )
                             ).map(([userId, karma]) => (
                                 <div key={userId} className="db_cell">
@@ -298,7 +298,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                 <code>
                                     {Math.max(
                                         0,
-                                        stalwartMinKarma() - profile.karma
+                                        stalwartMinKarma() - profile.karma,
                                     )}
                                 </code>
                             </div>
@@ -313,11 +313,11 @@ export const Profile = ({ handle }: { handle: string }) => {
                                                 7 *
                                                 daySeconds -
                                                 secondsSince(
-                                                    profile.timestamp
+                                                    profile.timestamp,
                                                 )) /
                                                 daySeconds /
-                                                7
-                                        )
+                                                7,
+                                        ),
                                     )}{" "}
                                     WEEKS
                                 </code>
@@ -329,7 +329,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                         0,
                                         window.backendCache.config
                                             .min_stalwart_activity_weeks -
-                                            profile.active_weeks
+                                            profile.active_weeks,
                                     )}{" "}
                                     WEEKS
                                 </code>
@@ -351,7 +351,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                         0,
                                         window.backendCache.config
                                             .trusted_user_min_karma -
-                                            profile.karma
+                                            profile.karma,
                                     )}
                                 </code>
                             </div>
@@ -365,10 +365,10 @@ export const Profile = ({ handle }: { handle: string }) => {
                                                 .trusted_user_min_age_weeks *
                                                 7 -
                                                 secondsSince(
-                                                    profile.timestamp
+                                                    profile.timestamp,
                                                 ) /
-                                                    daySeconds
-                                        )
+                                                    daySeconds,
+                                        ),
                                     )}{" "}
                                     DAYS
                                 </code>
@@ -389,18 +389,18 @@ export const Profile = ({ handle }: { handle: string }) => {
                             return await window.api.query(
                                 "user_tags",
                                 profile.name,
-                                page
+                                page,
                             );
                         if (tab == "REWARDED")
                             return await window.api.query(
                                 "rewarded_posts",
                                 profile.id.toString(),
-                                page
+                                page,
                             );
                         return await window.api.query(
                             "user_posts",
                             profile.id.toString(),
-                            page
+                            page,
                         );
                     }}
                     heartbeat={profile.id + tab}
@@ -417,7 +417,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
         status: boolean,
         unfold: any,
         label: number,
-        content: any
+        content: any,
     ) =>
         status ? (
             <div className="small_text">{content}</div>
@@ -439,7 +439,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     followeesVisible,
                     setFolloweesVisibility,
                     profile.followees.length,
-                    userList(profile.followees)
+                    userList(profile.followees),
                 )}
             </div>
         ) : null;
@@ -451,7 +451,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     followersVisible,
                     setFollowersVisibility,
                     profile.followers.length,
-                    userList(profile.followers)
+                    userList(profile.followers),
                 )}
             </div>
         ) : null;
@@ -465,7 +465,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                               {feedRepr}
                           </a>
                       );
-                  })
+                  }),
               )
             : null;
     const realms =
@@ -486,7 +486,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 <div className="bottom_spaced">
                     AKA:{" "}
                     {commaSeparated(
-                        profile.previous_names.map((handle) => <b>{handle}</b>)
+                        profile.previous_names.map((handle) => <b>{handle}</b>),
                     )}
                 </div>
             )}
@@ -571,7 +571,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                                 <a key={tag} href={`#/feed/${tag}`}>
                                     {tag}
                                 </a>
-                            ))
+                            )),
                         )}
                     </div>
                     <hr />
@@ -660,7 +660,7 @@ const stalwartMinKarma = () =>
         window.backendCache.config.proposal_rejection_penalty,
         window.backendCache.karma[
             window.backendCache.stats.stalwarts.at(-1) || 0
-        ] || 0
+        ] || 0,
     );
 
 const linkPost = (line: string) => {

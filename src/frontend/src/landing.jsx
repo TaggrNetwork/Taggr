@@ -32,7 +32,6 @@ export const Landing = () => {
     const [feed, setFeed] = React.useState(
         localStorage.getItem(FEED_KEY) || (realm ? "NEW" : "HOT"),
     );
-    const headline = `# WELCOME ABOARD\nof a **fully decentralized** social network.\n\n[WHITE PAPER &#x279C;](/#/whitepaper)`;
     const title = (
         <div className="text_centered vertically_spaced small_text">
             {[
@@ -62,7 +61,19 @@ export const Landing = () => {
     return (
         <>
             {!user && !realm && (
-                <Content value={headline} classNameArg="spaced text_centered" />
+                <div className="vertically_spaced text_centered">
+                    <h1>WELCOME ABOARD</h1>
+                    <span>
+                        of a <b>fully decentralized</b> social network.
+                    </span>
+                    <br />
+                    <br />
+                    <a href="#/whitepaper">WHITE PAPER</a>
+                    &nbsp;&middot;&nbsp;
+                    <a href="#/tokens">TOKENS</a>
+                    &nbsp;&middot;&nbsp;
+                    <a href="#/dashboard">DASHBOARD</a>
+                </div>
             )}
             <Search />
             {!user && !realm && (
@@ -117,8 +128,10 @@ const RealmsDashboard = () => {
                         classNameArg="clickable max_width_col medium_text monospace padded_rounded marginized"
                     />
                 ))}
+                <a className="vcentered padded_rounded" href="#/realms">
+                    MORE &#x279C;
+                </a>
             </div>
-            <a href="#/realms">ALL REALMS &#x279C;</a>
         </div>
     );
 };

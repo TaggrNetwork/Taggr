@@ -156,7 +156,7 @@ export const Dashboard = ({}) => {
                     </div>
                     <div className="db_cell">
                         <label>
-                            <Cycles /> REVENUE
+                            <Cycles /> WEEK'S REVENUE
                         </label>
                         {show(stats.burned_cycles)}
                     </div>

@@ -436,7 +436,7 @@ impl User {
                 state.charge(user_id, CONFIG.name_change_cost, "name change")?;
                 state
                     .logger
-                    .info(format!("@{} changed name to @{} ", old_name, name));
+                    .info(format!("@{} changed name to @{} 🪪", old_name, name));
             }
             if let Some(user) = state.principal_to_user_mut(caller) {
                 user.about = about;
