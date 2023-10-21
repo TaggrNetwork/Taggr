@@ -1456,6 +1456,8 @@ impl State {
                     .info("Skipping minting & distributions due to open proposals")
             });
         }
+
+        mutate(|state| state.charge_for_inactivity(now));
     }
 
     fn clean_up(&mut self, now: u64) {
@@ -1481,6 +1483,10 @@ impl State {
             }
             user.karma_donations.clear();
         }
+        self.accounting.clean_up();
+    }
+
+    fn charge_for_inactivity(&mut self, now: u64) {
         let mut inactive_users = 0;
         let mut cycles_total = 0;
         let inactive_user_balance_threshold = CONFIG.inactivity_penalty * 4;
@@ -1509,8 +1515,6 @@ impl State {
             "Charged `{}` inactive users with `{}` cycles.",
             inactive_users, cycles_total
         ));
-
-        self.accounting.clean_up();
     }
 
     fn recompute_stalwarts(&mut self, now: u64) {
@@ -3685,6 +3689,7 @@ pub(crate) mod tests {
             state.users.get_mut(&active_id).unwrap().last_activity = now;
 
             state.clean_up(now);
+            state.charge_for_inactivity(now);
 
             let penalty = CONFIG.inactivity_penalty;
 
