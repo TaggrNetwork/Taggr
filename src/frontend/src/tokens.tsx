@@ -3,6 +3,7 @@ import {
     ButtonWithLoading,
     CopyToClipboard,
     HeadBar,
+    icpCode,
     Loading,
     NotFound,
     percentage,
@@ -63,6 +64,18 @@ export const Tokens = () => {
     }, [txPage]);
 
     const mintedSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
+    const { total_supply, proposal_approval_threshold, transaction_fee } =
+        window.backendCache.config;
+    const balanceAmounts = balances.map(([_, balance]) => balance);
+    balanceAmounts.sort((a, b) => b - a);
+    let balancesTotal = balanceAmounts.length;
+    let vp = 0;
+    while (
+        balanceAmounts.length > 0 &&
+        (vp / mintedSupply) * 100 < proposal_approval_threshold
+    ) {
+        vp += balanceAmounts.shift() || 0;
+    }
     const userToPrincipal = balances.reduce(
         (acc, balance) => {
             const userName = window.backendCache.users[balance[2]];
@@ -71,8 +84,7 @@ export const Tokens = () => {
         },
         {} as { [name: string]: string },
     );
-    const { total_supply, proposal_approval_threshold } =
-        window.backendCache.config;
+    const { holders, revenue_per_1k_e8s } = window.backendCache.stats;
 
     switch (status) {
         case 0:
@@ -93,6 +105,13 @@ export const Tokens = () => {
                         TOTAL<code>{token(total_supply)}</code>
                     </div>
                     <div className="db_cell">
+                        HOLDERS<code>{holders}</code>
+                    </div>
+                    <div className="db_cell">
+                        REVENUE PER 10K
+                        {icpCode(BigInt(10 * Number(revenue_per_1k_e8s)), 4)}
+                    </div>
+                    <div className="db_cell">
                         MINTING RATIO
                         <code>
                             {1 <<
@@ -103,6 +122,23 @@ export const Tokens = () => {
                     <div className="db_cell">
                         APPROVAL THRESHOLD
                         <code>{proposal_approval_threshold}%</code>
+                    </div>
+                    <div className="db_cell">
+                        NAKAMOTO COEFF.
+                        <code>{balancesTotal - balanceAmounts.length}</code>
+                    </div>
+                    <div className="db_cell">
+                        TRANSFER FEE
+                        <code>
+                            {Number(
+                                transaction_fee /
+                                    Math.pow(
+                                        10,
+                                        window.backendCache.config
+                                            .token_decimals,
+                                    ),
+                            ).toLocaleString()}
+                        </code>
                     </div>
                 </div>
                 <h2>Top 100 token holders</h2>

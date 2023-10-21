@@ -70,6 +70,8 @@ pub struct Event {
 
 #[derive(Serialize, Deserialize)]
 pub struct Stats {
+    holders: usize,
+    revenue_per_1k_e8s: u64,
     team_tokens: HashMap<UserId, Token>,
     emergency_release: String,
     emergency_votes: Vec<Principal>,
@@ -162,6 +164,9 @@ pub struct State {
     pub last_nns_proposal: u64,
 
     pub root_posts: usize,
+
+    #[serde(default)]
+    e8s_for_one_xdr: u64,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -909,11 +914,7 @@ impl State {
         }
     }
 
-    pub fn collect_revenue(&self, now: u64, e8s_for_one_xdr: u64) -> HashMap<UserId, u64> {
-        let burned_cycles = self.burned_cycles;
-        if burned_cycles <= 0 {
-            return Default::default();
-        }
+    fn supply_of_active_users(&self, now: u64) -> (Vec<(UserId, Token)>, Token) {
         let active_user_balances = self
             .balances
             .iter()
@@ -929,6 +930,15 @@ impl State {
             .iter()
             .map(|(_, balance)| balance)
             .sum();
+        (active_user_balances, supply_of_active_users)
+    }
+
+    pub fn collect_revenue(&self, now: u64, e8s_for_one_xdr: u64) -> HashMap<UserId, u64> {
+        let burned_cycles = self.burned_cycles;
+        if burned_cycles <= 0 {
+            return Default::default();
+        }
+        let (active_user_balances, supply_of_active_users) = self.supply_of_active_users(now);
         active_user_balances
             .into_iter()
             .map(|(user_id, balance)| {
@@ -1228,7 +1238,7 @@ impl State {
         }
     }
 
-    fn daily_chores(now: u64) {
+    async fn daily_chores(now: u64) {
         mutate(|state| {
             for proposal_id in state
                 .proposals
@@ -1254,7 +1264,11 @@ impl State {
             }
 
             state.recompute_stalwarts(now);
-        })
+        });
+
+        if let Ok(e8s_for_one_xdr) = invoices::get_xdr_in_e8s().await {
+            mutate(|state| state.e8s_for_one_xdr = e8s_for_one_xdr);
+        }
     }
 
     fn archive_cold_data(&mut self) -> Result<(), String> {
@@ -1402,7 +1416,7 @@ impl State {
             mutate(|state| state.last_weekly_chores += WEEK);
         }
         if last_daily_chores + DAY < now {
-            State::daily_chores(now);
+            State::daily_chores(now).await;
             mutate(|state| state.last_daily_chores += DAY);
         }
         if last_hourly_chores + HOUR < now {
@@ -1433,7 +1447,6 @@ impl State {
                             .logger
                             .error(format!("Couldn't fetch ICP/XDR rate: {:?}", err))
                     });
-                    return;
                 }
             };
         } else {
@@ -1939,6 +1952,12 @@ impl State {
         let emergency_votes = self.emergency_votes.values().sum::<Token>() as f32
             / self.active_voting_power(time()).max(1) as f32
             * 100.0;
+        let (_, supply_of_active_users) = self.supply_of_active_users(now);
+        let revenue_share =
+            (1000 * 10_u64.pow(CONFIG.token_decimals as u32) * self.burned_cycles as u64) as f64
+                / supply_of_active_users as f64;
+        let revenue_per_1k_e8s = (revenue_share / CONFIG.native_cycles_per_xdr as f64
+            * self.e8s_for_one_xdr as f64) as u64;
         Stats {
             emergency_release: format!(
                 "Binary set: {}, votes: {}% (required: {}%)",
@@ -1946,6 +1965,8 @@ impl State {
                 emergency_votes as u32,
                 CONFIG.proposal_approval_threshold
             ),
+            holders: self.balances.len(),
+            revenue_per_1k_e8s,
             team_tokens: self.team_tokens.clone(),
             emergency_votes: self.emergency_votes.keys().cloned().collect(),
             meta: format!("Memory health: {}", self.memory.health("MB")),
@@ -3468,7 +3489,7 @@ pub(crate) mod tests {
             assert!(post_visible(state));
 
             // after muting with a filter we don't see the post and see again after unmuting
-            for (filter, value) in vec![
+            for (filter, value) in [
                 ("user", format!("{}", post_author_id).as_str()),
                 ("realm", "TESTREALM"),
                 ("tag", "abc"),

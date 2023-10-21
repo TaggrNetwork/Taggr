@@ -149,6 +149,8 @@ declare global {
             recent_tags: string[];
             realms: { [name: string]: [string, boolean] };
             stats: {
+                holders: number;
+                revenue_per_1k_e8s: BigInt;
                 canister_id: string;
                 team_tokens: { [name: UserId]: number };
                 last_upgrade: number;
@@ -163,6 +165,7 @@ declare global {
                 post_cost: number;
                 post_deletion_penalty_factor: number;
                 token_symbol: string;
+                transaction_fee: number;
                 total_supply: number;
                 proposal_approval_threshold: number;
                 name: string;
