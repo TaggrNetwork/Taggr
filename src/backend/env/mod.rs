@@ -360,10 +360,10 @@ impl State {
         let sender = self.users.get_mut(&sender_id).expect("no sender found");
         sender.change_cycles(amount + fee, CyclesDelta::Minus, log.to_string())?;
         let receiver = self.users.get_mut(&receiver_id).expect("no receiver found");
-        let amount = receiver.compute_karma_donation(sender_id, amount);
         self.burned_cycles += fee as i64;
         let result = match destination {
             Destination::Karma => {
+                let amount = receiver.compute_karma_donation(sender_id, amount);
                 receiver.change_karma(amount as Karma, log);
                 Ok(())
             }
@@ -2413,6 +2413,46 @@ pub(crate) mod tests {
             u.apply_rewards();
         }
         id
+    }
+
+    #[test]
+    fn test_cycle_transfer() {
+        STATE.with(|cell| {
+            cell.replace(Default::default());
+            let state = &mut *cell.borrow_mut();
+            let id1 = create_user_with_params(state, pr(0), "peter", false, 10000);
+            let id2 = create_user_with_params(state, pr(0), "peter", false, 0);
+
+            assert_eq!(state.users.get(&id2).unwrap().cycles(), 0);
+            state
+                .cycle_transfer(
+                    id1,
+                    id2,
+                    1000,
+                    CONFIG.cycle_transaction_fee,
+                    Destination::Cycles,
+                    "",
+                    None,
+                )
+                .unwrap();
+            assert_eq!(state.users.get(&id2).unwrap().cycles(), 1000);
+            state
+                .cycle_transfer(
+                    id1,
+                    id2,
+                    1000,
+                    CONFIG.cycle_transaction_fee,
+                    Destination::Cycles,
+                    "",
+                    None,
+                )
+                .unwrap();
+            assert_eq!(state.users.get(&id2).unwrap().cycles(), 2000);
+            assert_eq!(
+                state.users.get(&id1).unwrap().cycles(),
+                10000 - 2 * (1000 + CONFIG.cycle_transaction_fee)
+            );
+        });
     }
 
     #[actix_rt::test]
