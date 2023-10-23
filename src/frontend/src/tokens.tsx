@@ -128,7 +128,7 @@ export const Tokens = () => {
                         <code>{balancesTotal - balanceAmounts.length}</code>
                     </div>
                     <div className="db_cell">
-                        TRANSFER FEE
+                        TRANSACTION FEE
                         <code>
                             {Number(
                                 transaction_fee /

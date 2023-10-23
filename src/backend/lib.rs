@@ -229,7 +229,7 @@ fn transfer_cycles() {
                 sender.name, recipient_name
             ),
             Some(format!(
-                "You have received `{}` cycles from @{}.",
+                "You have received `{}` cycles from @{}",
                 amount, sender.name
             )),
         )
