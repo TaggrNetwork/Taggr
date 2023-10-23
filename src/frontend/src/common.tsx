@@ -642,10 +642,22 @@ export const intFromBEBytes = (bytes: number[]) =>
     bytes.reduce((acc, value) => acc * 256 + value, 0);
 
 export const intToBEBytes = (val: number) => {
+    function and(v1: number, v2: number) {
+        var hi = 0x80000000;
+        var low = 0x7fffffff;
+        var hi1 = ~~(v1 / hi);
+        var hi2 = ~~(v2 / hi);
+        var low1 = v1 & low;
+        var low2 = v2 & low;
+        var h = hi1 & hi2;
+        var l = low1 & low2;
+        return h * hi + l;
+    }
+
     const bytes = [0, 0, 0, 0, 0, 0, 0, 0];
     for (let index = bytes.length - 1; index >= 0; index--) {
-        bytes[index] = val & 0xff;
-        val = val >> 8;
+        bytes[index] = and(val, 0xff);
+        val = val / 256;
     }
     return bytes;
 };
