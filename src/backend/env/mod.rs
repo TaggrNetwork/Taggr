@@ -71,7 +71,8 @@ pub struct Event {
 #[derive(Serialize, Deserialize)]
 pub struct Stats {
     holders: usize,
-    revenue_per_1k_e8s: u64,
+    e8s_revenue_per_1k: u64,
+    e8s_for_one_xdr: u64,
     team_tokens: HashMap<UserId, Token>,
     emergency_release: String,
     emergency_votes: Vec<Principal>,
@@ -165,8 +166,10 @@ pub struct State {
 
     pub root_posts: usize,
 
-    #[serde(default)]
     e8s_for_one_xdr: u64,
+
+    #[serde(default)]
+    last_revenues: VecDeque<u64>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -1157,11 +1160,6 @@ impl State {
                 return 0;
             }
             let mut payments = Vec::default();
-            let bootcampers = state
-                .users
-                .values()
-                .filter_map(|u| (!u.trusted()).then_some(u.id))
-                .collect::<HashSet<_>>();
             let mut total_rewards = 0;
             let mut total_revenue = 0;
             for user in state.users.values_mut() {
@@ -1188,29 +1186,19 @@ impl State {
             }
             state.total_rewards_shared += total_rewards;
             state.total_revenue_shared += total_revenue;
+            let (_, supply_of_active_users) = state.supply_of_active_users(time());
+            let e8s_revenue_per_1k = total_revenue
+                / (supply_of_active_users / 1000 / 10_u64.pow(CONFIG.token_decimals as u32)).max(1);
+            state.last_revenues.push_back(e8s_revenue_per_1k);
+            while state.last_revenues.len() > 12 {
+                state.last_revenues.pop_front();
+            }
             state.logger.info(format!(
                 "Paid out `{}` ICP as rewards and `{}` ICP as revenue as follows: {}",
                 e8s_to_icp(total_rewards),
                 e8s_to_icp(total_revenue),
                 payments.join(", ")
             ));
-            let mut graduation_list = Vec::new();
-            for user in state
-                .users
-                .values_mut()
-                .filter_map(|u| (u.trusted() && bootcampers.contains(&u.id)).then_some(u))
-            {
-                graduation_list.push(format!("@{}", user.name));
-                user.notify(
-                    "Congratulation! 🎉 You graduated from the bootcamp and became a trusted user!",
-                );
-            }
-            if !graduation_list.is_empty() {
-                state.logger.info(format!(
-                    "These users graduated from the bootcamp 🎉: {}",
-                    graduation_list.join(", ")
-                ));
-            }
             total_rewards + total_revenue
         });
 
@@ -1956,12 +1944,6 @@ impl State {
         let emergency_votes = self.emergency_votes.values().sum::<Token>() as f32
             / self.active_voting_power(time()).max(1) as f32
             * 100.0;
-        let (_, supply_of_active_users) = self.supply_of_active_users(now);
-        let revenue_share =
-            (1000 * 10_u64.pow(CONFIG.token_decimals as u32) * self.burned_cycles as u64) as f64
-                / supply_of_active_users as f64;
-        let revenue_per_1k_e8s = (revenue_share / CONFIG.native_cycles_per_xdr as f64
-            * self.e8s_for_one_xdr as f64) as u64;
         Stats {
             emergency_release: format!(
                 "Binary set: {}, votes: {}% (required: {}%)",
@@ -1970,7 +1952,9 @@ impl State {
                 CONFIG.proposal_approval_threshold
             ),
             holders: self.balances.len(),
-            revenue_per_1k_e8s,
+            e8s_for_one_xdr: self.e8s_for_one_xdr,
+            e8s_revenue_per_1k: self.last_revenues.iter().sum::<u64>()
+                / self.last_revenues.len().max(1) as u64,
             team_tokens: self.team_tokens.clone(),
             emergency_votes: self.emergency_votes.keys().cloned().collect(),
             meta: format!("Memory health: {}", self.memory.health("MB")),

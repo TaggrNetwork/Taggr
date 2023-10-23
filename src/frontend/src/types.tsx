@@ -150,7 +150,8 @@ declare global {
             realms: { [name: string]: [string, boolean] };
             stats: {
                 holders: number;
-                revenue_per_1k_e8s: BigInt;
+                e8s_for_one_xdr: BigInt;
+                e8s_revenue_per_1k: BigInt;
                 canister_id: string;
                 team_tokens: { [name: UserId]: number };
                 last_upgrade: number;

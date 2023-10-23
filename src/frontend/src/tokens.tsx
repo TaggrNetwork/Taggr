@@ -3,7 +3,6 @@ import {
     ButtonWithLoading,
     CopyToClipboard,
     HeadBar,
-    icpCode,
     Loading,
     NotFound,
     percentage,
@@ -84,7 +83,8 @@ export const Tokens = () => {
         },
         {} as { [name: string]: string },
     );
-    const { holders, revenue_per_1k_e8s } = window.backendCache.stats;
+    const { holders, e8s_for_one_xdr, e8s_revenue_per_1k } =
+        window.backendCache.stats;
 
     switch (status) {
         case 0:
@@ -108,8 +108,15 @@ export const Tokens = () => {
                         HOLDERS<code>{holders}</code>
                     </div>
                     <div className="db_cell">
-                        REVENUE PER 10K
-                        {icpCode(BigInt(10 * Number(revenue_per_1k_e8s)), 4)}
+                        WEEKLY REVENUE (10K TOKENS)
+                        <code>
+                            $
+                            {(
+                                ((Number(e8s_revenue_per_1k) * 10) /
+                                    Number(e8s_for_one_xdr)) *
+                                1.31
+                            ).toLocaleString()}
+                        </code>
                     </div>
                     <div className="db_cell">
                         MINTING RATIO
