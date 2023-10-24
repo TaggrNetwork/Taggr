@@ -1263,6 +1263,9 @@ impl State {
     }
 
     async fn handle_nns_proposals(now: u64) {
+        #[cfg(feature = "staging")]
+        return;
+
         // Vote on proposals if pending ones exist
         for (proposal_id, post_id) in read(|state| state.pending_nns_proposals.clone()) {
             if let Some(Extension::Poll(poll)) = read(|state| {
@@ -2252,7 +2255,8 @@ impl State {
 
         let log = format!("reaction to post {}", post_id);
         // If the user is untrusted, they can only upvote, but this does not affect author's karma.
-        if !user.trusted() {
+        // We skip this check if the project is in the bootstrap phase and has too few users.
+        if self.users.len() as u32 > CONFIG.bootstrap_phase_user_number && !user.trusted() {
             if delta < 0 {
                 return Err("bootcamp users can't downvote".into());
             }
@@ -3758,6 +3762,10 @@ pub(crate) mod tests {
             let lurker_id = create_user(state, p);
             create_user(state, p2);
             create_user(state, p3);
+            // add more users to skip the bootstrapping phase
+            for i in 4..CONFIG.bootstrap_phase_user_number {
+                create_user(state, pr(i as u8));
+            }
             let farmer_id = create_untrusted_user(state, pr(111));
             let c = CONFIG;
             assert_eq!(state.burned_cycles as Cycles, c.post_cost);

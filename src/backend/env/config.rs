@@ -111,6 +111,8 @@ pub struct Config {
 
     pub post_deletion_penalty_factor: u32,
 
+    pub bootstrap_phase_user_number: u32,
+
     #[serde(with = "string")]
     pub neuron_id: u64,
 }
@@ -153,6 +155,11 @@ pub const CONFIG: &Config = &Config {
     individual_minting_threshold_percentage: 1,
     minting_threshold_percentage: 5,
 
+    #[cfg(not(feature = "dev"))]
+    bootstrap_phase_user_number: 25,
+    #[cfg(feature = "dev")]
+    bootstrap_phase_user_number: 0,
+
     #[cfg(feature = "dev")]
     supply_threshold_for_transfer_percentage: 10,
     #[cfg(not(feature = "dev"))]
@@ -167,7 +174,11 @@ pub const CONFIG: &Config = &Config {
     #[cfg(not(feature = "dev"))]
     proposal_approval_threshold: 66,
     proposal_controversy_threashold: 10,
+
+    #[cfg(not(feature = "staging"))]
     proposal_rejection_penalty: 500,
+    #[cfg(feature = "staging")]
+    proposal_rejection_penalty: 50,
 
     total_supply: 100_000_000,
 
@@ -228,8 +239,16 @@ pub const CONFIG: &Config = &Config {
     voting_power_activity_weeks: 8,
 
     stalwart_percentage: 3,
+    #[cfg(not(feature = "staging"))]
     min_stalwart_activity_weeks: 6,
+    #[cfg(feature = "staging")]
+    min_stalwart_activity_weeks: 1,
+
+    #[cfg(not(feature = "staging"))]
     min_stalwart_account_age_weeks: 26,
+    #[cfg(feature = "staging")]
+    min_stalwart_account_age_weeks: 1,
+
     stalwart_moderation_reward: 20,
 
     hot_post_engagement_percentage: 0.01,

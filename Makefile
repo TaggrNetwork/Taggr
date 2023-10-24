@@ -3,7 +3,7 @@ start:
 
 deploy_staging:
 	NODE_ENV=production DFX_NETWORK=staging make fe
-	./build.sh bucket
+	FEATURES=staging dfx build
 	dfx --identity prod deploy --network staging taggr
 
 deploy_local:
