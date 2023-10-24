@@ -83,10 +83,12 @@ export const PostView = ({
     );
     const [showInfo, toggleInfo] = React.useState(false);
     const [safeToOpen, setSafeToOpen] = React.useState(false);
+    const [forceCollapsing, setForceCollapsing] = React.useState(false);
     const [commentIncoming, setCommentIncoming] = React.useState(false);
     const [reactionTimer, setReactionTimer] = React.useState(null);
 
     const refPost = React.useRef();
+    const refArticle = React.useRef();
 
     const loadData = async (preloadedData?: Post) => {
         const data = preloadedData || (await loadPosts([id])).pop();
@@ -105,6 +107,13 @@ export const PostView = ({
     React.useEffect(() => {
         loadData(data);
     }, [id, version]);
+
+    React.useEffect(() => {
+        const article: any = refArticle.current;
+        setForceCollapsing(
+            article && article.scrollHeight > article.clientHeight,
+        );
+    }, []);
 
     if (!post) {
         if (notFound) return <NotFound />;
@@ -310,6 +319,8 @@ export const PostView = ({
                 )}
                 {!isNSFW && (
                     <article
+                        // @ts-ignore
+                        ref={refArticle}
                         onClick={(e) => goInside(e)}
                         className={prime ? "prime" : undefined}
                     >
@@ -323,6 +334,7 @@ export const PostView = ({
                             blobs={blobs}
                             collapse={!expanded}
                             primeMode={isRoot(post) && !repost}
+                            forceCollapsing={forceCollapsing}
                         />
                     </article>
                 )}

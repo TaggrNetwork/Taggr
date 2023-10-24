@@ -107,6 +107,7 @@ export const Content = ({
     preview,
     primeMode,
     classNameArg,
+    forceCollapsing,
 }: {
     post?: boolean;
     blogTitle?: BlogTitle;
@@ -116,6 +117,7 @@ export const Content = ({
     preview?: boolean;
     primeMode?: boolean;
     classNameArg?: string;
+    forceCollapsing?: boolean;
 }) => {
     const [urls, setUrls] = React.useState({});
 
@@ -128,6 +130,16 @@ export const Content = ({
                 className={classNameArg}
             />
         );
+
+    if (forceCollapsing) {
+        const lines = value.split("\n");
+        value =
+            (lines[0].length < 256
+                ? lines[0]
+                : lines[0].slice(0, 256) + " ...") +
+            CUT +
+            lines.slice(1).join("\n");
+    }
 
     let cutPos = value.indexOf(CUT);
     let shortened = cutPos >= 0;

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Content, CUT } from "./content";
+import { Content } from "./content";
 import {
     bigScreen,
     blobToUrl,
@@ -80,11 +80,6 @@ export const Form = ({
     const previewAtLeft = bigScreen() && !comment;
 
     const handleSubmit = async () => {
-        let parts = value.trim().split(CUT);
-        if (parts.length > 1 && parts[0].length > parts[1].length) {
-            alert("The cut is not placed after the introductory part.");
-            return false;
-        }
         if (value.length == 0 || value.length > max_post_length) {
             alert(
                 `Post length should be larger than 0 and shorter than ${max_post_length} characters.`,
