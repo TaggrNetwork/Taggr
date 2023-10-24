@@ -74,8 +74,6 @@ pub struct Stats {
     e8s_revenue_per_1k: u64,
     e8s_for_one_xdr: u64,
     team_tokens: HashMap<UserId, Token>,
-    emergency_release: String,
-    emergency_votes: Vec<Principal>,
     weekly_karma_leaders: Vec<(UserId, u64)>,
     users: usize,
     bootcamp_users: usize,
@@ -1904,6 +1902,22 @@ impl State {
         &self.logger.events
     }
 
+    pub fn recovery_state(&self) -> (String, Vec<Principal>) {
+        let emergency_votes = self.emergency_votes.values().sum::<Token>() as f32
+            / self.active_voting_power(time()).max(1) as f32
+            * 100.0;
+        let emergency_release = format!(
+            "Binary set: {}, votes: {}% (required: {}%)",
+            !self.emergency_binary.is_empty(),
+            emergency_votes as u32,
+            CONFIG.proposal_approval_threshold
+        );
+        (
+            emergency_release,
+            self.emergency_votes.keys().cloned().collect(),
+        )
+    }
+
     pub fn stats(&self, now: u64) -> Stats {
         let mut stalwarts = Vec::new();
         let mut weekly_karma_leaders = Vec::new();
@@ -1941,22 +1955,12 @@ impl State {
         weekly_karma_leaders.sort_unstable_by_key(|k| k.1);
         weekly_karma_leaders = weekly_karma_leaders.into_iter().rev().take(12).collect();
         let posts = self.root_posts;
-        let emergency_votes = self.emergency_votes.values().sum::<Token>() as f32
-            / self.active_voting_power(time()).max(1) as f32
-            * 100.0;
         Stats {
-            emergency_release: format!(
-                "Binary set: {}, votes: {}% (required: {}%)",
-                !self.emergency_binary.is_empty(),
-                emergency_votes as u32,
-                CONFIG.proposal_approval_threshold
-            ),
             holders: self.balances.len(),
             e8s_for_one_xdr: self.e8s_for_one_xdr,
             e8s_revenue_per_1k: self.last_revenues.iter().sum::<u64>()
                 / self.last_revenues.len().max(1) as u64,
             team_tokens: self.team_tokens.clone(),
-            emergency_votes: self.emergency_votes.keys().cloned().collect(),
             meta: format!("Memory health: {}", self.memory.health("MB")),
             weekly_karma_leaders,
             bootcamp_users,

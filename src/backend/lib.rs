@@ -973,6 +973,11 @@ fn logs() {
     read(|state| reply(state.logs()));
 }
 
+#[export_name = "canister_query recovery_state"]
+fn recovery_state() {
+    read(|state| reply(state.recovery_state()));
+}
+
 #[export_name = "canister_query stats"]
 fn stats() {
     read(|state| reply(state.stats(api::time())));
