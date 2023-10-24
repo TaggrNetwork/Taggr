@@ -434,7 +434,7 @@ export const Loading = ({
         <div
             className={`${classNameArg} ${
                 spaced ? "vertically_spaced" : ""
-            } accent small_text text_centered left_spaced right_spaced`}
+            } accent small_text no_wrap text_centered left_spaced right_spaced`}
             data-testid="loading-spinner"
         >
             {[md, md, md].map((v, i) =>
