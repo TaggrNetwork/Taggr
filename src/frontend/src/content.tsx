@@ -12,6 +12,11 @@ function mod(n: number, m: number) {
     return ((n % m) + m) % m;
 }
 
+const fadeInPicture = (pic: HTMLImageElement) => {
+    pic.className = "fadein";
+    setTimeout(() => (pic.className = ""), 150);
+};
+
 const previewImg = (
     src: string,
     id: string,
@@ -36,8 +41,9 @@ const previewImg = (
         const pos = gallery.indexOf(id);
         if (pos < 0) return;
         const newId = gallery[mod(pos + (next ? 1 : -1), gallery.length)];
-        pic.src = urls[newId];
         id = newId;
+        fadeInPicture(pic);
+        pic.src = urls[newId];
     };
 
     pic.onclick = (event) => {
@@ -45,6 +51,7 @@ const previewImg = (
         slide(next);
     };
     preview.appendChild(pic);
+    fadeInPicture(pic);
 
     const closePreview = () => (preview.style.display = "none");
 
