@@ -8,7 +8,6 @@ import {
     Loading,
     ReactionToggleButton,
 } from "./common";
-import { Poll } from "./poll";
 import {
     Bars,
     Code,
@@ -22,20 +21,37 @@ import {
     Table,
 } from "./icons";
 import { PostView } from "./post";
+import { Extension, Poll as PollType, PostId } from "./types";
+import { Poll } from "./poll";
 
 const MAX_IMG_SIZE = 16777216;
 const MAX_SUGGESTED_TAGS = 5;
 
 export const Form = ({
-    postId = null,
+    postId,
     comment,
-    realmArg = "",
+    realmArg,
     expanded,
     submitCallback,
     writingCallback = () => {},
-    repost = null,
+    repost,
     blobs,
     content,
+}: {
+    postId?: PostId;
+    comment?: boolean;
+    realmArg?: string;
+    expanded?: boolean;
+    submitCallback: (
+        value: string,
+        blobs: [string, Uint8Array][],
+        extension?: Extension,
+        realm?: string,
+    ) => Promise<boolean>;
+    writingCallback: (arg: string) => void;
+    repost?: PostId;
+    blobs?: { [id: string]: Uint8Array };
+    content?: string;
 }) => {
     const draftKey = `draft_for_${comment ? "comment" : "post"}_${postId}`;
     const [value, setValue] = React.useState("");
@@ -43,39 +59,27 @@ export const Form = ({
     const [submitting, setSubmitting] = React.useState(false);
     const [lines, setLines] = React.useState(3);
     const [dragAndDropping, setDragAndDropping] = React.useState(false);
-    const [tmpBlobs, setTmpBlobs] = React.useState([]);
+    const [tmpBlobs, setTmpBlobs] = React.useState<{
+        [name: string]: Uint8Array;
+    }>({});
     const [busy, setBusy] = React.useState(false);
-    const [poll, setPoll] = React.useState(null);
+    const [poll, setPoll] = React.useState<PollType>();
     const [showTextField, setShowTextField] = React.useState(
         !!localStorage.getItem(draftKey) || expanded,
     );
-    const [suggestedTags, setSuggestedTags] = React.useState([]);
-    const [suggestedUsers, setSuggestedUsers] = React.useState([]);
-    const [choresTimer, setChoresTimer] = React.useState(null);
+    const [suggestedTags, setSuggestedTags] = React.useState<string[]>([]);
+    const [suggestedUsers, setSuggestedUsers] = React.useState<string[]>([]);
+    const [choresTimer, setChoresTimer] = React.useState<any>(null);
     const [cursor, setCursor] = React.useState(0);
     const textarea = React.useRef();
     const form = React.useRef();
     const tags = window.backendCache.recent_tags;
     const users = Object.values(window.backendCache.users);
-    const { max_post_length, max_blob_size_bytes } = backendCache.config;
+    const { max_post_length, max_blob_size_bytes } = window.backendCache.config;
 
     const previewAtLeft = bigScreen() && !comment;
 
     const handleSubmit = async () => {
-        let cutElement = ref.current?.getElementsByTagName("hr")[0];
-        const postHasCut = value.trim().includes(CUT);
-        const cutOffset =
-            cutElement?.offsetTop -
-            (previewAtLeft ? 0 : form.current?.clientHeight);
-        if (
-            (postHasCut && cutOffset > window.innerHeight) ||
-            (!postHasCut && ref.current?.clientHeight > window.innerHeight)
-        ) {
-            alert(
-                "Your post does not fit on screen without scrolling.\n\nPlease add three empty lines after the introductory part to hide the rest of the post.",
-            );
-            return false;
-        }
         let parts = value.trim().split(CUT);
         if (parts.length > 1 && parts[0].length > parts[1].length) {
             alert("The cut is not placed after the introductory part.");
@@ -88,12 +92,16 @@ export const Form = ({
             return false;
         }
         setSubmitting(true);
-        const blobArrays = Object.keys(tmpBlobs).reduce((acc, id) => {
-            if (value.includes(`(/blob/${id})`)) {
-                acc.push([id, [...tmpBlobs[id]]]);
-            }
-            return acc;
-        }, []);
+        const blobArrays = Object.keys(tmpBlobs).reduce(
+            (acc, id) => {
+                if (value.includes(`(/blob/${id})`)) {
+                    // @ts-ignore
+                    acc.push([id, [...tmpBlobs[id]]]);
+                }
+                return acc;
+            },
+            [] as [string, Uint8Array][],
+        );
         if (
             (value.match(/!\[.*?\]\(\/blob\/.*?\)/g) || []).length !=
             blobArrays.length
@@ -102,7 +110,7 @@ export const Form = ({
                 "You're referencing pictures that are not attached anymore. Please re-upload.",
             );
             setSubmitting(false);
-            return;
+            return false;
         } else {
             let extension;
             if (poll) {
@@ -125,14 +133,15 @@ export const Form = ({
             }
         }
         setSubmitting(false);
+        return true;
     };
 
-    const dragOverHandler = (ev) => {
+    const dragOverHandler = (ev: any) => {
         setDragAndDropping(true);
         ev.preventDefault();
     };
 
-    const dropHandler = async (ev) => {
+    const dropHandler = async (ev: any) => {
         ev.preventDefault();
         setBusy(true);
         const files = (ev.dataTransfer || ev.target).files;
@@ -165,9 +174,9 @@ export const Form = ({
                     }
                 }
             const size = Math.ceil(resized_content.byteLength / 1024);
-            resized_content = new Uint8Array(resized_content);
-            let key = await hash(resized_content);
-            tmpBlobs[key] = resized_content;
+            const resized_content_bytes = new Uint8Array(resized_content);
+            let key = await hash(resized_content_bytes);
+            tmpBlobs[key] = resized_content_bytes;
             setTmpBlobs(tmpBlobs);
             image = await loadImage(resized_content);
             fileLinks.push(
@@ -183,9 +192,10 @@ export const Form = ({
         setBusy(false);
     };
 
-    const onValueChange = (value) => {
+    const onValueChange = (value: string) => {
         setValue(value);
         clearTimeout(choresTimer);
+        // @ts-ignore
         const cursor = textarea.current?.selectionStart - 1;
         const suggestedTags = suggestTokens(cursor, value, tags, "#");
         setSuggestedTags(suggestedTags);
@@ -197,7 +207,8 @@ export const Form = ({
         writingCallback(value);
     };
 
-    const maybeInsertSuggestion = (event) => {
+    const maybeInsertSuggestion = (event: any) => {
+        // @ts-ignore
         let pos = textarea.current?.selectionStart;
         setCursor(pos);
         if (event.charCode == 13) {
@@ -212,8 +223,9 @@ export const Form = ({
         }
     };
 
-    const insertSuggestion = (event, trigger, token) => {
+    const insertSuggestion = (event: any, trigger: string, token: string) => {
         event.preventDefault();
+        // @ts-ignore
         const cursor = textarea.current?.selectionStart;
         let i;
         for (i = cursor; value[i] != trigger; i--) {}
@@ -224,12 +236,15 @@ export const Form = ({
     };
 
     const setFocus = () => {
+        // @ts-ignore
         if (textarea.current && !content) textarea.current.focus();
     };
 
     const id = `form_${postId}_${lines}`;
 
-    React.useEffect(() => setTmpBlobs(blobs || []), [blobs]);
+    React.useEffect(() => {
+        if (blobs) setTmpBlobs(blobs);
+    }, [blobs]);
     React.useEffect(() => setRealm(realmArg), [realmArg]);
     React.useEffect(() => {
         const effContent = content || localStorage.getItem(draftKey) || "";
@@ -257,6 +272,7 @@ export const Form = ({
 
     const preview = (
         <article
+            // @ts-ignore
             ref={ref}
             className={`bottom_spaced max_width_col ${
                 postId == null ? "prime" : ""
@@ -270,7 +286,11 @@ export const Form = ({
                 primeMode={postId == null}
             />
             {poll && (
-                <Poll poll={poll} created={Number(new Date()) * 1000000} />
+                <Poll
+                    post_id={null}
+                    poll={poll}
+                    created={Number(new Date()) * 1000000}
+                />
             )}
             {isRepost &&
                 React.useMemo(
@@ -286,12 +306,12 @@ export const Form = ({
         </article>
     );
 
-    const formButton = (content, map) => (
+    const formButton = (content: JSX.Element, map: (arg: string) => string) => (
         <button
             className="max_width_col"
             onClick={(e) => {
                 e.preventDefault();
-                const element = textarea.current;
+                const element: any = textarea.current;
                 const start = element.selectionStart;
                 const end = element.selectionEnd;
                 const selection = element.value.substring(start, end);
@@ -305,7 +325,7 @@ export const Form = ({
         </button>
     );
     const user = window.user;
-    const totalCosts = costs(value, poll ? 1 : 0);
+    const totalCosts = costs(value, !!poll);
     const tooExpensive = user.cycles < totalCosts;
 
     return (
@@ -329,6 +349,7 @@ export const Form = ({
             )}
             {showTextField && (
                 <form
+                    // @ts-ignore
                     ref={form}
                     className={`${
                         submitting ? "inactive" : ""
@@ -348,44 +369,61 @@ export const Form = ({
                                 {formButton(<b>B</b>, (v) => `**${v}**`)}
                                 {formButton(<i>I</i>, (v) => `_${v}_`)}
                                 {formButton(<s>S</s>, (v) => `~${v}~`)}
-                                {formButton(<List />, (v) =>
+                                {formButton(<List classNameArg={null} />, (v) =>
                                     v
                                         .split("\n")
                                         .map((line) => "- " + line)
                                         .join("\n"),
                                 )}
-                                {formButton(<ListNumbered />, (v) =>
-                                    v
-                                        .split("\n")
-                                        .map((line, i) => i + 1 + ". " + line)
-                                        .join("\n"),
-                                )}
-                                {formButton(<Quote />, (v) => `> ${v}`)}
                                 {formButton(
-                                    <Link />,
+                                    <ListNumbered classNameArg={null} />,
+                                    (v) =>
+                                        v
+                                            .split("\n")
+                                            .map(
+                                                (line, i) =>
+                                                    i + 1 + ". " + line,
+                                            )
+                                            .join("\n"),
+                                )}
+                                {formButton(
+                                    <Quote classNameArg={null} />,
+                                    (v) => `> ${v}`,
+                                )}
+                                {formButton(
+                                    <Link classNameArg={null} />,
                                     (v) => `[${v}](${prompt("URL:")})`,
                                 )}
                                 {formButton(
-                                    <Pic />,
-                                    (v) =>
+                                    <Pic classNameArg={null} />,
+                                    () =>
                                         `![${prompt("Image name")}](${prompt(
                                             "URL",
                                         )})`,
                                 )}
-                                {formButton(<Code />, (v) => `\`${v}\``)}
-                                {formButton(<Table />, (_) => tableTemplate)}
+                                {formButton(
+                                    <Code classNameArg={null} />,
+                                    (v) => `\`${v}\``,
+                                )}
+                                {formButton(
+                                    <Table classNameArg={null} />,
+                                    (_) => tableTemplate,
+                                )}
                             </div>
                             <textarea
                                 id={id}
+                                // @ts-ignore
                                 ref={textarea}
                                 rows={lines}
                                 disabled={submitting}
                                 value={value}
                                 onKeyPress={maybeInsertSuggestion}
                                 onKeyUp={() =>
+                                    // @ts-ignore
                                     setCursor(textarea.current?.selectionStart)
                                 }
                                 onFocus={() =>
+                                    // @ts-ignore
                                     setCursor(textarea.current?.selectionStart)
                                 }
                                 className={`max_width_col ${
@@ -444,23 +482,24 @@ export const Form = ({
                                     <ReactionToggleButton
                                         testId="poll-button"
                                         classNameArg="left_spaced"
-                                        icon={<Bars />}
+                                        icon={<Bars classNameArg={null} />}
                                         pressed={!!poll}
-                                        onClick={() =>
+                                        onClick={() => {
                                             setPoll(
                                                 poll &&
                                                     confirm("Delete the poll?")
-                                                    ? null
-                                                    : poll || {
+                                                    ? undefined
+                                                    : {
                                                           options: [
                                                               "Option 1",
                                                               "Option 2",
+                                                              "...",
                                                           ],
                                                           votes: {},
                                                           deadline: 24,
                                                       },
-                                            )
-                                        }
+                                            );
+                                        }}
                                     />
                                 )}
                                 {!comment && user.realms.length > 0 && (
@@ -472,7 +511,7 @@ export const Form = ({
                                         }
                                     >
                                         <option value="">
-                                            {backendCache.config.name.toUpperCase()}
+                                            {window.backendCache.config.name.toUpperCase()}
                                         </option>
                                         {user.realms.map((name) => (
                                             <option key={name} value={name}>
@@ -533,7 +572,11 @@ export const Form = ({
     );
 };
 
-const insertNewPicture = (value, cursor, fileLinks) => {
+const insertNewPicture = (
+    value: string,
+    cursor: number,
+    fileLinks: string[],
+) => {
     const preCursorLine = value.slice(0, cursor).split("\n").pop();
     const newLineNeeded = !!preCursorLine && !preCursorLine.startsWith("![");
     const insertion = fileLinks.join("\n");
@@ -549,31 +592,32 @@ const insertNewPicture = (value, cursor, fileLinks) => {
     };
 };
 
-const costs = (value, poll) => {
+const costs = (value: string, poll: boolean) => {
     const tags = getTokens("#$", value).length;
     const images = (value.match(/\(\/blob\/.+\)/g) || []).length;
     const paid_tags = Math.max(0, tags);
-    const { post_cost, tag_cost, blob_cost, poll_cost } = backendCache.config;
+    const { post_cost, tag_cost, blob_cost, poll_cost } =
+        window.backendCache.config;
     return (
         Math.max(post_cost, paid_tags * tag_cost) +
         images * blob_cost +
-        poll * poll_cost
+        (poll ? poll_cost : 0)
     );
 };
 
-export const loadFile = (file) => {
+export const loadFile = (file: any): Promise<ArrayBuffer> => {
     const reader = new FileReader();
     return new Promise((resolve, reject) => {
         reader.onerror = () => {
             reader.abort();
             reject(alert("Couldn't upload file!"));
         };
-        reader.onload = () => resolve(reader.result);
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
         reader.readAsArrayBuffer(file);
     });
 };
 
-const loadImage = (blob) => {
+const loadImage = (blob: ArrayBuffer): Promise<HTMLImageElement> => {
     const image = new Image();
     return new Promise((resolve) => {
         image.onload = () => resolve(image);
@@ -581,16 +625,16 @@ const loadImage = (blob) => {
     });
 };
 
-const canvasToBlob = (canvas) =>
+const canvasToBlob = (canvas: HTMLCanvasElement): Promise<ArrayBuffer> =>
     new Promise((resolve) =>
         canvas.toBlob(
-            (blob) => blob.arrayBuffer().then(resolve),
+            (blob) => blob && blob.arrayBuffer().then(resolve),
             "image/jpeg",
             0.5,
         ),
     );
 
-const hash = async (buffer) => {
+const hash = async (buffer: ArrayBuffer): Promise<string> => {
     const result = await crypto.subtle.digest("SHA-256", buffer);
     const hashArray = Array.from(new Uint8Array(result)).slice(0, 4);
     return hashArray
@@ -598,13 +642,21 @@ const hash = async (buffer) => {
         .join("");
 };
 
-const resize = async (blob, scale) => {
+const resize = async (
+    blob: ArrayBuffer,
+    scale: number,
+): Promise<ArrayBuffer> => {
     const image = await loadImage(blob);
     const canvas = downScaleImage(image, scale);
     return await canvasToBlob(canvas);
 };
 
-const suggestTokens = (cursor, value, tokens, trigger) => {
+const suggestTokens = (
+    cursor: number,
+    value: string,
+    tokens: string[],
+    trigger: string,
+) => {
     let currentTag = "";
     let i;
     for (i = cursor; i >= 0 && value[i].match(/(\p{L}|-|\d)/gu); i--) {
@@ -619,12 +671,11 @@ const suggestTokens = (cursor, value, tokens, trigger) => {
             .map(
                 (tag) => currentTag + tag.slice(currentTag.length, tag.length),
             );
-        result.sort((a, b) => {
+        result.sort((a, b): number => {
             if (a.length != b.length) {
                 return a.length - b.length;
-            } else {
-                return a < b;
             }
+            return a < b ? -1 : 0;
         });
         return result.slice(0, MAX_SUGGESTED_TAGS);
     }
@@ -633,7 +684,10 @@ const suggestTokens = (cursor, value, tokens, trigger) => {
 
 // scales the image by (float) scale < 1
 // returns a canvas containing the scaled image.
-function downScaleImage(img, scale) {
+function downScaleImage(
+    img: HTMLImageElement,
+    scale: number,
+): HTMLCanvasElement {
     let width = img.width;
     let height = img.height;
     const MAX_WIDTH = width * scale;
@@ -654,7 +708,9 @@ function downScaleImage(img, scale) {
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0, width, height);
+    if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+    }
     return canvas;
 }
 

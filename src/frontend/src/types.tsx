@@ -6,9 +6,15 @@ export type PostId = number;
 
 export type UserId = number;
 
+export type Poll = {
+    options: string[];
+    votes: any;
+    deadline: number;
+};
+
 export type Extension =
     | {
-          ["Poll"]: any;
+          ["Poll"]: Poll;
       }
     | {
           ["Repost"]: any;
@@ -159,6 +165,11 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                tag_cost: number;
+                blob_cost: number;
+                poll_cost: number;
+                max_post_length: number;
+                max_blob_size_bytes: number;
                 name_change_cost: number;
                 realm_cleanup_penalty: number;
                 max_realm_name: number;
