@@ -241,8 +241,7 @@ export const getTokens = (prefix: string, value: string) => {
         .split(/\s+/g)
         .filter((token) => {
             const postfix = token.slice(1);
-            if (!postfix.match(regexp) || !isNaN(parseInt(postfix)))
-                return false;
+            if (!postfix.match(regexp) || !isNaN(Number(postfix))) return false;
             for (let c of prefix) if (c == token[0]) return true;
             return false;
         })
