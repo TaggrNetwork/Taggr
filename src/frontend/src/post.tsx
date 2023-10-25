@@ -235,7 +235,11 @@ export const PostView = ({
             : version;
     const blogTitle =
         prime && post.effBody.length > 750 && post.effBody.startsWith("# ")
-            ? { author: post.user, created: postCreated }
+            ? {
+                  author: post.user,
+                  created: postCreated,
+                  length: post.effBody.length,
+              }
             : undefined;
 
     if (prime)

@@ -275,7 +275,7 @@ const markdownizer = (
             components={{
                 h1: ({ node, children, ...props }) => {
                     if (!blogTitle) return <h1 {...props}>{children}</h1>;
-                    let { author, created } = blogTitle;
+                    let { author, created, length } = blogTitle;
                     return (
                         <>
                             <h1>{children}</h1>
@@ -285,7 +285,7 @@ const markdownizer = (
                                     @{window.backendCache.users[author]}
                                 </a>{" "}
                                 on <b>{timeAgo(created, true, "long")}</b>,{" "}
-                                {Math.ceil(value.length / 300)} minutes read
+                                {Math.ceil(length / 400)} minutes read
                             </p>
                         </>
                     );

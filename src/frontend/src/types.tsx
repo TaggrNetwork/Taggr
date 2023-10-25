@@ -58,6 +58,7 @@ export type Post = {
 export type BlogTitle = {
     author: UserId;
     created: BigInt;
+    length: number;
 };
 
 export type Account = {
