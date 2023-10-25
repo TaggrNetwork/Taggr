@@ -1165,9 +1165,6 @@ impl State {
                 let _ = user.top_up_cycles_from_revenue(&mut user_revenue, e8s_for_one_xdr);
                 let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
                 let e8s = user_reward + user_revenue;
-                if e8s < invoices::fee().e8s() * 100 {
-                    continue;
-                }
                 user.treasury_e8s += e8s;
                 total_rewards += user_reward;
                 total_revenue += user_revenue;
@@ -1598,10 +1595,11 @@ impl State {
             Some(user) => user,
             None => return Ok(()),
         };
-        if user.treasury_e8s > 0 {
+        let fee = invoices::fee();
+        if Tokens::from_e8s(user.treasury_e8s) > fee {
             invoices::transfer(
                 parse_account(&user.account)?,
-                Tokens::from_e8s(user.treasury_e8s),
+                Tokens::from_e8s(user.treasury_e8s) - fee,
                 Memo(777),
                 Some(USER_ICP_SUBACCOUNT),
             )

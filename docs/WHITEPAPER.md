@@ -41,7 +41,6 @@ Notes:
 -   Earned karma points are converted to rewards during the next distribution.
 -   Rewards are calculated by converting `$native_cycles_per_xdr` karma points to ICP at the cycle minting rate (`1 XDR` / `$native_cycles_per_xdr`).
 -   Additionally, users owning tokens and being active within the last `$revenue_share_activity_weeks` weeks receive a share of $name's revenue proportionate to their token holdings.
--   Users are excluded from both distributions if their ICP payout is less than `100` times the transaction fee. Such users carry over their accumulated karma to the next round. Note that in this case, minting is also delayed.
 
 ## Bootcamp
 
