@@ -194,7 +194,11 @@ pub const CONFIG: &Config = &Config {
     report_confirmation_percentage: 20,
 
     trusted_user_min_karma: 25,
+
+    #[cfg(not(feature = "staging"))]
     trusted_user_min_age_weeks: 4,
+    #[cfg(feature = "staging")]
+    trusted_user_min_age_weeks: 1,
 
     minimal_tip: 1,
 
@@ -239,15 +243,15 @@ pub const CONFIG: &Config = &Config {
     voting_power_activity_weeks: 8,
 
     stalwart_percentage: 3,
-    #[cfg(not(feature = "staging"))]
-    min_stalwart_activity_weeks: 6,
     #[cfg(feature = "staging")]
     min_stalwart_activity_weeks: 1,
-
     #[cfg(not(feature = "staging"))]
-    min_stalwart_account_age_weeks: 26,
+    min_stalwart_activity_weeks: 6,
+
     #[cfg(feature = "staging")]
     min_stalwart_account_age_weeks: 1,
+    #[cfg(not(feature = "staging"))]
+    min_stalwart_account_age_weeks: 26,
 
     stalwart_moderation_reward: 20,
 

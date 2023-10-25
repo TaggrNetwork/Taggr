@@ -1507,7 +1507,7 @@ impl State {
         let mut users = self.users.values_mut().collect::<Vec<_>>();
         users.sort_unstable_by_key(|a| std::cmp::Reverse(a.karma()));
 
-        let mut stalwart_seats = users.len() * CONFIG.stalwart_percentage / 100;
+        let mut stalwart_seats = (users.len() * CONFIG.stalwart_percentage / 100).max(3);
         let mut left = Vec::new();
         let mut joined = Vec::new();
         let mut left_logs = Vec::new();

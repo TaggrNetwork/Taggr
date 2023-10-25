@@ -4,7 +4,7 @@ start:
 deploy_staging:
 	NODE_ENV=production DFX_NETWORK=staging make fe
 	FEATURES=staging dfx build
-	dfx --identity prod deploy --network staging taggr
+	FEATURES=staging dfx --identity prod deploy --network staging taggr
 
 deploy_local:
 	FEATURES=dev dfx deploy
