@@ -40,7 +40,7 @@ export const Recovery = () => {
             Your principal id: {window.principalId}
             <div className="spaced">
                 <h2>Status</h2>
-                <code>{status || "No emergencies today!"}</code>
+                <code>{status}</code>
                 <h2>Emergency binary</h2>
                 <FileUploadInput
                     callback={async (binary) => {
