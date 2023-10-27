@@ -102,7 +102,7 @@ export const Settings = ({ invite = null }) => {
     return (
         <>
             <HeadBar title="SETTINGS" shareLink="setting" />
-            <div className="spaced monospace column_container">
+            <div className="spaced column_container">
                 <div className="bottom_half_spaced">
                     USER NAME <span className="accent">[required]</span>
                     <code className="left_spaced">{label}</code>
@@ -161,23 +161,40 @@ export const Settings = ({ invite = null }) => {
                     label="SAVE"
                 />
                 {window.user && (
-                    <>
-                        <hr />
-                        <div className="bottom_half_spaced">PRINCIPAL</div>
+                    <div className="top_spaced column_container">
+                        <h2>Principal Change</h2>
+                        You can change your principal as follows:
+                        <ol>
+                            <li>
+                                Log in using the new authentication method (a
+                                new II anchor or a password).
+                            </li>
+                            <li>
+                                Copy the displayed principal and log out again{" "}
+                                <b>without creating a new user</b>.
+                            </li>
+                            <li>
+                                Login back to your account using the old
+                                authentication method and paste the new
+                                principal in the text field below.
+                            </li>
+                            <li>Change the principal.</li>
+                        </ol>
+                        <div className="vertically_spaced banner">
+                            Please note that changing your principal will lead
+                            to the account loss{" "}
+                            <b>if you do not control the new principal</b>!
+                        </div>
+                        <div className="bottom_half_spaced">NEW PRINCIPAL</div>
                         <input
                             placeholder="Your principal"
-                            className="monospace small_text"
+                            className="monospace small_text bottom_spaced"
                             type="text"
                             value={principal}
                             onChange={(event) =>
                                 setPrincipal(event.target.value)
                             }
                         />
-                        <div className="vertically_spaced">
-                            ⚠️ Please note that changing your principal will
-                            lead to the account loss if you do not control the
-                            new principal!
-                        </div>
                         {
                             <ButtonWithLoading
                                 classNameArg={
@@ -200,7 +217,7 @@ export const Settings = ({ invite = null }) => {
                                 label="CHANGE PRINCIPAL"
                             />
                         }
-                    </>
+                    </div>
                 )}
             </div>
         </>
