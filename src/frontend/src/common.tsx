@@ -557,9 +557,11 @@ export const loadPostBlobs = async (files: {
         ids.map(async (id) => {
             const [blobId, bucket_id] = id.split("@");
             const [offset, len] = files[id];
-            const arg = Buffer.from(
-                intToBEBytes(offset).concat(intToBEBytes(len)),
-            );
+            let offsetBEBytes = intToBEBytes(offset);
+            let lenBEBytes = intToBEBytes(len);
+            let args = new Uint8Array(offsetBEBytes.length + lenBEBytes.length);
+            args.set(offsetBEBytes);
+            args.set(lenBEBytes, offsetBEBytes.length);
             // This allows us to see the bucket pics in dev mode.
             const api = window.backendCache.stats.buckets.every(
                 ([id]) => id != bucket_id,
@@ -567,7 +569,7 @@ export const loadPostBlobs = async (files: {
                 ? window.mainnet_api
                 : window.api;
             return api
-                .query_raw(bucket_id, "read", arg)
+                .query_raw(bucket_id, "read", Buffer.from(args))
                 .then((blob) => [blobId, blob || new ArrayBuffer(0)]);
         }),
     );
@@ -637,28 +639,17 @@ export function CopyToClipboard({
     );
 }
 
-export const intFromBEBytes = (bytes: number[]) =>
-    bytes.reduce((acc, value) => acc * 256 + value, 0);
+export const intFromBEBytes = (bytes: Uint8Array) => {
+    let buffer = bytes.buffer;
+    let view = new DataView(buffer);
+    return Number(view.getBigInt64(0, false)); // false for big endian
+};
 
 export const intToBEBytes = (val: number) => {
-    function and(v1: number, v2: number) {
-        var hi = 0x80000000;
-        var low = 0x7fffffff;
-        var hi1 = ~~(v1 / hi);
-        var hi2 = ~~(v2 / hi);
-        var low1 = v1 & low;
-        var low2 = v2 & low;
-        var h = hi1 & hi2;
-        var l = low1 & low2;
-        return h * hi + l;
-    }
-
-    const bytes = [0, 0, 0, 0, 0, 0, 0, 0];
-    for (let index = bytes.length - 1; index >= 0; index--) {
-        bytes[index] = and(val, 0xff);
-        val = val / 256;
-    }
-    return bytes;
+    let buffer = new ArrayBuffer(8);
+    let view = new DataView(buffer);
+    view.setBigInt64(0, BigInt(val), false); // false for big endian
+    return new Uint8Array(buffer);
 };
 
 export const FlagButton = ({
