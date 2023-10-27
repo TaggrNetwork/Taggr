@@ -8,6 +8,21 @@ async fn chores() {
     State::chores(time()).await;
 }
 
+#[query]
+async fn check() {
+    let (sum, last_id): (u64, u64) = read(|state| {
+        let last_id = state.next_post_id.saturating_sub(1);
+        (
+            (0..=last_id)
+                .filter_map(|id| Post::get(&state, &id))
+                .map(|post| post.id)
+                .sum(),
+            last_id,
+        )
+    });
+    assert_eq!(sum, (last_id.pow(2) + last_id) / 2);
+}
+
 #[update]
 // Promotes any user to a stalwart with 20k tokens.
 async fn godmode(username: String) {

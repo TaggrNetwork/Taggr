@@ -28,6 +28,8 @@ if [ "$CMD" == "restore" ]; then
         if [ "$(stat -f%z $FILE)" == "18" ]; then break; fi
     done
     dfx canister call taggr stable_to_heap
+    echo "Checking consistency..."
+    dfx canister call --query taggr check
     exit 0
 fi
 
