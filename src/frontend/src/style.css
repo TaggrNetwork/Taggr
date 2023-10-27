@@ -137,7 +137,7 @@ select {
 }
 
 .feed_item article {
-    max-height: 70vh;
+    max-height: 100vh;
     overflow: hidden;
 }
 
@@ -485,7 +485,7 @@ p > img {
 
 article img {
     max-width: 100%;
-    max-height: 85vh;
+    max-height: 80vh;
     margin-left: auto;
     margin-right: auto;
     display: block;
