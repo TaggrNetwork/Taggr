@@ -481,6 +481,7 @@ export const RealmHeader = ({ name }: { name: string }) => {
 export const Realms = () => {
     const [realms, setRealms] = React.useState<[string, Realm][]>([]);
     const [page, setPage] = React.useState(0);
+    const [filter, setFilter] = React.useState("");
     const [noMoreData, setNoMoreData] = React.useState(false);
     const loadRealms = async () => {
         let data = (await window.api.query<any>("realms", page)) || [];
@@ -509,43 +510,57 @@ export const Realms = () => {
                     )
                 }
             />
+            <input
+                className="monospace bottom_spaced"
+                style={{ width: "100%" }}
+                type="search"
+                placeholder={`Search realms...`}
+                value={filter}
+                onChange={(e: any) => setFilter(e.target.value.toLowerCase())}
+            />
             <div
                 className={bigScreen() ? "two_column_grid_flex" : undefined}
                 style={{ rowGap: 0, columnGap: "1em" }}
             >
-                {realms.map(([name, realm]) => {
-                    return (
-                        <div
-                            key={name}
-                            className="stands_out"
-                            style={{ position: "relative" }}
-                        >
-                            <RealmRibbon name={name} />
-                            <h3 className="vcentered">
-                                {realm.logo && (
-                                    <img
-                                        alt="Logo"
-                                        className="right_spaced"
-                                        style={{ maxWidth: "70px" }}
-                                        src={`data:image/png;base64, ${realm.logo}`}
-                                    />
-                                )}
-                                <span className="max_width_col">
-                                    <a href={`/#/realm/${name}`}>{name}</a>
-                                </span>
-                            </h3>
-                            <Content
-                                value={realm.description.split("\n")[0]}
-                                classNameArg="bottom_spaced"
-                            />
-                            <>
-                                <code>{realm.num_posts}</code> posts,{" "}
-                                <code>{realm.num_members}</code> members,
-                                controlled by: {userList(realm.controllers)}
-                            </>
-                        </div>
-                    );
-                })}
+                {realms
+                    .filter(([name, { description }]) =>
+                        (
+                            name.toLowerCase() + description.toLowerCase()
+                        ).includes(filter),
+                    )
+                    .map(([name, realm]) => {
+                        return (
+                            <div
+                                key={name}
+                                className="stands_out"
+                                style={{ position: "relative" }}
+                            >
+                                <RealmRibbon name={name} />
+                                <h3 className="vcentered">
+                                    {realm.logo && (
+                                        <img
+                                            alt="Logo"
+                                            className="right_spaced"
+                                            style={{ maxWidth: "70px" }}
+                                            src={`data:image/png;base64, ${realm.logo}`}
+                                        />
+                                    )}
+                                    <span className="max_width_col">
+                                        <a href={`/#/realm/${name}`}>{name}</a>
+                                    </span>
+                                </h3>
+                                <Content
+                                    value={realm.description.split("\n")[0]}
+                                    classNameArg="bottom_spaced"
+                                />
+                                <>
+                                    <code>{realm.num_posts}</code> posts,{" "}
+                                    <code>{realm.num_members}</code> members,
+                                    controlled by: {userList(realm.controllers)}
+                                </>
+                            </div>
+                        );
+                    })}
             </div>
             {!noMoreData && (
                 <div style={{ display: "flex", justifyContent: "center" }}>
