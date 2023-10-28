@@ -11,7 +11,6 @@ export const Search = () => {
         <div className="column_container spaced">
             <input
                 id="search_field"
-                className="monospace larger_text"
                 type="search"
                 placeholder={`Search #${backendCache.config.name}`}
                 value={term}

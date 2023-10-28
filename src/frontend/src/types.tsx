@@ -31,6 +31,7 @@ export type Realm = {
     logo: string;
     num_posts: number;
     num_members: number;
+    last_update: number;
 };
 
 export type Post = {

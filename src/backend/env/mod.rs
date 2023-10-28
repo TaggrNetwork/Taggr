@@ -112,6 +112,8 @@ pub struct Realm {
     theme: String,
     pub num_posts: u64,
     pub num_members: u64,
+    #[serde(default)]
+    pub last_update: u64,
 }
 
 #[derive(Default, Serialize, Deserialize)]

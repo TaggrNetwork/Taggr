@@ -482,6 +482,8 @@ export const Realms = () => {
     const [realms, setRealms] = React.useState<[string, Realm][]>([]);
     const [page, setPage] = React.useState(0);
     const [filter, setFilter] = React.useState("");
+    // 0: popularity, 1: last_update, 2: alphabetically
+    const [order, setOrder] = React.useState(0);
     const [noMoreData, setNoMoreData] = React.useState(false);
     const loadRealms = async () => {
         let data = (await window.api.query<any>("realms", page)) || [];
@@ -494,6 +496,17 @@ export const Realms = () => {
         loadRealms();
     }, [page]);
     const user = window.user;
+
+    switch (order) {
+        case 1:
+            realms.sort(
+                ([_name1, r1], [_name2, r2]) => r2.last_update - r1.last_update,
+            );
+            break;
+        case 2:
+            realms.sort(([name1], [name2]) => name1.localeCompare(name2));
+    }
+
     return (
         <>
             <HeadBar
@@ -510,14 +523,26 @@ export const Realms = () => {
                     )
                 }
             />
-            <input
-                className="monospace bottom_spaced"
-                style={{ width: "100%" }}
-                type="search"
-                placeholder={`Search realms...`}
-                value={filter}
-                onChange={(e: any) => setFilter(e.target.value.toLowerCase())}
-            />
+            <div className="spaced row_container bottom_spaced">
+                <input
+                    className="right_half_spaced max_width_col"
+                    type="search"
+                    placeholder={`Search realms...`}
+                    value={filter}
+                    onChange={(e: any) =>
+                        setFilter(e.target.value.toLowerCase())
+                    }
+                />
+                <select
+                    className="small_text"
+                    value={order}
+                    onChange={(e: any) => setOrder(Number(e.target.value))}
+                >
+                    <option value={0}>POPULARITY</option>
+                    <option value={1}>LAST UPDATE</option>
+                    <option value={2}>BY NAME</option>
+                </select>
+            </div>
             <div
                 className={bigScreen() ? "two_column_grid_flex" : undefined}
                 style={{ rowGap: 0, columnGap: "1em" }}

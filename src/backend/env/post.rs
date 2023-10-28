@@ -522,6 +522,7 @@ impl Post {
         post.id = id;
         if let Some(realm) = realm.and_then(|name| state.realms.get_mut(&name)) {
             realm.num_posts += 1;
+            realm.last_update = timestamp;
         }
         if let Some(parent_id) = post.parent {
             let result = Post::mutate(state, &parent_id, |parent_post| {
@@ -665,10 +666,14 @@ pub fn change_realm(state: &mut State, root_post_id: PostId, new_realm: Option<S
         post_ids.extend_from_slice(&children);
 
         if let Some(id) = realm {
-            state.realms.get_mut(&id).expect("no realm found").num_posts -= 1;
+            let realm = state.realms.get_mut(&id).expect("no realm found");
+            realm.num_posts -= 1;
+            realm.last_update = time();
         }
         if let Some(id) = &new_realm {
-            state.realms.get_mut(id).expect("no realm found").num_posts += 1;
+            let realm = state.realms.get_mut(id).expect("no realm found");
+            realm.num_posts += 1;
+            realm.last_update = time();
         }
 
         Post::mutate(state, &post_id, |post| {
