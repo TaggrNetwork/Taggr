@@ -1165,6 +1165,9 @@ impl State {
                 let _ = user.top_up_cycles_from_revenue(&mut user_revenue, e8s_for_one_xdr);
                 let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
                 let e8s = user_reward + user_revenue;
+                if e8s == 0 {
+                    continue;
+                }
                 user.treasury_e8s += e8s;
                 total_rewards += user_reward;
                 total_revenue += user_revenue;
