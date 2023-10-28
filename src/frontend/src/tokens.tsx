@@ -182,7 +182,7 @@ export const Tokens = () => {
                             bigScreen() ? null : "small_text"
                         }`}
                     >
-                        {balances.slice(0, (balPage + 1) * 15).map((b) => (
+                        {balances.slice(0, (balPage + 1) * 25).map((b) => (
                             <tr key={b[0]}>
                                 <td style={{ textAlign: "left" }}>
                                     {principal(b[0])}

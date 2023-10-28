@@ -212,7 +212,7 @@ pub const CONFIG: &Config = &Config {
     max_posts_per_hour: 3,
     max_comments_per_hour: 15,
 
-    feed_page_size: 10,
+    feed_page_size: 30,
 
     reporting_penalty_post: 200,
     reporting_penalty_misbehaviour: 1000,
