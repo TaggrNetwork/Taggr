@@ -27,7 +27,12 @@ if [ "$CMD" == "restore" ]; then
         wait
         if [ "$(stat -f%z $FILE)" == "18" ]; then break; fi
     done
+    echo "Clearing buckets before restoring heap..."
+    dfx canister call taggr clear_buckets '("")' || 1
+    echo "Restoring heap..."
     dfx canister call taggr stable_to_heap
+    echo "Clearing buckets after restoring heap..."
+    dfx canister call taggr clear_buckets '("")'
     echo "Checking consistency..."
     dfx canister call --query taggr check
     exit 0
