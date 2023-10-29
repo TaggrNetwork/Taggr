@@ -147,7 +147,7 @@ pub const CONFIG: &Config = &Config {
 
     token_symbol: "TAGGR",
     token_decimals: 2,
-    transaction_fee: 1,
+    transaction_fee: 25,
     cycle_transaction_fee: 1,
 
     native_cycles_per_xdr: 1000,
