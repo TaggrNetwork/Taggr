@@ -1,19 +1,19 @@
 # $name
 
-$name aims to become a public good, providing decentralized and censorship-resistant services for publishing content and communication.
+$name aims to serve as a public good, providing decentralized and censorship-resistant services for content publishing and communication.
 It operates on the public compute infrastructure powered by the [Internet Computer](https://internetcomputer.org).
 
 ## Key Points
 
 -   $name combines features of forums and blogs.
 -   $name is tokenized and is owned and governed by its token holders.
--   $name is 100% ad-free and earns real revenue.
+-   $name is completely ad-free and generates revenue.
 -   $name uses its revenue to reward content producers, token holders (pro-rata) and to cover storage and compute costs.
 
-## Incurred Usage Costs
+## Usage Costs
 
 Each interaction with other users on $name consumes cycles.
-All payments go to [$name's Treasury](https://dashboard.internetcomputer.org/account/dee15d98a70029163c79ace6ec9cf33b21917355f1766f44f87b4cb9f4d3b393) holding the revenue.  
+All payments are directed to [$name's Treasury](https://dashboard.internetcomputer.org/account/dee15d98a70029163c79ace6ec9cf33b21917355f1766f44f87b4cb9f4d3b393) which holds the revenue.  
 Below is a breakdown of costs.
 
 | Function             |        Cycles 🔥 | Comments                                     |
