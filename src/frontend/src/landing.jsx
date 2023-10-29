@@ -125,7 +125,7 @@ const RealmsDashboard = () => {
                         name={name}
                         styleArg={{ padding: "1em" }}
                         onClick={() => (location.href = `/#/realm/${name}`)}
-                        classNameArg="clickable max_width_col medium_text monospace padded_rounded marginized"
+                        classNameArg="clickable max_width_col medium_text padded_rounded marginized"
                     />
                 ))}
                 <a className="vcentered padded_rounded" href="#/realms">

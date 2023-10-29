@@ -91,7 +91,7 @@ export const RealmRibbon = ({ col, name }: { col?: string; name: string }) => (
     <RealmSpan
         name={name}
         col={col}
-        classNameArg="realm_tag monospace"
+        classNameArg="realm_tag"
         onClick={() => (location.href = `/#/realm/${name}`)}
     />
 );
@@ -192,7 +192,7 @@ export const RealmSpan = ({
     const { background, color } = realmColors(name, col);
     return (
         <span
-            className={`${classNameArg} realm_span`}
+            className={`realm_span ${classNameArg}`}
             onClick={onClick}
             style={{ background, color, whiteSpace: "nowrap", ...styleArg }}
         >

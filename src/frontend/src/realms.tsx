@@ -78,7 +78,7 @@ export const RealmForm = ({ existingName }: { existingName: string }) => {
             </h2>
             <div className="column_container">
                 {editing && (
-                    <div className="column_container bottom_spaced monospace">
+                    <div className="column_container bottom_spaced">
                         <div className="bottom_half_spaced">
                             LOGO (
                             {`${
@@ -128,7 +128,7 @@ export const RealmForm = ({ existingName }: { existingName: string }) => {
                     </div>
                 )}
                 {!editing && (
-                    <div className="column_container bottom_spaced monospace">
+                    <div className="column_container bottom_spaced">
                         <div className="bottom_half_spaced">
                             REALM NAME
                             {name.length >
@@ -141,7 +141,6 @@ export const RealmForm = ({ existingName }: { existingName: string }) => {
                             )}
                         </div>
                         <input
-                            className="monospace"
                             placeholder="alphanumeric"
                             type="text"
                             value={name}
@@ -152,10 +151,7 @@ export const RealmForm = ({ existingName }: { existingName: string }) => {
                         />
                     </div>
                 )}
-                <div
-                    className="bottom_spaced monospace"
-                    style={{ position: "relative" }}
-                >
+                <div className="bottom_spaced" style={{ position: "relative" }}>
                     LABEL COLOR
                     <br />
                     <input
@@ -165,7 +161,7 @@ export const RealmForm = ({ existingName }: { existingName: string }) => {
                     />
                     <RealmRibbon col={labelColor} name={name} />
                 </div>
-                <div className="column_container bottom_spaced monospace">
+                <div className="column_container bottom_spaced">
                     <div className="bottom_half_spaced">DESCRIPTION</div>
                     <textarea
                         rows={10}
@@ -180,12 +176,11 @@ export const RealmForm = ({ existingName }: { existingName: string }) => {
                         classNameArg="bottom_spaced"
                     />
                 </div>
-                <div className="column_container bottom_spaced monospace">
+                <div className="column_container bottom_spaced">
                     <div className="bottom_half_spaced">
                         REALM CONTROLLERS (COMMA-SEPARATED)
                     </div>
                     <input
-                        className="monospace"
                         type="text"
                         value={controllersString}
                         onChange={(event) => {
@@ -202,7 +197,7 @@ export const RealmForm = ({ existingName }: { existingName: string }) => {
                     />
                 </div>
                 {controllers.length > 0 && (
-                    <div className="column_container bottom_spaced monospace">
+                    <div className="column_container bottom_spaced">
                         <div className="bottom_half_spaced">
                             VALID CONTROLLERS: {userList(controllers)}
                         </div>
@@ -223,7 +218,7 @@ export const RealmForm = ({ existingName }: { existingName: string }) => {
                     </label>
                 </div>
                 {theme && (
-                    <div className="dynamic_table monospace vertically_spaced">
+                    <div className="dynamic_table vertically_spaced">
                         <div className="db_cell">
                             TEXT
                             <input
@@ -293,7 +288,7 @@ export const RealmForm = ({ existingName }: { existingName: string }) => {
                 )}
 
                 <ButtonWithLoading
-                    classNameArg={valid ? "active" : "inactive"}
+                    classNameArg={`top_spaced ${valid ? "active" : "inactive"}`}
                     onClick={async () => {
                         if (!valid) return;
                         const response = await window.api.call<any>(
@@ -375,7 +370,7 @@ export const RealmHeader = ({ name }: { name: string }) => {
                 content={
                     <>
                         <ButtonWithLoading
-                            classNameArg="left_half_spaced monospace"
+                            classNameArg="left_half_spaced"
                             styleArg={colors}
                             testId="realm-close-button"
                             onClick={async () => {
@@ -505,6 +500,13 @@ export const Realms = () => {
             break;
         case 2:
             realms.sort(([name1], [name2]) => name1.localeCompare(name2));
+            break;
+        default:
+            realms.sort(
+                ([_name1, r1], [_name2, r2]) =>
+                    r2.num_posts * r2.num_members -
+                    r1.num_posts * r1.num_members,
+            );
     }
 
     return (

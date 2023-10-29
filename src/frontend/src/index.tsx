@@ -328,7 +328,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
 
         footerRoot.render(
             <React.StrictMode>
-                <footer className="monospace small_text text_centered vertically_spaced">
+                <footer className="small_text text_centered vertically_spaced">
                     <a href="#/whitepaper">
                         <Rocket classNameArg="action" />
                     </a>

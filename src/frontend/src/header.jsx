@@ -141,7 +141,7 @@ export const Header = ({ subtle, route, inboxMode, user }) => {
             {showLogins && <LoginMasks />}
             {showButtonBar && (
                 <div
-                    className="two_column_grid_flex monospace top_spaced stands_out"
+                    className="two_column_grid_flex smaller_text top_spaced stands_out monospace"
                     style={{ rowGap: "1em" }}
                 >
                     {user && (
@@ -241,7 +241,7 @@ export const Header = ({ subtle, route, inboxMode, user }) => {
                 </div>
             )}
             {showRealms && (
-                <div className="dynamic_table monospace top_spaced stands_out">
+                <div className="dynamic_table top_spaced stands_out">
                     {user.realms.map((realm) => (
                         <RealmSpan
                             key={realm}

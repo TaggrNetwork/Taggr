@@ -110,14 +110,14 @@ export const Settings = ({ invite = null }) => {
                 <input
                     type="text"
                     value={name}
-                    className="monospace bottom_spaced"
+                    className="bottom_spaced"
                     placeholder="alphanumeric"
                     onChange={namePicker}
                 />
                 <div className="bottom_half_spaced">ABOUT YOU</div>
                 <input
                     placeholder="you can use markdown, URLs, hashtags, ..."
-                    className="monospace bottom_spaced"
+                    className="bottom_spaced"
                     type="text"
                     value={about}
                     onChange={(event) => setAbout(event.target.value)}
@@ -125,7 +125,7 @@ export const Settings = ({ invite = null }) => {
                 <div className="bottom_half_spaced">COLOR THEME</div>
                 <select
                     value={settings.theme}
-                    className="monospace bottom_spaced"
+                    className="bottom_spaced"
                     onChange={(event) => setSetting("theme", event)}
                 >
                     <option value="auto">AUTO</option>
@@ -140,7 +140,7 @@ export const Settings = ({ invite = null }) => {
                 </div>
                 <select
                     value={settings.columns}
-                    className="monospace bottom_spaced"
+                    className="bottom_spaced"
                     onChange={(event) => setSetting("columns", event)}
                 >
                     <option value="on">ON</option>
@@ -150,7 +150,7 @@ export const Settings = ({ invite = null }) => {
                     CONTROLLER PRINCIPALS (one per line)
                 </div>
                 <textarea
-                    className="monospace small_text bottom_spaced"
+                    className="small_text bottom_spaced"
                     value={controllers}
                     onChange={(event) => setControllers(event.target.value)}
                     rows={4}

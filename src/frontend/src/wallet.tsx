@@ -311,7 +311,7 @@ export const Wallet = () => {
                     </code>
                 </div>
                 <div className="vcentered top_spaced">
-                    <div className="monospace max_width_col">TREASURY</div>
+                    <div className="max_width_col">Rewards</div>
                     <code className="accent">
                         {icpCode(user.treasury_e8s, 4, false)}
                     </code>
@@ -357,7 +357,7 @@ export const Wallet = () => {
             </div>
             <div className="stands_out">
                 <div className="vcentered">
-                    <h2 className="max_width_col">{token_symbol} TOKENS</h2>
+                    <h2 className="max_width_col">${token_symbol} Tokens</h2>
                     <ButtonWithLoading
                         label="TRANSFER"
                         onClick={async () => {

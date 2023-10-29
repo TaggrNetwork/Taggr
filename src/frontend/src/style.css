@@ -537,7 +537,6 @@ div.thumbnails {
     font-size: x-small;
     padding-left: 0.5em;
     padding-right: 0.2em;
-    font-weight: bold;
     position: absolute;
     right: 0;
     top: 1em;
@@ -699,6 +698,11 @@ a.accent,
 
 .action path {
     fill: $clickable;
+}
+
+.realm_span {
+    font-family: monospace;
+    padding: 0.2em;
 }
 
 .realm_span:hover {
