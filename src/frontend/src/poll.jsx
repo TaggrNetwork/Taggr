@@ -5,12 +5,14 @@ import { Gem, YinYan } from "./icons";
 
 export const Poll = ({ poll, post_id, created }) => {
     const [data, setData] = React.useState(poll);
+    const [revoteMode, setRevoteMode] = React.useState(false);
 
     React.useEffect(() => setData(poll), [poll]);
 
     const radio_group_name = post_id ? `${post_id}-poll` : "poll";
     const user_id = window.user?.id;
-    const voted = Object.values(data.votes).flat().includes(user_id);
+    const voted =
+        Object.values(data.votes).flat().includes(user_id) && !revoteMode;
     const totalVotes = Object.values(data.votes)
         .map((votes) => votes.length)
         .reduce((acc, e) => acc + e, 0);
@@ -18,6 +20,10 @@ export const Poll = ({ poll, post_id, created }) => {
         (Number(new Date()) - parseInt(created) / 1000000) / 1000 / 3600,
     );
     const expired = createdHoursAgo >= poll.deadline;
+    const canChangeVote =
+        voted &&
+        poll.deadline - createdHoursAgo >
+            window.backendCache.config.poll_revote_deadline_hours;
     const showVoting = !isNaN(user_id) && !voted && !expired;
     const keyWithMaxVal = (obj) =>
         Object.keys(obj).reduce(
@@ -71,6 +77,7 @@ export const Poll = ({ poll, post_id, created }) => {
                                     const list = poll.votes[vote] || [];
                                     list.push(user_id);
                                     poll.votes[vote] = list;
+                                    setRevoteMode(false);
                                     setData({ ...poll });
                                 }}
                             />
@@ -113,8 +120,32 @@ export const Poll = ({ poll, post_id, created }) => {
                 );
             })}
             {!expired && (
-                <span className="top_spaced small_text text_centered inactive">
-                    EXPIRES IN {printDelta(data.deadline - createdHoursAgo)}
+                <span className="top_spaced small_text text_centered">
+                    <span className="inactive">
+                        EXPIRES IN {printDelta(data.deadline - createdHoursAgo)}
+                    </span>
+                    {canChangeVote && (
+                        <>
+                            &nbsp;&middot;&nbsp;{" "}
+                            <a
+                                href="#"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    Object.entries(poll.votes).forEach(
+                                        ([option, voters]) => {
+                                            poll.votes[option] = voters.filter(
+                                                (id) => id != user_id,
+                                            );
+                                        },
+                                    );
+                                    setData({ ...poll });
+                                    setRevoteMode(true);
+                                }}
+                            >
+                                CHANGE VOTE
+                            </a>
+                        </>
+                    )}
                 </span>
             )}
             {expired && (

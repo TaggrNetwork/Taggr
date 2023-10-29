@@ -63,6 +63,8 @@ pub struct Config {
     pub poll_cost: Cycles,
     pub realm_cost: Cycles,
 
+    pub poll_revote_deadline_hours: u64,
+
     pub name_change_cost: Cycles,
 
     pub max_realm_name: usize,
@@ -225,6 +227,8 @@ pub const CONFIG: &Config = &Config {
     blob_cost: 10,
     poll_cost: 3,
     realm_cost: 1000,
+
+    poll_revote_deadline_hours: 4,
 
     name_change_cost: 1000,
 

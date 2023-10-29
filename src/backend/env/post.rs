@@ -155,13 +155,24 @@ impl Post {
         }
         let timestamp = self.timestamp();
         if let Some(Extension::Poll(poll)) = self.extension.as_mut() {
-            // no multiple choice
+            if poll.options.len() as u16 <= vote {
+                return Err("invalid vote".into());
+            }
+            if time > timestamp + HOUR * poll.deadline {
+                return Err("poll expired".into());
+            }
             if poll.votes.values().flatten().any(|id| id == &user_id) {
-                return Err("double vote".to_string());
+                // check if the user can still re-vote
+                if time + CONFIG.poll_revote_deadline_hours * HOUR
+                    >= timestamp + HOUR * poll.deadline
+                {
+                    return Err("your vote cannot be changed anymore".into());
+                }
+                poll.votes.values_mut().for_each(|votes| {
+                    votes.remove(&user_id);
+                });
             }
-            if time < timestamp + HOUR * poll.deadline && poll.options.len() as u16 > vote {
-                poll.votes.entry(vote).or_default().insert(user_id);
-            }
+            poll.votes.entry(vote).or_default().insert(user_id);
         }
         Ok(())
     }
