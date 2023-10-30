@@ -542,7 +542,7 @@ export const Realms = () => {
                 >
                     <option value={0}>POPULARITY</option>
                     <option value={1}>LAST UPDATE</option>
-                    <option value={2}>BY NAME</option>
+                    <option value={2}>NAME</option>
                 </select>
             </div>
             <div

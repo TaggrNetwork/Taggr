@@ -535,9 +535,8 @@ div.thumbnails {
     border-top-left-radius: 5px;
     border-bottom-left-radius: 5px;
     font-size: x-small;
-    padding-left: 0.5em;
-    padding-right: 0.2em;
     position: absolute;
+    font-weight: bold;
     right: 0;
     top: 1em;
 }
@@ -702,7 +701,7 @@ a.accent,
 
 .realm_span {
     font-family: monospace;
-    padding: 0.2em;
+    padding: 0.5em;
 }
 
 .realm_span:hover {
