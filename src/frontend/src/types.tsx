@@ -81,6 +81,31 @@ type Filters = {
     realms: string[];
 };
 
+export type Predicate =
+    | {
+          ["ReportOpen"]: PostId;
+      }
+    | {
+          ["UserReportOpen"]: UserId;
+      }
+    | {
+          ["Proposal"]: PostId;
+      };
+
+export type Notification =
+    | {
+          ["Generic"]: string;
+      }
+    | {
+          ["WatchedPostEntries"]: PostId[];
+      }
+    | {
+          ["Conditional"]: [string, Predicate];
+      }
+    | {
+          ["NewPost"]: [string, PostId];
+      };
+
 export type User = {
     name: string;
     id: UserId;
@@ -110,6 +135,7 @@ export type User = {
     balance: number;
     controllers: string[];
     filters: Filters;
+    inbox: { [key: string]: Notification };
 };
 
 export type Report = {

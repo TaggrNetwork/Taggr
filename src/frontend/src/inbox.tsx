@@ -3,9 +3,12 @@ import { HeadBar } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
 import { PostView } from "./post";
+import { Notification } from "./types";
 
 export const Inbox = () => {
-    const [inbox, setInbox] = React.useState(window.user.inbox);
+    const [inbox, setInbox] = React.useState<{ [key: string]: Notification }>(
+        window.user.inbox,
+    );
     const ids = Object.keys(inbox);
     if (ids.length == 0) {
         location.href = "#/";
@@ -25,7 +28,10 @@ export const Inbox = () => {
                     <button
                         onClick={() => {
                             window.user.inbox = {};
-                            api.call("clear_notifications", Object.keys(inbox));
+                            window.api.call(
+                                "clear_notifications",
+                                Object.keys(inbox),
+                            );
                             location.href = "#/";
                         }}
                     >
@@ -36,16 +42,17 @@ export const Inbox = () => {
             <>
                 {ids.map((k) => {
                     const message = inbox[k];
-                    let msg = message.Generic;
+                    let msg = "";
                     let id = null;
-                    if ("NewPost" in message) {
+                    if ("Generic" in message) {
+                        msg = message.Generic;
+                    } else if ("NewPost" in message) {
                         id = message.NewPost[1];
                         msg = message.NewPost[0];
                     } else if ("Conditional" in message) {
                         const payload = message.Conditional[1];
-                        id = payload.ReportOpen
-                            ? payload.ReportOpen
-                            : payload.Proposal;
+                        if ("ReportOpen" in payload) id = payload.ReportOpen;
+                        else if ("Proposal" in payload) id = payload.Proposal;
                         msg = message.Conditional[0];
                     } else if ("WatchedPostEntries" in message) {
                         id = parseInt(k.split("_")[1]);
@@ -69,7 +76,9 @@ export const Inbox = () => {
                                 <button
                                     className="unselected right_half_spaced"
                                     onClick={() => {
-                                        api.call("clear_notifications", [k]);
+                                        window.api.call("clear_notifications", [
+                                            k,
+                                        ]);
                                         delete inbox[k];
                                         delete window.user.inbox[k];
                                         setInbox({ ...inbox });
@@ -78,7 +87,7 @@ export const Inbox = () => {
                                     <Close classNameArg="action" />
                                 </button>
                             </div>
-                            {id && (
+                            {id && "WatchedPostEntries" in message && (
                                 <PostView
                                     id={id}
                                     classNameArg="top_framed"
