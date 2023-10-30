@@ -1,6 +1,6 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { getTokens, blobToUrl, timeAgo } from "./common";
+import { blobToUrl, timeAgo } from "./common";
 import remarkGfm from "remark-gfm";
 import { CarretDown } from "./icons";
 import { BlogTitle } from "./types";
@@ -83,26 +83,30 @@ const previewImg = (
     preview.appendChild(closeButton);
 };
 
+const linkToken = /[\$#@][\p{Letter}\p{Mark}|\d|\-|_|,|\.]+/gu;
+
 const linkTagsAndUsers = (value: string) => {
-    if (!value) return value;
-    const users = getTokens("@", value);
-    const tags = getTokens("#$", value);
-    value = tags.reduce(
-        (r: string, tag) =>
-            r.replaceAll("$" + tag, `[\$${tag}](#/feed/${tag})`),
-        value,
-    );
-    value = tags.reduce(
-        (r: string, tag) =>
-            r.replaceAll("#" + tag, `[&#x23;${tag}](#/feed/${tag})`),
-        value,
-    );
-    value = users.reduce(
-        (r: string, handle) =>
-            r.replaceAll("@" + handle, `[&commat;${handle}](#/user/${handle})`),
-        value,
-    );
-    return value;
+    const result = [];
+    let match;
+    let lastPos = 0;
+
+    while ((match = linkToken.exec(value)) !== null) {
+        result.push(value.slice(lastPos, match.index));
+        let token = match[0];
+        result.push(
+            <a
+                key={token + match.index.toString()}
+                href={`#/${token[0] == "@" ? "user" : "feed"}/${token.slice(
+                    1,
+                )}`}
+            >
+                {token}
+            </a>,
+        );
+        lastPos = linkToken.lastIndex;
+    }
+    result.push(value.slice(lastPos));
+    return result;
 };
 
 export const Content = ({
@@ -131,8 +135,20 @@ export const Content = ({
     if (!post)
         return (
             <ReactMarkdown
-                components={{ a: linkRenderer(preview) } as unknown as any}
-                children={linkTagsAndUsers(value)}
+                components={
+                    {
+                        a: linkRenderer(preview),
+                        p: ({ node, children, ...props }: any) => {
+                            children = children.flatMap((child: any) =>
+                                typeof child == "string"
+                                    ? linkTagsAndUsers(child)
+                                    : child,
+                            );
+                            return <p {...props}>{children}</p>;
+                        },
+                    } as unknown as any
+                }
+                children={value}
                 remarkPlugins={[remarkGfm]}
                 className={classNameArg}
             />
@@ -167,9 +183,6 @@ export const Content = ({
         if (words < 50) className += " x_large_text";
         else if (words < 100) className += " enlarged_text";
     }
-
-    value = linkTagsAndUsers(value);
-    extValue = linkTagsAndUsers(extValue);
 
     return React.useMemo(
         () => (
@@ -296,6 +309,11 @@ const markdownizer = (
                     const pics = children.filter(isPic).length;
                     if (pics >= 1 && isPic(children[0]))
                         return <Gallery children={children} />;
+                    children = children.flatMap((child) =>
+                        typeof child == "string"
+                            ? linkTagsAndUsers(child)
+                            : child,
+                    );
                     return <p {...props}>{children}</p>;
                 },
                 img: ({ node, ...props }: any) => {
