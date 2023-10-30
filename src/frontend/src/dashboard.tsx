@@ -39,19 +39,26 @@ import {
     User,
 } from "./icons";
 
-const show = (number, unit = null) => (
+const show = (val: number | BigInt, unit?: string) => (
     <code>
-        {number.toLocaleString()}
+        {val.toLocaleString()}
         {unit}
     </code>
 );
 
+type Log = {
+    timestamp: BigInt;
+    level: string;
+    message: string;
+};
+
 export const Dashboard = ({}) => {
     const stats = window.backendCache.stats;
-    const [logs, setLogs] = React.useState([]);
+    const [logs, setLogs] = React.useState<Log[]>([]);
 
     React.useEffect(() => {
-        api.query("logs").then((logs) => {
+        window.api.query<Log[]>("logs").then((logs) => {
+            if (!logs) return;
             logs.reverse();
             setLogs(logs);
         });
@@ -59,7 +66,7 @@ export const Dashboard = ({}) => {
 
     const {
         stats: { last_weekly_chores },
-    } = backendCache;
+    } = window.backendCache;
     return (
         <>
             <HeadBar title="DASHBOARD" shareLink="dashboard" />
@@ -81,7 +88,9 @@ export const Dashboard = ({}) => {
                         <label>
                             <Online /> ONLINE
                         </label>
-                        {show(Math.max(1, backendCache.stats.users_online))}
+                        {show(
+                            Math.max(1, window.backendCache.stats.users_online),
+                        )}
                     </div>
                     <div className="db_cell">
                         <label>
@@ -117,7 +126,6 @@ export const Dashboard = ({}) => {
                                     (acc, [, e]) => acc + e,
                                     0,
                                 ),
-                            "xx_large_text",
                         )}
                     </div>
                     <div className="db_cell">
@@ -191,7 +199,7 @@ export const Dashboard = ({}) => {
                     <div className="dynamic_table">
                         <div className="db_cell">
                             <a
-                                href={`https://dashboard.internetcomputer.org/canister/${backendCache.stats.canister_id}`}
+                                href={`https://dashboard.internetcomputer.org/canister/${window.backendCache.stats.canister_id}`}
                             >
                                 <Canister /> MAIN
                             </a>
@@ -206,7 +214,8 @@ export const Dashboard = ({}) => {
                                     <Cycles /> IC-CYCLES
                                 </label>{" "}
                                 {show(
-                                    stats.canister_cycle_balance / 10 ** 12,
+                                    Number(stats.canister_cycle_balance) /
+                                        10 ** 12,
                                     "T",
                                 )}
                             </div>
@@ -257,7 +266,7 @@ export const Dashboard = ({}) => {
                         <Globe /> DOMAINS
                     </h2>
                     <div className="dynamic_table" style={{ rowGap: "1em" }}>
-                        {backendCache.config.domains.map((domain) => (
+                        {window.backendCache.config.domains.map((domain) => (
                             <a key={domain} href={`https://${domain}`}>
                                 {domain}
                             </a>
@@ -265,7 +274,9 @@ export const Dashboard = ({}) => {
                     </div>
                 </div>
                 <hr />
-                <div className={bigScreen() ? "two_column_grid_flex" : null}>
+                <div
+                    className={bigScreen() ? "two_column_grid_flex" : undefined}
+                >
                     <div>
                         <h2>⚔️ STALWARTS</h2>
                         {userList(stats.stalwarts)}
@@ -298,7 +309,7 @@ export const Dashboard = ({}) => {
                         .map(
                             ({ timestamp, level, message }) =>
                                 `\`${shortDate(
-                                    new Date(parseInt(timestamp) / 1000000),
+                                    new Date(Number(timestamp) / 1000000),
                                 )}\`: ` +
                                 `${level2icon(level)} ` +
                                 `${message}`,
@@ -311,8 +322,8 @@ export const Dashboard = ({}) => {
     );
 };
 
-const shortDate = (date) => {
-    let options = {
+const shortDate = (date: Date) => {
+    let options: any = {
         month: "short",
         day: "numeric",
         hour: "numeric",
@@ -322,7 +333,7 @@ const shortDate = (date) => {
     return new Intl.DateTimeFormat("default", options).format(date);
 };
 
-const level2icon = (level) => {
+const level2icon = (level: string) => {
     switch (level) {
         case "INFO":
             return "";
@@ -335,18 +346,18 @@ const level2icon = (level) => {
     }
 };
 
-const sizeMb = (size) => (
+const sizeMb = (size: number | BigInt) => (
     <code className="xx_large_text">
-        {Math.ceil(parseInt(size) / 1024 / 1024).toLocaleString()} MB
+        {Math.ceil(Number(size) / 1024 / 1024).toLocaleString()} MB
     </code>
 );
 
-const CycleBalance = ({ id }) => {
+const CycleBalance = ({ id }: { id: string }) => {
     const [cycles, setCycles] = React.useState(-1);
     React.useEffect(() => {
-        api.query_raw(id, "balance").then((response) =>
-            setCycles(intFromBEBytes(Array.from(response))),
-        );
+        window.api
+            .query_raw(id, "balance", new ArrayBuffer(0))
+            .then((response: any) => setCycles(intFromBEBytes(response)));
     }, [id]);
     return (
         <code className="xx_large_text">{show(cycles / 10 ** 12, "T")}</code>

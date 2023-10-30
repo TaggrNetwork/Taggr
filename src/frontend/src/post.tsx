@@ -471,8 +471,8 @@ const PostInfo = ({
                         onTitle="Unwatch post"
                         offTitle="Watch post"
                         classNameArg="max_width_col"
-                        offLabel={<Bell classNameArg="" />}
-                        onLabel={<BellOff classNameArg="" />}
+                        offLabel={<Bell />}
+                        onLabel={<BellOff />}
                         currState={() =>
                             post.watchers.includes(window.user?.id)
                         }
@@ -494,7 +494,7 @@ const PostInfo = ({
                         offTitle="Bookmark post"
                         onTitle="Remove from bookmarks"
                         classNameArg="max_width_col"
-                        offLabel={<Save classNameArg="" />}
+                        offLabel={<Save />}
                         onLabel={<Unsave />}
                         currState={() =>
                             window.user.bookmarks.includes(post.id)
@@ -529,7 +529,7 @@ const PostInfo = ({
                                 alert(`Error: ${response.Err}`);
                             } else await callback();
                         }}
-                        label={<Coin classNameArg="" />}
+                        label={<Coin />}
                     />
                     {realmController && isRoot(post) && (
                         <ButtonWithLoading
@@ -548,7 +548,7 @@ const PostInfo = ({
                                 );
                                 alert("This post was removed from this realm.");
                             }}
-                            label={<Close styleArg={{}} classNameArg="" />}
+                            label={<Close />}
                         />
                     )}
                     {!postAuthor && <FlagButton id={post.id} domain="post" />}
@@ -691,7 +691,7 @@ const PostInfo = ({
                                     key={reactId}
                                     className="bottom_half_spaced"
                                 >
-                                    {reaction2icon(reactId)}{" "}
+                                    {reaction2icon(Number(reactId))}{" "}
                                     {commaSeparated(
                                         users.map((id) => (
                                             <UserLink key={id} id={id} />
@@ -794,7 +794,9 @@ const PostBar = ({
                                     <>
                                         <Comment
                                             classNameArg={
-                                                newComments ? "accent" : null
+                                                newComments
+                                                    ? "accent"
+                                                    : undefined
                                             }
                                         />
                                         &nbsp;{`${replies}`}
@@ -884,7 +886,8 @@ export const Reactions = ({
                         onClick={() => react(parseInt(reactId))}
                         data-testid={reactId + "-reaction"}
                     >
-                        {reaction2icon(reactId)}&nbsp;{`${users.length}`}
+                        {reaction2icon(Number(reactId))}&nbsp;
+                        {`${users.length}`}
                     </button>
                 );
             })}

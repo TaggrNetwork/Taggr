@@ -141,7 +141,7 @@ export const Header = ({ subtle, route, inboxMode, user }) => {
             {showLogins && <LoginMasks />}
             {showButtonBar && (
                 <div
-                    className="two_column_grid_flex smaller_text top_spaced stands_out monospace"
+                    className="two_column_grid_flex top_spaced stands_out monospace"
                     style={{ rowGap: "1em" }}
                 >
                     {user && (

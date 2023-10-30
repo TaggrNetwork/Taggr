@@ -157,6 +157,27 @@ declare global {
             recent_tags: string[];
             realms: { [name: string]: [string, boolean] };
             stats: {
+                users: number;
+                active_users: number;
+                users_online: number;
+                cycles: number;
+                burned_cycles: BigInt;
+                burned_cycles_total: BigInt;
+                circulating_supply: number;
+                total_rewards_shared: BigInt;
+                total_revenue_shared: BigInt;
+                canister_cycle_balance: BigInt;
+                module_hash: string;
+                domains: string[];
+                bots: UserId[];
+                weekly_karma_leaders: [UserId, number][];
+                invited_users: number;
+                posts: number;
+                comments: number;
+                bootcamp_users: number;
+                state_size: number;
+                account: string;
+                last_weekly_chores: BigInt;
                 holders: number;
                 e8s_for_one_xdr: BigInt;
                 e8s_revenue_per_1k: BigInt;

@@ -267,7 +267,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                             {delta > 0 ? "+" : ""}
                                             {delta}{" "}
                                             {type == "KRM" ? (
-                                                <YinYan classNameArg="" />
+                                                <YinYan />
                                             ) : (
                                                 <Cycles />
                                             )}

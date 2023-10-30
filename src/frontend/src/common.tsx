@@ -392,8 +392,8 @@ export const ICPAccountBalance = ({
 }: {
     address: string;
     decimals: number;
-    units: boolean;
-    heartbeat: any;
+    units?: boolean;
+    heartbeat?: any;
 }) => {
     const [e8s, setE8s] = React.useState(0 as unknown as BigInt);
     React.useEffect(() => {

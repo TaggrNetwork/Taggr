@@ -364,46 +364,32 @@ export const Form = ({
                                 {formButton(<b>B</b>, (v) => `**${v}**`)}
                                 {formButton(<i>I</i>, (v) => `_${v}_`)}
                                 {formButton(<s>S</s>, (v) => `~${v}~`)}
-                                {formButton(<List classNameArg={null} />, (v) =>
+                                {formButton(<List />, (v) =>
                                     v
                                         .split("\n")
                                         .map((line) => "- " + line)
                                         .join("\n"),
                                 )}
-                                {formButton(
-                                    <ListNumbered classNameArg={null} />,
-                                    (v) =>
-                                        v
-                                            .split("\n")
-                                            .map(
-                                                (line, i) =>
-                                                    i + 1 + ". " + line,
-                                            )
-                                            .join("\n"),
+                                {formButton(<ListNumbered />, (v) =>
+                                    v
+                                        .split("\n")
+                                        .map((line, i) => i + 1 + ". " + line)
+                                        .join("\n"),
                                 )}
+                                {formButton(<Quote />, (v) => `> ${v}`)}
                                 {formButton(
-                                    <Quote classNameArg={null} />,
-                                    (v) => `> ${v}`,
-                                )}
-                                {formButton(
-                                    <Link classNameArg={null} />,
+                                    <Link />,
                                     (v) => `[${v}](${prompt("URL:")})`,
                                 )}
                                 {formButton(
-                                    <Pic classNameArg={null} />,
+                                    <Pic />,
                                     () =>
                                         `![${prompt("Image name")}](${prompt(
                                             "URL",
                                         )})`,
                                 )}
-                                {formButton(
-                                    <Code classNameArg={null} />,
-                                    (v) => `\`${v}\``,
-                                )}
-                                {formButton(
-                                    <Table classNameArg={null} />,
-                                    (_) => tableTemplate,
-                                )}
+                                {formButton(<Code />, (v) => `\`${v}\``)}
+                                {formButton(<Table />, (_) => tableTemplate)}
                             </div>
                             <textarea
                                 id={id}
@@ -477,7 +463,7 @@ export const Form = ({
                                     <ReactionToggleButton
                                         testId="poll-button"
                                         classNameArg="left_spaced"
-                                        icon={<Bars classNameArg={null} />}
+                                        icon={<Bars />}
                                         pressed={!!poll}
                                         onClick={() => {
                                             setPoll(

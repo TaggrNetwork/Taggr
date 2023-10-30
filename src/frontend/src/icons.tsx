@@ -1,5 +1,3 @@
-import * as React from "react";
-
 export const Lock = () => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -22,7 +20,7 @@ export const Infinity = () => (
     </svg>
 );
 
-export const Rocket = ({ classNameArg }) => (
+export const Rocket = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -36,7 +34,7 @@ export const Rocket = ({ classNameArg }) => (
     </svg>
 );
 
-export const Git = ({ classNameArg }) => (
+export const Git = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -48,7 +46,7 @@ export const Git = ({ classNameArg }) => (
     </svg>
 );
 
-export const Journal = ({ classNameArg }) => (
+export const Journal = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -62,7 +60,7 @@ export const Journal = ({ classNameArg }) => (
     </svg>
 );
 
-export const CashCoin = ({ classNameArg }) => (
+export const CashCoin = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -80,7 +78,7 @@ export const CashCoin = ({ classNameArg }) => (
     </svg>
 );
 
-export const Incognito = ({ classNameArg }) => (
+export const Incognito = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -95,7 +93,7 @@ export const Incognito = ({ classNameArg }) => (
     </svg>
 );
 
-export const Cash = ({ classNameArg }) => (
+export const Cash = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -108,7 +106,7 @@ export const Cash = ({ classNameArg }) => (
     </svg>
 );
 
-export const Box = ({ classNameArg }) => (
+export const Box = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -123,7 +121,7 @@ export const Box = ({ classNameArg }) => (
     </svg>
 );
 
-export const CommentArrow = ({ classNameArg }) => (
+export const CommentArrow = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width={14}
@@ -138,7 +136,7 @@ export const CommentArrow = ({ classNameArg }) => (
     </svg>
 );
 
-export const Table = ({ classNameArg }) => (
+export const Table = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -150,7 +148,7 @@ export const Table = ({ classNameArg }) => (
     </svg>
 );
 
-export const Pic = ({ classNameArg }) => (
+export const Pic = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -162,7 +160,7 @@ export const Pic = ({ classNameArg }) => (
     </svg>
 );
 
-export const Code = ({ classNameArg }) => (
+export const Code = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -174,7 +172,7 @@ export const Code = ({ classNameArg }) => (
     </svg>
 );
 
-export const Link = ({ classNameArg }) => (
+export const Link = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -187,7 +185,7 @@ export const Link = ({ classNameArg }) => (
     </svg>
 );
 
-export const Quote = ({ classNameArg }) => (
+export const Quote = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -199,7 +197,7 @@ export const Quote = ({ classNameArg }) => (
     </svg>
 );
 
-export const ListNumbered = ({ classNameArg }) => (
+export const ListNumbered = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -215,7 +213,7 @@ export const ListNumbered = ({ classNameArg }) => (
     </svg>
 );
 
-export const List = ({ classNameArg }) => (
+export const List = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -235,7 +233,7 @@ export const List = ({ classNameArg }) => (
     </svg>
 );
 
-export const Comment = ({ classNameArg }) => (
+export const Comment = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -247,7 +245,7 @@ export const Comment = ({ classNameArg }) => (
     </svg>
 );
 
-export const Post = ({ classNameArg }) => (
+export const Post = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -259,7 +257,7 @@ export const Post = ({ classNameArg }) => (
     </svg>
 );
 
-export const Online = ({ classNameArg }) => (
+export const Online = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -274,7 +272,7 @@ export const Online = ({ classNameArg }) => (
     </svg>
 );
 
-export const ActiveUser = ({ classNameArg }) => (
+export const ActiveUser = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -289,7 +287,7 @@ export const ActiveUser = ({ classNameArg }) => (
     </svg>
 );
 
-export const User = ({ classNameArg }) => (
+export const User = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -305,7 +303,7 @@ export const User = ({ classNameArg }) => (
     </svg>
 );
 
-export const New = ({ classNameArg }) => (
+export const New = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -317,7 +315,13 @@ export const New = ({ classNameArg }) => (
     </svg>
 );
 
-export const Close = ({ classNameArg, styleArg }) => (
+export const Close = ({
+    classNameArg,
+    styleArg,
+}: {
+    classNameArg?: string;
+    styleArg?: any;
+}) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -326,7 +330,7 @@ export const Close = ({ classNameArg, styleArg }) => (
         viewBox="0 0 16 16"
     >
         <path
-            style={styleArg || null}
+            style={styleArg}
             d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293 5.354 4.646z"
         />
     </svg>
@@ -396,7 +400,7 @@ export const Heart = () => (
     </svg>
 );
 
-export const Bell = ({ classNameArg }) => (
+export const Bell = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -408,7 +412,7 @@ export const Bell = ({ classNameArg }) => (
     </svg>
 );
 
-export const BellOff = ({ classNameArg }) => (
+export const BellOff = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -494,7 +498,7 @@ export const Paperclip = () => (
     </svg>
 );
 
-export const Coin = ({ classNameArg }) => (
+export const Coin = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -524,7 +528,7 @@ export const Repost = () => (
     </svg>
 );
 
-export const Save = ({ classNameArg }) => (
+export const Save = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -551,7 +555,7 @@ export const Unsave = () => (
     </svg>
 );
 
-export const Share = ({ styleArg }) => (
+export const Share = ({ styleArg }: { styleArg?: any }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className="vertically_aligned"
@@ -560,7 +564,7 @@ export const Share = ({ styleArg }) => (
         viewBox="0 0 16 16"
     >
         <path
-            style={styleArg || null}
+            style={styleArg}
             d="M11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5z"
         />
     </svg>
@@ -594,7 +598,13 @@ export const Trash = () => (
     </svg>
 );
 
-export const Menu = ({ classNameArg, styleArg }) => (
+export const Menu = ({
+    classNameArg,
+    styleArg,
+}: {
+    classNameArg: string;
+    styleArg?: any;
+}) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className={`vertically_aligned ${classNameArg || ""}`}
@@ -628,7 +638,7 @@ export const CarretRight = () => (
     </svg>
 );
 
-export const CarretDown = ({ classNameArg }) => (
+export const CarretDown = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="18"
@@ -647,7 +657,7 @@ export const CarretDown = ({ classNameArg }) => (
     </svg>
 );
 
-export const Globe = ({ classNameArg }) => (
+export const Globe = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -659,7 +669,7 @@ export const Globe = ({ classNameArg }) => (
     </svg>
 );
 
-export const YinYan = ({ classNameArg }) => (
+export const YinYan = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -672,7 +682,7 @@ export const YinYan = ({ classNameArg }) => (
     </svg>
 );
 
-export const Binary = ({ classNameArg }) => (
+export const Binary = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -685,7 +695,11 @@ export const Binary = ({ classNameArg }) => (
     </svg>
 );
 
-export const StorageCanister = ({ classNameArg }) => (
+export const StorageCanister = ({
+    classNameArg,
+}: {
+    classNameArg?: string;
+}) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -697,7 +711,7 @@ export const StorageCanister = ({ classNameArg }) => (
     </svg>
 );
 
-export const Canister = ({ classNameArg }) => (
+export const Canister = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -710,7 +724,7 @@ export const Canister = ({ classNameArg }) => (
     </svg>
 );
 
-export const Canisters = ({ classNameArg }) => (
+export const Canisters = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -723,7 +737,7 @@ export const Canisters = ({ classNameArg }) => (
     </svg>
 );
 
-export const Bootcamp = ({ classNameArg }) => (
+export const Bootcamp = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -736,7 +750,7 @@ export const Bootcamp = ({ classNameArg }) => (
     </svg>
 );
 
-export const Crowd = ({ classNameArg }) => (
+export const Crowd = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -748,7 +762,7 @@ export const Crowd = ({ classNameArg }) => (
     </svg>
 );
 
-export const Realm = ({ classNameArg }) => (
+export const Realm = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -760,7 +774,7 @@ export const Realm = ({ classNameArg }) => (
     </svg>
 );
 
-export const Trophy = ({ classNameArg }) => (
+export const Trophy = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -772,7 +786,7 @@ export const Trophy = ({ classNameArg }) => (
     </svg>
 );
 
-export const Document = ({ classNameArg }) => (
+export const Document = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -785,7 +799,7 @@ export const Document = ({ classNameArg }) => (
     </svg>
 );
 
-export const Ticket = ({ classNameArg }) => (
+export const Ticket = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -798,7 +812,7 @@ export const Ticket = ({ classNameArg }) => (
     </svg>
 );
 
-export const Wallet = ({ classNameArg }) => (
+export const Wallet = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -810,7 +824,7 @@ export const Wallet = ({ classNameArg }) => (
     </svg>
 );
 
-export const Bars = ({ classNameArg }) => (
+export const Bars = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -822,7 +836,7 @@ export const Bars = ({ classNameArg }) => (
     </svg>
 );
 
-export const Gem = ({ classNameArg }) => (
+export const Gem = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -834,7 +848,7 @@ export const Gem = ({ classNameArg }) => (
     </svg>
 );
 
-export const HourGlass = ({ classNameArg }) => (
+export const HourGlass = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -846,7 +860,7 @@ export const HourGlass = ({ classNameArg }) => (
     </svg>
 );
 
-export const Treasury = ({ classNameArg }) => (
+export const Treasury = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -858,7 +872,7 @@ export const Treasury = ({ classNameArg }) => (
     </svg>
 );
 
-export const Gear = ({ classNameArg }) => (
+export const Gear = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -870,7 +884,7 @@ export const Gear = ({ classNameArg }) => (
     </svg>
 );
 
-export const Balloon = ({ classNameArg }) => (
+export const Balloon = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -885,7 +899,7 @@ export const Balloon = ({ classNameArg }) => (
     </svg>
 );
 
-export const Logout = ({ classNameArg }) => (
+export const Logout = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -904,8 +918,8 @@ export const Logout = ({ classNameArg }) => (
     </svg>
 );
 
-export const reaction2icon = (id) => {
-    switch (parseInt(id)) {
+export const reaction2icon = (id: number) => {
+    switch (id) {
         case 1:
             return <ThumbsDown />;
         case 50:
