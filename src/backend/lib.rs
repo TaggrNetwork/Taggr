@@ -86,12 +86,12 @@ fn pre_upgrade() {
 
 #[post_upgrade]
 fn post_upgrade() {
-    // This should prevent accidental deployments of dev releases.
-    #[cfg(feature = "dev")]
+    // This should prevent accidental deployments of dev or staging releases.
+    #[cfg(any(feature = "dev", feature = "staging"))]
     {
-        let config: &str = include_str!("../../canister_ids.json");
-        if config.contains(&api::id().to_string()) {
-            panic!("dev feature is enabled!")
+        let ids: &str = include_str!("../../canister_ids.json");
+        if ids.contains(&format!("\"ic\": \"{}\"", &api::id().to_string())) {
+            panic!("dev or staging feature is enabled!")
         }
     }
     stable_to_heap_core();
