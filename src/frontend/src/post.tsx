@@ -100,8 +100,11 @@ export const PostView = ({
             // This is needed, becasue reactions are updated optimistically and we might have new ones in-flight.
             data.reactions = post.reactions;
         }
+        // if the post is in prime mode, load pics right away
+        if (prime) {
+            loadPostBlobs(data.files).then(setBlobs);
+        }
         setPost(data);
-        setBlobs(await loadPostBlobs(data.files));
     };
 
     React.useEffect(() => {
@@ -110,9 +113,28 @@ export const PostView = ({
 
     React.useEffect(() => {
         const article: any = refArticle.current;
+        if (!article) return;
         setForceCollapsing(
             article && article.scrollHeight > article.clientHeight,
         );
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting && post) {
+                    loadPostBlobs(post.files).then(setBlobs);
+                }
+            },
+            {
+                root: null,
+                rootMargin: "0px",
+                threshold: 0,
+            },
+        );
+
+        observer.observe(article);
+
+        return () => {
+            observer.unobserve(article);
+        };
     }, []);
 
     if (!post) {
