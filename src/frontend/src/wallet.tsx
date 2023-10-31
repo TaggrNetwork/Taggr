@@ -363,7 +363,8 @@ export const Wallet = () => {
                         onClick={async () => {
                             const amount = prompt(
                                 `Enter the amount (fee: ${
-                                    1 / Math.pow(10, token_decimals)
+                                    window.backendCache.config.transaction_fee /
+                                    Math.pow(10, token_decimals)
                                 } ${token_symbol})`,
                             );
                             if (!amount) return;
