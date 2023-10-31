@@ -89,7 +89,7 @@ export const Dashboard = ({}) => {
                             <Online /> ONLINE
                         </label>
                         {show(
-                            Math.max(1, window.backendCache.stats.users_online)
+                            Math.max(1, window.backendCache.stats.users_online),
                         )}
                     </div>
                     <div className="db_cell">
@@ -122,7 +122,10 @@ export const Dashboard = ({}) => {
                         </label>
                         {sizeMb(
                             stats.state_size +
-                                stats.buckets.reduce((acc, [, e]) => acc + e, 0)
+                                stats.buckets.reduce(
+                                    (acc, [, e]) => acc + e,
+                                    0,
+                                ),
                         )}
                     </div>
                     <div className="db_cell">
@@ -144,7 +147,7 @@ export const Dashboard = ({}) => {
                         </label>
                         <code className="xx_large_text">{`${hoursTillNext(
                             604800000000000,
-                            last_weekly_chores
+                            last_weekly_chores,
                         )}h`}</code>
                     </div>
                     <div className="db_cell">
@@ -195,11 +198,14 @@ export const Dashboard = ({}) => {
                     </h2>
                     <div className="dynamic_table">
                         <div className="db_cell">
-                            <a
-                                href={`https://dashboard.internetcomputer.org/canister/${window.backendCache.stats.canister_id}`}
-                            >
-                                <Canister /> MAIN
-                            </a>
+                            <label>
+                                <Canister />
+                                <a
+                                    href={`https://dashboard.internetcomputer.org/canister/${window.backendCache.stats.canister_id}`}
+                                >
+                                    MAIN
+                                </a>
+                            </label>
                             <div className="db_cell top_spaced bottom_spaced">
                                 <label>
                                     <Box /> STATE
@@ -213,7 +219,7 @@ export const Dashboard = ({}) => {
                                 {show(
                                     Number(stats.canister_cycle_balance) /
                                         10 ** 12,
-                                    "T"
+                                    "T",
                                 )}
                             </div>
                         </div>
@@ -303,10 +309,10 @@ export const Dashboard = ({}) => {
                         .map(
                             ({ timestamp, level, message }) =>
                                 `\`${shortDate(
-                                    new Date(Number(timestamp) / 1000000)
+                                    new Date(Number(timestamp) / 1000000),
                                 )}\`: ` +
                                 `${level2icon(level)} ` +
-                                `${message}`
+                                `${message}`,
                         )
                         .join("\n- - -\n")}
                 />

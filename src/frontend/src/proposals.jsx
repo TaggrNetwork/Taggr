@@ -96,7 +96,7 @@ export const Proposals = () => {
                                 let response = await api.call(
                                     "propose_reward",
                                     description,
-                                    receiver
+                                    receiver,
                                 );
                                 if ("Err" in response) {
                                     alert(`Error: ${response.Err}`);
@@ -162,7 +162,7 @@ export const Proposals = () => {
                                     "propose_funding",
                                     description,
                                     receiver,
-                                    parseInt(fundingAmount)
+                                    parseInt(fundingAmount),
                                 );
                                 if ("Err" in response) {
                                     alert(`Error: ${response.Err}`);
@@ -220,7 +220,7 @@ export const Proposals = () => {
                                 const response = await api.propose_release(
                                     description,
                                     commit,
-                                    binary
+                                    binary,
                                 );
                                 if ("Err" in response) {
                                     alert(`Error: ${response.Err}`);
@@ -280,12 +280,12 @@ export const Proposal = ({ id, postId }) => {
             }
             if ("Reward" in proposal.payload) {
                 data = prompt(
-                    "Please enter the token amount which would be an appropriate reward for the efforts described:"
+                    "Please enter the token amount which would be an appropriate reward for the efforts described:",
                 );
                 if (!data) return;
                 if (
                     !confirm(
-                        `You vote for issuing the reward of ${data} tokens.`
+                        `You vote for issuing the reward of ${data} tokens.`,
                     )
                 )
                     return;
@@ -295,7 +295,7 @@ export const Proposal = ({ id, postId }) => {
             "vote_on_proposal",
             proposal.id,
             adopted,
-            data
+            data,
         );
         if ("Err" in result) {
             alert(`Error: ${result.Err}`);
@@ -310,11 +310,11 @@ export const Proposal = ({ id, postId }) => {
         proposal.bulletins.some((vote) => window.user.id == vote[0]);
     const adopted = proposal.bulletins.reduce(
         (acc, [_, adopted, votes]) => (adopted ? acc + votes : acc),
-        0
+        0,
     );
     const rejected = proposal.bulletins.reduce(
         (acc, [_, adopted, votes]) => (!adopted ? acc + votes : acc),
-        0
+        0,
     );
     const open = proposal.status == "Open";
     const commit = proposal.payload.Release
@@ -328,7 +328,7 @@ export const Proposal = ({ id, postId }) => {
     const days = Math.ceil(
         (proposal.voting_power -
             (adopted > rejected ? adopted / t : rejected / (100 - t)) * 100) /
-            dailyDrop
+            dailyDrop,
     );
     const propStatus = proposal.status.toUpperCase();
     return (
@@ -424,7 +424,7 @@ export const Proposal = ({ id, postId }) => {
                         userList(
                             proposal.bulletins
                                 .filter((vote) => vote[1])
-                                .map((vote) => vote[0])
+                                .map((vote) => vote[0]),
                         )}
                 </div>
             </div>
@@ -441,7 +441,7 @@ export const Proposal = ({ id, postId }) => {
                         userList(
                             proposal.bulletins
                                 .filter((vote) => !vote[1])
-                                .map((vote) => vote[0])
+                                .map((vote) => vote[0]),
                         )}
                 </div>
             </div>

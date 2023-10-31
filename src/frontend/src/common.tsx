@@ -14,7 +14,7 @@ export const percentage = (n: number | BigInt, total: number) => {
 
 export const hex = (arr: number[]) =>
     Array.from(arr, (byte) =>
-        ("0" + (byte & 0xff).toString(16)).slice(-2)
+        ("0" + (byte & 0xff).toString(16)).slice(-2),
     ).join("");
 
 export const FileUploadInput = ({
@@ -37,7 +37,7 @@ export const FileUploadInput = ({
             const content = new Uint8Array(await loadFile(file));
             if (content.byteLength > MAX_POST_SIZE_BYTES) {
                 alert(
-                    `Error: the binary cannot be larger than ${MAX_POST_SIZE_BYTES} bytes.`
+                    `Error: the binary cannot be larger than ${MAX_POST_SIZE_BYTES} bytes.`,
                 );
                 return;
             }
@@ -57,7 +57,7 @@ export const commaSeparated = (items: (JSX.Element | string)[] = []) =>
 
 export const interleaved = (
     items: (JSX.Element | string)[],
-    link: JSX.Element
+    link: JSX.Element,
 ) =>
     items.reduce((prev, curr) => (
         <>
@@ -334,7 +334,7 @@ export const ToggleButton = ({
 export const timeAgo = (
     originalTimestamp: BigInt | number,
     absolute?: boolean,
-    format: "short" | "long" = "short"
+    format: "short" | "long" = "short",
 ) => {
     const timestamp = Number(originalTimestamp) / 1000000;
     const diff = Number(new Date()) - timestamp;
@@ -443,7 +443,7 @@ export const Loading = ({
                     </span>
                 ) : (
                     v
-                )
+                ),
             )}
         </div>
     );
@@ -461,7 +461,7 @@ export const expandUser = (post: Post) => {
 
 export const blobToUrl = (blob: ArrayBuffer) =>
     URL.createObjectURL(
-        new Blob([new Uint8Array(blob).buffer], { type: "image/png" })
+        new Blob([new Uint8Array(blob).buffer], { type: "image/png" }),
     );
 
 export const isRoot = (post: Post) => post.parent == null;
@@ -485,7 +485,7 @@ export const userList = (ids: UserId[] = []) =>
 
 export const token = (n: number) =>
     Math.ceil(
-        n / Math.pow(10, window.backendCache.config.token_decimals)
+        n / Math.pow(10, window.backendCache.config.token_decimals),
     ).toLocaleString();
 
 export const ReactionToggleButton = ({
@@ -564,21 +564,21 @@ export const loadPostBlobs = async (files: {
             args.set(lenBEBytes, offsetBEBytes.length);
             // This allows us to see the bucket pics in dev mode.
             const api = window.backendCache.stats.buckets.every(
-                ([id]) => id != bucket_id
+                ([id]) => id != bucket_id,
             )
                 ? window.mainnet_api
                 : window.api;
             return api
                 .query_raw(bucket_id, "read", Buffer.from(args))
                 .then((blob) => [blobId, blob || new ArrayBuffer(0)]);
-        })
+        }),
     );
     return blobs.reduce(
         (acc, [blobId, blob]) => {
             acc[blobId] = blob;
             return acc;
         },
-        {} as { [id: string]: ArrayBuffer }
+        {} as { [id: string]: ArrayBuffer },
     );
 };
 
@@ -596,7 +596,7 @@ export const reactionCosts = () =>
             acc[id] = cost;
             return acc;
         },
-        {} as { [id: number]: number }
+        {} as { [id: number]: number },
     );
 
 export function CopyToClipboard({
@@ -675,14 +675,14 @@ export const FlagButton = ({
                             ? "reporting_penalty_post"
                             : "reporting_penalty_misbehaviour"
                     ] +
-                    ` cycles and karma. If you want to continue, please justify the report.`
+                    ` cycles and karma. If you want to continue, please justify the report.`,
             );
             if (reason) {
                 let response = await window.api.call<{ [name: string]: any }>(
                     "report",
                     domain,
                     id,
-                    reason
+                    reason,
                 );
                 if (response && "Err" in response) {
                     alert(`Error: ${response.Err}`);
@@ -757,7 +757,7 @@ export const ReportBanner = ({
                                         : (
                                               await window.api.query<User>(
                                                   "user",
-                                                  [id.toString()]
+                                                  [id.toString()],
                                               )
                                           )?.report;
                                 if (updatedReport) setReport(updatedReport);

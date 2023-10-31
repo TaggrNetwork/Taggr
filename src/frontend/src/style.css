@@ -806,6 +806,14 @@ a.accent,
     width: 50%;
 }
 
+.iconed svg,
+label svg {
+    margin-right: 0.3em;
+    align-items: center;
+    position: relative;
+    top: -2px;
+}
+
 .mobile_only {
     display: none;
 }

@@ -46,7 +46,7 @@ export const Form = ({
         value: string,
         blobs: [string, Uint8Array][],
         extension?: Extension,
-        realm?: string
+        realm?: string,
     ) => Promise<boolean>;
     writingCallback: (arg: string) => void;
     repost?: PostId;
@@ -65,7 +65,7 @@ export const Form = ({
     const [busy, setBusy] = React.useState(false);
     const [poll, setPoll] = React.useState<PollType>();
     const [showTextField, setShowTextField] = React.useState(
-        !!localStorage.getItem(draftKey) || expanded
+        !!localStorage.getItem(draftKey) || expanded,
     );
     const [suggestedTags, setSuggestedTags] = React.useState<string[]>([]);
     const [suggestedUsers, setSuggestedUsers] = React.useState<string[]>([]);
@@ -82,7 +82,7 @@ export const Form = ({
     const handleSubmit = async () => {
         if (value.length == 0 || value.length > max_post_length) {
             alert(
-                `Post length should be larger than 0 and shorter than ${max_post_length} characters.`
+                `Post length should be larger than 0 and shorter than ${max_post_length} characters.`,
             );
             return false;
         }
@@ -95,14 +95,14 @@ export const Form = ({
                 }
                 return acc;
             },
-            [] as [string, Uint8Array][]
+            [] as [string, Uint8Array][],
         );
         if (
             (value.match(/!\[.*?\]\(\/blob\/.*?\)/g) || []).length !=
             blobArrays.length
         ) {
             alert(
-                "You're referencing pictures that are not attached anymore. Please re-upload."
+                "You're referencing pictures that are not attached anymore. Please re-upload.",
             );
             setSubmitting(false);
             return false;
@@ -117,7 +117,7 @@ export const Form = ({
                 value,
                 blobArrays,
                 extension,
-                realm
+                realm,
             );
             if (result) {
                 setValue("");
@@ -175,7 +175,7 @@ export const Form = ({
             setTmpBlobs(tmpBlobs);
             image = await loadImage(resized_content);
             fileLinks.push(
-                `![${image.width}x${image.height}, ${size}kb](/blob/${key})`
+                `![${image.width}x${image.height}, ${size}kb](/blob/${key})`,
             );
             setDragAndDropping(false);
         }
@@ -197,7 +197,7 @@ export const Form = ({
         const suggestedUsers = suggestTokens(cursor, value, users, "@");
         setSuggestedUsers(suggestedUsers);
         setChoresTimer(
-            setTimeout(() => localStorage.setItem(draftKey, value), 1500)
+            setTimeout(() => localStorage.setItem(draftKey, value), 1500),
         );
         writingCallback(value);
     };
@@ -296,7 +296,7 @@ export const Form = ({
                             classNameArg="repost"
                         />
                     ),
-                    [repost]
+                    [repost],
                 )}
         </article>
     );
@@ -311,7 +311,7 @@ export const Form = ({
                 const end = element.selectionEnd;
                 const selection = element.value.substring(start, end);
                 setValue(
-                    value.slice(0, start) + map(selection) + value.slice(end)
+                    value.slice(0, start) + map(selection) + value.slice(end),
                 );
                 element.focus();
             }}
@@ -368,25 +368,25 @@ export const Form = ({
                                     v
                                         .split("\n")
                                         .map((line) => "- " + line)
-                                        .join("\n")
+                                        .join("\n"),
                                 )}
                                 {formButton(<ListNumbered />, (v) =>
                                     v
                                         .split("\n")
                                         .map((line, i) => i + 1 + ". " + line)
-                                        .join("\n")
+                                        .join("\n"),
                                 )}
                                 {formButton(<Quote />, (v) => `> ${v}`)}
                                 {formButton(
                                     <Link />,
-                                    (v) => `[${v}](${prompt("URL:")})`
+                                    (v) => `[${v}](${prompt("URL:")})`,
                                 )}
                                 {formButton(
                                     <Pic />,
                                     () =>
                                         `![${prompt("Image name")}](${prompt(
-                                            "URL"
-                                        )})`
+                                            "URL",
+                                        )})`,
                                 )}
                                 {formButton(<Code />, (v) => `\`${v}\``)}
                                 {formButton(<Table />, (_) => tableTemplate)}
@@ -478,7 +478,7 @@ export const Form = ({
                                                           ],
                                                           votes: {},
                                                           deadline: 24,
-                                                      }
+                                                      },
                                             );
                                         }}
                                     />
@@ -556,7 +556,7 @@ export const Form = ({
 const insertNewPicture = (
     value: string,
     cursor: number,
-    fileLinks: string[]
+    fileLinks: string[],
 ) => {
     const preCursorLine = value.slice(0, cursor).split("\n").pop();
     const newLineNeeded = !!preCursorLine && !preCursorLine.startsWith("![");
@@ -611,8 +611,8 @@ const canvasToBlob = (canvas: HTMLCanvasElement): Promise<ArrayBuffer> =>
         canvas.toBlob(
             (blob) => blob && blob.arrayBuffer().then(resolve),
             "image/jpeg",
-            0.5
-        )
+            0.5,
+        ),
     );
 
 const hash = async (buffer: ArrayBuffer): Promise<string> => {
@@ -625,7 +625,7 @@ const hash = async (buffer: ArrayBuffer): Promise<string> => {
 
 const resize = async (
     blob: ArrayBuffer,
-    scale: number
+    scale: number,
 ): Promise<ArrayBuffer> => {
     const image = await loadImage(blob);
     const canvas = downScaleImage(image, scale);
@@ -636,7 +636,7 @@ const suggestTokens = (
     cursor: number,
     value: string,
     tokens: string[],
-    trigger: string
+    trigger: string,
 ) => {
     let currentTag = "";
     let i;
@@ -647,10 +647,10 @@ const suggestTokens = (
         const result = tokens
             .filter((tag) => tag.length > currentTag.length)
             .filter((tag) =>
-                tag.toLowerCase().startsWith(currentTag.toLowerCase())
+                tag.toLowerCase().startsWith(currentTag.toLowerCase()),
             )
             .map(
-                (tag) => currentTag + tag.slice(currentTag.length, tag.length)
+                (tag) => currentTag + tag.slice(currentTag.length, tag.length),
             );
         result.sort((a, b): number => {
             if (a.length != b.length) {
@@ -667,7 +667,7 @@ const suggestTokens = (
 // returns a canvas containing the scaled image.
 function downScaleImage(
     img: HTMLImageElement,
-    scale: number
+    scale: number,
 ): HTMLCanvasElement {
     let width = img.width;
     let height = img.height;

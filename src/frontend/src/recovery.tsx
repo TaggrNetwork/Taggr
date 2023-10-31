@@ -16,7 +16,7 @@ export const Recovery = () => {
         if (user != undefined) {
             setState(1);
             const result = await window.api.query<[string, string[]]>(
-                "recovery_state"
+                "recovery_state",
             );
             if (!result) return;
             const [status, votes] = result;
@@ -46,7 +46,7 @@ export const Recovery = () => {
                     callback={async (binary) => {
                         if (
                             !confirm(
-                                "Do you really want to upload a new binary? This will reset all existing votes."
+                                "Do you really want to upload a new binary? This will reset all existing votes.",
                             )
                         )
                             return;
@@ -76,10 +76,10 @@ export const Recovery = () => {
                             onClick={async () => {
                                 await window.api.call(
                                     "confirm_emergency_release",
-                                    hash
+                                    hash,
                                 );
                                 alert(
-                                    "Your vote was submitted. If the hash was correct, your principal will appear in the list of supporters."
+                                    "Your vote was submitted. If the hash was correct, your principal will appear in the list of supporters.",
                                 );
                                 location.reload();
                             }}

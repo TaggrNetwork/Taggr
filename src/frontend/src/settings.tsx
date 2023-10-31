@@ -8,7 +8,7 @@ export const Settings = ({ invite = null }) => {
     const [name, setName] = React.useState("");
     const [about, setAbout] = React.useState("");
     const [settings, setSettings] = React.useState<{ [name: string]: string }>(
-        {}
+        {},
     );
     const [controllers, setControllers] = React.useState("");
     const [label, setLabel] = React.useState(null);
@@ -43,10 +43,12 @@ export const Settings = ({ invite = null }) => {
                         window.api
                             .query<any>("validate_username", name)
                             .then((result) =>
-                                setLabel("Err" in result ? result.Err : "free!")
+                                setLabel(
+                                    "Err" in result ? result.Err : "free!",
+                                ),
                             ),
-                    300
-                )
+                    300,
+                ),
             );
         setName(name);
     };
@@ -56,7 +58,7 @@ export const Settings = ({ invite = null }) => {
             let response = await window.api.call<any>(
                 "create_user",
                 name,
-                invite
+                invite,
             );
             if ("Err" in response) {
                 return alert(`Error: ${response.Err}`);
@@ -68,7 +70,7 @@ export const Settings = ({ invite = null }) => {
                 !confirm(
                     `A name change incurs costs of ${window.backendCache.config.name_change_cost} cycles. ` +
                         `Moreover, the old name will still route to your profile. ` +
-                        `Do you want to continue?`
+                        `Do you want to continue?`,
                 )
             )
                 return;
@@ -82,7 +84,7 @@ export const Settings = ({ invite = null }) => {
             nameChange ? name : "",
             about,
             principal_ids,
-            JSON.stringify(settings)
+            JSON.stringify(settings),
         );
         if ("Err" in response) {
             alert(`Error: ${response.Err}`);
@@ -203,7 +205,7 @@ export const Settings = ({ invite = null }) => {
                                 onClick={async () => {
                                     let response = await window.api.call<any>(
                                         "change_principal",
-                                        principal
+                                        principal,
                                     );
                                     if ("Err" in response) {
                                         alert(`Error: ${response.Err}`);
