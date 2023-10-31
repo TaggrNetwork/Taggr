@@ -138,7 +138,7 @@ select {
     cursor: pointer;
 }
 
-.feed_item article {
+.collapsable article {
     max-height: 100vh;
     overflow: hidden;
 }

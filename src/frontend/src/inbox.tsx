@@ -87,12 +87,16 @@ export const Inbox = () => {
                                     <Close classNameArg="action" />
                                 </button>
                             </div>
-                            {id && "WatchedPostEntries" in message && (
+                            {id && (
                                 <PostView
                                     id={id}
-                                    classNameArg="top_framed"
+                                    classNameArg="collapsable top_framed"
                                     isFeedItem={true}
-                                    highlighted={message.WatchedPostEntries}
+                                    highlighted={
+                                        "WatchedPostEntries" in message
+                                            ? message.WatchedPostEntries
+                                            : undefined
+                                    }
                                 />
                             )}
                         </div>

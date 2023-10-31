@@ -113,10 +113,13 @@ export const PostView = ({
 
     React.useEffect(() => {
         const article: any = refArticle.current;
+        if (article && article.scrollHeight > article.clientHeight)
+            setForceCollapsing(true);
+    }, [post]);
+
+    React.useEffect(() => {
+        const article: any = refArticle.current;
         if (!article) return;
-        setForceCollapsing(
-            article && article.scrollHeight > article.clientHeight,
-        );
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting && post) {
