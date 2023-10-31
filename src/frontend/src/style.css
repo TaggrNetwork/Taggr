@@ -101,7 +101,7 @@ input,
 select {
     padding: 0.5em;
     color: $text;
-    border-radius: 5px;
+    border-radius: 10px;
     background: $dark_background;
     border: none;
     font-size: large;
@@ -146,7 +146,7 @@ select {
     background: $light_background;
     border-bottom: 1px solid $dark_background;
     margin-bottom: 1em;
-    border-radius: 5px;
+    border-radius: 10px;
 }
 
 .text_post {
@@ -175,7 +175,7 @@ select {
     margin-bottom: 1em;
     height: 0;
     overflow: hidden;
-    border-radius: 5px;
+    border-radius: 10px;
 }
 
 #tag_cloud {
@@ -188,7 +188,7 @@ select {
 
 .stands_out {
     background: $light_background;
-    border-radius: 5px;
+    border-radius: 10px;
     border-bottom: 1px solid $dark_background;
     padding: 0.5em;
     margin-bottom: 1em;
@@ -211,7 +211,7 @@ button {
     font-weight: bold;
     font-size: small;
     border: none;
-    border-radius: 3px;
+    border-radius: 5px;
     padding: 0.4em;
     padding-left: 0.6em;
     padding-right: 0.6em;
@@ -258,7 +258,7 @@ a.iconed:hover {
 }
 
 a.external {
-    border-radius: 3px;
+    border-radius: 5px;
     background: $clickable;
     color: $light_background;
     padding-left: 0.3em;
@@ -320,7 +320,7 @@ header {
     background: black;
     font-family: "Impact", sans-serif;
     font-weight: bold;
-    border-radius: 5px;
+    border-radius: 10px;
     color: white;
     font-size: xx-large;
     display: flex;
@@ -357,7 +357,7 @@ hr {
 
 .selected {
     background: $dark_background;
-    border-radius: 7px;
+    border-radius: 10px;
 }
 
 .unselected {
@@ -475,12 +475,12 @@ p > img {
 }
 
 .prime img {
-    border-radius: 5px;
+    border-radius: 10px;
 }
 
 .comment img {
     max-width: 80%;
-    border-radius: 5px;
+    border-radius: 10px;
 }
 
 article img {
@@ -493,7 +493,7 @@ article img {
 }
 
 .padded_rounded {
-    border-radius: 3px;
+    border-radius: 5px;
     padding-left: 0.5em;
     padding-right: 0.5em;
 }
@@ -548,7 +548,7 @@ div.thumbnails {
 .framed {
     border: 1px solid $dark_background;
     padding: 0.5em;
-    border-radius: 5px;
+    border-radius: 10px;
 }
 
 .post_extension {
@@ -557,7 +557,7 @@ div.thumbnails {
     font-size: medium;
     border: 1px solid $dark_background;
     padding: 0.5em;
-    border-radius: 5px;
+    border-radius: 10px;
 }
 
 #preview {
@@ -585,7 +585,7 @@ div.thumbnails {
     display: flex;
     justify-content: center;
     align-items: center;
-    border-radius: 8px;
+    border-radius: 10px;
     background-color: rgba(0, 0, 0, 0.8);
 }
 
@@ -777,7 +777,7 @@ a.accent,
 .banner2,
 .banner3 {
     padding: 1em;
-    border-radius: 5px;
+    border-radius: 10px;
 }
 
 .banner2 {
@@ -897,7 +897,7 @@ a.accent,
     .stands_out,
     .feed_item {
         border-radius: 0;
-        margin-bottom: 4px;
+        margin-bottom: 0.5em;
     }
 
     a:hover {
