@@ -1,5 +1,6 @@
 use super::MINUTE;
 use crate::*;
+use base64::{engine::general_purpose, Engine as _};
 use candid::{CandidType, Deserialize, Principal};
 use serde::Serialize;
 
@@ -101,6 +102,14 @@ fn icrc1_metadata() -> Vec<(String, Value)> {
         ("icrc1:name".into(), Value::Text(CONFIG.name.into())),
         ("icrc1:decimals".into(), Value::Nat(2)),
         ("icrc1:fee".into(), Value::Nat(1)),
+        (
+            "icrc1:logo".into(),
+            Value::Text(format!(
+                "data:image/png;base64,{}",
+                general_purpose::STANDARD
+                    .encode(include_bytes!("../../frontend/assets/apple-touch-icon.png"))
+            )),
+        ),
     ]
 }
 
