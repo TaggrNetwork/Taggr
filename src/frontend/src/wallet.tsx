@@ -388,6 +388,7 @@ export const Wallet = () => {
                                 return;
                             }
                             await window.reloadUser();
+                            await loadTransactions();
                             setUser(window.user);
                         }}
                     />
