@@ -133,7 +133,10 @@ mod string {
 }
 
 pub const CONFIG: &Config = &Config {
+    #[cfg(not(feature = "staging"))]
     name: "Taggr",
+    #[cfg(feature = "staging")]
+    name: "Staggr",
     domains: &[
         "taggr.link",
         "taggr.network",
@@ -145,7 +148,10 @@ pub const CONFIG: &Config = &Config {
     logo: include_str!("../../frontend/assets/logo.min.svg"),
     staging: "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io",
 
+    #[cfg(not(feature = "staging"))]
     token_symbol: "TAGGR",
+    #[cfg(feature = "staging")]
+    token_symbol: "STAGG",
     token_decimals: 2,
     transaction_fee: 25,
     cycle_transaction_fee: 1,
@@ -162,10 +168,12 @@ pub const CONFIG: &Config = &Config {
     #[cfg(feature = "dev")]
     bootstrap_phase_user_number: 0,
 
+    #[cfg(not(any(feature = "dev", feature = "staging")))]
+    supply_threshold_for_transfer_percentage: 20,
+    #[cfg(feature = "staging")]
+    supply_threshold_for_transfer_percentage: 0,
     #[cfg(feature = "dev")]
     supply_threshold_for_transfer_percentage: 10,
-    #[cfg(not(feature = "dev"))]
-    supply_threshold_for_transfer_percentage: 20,
 
     karma_donation_decline_percentage: 15,
 
