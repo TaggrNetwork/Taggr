@@ -78,6 +78,24 @@ pub fn load() {
         include_bytes!("../../dist/frontend/social-image.jpg").to_vec(),
     );
 
+    add_asset(
+        &["/font-regular.woff2"],
+        vec![(
+            "Content-Type".to_string(),
+            "application/font-woff2".to_string(),
+        )],
+        include_bytes!("../../dist/frontend/font-regular.woff2").to_vec(),
+    );
+
+    add_asset(
+        &["/font-bold.woff2"],
+        vec![(
+            "Content-Type".to_string(),
+            "application/font-woff2".to_string(),
+        )],
+        include_bytes!("../../dist/frontend/font-bold.woff2").to_vec(),
+    );
+
     let mut domains = Vec::from(CONFIG.domains);
     let can_domain = format!("{}.ic0.app", super::id());
     domains.push(&can_domain);

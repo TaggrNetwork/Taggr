@@ -59,22 +59,20 @@ export const Proposals = () => {
             />
             <div className="vertically_spaced">
                 {currentMask == "reward" && (
-                    <div className="spaced column_container monospace">
+                    <div className="spaced column_container">
                         <div className="vcentered bottom_half_spaced">
                             RECEIVER
                             <input
                                 type="text"
-                                className="monospace left_spaced max_width_col"
+                                className="left_spaced max_width_col"
                                 onChange={async (ev) => {
                                     setReceiver(ev.target.value);
                                 }}
                             />
                         </div>
-                        <div className="bottom_half_spaced monospace">
-                            DESCRIPTION
-                        </div>
+                        <div className="bottom_half_spaced">DESCRIPTION</div>
                         <textarea
-                            className="monospace bottom_spaced"
+                            className="bottom_spaced"
                             rows={10}
                             value={description}
                             onChange={(event) =>
@@ -98,7 +96,7 @@ export const Proposals = () => {
                                 let response = await api.call(
                                     "propose_reward",
                                     description,
-                                    receiver,
+                                    receiver
                                 );
                                 if ("Err" in response) {
                                     alert(`Error: ${response.Err}`);
@@ -112,12 +110,12 @@ export const Proposals = () => {
                     </div>
                 )}
                 {currentMask == "funding" && (
-                    <div className="spaced column_container monospace">
+                    <div className="spaced column_container">
                         <div className="vcentered bottom_half_spaced">
                             RECEIVER
                             <input
                                 type="text"
-                                className="monospace left_spaced max_width_col"
+                                className="left_spaced max_width_col"
                                 onChange={async (ev) => {
                                     setReceiver(ev.target.value);
                                 }}
@@ -127,17 +125,15 @@ export const Proposals = () => {
                             TOKEN AMOUNT
                             <input
                                 type="text"
-                                className="monospace left_spaced max_width_col"
+                                className="left_spaced max_width_col"
                                 onChange={async (ev) => {
                                     setFundingAmount(ev.target.value);
                                 }}
                             />
                         </div>
-                        <div className="bottom_half_spaced monospace">
-                            DESCRIPTION
-                        </div>
+                        <div className="bottom_half_spaced">DESCRIPTION</div>
                         <textarea
-                            className="monospace bottom_spaced"
+                            className="bottom_spaced"
                             rows={10}
                             value={description}
                             onChange={(event) =>
@@ -166,7 +162,7 @@ export const Proposals = () => {
                                     "propose_funding",
                                     description,
                                     receiver,
-                                    parseInt(fundingAmount),
+                                    parseInt(fundingAmount)
                                 );
                                 if ("Err" in response) {
                                     alert(`Error: ${response.Err}`);
@@ -180,12 +176,12 @@ export const Proposals = () => {
                     </div>
                 )}
                 {currentMask == "release" && (
-                    <div className="spaced column_container monospace">
+                    <div className="spaced column_container">
                         <div className="vcentered bottom_half_spaced">
                             COMMIT
                             <input
                                 type="text"
-                                className="monospace left_spaced max_width_col"
+                                className="left_spaced max_width_col"
                                 onChange={async (ev) => {
                                     setCommit(ev.target.value);
                                 }}
@@ -194,15 +190,13 @@ export const Proposals = () => {
                         <div className="vcentered bottom_half_spaced">
                             BINARY{" "}
                             <FileUploadInput
-                                classNameArg="monospace left_spaced max_width_col"
+                                classNameArg="left_spaced max_width_col"
                                 callback={setBinary}
                             />
                         </div>
-                        <div className="bottom_half_spaced monospace">
-                            DESCRIPTION
-                        </div>
+                        <div className="bottom_half_spaced">DESCRIPTION</div>
                         <textarea
-                            className="monospace bottom_spaced"
+                            className="bottom_spaced"
                             rows={10}
                             value={description}
                             onChange={(event) =>
@@ -226,7 +220,7 @@ export const Proposals = () => {
                                 const response = await api.propose_release(
                                     description,
                                     commit,
-                                    binary,
+                                    binary
                                 );
                                 if ("Err" in response) {
                                     alert(`Error: ${response.Err}`);
@@ -286,12 +280,12 @@ export const Proposal = ({ id, postId }) => {
             }
             if ("Reward" in proposal.payload) {
                 data = prompt(
-                    "Please enter the token amount which would be an appropriate reward for the efforts described:",
+                    "Please enter the token amount which would be an appropriate reward for the efforts described:"
                 );
                 if (!data) return;
                 if (
                     !confirm(
-                        `You vote for issuing the reward of ${data} tokens.`,
+                        `You vote for issuing the reward of ${data} tokens.`
                     )
                 )
                     return;
@@ -301,7 +295,7 @@ export const Proposal = ({ id, postId }) => {
             "vote_on_proposal",
             proposal.id,
             adopted,
-            data,
+            data
         );
         if ("Err" in result) {
             alert(`Error: ${result.Err}`);
@@ -316,11 +310,11 @@ export const Proposal = ({ id, postId }) => {
         proposal.bulletins.some((vote) => window.user.id == vote[0]);
     const adopted = proposal.bulletins.reduce(
         (acc, [_, adopted, votes]) => (adopted ? acc + votes : acc),
-        0,
+        0
     );
     const rejected = proposal.bulletins.reduce(
         (acc, [_, adopted, votes]) => (!adopted ? acc + votes : acc),
-        0,
+        0
     );
     const open = proposal.status == "Open";
     const commit = proposal.payload.Release
@@ -334,13 +328,13 @@ export const Proposal = ({ id, postId }) => {
     const days = Math.ceil(
         (proposal.voting_power -
             (adopted > rejected ? adopted / t : rejected / (100 - t)) * 100) /
-            dailyDrop,
+            dailyDrop
     );
     const propStatus = proposal.status.toUpperCase();
     return (
         <div
             key={proposal.timestamp}
-            className="post_extension column_container monospace"
+            className="post_extension column_container"
             data-testid="extension-proposal"
         >
             <div className="bottom_half_spaced">ID: {proposal.id}</div>
@@ -361,12 +355,12 @@ export const Proposal = ({ id, postId }) => {
                 <span className={open ? "accent" : null}>{propStatus}</span>
             </div>
             {!!proposal.payload.Release && (
-                <div className="monospace bottom_spaced">
+                <div className="bottom_spaced">
                     {commit && (
                         <div className="row_container bottom_half_spaced">
                             COMMIT:
                             <a
-                                className="monospace left_spaced"
+                                className="left_spaced"
                                 href={
                                     open
                                         ? REPO_RELEASE
@@ -380,9 +374,7 @@ export const Proposal = ({ id, postId }) => {
                     {!open && (
                         <div className="row_container">
                             <span>HASH:</span>
-                            <code className="left_spaced monospace">
-                                {hash}
-                            </code>
+                            <code className="left_spaced">{hash}</code>
                         </div>
                     )}
                 </div>
@@ -432,7 +424,7 @@ export const Proposal = ({ id, postId }) => {
                         userList(
                             proposal.bulletins
                                 .filter((vote) => vote[1])
-                                .map((vote) => vote[0]),
+                                .map((vote) => vote[0])
                         )}
                 </div>
             </div>
@@ -449,7 +441,7 @@ export const Proposal = ({ id, postId }) => {
                         userList(
                             proposal.bulletins
                                 .filter((vote) => !vote[1])
-                                .map((vote) => vote[0]),
+                                .map((vote) => vote[0])
                         )}
                 </div>
             </div>

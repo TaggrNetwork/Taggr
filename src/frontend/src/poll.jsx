@@ -17,7 +17,7 @@ export const Poll = ({ poll, post_id, created }) => {
         .map((votes) => votes.length)
         .reduce((acc, e) => acc + e, 0);
     const createdHoursAgo = Math.floor(
-        (Number(new Date()) - parseInt(created) / 1000000) / 1000 / 3600,
+        (Number(new Date()) - parseInt(created) / 1000000) / 1000 / 3600
     );
     const expired = createdHoursAgo >= poll.deadline;
     const canChangeVote =
@@ -29,7 +29,7 @@ export const Poll = ({ poll, post_id, created }) => {
         Object.keys(obj).reduce(
             ([maxKey, maxVal], key) =>
                 obj[key] > maxVal ? [key, obj[key]] : [maxKey, maxVal],
-            [null, 0],
+            [null, 0]
         )[0];
 
     return (
@@ -60,14 +60,14 @@ export const Poll = ({ poll, post_id, created }) => {
                                     let vote = e.target.value;
                                     if (
                                         !confirm(
-                                            `Please confirm your choice: ${data.options[vote]}`,
+                                            `Please confirm your choice: ${data.options[vote]}`
                                         )
                                     )
                                         return;
                                     api.call(
                                         "vote_on_poll",
                                         post_id,
-                                        parseInt(vote),
+                                        parseInt(vote)
                                     ).then((response) => {
                                         if (response.Err) {
                                             alert(`Error: ${response.Err}!`);
@@ -134,9 +134,9 @@ export const Poll = ({ poll, post_id, created }) => {
                                     Object.entries(poll.votes).forEach(
                                         ([option, voters]) => {
                                             poll.votes[option] = voters.filter(
-                                                (id) => id != user_id,
+                                                (id) => id != user_id
                                             );
-                                        },
+                                        }
                                     );
                                     setData({ ...poll });
                                     setRevoteMode(true);
@@ -150,13 +150,11 @@ export const Poll = ({ poll, post_id, created }) => {
             )}
             {expired && (
                 <div className="top_spaced">
-                    <h4 className="monospace">RESULTS</h4>
+                    <h4>RESULTS</h4>
                     <div className="small_text">
                         <div className="bottom_half_spaced">
                             <YinYan />{" "}
-                            <span className="left_spaced monospace">
-                                KARMA:{" "}
-                            </span>{" "}
+                            <span className="left_spaced">KARMA: </span>{" "}
                             {
                                 data.options[
                                     keyWithMaxVal(data.weighted_by_karma)
@@ -164,8 +162,7 @@ export const Poll = ({ poll, post_id, created }) => {
                             }
                         </div>
                         <div>
-                            <Gem />{" "}
-                            <span className="left_spaced monospace">DAO: </span>{" "}
+                            <Gem /> <span className="left_spaced">DAO: </span>{" "}
                             {
                                 data.options[
                                     keyWithMaxVal(data.weighted_by_tokens)

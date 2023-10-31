@@ -22,7 +22,7 @@ export const Tokens = () => {
     const [term, setTerm] = React.useState("");
     const [noMoreData, setNoMoreData] = React.useState(false);
     const [transactions, setTransactions] = React.useState(
-        [] as [number, Transaction][],
+        [] as [number, Transaction][]
     );
     const [txPage, setTxPage] = React.useState(0);
     const [balPage, setBalPage] = React.useState(0);
@@ -47,7 +47,7 @@ export const Tokens = () => {
             (await window.api.query<[number, Transaction][]>(
                 "transactions",
                 txPage,
-                userToPrincipal[term.toLowerCase()] || term,
+                userToPrincipal[term.toLowerCase()] || term
             )) || [];
         if (txs?.length == 0) {
             setNoMoreData(true);
@@ -81,7 +81,7 @@ export const Tokens = () => {
             if (userName) acc[userName.toLowerCase()] = balance[0];
             return acc;
         },
-        {} as { [name: string]: string },
+        {} as { [name: string]: string }
     );
     const { holders, e8s_for_one_xdr, e8s_revenue_per_1k } =
         window.backendCache.stats;
@@ -97,7 +97,7 @@ export const Tokens = () => {
         <>
             <HeadBar title="TOKENS" shareLink="tokens" />
             <div className="spaced">
-                <div className="dynamic_table monospace vertically_spaced">
+                <div className="dynamic_table vertically_spaced">
                     <div className="db_cell">
                         MINTED<code>{token(mintedSupply)}</code>
                     </div>
@@ -142,8 +142,8 @@ export const Tokens = () => {
                                     Math.pow(
                                         10,
                                         window.backendCache.config
-                                            .token_decimals,
-                                    ),
+                                            .token_decimals
+                                    )
                             ).toLocaleString()}
                         </code>
                     </div>
@@ -178,9 +178,7 @@ export const Tokens = () => {
                     </thead>
                     <tbody
                         style={{ textAlign: "right" }}
-                        className={`monospace ${
-                            bigScreen() ? null : "small_text"
-                        }`}
+                        className={bigScreen() ? "" : "small_text"}
                     >
                         {balances.slice(0, (balPage + 1) * 25).map((b) => (
                             <tr key={b[0]}>
@@ -208,7 +206,7 @@ export const Tokens = () => {
                 <div className="row_container">
                     <input
                         id="search_field"
-                        className="monospace max_width_col"
+                        className="max_width_col"
                         type="search"
                         placeholder="Principal or username"
                         value={term}
@@ -265,12 +263,12 @@ export const TransactionView = ({ id }: { id: number }) => {
                 title={`TRANSACTION #${id}`}
                 shareLink={`transaction/${id}`}
             />
-            <div className="monospace">
+            <div>
                 <div className="bottom_spaced">
                     TIMESTAMP:{" "}
                     <code>
                         {new Date(
-                            Number(tx.timestamp) / 1000000,
+                            Number(tx.timestamp) / 1000000
                         ).toLocaleString()}
                     </code>
                 </div>
@@ -330,7 +328,7 @@ export const Transactions = ({
         </thead>
         <tbody
             style={{ textAlign: "right" }}
-            className={`monospace ${bigScreen() ? null : "small_text"}`}
+            className={bigScreen() ? undefined : "small_text"}
         >
             {transactions.map(([id, t]) => (
                 <tr key={JSON.stringify(t)}>

@@ -5,7 +5,7 @@ import { trusted } from "./profile";
 
 export const Invites = () => {
     const [cycles, setCycles] = React.useState(
-        backendCache.config.min_cycles_for_inviting,
+        backendCache.config.min_cycles_for_inviting
     );
     const [invites, setInvites] = React.useState([]);
     const [busy, setBusy] = React.useState(false);
@@ -74,7 +74,7 @@ export const Invites = () => {
                                 setBusy(true);
                                 const result = await api.call(
                                     "create_invite",
-                                    cycles,
+                                    cycles
                                 );
                                 if ("Err" in result)
                                     alert(`Failed: ${result.Err}`);
@@ -89,7 +89,7 @@ export const Invites = () => {
                 {invites.length > 0 && <h3>Your invites</h3>}
                 {busy && <Loading />}
                 {!busy && invites.length > 0 && (
-                    <table className="monospace" style={{ width: "100%" }}>
+                    <table style={{ width: "100%" }}>
                         <thead>
                             <tr>
                                 <th align="right">

@@ -12,7 +12,14 @@ body {
     padding-right: 3%;
     max-width: 1200px;
     font-size: large;
+}
+
+body,
+button,
+input,
+code {
     font-family:
+        "Barlow",
         ui-sans-serif,
         -apple-system,
         "Arial",
@@ -57,7 +64,7 @@ h3,
 h4,
 h5,
 th {
-    font-weight: bold;
+    font-weight: bolder;
     filter: brightness(110%);
     text-transform: capitalize;
 }
@@ -88,11 +95,6 @@ h5 {
 .prime h1 {
     font-size: 250%;
     line-height: normal;
-}
-
-.monospace {
-    font-family: ui-monospace, "Menlo", "Consolas", "Roboto Mono",
-        "DejaVu Sans Mono", monospace;
 }
 
 #search_field,
@@ -183,7 +185,6 @@ select {
     justify-content: center;
     align-items: center;
     line-height: 210%;
-    font-family: "Arial", sans-serif;
 }
 
 .stands_out {
@@ -304,7 +305,6 @@ footer {
     justify-content: center;
     align-items: center;
     font-size: small;
-    font-family: monospace;
 }
 
 header {
@@ -700,7 +700,6 @@ a.accent,
 }
 
 .realm_span {
-    font-family: monospace;
     padding: 0.5em;
 }
 

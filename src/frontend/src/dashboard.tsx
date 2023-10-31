@@ -71,7 +71,7 @@ export const Dashboard = ({}) => {
         <>
             <HeadBar title="DASHBOARD" shareLink="dashboard" />
             <div className="text_centered">
-                <div className="dynamic_table monospace">
+                <div className="dynamic_table">
                     <div className="db_cell">
                         <label>
                             <User /> USERS
@@ -89,7 +89,7 @@ export const Dashboard = ({}) => {
                             <Online /> ONLINE
                         </label>
                         {show(
-                            Math.max(1, window.backendCache.stats.users_online),
+                            Math.max(1, window.backendCache.stats.users_online)
                         )}
                     </div>
                     <div className="db_cell">
@@ -122,10 +122,7 @@ export const Dashboard = ({}) => {
                         </label>
                         {sizeMb(
                             stats.state_size +
-                                stats.buckets.reduce(
-                                    (acc, [, e]) => acc + e,
-                                    0,
-                                ),
+                                stats.buckets.reduce((acc, [, e]) => acc + e, 0)
                         )}
                     </div>
                     <div className="db_cell">
@@ -147,7 +144,7 @@ export const Dashboard = ({}) => {
                         </label>
                         <code className="xx_large_text">{`${hoursTillNext(
                             604800000000000,
-                            last_weekly_chores,
+                            last_weekly_chores
                         )}h`}</code>
                     </div>
                     <div className="db_cell">
@@ -190,7 +187,7 @@ export const Dashboard = ({}) => {
                     </div>
                 </div>
             </div>
-            <div className="monospace spaced">
+            <div className="spaced">
                 <hr />
                 <div className="text_centered">
                     <h2>
@@ -216,7 +213,7 @@ export const Dashboard = ({}) => {
                                 {show(
                                     Number(stats.canister_cycle_balance) /
                                         10 ** 12,
-                                    "T",
+                                    "T"
                                 )}
                             </div>
                         </div>
@@ -251,10 +248,7 @@ export const Dashboard = ({}) => {
                             <label>
                                 <Binary /> VERSION
                             </label>
-                            <a
-                                className="monospace xx_large_text"
-                                href="#/proposals"
-                            >
+                            <a className="xx_large_text" href="#/proposals">
                                 {(stats.module_hash || "").slice(0, 8)}
                             </a>
                         </div>
@@ -309,13 +303,12 @@ export const Dashboard = ({}) => {
                         .map(
                             ({ timestamp, level, message }) =>
                                 `\`${shortDate(
-                                    new Date(Number(timestamp) / 1000000),
+                                    new Date(Number(timestamp) / 1000000)
                                 )}\`: ` +
                                 `${level2icon(level)} ` +
-                                `${message}`,
+                                `${message}`
                         )
                         .join("\n- - -\n")}
-                    classNameArg="monospace"
                 />
             </div>
         </>

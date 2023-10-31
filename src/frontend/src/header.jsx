@@ -33,7 +33,7 @@ let interval = null;
 
 export const Header = ({ subtle, route, inboxMode, user }) => {
     const [showLogins, setShowLogins] = React.useState(
-        !user && location.href.includes("?join"),
+        !user && location.href.includes("?join")
     );
     const [showButtonBar, toggleButtonBar] = React.useState(false);
     const [showRealms, toggleRealms] = React.useState(false);
@@ -141,7 +141,7 @@ export const Header = ({ subtle, route, inboxMode, user }) => {
             {showLogins && <LoginMasks />}
             {showButtonBar && (
                 <div
-                    className="two_column_grid_flex top_spaced stands_out monospace"
+                    className="two_column_grid_flex top_spaced stands_out"
                     style={{ rowGap: "1em" }}
                 >
                     {user && (

@@ -79,7 +79,7 @@ export const PostView = ({
     const [notFound, setNotFound] = React.useState(false);
     const [blobs, setBlobs] = React.useState({});
     const [showComments, toggleComments] = React.useState(
-        !isFeedItem && !repost,
+        !isFeedItem && !repost
     );
     const [showInfo, toggleInfo] = React.useState(false);
     const [safeToOpen, setSafeToOpen] = React.useState(false);
@@ -115,7 +115,7 @@ export const PostView = ({
         const article: any = refArticle.current;
         if (!article) return;
         setForceCollapsing(
-            article && article.scrollHeight > article.clientHeight,
+            article && article.scrollHeight > article.clientHeight
         );
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -127,7 +127,7 @@ export const PostView = ({
                 root: null,
                 rootMargin: "0px",
                 threshold: 0,
-            },
+            }
         );
 
         observer.observe(article);
@@ -152,14 +152,14 @@ export const PostView = ({
 
     const commentSubmissionCallback = async (
         comment: string,
-        blobs: [string, Uint8Array][],
+        blobs: [string, Uint8Array][]
     ) => {
         const result: any = await window.api.add_post(
             comment,
             blobs,
             [post.id],
             [],
-            [],
+            []
         );
         if (result.Err) {
             alert(`Error: ${result.Err}`);
@@ -213,7 +213,7 @@ export const PostView = ({
                     if ("Err" in response) alert(`Error: ${response.Err}`);
                     window.reloadUser();
                 }),
-            4000,
+            4000
         );
         setReactionTimer(timer as any);
         users.push(userId);
@@ -227,7 +227,7 @@ export const PostView = ({
         objectReduce(
             post.reactions,
             (acc, id, users) => acc + costTable[id as any] * users.length,
-            0,
+            0
         ) < 0 || post.userObject.karma < 0;
     const user = window.user;
     const showReport =
@@ -309,7 +309,7 @@ export const PostView = ({
                     </div>
                 )}
                 {deleted && (
-                    <div className="post_head banner3 small_text monospace">
+                    <div className="post_head banner3 small_text">
                         <h3>Post deleted</h3>
                         <ol>
                             {post.hashes.map((hash) => (
@@ -324,7 +324,7 @@ export const PostView = ({
                 )}
                 {commentAsPost && (
                     <a
-                        className="reply_tag external monospace"
+                        className="reply_tag external"
                         href={`#/thread/${post.id}`}
                     >
                         {post.parent} &#8592;
@@ -528,19 +528,19 @@ const PostInfo = ({
                         classNameArg="max_width_col"
                         onClick={async () => {
                             const amount = prompt(
-                                `Tip @${post.userObject.name} with ICP:`,
+                                `Tip @${post.userObject.name} with ICP:`
                             );
                             if (
                                 amount == null ||
                                 !confirm(
-                                    `Transfer ${amount} ICP to @${post.userObject.name} as a tip?`,
+                                    `Transfer ${amount} ICP to @${post.userObject.name} as a tip?`
                                 )
                             )
                                 return;
                             let response = await window.api.call<any>(
                                 "tip",
                                 post.id,
-                                amount,
+                                amount
                             );
                             if ("Err" in response) {
                                 alert(`Error: ${response.Err}`);
@@ -555,13 +555,13 @@ const PostInfo = ({
                             onClick={async () => {
                                 if (
                                     !confirm(
-                                        "Do you want to remove the post from this realm?",
+                                        "Do you want to remove the post from this realm?"
                                     )
                                 )
                                     return;
                                 await window.api.call(
                                     "realm_clean_up",
-                                    post.id,
+                                    post.id
                                 );
                                 alert("This post was removed from this realm.");
                             }}
@@ -586,7 +586,7 @@ const PostInfo = ({
                                                 (
                                                     acc: number,
                                                     id: string,
-                                                    users: UserId[],
+                                                    users: UserId[]
                                                 ) => {
                                                     const costTable =
                                                         reactionCosts();
@@ -598,14 +598,14 @@ const PostInfo = ({
                                                             users.length
                                                     );
                                                 },
-                                                0,
+                                                0
                                             ) +
                                             post_cost +
                                             post.tree_size *
                                                 post_deletion_penalty_factor;
                                         if (
                                             !confirm(
-                                                `Please confirm the post deletion: it will costs ${cost} cycles.`,
+                                                `Please confirm the post deletion: it will costs ${cost} cycles.`
                                             )
                                         )
                                             return;
@@ -620,7 +620,7 @@ const PostInfo = ({
                                                 post.patches[i];
                                             current = applyPatch(
                                                 current,
-                                                patch,
+                                                patch
                                             )[0];
                                             versions.push(current);
                                         }
@@ -629,7 +629,7 @@ const PostInfo = ({
                                             await window.api.call<any>(
                                                 "delete_post",
                                                 post.id,
-                                                versions,
+                                                versions
                                             );
                                         if ("Err" in response) {
                                             alert(`Error: ${response.Err}`);
@@ -672,8 +672,8 @@ const PostInfo = ({
                                             >{`${v}`}</a>{" "}
                                             ({timeAgo(timestamp)})
                                         </span>
-                                    ),
-                                ),
+                                    )
+                                )
                         )}
                     </div>
                 )}
@@ -683,7 +683,7 @@ const PostInfo = ({
                         {commaSeparated(
                             post.watchers.map((id) => (
                                 <UserLink key={id} id={id} />
-                            )),
+                            ))
                         )}
                     </div>
                 )}
@@ -696,7 +696,7 @@ const PostInfo = ({
                                     <code>{icp(tip, 2)}</code> from{" "}
                                     {<UserLink id={id} />}
                                 </span>
-                            )),
+                            ))
                         )}
                     </div>
                 )}
@@ -712,10 +712,10 @@ const PostInfo = ({
                                     {commaSeparated(
                                         users.map((id) => (
                                             <UserLink key={id} id={id} />
-                                        )),
+                                        ))
                                     )}
                                 </div>
-                            ),
+                            )
                         )}
                     </div>
                 )}
@@ -919,5 +919,5 @@ const skipClicks = (elem: HTMLElement | null): boolean =>
 const objectReduce = (
     obj: any,
     f: (acc: number, key: string, val: UserId[]) => number,
-    initVal: number,
+    initVal: number
 ) => Object.keys(obj).reduce((acc, key) => f(acc, key, obj[key]), initVal);
