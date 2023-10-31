@@ -57,7 +57,7 @@ export type Post = {
 };
 
 export type BlogTitle = {
-    author: UserId;
+    author: string;
     created: BigInt;
     length: number;
 };

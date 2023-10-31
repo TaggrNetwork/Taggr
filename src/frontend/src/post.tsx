@@ -236,18 +236,13 @@ export const PostView = ({
     const blogTitle =
         prime && post.effBody.length > 750 && post.effBody.startsWith("# ")
             ? {
-                  author: post.user,
+                  author: post.userObject.name,
                   created: postCreated,
                   length: post.effBody.length,
               }
             : undefined;
 
-    if (prime)
-        setTitle(
-            `Post #${post.id} by @${
-                window.backendCache.users[post.userObject.id]
-            }`,
-        );
+    if (prime) setTitle(`Post #${post.id} by @${post.userObject.name}`);
 
     if (deletedByModeration)
         return <h4 className="banner">DELETED VIA MODERATION</h4>;

@@ -293,12 +293,9 @@ const markdownizer = (
                         <>
                             <h1>{children}</h1>
                             <p className="blog_title medium_text vertically_spaced">
-                                By{" "}
-                                <a href={`#/journal/${author}`}>
-                                    @{window.backendCache.users[author]}
-                                </a>{" "}
+                                By <a href={`#/journal/${author}`}>{author}</a>{" "}
                                 on <b>{timeAgo(created, true, "long")}</b>,{" "}
-                                {Math.ceil(length / 400)} minutes read
+                                {Math.ceil(length / 400)} minutes read.
                             </p>
                         </>
                     );
