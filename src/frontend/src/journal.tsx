@@ -58,7 +58,6 @@ export const Journal = ({ handle }: { handle: string }) => {
                 </div>
             )}
             <PostFeed
-                // @ts-ignore
                 classNameArg={bigScreen() ? "journal" : undefined}
                 useList={true}
                 journal={true}

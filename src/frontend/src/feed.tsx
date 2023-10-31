@@ -2,30 +2,32 @@ import * as React from "react";
 import { currentRealm, HeadBar, setTitle } from "./common";
 import { ToggleButton } from "./common";
 import { PostFeed } from "./post_feed";
+import { UserId } from "./types";
 
-const userId = (handle) => {
+const userId = (handle: string) => {
     const users = window.backendCache.users;
     const username = handle.replace("@", "").toLowerCase();
     for (const i in users) {
         if (users[i].toLowerCase() == username) return parseInt(i);
     }
+    return -1;
 };
 
-export const Feed = ({ params }) => {
+export const Feed = ({ params }: { params: string[] }) => {
     const [filter, setFilter] = React.useState(params);
     React.useEffect(() => setFilter(params), [params]);
     return (
         <div className="column_container">
             <FeedBar params={params} callback={setFilter} />
             <PostFeed
-                feedLoader={async (page) => {
-                    const tags = [],
-                        users = [];
+                feedLoader={async (page: number) => {
+                    const tags: string[] = [],
+                        users: UserId[] = [];
                     filter.forEach((token) => {
                         if (token.startsWith("@")) users.push(userId(token));
                         else tags.push(token);
                     });
-                    return await api.query(
+                    return await window.api.query(
                         "posts_by_tags",
                         currentRealm(),
                         tags,
@@ -33,13 +35,23 @@ export const Feed = ({ params }) => {
                         page,
                     );
                 }}
-                heartbeat={filter + params}
+                heartbeat={filter.concat(params).join("")}
             />
         </div>
     );
 };
 
-const FeedExtender = ({ filterVal, setFilterVal, refilter, filter }) => {
+const FeedExtender = ({
+    filterVal,
+    setFilterVal,
+    refilter,
+    filter,
+}: {
+    filterVal: string;
+    setFilterVal: (arg: string) => void;
+    refilter: () => void;
+    filter: string[];
+}) => {
     const [extending, setExtending] = React.useState(false);
     return (
         <div className="top_half_spaced row_container flex_ended">
@@ -48,7 +60,7 @@ const FeedExtender = ({ filterVal, setFilterVal, refilter, filter }) => {
                     <input
                         type="text"
                         className="medium_text max_width_col"
-                        vlaue={filterVal}
+                        value={filterVal}
                         onChange={(e) => setFilterVal(e.target.value)}
                         placeholder="Enter @user or #tag"
                     />
@@ -79,7 +91,7 @@ const FeedExtender = ({ filterVal, setFilterVal, refilter, filter }) => {
                         onLabel="UNFOLLOW"
                         currState={() => contains(window.user.feeds, filter)}
                         toggler={() =>
-                            api
+                            window.api
                                 .call("toggle_following_feed", filter)
                                 .then(window.reloadUser)
                         }
@@ -90,7 +102,7 @@ const FeedExtender = ({ filterVal, setFilterVal, refilter, filter }) => {
                             onLabel="UNMUTE"
                             classNameArg="max_width_col"
                             currState={() =>
-                                user.filters.tags.includes(filter[0])
+                                window.user.filters.tags.includes(filter[0])
                             }
                             toggler={() =>
                                 window.api
@@ -105,13 +117,20 @@ const FeedExtender = ({ filterVal, setFilterVal, refilter, filter }) => {
     );
 };
 
-const FeedBar = ({ params, callback }) => {
+const FeedBar = ({
+    params,
+    callback,
+}: {
+    params: string[];
+    callback: (arg: string[]) => void;
+}) => {
     const [filter, setFilter] = React.useState(params);
     const [filterVal, setFilterVal] = React.useState("");
 
     React.useEffect(() => setFilter(params), [params]);
 
     const refilter = () => {
+        if (!filterVal) return;
         // we need to create a new array for react to notice
         const newFilter = filter.map((val) => val);
         newFilter.push(filterVal.replace("#", ""));
@@ -120,7 +139,7 @@ const FeedBar = ({ params, callback }) => {
         callback(newFilter);
     };
 
-    const renderToken = (token) =>
+    const renderToken = (token: string) =>
         token.startsWith("@") ? (
             <a
                 key={token}
@@ -139,11 +158,13 @@ const FeedBar = ({ params, callback }) => {
     setTitle(`feed: ${filter.join(" + ")}`);
     return (
         <HeadBar
-            title={filter
-                .map(renderToken)
-                .reduce((prev, curr) => [prev, " + ", curr])}
+            title={filter.map(renderToken).reduce((prev, curr) => (
+                <>
+                    {prev} + {curr}
+                </>
+            ))}
             shareLink={`feed/${filter.join("+")}`}
-            shareTitle={`Hash-tag feed on ${backendCache.name}`}
+            shareTitle={`Hash-tag feed on ${window.backendCache.config.name}`}
             content={
                 <FeedExtender
                     filterVal={filterVal}
@@ -157,7 +178,7 @@ const FeedBar = ({ params, callback }) => {
     );
 };
 
-const contains = (feeds, filter) => {
+const contains = (feeds: string[][], filter: string[]) => {
     filter = filter.map((t) => t.toLowerCase());
     OUTER: for (let i in feeds) {
         const feed = feeds[i];

@@ -15,10 +15,8 @@ export const Thread = ({ id }: { id: PostId }) => {
             }
             <PostFeed
                 heartbeat={id}
-                no_paging={true}
                 thread={true}
                 focusedPost={id}
-                // @ts-ignore
                 classNameArg="thread"
                 useList={true}
                 feedLoader={async () => await window.api.query("thread", id)}

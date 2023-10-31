@@ -384,7 +384,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                     title={title}
                     useList={true}
                     feedLoader={async (page: number) => {
-                        if (status != 1) return;
+                        if (status != 1) return null;
                         if (tab == "TAGS")
                             return await window.api.query(
                                 "user_tags",

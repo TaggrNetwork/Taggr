@@ -1,9 +1,10 @@
 import * as React from "react";
 import { bigScreen, isRoot, Loading, expandUser } from "./common";
 import { PostView } from "./post";
+import { Post, PostId } from "./types";
 
 export const PostFeed = ({
-    classNameArg = null,
+    classNameArg,
     focusedPost,
     feedLoader,
     heartbeat,
@@ -15,22 +16,34 @@ export const PostFeed = ({
     highlighted,
     useList,
     journal,
+}: {
+    classNameArg?: string;
+    focusedPost?: PostId;
+    feedLoader: (page: number, comments?: boolean) => Promise<Post[] | null>;
+    heartbeat?: any;
+    title?: JSX.Element;
+    comments?: boolean;
+    thread?: boolean;
+    includeComments?: boolean;
+    level?: number;
+    highlighted?: PostId[];
+    useList?: boolean;
+    journal?: boolean;
 }) => {
     const [page, setPage] = React.useState(0);
-    const [posts, setPosts] = React.useState([]);
+    const [posts, setPosts] = React.useState<Post[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [displayPageFlipper, setPageVlipperVisibility] = React.useState(
         !comments && !thread,
     );
 
-    const loadPage = async (page) => {
+    const loadPage = async (page: number) => {
         setLoading(true);
-        let nextPosts = (await feedLoader(page, includeComments)).map(
-            expandUser,
-        );
-        const loaded = new Set(posts.map((post) => post.id));
+        const loadedPost = await feedLoader(page, !!includeComments);
+        if (!loadedPost) return;
+        let nextPosts = loadedPost.map(expandUser);
         setPosts(page == 0 ? nextPosts : posts.concat(nextPosts));
-        if (nextPosts.length < backendCache.config.feed_page_size)
+        if (nextPosts.length < window.backendCache.config.feed_page_size)
             setPageVlipperVisibility(false);
         setLoading(false);
     };
@@ -40,7 +53,7 @@ export const PostFeed = ({
         loadPage(0);
     }, [heartbeat]);
 
-    const itemRenderer = (post, lastItem) => (
+    const itemRenderer = (post: Post, lastItem?: boolean) => (
         <PostView
             id={post.id}
             key={post.id}
@@ -90,16 +103,22 @@ export const PostFeed = ({
     );
 };
 
-const GridFeed = ({ posts, itemRenderer }) => {
+const GridFeed = ({
+    posts,
+    itemRenderer,
+}: {
+    posts: Post[];
+    itemRenderer: (post: Post, last_item?: boolean) => JSX.Element;
+}) => {
     const columnLeft = posts.filter((_, i) => i % 2 == 0);
     const columnRight = posts.filter((_, i) => i % 2 == 1);
     return (
         <div className="row_container">
             <div className="grid_column" style={{ marginRight: "auto" }}>
-                {columnLeft.map(itemRenderer)}
+                {columnLeft.map((p) => itemRenderer(p))}
             </div>
             <div className="grid_column" style={{ marginLeft: "auto" }}>
-                {columnRight.map(itemRenderer)}
+                {columnRight.map((p) => itemRenderer(p))}
             </div>
         </div>
     );
