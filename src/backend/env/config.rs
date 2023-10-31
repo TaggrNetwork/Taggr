@@ -133,10 +133,7 @@ mod string {
 }
 
 pub const CONFIG: &Config = &Config {
-    #[cfg(not(feature = "staging"))]
     name: "Taggr",
-    #[cfg(feature = "staging")]
-    name: "Staggr",
     domains: &[
         "taggr.link",
         "taggr.network",
