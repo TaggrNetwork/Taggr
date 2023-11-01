@@ -263,11 +263,11 @@ export const Wallet = () => {
                         onClick={async () => {
                             const amount = prompt(
                                 "Enter the amount (fee: 0.0001 ICP)",
-                            );
+                            )?.trim();
                             if (!amount) return;
                             const recipient = prompt(
                                 "Enter the recipient address",
-                            );
+                            )?.trim();
                             if (!recipient) return;
                             if (
                                 !confirm(
@@ -366,11 +366,11 @@ export const Wallet = () => {
                                     window.backendCache.config.transaction_fee /
                                     Math.pow(10, token_decimals)
                                 } ${token_symbol})`,
-                            );
+                            )?.trim();
                             if (!amount) return;
                             const recipient = prompt(
                                 "Enter the recipient principal",
-                            );
+                            )?.trim();
                             if (!recipient) return;
                             if (
                                 !confirm(

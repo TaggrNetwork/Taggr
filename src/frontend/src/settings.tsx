@@ -188,7 +188,7 @@ export const Settings = ({ invite = null }) => {
                         <div className="bottom_half_spaced">NEW PRINCIPAL</div>
                         <input
                             placeholder="Your principal"
-                            className="small_text bottom_spaced"
+                            className="bottom_spaced"
                             type="text"
                             value={principal}
                             onChange={(event) =>
@@ -205,7 +205,7 @@ export const Settings = ({ invite = null }) => {
                                 onClick={async () => {
                                     let response = await window.api.call<any>(
                                         "change_principal",
-                                        principal,
+                                        principal.trim(),
                                     );
                                     if ("Err" in response) {
                                         alert(`Error: ${response.Err}`);
