@@ -25,7 +25,6 @@ import {
 import { Settings } from "./settings";
 import { ApiGenerator } from "./api";
 import { Wallet, WelcomeInvited } from "./wallet";
-import { applyTheme, getTheme } from "./theme";
 import { Proposals } from "./proposals";
 import { Tokens, TransactionView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
@@ -33,6 +32,7 @@ import { Recovery } from "./recovery";
 import { MAINNET_MODE, TEST_MODE, CANISTER_ID } from "./env";
 import { Git, Rocket } from "./icons";
 import { UserId } from "./types";
+import { setRealmUI, setUI } from "./theme";
 
 const { hash, pathname } = location;
 
@@ -101,6 +101,7 @@ const App = () => {
     setTitle(handler);
     setUI();
     if (handler == "realm" && currentRealm() != param) {
+        window.resetUI();
         setRealmUI(param);
     }
 
@@ -198,23 +199,6 @@ const App = () => {
         </React.StrictMode>,
     );
     renderFrame(<React.StrictMode>{content}</React.StrictMode>);
-};
-
-const setRealmUI = (realm: string) => {
-    window.resetUI();
-    window.realm = realm;
-    window.api.query("realm", realm).then((result: any) => {
-        let realmTheme = result.Ok?.theme;
-        if (realmTheme) applyTheme(JSON.parse(realmTheme));
-        else setUI(true);
-    });
-};
-
-// If no realm is selected, set styling once.
-const setUI = (force?: boolean) => {
-    if (!force && (currentRealm() || window.uiInitialized)) return;
-    applyTheme(getTheme(window.user?.settings.theme));
-    window.uiInitialized = true;
 };
 
 const reloadCache = async () => {

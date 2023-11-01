@@ -14,7 +14,7 @@ import {
 } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
-import { getTheme } from "./theme";
+import { getTheme, setRealmUI } from "./theme";
 import { Realm, Theme, UserId } from "./types";
 
 export const RealmForm = ({ existingName }: { existingName: string }) => {
@@ -209,7 +209,7 @@ export const RealmForm = ({ existingName }: { existingName: string }) => {
                         type="checkbox"
                         checked={!!theme}
                         onChange={() =>
-                            setTheme(theme ? null : getTheme("classic"))
+                            setTheme(theme ? undefined : getTheme("classic"))
                         }
                         id="own_theme"
                     />
@@ -317,6 +317,7 @@ export const RealmForm = ({ existingName }: { existingName: string }) => {
                         if (!editing) {
                             location.href = `#/realm/${name}`;
                         }
+                        setRealmUI(name);
                     }}
                     label={editing ? "SAVE" : "CREATE"}
                 />

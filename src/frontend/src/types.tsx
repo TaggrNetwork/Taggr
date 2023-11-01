@@ -146,13 +146,7 @@ export type Report = {
     closed: boolean;
 };
 
-export type Theme = {
-    text: string;
-    background: string;
-    code: string;
-    clickable: string;
-    accent: string;
-};
+export type Theme = { [name: string]: string };
 
 export type Result = {
     Error: string;

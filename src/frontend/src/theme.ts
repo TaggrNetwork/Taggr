@@ -1,6 +1,9 @@
+// @ts-ignore
 import template from "./style.css";
+import { currentRealm } from "./common";
+import { Theme } from "./types";
 
-var shade = function (color, percent) {
+var shade = function (color: string, percent: number) {
     var num = parseInt(color.replace("#", ""), 16),
         amt = Math.round(2.55 * percent),
         R = (num >> 16) + amt,
@@ -16,9 +19,9 @@ var shade = function (color, percent) {
         .slice(1);
 };
 
-export const getTheme = (name) => themes[name];
+export const getTheme = (name: string) => themes[name];
 
-const themes = {
+const themes: { [name: string]: Theme } = {
     calm: {
         text: "#e0e0c8",
         background: "#343541",
@@ -27,7 +30,7 @@ const themes = {
         accent: "Gold",
     },
     classic: {
-        text: "#d0d0bf",
+        text: "#e0e0c8",
         background: "#1c3239",
         code: "White",
         clickable: "#30d5c8",
@@ -56,21 +59,38 @@ const themes = {
     },
 };
 
-export const applyTheme = (palette) => {
+export const applyTheme = (palette: Theme) => {
     let autoTheme =
         window.matchMedia &&
         window.matchMedia("(prefers-color-scheme: dark)").matches
             ? "dark"
             : "light";
-    const effPalette = palette ? palette : themes[autoTheme];
-    effPalette["light_background"] = "#" + shade(effPalette.background, 3);
-    effPalette["dark_background"] = "#" + shade(effPalette.background, -5);
-    effPalette["visited_clickable"] = "#" + shade(effPalette.clickable, -20);
+    const effPalette: Theme = palette ? palette : themes[autoTheme];
+    effPalette.light_background = "#" + shade(effPalette.background, 3);
+    effPalette.dark_background = "#" + shade(effPalette.background, -5);
+    effPalette.visited_clickable = "#" + shade(effPalette.clickable, -20);
     const styleNode = document.getElementById("style");
+    if (!styleNode) return;
     styleNode.innerText = Object.keys(effPalette).reduce(
         (acc, color) => acc.replaceAll(`$${color}`, effPalette[color]),
         template,
     );
-    document.getElementsByName("theme-color")[0].content =
-        effPalette.background;
+    const element = document.getElementsByName("theme-color")[0];
+    if (element) element.setAttribute("content", effPalette.background);
+};
+
+// If no realm is selected, set styling once.
+export const setUI = (force?: boolean) => {
+    if (!force && (currentRealm() || window.uiInitialized)) return;
+    applyTheme(getTheme(window.user?.settings.theme));
+    window.uiInitialized = true;
+};
+
+export const setRealmUI = (realm: string) => {
+    window.realm = realm;
+    window.api.query("realm", realm).then((result: any) => {
+        let realmTheme = result.Ok?.theme;
+        if (realmTheme) applyTheme(JSON.parse(realmTheme));
+        else setUI(true);
+    });
 };
