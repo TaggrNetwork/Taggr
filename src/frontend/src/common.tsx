@@ -466,9 +466,14 @@ export const blobToUrl = (blob: ArrayBuffer) =>
 
 export const isRoot = (post: Post) => post.parent == null;
 
-export const UserLink = ({ id }: { id: UserId }) => (
-    <a href={`#/user/${id}`}>{window.backendCache.users[id] || "?"}</a>
-);
+export const UserLink = ({ id }: { id: UserId }) => {
+    const userName = window.backendCache.users[id];
+    return userName ? (
+        <a href={`#/user/${id}`}>{userName}</a>
+    ) : (
+        <span>N/A</span>
+    );
+};
 
 export const realmList = (ids: string[] = []) =>
     ids.map((name) => (

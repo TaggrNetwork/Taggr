@@ -108,7 +108,7 @@ export const Tokens = () => {
                         HOLDERS<code>{holders}</code>
                     </div>
                     <div className="db_cell">
-                        WEEKLY REVENUE (10K TOKENS)
+                        WEEKLY REVENUE / 10K
                         <code>
                             $
                             {(
