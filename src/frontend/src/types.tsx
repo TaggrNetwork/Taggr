@@ -208,6 +208,7 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                logo: string;
                 poll_revote_deadline_hours: number;
                 tag_cost: number;
                 blob_cost: number;

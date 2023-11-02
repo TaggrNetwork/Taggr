@@ -1,9 +1,7 @@
 import * as React from "react";
 import {
     BurgerButton,
-    ButtonWithLoading,
     currentRealm,
-    HeadBar,
     ReactionToggleButton,
     RealmSpan,
     ToggleButton,
@@ -29,9 +27,18 @@ import {
 import { RealmHeader } from "./realms";
 import { STAGING_MODE } from "./env";
 
-let interval = null;
+let interval: any = null;
 
-export const Header = ({ subtle, route, inboxMode, user }) => {
+export const Header = ({
+    subtle,
+    route,
+    inboxMode,
+}: {
+    subtle?: boolean;
+    route: string;
+    inboxMode: boolean;
+}) => {
+    const user = window.user;
     const [showLogins, setShowLogins] = React.useState(
         !user && location.href.includes("?join"),
     );
@@ -45,7 +52,9 @@ export const Header = ({ subtle, route, inboxMode, user }) => {
     const refreshMessageCounter = () =>
         setMessages(user ? Object.keys(user.inbox).length : 0);
     React.useEffect(() => {
-        document.getElementById("logo").innerHTML = backendCache.config.logo;
+        const logo = document.getElementById("logo");
+        if (!logo) return;
+        logo.innerHTML = window.backendCache.config.logo;
     }, []);
     React.useEffect(() => {
         toggleButtonBar(false);
@@ -113,11 +122,18 @@ export const Header = ({ subtle, route, inboxMode, user }) => {
                                 </div>
                             )}
                             {user && (
-                                <PostButton classNameArg="right_half_spaced" />
+                                <button
+                                    className={"right_half_spaced active"}
+                                    onClick={() => (location.href = "#/new")}
+                                >
+                                    POST
+                                </button>
                             )}
                             {!window.principalId && (
                                 <ToggleButton
-                                    classNameArg={!showLogins && "active"}
+                                    classNameArg={
+                                        showLogins ? undefined : "active"
+                                    }
                                     toggler={() => setShowLogins(!showLogins)}
                                     currState={() => showLogins}
                                     onLabel="CLOSE"
@@ -256,12 +272,3 @@ export const Header = ({ subtle, route, inboxMode, user }) => {
         </>
     );
 };
-
-const PostButton = ({ classNameArg }) => (
-    <button
-        className={`active ${classNameArg || ""}`}
-        onClick={() => (location.href = "#/new")}
-    >
-        POST
-    </button>
-);

@@ -32,7 +32,7 @@ export const Recovery = () => {
     }, []);
 
     if (state == 0) return null;
-    else if (state == -1) return <LoginMasks confirmationRequired={false} />;
+    else if (state == -1) return <LoginMasks />;
 
     return (
         <>

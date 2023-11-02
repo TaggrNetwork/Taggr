@@ -10,8 +10,8 @@ export const authMethods = [
         label: "INVITE",
         description: "Start here if you got an invite code!",
         login: async () => {
-            const code = prompt("Enter your invite code:").toLowerCase();
-            if (!(await api.query("check_invite", code))) {
+            const code = prompt("Enter your invite code:")?.toLowerCase();
+            if (!(await window.api.query("check_invite", code))) {
                 alert("Invalid invite");
                 return;
             }
@@ -33,9 +33,9 @@ export const authMethods = [
                 )
             ) {
                 location.href = location.href.replace(".raw", "");
-                return;
+                return null;
             }
-            authClient.login({
+            window.authClient.login({
                 onSuccess: () => location.reload(),
                 identityProvider: II_URL,
                 maxTimeToLive: BigInt(30 * 24 * 3600000000000),
@@ -49,10 +49,10 @@ export const authMethods = [
         label: "PASSWORD",
         description:
             "This authentication method works on any device and only requires you to memorize one password.",
-        login: async (confirmationRequired) => (
+        login: async (confirmationRequired?: boolean): Promise<JSX.Element> => (
             <SeedPhraseForm
                 classNameArg="spaced"
-                callback={async (seed) => {
+                callback={async (seed: string) => {
                     if (!seed) return;
                     const hash = new Uint8Array(
                         await crypto.subtle.digest(
@@ -64,7 +64,7 @@ export const authMethods = [
                         Ed25519KeyIdentity.generate(hash).toJSON(),
                     );
                     localStorage.setItem("IDENTITY", serializedIdentity);
-                    localStorage.setItem("SEED_PHRASE", true);
+                    localStorage.setItem("SEED_PHRASE", "true");
                     location.reload();
                 }}
                 confirmationRequired={confirmationRequired}
@@ -76,11 +76,15 @@ export const authMethods = [
 export const logout = () => {
     location.href = "/";
     localStorage.clear();
-    authClient.logout();
+    window.authClient.logout();
 };
 
-export const LoginMasks = ({ confirmationRequired }) => {
-    const [mask, setMask] = React.useState(null);
+export const LoginMasks = ({
+    confirmationRequired,
+}: {
+    confirmationRequired?: boolean;
+}) => {
+    const [mask, setMask] = React.useState<JSX.Element>();
     if (mask) return mask;
     const inviteMode = confirmationRequired;
     const methods = inviteMode ? authMethods.slice(1) : authMethods;
@@ -94,9 +98,10 @@ export const LoginMasks = ({ confirmationRequired }) => {
                 <div key={i} className="column_container stands_out">
                     <button
                         className="large_text active left_half_spaced right_half_spaced"
-                        onClick={async () =>
-                            setMask(await method.login(confirmationRequired))
-                        }
+                        onClick={async () => {
+                            let mask = await method.login(confirmationRequired);
+                            if (mask) setMask(mask);
+                        }}
                     >
                         {method.icon} {`${method.label}`}
                     </button>
@@ -111,11 +116,18 @@ export const SeedPhraseForm = ({
     callback,
     confirmationRequired,
     classNameArg,
+}: {
+    callback: (arg: string) => void;
+    confirmationRequired?: boolean;
+    classNameArg?: string;
 }) => {
     const [value, setValue] = React.useState("");
     const [confirmedValue, setConfirmedValue] = React.useState("");
-    const field = React.useRef();
-    React.useEffect(() => field.current.focus(), []);
+    const field = React.useRef<HTMLInputElement>();
+    React.useEffect(() => {
+        let current = field.current;
+        current?.focus();
+    }, []);
     return (
         <div
             className={`${classNameArg} ${
@@ -123,6 +135,7 @@ export const SeedPhraseForm = ({
             } vertically_spaced`}
         >
             <input
+                // @ts-ignore
                 ref={field}
                 onChange={(e) => setValue(e.target.value)}
                 onKeyPress={(e) => {

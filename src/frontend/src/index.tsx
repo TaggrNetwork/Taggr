@@ -193,7 +193,6 @@ const App = () => {
             <Header
                 subtle={subtle}
                 inboxMode={inboxMode}
-                user={window.user}
                 route={window.location.hash}
             />
         </React.StrictMode>,
