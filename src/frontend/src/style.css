@@ -331,10 +331,15 @@ header {
 
 #scroll_up_button {
     display: none;
+    color: $dark_background;
+    background: $clickable;
     justify-content: center;
+    font-size: xx-large;
+    opacity: 0.95;
     align-items: center;
     height: 70px;
     width: 70px;
+    border-radius: 35px;
     position: fixed;
     cursor: pointer;
     bottom: 5%;
