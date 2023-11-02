@@ -316,7 +316,9 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                     <a href="#/whitepaper">
                         <Rocket classNameArg="action" />
                     </a>
-                    &nbsp;&middot;&nbsp;
+                    <a href="#/post/0" className="left_spaced right_spaced">
+                        2021
+                    </a>
                     <a href="https://github.com/TaggrNetwork/taggr">
                         <Git classNameArg="action" />
                     </a>
