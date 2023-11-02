@@ -28,10 +28,7 @@ export const Whitepaper = () => {
     return (
         <>
             <HeadBar title="WHITE PAPER" shareLink="whitepaper" />
-            {
-                // @ts-ignore
-                <Content classNameArg="spaced prime" value={value} />
-            }
+            <Content classNameArg="spaced prime" value={value} />
         </>
     );
 };

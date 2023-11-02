@@ -4,7 +4,6 @@ import {
     intFromBEBytes,
     timeAgo,
     hoursTillNext,
-    bigScreen,
     HeadBar,
     userList,
     token,
@@ -29,7 +28,6 @@ import {
     Fire,
     Gear,
     Gem,
-    Globe,
     HourGlass,
     Online,
     Post,
@@ -261,30 +259,9 @@ export const Dashboard = ({}) => {
                     </div>
                 </div>
                 <hr />
-                <div className="text_centered">
-                    <h2>
-                        <Globe /> DOMAINS
-                    </h2>
-                    <div className="dynamic_table" style={{ rowGap: "1em" }}>
-                        {window.backendCache.config.domains.map((domain) => (
-                            <a key={domain} href={`https://${domain}`}>
-                                {domain}
-                            </a>
-                        ))}
-                    </div>
-                </div>
-                <hr />
-                <div
-                    className={bigScreen() ? "two_column_grid_flex" : undefined}
-                >
-                    <div>
-                        <h2>⚔️ STALWARTS</h2>
-                        {userList(stats.stalwarts)}
-                    </div>
-                    <div>
-                        <h2>🤖 BOTS</h2>
-                        {userList(stats.bots)}
-                    </div>
+                <div>
+                    <h2>STALWARTS</h2>
+                    {userList(stats.stalwarts)}
                 </div>
                 <hr />
                 <h2>

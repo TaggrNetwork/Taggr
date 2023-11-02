@@ -30,7 +30,6 @@ import { Tokens, TransactionView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
 import { MAINNET_MODE, TEST_MODE, CANISTER_ID } from "./env";
-import { Git, Rocket } from "./icons";
 import { UserId } from "./types";
 import { setRealmUI, setUI } from "./theme";
 
@@ -311,21 +310,54 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
 
         footerRoot.render(
             <React.StrictMode>
-                <footer className="small_text text_centered vertically_spaced">
-                    <a href="#/whitepaper">
-                        <Rocket classNameArg="action" />
-                    </a>
-                    <a href="#/post/0" className="left_spaced right_spaced">
-                        2021
-                    </a>
-                    <a href="https://github.com/TaggrNetwork/taggr">
-                        <Git classNameArg="action" />
-                    </a>
-                </footer>
+                <Footer />
             </React.StrictMode>,
         );
     },
 );
+
+const Footer = ({}) => {
+    const [domainSelection, setDomainSelection] = React.useState(false);
+    return (
+        <footer className="small_text text_centered vertically_spaced">
+            {domainSelection && (
+                <>
+                    <div className="bottom_spaced">ALTERNATIVE DOMAINS:</div>
+                    <div className="column_container">
+                        {window.backendCache.config.domains.map((domain) => (
+                            <a
+                                key={domain}
+                                className="left_half_spaced right_half_spaced"
+                                href={`https://${domain}`}
+                            >
+                                {domain}
+                            </a>
+                        ))}
+                    </div>
+                </>
+            )}
+            {!domainSelection && (
+                <>
+                    <a href="#/post/0">2021</a>
+                    <span className="left_half_spaced right_half_spaced">
+                        &middot;
+                    </span>
+                    <a href={location.origin}>{location.host.toLowerCase()}</a>
+                    <span
+                        className="accent clickable left_half_spaced"
+                        onClick={() => setDomainSelection(true)}
+                    >
+                        &#9880;
+                    </span>
+                    <span className="left_half_spaced right_half_spaced">
+                        &middot;
+                    </span>
+                    <a href="https://github.com/TaggrNetwork/taggr">GitHub</a>
+                </>
+            )}
+        </footer>
+    );
+};
 
 const updateDoc = () => {
     document.getElementById("logo_container")?.remove();
