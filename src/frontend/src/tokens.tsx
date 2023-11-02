@@ -13,6 +13,7 @@ import {
 } from "./common";
 import * as React from "react";
 import { UserId, Transaction } from "./types";
+import { Principal } from "@dfinity/principal";
 
 type Balances = [string, number, UserId][];
 
@@ -258,51 +259,42 @@ export const TransactionView = ({ id }: { id: number }) => {
     if (status == 0) return <Loading />;
     if (status == -1) return <NotFound />;
     return (
-        <div className="spaced">
+        <div className="spaced no_overflow">
             <HeadBar
-                title={`TRANSACTION #${id}`}
+                title={
+                    <>
+                        TRANSACTION <code>#{id}</code>
+                    </>
+                }
                 shareLink={`transaction/${id}`}
             />
-            <div>
-                <div className="bottom_spaced">
-                    TIMESTAMP:{" "}
-                    <code>
-                        {new Date(
-                            Number(tx.timestamp) / 1000000,
-                        ).toLocaleString()}
-                    </code>
-                </div>
-                <div className="bottom_spaced">
-                    FROM:{" "}
-                    <code>
-                        <CopyToClipboard
-                            value={tx.from.owner}
-                            displayMap={(v) =>
-                                bigScreen() ? v : v.split("-")[0]
-                            }
-                        />
-                    </code>
-                </div>
-                <div className="bottom_spaced">
-                    TO:{" "}
-                    <code>
-                        <CopyToClipboard
-                            value={tx.to.owner}
-                            displayMap={(v) =>
-                                bigScreen() ? v : v.split("-")[0]
-                            }
-                        />
-                    </code>
-                </div>
-                <div className="bottom_spaced">
-                    AMOUNT: <code>{tokenBalance(tx.amount)}</code>
-                </div>
-                <div className="bottom_spaced">
-                    FEE: <code>{tokenBalance(tx.fee)}</code>
-                </div>
-                <>
-                    MEMO: <code>{JSON.stringify(tx.memo)}</code>
-                </>
+            <div className="column_container">
+                TIMESTAMP
+                <code className="x_large_text">
+                    {new Date(Number(tx.timestamp) / 1000000).toLocaleString()}
+                </code>
+                <hr />
+                FROM
+                {tx.from.owner == Principal.anonymous().toString() ? (
+                    <code>MINTING ACCOUNT 🌱</code>
+                ) : (
+                    <CopyToClipboard value={tx.from.owner} />
+                )}
+                <hr />
+                TO
+                <CopyToClipboard value={tx.to.owner} />
+                <hr />
+                AMOUNT{" "}
+                <code className="xx_large_text">{tokenBalance(tx.amount)}</code>
+                <hr />
+                FEE <code>{tokenBalance(tx.fee)}</code>
+                <hr />
+                {tx.memo && (
+                    <>
+                        {" "}
+                        MEMO <code>{JSON.stringify(tx.memo)}</code>
+                    </>
+                )}
             </div>
         </div>
     );

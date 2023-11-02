@@ -631,7 +631,7 @@ export function CopyToClipboard({
     return (
         <span
             title="Copy to clipboard"
-            className="no_wrap clickable"
+            className="clickable"
             onClick={async () => {
                 const cb = navigator.clipboard;
                 await cb.writeText(map(value));

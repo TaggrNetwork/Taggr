@@ -398,7 +398,8 @@ article td {
     border: 1px solid $dark_background;
 }
 
-article {
+article,
+.no_overflow {
     overflow-wrap: anywhere;
 }
 
