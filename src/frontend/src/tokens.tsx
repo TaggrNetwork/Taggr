@@ -346,7 +346,11 @@ export const Transactions = ({
 const format = (acc: string) => (acc == "2vxsx-fae" ? "🌱" : principal(acc));
 
 const principal = (p: string) => (
-    <CopyToClipboard value={p} displayMap={(id) => id.split("-")[0]} />
+    <CopyToClipboard
+        classNameArg="monospace"
+        value={p}
+        displayMap={(id) => id.split("-")[0]}
+    />
 );
 
 const genColor = (val: string) => {

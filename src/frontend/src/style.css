@@ -86,6 +86,11 @@ h5 {
     font-size: 80%;
 }
 
+.monospace * {
+    font-family: ui-monospace, "Menlo", "Consolas", "Roboto Mono",
+        "DejaVu Sans Mono", monospace;
+}
+
 .prime .blog_title,
 .prime h2,
 .prime h3 {

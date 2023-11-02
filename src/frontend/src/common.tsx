@@ -619,6 +619,7 @@ export function CopyToClipboard({
     displayMap = (e) => e,
     map = (e) => e,
     testId,
+    classNameArg,
 }: {
     value: string;
     testId?: any;
@@ -626,12 +627,13 @@ export function CopyToClipboard({
     displayMap?: (arg: any) => any;
     pre?: (arg: JSX.Element) => JSX.Element;
     post?: (arg: JSX.Element) => JSX.Element;
+    classNameArg?: string;
 }): JSX.Element {
     const [copied, setCopied] = React.useState(false);
     return (
         <span
             title="Copy to clipboard"
-            className="clickable"
+            className={`clickable ${classNameArg}`}
             onClick={async () => {
                 const cb = navigator.clipboard;
                 await cb.writeText(map(value));

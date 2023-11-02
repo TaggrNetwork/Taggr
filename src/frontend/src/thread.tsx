@@ -7,9 +7,12 @@ export const Thread = ({ id }: { id: PostId }) => {
     return (
         <>
             {
-                // @ts-ignore
                 <HeadBar
-                    title={`THREAD TO #${id}`}
+                    title={
+                        <>
+                            THREAD TO <code>#{id}</code>
+                        </>
+                    }
                     shareLink={`thread/${id}`}
                 />
             }
