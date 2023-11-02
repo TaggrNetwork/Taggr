@@ -51,6 +51,7 @@ const Welcome = () => {
                         <h2>New user detected</h2>
                         <p>Please re-enter your password to confirm it.</p>
                         <SeedPhraseForm
+                            classNameArg=""
                             confirmationRequired={false}
                             callback={async (seed: string) => {
                                 const hash = new Uint8Array(
@@ -124,9 +125,10 @@ const Welcome = () => {
                         )}
                         {loadingInvoice && (
                             <div className="text_centered stands_out">
-                                Checking the balance... This can take up to a
-                                minute.
-                                <Loading classNameArg="vertically_spaced" />
+                                Checking the balance...
+                                <br />
+                                <small>(This can take up to a minute.)</small>
+                                <Loading />
                             </div>
                         )}
                         {!loadingInvoice && (
@@ -163,8 +165,8 @@ const Welcome = () => {
                                             </div>
                                         )}
                                         {!invoice.paid && (
-                                            <div className="stands_out">
-                                                Please transfer&nbsp;
+                                            <>
+                                                Please transfer at least&nbsp;
                                                 <CopyToClipboard
                                                     value={(
                                                         Number(invoice.e8s) /
@@ -189,9 +191,10 @@ const Welcome = () => {
                                                 cycles.
                                                 <br />
                                                 <br />
-                                                (Larger transfers will mint a
-                                                proportionally larger number of
-                                                cycles.)
+                                                If you transfer a larger amount,
+                                                the surplus will end up in your
+                                                ICP wallet after you have
+                                                created the user account.
                                                 <br />
                                                 <br />
                                                 <button
@@ -200,7 +203,7 @@ const Welcome = () => {
                                                 >
                                                     CHECK BALANCE
                                                 </button>
-                                            </div>
+                                            </>
                                         )}
                                     </>
                                 )}

@@ -51,6 +51,7 @@ export const authMethods = [
             "This authentication method works on any device and only requires you to memorize one password.",
         login: async (confirmationRequired) => (
             <SeedPhraseForm
+                classNameArg="spaced"
                 callback={async (seed) => {
                     if (!seed) return;
                     const hash = new Uint8Array(
@@ -106,16 +107,20 @@ export const LoginMasks = ({ confirmationRequired }) => {
     );
 };
 
-export const SeedPhraseForm = ({ callback, confirmationRequired }) => {
+export const SeedPhraseForm = ({
+    callback,
+    confirmationRequired,
+    classNameArg,
+}) => {
     const [value, setValue] = React.useState("");
     const [confirmedValue, setConfirmedValue] = React.useState("");
     const field = React.useRef();
     React.useEffect(() => field.current.focus(), []);
     return (
         <div
-            className={`${
+            className={`${classNameArg} ${
                 confirmationRequired ? "column_container" : "row_container"
-            } spaced vertically_spaced`}
+            } vertically_spaced`}
         >
             <input
                 ref={field}
