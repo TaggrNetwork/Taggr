@@ -339,16 +339,22 @@ header {
     color: $dark_background;
     background: $clickable;
     justify-content: center;
+    align-items: center;
+    transform: rotate(-90deg);
     font-size: xx-large;
     opacity: 0.95;
-    align-items: center;
-    height: 70px;
-    width: 70px;
-    border-radius: 35px;
+    height: 60px;
+    width: 60px;
+    border-radius: 30px;
     position: fixed;
     cursor: pointer;
     bottom: 5%;
     right: 5%;
+}
+
+#scroll_up_button span {
+    position: relative;
+    top: -0.05em;
 }
 
 hr {
