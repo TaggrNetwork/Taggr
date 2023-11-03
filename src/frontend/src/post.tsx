@@ -101,7 +101,7 @@ export const PostView = ({
             data.reactions = post.reactions;
         }
         // if the post is in prime mode, load pics right away
-        if (prime) {
+        if (prime || repost) {
             loadPostBlobs(data.files).then(setBlobs);
         }
         setPost(data);
@@ -123,7 +123,10 @@ export const PostView = ({
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting && post) {
-                    loadPostBlobs(post.files).then(setBlobs);
+                    loadPostBlobs(post.files).then((blobs) => {
+                        observer.unobserve(article);
+                        setBlobs(blobs);
+                    });
                 }
             },
             {
