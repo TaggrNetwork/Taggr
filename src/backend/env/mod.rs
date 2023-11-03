@@ -1619,6 +1619,13 @@ impl State {
     }
 
     pub async fn mint_cycles(principal: Principal, kilo_cycles: u64) -> Result<Invoice, String> {
+        if kilo_cycles > CONFIG.max_cycles_mint_kilos {
+            return Err(format!(
+                "can't mint more than {} thousands of cycles",
+                CONFIG.max_cycles_mint_kilos
+            ));
+        }
+
         State::claim_user_icp(principal).await?;
 
         let invoice = match Invoices::outstanding(&principal, kilo_cycles).await {

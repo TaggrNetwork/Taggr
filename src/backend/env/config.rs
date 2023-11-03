@@ -36,6 +36,8 @@ pub struct Config {
     pub proposal_controversy_threashold: u16,
     pub proposal_rejection_penalty: Cycles,
 
+    pub max_cycles_mint_kilos: u64,
+
     pub dao_realm: &'static str,
 
     pub min_cycle_balance_main: u64,
@@ -159,6 +161,8 @@ pub const CONFIG: &Config = &Config {
 
     individual_minting_threshold_percentage: 1,
     minting_threshold_percentage: 5,
+
+    max_cycles_mint_kilos: 5,
 
     #[cfg(not(feature = "dev"))]
     bootstrap_phase_user_number: 25,

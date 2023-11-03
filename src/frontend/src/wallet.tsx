@@ -326,12 +326,24 @@ export const Wallet = () => {
                     <ButtonWithLoading
                         classNameArg="active"
                         onClick={async () => {
+                            const maxKilos =
+                                window.backendCache.config
+                                    .max_cycles_mint_kilos;
                             const kilo_cycles = parseInt(
                                 prompt(
-                                    "Enter the number of 1000s of cycles to mint",
+                                    "Enter the number of 1000s of cycles to mint " +
+                                        `(max: ${maxKilos})`,
                                     "1",
                                 ) || "",
                             );
+                            if (Number(kilo_cycles) > maxKilos) {
+                                alert(
+                                    `You can't mint more than ${
+                                        1000 * maxKilos
+                                    } cycles at once.`,
+                                );
+                                return;
+                            }
                             if (isNaN(kilo_cycles)) {
                                 return;
                             }
