@@ -23,7 +23,10 @@ use ic_cdk::{
 };
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
+use ic_ledger_types::{Memo, Tokens};
 use serde_bytes::ByteBuf;
+
+use crate::env::invoices::parse_account;
 
 mod assets;
 #[cfg(feature = "dev")]
@@ -99,12 +102,35 @@ fn post_upgrade() {
     set_timers();
 
     // temporary post upgrade logic goes here
-    // set_timer(std::time::Duration::from_secs(1), move || {
-    //     spawn(post_upgrade_fixtures())
-    // });
+    set_timer(std::time::Duration::from_secs(1), move || {
+        spawn(post_upgrade_fixtures())
+    });
 }
 
-// async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    let user = read(|state| state.users.get(&887).unwrap().clone());
+    assert_eq!(user.name, "PsychoGamen");
+
+    // Partial revert of
+    // https://dashboard.internetcomputer.org/transaction/73bdd270511e620bab2d3341dec7c3c70c118d0944e35d4dfbc432620bf6b5f7
+    let _ = invoices::transfer(
+        parse_account(&user.account).unwrap(),
+        Tokens::from_e8s(327_0000_0000) - invoices::fee(),
+        Memo(999),
+        // Sending funds from treasury
+        None,
+    )
+    .await;
+
+    // reset cycles
+    mutate(|state| {
+        let user = state.users.get_mut(&887).unwrap();
+        assert_eq!(user.name, "PsychoGamen");
+        // We leave in the treasury 1 ICP which is about 2.7k, but PsychoGamen has spent 1k on a
+        // realm already and is likely to spend more until the release is rolled out.
+        user.cycles = 1500;
+    })
+}
 
 /*
  * UPDATES

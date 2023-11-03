@@ -59,7 +59,7 @@ pub struct User {
     pub settings: String,
     karma: Karma,
     rewarded_karma: u64,
-    cycles: Cycles,
+    pub cycles: Cycles,
     pub feeds: Vec<BTreeSet<String>>,
     pub followees: BTreeSet<UserId>,
     pub followers: BTreeSet<UserId>,
