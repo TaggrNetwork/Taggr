@@ -294,9 +294,9 @@ export const PostView = ({
         >
             <div
                 ref={refPost as any}
-                className={`post_box ${
-                    isInactive ? "inactive" : ""
-                } ${cls} clickable`}
+                className={`post_box ${isInactive ? "inactive" : ""} ${cls} ${
+                    prime ? "" : "clickable"
+                }`}
                 style={{ position: "relative" }}
             >
                 {showReport && post.report && (
