@@ -162,7 +162,7 @@ pub const CONFIG: &Config = &Config {
     individual_minting_threshold_percentage: 1,
     minting_threshold_percentage: 5,
 
-    max_cycles_mint_kilos: 5,
+    max_cycles_mint_kilos: 10,
 
     #[cfg(not(feature = "dev"))]
     bootstrap_phase_user_number: 25,
