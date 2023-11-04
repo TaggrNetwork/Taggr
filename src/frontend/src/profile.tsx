@@ -53,7 +53,6 @@ export const Profile = ({ handle }: { handle: string }) => {
 
     switch (status) {
         case 0:
-            // @ts-ignore
             return <Loading />;
         case -1:
             return <NotFound />;
@@ -99,10 +98,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                             (location.href = `/#/journal/${profile.name}`)
                         }
                     >
-                        {
-                            // @ts-ignore
-                            <Journal />
-                        }
+                        <Journal />
                     </button>
                 }
                 button2={
@@ -376,34 +372,31 @@ export const Profile = ({ handle }: { handle: string }) => {
                     <hr />
                 </>
             )}
-            {
-                // @ts-ignore
-                <PostFeed
-                    title={title}
-                    useList={true}
-                    feedLoader={async (page: number) => {
-                        if (status != 1) return null;
-                        if (tab == "TAGS")
-                            return await window.api.query(
-                                "user_tags",
-                                profile.name,
-                                page,
-                            );
-                        if (tab == "REWARDED")
-                            return await window.api.query(
-                                "rewarded_posts",
-                                profile.id.toString(),
-                                page,
-                            );
+            <PostFeed
+                title={title}
+                useList={true}
+                feedLoader={async (page: number) => {
+                    if (status != 1) return null;
+                    if (tab == "TAGS")
                         return await window.api.query(
-                            "user_posts",
+                            "user_tags",
+                            profile.name,
+                            page,
+                        );
+                    if (tab == "REWARDED")
+                        return await window.api.query(
+                            "rewarded_posts",
                             profile.id.toString(),
                             page,
                         );
-                    }}
-                    heartbeat={profile.id + tab}
-                />
-            }
+                    return await window.api.query(
+                        "user_posts",
+                        profile.id.toString(),
+                        page,
+                    );
+                }}
+                heartbeat={profile.id + tab}
+            />
         </>
     );
 };
@@ -490,7 +483,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             )}
             {getLabels(profile)}
             {profile.about && (
-                // @ts-ignore
                 <Content classNameArg="larger_text " value={profile.about} />
             )}
             <hr />

@@ -40,7 +40,6 @@ export const Journal = ({ handle }: { handle: string }) => {
                         JOURNAL
                     </h1>
                     {
-                        // @ts-ignore
                         <Content
                             value={profile.about}
                             classNameArg="text_centered vertically_spaced"

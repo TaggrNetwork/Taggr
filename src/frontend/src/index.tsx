@@ -105,7 +105,6 @@ const App = () => {
     }
 
     if (handler == "settings") {
-        // @ts-ignore
         content = auth(<Settings />);
     } else if (handler == "whitepaper" || handler == "about") {
         content = <Whitepaper />;
@@ -114,7 +113,6 @@ const App = () => {
     } else if (handler == "welcome") {
         subtle = !window.principalId;
         content = window.principalId ? (
-            // @ts-ignore
             <Settings invite={param} />
         ) : (
             <WelcomeInvited />
@@ -125,18 +123,14 @@ const App = () => {
         const id = parseInt(param);
         const version = parseInt(param2);
         subtle = true;
-        // @ts-ignore
         content = <PostView id={id} version={version} prime={true} />;
     } else if (handler == "edit") {
         const id = parseInt(param);
-        // @ts-ignore
         content = auth(<PostSubmissionForm id={id} />);
     } else if (handler == "new") {
         subtle = true;
-        // @ts-ignore
         content = auth(<PostSubmissionForm repost={parseInt(param2)} />);
     } else if (handler == "realms") {
-        // @ts-ignore
         if (param == "create") content = auth(<RealmForm />);
         else content = <Realms />;
     } else if (handler == "realm") {
@@ -158,10 +152,8 @@ const App = () => {
         content = <Tokens />;
     } else if (handler == "bookmarks") {
         content = auth(
-            // @ts-ignore
             <PostFeed
                 useList={true}
-                // @ts-ignore
                 title={<HeadBar title="BOOKMARKS" shareLink="bookmarks" />}
                 includeComments={true}
                 feedLoader={async () =>

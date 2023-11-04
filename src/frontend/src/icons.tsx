@@ -602,7 +602,7 @@ export const Menu = ({
     classNameArg,
     styleArg,
 }: {
-    classNameArg: string;
+    classNameArg?: string;
     styleArg?: any;
 }) => (
     <svg

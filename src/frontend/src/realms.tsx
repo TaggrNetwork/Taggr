@@ -17,7 +17,7 @@ import { Close } from "./icons";
 import { getTheme, setRealmUI } from "./theme";
 import { Realm, Theme, UserId } from "./types";
 
-export const RealmForm = ({ existingName }: { existingName: string }) => {
+export const RealmForm = ({ existingName }: { existingName?: string }) => {
     const editing = !!existingName;
     const users = window.backendCache.users;
     const name2Id = Object.keys(users).reduce(
@@ -47,7 +47,7 @@ export const RealmForm = ({ existingName }: { existingName: string }) => {
             return;
         }
         const realm: Realm = result.Ok;
-        setName(existingName);
+        if (existingName) setName(existingName);
         setDescription(realm.description);
         setControllers(realm.controllers);
         if (realm.theme) setTheme(JSON.parse(realm.theme));
@@ -118,8 +118,9 @@ export const RealmForm = ({ existingName }: { existingName: string }) => {
                                     btoa(
                                         String.fromCharCode.apply(
                                             null,
-                                            // @ts-ignore
-                                            new Uint8Array(content),
+                                            new Uint8Array(
+                                                content,
+                                            ) as unknown as number[],
                                         ),
                                     ),
                                 );
@@ -378,13 +379,7 @@ export const RealmHeader = ({ name }: { name: string }) => {
                                 window.realm = "";
                                 location.href = "/#/home";
                             }}
-                            label={
-                                <Close
-                                    styleArg={{ fill: colors.color }}
-                                    // @ts-ignore
-                                    small={true}
-                                />
-                            }
+                            label={<Close styleArg={{ fill: colors.color }} />}
                         />
                         <BurgerButton
                             styleArg={colors}

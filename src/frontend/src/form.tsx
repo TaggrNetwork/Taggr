@@ -71,7 +71,7 @@ export const Form = ({
     const [suggestedUsers, setSuggestedUsers] = React.useState<string[]>([]);
     const [choresTimer, setChoresTimer] = React.useState<any>(null);
     const [cursor, setCursor] = React.useState(0);
-    const textarea = React.useRef();
+    const textarea = React.useRef<HTMLTextAreaElement>();
     const form = React.useRef();
     const tags = window.backendCache.recent_tags;
     const users = Object.values(window.backendCache.users);
@@ -190,8 +190,7 @@ export const Form = ({
     const onValueChange = (value: string) => {
         setValue(value);
         clearTimeout(choresTimer);
-        // @ts-ignore
-        const cursor = textarea.current?.selectionStart - 1;
+        const cursor = (textarea.current?.selectionStart || 0) - 1;
         const suggestedTags = suggestTokens(cursor, value, tags, "#");
         setSuggestedTags(suggestedTags);
         const suggestedUsers = suggestTokens(cursor, value, users, "@");
@@ -203,8 +202,7 @@ export const Form = ({
     };
 
     const maybeInsertSuggestion = (event: any) => {
-        // @ts-ignore
-        let pos = textarea.current?.selectionStart;
+        let pos = textarea.current?.selectionStart || 0;
         setCursor(pos);
         if (event.charCode == 13) {
             const cursor = pos - 1;
@@ -220,8 +218,7 @@ export const Form = ({
 
     const insertSuggestion = (event: any, trigger: string, token: string) => {
         event.preventDefault();
-        // @ts-ignore
-        const cursor = textarea.current?.selectionStart;
+        const cursor = textarea.current?.selectionStart || 0;
         let i;
         for (i = cursor; value[i] != trigger; i--) {}
         setValue(value.slice(0, i + 1) + token + value.slice(cursor) + " ");
@@ -231,7 +228,6 @@ export const Form = ({
     };
 
     const setFocus = () => {
-        // @ts-ignore
         if (textarea.current && !content) textarea.current.focus();
     };
 
@@ -267,8 +263,7 @@ export const Form = ({
 
     const preview = (
         <article
-            // @ts-ignore
-            ref={ref}
+            ref={ref as unknown as any}
             className={`bottom_spaced max_width_col ${
                 postId == null ? "prime" : ""
             } framed`}
@@ -340,12 +335,10 @@ export const Form = ({
             )}
             {showTextField && (
                 <form
-                    // @ts-ignore
-                    ref={form}
+                    ref={form as unknown as any}
                     className={`${
                         submitting ? "inactive" : ""
                     } column_container bottom_spaced`}
-                    autoFocus
                 >
                     <div className="row_container">
                         {previewAtLeft && showPreview ? preview : null}
@@ -389,19 +382,20 @@ export const Form = ({
                             </div>
                             <textarea
                                 id={id}
-                                // @ts-ignore
-                                ref={textarea}
+                                ref={textarea as unknown as any}
                                 rows={lines}
                                 disabled={submitting}
                                 value={value}
                                 onKeyPress={maybeInsertSuggestion}
                                 onKeyUp={() =>
-                                    // @ts-ignore
-                                    setCursor(textarea.current?.selectionStart)
+                                    setCursor(
+                                        textarea.current?.selectionStart || 0,
+                                    )
                                 }
                                 onFocus={() =>
-                                    // @ts-ignore
-                                    setCursor(textarea.current?.selectionStart)
+                                    setCursor(
+                                        textarea.current?.selectionStart || 0,
+                                    )
                                 }
                                 className={`max_width_col ${
                                     dragAndDropping ? "active_element" : null

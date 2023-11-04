@@ -346,8 +346,7 @@ export const PostView = ({
                 )}
                 {!isNSFW && (
                     <article
-                        // @ts-ignore
-                        ref={refArticle}
+                        ref={refArticle as unknown as any}
                         onClick={(e) => goInside(e)}
                         className={prime ? "prime" : undefined}
                     >
@@ -426,7 +425,6 @@ export const PostView = ({
                                 user.realms.includes(post.realm)) && (
                                 <Form
                                     submitCallback={commentSubmissionCallback}
-                                    // @ts-ignore
                                     postId={post.id}
                                     writingCallback={() =>
                                         setCommentIncoming(true)
@@ -458,7 +456,6 @@ export const PostView = ({
                         await window.api.query("posts", post.children)
                     }
                     highlighted={highlighted}
-                    // @ts-ignore
                     classNameArg="left_spaced"
                 />
             )}

@@ -2,7 +2,7 @@ import * as React from "react";
 import { ButtonWithLoading, HeadBar } from "./common";
 import { User } from "./types";
 
-export const Settings = ({ invite = null }) => {
+export const Settings = ({ invite }: { invite?: string }) => {
     const user = window.user;
     const [principal, setPrincipal] = React.useState(window.principalId);
     const [name, setName] = React.useState("");

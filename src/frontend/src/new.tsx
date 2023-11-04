@@ -13,8 +13,8 @@ export const PostSubmissionForm = ({
     id,
     repost,
 }: {
-    id: PostId;
-    repost: PostId;
+    id?: PostId;
+    repost?: PostId;
 }) => {
     const [post, setPost] = React.useState<Post>();
     const [blobs, setBlobs] = React.useState({});
@@ -43,7 +43,7 @@ export const PostSubmissionForm = ({
         if (post?.id) {
             const patch = getPatch(text, post.body);
             let response: any = await window.api.edit_post(
-                id,
+                post.id,
                 text,
                 blobs,
                 patch,
@@ -97,7 +97,7 @@ export const PostSubmissionForm = ({
         return true;
     };
 
-    if (!isNaN(id) && !post) return null;
+    if (id != undefined && !isNaN(id) && !post) return null;
 
     return (
         <div className="spaced top_spaced">

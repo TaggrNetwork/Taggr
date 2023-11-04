@@ -547,7 +547,6 @@ export const BurgerButton = ({
             title="Menu"
             onClick={onClick}
             pressed={pressed}
-            // @ts-ignore
             icon={<Menu styleArg={effStyle} />}
             testId={testId}
         />

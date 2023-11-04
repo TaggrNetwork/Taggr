@@ -135,8 +135,7 @@ export const SeedPhraseForm = ({
             } vertically_spaced`}
         >
             <input
-                // @ts-ignore
-                ref={field}
+                ref={field as unknown as any}
                 onChange={(e) => setValue(e.target.value)}
                 onKeyPress={(e) => {
                     if (!confirmationRequired && e.charCode == 13)
