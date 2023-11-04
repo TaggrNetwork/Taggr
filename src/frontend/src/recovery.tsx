@@ -15,9 +15,8 @@ export const Recovery = () => {
         setUser(user);
         if (user != undefined) {
             setState(1);
-            const result = await window.api.query<[string, string[]]>(
-                "recovery_state",
-            );
+            const result =
+                await window.api.query<[string, string[]]>("recovery_state");
             if (!result) return;
             const [status, votes] = result;
             setStatus(status);

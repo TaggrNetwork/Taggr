@@ -56,19 +56,16 @@ test("bookmarks", async ({ page, browser }) => {
     await test.step("find bookmarks on bookmarks page", async () => {
         const bookmarksPage = await globalNavigation.goToBookmarksPage();
 
-        const bookmarkedPostOne = await bookmarksPage.getPostByContent(
-            postOneContent,
-        );
+        const bookmarkedPostOne =
+            await bookmarksPage.getPostByContent(postOneContent);
         await expect(bookmarkedPostOne.element).toBeVisible();
 
-        const bookmarkedPostTwo = await bookmarksPage.getPostByContent(
-            postTwoContent,
-        );
+        const bookmarkedPostTwo =
+            await bookmarksPage.getPostByContent(postTwoContent);
         await expect(bookmarkedPostTwo.element).toBeVisible();
 
-        const bookmarkedPostThree = await bookmarksPage.getPostByContent(
-            postThreeContent,
-        );
+        const bookmarkedPostThree =
+            await bookmarksPage.getPostByContent(postThreeContent);
         await expect(bookmarkedPostThree.element).toBeVisible();
 
         await bookmarkedPostTwo.toggleBookmark();

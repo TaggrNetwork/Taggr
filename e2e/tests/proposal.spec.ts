@@ -101,9 +101,8 @@ test("adopt a release proposal", async () => {
             );
             const proposalsPage = await globalNavigation.goToProposalsPage();
 
-            const proposal = await proposalsPage.getProposalByContent(
-                proposalDescription,
-            );
+            const proposal =
+                await proposalsPage.getProposalByContent(proposalDescription);
             expect(proposal.statusElement).toHaveText("OPEN");
 
             await proposal.accept(buildHash);
@@ -152,9 +151,8 @@ test("reject a release proposal", async () => {
             );
             const proposalsPage = await globalNavigation.goToProposalsPage();
 
-            const proposal = await proposalsPage.getProposalByContent(
-                proposalDescription,
-            );
+            const proposal =
+                await proposalsPage.getProposalByContent(proposalDescription);
             expect(proposal.statusElement).toHaveText("OPEN");
 
             await proposal.reject();
@@ -167,9 +165,8 @@ test("reject a release proposal", async () => {
                 stalwart,
             );
             const proposalsPage = await globalNavigation.goToProposalsPage();
-            const proposal = await proposalsPage.getProposalByContent(
-                proposalDescription,
-            );
+            const proposal =
+                await proposalsPage.getProposalByContent(proposalDescription);
 
             await proposal.reject();
             expect(proposal.statusElement).toHaveText("REJECTED");

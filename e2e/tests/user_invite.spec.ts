@@ -22,9 +22,8 @@ test("user invite", async ({ page, browser }) => {
     const invitesPage = await globalNavigation.goToInvitesPage();
 
     const inviteUrl = await test.step("create invite", async () => {
-        const inviteUrl = await invitesPage.createInviteWithCycles(
-            inviteCycles,
-        );
+        const inviteUrl =
+            await invitesPage.createInviteWithCycles(inviteCycles);
         const openInvites = await invitesPage.getOpenInvites();
         expect(openInvites).toHaveLength(1);
 
