@@ -1,10 +1,19 @@
 import * as React from "react";
 import { Loading } from "./common";
+import { PostId, UserId } from "./types";
+
+type SearchResult = {
+    id: PostId;
+    user_id: UserId;
+    generic_id: string;
+    result: string;
+    relevant: string;
+};
 
 export const Search = () => {
     const [term, setTerm] = React.useState("");
-    const [results, setResults] = React.useState([]);
-    const [timer, setTimer] = React.useState(null);
+    const [results, setResults] = React.useState<SearchResult[]>([]);
+    const [timer, setTimer] = React.useState<any>(null);
     const [searching, setSearching] = React.useState(false);
 
     return (
@@ -12,10 +21,10 @@ export const Search = () => {
             <input
                 id="search_field"
                 type="search"
-                placeholder={`Search #${backendCache.config.name}`}
+                placeholder={`Search #${window.backendCache.config.name}`}
                 value={term}
                 onChange={(event) => {
-                    clearTimeout(timer);
+                    clearTimeout(timer as unknown as any);
                     const term = event.target.value;
                     setTerm(term);
                     setTimer(
@@ -25,7 +34,9 @@ export const Search = () => {
                                 return;
                             }
                             setSearching(true);
-                            setResults(await api.query("search", term));
+                            setResults(
+                                (await window.api.query("search", term)) || [],
+                            );
                             setSearching(false);
                         }, 300),
                     );
@@ -45,11 +56,20 @@ export const Search = () => {
     );
 };
 
-const renderResult = ({ result, id, relevant, user_id, generic_id }) => {
+const renderResult = ({
+    result,
+    id,
+    relevant,
+    user_id,
+    generic_id,
+}: SearchResult) => {
     if (result == "user")
         return (
             <span>
-                User <a href={`#/user/${id}`}>{`@${backendCache.users[id]}`}</a>
+                User{" "}
+                <a
+                    href={`#/user/${id}`}
+                >{`@${window.backendCache.users[id]}`}</a>
                 : {relevant || "no info."}
             </span>
         );
@@ -72,7 +92,7 @@ const renderResult = ({ result, id, relevant, user_id, generic_id }) => {
                 <a href={`#/post/${id}`}>{`Post ${id}`}</a> by&nbsp;
                 <a
                     href={`#/user/${user_id}`}
-                >{`@${backendCache.users[user_id]}`}</a>
+                >{`@${window.backendCache.users[user_id]}`}</a>
                 :&nbsp;
                 {relevant}
             </span>
