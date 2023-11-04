@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Form } from "./form";
 import { Content } from "./content";
-import { Poll } from "./poll";
+import { PollView } from "./poll";
 import {
     isRoot,
     BurgerButton,
@@ -367,7 +367,7 @@ export const PostView = ({
                 )}
                 {realmPost && post.realm && <RealmRibbon name={post.realm} />}
                 {showExtension && "Poll" in post.extension && (
-                    <Poll
+                    <PollView
                         poll={post.extension.Poll}
                         post_id={post.id}
                         created={postCreated}

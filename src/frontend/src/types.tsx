@@ -8,8 +8,10 @@ export type UserId = number;
 
 export type Poll = {
     options: string[];
-    votes: any;
+    votes: { [option: number]: UserId[] };
     deadline: number;
+    weighted_by_karma: { [key: number]: number };
+    weighted_by_tokens: { [key: number]: number };
 };
 
 export type Extension =

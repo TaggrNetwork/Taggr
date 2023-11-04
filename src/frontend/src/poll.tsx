@@ -2,8 +2,17 @@ import * as React from "react";
 import { userList } from "./common";
 import { Content } from "./content";
 import { Gem, YinYan } from "./icons";
+import { Poll, PostId } from "./types";
 
-export const Poll = ({ poll, post_id, created }) => {
+export const PollView = ({
+    poll,
+    post_id,
+    created,
+}: {
+    poll: Poll;
+    post_id?: PostId;
+    created: number | BigInt;
+}) => {
     const [data, setData] = React.useState(poll);
     const [revoteMode, setRevoteMode] = React.useState(false);
 
@@ -17,7 +26,7 @@ export const Poll = ({ poll, post_id, created }) => {
         .map((votes) => votes.length)
         .reduce((acc, e) => acc + e, 0);
     const createdHoursAgo = Math.floor(
-        (Number(new Date()) - parseInt(created) / 1000000) / 1000 / 3600,
+        (Number(new Date()) - Number(created) / 1000000) / 1000 / 3600,
     );
     const expired = createdHoursAgo >= poll.deadline;
     const canChangeVote =
@@ -25,9 +34,9 @@ export const Poll = ({ poll, post_id, created }) => {
         poll.deadline - createdHoursAgo >
             window.backendCache.config.poll_revote_deadline_hours;
     const showVoting = !isNaN(user_id) && !voted && !expired;
-    const keyWithMaxVal = (obj) =>
+    const keyWithMaxVal = (obj: { [key: number]: number }) =>
         Object.keys(obj).reduce(
-            ([maxKey, maxVal], key) =>
+            ([maxKey, maxVal]: any, key: any) =>
                 obj[key] > maxVal ? [key, obj[key]] : [maxKey, maxVal],
             [null, 0],
         )[0];
@@ -41,7 +50,7 @@ export const Poll = ({ poll, post_id, created }) => {
                 return (
                     <label
                         key={id}
-                        className={showVoting ? "vcentered" : null}
+                        className={showVoting ? "vcentered" : undefined}
                         style={{
                             display: "flex",
                             flexDirection: showVoting ? "row" : "column",
@@ -55,25 +64,30 @@ export const Poll = ({ poll, post_id, created }) => {
                                 className="right_spaced"
                                 style={{ marginTop: 0 }}
                                 onChange={(e) => {
-                                    if (isNaN(post_id) || !window.user) return;
+                                    if (post_id == undefined || !window.user)
+                                        return;
                                     e.preventDefault();
-                                    let vote = e.target.value;
+                                    let vote = Number(e.target.value);
                                     if (
                                         !confirm(
                                             `Please confirm your choice: ${data.options[vote]}`,
                                         )
                                     )
                                         return;
-                                    api.call(
-                                        "vote_on_poll",
-                                        post_id,
-                                        parseInt(vote),
-                                    ).then((response) => {
-                                        if (response.Err) {
-                                            alert(`Error: ${response.Err}!`);
-                                            return;
-                                        }
-                                    });
+                                    window.api
+                                        .call<any>(
+                                            "vote_on_poll",
+                                            post_id,
+                                            vote,
+                                        )
+                                        .then((response) => {
+                                            if (response.Err) {
+                                                alert(
+                                                    `Error: ${response.Err}!`,
+                                                );
+                                                return;
+                                            }
+                                        });
                                     const list = poll.votes[vote] || [];
                                     list.push(user_id);
                                     poll.votes[vote] = list;
@@ -89,17 +103,22 @@ export const Poll = ({ poll, post_id, created }) => {
                         {!showVoting && (
                             <div
                                 className="column_container"
-                                style={{ margin: "0.5em", width: "96%" }}
+                                style={{ margin: "0.5em" }}
                             >
-                                <div className="vcentered">
-                                    <code
-                                        className="right_half_spaced small_text"
+                                <div className="vcentered small_text">
+                                    <span
+                                        className="right_half_spaced"
                                         style={{
-                                            width: "7em",
+                                            width: "6em",
                                             textAlign: "right",
                                             alignSelf: "flex-start",
                                         }}
-                                    >{`${votes} (${pc} %)`}</code>
+                                    >
+                                        <code className="right_half_spaced">
+                                            {votes}
+                                        </code>
+                                        <code>({pc}%)</code>
+                                    </span>
                                     <div className="max_width_col">
                                         <div
                                             style={{
@@ -133,9 +152,10 @@ export const Poll = ({ poll, post_id, created }) => {
                                     e.preventDefault();
                                     Object.entries(poll.votes).forEach(
                                         ([option, voters]) => {
-                                            poll.votes[option] = voters.filter(
-                                                (id) => id != user_id,
-                                            );
+                                            poll.votes[Number(option)] =
+                                                voters.filter(
+                                                    (id) => id != user_id,
+                                                );
                                         },
                                     );
                                     setData({ ...poll });
@@ -155,19 +175,23 @@ export const Poll = ({ poll, post_id, created }) => {
                         <div className="bottom_half_spaced">
                             <YinYan />{" "}
                             <span className="left_spaced">KARMA: </span>{" "}
-                            {
-                                data.options[
-                                    keyWithMaxVal(data.weighted_by_karma)
-                                ]
-                            }
+                            <Content
+                                value={
+                                    data.options[
+                                        keyWithMaxVal(data.weighted_by_karma)
+                                    ]
+                                }
+                            />
                         </div>
                         <div>
                             <Gem /> <span className="left_spaced">DAO: </span>{" "}
-                            {
-                                data.options[
-                                    keyWithMaxVal(data.weighted_by_tokens)
-                                ]
-                            }
+                            <Content
+                                value={
+                                    data.options[
+                                        keyWithMaxVal(data.weighted_by_tokens)
+                                    ]
+                                }
+                            />
                         </div>
                     </div>
                 </div>
@@ -176,7 +200,7 @@ export const Poll = ({ poll, post_id, created }) => {
     );
 };
 
-const printDelta = (delta) => {
+const printDelta = (delta: number) => {
     const days = Math.floor(delta / 24);
     if (days > 0) return `${days} DAY${days == 1 ? "" : "S"}`;
     return `${Math.max(1, delta)}H`;

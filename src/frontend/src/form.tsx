@@ -22,7 +22,7 @@ import {
 } from "./icons";
 import { PostView } from "./post";
 import { Extension, Poll as PollType, PostId } from "./types";
-import { Poll } from "./poll";
+import { PollView } from "./poll";
 
 const MAX_IMG_SIZE = 16777216;
 const MAX_SUGGESTED_TAGS = 5;
@@ -281,11 +281,7 @@ export const Form = ({
                 primeMode={postId == null}
             />
             {poll && (
-                <Poll
-                    post_id={null}
-                    poll={poll}
-                    created={Number(new Date()) * 1000000}
-                />
+                <PollView poll={poll} created={Number(new Date()) * 1000000} />
             )}
             {isRepost &&
                 React.useMemo(
@@ -478,6 +474,9 @@ export const Form = ({
                                                           ],
                                                           votes: {},
                                                           deadline: 24,
+                                                          weighted_by_karma: {},
+                                                          weighted_by_tokens:
+                                                              {},
                                                       },
                                             );
                                         }}
