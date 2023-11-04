@@ -110,6 +110,7 @@ export type User = {
     name: string;
     id: UserId;
     account: string;
+    invites_budget: number;
     treasury_e8s: BigInt;
     principal: string;
     bookmarks: number[];
@@ -208,6 +209,7 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                min_cycles_for_inviting: number;
                 max_cycles_mint_kilos: number;
                 logo: string;
                 poll_revote_deadline_hours: number;

@@ -5,13 +5,13 @@ import { trusted } from "./profile";
 
 export const Invites = () => {
     const [cycles, setCycles] = React.useState(
-        backendCache.config.min_cycles_for_inviting,
+        window.backendCache.config.min_cycles_for_inviting
     );
-    const [invites, setInvites] = React.useState([]);
+    const [invites, setInvites] = React.useState<[string, number][]>([]);
     const [busy, setBusy] = React.useState(false);
 
     const loadInvites = async () => {
-        setInvites(await api.query("invites"));
+        setInvites((await window.api.query("invites")) || []);
     };
 
     React.useEffect(() => {
@@ -36,13 +36,14 @@ export const Invites = () => {
                 <h2>Create an invite</h2>
                 <ul>
                     <li>
-                        You can invite new users to {backendCache.config.name}{" "}
-                        by creating invites for them.
+                        You can invite new users to{" "}
+                        {window.backendCache.config.name} by creating invites
+                        for them.
                     </li>
                     <li>
                         Every invite is a funded by at least{" "}
                         <code>
-                            {backendCache.config.min_cycles_for_inviting}
+                            {window.backendCache.config.min_cycles_for_inviting}
                         </code>{" "}
                         cycles: you will be charged once the invite is used.
                     </li>
@@ -72,9 +73,9 @@ export const Invites = () => {
                             className="vertically_spaced active"
                             onClick={async () => {
                                 setBusy(true);
-                                const result = await api.call(
+                                const result = await window.api.call<any>(
                                     "create_invite",
-                                    cycles,
+                                    cycles
                                 );
                                 if ("Err" in result)
                                     alert(`Failed: ${result.Err}`);
