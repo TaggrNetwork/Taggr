@@ -94,7 +94,7 @@ const linkTagsAndUsers = (mdString: string) =>
         .join("");
 
 const linkTokenExp =
-    /[\$#@][\p{Letter}\p{Mark}|\d|\-|_|,|\.]+[\p{Letter}\p{Mark}]/gu;
+    /(\$\D|#|@)[\p{Letter}\p{Mark}|\d|\-|_|,|\.]+[\p{Letter}\p{Mark}|\d]/gu;
 const linkTagsAndUsersPart = (value: string) => {
     const result = [];
     let match;
