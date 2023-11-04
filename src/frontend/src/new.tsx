@@ -7,14 +7,22 @@ import {
     currentRealm,
     MAX_POST_SIZE_BYTES,
 } from "./common";
+import { Extension, Post, PostId } from "./types";
 
-export const PostSubmissionForm = ({ id, repost }) => {
-    const [post, setPost] = React.useState(null);
+export const PostSubmissionForm = ({
+    id,
+    repost,
+}: {
+    id: PostId;
+    repost: PostId;
+}) => {
+    const [post, setPost] = React.useState<Post>();
     const [blobs, setBlobs] = React.useState({});
 
     const load = async () => {
         if (!id) return;
         const post = (await loadPosts([id])).pop();
+        if (!post) return;
         setPost(post);
         setBlobs(await loadPostBlobs(post.files));
     };
@@ -23,13 +31,18 @@ export const PostSubmissionForm = ({ id, repost }) => {
         load();
     }, []);
 
-    const callback = async (text, blobs, extension, realm) => {
+    const callback = async (
+        text: string,
+        blobs: [string, Uint8Array][],
+        extension: Extension | undefined,
+        realm: string | undefined,
+    ): Promise<boolean> => {
         let postId;
         text = text.trim();
         const optionalRealm = realm ? [realm] : [];
         if (post?.id) {
             const patch = getPatch(text, post.body);
-            let response = await api.edit_post(
+            let response: any = await window.api.edit_post(
                 id,
                 text,
                 blobs,
@@ -45,25 +58,27 @@ export const PostSubmissionForm = ({ id, repost }) => {
             const postSize =
                 text.length +
                 blobs.reduce((acc, [_, blob]) => acc + blob.length, 0);
-            let result;
+            let result: any;
             // If the post has too many blobs, upload them separately.
             if (postSize > MAX_POST_SIZE_BYTES) {
-                await api.add_post_data(
+                await window.api.add_post_data(
                     text,
                     optionalRealm,
                     encodeExtension(extension),
                 );
                 let results = await Promise.all(
-                    blobs.map(([id, blob]) => api.add_post_blob(id, blob)),
+                    blobs.map(([id, blob]) =>
+                        window.api.add_post_blob(id, blob),
+                    ),
                 );
-                let error = results.find((result) => "Err" in result);
+                let error: any = results.find((result: any) => "Err" in result);
                 if (error) {
                     alert(`Error: ${error.Err}`);
-                    return;
+                    return false;
                 }
-                result = await api.commit_post();
+                result = await window.api.commit_post();
             } else {
-                result = await api.add_post(
+                result = await window.api.add_post(
                     text,
                     blobs,
                     [],
@@ -122,5 +137,5 @@ export const PostSubmissionForm = ({ id, repost }) => {
     );
 };
 
-const encodeExtension = (extension) =>
+const encodeExtension = (extension?: Extension) =>
     extension ? [new TextEncoder().encode(JSON.stringify(extension))] : [];

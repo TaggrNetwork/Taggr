@@ -31,7 +31,7 @@ export const Landing = () => {
     const realm = currentRealm();
     const FEED_KEY = `${realm}_feed`;
     const [feed, setFeed] = React.useState(
-        localStorage.getItem(FEED_KEY) || (realm ? "NEW" : "HOT")
+        localStorage.getItem(FEED_KEY) || (realm ? "NEW" : "HOT"),
     );
     const labels: [JSX.Element, string][] = [
         [<New />, "NEW"],
@@ -95,7 +95,7 @@ export const Landing = () => {
                         return await window.api.query(
                             "personal_feed",
                             page,
-                            false
+                            false,
                         );
                     if (feed == "HOT")
                         return await window.api.query("hot_posts", realm, page);
@@ -106,7 +106,7 @@ export const Landing = () => {
                             "last_posts",
                             realm,
                             page,
-                            false
+                            false,
                         );
                 }}
             />
@@ -155,7 +155,7 @@ export const TagCloud = ({
             (await window.api.query<[string, number][]>(
                 "recent_tags",
                 realm,
-                size
+                size,
             )) || [];
         const occurences = tags.map(([_, N]) => Number(N));
         const min = Math.min(...occurences);

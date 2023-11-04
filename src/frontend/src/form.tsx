@@ -45,10 +45,10 @@ export const Form = ({
     submitCallback: (
         value: string,
         blobs: [string, Uint8Array][],
-        extension?: Extension,
-        realm?: string,
+        extension: Extension | undefined,
+        realm: string | undefined,
     ) => Promise<boolean>;
-    writingCallback: (arg: string) => void;
+    writingCallback?: (arg: string) => void;
     repost?: PostId;
     blobs?: { [id: string]: Uint8Array };
     content?: string;
@@ -199,7 +199,7 @@ export const Form = ({
         setChoresTimer(
             setTimeout(() => localStorage.setItem(draftKey, value), 1500),
         );
-        writingCallback(value);
+        if (writingCallback) writingCallback(value);
     };
 
     const maybeInsertSuggestion = (event: any) => {

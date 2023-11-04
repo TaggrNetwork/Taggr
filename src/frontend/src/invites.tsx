@@ -5,7 +5,7 @@ import { trusted } from "./profile";
 
 export const Invites = () => {
     const [cycles, setCycles] = React.useState(
-        window.backendCache.config.min_cycles_for_inviting
+        window.backendCache.config.min_cycles_for_inviting,
     );
     const [invites, setInvites] = React.useState<[string, number][]>([]);
     const [busy, setBusy] = React.useState(false);
@@ -75,7 +75,7 @@ export const Invites = () => {
                                 setBusy(true);
                                 const result = await window.api.call<any>(
                                     "create_invite",
-                                    cycles
+                                    cycles,
                                 );
                                 if ("Err" in result)
                                     alert(`Failed: ${result.Err}`);

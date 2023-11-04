@@ -42,13 +42,13 @@ export type Backend = {
         blobs: [string, Uint8Array][],
         parent: number[],
         realm: string[],
-        extension: number[],
+        extension: Uint8Array[],
     ) => Promise<JsonValue | null>;
 
     add_post_data: (
         text: string,
-        realm?: string,
-        extension?: Uint8Array,
+        realm: string[],
+        extension: Uint8Array[],
     ) => Promise<null>;
 
     add_post_blob: (id: string, blob: Uint8Array) => Promise<JsonValue | null>;
@@ -60,7 +60,7 @@ export type Backend = {
         text: string,
         blobs: [string, Uint8Array][],
         patch: string,
-        realm?: string,
+        realm: string[],
     ) => Promise<JsonValue | null>;
 
     account_balance: (address: string) => Promise<BigInt>;
@@ -202,7 +202,7 @@ export const ApiGenerator = (
             blobs: [string, Uint8Array][],
             parent: number[],
             realm: string[],
-            extension: number[],
+            extension: Uint8Array[],
         ): Promise<JsonValue | null> => {
             const arg = IDL.encode(
                 [
@@ -225,8 +225,8 @@ export const ApiGenerator = (
         },
         add_post_data: async (
             text: string,
-            realm?: string,
-            extension?: Uint8Array,
+            realm: string[],
+            extension: Uint8Array[],
         ): Promise<null> => {
             const arg = IDL.encode(
                 [IDL.Text, IDL.Opt(IDL.Text), IDL.Opt(IDL.Vec(IDL.Nat8))],
@@ -268,7 +268,7 @@ export const ApiGenerator = (
             text: string,
             blobs: [string, Uint8Array][],
             patch: string,
-            realm?: string,
+            realm: string[],
         ): Promise<JsonValue | null> => {
             const arg = IDL.encode(
                 [
