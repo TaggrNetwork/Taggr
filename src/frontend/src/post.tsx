@@ -43,7 +43,7 @@ import {
     Bell,
     BellOff,
 } from "./icons";
-import { Proposal } from "./proposals";
+import { ProposalView } from "./proposals";
 import { BlogTitle, Post, PostId, User, UserId } from "./types";
 
 export const PostView = ({
@@ -381,7 +381,10 @@ export const PostView = ({
                     />
                 )}
                 {showExtension && "Proposal" in post.extension && (
-                    <Proposal postId={post.id} id={post.extension.Proposal} />
+                    <ProposalView
+                        postId={post.id}
+                        id={post.extension.Proposal}
+                    />
                 )}
                 <PostBar
                     post={post}

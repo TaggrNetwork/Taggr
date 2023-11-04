@@ -19,11 +19,45 @@ export type Extension =
           ["Poll"]: Poll;
       }
     | {
-          ["Repost"]: any;
+          ["Repost"]: PostId;
       }
     | {
-          ["Proposal"]: any;
+          ["Proposal"]: number;
       };
+
+export type Reward = {
+    receiver: string;
+    votes: [number, number][];
+    minted: number;
+};
+
+export type Release = {
+    commit: string;
+    hash: string;
+};
+
+export type Payload =
+    | { ["Noop"]: any }
+    | {
+          ["Release"]: Release;
+      }
+    | {
+          ["Fund"]: [string, number];
+      }
+    | {
+          ["Reward"]: Reward;
+      };
+
+export type Proposal = {
+    id: number;
+    proposer: UserId;
+    timestamp: BigInt;
+    post_id: PostId;
+    status: "Open" | "Rejected" | "Executed" | "Cancelled";
+    payload: Payload;
+    bulletins: [UserId, boolean, number][];
+    voting_power: number;
+};
 
 export type Realm = {
     description: string;

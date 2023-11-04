@@ -14,13 +14,14 @@ import * as React from "react";
 import { Content } from "./content";
 import { HourGlass } from "./icons";
 import { PostFeed } from "./post_feed";
+import { PostId, Proposal } from "./types";
 
 const REPO_RELEASE = "https://github.com/TaggrNetwork/taggr/releases/latest";
 const REPO_COMMIT = "https://github.com/TaggrNetwork/taggr/commit";
 
 export const Proposals = () => {
-    const [currentMask, setCurrentMask] = React.useState(null);
-    const [receiver, setReceiver] = React.useState(null);
+    const [currentMask, setCurrentMask] = React.useState("");
+    const [receiver, setReceiver] = React.useState("");
     const [fundingAmount, setFundingAmount] = React.useState(0);
     const [binary, setBinary] = React.useState(null);
     const [commit, setCommit] = React.useState("");
@@ -66,7 +67,7 @@ export const Proposals = () => {
                                 type="text"
                                 className="left_spaced max_width_col"
                                 onChange={async (ev) => {
-                                    setReceiver(ev.target.value);
+                                    setReceiver(ev.target.value.toString());
                                 }}
                             />
                         </div>
@@ -93,7 +94,7 @@ export const Proposals = () => {
                                     alert("Error: incomplete data.");
                                     return;
                                 }
-                                let response = await api.call(
+                                let response = await window.api.call<any>(
                                     "propose_reward",
                                     description,
                                     receiver,
@@ -102,7 +103,7 @@ export const Proposals = () => {
                                     alert(`Error: ${response.Err}`);
                                     return;
                                 }
-                                setCurrentMask(null);
+                                setCurrentMask("");
                                 setProposal(response.Ok);
                             }}
                             label="SUBMIT"
@@ -127,7 +128,7 @@ export const Proposals = () => {
                                 type="text"
                                 className="left_spaced max_width_col"
                                 onChange={async (ev) => {
-                                    setFundingAmount(ev.target.value);
+                                    setFundingAmount(Number(ev.target.value));
                                 }}
                             />
                         </div>
@@ -158,17 +159,17 @@ export const Proposals = () => {
                                     alert("Error: incomplete data.");
                                     return;
                                 }
-                                let response = await api.call(
+                                let response = await window.api.call<any>(
                                     "propose_funding",
                                     description,
                                     receiver,
-                                    parseInt(fundingAmount),
+                                    fundingAmount,
                                 );
                                 if ("Err" in response) {
                                     alert(`Error: ${response.Err}`);
                                     return;
                                 }
-                                setCurrentMask(null);
+                                setCurrentMask("");
                                 setProposal(response.Ok);
                             }}
                             label="SUBMIT"
@@ -191,7 +192,7 @@ export const Proposals = () => {
                             BINARY{" "}
                             <FileUploadInput
                                 classNameArg="left_spaced max_width_col"
-                                callback={setBinary}
+                                callback={setBinary as unknown as any}
                             />
                         </div>
                         <div className="bottom_half_spaced">DESCRIPTION</div>
@@ -217,16 +218,17 @@ export const Proposals = () => {
                                     alert("Error: incomplete data.");
                                     return;
                                 }
-                                const response = await api.propose_release(
-                                    description,
-                                    commit,
-                                    binary,
-                                );
+                                const response: any =
+                                    await window.api.propose_release(
+                                        description,
+                                        commit,
+                                        binary,
+                                    );
                                 if ("Err" in response) {
                                     alert(`Error: ${response.Err}`);
                                     return;
                                 }
-                                setCurrentMask(null);
+                                setCurrentMask("");
                                 setProposal(response.Ok);
                             }}
                             label="SUBMIT"
@@ -237,21 +239,32 @@ export const Proposals = () => {
             <PostFeed
                 heartbeat={proposal}
                 useList={true}
-                feedLoader={async (page) => await api.query("proposals", page)}
+                feedLoader={async (page) =>
+                    await window.api.query("proposals", page)
+                }
             />
         </>
     );
 };
 
-export const Proposal = ({ id, postId }) => {
-    const users = backendCache.users;
-    const [proposal, setProposal] = React.useState(null);
+export const ProposalView = ({
+    id,
+    postId,
+}: {
+    id: number;
+    postId: PostId;
+}) => {
+    const users = window.backendCache.users;
+    const [status, setStatus] = React.useState(0);
+    const [proposal, setProposal] = React.useState<Proposal>();
 
     const loadState = async () => {
-        const result = await api.query("proposal", id);
+        const result = await window.api.query<any>("proposal", id);
         if ("Err" in result) {
-            setProposal(404);
+            setStatus(-1);
+            return;
         }
+        setStatus(1);
         setProposal(result.Ok);
         return result.Ok;
     };
@@ -260,10 +273,10 @@ export const Proposal = ({ id, postId }) => {
         loadState();
     }, []);
 
-    if (!proposal) return <Loading />;
-    if (proposal == 404) return <NotFound />;
+    if (status < 0) return <NotFound />;
+    if (!proposal || status == 0) return <Loading />;
 
-    const statusEmoji = (status) => {
+    const statusEmoji = (status: string) => {
         return (
             { OPEN: "✨", REJECTED: "🟥", CANCELLED: "❌", EXECUTED: "✅" }[
                 status
@@ -271,8 +284,8 @@ export const Proposal = ({ id, postId }) => {
         );
     };
 
-    const vote = async (proposal, adopted) => {
-        let data = "";
+    const vote = async (proposal: Proposal, adopted: boolean) => {
+        let data;
         if (adopted) {
             if ("Release" in proposal.payload) {
                 data = prompt("Please enter the build hash:");
@@ -291,17 +304,17 @@ export const Proposal = ({ id, postId }) => {
                     return;
             }
         }
-        const result = await api.call(
+        const result = await window.api.call<any>(
             "vote_on_proposal",
             proposal.id,
             adopted,
-            data,
+            data || "",
         );
         if ("Err" in result) {
             alert(`Error: ${result.Err}`);
             return;
         }
-        api.call("toggle_following_post", postId);
+        window.api.call("toggle_following_post", postId);
         await loadState();
     };
 
@@ -317,14 +330,16 @@ export const Proposal = ({ id, postId }) => {
         0,
     );
     const open = proposal.status == "Open";
-    const commit = proposal.payload.Release
-        ? chunks(proposal.payload.Release.commit).join(" ")
-        : null;
-    const hash = proposal.payload.Release
-        ? chunks(proposal.payload.Release.hash).join(" ")
-        : null;
+    const commit =
+        "Release" in proposal.payload
+            ? chunks(proposal.payload.Release.commit).join(" ")
+            : null;
+    const hash =
+        "Release" in proposal.payload
+            ? chunks(proposal.payload.Release.hash).join(" ")
+            : null;
     const dailyDrop = proposal.voting_power / 100;
-    const t = backendCache.config.proposal_approval_threshold;
+    const t = window.backendCache.config.proposal_approval_threshold;
     const days = Math.ceil(
         (proposal.voting_power -
             (adopted > rejected ? adopted / t : rejected / (100 - t)) * 100) /
@@ -333,13 +348,18 @@ export const Proposal = ({ id, postId }) => {
     const propStatus = proposal.status.toUpperCase();
     return (
         <div
-            key={proposal.timestamp}
+            key={proposal.timestamp.toString()}
             className="post_extension column_container"
             data-testid="extension-proposal"
         >
-            <div className="bottom_half_spaced">ID: {proposal.id}</div>
             <div className="bottom_half_spaced">
-                TYPE: {Object.keys(proposal.payload)[0].toUpperCase()}
+                ID: <code>{proposal.id}</code>
+            </div>
+            <div className="bottom_half_spaced">
+                TYPE:{" "}
+                <strong>
+                    {Object.keys(proposal.payload)[0].toUpperCase()}
+                </strong>
             </div>
             <div className="bottom_half_spaced">
                 PROPOSER:{" "}
@@ -352,9 +372,11 @@ export const Proposal = ({ id, postId }) => {
             </div>
             <div className="bottom_spaced">
                 STATUS: {statusEmoji(propStatus)}{" "}
-                <span className={open ? "accent" : null}>{propStatus}</span>
+                <span className={open ? "accent" : undefined}>
+                    {propStatus}
+                </span>
             </div>
-            {!!proposal.payload.Release && (
+            {"Release" in proposal.payload && (
                 <div className="bottom_spaced">
                     {commit && (
                         <div className="row_container bottom_half_spaced">
@@ -379,7 +401,7 @@ export const Proposal = ({ id, postId }) => {
                     )}
                 </div>
             )}
-            {!!proposal.payload.Reward && (
+            {"Reward" in proposal.payload && (
                 <>
                     <div className="bottom_half_spaced">
                         RECEIVER:{" "}
@@ -388,35 +410,43 @@ export const Proposal = ({ id, postId }) => {
                     {proposal.status == "Executed" && (
                         <div className="bottom_spaced">
                             TOKENS MINTED:{" "}
-                            {tokenBalance(proposal.payload.Reward.minted)}
+                            <code>
+                                {tokenBalance(proposal.payload.Reward.minted)}
+                            </code>
                         </div>
                     )}
                 </>
             )}
-            {!!proposal.payload.Fund && (
+            {"Fund" in proposal.payload && (
                 <>
                     <div className="bottom_half_spaced">
                         RECEIVER: <code>{proposal.payload.Fund[0]}</code>
                     </div>
                     <div className="bottom_spaced">
-                        AMOUNT: {tokenBalance(proposal.payload.Fund[1])}
+                        AMOUNT:{" "}
+                        <code>{tokenBalance(proposal.payload.Fund[1])}</code>
                     </div>
                 </>
             )}
             <div className="bottom_spaced">
-                EFFECTIVE VOTING POWER: {token(proposal.voting_power)}
+                EFFECTIVE VOTING POWER:{" "}
+                <code>{token(proposal.voting_power)}</code>
             </div>
             {open && !isNaN(days) && (
                 <div className="bottom_spaced">
-                    EXECUTION DEADLINE: {days} DAYS
+                    EXECUTION DEADLINE: <strong>{days} DAYS</strong>
                 </div>
             )}
             <div className="bottom_spaced">
                 <div className="bottom_half_spaced">
                     ACCEPTED:{" "}
-                    <b className={adopted > rejected && open ? "accent" : null}>
+                    <b
+                        className={`right_half_spaced ${
+                            adopted > rejected && open ? "accent" : undefined
+                        }`}
+                    >
                         {token(adopted)}
-                    </b>{" "}
+                    </b>
                     ({percentage(adopted, proposal.voting_power)})
                 </div>
                 <div className="small_text">
@@ -431,9 +461,13 @@ export const Proposal = ({ id, postId }) => {
             <div className="bottom_spaced">
                 <div className="bottom_half_spaced">
                     REJECTED:{" "}
-                    <b className={adopted < rejected && open ? "accent" : null}>
+                    <b
+                        className={`right_half_spaced ${
+                            adopted < rejected && open ? "accent" : undefined
+                        }`}
+                    >
                         {token(rejected)}
-                    </b>{" "}
+                    </b>
                     ({percentage(rejected, proposal.voting_power)})
                 </div>
                 <div className="small_text">
@@ -466,7 +500,7 @@ export const Proposal = ({ id, postId }) => {
                     onClick={async () => {
                         if (!confirm("Do you want to cancel your proposal?"))
                             return;
-                        await api.call("cancel_proposal", proposal.id);
+                        await window.api.call("cancel_proposal", proposal.id);
                         location.reload();
                     }}
                     classNameArg="top_spaced max_width_col large_text"
@@ -477,4 +511,5 @@ export const Proposal = ({ id, postId }) => {
     );
 };
 
-const chunks = (s) => (s ? [s.slice(0, 8)].concat(chunks(s.slice(8))) : []);
+const chunks = (s: string): string[] =>
+    s ? [s.slice(0, 8)].concat(chunks(s.slice(8))) : [];
