@@ -21,7 +21,7 @@ const previewImg = (
     src: string,
     id: string,
     gallery: string[],
-    urls: { [id: string]: string }
+    urls: { [id: string]: string },
 ) => {
     const preview = document.getElementById("preview");
     if (!preview) return;
@@ -105,8 +105,8 @@ const linkTagsAndUsersPart = (value: string) => {
         let token = match[0];
         result.push(
             `[${token}](#/${token[0] == "@" ? "user" : "feed"}/${token.slice(
-                1
-            )})`
+                1,
+            )})`,
         );
         lastPos = linkTokenExp.lastIndex;
     }
@@ -173,7 +173,7 @@ export const Content = ({
         if (preview) value += "\n\n- - -\n\n";
     }
     const complexPost = ["# ", "## ", "!["].some((pref) =>
-        value.startsWith(pref)
+        value.startsWith(pref),
     );
     const words = value.split(" ").length;
     const lines = value.split("\n").length;
@@ -193,7 +193,7 @@ export const Content = ({
                     blobs,
                     blogTitle,
                     preview,
-                    className
+                    className,
                 )}
                 {shortened && (
                     <>
@@ -204,13 +204,13 @@ export const Content = ({
                             setUrls,
                             blobs,
                             blogTitle,
-                            preview
+                            preview,
                         )}
                     </>
                 )}
             </>
         ),
-        [value, extValue, blobs, collapse]
+        [value, extValue, blobs, collapse],
     );
 };
 
@@ -227,7 +227,7 @@ const linkRenderer =
         if (typeof child == "string") {
             // YouTube
             let matches = child.match(
-                /https:\/\/(www\.)?(youtu.be\/|youtube.com\/watch\?v=)([a-zA-Z0-9\-_]+)/
+                /https:\/\/(www\.)?(youtu.be\/|youtube.com\/watch\?v=)([a-zA-Z0-9\-_]+)/,
             );
             if (matches) {
                 const id = matches.pop();
@@ -248,7 +248,7 @@ const linkRenderer =
                     // Internal links
                     if (
                         window.backendCache.config.domains.some((domain) =>
-                            url.hostname.includes(domain)
+                            url.hostname.includes(domain),
                         )
                     ) {
                         let link = url.href.replace(url.origin + "/", "");
@@ -277,7 +277,7 @@ const markdownizer = (
     blobs?: { [id: string]: ArrayBuffer },
     blogTitle?: BlogTitle,
     preview?: boolean,
-    className?: string
+    className?: string,
 ) =>
     !value ? null : (
         <ReactMarkdown
@@ -339,10 +339,10 @@ const markdownizer = (
 const Gallery = ({ children }: any) => {
     let pictures = children.filter((c: any) => c.type && c.type.name == "img");
     const urls = pictures.map((pic: any) =>
-        pic.props.src.replace("/blob/", "")
+        pic.props.src.replace("/blob/", ""),
     );
     const nonPictures = children.filter(
-        (c: any) => !c.type || c.type.name != "img"
+        (c: any) => !c.type || c.type.name != "img",
     );
     return (
         <>

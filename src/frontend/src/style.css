@@ -345,7 +345,6 @@ header {
     background: $clickable;
     justify-content: center;
     align-items: center;
-    transform: rotate(-90deg);
     font-size: xx-large;
     opacity: 0.95;
     height: 60px;
@@ -359,7 +358,7 @@ header {
 
 #scroll_up_button span {
     position: relative;
-    top: -3%;
+    bottom: 5%;
 }
 
 hr {

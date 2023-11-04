@@ -363,7 +363,7 @@ const updateDoc = () => {
     document.getElementById("logo_container")?.remove();
     const scroll_up_button = document.createElement("div");
     scroll_up_button.id = "scroll_up_button";
-    scroll_up_button.innerHTML = "<span>&#10140;</span>";
+    scroll_up_button.innerHTML = "<span>▲</span>";
     document.body.appendChild(scroll_up_button);
     window.scrollUpButton = document.getElementById(
         "scroll_up_button",
