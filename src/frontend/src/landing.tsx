@@ -1,7 +1,5 @@
 import * as React from "react";
-import { Content } from "./content";
 import { PostFeed } from "./post_feed";
-import { Dashboard } from "./dashboard";
 import { Search } from "./search";
 import {
     bigScreen,
@@ -19,7 +17,10 @@ export const Landing = () => {
 
     React.useEffect(() => {
         let t = setTimeout(async () => {
-            if (new Date() - window.lastActivity >= REFRESH_RATE_SECS * 1000) {
+            if (
+                Number(new Date()) - Number(window.lastActivity) >=
+                REFRESH_RATE_SECS * 1000
+            ) {
                 setHeartbeat(heartbeat + 1);
             }
             return () => clearTimeout(t);
@@ -30,31 +31,30 @@ export const Landing = () => {
     const realm = currentRealm();
     const FEED_KEY = `${realm}_feed`;
     const [feed, setFeed] = React.useState(
-        localStorage.getItem(FEED_KEY) || (realm ? "NEW" : "HOT"),
+        localStorage.getItem(FEED_KEY) || (realm ? "NEW" : "HOT")
     );
+    const labels: [JSX.Element, string][] = [
+        [<New />, "NEW"],
+        [<Fire />, "HOT"],
+    ];
+    if (user && !realm) labels.push([<User />, "FOLLOWED"]);
+    if (user && !realm && user.realms.length > 0)
+        labels.push([<Realm />, "REALMS"]);
+
     const title = (
         <div className="text_centered vertically_spaced small_text">
-            {[
-                { icon: <New />, id: "NEW" },
-                { icon: <Fire />, id: "HOT" },
-                user && !realm && { icon: <User />, id: "FOLLOWED" },
-                user &&
-                    !realm &&
-                    user.realms.length > 0 && { icon: <Realm />, id: "REALMS" },
-            ]
-                .filter(Boolean)
-                .map(({ icon, id }) => (
-                    <button
-                        key={id}
-                        onClick={() => {
-                            localStorage.setItem(FEED_KEY, id);
-                            setFeed(id);
-                        }}
-                        className={feed == id ? "active" : "unselected"}
-                    >
-                        {icon} {id}
-                    </button>
-                ))}
+            {labels.map(([icon, id]: [JSX.Element, string]) => (
+                <button
+                    key={id}
+                    onClick={() => {
+                        localStorage.setItem(FEED_KEY, id);
+                        setFeed(id);
+                    }}
+                    className={feed == id ? "active" : "unselected"}
+                >
+                    {icon} {id}
+                </button>
+            ))}
         </div>
     );
 
@@ -92,17 +92,21 @@ export const Landing = () => {
                 feedLoader={async (page) => {
                     setTitle(feed);
                     if (feed == "FOLLOWED")
-                        return await api.query("personal_feed", page, false);
+                        return await window.api.query(
+                            "personal_feed",
+                            page,
+                            false
+                        );
                     if (feed == "HOT")
-                        return await api.query("hot_posts", realm, page);
+                        return await window.api.query("hot_posts", realm, page);
                     if (feed == "REALMS")
-                        return await api.query("realms_posts", page);
+                        return await window.api.query("realms_posts", page);
                     else
-                        return await api.query(
+                        return await window.api.query(
                             "last_posts",
                             realm,
                             page,
-                            false,
+                            false
                         );
                 }}
             />
@@ -111,7 +115,7 @@ export const Landing = () => {
 };
 
 const RealmsDashboard = () => {
-    const realmNames = Object.keys(backendCache.realms);
+    const realmNames = Object.keys(window.backendCache.realms);
     return (
         <div className="vertically_spaced text_centered">
             <div
@@ -121,7 +125,7 @@ const RealmsDashboard = () => {
                 {realmNames.slice(0, 10).map((name) => (
                     <RealmSpan
                         key={name}
-                        col={backendCache.realms[name][0]}
+                        col={window.backendCache.realms[name][0]}
                         name={name}
                         styleArg={{ padding: "1em" }}
                         onClick={() => (location.href = `/#/realm/${name}`)}
@@ -136,17 +140,30 @@ const RealmsDashboard = () => {
     );
 };
 
-export const TagCloud = ({ size, heartbeat, realm }) => {
-    const [tags, setTags] = React.useState(null);
+export const TagCloud = ({
+    size,
+    heartbeat,
+    realm,
+}: {
+    size: number;
+    heartbeat: any;
+    realm: string;
+}) => {
+    const [tags, setTags] = React.useState<[string, number][]>();
     const loadTags = async () => {
-        let tags = await api.query("recent_tags", realm, size);
-        const occurences = tags.map(([_, N]) => parseInt(N));
+        let tags =
+            (await window.api.query<[string, number][]>(
+                "recent_tags",
+                realm,
+                size
+            )) || [];
+        const occurences = tags.map(([_, N]) => Number(N));
         const min = Math.min(...occurences);
         const max = Math.max(...occurences);
         const bucket = (max - min) / 10;
         tags = tags.map(([tag, N]) => [
             tag,
-            Math.ceil((parseInt(N) - min) / bucket),
+            Math.ceil((Number(N) - min) / bucket),
         ]);
         tags.sort((a, b) => (a[0] > b[0] ? 1 : -1));
         setTags(tags);
