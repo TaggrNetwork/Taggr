@@ -37,7 +37,7 @@ export const Journal = ({ handle }: { handle: string }) => {
                 <div className="text_centered">
                     <h1>
                         <a href={`/#/user/${profile.name}`}>{profile.name}</a>'s
-                        JOURNAL
+                        Journal
                     </h1>
                     {
                         <Content

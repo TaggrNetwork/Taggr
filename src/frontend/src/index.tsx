@@ -32,6 +32,7 @@ import { Recovery } from "./recovery";
 import { MAINNET_MODE, TEST_MODE, CANISTER_ID } from "./env";
 import { UserId } from "./types";
 import { setRealmUI, setUI } from "./theme";
+import { Close } from "./icons";
 
 const { hash, pathname } = location;
 
@@ -314,7 +315,20 @@ const Footer = ({}) => {
         <footer className="small_text text_centered vertically_spaced">
             {domainSelection && (
                 <>
-                    <div className="bottom_spaced">ALTERNATIVE DOMAINS:</div>
+                    <div className="bottom_spaced vertically_aligned">
+                        ALTERNATIVE DOMAINS
+                        <button
+                            className="unselected left_half_spaced"
+                            style={{
+                                padding: 0,
+                                position: "relative",
+                                bottom: "0.1em",
+                            }}
+                            onClick={() => setDomainSelection(false)}
+                        >
+                            <Close classNameArg="accent clickable" size={12} />
+                        </button>
+                    </div>
                     <div className="column_container">
                         {window.backendCache.config.domains.map((domain) => (
                             <a

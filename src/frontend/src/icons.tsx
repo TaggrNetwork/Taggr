@@ -318,14 +318,16 @@ export const New = ({ classNameArg }: { classNameArg?: string }) => (
 export const Close = ({
     classNameArg,
     styleArg,
+    size,
 }: {
     classNameArg?: string;
     styleArg?: any;
+    size?: number;
 }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        width="16"
-        height="16"
+        width={size ? size.toString() : "16"}
+        height={size ? size.toString() : "16"}
         className={`${classNameArg || ""} vertically_aligned`}
         viewBox="0 0 16 16"
     >
