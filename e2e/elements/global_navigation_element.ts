@@ -9,6 +9,7 @@ import {
     RealmListPage,
     BookmarksPage,
     JournalPage,
+    RecoveryPage,
     ProposalsPage,
 } from "../pages";
 
@@ -113,6 +114,16 @@ export class GlobalNavigationElement {
         );
 
         return new JournalPage(this.page);
+    }
+
+    public async goToRecoveryPage(): Promise<RecoveryPage> {
+        await this.page.goto("/#/recovery");
+        await this.page.waitForURL("/#/recovery", {
+            waitUntil: "networkidle",
+            timeout: 6000,
+        });
+
+        return new RecoveryPage(this.page);
     }
 
     public async goToProposalsPage(): Promise<ProposalsPage> {

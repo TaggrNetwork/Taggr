@@ -173,3 +173,38 @@ test("reject a release proposal", async () => {
         });
     });
 });
+
+test("emergency proposal", async () => {
+    test.setTimeout(40000);
+
+    await test.step("upload and confirm emergency release", async () => {
+        return await performInExistingContext(
+            stalwartContext,
+            async (page) => {
+                const globalNavigation = new GlobalNavigationElement(
+                    page,
+                    stalwart,
+                );
+                const recoveryPage = await globalNavigation.goToRecoveryPage();
+                expect(recoveryPage.status).toContainText("Binary set: false");
+                const binaryPath = resolve(
+                    __dirname,
+                    "..",
+                    "..",
+                    "target",
+                    "wasm32-unknown-unknown",
+                    "release",
+                    "taggr.wasm.gz",
+                );
+
+                await recoveryPage.uploadEmergencyRelease(binaryPath);
+                expect(recoveryPage.status).toContainText("Binary set: true");
+
+                const buildHash = await hashFile(binaryPath);
+                await recoveryPage.supportBinary(buildHash);
+                expect(recoveryPage.supportersHeader).toHaveText("Supporters");
+            },
+            /* skipGoTo */ true,
+        );
+    });
+});

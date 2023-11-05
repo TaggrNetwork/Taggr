@@ -39,7 +39,7 @@ export const Recovery = () => {
             Your principal id: {window.principalId}
             <div className="spaced">
                 <h2>Status</h2>
-                <code>{status}</code>
+                <code data-testid="status">{status}</code>
                 <h2>Emergency binary</h2>
                 <FileUploadInput
                     callback={async (binary) => {
@@ -55,7 +55,7 @@ export const Recovery = () => {
                 />
                 {votes.length > 0 && (
                     <>
-                        <h2>Supporters</h2>
+                        <h2 data-testid="supporters">Supporters</h2>
                         <ul>
                             {votes.map((id) => (
                                 <li key={id}>{id}</li>
@@ -67,6 +67,7 @@ export const Recovery = () => {
                     <>
                         <h2>Confirm binary</h2>
                         <input
+                            data-testid="hash-input"
                             type="text"
                             value={hash}
                             onChange={(e) => setHash(e.target.value)}
@@ -82,7 +83,7 @@ export const Recovery = () => {
                                 );
                                 location.reload();
                             }}
-                            label="SUBMIT"
+                            label="SUBMIT HASH"
                         />
                     </>
                 )}

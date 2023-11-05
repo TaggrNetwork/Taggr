@@ -12,5 +12,6 @@ export * from "./profile_page";
 export * from "./proposals_page";
 export * from "./realm_list_page";
 export * from "./realm_page";
+export * from "./recovery_page";
 export * from "./settings_page";
 export * from "./wallet_page";

@@ -14,10 +14,14 @@ export async function performInNewContext<T>(
 export async function performInExistingContext<T>(
     context: BrowserContext,
     task: (page: Page) => Promise<T>,
+    skipGoTo?: boolean,
 ): Promise<T> {
     const page = await context.newPage();
-    // if we don't go to a URL, then the page will be blank
-    new HomePage(page).goto();
+
+    if (!skipGoTo) {
+        // if we don't go to a URL, then the page will be blank
+        new HomePage(page).goto();
+    }
 
     return await task(page);
 }
