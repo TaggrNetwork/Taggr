@@ -58,7 +58,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
             let response = await window.api.call<any>(
                 "create_user",
                 name,
-                invite,
+                invite || "",
             );
             if ("Err" in response) {
                 return alert(`Error: ${response.Err}`);
