@@ -932,6 +932,10 @@ label svg {
         font-size: medium;
     }
 
+    article img {
+        width: 100%;
+    }
+
     .mobile_only {
         display: inline;
     }
