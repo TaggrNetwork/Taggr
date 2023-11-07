@@ -115,7 +115,7 @@ export const PostView = ({
         const article: any = refArticle.current;
         if (article && article.scrollHeight > article.clientHeight)
             setForceCollapsing(true);
-    }, [post]);
+    }, [post, blobs]);
 
     React.useEffect(() => {
         const article: any = refArticle.current;
