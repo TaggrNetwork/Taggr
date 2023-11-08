@@ -1877,13 +1877,15 @@ impl State {
         #[cfg(not(test))]
         {
             let balance = invoices::account_balance_of_principal(principal).await;
-            invoices::transfer(
-                account_identifier,
-                balance,
-                Memo(10101),
-                Some(principal_to_subaccount(&principal)),
-            )
-            .await?;
+            if balance > invoices::fee() {
+                invoices::transfer(
+                    account_identifier,
+                    balance,
+                    Memo(10101),
+                    Some(principal_to_subaccount(&principal)),
+                )
+                .await?;
+            }
         }
         Ok(())
     }
