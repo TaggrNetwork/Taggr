@@ -195,19 +195,19 @@ export const Content = ({
                     preview,
                     className,
                 )}
-                {shortened && (
-                    <>
-                        {collapse && <ArrowDown />}
-                        {markdownizer(
-                            collapse ? "" : extValue,
+                {shortened &&
+                    (collapse ? (
+                        <ArrowDown />
+                    ) : (
+                        markdownizer(
+                            extValue,
                             urls,
                             setUrls,
                             blobs,
                             blogTitle,
                             preview,
-                        )}
-                    </>
-                )}
+                        )
+                    ))}
             </>
         ),
         [value, extValue, blobs, collapse],
@@ -292,9 +292,11 @@ const markdownizer = (
                         <>
                             <h1>{children}</h1>
                             <p className="blog_title medium_text vertically_spaced">
-                                By <a href={`#/journal/${author}`}>{author}</a>{" "}
-                                on <b>{timeAgo(created, true, "long")}</b>,{" "}
-                                {Math.ceil(length / 400)} minutes read.
+                                By <a href={`#/journal/${author}`}>{author}</a>
+                                &nbsp;&nbsp;&middot;&nbsp;&nbsp;
+                                <b>{timeAgo(created, true, "long")}</b>
+                                &nbsp;&nbsp;&middot;&nbsp;&nbsp;
+                                {Math.ceil(length / 400)} minutes read
                             </p>
                         </>
                     );

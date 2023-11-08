@@ -452,7 +452,7 @@ export const Form = ({
                                 {postId == null && !isRepost && (
                                     <ReactionToggleButton
                                         testId="poll-button"
-                                        classNameArg="left_spaced"
+                                        classNameArg="left_half_spaced"
                                         icon={<Bars />}
                                         pressed={!!poll}
                                         onClick={() => {

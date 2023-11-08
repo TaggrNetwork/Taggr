@@ -192,13 +192,14 @@ export const Dashboard = ({}) => {
                 <hr />
                 <div className="text_centered">
                     <h2>
-                        <Canisters /> CANISTERS
+                        <Canisters classNameArg="right_half_spaced" /> CANISTERS
                     </h2>
                     <div className="dynamic_table">
                         <div className="db_cell">
                             <label>
                                 <Canister />
                                 <a
+                                    className="left_half_spaced"
                                     href={`https://dashboard.internetcomputer.org/canister/${window.backendCache.stats.canister_id}`}
                                 >
                                     MAIN
@@ -224,6 +225,7 @@ export const Dashboard = ({}) => {
                         {stats.buckets.map(([bucket_id, size], i) => (
                             <div key={bucket_id} className="db_cell">
                                 <a
+                                    className="left_half_spaced"
                                     href={`https://dashboard.internetcomputer.org/canister/${bucket_id}`}
                                 >
                                     <StorageCanister /> STORAGE {i}

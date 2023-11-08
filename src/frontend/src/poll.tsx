@@ -145,7 +145,7 @@ export const PollView = ({
                     </span>
                     {canChangeVote && (
                         <>
-                            &nbsp;&middot;&nbsp;{" "}
+                            &nbsp;&nbsp;&middot;&nbsp;&nbsp;
                             <a
                                 href="#"
                                 onClick={(e) => {
