@@ -117,7 +117,7 @@ export const PostView = ({
             setForceCollapsing(true);
     }, [post, blobs]);
 
-    React.useEffect(() => {
+    const registerObserver = () => {
         const article: any = refArticle.current;
         if (!article) return;
         const observer = new IntersectionObserver(
@@ -141,7 +141,11 @@ export const PostView = ({
         return () => {
             observer.unobserve(article);
         };
-    }, []);
+    };
+
+    React.useEffect(registerObserver, []);
+
+    React.useEffect(registerObserver, [post]);
 
     if (!post) {
         if (notFound) return <NotFound />;
