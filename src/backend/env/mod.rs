@@ -599,10 +599,20 @@ impl State {
         })
     }
 
-    fn new_user(&mut self, principal: Principal, timestamp: u64, name: String) -> UserId {
+    fn new_user(
+        &mut self,
+        principal: Principal,
+        timestamp: u64,
+        name: String,
+        cycles: Option<Cycles>,
+    ) -> UserId {
         let id = self.new_user_id();
         let mut user = User::new(principal, id, timestamp, name);
         user.notify(format!("**Welcome!** 🎉 Use #{} as your personal blog, micro-blog or a photo blog. Use #hashtags to connect with others. Make sure you understand [how {0} works](/#/whitepaper). And finally, [say hello](#/new) and start earning karma!", CONFIG.name));
+        if let Some(cycles) = cycles {
+            user.change_cycles(cycles, CyclesDelta::Plus, "topped up by an invite")
+                .expect("couldn't add cycles when creating a new user");
+        }
         self.principals.insert(principal, user.id);
         self.logger
             .info(format!("@{} joined {} 🚀", &user.name, CONFIG.name));
@@ -626,9 +636,9 @@ impl State {
                 let new_user_id = if inviter.invites_budget > cycles {
                     inviter.invites_budget = inviter.invites_budget.saturating_sub(cycles);
                     state.spend(cycles, "user invite");
-                    state.new_user(principal, time(), name.clone())
+                    state.new_user(principal, time(), name.clone(), Some(cycles))
                 } else if inviter.cycles() > cycles {
-                    let new_user_id = state.new_user(principal, time(), name.clone());
+                    let new_user_id = state.new_user(principal, time(), name.clone(), None);
                     state
                         .cycle_transfer(
                             inviter_id,
@@ -662,7 +672,7 @@ impl State {
         }
 
         if let Ok(Invoice { paid: true, .. }) = State::mint_cycles(principal, 0).await {
-            mutate(|state| state.new_user(principal, time(), name));
+            mutate(|state| state.new_user(principal, time(), name, None));
             // After the user has beed created, transfer cycles.
             return State::mint_cycles(principal, 0).await.map(|_| ());
         }
@@ -2409,9 +2419,8 @@ pub(crate) mod tests {
         trusted: bool,
         cycles: Cycles,
     ) -> UserId {
-        let id = state.new_user(p, 0, name.to_string());
+        let id = state.new_user(p, 0, name.to_string(), Some(cycles));
         let u = state.users.get_mut(&id).unwrap();
-        u.change_cycles(cycles, CyclesDelta::Plus, "").unwrap();
         if trusted {
             u.change_karma(CONFIG.trusted_user_min_karma, "");
             u.apply_rewards();
