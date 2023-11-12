@@ -8,7 +8,7 @@ import {
     mintingPrincipal,
 } from "../support";
 import { GlobalNavigationElement } from "../elements";
-import { AccountIdentifier } from "@dfinity/nns";
+import { AccountIdentifier } from "@dfinity/ledger-icp";
 
 test("wallet", async ({ page }) => {
     const first4Digits = (n: BigInt) => Math.floor(Number(n) / 100000);

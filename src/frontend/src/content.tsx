@@ -219,11 +219,11 @@ const isALink = (val: string) =>
 
 const linkRenderer =
     (preview?: boolean) =>
-    ({ node, children = [], ...props }: any) => {
+    ({ node, children, ...props }: any) => {
         let target = "_self";
         let className = null;
-        let label: any = children;
-        let child: any = children[0];
+        let label: string = children;
+        let child: string = children;
         if (typeof child == "string") {
             // YouTube
             let matches = child.match(
@@ -303,10 +303,13 @@ const markdownizer = (
                 },
                 a: linkRenderer(preview),
                 p: ({ node, children, ...props }) => {
-                    const isPic = (c: any) => c.type && c.type.name == "img";
-                    const pics = children.filter(isPic).length;
-                    if (pics >= 1 && isPic(children[0]))
-                        return <Gallery children={children} />;
+                    if (Array.isArray(children)) {
+                        const isPic = (c: any) =>
+                            c.type && c.type.name == "img";
+                        const pics = children.filter(isPic).length;
+                        if (pics >= 1 && isPic(children[0]))
+                            return <Gallery children={children} />;
+                    }
                     return <p {...props}>{children}</p>;
                 },
                 img: ({ node, ...props }: any) => {

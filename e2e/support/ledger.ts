@@ -1,4 +1,4 @@
-import { LedgerCanister, SubAccount } from "@dfinity/nns";
+import { LedgerCanister, SubAccount } from "@dfinity/ledger-icp";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { CMCCanister } from "@dfinity/cmc";
 import { Principal } from "@dfinity/principal";

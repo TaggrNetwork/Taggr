@@ -1,4 +1,4 @@
-import { AccountIdentifier } from "@dfinity/nns";
+import { AccountIdentifier } from "@dfinity/ledger-icp";
 import { Locator, Page } from "@playwright/test";
 import { icpToE8s, textToNumber } from "../support";
 

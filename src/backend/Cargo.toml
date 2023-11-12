@@ -8,19 +8,19 @@ path = "lib.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-base64 = "0.21.2"
-candid = { version = "0.9.0", features = ["parser"] }
+base64 = "0.21.5"
+candid = { version = "0.9.11", features = ["parser"] }
 hex = "0.4.3"
-ic-cdk = "0.10.0"
-ic-cdk-macros = "0.7.1"
-ic-cdk-timers = "0.4.0"
+ic-cdk = "0.11.3"
+ic-cdk-macros = "0.8.1"
+ic-cdk-timers = "0.5.1"
 ic-certified-map = "0.4.0"
-ic-ledger-types = "0.7.0"
-serde = { version = "1.0.179", features = ["derive"] }
+ic-ledger-types = "0.8.0"
+serde = { version = "1.0.192", features = ["derive"] }
 serde_bytes = "0.11.12"
 serde_cbor = "0.11.2"
-serde_json = "1.0.104"
-sha2 = "0.10.7"
+serde_json = "1.0.108"
+sha2 = "0.10.8"
 
 [dev-dependencies]
 actix-rt = "*"
