@@ -469,6 +469,8 @@ export const RealmHeader = ({ name }: { name: string }) => {
     );
 };
 
+const pageSize = 20;
+
 export const Realms = () => {
     const [realms, setRealms] = React.useState<[string, Realm][]>([]);
     const [page, setPage] = React.useState(0);
@@ -477,7 +479,7 @@ export const Realms = () => {
     const [order, setOrder] = React.useState(0);
     const [noMoreData, setNoMoreData] = React.useState(false);
     const loadRealms = async () => {
-        let data = (await window.api.query<any>("realms", page)) || [];
+        let data = (await window.api.query<any>("realms")) || [];
         if (data.length == 0) {
             setNoMoreData(true);
         }
@@ -485,7 +487,7 @@ export const Realms = () => {
     };
     React.useEffect(() => {
         loadRealms();
-    }, [page]);
+    }, []);
     const user = window.user;
 
     switch (order) {
@@ -542,15 +544,18 @@ export const Realms = () => {
                 </select>
             </div>
             <div
-                className={bigScreen() ? "two_column_grid_flex" : undefined}
+                className={bigScreen() ? "two_columns_grid" : undefined}
                 style={{ rowGap: 0, columnGap: "1em" }}
             >
                 {realms
-                    .filter(([name, { description }]) =>
-                        (
-                            name.toLowerCase() + description.toLowerCase()
-                        ).includes(filter),
+                    .filter(
+                        ([name, { description }]) =>
+                            !filter ||
+                            (
+                                name.toLowerCase() + description.toLowerCase()
+                            ).includes(filter),
                     )
+                    .slice(0, (page + 1) * pageSize)
                     .map(([name, realm]) => {
                         return (
                             <div

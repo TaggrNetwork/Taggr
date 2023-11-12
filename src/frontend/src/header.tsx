@@ -157,7 +157,7 @@ export const Header = ({
             {showLogins && <LoginMasks />}
             {showButtonBar && (
                 <div
-                    className="two_column_grid_flex top_spaced stands_out"
+                    className="two_columns_grid top_spaced stands_out"
                     style={{ rowGap: "1em" }}
                 >
                     {user && (

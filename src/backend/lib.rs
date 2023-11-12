@@ -720,15 +720,7 @@ fn realm() {
 #[export_name = "canister_query realms"]
 fn realms() {
     read(|state| {
-        let page_size = 20;
-        let page: usize = parse(&arg_data_raw());
-        reply(
-            sorted_realms(state)
-                .iter()
-                .skip(page * page_size)
-                .take(page_size)
-                .collect::<Vec<_>>(),
-        );
+        reply(sorted_realms(state).iter().collect::<Vec<_>>());
     })
 }
 
