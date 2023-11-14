@@ -10,6 +10,8 @@ deploy_local:
 	FEATURES=dev dfx deploy
 
 build_dev:
+	FEATURES=dev ./build.sh bucket
+	FEATURES=dev ./build.sh taggr
 	FEATURES=dev dfx build
 
 reinstall:

@@ -75,7 +75,7 @@ make deploy_local
 Install NNS canisters (see the [DFX docs](https://github.com/dfinity/sdk/blob/master/docs/cli-reference/dfx-nns.md)):
 
 ```shell
-dfx extensions install nns
+dfx extension install nns
 dfx nns install
 ```
 
