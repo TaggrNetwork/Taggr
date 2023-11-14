@@ -117,7 +117,7 @@ const linkTagsAndUsersPart = (value: string) => {
 export const Content = ({
     post,
     blogTitle,
-    value,
+    value = "",
     blobs,
     collapse,
     preview,
