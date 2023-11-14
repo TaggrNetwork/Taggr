@@ -90,7 +90,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
             alert(`Error: ${response.Err}`);
             return;
         }
-        if (!user) location.href = "/";
+        if (!user || nameChange) location.href = "/";
         else if (uiRefresh) {
             await window.reloadUser();
             window.uiInitialized = false;
