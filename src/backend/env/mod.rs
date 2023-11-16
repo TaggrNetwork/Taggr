@@ -1259,6 +1259,10 @@ impl State {
                 state
                     .logger
                     .error(format!("couldn't archive cold data: {:?}", err));
+            } else {
+                // If we archived posts without errors, we should create a heap backup, so that we
+                // always have a valid heap snapshot at the end of the stable memory.
+                mutate(memory::heap_to_stable);
             }
 
             state.recompute_stalwarts(now);
