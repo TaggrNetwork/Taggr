@@ -167,7 +167,7 @@ test("post creation with image", async ({ page }) => {
 
             const postContent = await newPostPage.editor.getContent();
             const postPage = await newPostPage.submit();
-            await page.waitForTimeout(1500);
+            await page.waitForTimeout(2500);
 
             return [postContent, postPage];
         });

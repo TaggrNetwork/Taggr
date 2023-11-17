@@ -94,19 +94,23 @@ const linkTagsAndUsers = (mdString: string) =>
         .join("");
 
 const linkTokenExp =
-    /(\$\D|#|@)[\p{Letter}\p{Mark}|\d|\-|_|,|\.]*[\p{Letter}\p{Mark}|\d]/gu;
+    /(\/|\$\D|#|@)[\p{Letter}\p{Mark}|\d|\-|_|,|\.]*[\p{Letter}\p{Mark}|\d]/gu;
 const linkTagsAndUsersPart = (value: string) => {
     const result = [];
     let match;
     let lastPos = 0;
 
+    const tokenToHandle: { [token: string]: string } = {
+        "@": "user",
+        "#": "feed",
+        "/": "realm",
+    };
+
     while ((match = linkTokenExp.exec(value)) !== null) {
         result.push(value.slice(lastPos, match.index));
         let token = match[0];
         result.push(
-            `[${token}](#/${token[0] == "@" ? "user" : "feed"}/${token.slice(
-                1,
-            )})`,
+            `[${token}](#/${tokenToHandle[token[0]]}/${token.slice(1)})`,
         );
         lastPos = linkTokenExp.lastIndex;
     }

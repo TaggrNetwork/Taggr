@@ -69,12 +69,14 @@ export const Form = ({
     );
     const [suggestedTags, setSuggestedTags] = React.useState<string[]>([]);
     const [suggestedUsers, setSuggestedUsers] = React.useState<string[]>([]);
+    const [suggestedRealms, setSuggestedRealms] = React.useState<string[]>([]);
     const [choresTimer, setChoresTimer] = React.useState<any>(null);
     const [cursor, setCursor] = React.useState(0);
     const textarea = React.useRef<HTMLTextAreaElement>();
     const form = React.useRef();
     const tags = window.backendCache.recent_tags;
     const users = Object.values(window.backendCache.users);
+    const realms = Object.keys(window.backendCache.realms);
     const { max_post_length, max_blob_size_bytes } = window.backendCache.config;
 
     const previewAtLeft = bigScreen() && !comment;
@@ -195,6 +197,8 @@ export const Form = ({
         setSuggestedTags(suggestedTags);
         const suggestedUsers = suggestTokens(cursor, value, users, "@");
         setSuggestedUsers(suggestedUsers);
+        const suggestedRealms = suggestTokens(cursor, value, realms, "/");
+        setSuggestedRealms(suggestedRealms);
         setChoresTimer(
             setTimeout(() => localStorage.setItem(draftKey, value), 1500),
         );
@@ -208,10 +212,13 @@ export const Form = ({
             const cursor = pos - 1;
             const suggestedTags = suggestTokens(cursor, value, tags, "#");
             const suggestedUsers = suggestTokens(cursor, value, users, "@");
+            const suggestedRealms = suggestTokens(cursor, value, realms, "/");
             if (suggestedTags.length) {
                 insertSuggestion(event, "#", suggestedTags[0]);
             } else if (suggestedUsers.length) {
                 insertSuggestion(event, "@", suggestedUsers[0]);
+            } else if (suggestedRealms.length) {
+                insertSuggestion(event, "/", suggestedRealms[0]);
             }
         }
     };
@@ -224,6 +231,7 @@ export const Form = ({
         setValue(value.slice(0, i + 1) + token + value.slice(cursor) + " ");
         setSuggestedTags([]);
         setSuggestedUsers([]);
+        setSuggestedRealms([]);
         setFocus();
     };
 
@@ -253,9 +261,12 @@ export const Form = ({
     if (suggestedTags.length) {
         trigger = "#";
         completionList = suggestedTags;
-    } else {
+    } else if (suggestedUsers.length) {
         trigger = "@";
         completionList = suggestedUsers;
+    } else {
+        trigger = "/";
+        completionList = suggestedRealms;
     }
 
     const isRepost = repost != null && !isNaN(repost);
