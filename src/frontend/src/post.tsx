@@ -145,7 +145,7 @@ export const PostView = ({
 
     React.useEffect(registerObserver, []);
 
-    React.useEffect(registerObserver, [post]);
+    React.useEffect(registerObserver, [post, safeToOpen]);
 
     if (!post) {
         if (notFound) return <NotFound />;
