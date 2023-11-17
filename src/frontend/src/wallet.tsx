@@ -253,7 +253,7 @@ export const Wallet = () => {
         <>
             <HeadBar title="WALLET" shareLink="wallets" />
             {user.cycles <= 200 && (
-                <div className="banner">
+                <div className="banner bottom_spaced">
                     You are low on cycles! Please transfer some ICP to your
                     account displayed below and press the MINT button.
                 </div>
