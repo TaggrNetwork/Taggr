@@ -238,7 +238,7 @@ const linkRenderer =
             if (matches) {
                 try {
                     const url = new URL(props.href);
-                    if (child == props.href) {
+                    if (child == props.href.replace(/&amp;/g, "&")) {
                         className = "external";
                         label = url.hostname.toUpperCase();
                     } else {
