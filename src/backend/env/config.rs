@@ -35,6 +35,7 @@ pub struct Config {
     pub proposal_approval_threshold: u16,
     pub proposal_controversy_threashold: u16,
     pub proposal_rejection_penalty: Cycles,
+    pub min_stalwart_karma: Karma,
 
     pub max_cycles_mint_kilos: u64,
 
@@ -190,6 +191,11 @@ pub const CONFIG: &Config = &Config {
     proposal_rejection_penalty: 500,
     #[cfg(feature = "staging")]
     proposal_rejection_penalty: 50,
+
+    #[cfg(not(feature = "staging"))]
+    min_stalwart_karma: 1000,
+    #[cfg(feature = "staging")]
+    min_stalwart_karma: 300,
 
     total_supply: 100_000_000,
 

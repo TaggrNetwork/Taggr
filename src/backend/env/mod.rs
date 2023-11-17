@@ -1545,7 +1545,7 @@ impl State {
             match (
                 u.stalwart,
                 u.active_weeks >= CONFIG.min_stalwart_activity_weeks as u32,
-                u.karma() > CONFIG.proposal_rejection_penalty as Karma,
+                u.karma() > CONFIG.min_stalwart_karma,
                 stalwart_seats,
             ) {
                 // User is qualified but seats left or they lost karma
@@ -3983,7 +3983,7 @@ pub(crate) mod tests {
                     user.last_activity = now;
                     user.active_weeks = CONFIG.min_stalwart_activity_weeks as u32;
                     user.timestamp = 0;
-                    user.change_karma(CONFIG.proposal_rejection_penalty as Karma, "");
+                    user.change_karma(CONFIG.min_stalwart_karma, "");
                     user.apply_rewards();
                 }
             }
