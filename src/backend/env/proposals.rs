@@ -2,10 +2,14 @@ use super::config::CONFIG;
 use super::post::{Extension, Post, PostId};
 use super::token::account;
 use super::user::Predicate;
+use super::{invoices, Karma, HOUR};
 use super::{user::UserId, State};
-use super::{Karma, HOUR};
+use crate::mutate;
 use crate::token::Token;
 use candid::Principal;
+use ic_cdk::spawn;
+use ic_cdk_timers::set_timer;
+use ic_ledger_types::{AccountIdentifier, Memo, Tokens};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -41,6 +45,7 @@ pub enum Payload {
     Noop,
     Release(Release),
     Fund(String, Token),
+    ICPTransfer(AccountIdentifier, Tokens),
     Reward(Reward),
 }
 
@@ -178,6 +183,24 @@ impl Proposal {
                     mint_tokens(state, &reward.receiver, tokens_to_mint)?;
                     reward.votes.clear();
                     reward.minted = tokens_to_mint;
+                }
+                Payload::ICPTransfer(account, amount) => {
+                    let amount = *amount;
+                    let account = *account;
+                    set_timer(std::time::Duration::from_secs(1), move || {
+                        spawn(async move {
+                            if let Err(err) =
+                                invoices::transfer(account, amount, Memo(828282), None).await
+                            {
+                                mutate(|state| {
+                                    state.logger.error(format!(
+                                        "The execution of the ICP transfer proposal failed: {}",
+                                        err
+                                    ))
+                                })
+                            };
+                        })
+                    });
                 }
                 _ => {}
             }

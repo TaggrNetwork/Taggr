@@ -6,6 +6,10 @@ export type PostId = number;
 
 export type UserId = number;
 
+export type ICP = {
+    e8s: BigInt;
+};
+
 export type Poll = {
     options: string[];
     votes: { [option: number]: UserId[] };
@@ -43,6 +47,9 @@ export type Payload =
       }
     | {
           ["Fund"]: [string, number];
+      }
+    | {
+          ["ICPTransfer"]: [number[], ICP];
       }
     | {
           ["Reward"]: Reward;

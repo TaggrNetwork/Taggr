@@ -23,6 +23,7 @@ use ic_cdk::{
 };
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
+use ic_ledger_types::AccountIdentifier;
 use serde_bytes::ByteBuf;
 
 mod assets;
@@ -262,6 +263,28 @@ fn mint_cycles() {
 fn create_invite() {
     let cycles: Cycles = parse(&arg_data_raw());
     mutate(|state| reply(state.create_invite(caller(), cycles)));
+}
+
+#[export_name = "canister_update propose_icp_transfer"]
+fn propose_icp_transfer() {
+    let (description, receiver, amount): (String, String, String) = parse(&arg_data_raw());
+    reply({
+        match (
+            AccountIdentifier::from_hex(&receiver),
+            parse_icp_amount(&amount),
+        ) {
+            (Ok(account), Ok(amount)) => mutate(|state| {
+                proposals::propose(
+                    state,
+                    caller(),
+                    description,
+                    proposals::Payload::ICPTransfer(account, amount),
+                    time(),
+                )
+            }),
+            (Err(err), _) | (_, Err(err)) => Err(err),
+        }
+    })
 }
 
 #[update]

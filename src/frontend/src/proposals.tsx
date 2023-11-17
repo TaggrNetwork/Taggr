@@ -9,6 +9,8 @@ import {
     FileUploadInput,
     tokenBalance,
     NotFound,
+    icp,
+    hex,
 } from "./common";
 import * as React from "react";
 import { Content } from "./content";
@@ -23,6 +25,7 @@ export const Proposals = () => {
     const [currentMask, setCurrentMask] = React.useState("");
     const [receiver, setReceiver] = React.useState("");
     const [fundingAmount, setFundingAmount] = React.useState(0);
+    const [icpAmount, setICPAmount] = React.useState(0);
     const [binary, setBinary] = React.useState(null);
     const [commit, setCommit] = React.useState("");
     const [proposal, setProposal] = React.useState(null);
@@ -37,6 +40,12 @@ export const Proposals = () => {
                 burgerTestId="proposals-burger-button"
                 content={
                     <div className="row_container">
+                        <button
+                            className="max_width_col"
+                            onClick={() => setCurrentMask("icp_transfer")}
+                        >
+                            ICP TRANSFER
+                        </button>
                         <button
                             className="max_width_col"
                             onClick={() => setCurrentMask("funding")}
@@ -59,6 +68,68 @@ export const Proposals = () => {
                 }
             />
             <div className="vertically_spaced">
+                {currentMask == "icp_transfer" && (
+                    <div className="spaced column_container">
+                        <div className="vcentered bottom_half_spaced">
+                            RECEIVER
+                            <input
+                                type="text"
+                                className="left_spaced max_width_col"
+                                onChange={async (ev) => {
+                                    setReceiver(ev.target.value.toString());
+                                }}
+                            />
+                        </div>
+                        <div className="vcentered bottom_half_spaced">
+                            ICP AMOUNT
+                            <input
+                                type="text"
+                                className="left_spaced max_width_col"
+                                onChange={async (ev) => {
+                                    setICPAmount(Number(ev.target.value));
+                                }}
+                            />
+                        </div>
+                        <div className="bottom_half_spaced">DESCRIPTION</div>
+                        <textarea
+                            className="bottom_spaced"
+                            rows={10}
+                            value={description}
+                            onChange={(event) =>
+                                setDescription(event.target.value)
+                            }
+                        ></textarea>
+                        {description && (
+                            <Content
+                                value={description}
+                                preview={true}
+                                classNameArg="bottom_spaced framed"
+                            />
+                        )}
+                        <ButtonWithLoading
+                            classNameArg="active"
+                            onClick={async () => {
+                                if (!description || !receiver || !icpAmount) {
+                                    alert("Error: incomplete data.");
+                                    return;
+                                }
+                                let response = await window.api.call<any>(
+                                    "propose_icp_transfer",
+                                    description,
+                                    receiver,
+                                    icpAmount.toString(),
+                                );
+                                if ("Err" in response) {
+                                    alert(`Error: ${response.Err}`);
+                                    return;
+                                }
+                                setCurrentMask("");
+                                setProposal(response.Ok);
+                            }}
+                            label="SUBMIT"
+                        />
+                    </div>
+                )}
                 {currentMask == "reward" && (
                     <div className="spaced column_container">
                         <div className="vcentered bottom_half_spaced">
@@ -400,6 +471,20 @@ export const ProposalView = ({
                         </div>
                     )}
                 </div>
+            )}
+            {"ICPTransfer" in proposal.payload && (
+                <>
+                    <div className="bottom_half_spaced">
+                        RECEIVER:{" "}
+                        <code>{hex(proposal.payload.ICPTransfer[0])}</code>
+                    </div>
+                    <div className="bottom_spaced">
+                        AMOUNT:{" "}
+                        <code>
+                            {icp(proposal.payload.ICPTransfer[1].e8s, 2)}
+                        </code>
+                    </div>
+                </>
             )}
             {"Reward" in proposal.payload && (
                 <>

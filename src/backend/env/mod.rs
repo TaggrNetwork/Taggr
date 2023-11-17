@@ -1106,28 +1106,7 @@ impl State {
     ) -> Result<Tokens, String> {
         State::claim_user_icp(principal).await?;
 
-        fn parse(amount: &str) -> Result<Tokens, String> {
-            let parse = |s: &str| {
-                s.parse::<u64>()
-                    .map_err(|err| format!("Couldn't parse as u64: {:?}", err))
-            };
-            match &amount.split('.').collect::<Vec<_>>().as_slice() {
-                [icpts] => Ok(Tokens::from_e8s(parse(icpts)? * 10_u64.pow(8))),
-                [icpts, e8s] => {
-                    let mut e8s = e8s.to_string();
-                    while e8s.len() < 8 {
-                        e8s.push('0');
-                    }
-                    let e8s = &e8s[..8];
-                    Ok(Tokens::from_e8s(
-                        parse(icpts)? * 10_u64.pow(8) + parse(e8s)?,
-                    ))
-                }
-                _ => Err(format!("Can't parse amount {}", amount)),
-            }
-        }
-
-        let amount = parse(amount)?;
+        let amount = parse_icp_amount(amount)?;
         invoices::transfer(
             parse_account(&recipient)?,
             amount + invoices::fee(),
@@ -2390,6 +2369,27 @@ pub fn time() -> u64 {
     return CONFIG.trusted_user_min_age_weeks * WEEK + 1;
     #[cfg(not(test))]
     api::time()
+}
+
+pub fn parse_icp_amount(amount: &str) -> Result<Tokens, String> {
+    let parse = |s: &str| {
+        s.parse::<u64>()
+            .map_err(|err| format!("Couldn't parse as u64: {:?}", err))
+    };
+    match &amount.split('.').collect::<Vec<_>>().as_slice() {
+        [icpts] => Ok(Tokens::from_e8s(parse(icpts)? * 10_u64.pow(8))),
+        [icpts, e8s] => {
+            let mut e8s = e8s.to_string();
+            while e8s.len() < 8 {
+                e8s.push('0');
+            }
+            let e8s = &e8s[..8];
+            Ok(Tokens::from_e8s(
+                parse(icpts)? * 10_u64.pow(8) + parse(e8s)?,
+            ))
+        }
+        _ => Err(format!("Can't parse amount {}", amount)),
+    }
 }
 
 #[cfg(test)]
