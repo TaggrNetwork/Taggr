@@ -100,12 +100,26 @@ fn post_upgrade() {
     set_timers();
 
     // temporary post upgrade logic goes here
-    // set_timer(std::time::Duration::from_secs(1), move || {
-    //     spawn(post_upgrade_fixtures())
-    // });
+    set_timer(std::time::Duration::from_secs(1), move || {
+        spawn(post_upgrade_fixtures())
+    });
 }
 
-// async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    mutate(|state| {
+        for (karma, acc) in state
+            .users
+            .values()
+            .filter(|user| !user.trusted())
+            .map(|user| (user.karma() / 2, account(user.principal)))
+            .filter(|(karma, acc)| *karma > 0 && !state.balances.contains_key(acc))
+            .collect::<Vec<_>>()
+            .into_iter()
+        {
+            crate::token::mint(state, acc, karma as u64 * 100);
+        }
+    })
+}
 
 /*
  * UPDATES
