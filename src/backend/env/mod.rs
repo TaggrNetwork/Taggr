@@ -974,7 +974,7 @@ impl State {
         let karma = self
             .users
             .values()
-            .filter(|user| user.karma() > 0)
+            .filter(|user| user.karma() >= 0)
             .map(|user| (user.id, user.karma_to_reward()))
             .collect::<HashMap<_, _>>();
         let circulating_supply: Token = self.balances.values().sum();
@@ -2608,6 +2608,11 @@ pub(crate) mod tests {
                 karma_insert(state, i as u64, 1 + i as u64 * 100);
             }
 
+            // Create one untrusted user
+            let untrusted_id = create_untrusted_user(state, pr(10));
+            let user = state.users.get_mut(&untrusted_id).unwrap();
+            user.change_karma(100, "");
+
             let minting_acc = account(Principal::anonymous());
             state
                 .balances
@@ -2621,12 +2626,13 @@ pub(crate) mod tests {
             state.balances.remove(&minting_acc);
             state.mint();
 
-            assert_eq!(state.balances.len(), 5);
+            assert_eq!(state.balances.len(), 6);
             assert_eq!(*state.balances.get(&account(pr(0))).unwrap(), 100);
             assert_eq!(*state.balances.get(&account(pr(1))).unwrap(), 10100);
             assert_eq!(*state.balances.get(&account(pr(2))).unwrap(), 20100);
             assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 30100);
             assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 40100);
+            assert_eq!(*state.balances.get(&account(pr(10))).unwrap(), 10000);
 
             // increase minting ratio
             assert_eq!(state.minting_ratio(), 1);
