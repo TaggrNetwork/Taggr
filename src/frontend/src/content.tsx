@@ -83,6 +83,26 @@ const previewImg = (
     preview.appendChild(closeButton);
 };
 
+const splitParagraphsAndPics = (
+    elems: JSX.Element[],
+    isPic: (arg: JSX.Element) => boolean,
+) => {
+    const result = [];
+    let chunk = [];
+    for (let i in elems) {
+        const elem = elems[i];
+        if (isPic(elem)) {
+            if (chunk.length) result.push(<p key={i}>{chunk}</p>);
+            result.push(elem);
+            chunk = [];
+        } else {
+            chunk.push(elem);
+        }
+    }
+    if (chunk.length) result.push(<p key={"last"}>{chunk}</p>);
+    return result;
+};
+
 const linkOrImageExp = /(!?\[.*?\]\(.*?\))/g;
 const linkTagsAndUsers = (mdString: string) =>
     mdString
@@ -307,13 +327,16 @@ const markdownizer = (
                 },
                 a: linkRenderer(preview),
                 p: ({ node, children, ...props }) => {
+                    const isPic = (c: any) => c.type && c.type.name == "img";
                     if (Array.isArray(children)) {
-                        const isPic = (c: any) =>
-                            c.type && c.type.name == "img";
                         const pics = children.filter(isPic).length;
                         if (pics >= 1 && isPic(children[0]))
                             return <Gallery children={children} />;
-                    }
+                        else
+                            return (
+                                <>{splitParagraphsAndPics(children, isPic)}</>
+                            );
+                    } else if (isPic(children)) return <>{children}</>;
                     return <p {...props}>{children}</p>;
                 },
                 img: ({ node, ...props }: any) => {

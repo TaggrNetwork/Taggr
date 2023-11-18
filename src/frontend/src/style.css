@@ -514,6 +514,10 @@ article img {
     object-fit: cover;
 }
 
+.feed_item article img {
+    width: 100%;
+}
+
 .padded_rounded {
     border-radius: 5px;
     padding-left: 0.5em;
