@@ -225,10 +225,10 @@ export const Dashboard = ({}) => {
                         {stats.buckets.map(([bucket_id, size], i) => (
                             <div key={bucket_id} className="db_cell">
                                 <a
-                                    className="left_half_spaced"
                                     href={`https://dashboard.internetcomputer.org/canister/${bucket_id}`}
                                 >
-                                    <StorageCanister /> STORAGE {i}
+                                    <StorageCanister classNameArg="right_half_spaced" />{" "}
+                                    STORAGE {i}
                                 </a>
                                 <div className="db_cell top_spaced bottom_spaced">
                                     <label>
