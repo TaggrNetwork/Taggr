@@ -1395,14 +1395,17 @@ impl State {
                 state.last_weekly_chores,
             )
         });
+
         if last_weekly_chores + WEEK < now {
             State::weekly_chores(now).await;
             mutate(|state| state.last_weekly_chores += WEEK);
         }
+
         if last_daily_chores + DAY < now {
             State::daily_chores(now).await;
             mutate(|state| state.last_daily_chores += DAY);
         }
+
         if last_hourly_chores + HOUR < now {
             State::hourly_chores(now).await;
             mutate(|state| state.last_hourly_chores += HOUR);
