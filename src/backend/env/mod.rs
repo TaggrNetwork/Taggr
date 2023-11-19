@@ -1000,7 +1000,7 @@ impl State {
         }
 
         for (user_id, user_karma) in karma {
-            let minted = user_karma / ratio * base;
+            let minted = (user_karma as f64 / ratio as f64 * base as f64) as u64;
             if minted == 0 {
                 continue;
             }
@@ -1017,13 +1017,12 @@ impl State {
             }
 
             if let Some(user) = self.users.get_mut(&user_id) {
+                let minted_fractional = minted as f64 / base as f64;
                 user.notify(format!(
                     "{} minted `{}` ${} tokens for you! 💎",
-                    CONFIG.name,
-                    minted / base,
-                    CONFIG.token_symbol,
+                    CONFIG.name, minted_fractional, CONFIG.token_symbol,
                 ));
-                minters.push(format!("`{}` to @{}", minted / base, user.name));
+                minters.push(format!("`{}` to @{}", minted_fractional, user.name));
                 let acc = account(user.principal);
                 crate::token::mint(self, acc, minted);
                 minted_tokens += minted / base;
@@ -2656,9 +2655,34 @@ pub(crate) mod tests {
             state.mint();
 
             // Tokens were minted for user 3
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 37600);
+            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 37625);
             // Tokens were not minted for user 4
             assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 40100);
+
+            // increase minting ratio to 512:1
+            state.balances.insert(account(pr(7)), 60000000);
+            assert_eq!(state.minting_ratio(), 512);
+
+            // create new users and make them earn fractions of the minting ratio
+            create_user(state, pr(111));
+            create_user(state, pr(112));
+            create_user(state, pr(113));
+            let user = state.principal_to_user_mut(pr(111)).unwrap();
+            user.change_karma(100, "");
+            assert_eq!(user.karma_to_reward(), 100);
+            let user = state.principal_to_user_mut(pr(112)).unwrap();
+            user.change_karma(256, "");
+            assert_eq!(user.karma_to_reward(), 256);
+            let user = state.principal_to_user_mut(pr(113)).unwrap();
+            user.change_karma(500, "");
+            assert_eq!(user.karma_to_reward(), 500);
+
+            state.mint();
+
+            // make sure fractional tokens were minted
+            assert_eq!(*state.balances.get(&account(pr(111))).unwrap(), 19);
+            assert_eq!(*state.balances.get(&account(pr(112))).unwrap(), 50);
+            assert_eq!(*state.balances.get(&account(pr(113))).unwrap(), 97);
         })
     }
 
