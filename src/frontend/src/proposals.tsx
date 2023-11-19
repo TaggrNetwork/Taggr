@@ -476,7 +476,15 @@ export const ProposalView = ({
                 <>
                     <div className="bottom_half_spaced">
                         RECEIVER:{" "}
-                        <code>{hex(proposal.payload.ICPTransfer[0])}</code>
+                        <a
+                            href={`https://dashboard.internetcomputer.org/account/${hex(
+                                proposal.payload.ICPTransfer[0],
+                            )}`}
+                        >
+                            {chunks(hex(proposal.payload.ICPTransfer[0])).join(
+                                " ",
+                            )}
+                        </a>
                     </div>
                     <div className="bottom_spaced">
                         AMOUNT:{" "}
