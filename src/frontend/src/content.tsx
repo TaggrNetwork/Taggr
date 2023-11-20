@@ -123,6 +123,7 @@ const linkTagsAndUsersPart = (value: string) => {
     const tokenToHandle: { [token: string]: string } = {
         "@": "user",
         "#": "feed",
+        $: "feed",
         "/": "realm",
     };
 
