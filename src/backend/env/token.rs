@@ -1,4 +1,4 @@
-use super::MINUTE;
+use super::{parse_amount, MINUTE};
 use crate::*;
 use base64::{engine::general_purpose, Engine as _};
 use candid::{CandidType, Deserialize, Principal};
@@ -316,32 +316,13 @@ pub fn user_transfer(recipient: String, amount: String) -> Result<u64, String> {
         ));
     }
 
-    fn parse(amount: &str) -> Result<Token, String> {
-        let parse = |s: &str| {
-            s.parse::<u64>()
-                .map_err(|err| format!("Couldn't parse as u64: {:?}", err))
-        };
-        match &amount.split('.').collect::<Vec<_>>().as_slice() {
-            [tokens] => Ok(parse(tokens)? * 10_u64.pow(CONFIG.token_decimals as u32)),
-            [tokens, cents] => {
-                let mut cents = cents.to_string();
-                while cents.len() < CONFIG.token_decimals as usize {
-                    cents.push('0');
-                }
-                let cents = &cents[..CONFIG.token_decimals as usize];
-                Ok(parse(tokens)? * 10_u64.pow(CONFIG.token_decimals as u32) + parse(cents)?)
-            }
-            _ => Err(format!("Can't parse amount {}", amount)),
-        }
-    }
-
     let recipient_principal = Principal::from_text(recipient)
         .map_err(|err| format!("couldn't parse the recipient: {:?}", err))?;
 
     let transaction_id = icrc1_transfer(TransferArgs {
         from_subaccount: None,
         to: account(recipient_principal),
-        amount: parse(&amount)? as u128,
+        amount: parse_amount(&amount, CONFIG.token_decimals)? as u128,
         fee: Some(icrc1_fee()),
         memo: None,
         created_at_time: Some(time()),

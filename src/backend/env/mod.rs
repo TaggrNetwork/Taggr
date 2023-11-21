@@ -1105,7 +1105,7 @@ impl State {
     ) -> Result<Tokens, String> {
         State::claim_user_icp(principal).await?;
 
-        let amount = parse_icp_amount(amount)?;
+        let amount = Tokens::from_e8s(parse_amount(amount, 8)?);
         invoices::transfer(
             parse_account(&recipient)?,
             amount + invoices::fee(),
@@ -2373,24 +2373,22 @@ pub fn time() -> u64 {
     api::time()
 }
 
-pub fn parse_icp_amount(amount: &str) -> Result<Tokens, String> {
+pub fn parse_amount(amount: &str, token_decimals: u8) -> Result<u64, String> {
     let parse = |s: &str| {
         s.parse::<u64>()
-            .map_err(|err| format!("Couldn't parse as u64: {:?}", err))
+            .map_err(|err| format!("couldn't parse as u64: {:?}", err))
     };
     match &amount.split('.').collect::<Vec<_>>().as_slice() {
-        [icpts] => Ok(Tokens::from_e8s(parse(icpts)? * 10_u64.pow(8))),
-        [icpts, e8s] => {
-            let mut e8s = e8s.to_string();
-            while e8s.len() < 8 {
-                e8s.push('0');
+        [tokens] => Ok(parse(tokens)? * 10_u64.pow(token_decimals as u32)),
+        [tokens, after_comma] => {
+            let mut after_comma = after_comma.to_string();
+            while after_comma.len() < token_decimals as usize {
+                after_comma.push('0');
             }
-            let e8s = &e8s[..8];
-            Ok(Tokens::from_e8s(
-                parse(icpts)? * 10_u64.pow(8) + parse(e8s)?,
-            ))
+            let after_comma = &after_comma[..token_decimals as usize];
+            Ok(parse(tokens)? * 10_u64.pow(token_decimals as u32) + parse(after_comma)?)
         }
-        _ => Err(format!("Can't parse amount {}", amount)),
+        _ => Err(format!("can't parse amount {}", amount)),
     }
 }
 
@@ -2432,6 +2430,18 @@ pub(crate) mod tests {
             u.apply_rewards();
         }
         id
+    }
+
+    #[test]
+    fn test_amount_parsing() {
+        assert_eq!(parse_amount("12.34", 8), Ok(1234000000));
+        assert_eq!(parse_amount("0.0034", 8), Ok(340000));
+        assert_eq!(parse_amount("00.67", 2), Ok(67));
+        assert_eq!(parse_amount("1.25", 2), Ok(125));
+        assert_eq!(parse_amount("123.4567", 2), Ok(12345));
+        assert_eq!(parse_amount("777", 2), Ok(77700));
+        assert_eq!(parse_amount("0777", 2), Ok(77700));
+        assert!(parse_amount("34,56", 2).is_err());
     }
 
     #[test]

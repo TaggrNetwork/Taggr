@@ -6,7 +6,7 @@ use std::{
 use env::{
     canisters::get_full_neuron,
     config::{reaction_karma, CONFIG},
-    memory,
+    memory, parse_amount,
     post::{Extension, Post, PostId},
     proposals::{Release, Reward},
     storage::Storage,
@@ -23,7 +23,7 @@ use ic_cdk::{
 };
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
-use ic_ledger_types::AccountIdentifier;
+use ic_ledger_types::{AccountIdentifier, Tokens};
 use serde_bytes::ByteBuf;
 
 mod assets;
@@ -271,14 +271,14 @@ fn propose_icp_transfer() {
     reply({
         match (
             AccountIdentifier::from_hex(&receiver),
-            parse_icp_amount(&amount),
+            parse_amount(&amount, 8),
         ) {
             (Ok(account), Ok(amount)) => mutate(|state| {
                 proposals::propose(
                     state,
                     caller(),
                     description,
-                    proposals::Payload::ICPTransfer(account, amount),
+                    proposals::Payload::ICPTransfer(account, Tokens::from_e8s(amount)),
                     time(),
                 )
             }),
