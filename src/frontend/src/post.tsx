@@ -344,10 +344,7 @@ export const PostView = ({
                     </div>
                 )}
                 {commentAsPost && (
-                    <a
-                        className="reply_tag external"
-                        href={`#/thread/${post.id}`}
-                    >
+                    <a className="reply_tag" href={`#/thread/${post.id}`}>
                         {post.parent} &#8592;
                     </a>
                 )}

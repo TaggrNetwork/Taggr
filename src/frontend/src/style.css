@@ -271,6 +271,11 @@ a.iconed:hover {
     text-decoration: none;
 }
 
+a.external:hover {
+    filter: brightness(120%);
+    text-decoration: none;
+}
+
 a.external {
     border-radius: 5px;
     background: $clickable;
@@ -554,20 +559,41 @@ div.thumbnails {
     padding: 0.1em 0 0.1em 0;
 }
 
+.realm_span,
 .reply_tag {
-    border-top-left-radius: 0 !important;
-    border-bottom-left-radius: 0 !important;
+    padding: 0.5em;
+}
+
+.realm_span:hover,
+.reply_tag:hover {
+    filter: brightness(120%);
+}
+
+.reply_tag,
+.realm_tag {
+    cursor: pointer;
+    font-size: x-small;
+    font-weight: bold;
+    position: absolute;
+    top: 1em;
+    opacity: 0.85;
+}
+
+.reply_tag {
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+    background: $clickable;
+}
+
+a.reply_tag {
+    color: $light_background;
+    text-decoration: none;
 }
 
 .realm_tag {
-    cursor: pointer;
     border-top-left-radius: 5px;
     border-bottom-left-radius: 5px;
-    font-size: x-small;
-    position: absolute;
-    font-weight: bold;
     right: 0;
-    top: 1em;
 }
 
 .top_framed {
@@ -717,14 +743,6 @@ a.accent,
 
 .action path {
     fill: $clickable;
-}
-
-.realm_span {
-    padding: 0.5em;
-}
-
-.realm_span:hover {
-    filter: brightness(120%);
 }
 
 .clickable {
