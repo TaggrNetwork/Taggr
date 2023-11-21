@@ -286,7 +286,7 @@ export const PostView = ({
 
     let cls = "";
     if (!deleted && !isNSFW && !showReport) {
-        if (realmPost) cls = "realm_post";
+        if (realmPost || commentAsPost) cls = "top_padded_post";
         cls += isGallery ? " gallery_post" : " text_post";
     }
 
@@ -351,6 +351,7 @@ export const PostView = ({
                         {post.parent} &#8592;
                     </a>
                 )}
+                {realmPost && post.realm && <RealmRibbon name={post.realm} />}
                 {isComment && !commentAsPost && (
                     <span
                         className="thread_button clickable"
@@ -379,7 +380,6 @@ export const PostView = ({
                         />
                     </article>
                 )}
-                {realmPost && post.realm && <RealmRibbon name={post.realm} />}
                 {showExtension && "Poll" in post.extension && (
                     <PollView
                         poll={post.extension.Poll}

@@ -126,7 +126,7 @@ select {
     top: 1.25em;
 }
 
-.realm_post > .thread_button {
+.top_padded_post > .thread_button {
     top: 1.75em;
 }
 
@@ -159,9 +159,11 @@ select {
 .text_post {
     padding-top: 0.5em;
 }
-.realm_post {
-    padding-top: 1em;
+
+.top_padded_post {
+    padding-top: 1.5em;
 }
+
 .gallery_post {
     padding-top: 0;
 }
@@ -503,7 +505,7 @@ p > img {
 .comment img {
     max-width: 70%;
     border-radius: 10px;
-    margin: 2em;
+    margin: 1em;
 }
 
 article img {
@@ -787,7 +789,7 @@ a.accent,
 .comment .banner,
 .comment .nsfw,
 .comment .deleted {
-    margin: 1em;
+    margin: 1rem;
 }
 
 .banner,
