@@ -90,6 +90,10 @@ export const PostSubmissionForm = ({
                 alert(`Error: ${result.Err}`);
                 return false;
             }
+            // this is the rare case when a blob triggers the creation of a new bucket
+            if (window.backendCache.stats.buckets.length == 0) {
+                await window.reloadCache();
+            }
             postId = result.Ok;
         }
         window.resetUI();
