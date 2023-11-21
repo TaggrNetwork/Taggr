@@ -97,8 +97,13 @@ export const PostView = ({
             return;
         }
         if (post) {
-            // This is needed, becasue reactions are updated optimistically and we might have new ones in-flight.
-            data.reactions = post.reactions;
+            // since reactions are updated optimistically and we might have new ones in-flight, we need to merge this data
+            for (const reactionId in post.reactions) {
+                const newIDs = data.reactions[reactionId] || [];
+                data.reactions[reactionId] = [
+                    ...new Set(newIDs.concat(post.reactions[reactionId])),
+                ];
+            }
         }
         // if the post is in prime mode, load pics right away
         if (prime || repost) {
@@ -109,7 +114,7 @@ export const PostView = ({
 
     React.useEffect(() => {
         loadData(data);
-    }, [id, version]);
+    }, [id, version, data]);
 
     React.useEffect(() => {
         const article: any = refArticle.current;

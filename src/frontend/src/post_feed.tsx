@@ -16,6 +16,7 @@ export const PostFeed = ({
     highlighted,
     useList,
     journal,
+    refreshRateSecs = 0,
 }: {
     classNameArg?: string;
     focusedPost?: PostId;
@@ -29,6 +30,7 @@ export const PostFeed = ({
     highlighted?: PostId[];
     useList?: boolean;
     journal?: boolean;
+    refreshRateSecs?: number;
 }) => {
     const [page, setPage] = React.useState(0);
     const [posts, setPosts] = React.useState<Post[]>([]);
@@ -36,9 +38,24 @@ export const PostFeed = ({
     const [displayPageFlipper, setPageVlipperVisibility] = React.useState(
         !comments && !thread,
     );
+    const [refreshBeat, setRefreshBeat] = React.useState(0);
+
+    React.useEffect(() => {
+        if (!refreshRateSecs) return;
+        let t = setTimeout(async () => {
+            if (
+                Number(new Date()) - Number(window.lastActivity) >=
+                refreshRateSecs * 1000
+            ) {
+                setRefreshBeat(refreshBeat + 1);
+            }
+            return () => clearTimeout(t);
+        }, refreshRateSecs * 1000);
+    }, [refreshBeat, refreshRateSecs]);
 
     const loadPage = async (page: number) => {
-        setLoading(true);
+        // only show the loading indicator on the first load
+        setLoading(refreshBeat == 0);
         const loadedPost = await feedLoader(page, !!includeComments);
         if (!loadedPost) return;
         let nextPosts = loadedPost.map(expandUser);
@@ -51,7 +68,7 @@ export const PostFeed = ({
     React.useEffect(() => {
         setPage(0);
         loadPage(0);
-    }, [heartbeat]);
+    }, [heartbeat, refreshBeat]);
 
     const itemRenderer = (post: Post, lastItem?: boolean) => (
         <PostView

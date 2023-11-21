@@ -10,23 +10,7 @@ import {
 } from "./common";
 import { New, User, Fire, Realm } from "./icons";
 
-const REFRESH_RATE_SECS = 10 * 60;
-
 export const Landing = () => {
-    const [heartbeat, setHeartbeat] = React.useState(0);
-
-    React.useEffect(() => {
-        let t = setTimeout(async () => {
-            if (
-                Number(new Date()) - Number(window.lastActivity) >=
-                REFRESH_RATE_SECS * 1000
-            ) {
-                setHeartbeat(heartbeat + 1);
-            }
-            return () => clearTimeout(t);
-        }, REFRESH_RATE_SECS * 1000);
-    }, [heartbeat]);
-
     const user = window.user;
     const realm = currentRealm();
     const FEED_KEY = `${realm}_feed`;
@@ -83,11 +67,12 @@ export const Landing = () => {
             )}
             <TagCloud
                 size={bigScreen() ? 60 : 30}
-                heartbeat={heartbeat}
+                heartbeat={feed}
                 realm={realm}
             />
             <PostFeed
-                heartbeat={heartbeat + feed}
+                heartbeat={feed}
+                refreshRateSecs={10 * 60}
                 title={title}
                 feedLoader={async (page) => {
                     setTitle(feed);
