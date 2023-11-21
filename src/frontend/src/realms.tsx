@@ -7,7 +7,7 @@ import {
     HeadBar,
     Loading,
     realmColors,
-    RealmRibbon,
+    RealmSpan,
     setTitle,
     ToggleButton,
     userList,
@@ -160,7 +160,11 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         value={labelColor}
                         onChange={(ev) => setLabelColor(ev.target.value)}
                     />
-                    <RealmRibbon col={labelColor} name={name} />
+                    <RealmSpan
+                        classNameArg="realm_tag"
+                        col={labelColor}
+                        name={name}
+                    />
                 </div>
                 <div className="column_container bottom_spaced">
                     <div className="bottom_half_spaced">DESCRIPTION</div>
@@ -563,7 +567,10 @@ export const Realms = () => {
                                 className="stands_out"
                                 style={{ position: "relative" }}
                             >
-                                <RealmRibbon name={name} />
+                                <RealmSpan
+                                    classNameArg="realm_tag"
+                                    name={name}
+                                />
                                 <h3 className="vcentered">
                                     {realm.logo && (
                                         <img

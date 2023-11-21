@@ -87,15 +87,6 @@ export const Unauthorized = () => (
 
 export const bigScreen = () => window.innerWidth >= 1024;
 
-export const RealmRibbon = ({ col, name }: { col?: string; name: string }) => (
-    <RealmSpan
-        name={name}
-        col={col}
-        classNameArg="realm_tag"
-        onClick={() => (location.href = `/#/realm/${name}`)}
-    />
-);
-
 export const HeadBar = ({
     title,
     shareLink,
@@ -185,7 +176,7 @@ export const RealmSpan = ({
     col?: string;
     name: string;
     classNameArg?: string;
-    onClick: () => void;
+    onClick?: () => void;
     styleArg?: any;
 }) => {
     if (!name) return null;

@@ -16,7 +16,7 @@ import {
     reactionCosts,
     loadPosts,
     ReactionToggleButton,
-    RealmRibbon,
+    RealmSpan,
     setTitle,
     ButtonWithLoading,
     bigScreen,
@@ -343,12 +343,6 @@ export const PostView = ({
                         </ol>
                     </div>
                 )}
-                {commentAsPost && (
-                    <a className="reply_tag" href={`#/thread/${post.id}`}>
-                        {post.parent} &#8592;
-                    </a>
-                )}
-                {realmPost && post.realm && <RealmRibbon name={post.realm} />}
                 {isComment && !commentAsPost && (
                     <span
                         className="thread_button clickable"
@@ -376,6 +370,18 @@ export const PostView = ({
                             forceCollapsing={forceCollapsing}
                         />
                     </article>
+                )}
+                {commentAsPost && (
+                    <a className="reply_tag" href={`#/thread/${post.id}`}>
+                        {post.parent} &#8592;
+                    </a>
+                )}
+                {realmPost && post.realm && (
+                    <RealmSpan
+                        name={post.realm}
+                        classNameArg="realm_tag"
+                        onClick={() => (location.href = `/#/realm/${name}`)}
+                    />
                 )}
                 {showExtension && "Poll" in post.extension && (
                     <PollView
