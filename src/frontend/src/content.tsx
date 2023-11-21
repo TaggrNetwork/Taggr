@@ -337,7 +337,8 @@ const markdownizer = (
                             return (
                                 <>{splitParagraphsAndPics(children, isPic)}</>
                             );
-                    } else if (isPic(children)) return <>{children}</>;
+                    } else if (isPic(children))
+                        return <Gallery children={[children]} />;
                     return <p {...props}>{children}</p>;
                 },
                 img: ({ node, ...props }: any) => {
