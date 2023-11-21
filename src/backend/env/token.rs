@@ -338,7 +338,7 @@ pub fn user_transfer(recipient: String, amount: String) -> Result<u64, String> {
     let recipient_principal = Principal::from_text(recipient)
         .map_err(|err| format!("couldn't parse the recipient: {:?}", err))?;
 
-    let result = icrc1_transfer(TransferArgs {
+    let transaction_id = icrc1_transfer(TransferArgs {
         from_subaccount: None,
         to: account(recipient_principal),
         amount: parse(&amount)? as u128,
@@ -347,7 +347,7 @@ pub fn user_transfer(recipient: String, amount: String) -> Result<u64, String> {
         created_at_time: Some(time()),
     })
     .map(|n| n as u64)
-    .map_err(|err| format!("transfer failed: {:?}", err));
+    .map_err(|err| format!("transfer failed: {:?}", err))?;
 
     mutate(|state| {
         if let (Some(sender_name), Some(recipient)) = (
@@ -363,7 +363,7 @@ pub fn user_transfer(recipient: String, amount: String) -> Result<u64, String> {
         }
     });
 
-    result
+    Ok(transaction_id)
 }
 
 #[cfg(test)]
