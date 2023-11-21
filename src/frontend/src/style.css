@@ -779,26 +779,26 @@ a.accent,
 }
 
 .banner,
-.banner2 {
+.nsfw {
     text-align: center;
 }
 
 .comment .banner,
-.comment .banner2,
+.comment .nsfw,
 .comment .banner3 {
     margin: 1em;
 }
 
 .banner,
-.banner2,
+.nsfw,
 .banner3 {
     padding: 1em;
     border-radius: 10px;
 }
 
-.banner2 {
-    background: $clickable;
-    color: $light_background;
+.nsfw {
+    background: $dark_background;
+    color: $clickable;
 }
 
 .banner3 {
@@ -896,7 +896,7 @@ label svg {
     }
 
     .banner,
-    .banner2,
+    .nsfw,
     .banner3 {
         border-radius: 0;
     }

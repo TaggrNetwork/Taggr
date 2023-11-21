@@ -317,10 +317,12 @@ export const PostView = ({
                 )}
                 {isNSFW && (
                     <div
-                        className="post_head banner2 x_large_text"
+                        className={`${
+                            isComment ? "" : "post_head"
+                        } nsfw x_large_text`}
                         onClick={() => setSafeToOpen(true)}
                     >
-                        #NSFW
+                        NSFW
                     </div>
                 )}
                 {deleted && (
