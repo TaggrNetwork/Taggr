@@ -318,7 +318,7 @@ export const PostView = ({
                 {isNSFW && (
                     <div
                         className={`${
-                            isComment ? "" : "post_head"
+                            isCommentView ? "" : "post_head"
                         } nsfw x_large_text`}
                         onClick={() => setSafeToOpen(true)}
                     >
@@ -326,7 +326,11 @@ export const PostView = ({
                     </div>
                 )}
                 {deleted && (
-                    <div className="post_head banner3 small_text">
+                    <div
+                        className={`${
+                            isCommentView ? "" : "post_head"
+                        } deleted small_text`}
+                    >
                         <h3>Post deleted</h3>
                         <ol>
                             {post.hashes.map((hash) => (

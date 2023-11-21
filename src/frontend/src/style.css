@@ -501,8 +501,9 @@ p > img {
 }
 
 .comment img {
-    max-width: 80%;
+    max-width: 70%;
     border-radius: 10px;
+    margin: 2em;
 }
 
 article img {
@@ -785,13 +786,13 @@ a.accent,
 
 .comment .banner,
 .comment .nsfw,
-.comment .banner3 {
+.comment .deleted {
     margin: 1em;
 }
 
 .banner,
 .nsfw,
-.banner3 {
+.deleted {
     padding: 1em;
     border-radius: 10px;
 }
@@ -801,7 +802,7 @@ a.accent,
     color: $clickable;
 }
 
-.banner3 {
+.deleted {
     background: $dark_background;
 }
 
@@ -895,9 +896,7 @@ label svg {
         justify-self: left;
     }
 
-    .banner,
-    .nsfw,
-    .banner3 {
+    .banner {
         border-radius: 0;
     }
 
@@ -934,6 +933,10 @@ label svg {
 
     .db_cell {
         font-size: medium;
+    }
+
+    .post_head {
+        border-radius: 0;
     }
 
     article img {

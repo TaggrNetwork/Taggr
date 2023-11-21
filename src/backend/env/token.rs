@@ -335,19 +335,35 @@ pub fn user_transfer(recipient: String, amount: String) -> Result<u64, String> {
         }
     }
 
-    icrc1_transfer(TransferArgs {
+    let recipient_principal = Principal::from_text(recipient)
+        .map_err(|err| format!("couldn't parse the recipient: {:?}", err))?;
+
+    let result = icrc1_transfer(TransferArgs {
         from_subaccount: None,
-        to: account(
-            Principal::from_text(recipient)
-                .map_err(|err| format!("couldn't parse the recipient: {:?}", err))?,
-        ),
+        to: account(recipient_principal),
         amount: parse(&amount)? as u128,
         fee: Some(icrc1_fee()),
         memo: None,
         created_at_time: Some(time()),
     })
     .map(|n| n as u64)
-    .map_err(|err| format!("transfer failed: {:?}", err))
+    .map_err(|err| format!("transfer failed: {:?}", err));
+
+    mutate(|state| {
+        if let (Some(sender_name), Some(recipient)) = (
+            state
+                .principal_to_user(caller())
+                .map(|user| user.name.clone()),
+            state.principal_to_user_mut(recipient_principal),
+        ) {
+            recipient.notify(format!(
+                "You received `{}` ${} from @{}! 💸",
+                amount, CONFIG.token_symbol, sender_name
+            ));
+        }
+    });
+
+    result
 }
 
 #[cfg(test)]
