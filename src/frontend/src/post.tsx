@@ -380,7 +380,9 @@ export const PostView = ({
                     <RealmSpan
                         name={post.realm}
                         classNameArg="realm_tag"
-                        onClick={() => (location.href = `/#/realm/${name}`)}
+                        onClick={() =>
+                            (location.href = `/#/realm/${post.realm}`)
+                        }
                     />
                 )}
                 {showExtension && "Poll" in post.extension && (
