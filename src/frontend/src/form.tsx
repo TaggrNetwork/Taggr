@@ -652,9 +652,6 @@ const suggestTokens = (
             .filter((tag) => tag.length > currentTag.length)
             .filter((tag) =>
                 tag.toLowerCase().startsWith(currentTag.toLowerCase()),
-            )
-            .map(
-                (tag) => currentTag + tag.slice(currentTag.length, tag.length),
             );
         result.sort((a, b): number => {
             if (a.length != b.length) {

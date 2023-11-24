@@ -1777,16 +1777,15 @@ impl State {
         realm: Option<String>,
         n: u64,
     ) -> Vec<(String, u64)> {
-        // normalized hashtag -> (user spelled hashtag, occurences)
-        let mut tags: HashMap<String, (String, u64)> = Default::default();
+        let mut tags: HashMap<String, u64> = Default::default();
         let mut tags_found = 0;
         'OUTER: for post in self
             .last_posts(caller, realm, true)
             .take_while(|post| !post.archived)
         {
             for tag in &post.tags {
-                let (_, counter) = tags.entry(tag.to_lowercase()).or_insert((tag.clone(), 0));
-                // We only count tags occurences on root posts, if they have comments or reactions
+                let counter = tags.entry(tag.clone()).or_insert(0);
+                // We only count tags occurrences on root posts, if they have comments or reactions
                 if post.parent.is_some() || post.reactions.is_empty() && post.children.is_empty() {
                     continue;
                 }
@@ -1799,9 +1798,7 @@ impl State {
                 break 'OUTER;
             }
         }
-        tags.into_iter()
-            .filter_map(|(_, (tag, count))| (count > 1).then_some((tag, count)))
-            .collect()
+        tags.into_iter().filter(|(_, count)| *count > 1).collect()
     }
 
     /// Returns an iterator of posts from the root post to the post `id`.
