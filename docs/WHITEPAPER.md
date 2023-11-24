@@ -90,7 +90,10 @@ For confirmed reports:
 If stalwarts dismiss the report, the reporter loses half the penalty as cycles and karma points.
 In both cases, participating stalwarts share karma points from the penalty fee, capped at `$stalwart_moderation_reward`.
 
-## Proposals
+## Governance
+
+$name is governed via proposals.
+There are proposals for upgrading the main smart contract, for minting new tokens for funding & rewards and for transfering ICP out of the treasury for off-chains activities of the DAO.
 
 A proposal succeeds if `$proposal_approval_threshold%` of users approve it or fails if `(100 - $proposal_approval_threshold)%` of users reject it.
 Only tokens of registered users active within `$voting_power_activity_weeks` weeks count as participating votes.
@@ -100,8 +103,12 @@ The total voting power of all registered users required to adopt or reject a pro
 This is achieved by multiplying the total available voting power by a factor `d%`, where `d` is the number of days the proposal remains open.
 This ensures any proposal eventually passes within `100` days.
 
-Voting is rewarded with `$voting_reward` karma points.
-When a proposal is pending, rewards and token minting are deferred until this proposal is rejected or adopted.
+Voting on a proposal is rewarded with `$voting_reward` karma points.
+
+For any pending proposal the following holds until it gets adopted, rejected or cancelled:
+
+-   the $$token_symbol tokens of voters who voted on that proposal are locked and cannot be transferred;
+-   the rewards and the token minting are deferred for everyone.
 
 ## Tokenomics
 
