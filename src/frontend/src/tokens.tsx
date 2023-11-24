@@ -100,10 +100,10 @@ export const Tokens = () => {
             <div className="spaced">
                 <div className="dynamic_table vertically_spaced">
                     <div className="db_cell">
-                        MINTED<code>{token(mintedSupply)}</code>
+                        CIRCULATING<code>{token(mintedSupply)}</code>
                     </div>
                     <div className="db_cell">
-                        TOTAL<code>{token(total_supply)}</code>
+                        MAXIMUM<code>{token(total_supply)}</code>
                     </div>
                     <div className="db_cell">
                         HOLDERS<code>{holders}</code>

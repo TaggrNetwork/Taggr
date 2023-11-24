@@ -190,7 +190,7 @@ impl User {
 
     pub fn clear_notifications(&mut self, ids: Vec<String>) {
         if ids.is_empty() {
-            self.inbox = Default::default();
+            self.inbox.clear();
         } else {
             ids.into_iter().for_each(|id| {
                 self.inbox.remove(&id);
