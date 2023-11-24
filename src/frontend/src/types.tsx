@@ -252,6 +252,7 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                min_stalwart_karma: number;
                 min_credits_for_inviting: number;
                 max_credits_mint_kilos: number;
                 logo: string;

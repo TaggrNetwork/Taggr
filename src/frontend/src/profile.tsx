@@ -647,7 +647,7 @@ const stalwart = (profile: User) =>
 
 const stalwartMinKarma = () =>
     Math.min(
-        window.backendCache.config.proposal_rejection_penalty,
+        window.backendCache.config.min_stalwart_karma,
         window.backendCache.karma[
             window.backendCache.stats.stalwarts.at(-1) || 0
         ] || 0,
