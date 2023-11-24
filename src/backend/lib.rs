@@ -1000,8 +1000,8 @@ fn stats() {
 
 #[export_name = "canister_query search"]
 fn search() {
-    let term: String = parse(&arg_data_raw());
-    read(|state| reply(state.search(term)));
+    let query: String = parse(&arg_data_raw());
+    read(|state| reply(env::search::search(state, query)));
 }
 
 #[query]

@@ -30,6 +30,7 @@ pub mod memory;
 pub mod post;
 pub mod proposals;
 pub mod reports;
+pub mod search;
 pub mod storage;
 pub mod token;
 pub mod user;
@@ -50,15 +51,6 @@ pub struct NNSProposal {
     pub proposer: u64,
     pub title: String,
     pub summary: String,
-}
-
-#[derive(Default, Deserialize, Serialize)]
-pub struct SearchResult {
-    pub id: PostId,
-    pub user_id: UserId,
-    pub generic_id: String,
-    pub result: String,
-    pub relevant: String,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -770,110 +762,6 @@ impl State {
             });
             self.users.get_mut(&user_id).expect("no user found").inbox = inbox;
         }
-    }
-
-    pub fn search(&self, mut term: String) -> Vec<SearchResult> {
-        const SNIPPET_LEN: usize = 100;
-        term = term.to_lowercase();
-        let snippet = |body: &str, i: usize| {
-            if body.len() < SNIPPET_LEN {
-                body.to_string()
-            } else {
-                body.chars()
-                    .skip(i.saturating_sub(SNIPPET_LEN / 2))
-                    .skip_while(|c| c.is_alphanumeric())
-                    .take(SNIPPET_LEN)
-                    .skip_while(|c| c.is_alphanumeric())
-                    .collect::<String>()
-            }
-            .replace('\n', " ")
-        };
-        self.users
-            .iter()
-            .filter_map(
-                |(
-                    id,
-                    User {
-                        name,
-                        about,
-                        previous_names,
-                        ..
-                    },
-                )| {
-                    if format!("@{} {0} {} {} {:?}", name, id, about, previous_names)
-                        .to_lowercase()
-                        .contains(&term)
-                    {
-                        return Some(SearchResult {
-                            id: *id,
-                            relevant: about.clone(),
-                            result: "user".to_string(),
-                            ..Default::default()
-                        });
-                    }
-                    None
-                },
-            )
-            .chain(self.realms.iter().filter_map(|(id, realm)| {
-                if id.to_lowercase().contains(&term) {
-                    return Some(SearchResult {
-                        generic_id: id.clone(),
-                        relevant: snippet(realm.description.as_str(), 0),
-                        result: "realm".to_string(),
-                        ..Default::default()
-                    });
-                }
-                if let Some(i) = realm.description.to_lowercase().find(&term) {
-                    return Some(SearchResult {
-                        generic_id: id.clone(),
-                        relevant: snippet(realm.description.as_str(), i),
-                        result: "realm".to_string(),
-                        ..Default::default()
-                    });
-                }
-                None
-            }))
-            .chain(
-                self.recent_tags(Principal::anonymous(), None, 500)
-                    .into_iter()
-                    .filter_map(|(tag, _)| {
-                        if format!("#{} {0}", tag).to_lowercase().contains(&term) {
-                            return Some(SearchResult {
-                                relevant: tag,
-                                result: "tag".to_string(),
-                                ..Default::default()
-                            });
-                        }
-                        None
-                    }),
-            )
-            .chain(
-                self.last_posts(Principal::anonymous(), None, true)
-                    .filter_map(|Post { id, body, user, .. }| {
-                        if id.to_string() == term {
-                            return Some(SearchResult {
-                                id: *id,
-                                user_id: *user,
-                                relevant: snippet(body, 0),
-                                result: "post".to_string(),
-                                ..Default::default()
-                            });
-                        }
-                        let search_body = body.to_lowercase();
-                        if let Some(i) = search_body.find(&term) {
-                            return Some(SearchResult {
-                                id: *id,
-                                user_id: *user,
-                                relevant: snippet(body, i),
-                                result: "post".to_string(),
-                                ..Default::default()
-                            });
-                        }
-                        None
-                    }),
-            )
-            .take(100)
-            .collect()
     }
 
     async fn top_up() {
