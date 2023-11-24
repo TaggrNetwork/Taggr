@@ -20,7 +20,7 @@ import {
 import { Content } from "./content";
 import { Journal } from "./icons";
 import { PostFeed } from "./post_feed";
-import { Cycles, YinYan } from "./icons";
+import { Credits, YinYan } from "./icons";
 import { User, UserId } from "./types";
 
 export const Profile = ({ handle }: { handle: string }) => {
@@ -135,24 +135,24 @@ export const Profile = ({ handle }: { handle: string }) => {
                                 />
                                 {user.id != profile.id && (
                                     <ButtonWithLoading
-                                        label="SEND CYCLES"
+                                        label="SEND CREDITS"
                                         classNameArg="max_width_col"
                                         onClick={async () => {
                                             const amount = parseInt(
                                                 prompt(
-                                                    `Enter the amount (fee: 1 cycle)`,
+                                                    `Enter the amount (fee: 1 credit)`,
                                                 ) || "",
                                             );
                                             if (!amount) return;
                                             if (
                                                 !confirm(
-                                                    `You are transferring ${amount} cycles to @${profile.name}`,
+                                                    `You are transferring ${amount} credits to @${profile.name}`,
                                                 )
                                             )
                                                 return;
                                             let result =
                                                 await window.api.call<any>(
-                                                    "transfer_cycles",
+                                                    "transfer_credits",
                                                     profile.id,
                                                     amount,
                                                 );
@@ -235,7 +235,7 @@ export const Profile = ({ handle }: { handle: string }) => {
             {profile.accounting.length > 0 && (
                 <>
                     <div className="spaced">
-                        <h2>Karma and Cycles Changes</h2>
+                        <h2>Karma and Credits Changes</h2>
                         <table
                             style={{ width: "100%" }}
                             className={bigScreen() ? undefined : "small_text"}
@@ -263,7 +263,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                             {type == "KRM" ? (
                                                 <YinYan />
                                             ) : (
-                                                <Cycles />
+                                                <Credits />
                                             )}
                                         </td>
                                         <td style={{ textAlign: "right" }}>
@@ -498,7 +498,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     </code>
                 </div>
                 <div className="db_cell">
-                    CYCLES
+                    CREDITS
                     <code>{`${profile.cycles.toLocaleString()}`}</code>
                 </div>
                 <div className="db_cell">

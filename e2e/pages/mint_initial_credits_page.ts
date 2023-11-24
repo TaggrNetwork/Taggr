@@ -2,17 +2,17 @@ import { AccountIdentifier } from "@dfinity/ledger-icp";
 import { Locator, Page } from "@playwright/test";
 import { icpToE8s } from "../support";
 
-export class MintInitialCyclesPage {
+export class MintInitialCreditsPage {
     public readonly createUserButton: Locator;
 
-    private readonly mintCyclesButton: Locator;
+    private readonly mintCreditsButton: Locator;
     private readonly icpAmountElement: Locator;
     private readonly icpAccountElement: Locator;
     private readonly checkPaymentButton: Locator;
 
     constructor(page: Page) {
-        this.mintCyclesButton = page.locator("button", {
-            hasText: "MINT CYCLES",
+        this.mintCreditsButton = page.locator("button", {
+            hasText: "MINT CREDITS",
         });
         this.icpAmountElement = page.getByTestId("amount-to-transfer");
         this.icpAccountElement = page.getByTestId("account-to-transfer-to");
@@ -24,8 +24,8 @@ export class MintInitialCyclesPage {
         });
     }
 
-    public async mintCycles(): Promise<void> {
-        await this.mintCyclesButton.click();
+    public async mintCredits(): Promise<void> {
+        await this.mintCreditsButton.click();
     }
 
     public async getIcpAmount(): Promise<bigint> {

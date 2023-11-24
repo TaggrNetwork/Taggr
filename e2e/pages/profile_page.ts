@@ -3,7 +3,7 @@ import { CommonUser, textToNumber } from "../support";
 import { PostElement } from "../elements";
 
 export class ProfilePage {
-    private readonly cycles: Locator;
+    private readonly credits: Locator;
     private readonly newKarma: Locator;
     private readonly postCount: Locator;
     private readonly tokenBalance: Locator;
@@ -15,8 +15,8 @@ export class ProfilePage {
         private readonly page: Page,
         private readonly user: CommonUser,
     ) {
-        this.cycles = page
-            .locator("div:has-text('CYCLES') > code")
+        this.credits = page
+            .locator("div:has-text('CREDITS') > code")
             .locator("visible=true");
         this.newKarma = page
             .locator("div:has-text('NEW KARMA') > code")
@@ -48,10 +48,10 @@ export class ProfilePage {
         await this.page.goto(`/#/user/${this.user.username}`);
     }
 
-    public async getCyclesBalance(): Promise<number> {
-        const cyclesString = await this.cycles.innerText();
+    public async getCreditsBalance(): Promise<number> {
+        const creditsString = await this.credits.innerText();
 
-        return textToNumber(cyclesString);
+        return textToNumber(creditsString);
     }
 
     public async getNewKarmaBalance(): Promise<number> {

@@ -1,11 +1,11 @@
 import * as React from "react";
 import { bigScreen, CopyToClipboard, HeadBar, Loading } from "./common";
-import { Cycles } from "./icons";
+import { Credits } from "./icons";
 import { trusted } from "./profile";
 
 export const Invites = () => {
-    const [cycles, setCycles] = React.useState(
-        window.backendCache.config.min_cycles_for_inviting,
+    const [credits, setCredits] = React.useState(
+        window.backendCache.config.min_credits_for_inviting,
     );
     const [invites, setInvites] = React.useState<[string, number][]>([]);
     const [busy, setBusy] = React.useState(false);
@@ -43,18 +43,21 @@ export const Invites = () => {
                     <li>
                         Every invite is a funded by at least{" "}
                         <code>
-                            {window.backendCache.config.min_cycles_for_inviting}
+                            {
+                                window.backendCache.config
+                                    .min_credits_for_inviting
+                            }
                         </code>{" "}
-                        cycles: you will be charged once the invite is used.
+                        credits: you will be charged once the invite is used.
                     </li>
                     <li>
-                        Active users have a budget of free cycles for invites.
-                        This budget is topped up weekly. Your current cycles
+                        Active users have a budget of free credits for invites.
+                        This budget is topped up weekly. Your current credits
                         budget is <code>{window.user.invites_budget}</code>{" "}
-                        cycles.
+                        credits.
                     </li>
                     <li>
-                        The invite will not work if your invite budget or cycle
+                        The invite will not work if your invite budget or credit
                         balance drops below the amount attached to the invite.
                     </li>
                     <li>Invites are not cancelable.</li>
@@ -62,10 +65,10 @@ export const Invites = () => {
                 <div className="vcentered">
                     <input
                         type="number"
-                        value={cycles}
+                        value={credits}
                         className="max_width_col"
                         onChange={(event) =>
-                            setCycles(parseInt(event.target.value))
+                            setCredits(parseInt(event.target.value))
                         }
                     />
                     {!busy && (
@@ -75,7 +78,7 @@ export const Invites = () => {
                                 setBusy(true);
                                 const result = await window.api.call<any>(
                                     "create_invite",
-                                    cycles,
+                                    credits,
                                 );
                                 if ("Err" in result)
                                     alert(`Failed: ${result.Err}`);
@@ -94,17 +97,17 @@ export const Invites = () => {
                         <thead>
                             <tr>
                                 <th align="right">
-                                    <Cycles />
+                                    <Credits />
                                 </th>
                                 <th align="right">CODE</th>
                                 <th align="right">URL</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {invites.map(([code, cycles]) => (
+                            {invites.map(([code, credits]) => (
                                 <tr key={code}>
                                     <td align="right">
-                                        <code>{cycles}</code>
+                                        <code>{credits}</code>
                                     </td>
                                     <td align="right">
                                         <CopyToClipboard

@@ -68,7 +68,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         if (nameChange) {
             if (
                 !confirm(
-                    `A name change incurs costs of ${window.backendCache.config.name_change_cost} cycles. ` +
+                    `A name change incurs costs of ${window.backendCache.config.name_change_cost} credits. ` +
                         `Moreover, the old name will still route to your profile. ` +
                         `Do you want to continue?`,
                 )

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::token::Token;
 
-use super::{Cycles, Karma};
+use super::{Credits, Karma};
 use candid::CandidType;
 use serde::Serialize;
 
@@ -16,12 +16,12 @@ pub struct Config {
     pub staging: &'static str,
 
     pub transaction_fee: u64,
-    pub cycle_transaction_fee: u64,
+    pub credit_transaction_fee: u64,
     pub token_decimals: u8,
     pub token_symbol: &'static str,
     pub total_supply: Token,
 
-    pub native_cycles_per_xdr: Cycles,
+    pub credits_per_xdr: u64,
 
     pub individual_minting_threshold_percentage: u64,
     pub minting_threshold_percentage: u64,
@@ -34,10 +34,10 @@ pub struct Config {
 
     pub proposal_approval_threshold: u16,
     pub proposal_controversy_threashold: u16,
-    pub proposal_rejection_penalty: Cycles,
+    pub proposal_rejection_penalty: Credits,
     pub min_stalwart_karma: Karma,
 
-    pub max_cycles_mint_kilos: u64,
+    pub max_credits_mint_kilos: u64,
 
     pub dao_realm: &'static str,
 
@@ -50,43 +50,43 @@ pub struct Config {
 
     pub feed_page_size: usize,
 
-    pub reporting_penalty_post: Cycles,
-    pub reporting_penalty_misbehaviour: Cycles,
+    pub reporting_penalty_post: Credits,
+    pub reporting_penalty_misbehaviour: Credits,
 
-    pub minimal_tip: Cycles,
+    pub minimal_tip: Credits,
 
     pub num_hot_posts: usize,
 
     pub trusted_user_min_karma: Karma,
     pub trusted_user_min_age_weeks: u64,
 
-    pub post_cost: Cycles,
-    pub tag_cost: Cycles,
-    pub blob_cost: Cycles,
-    pub poll_cost: Cycles,
-    pub realm_cost: Cycles,
+    pub post_cost: Credits,
+    pub tag_cost: Credits,
+    pub blob_cost: Credits,
+    pub poll_cost: Credits,
+    pub realm_cost: Credits,
 
     pub poll_revote_deadline_hours: u64,
 
-    pub name_change_cost: Cycles,
+    pub name_change_cost: Credits,
 
     pub max_realm_name: usize,
     pub max_realm_logo_len: usize,
 
-    pub realm_cleanup_penalty: Cycles,
+    pub realm_cleanup_penalty: Credits,
 
-    pub response_reward: Cycles,
+    pub response_reward: Credits,
 
-    pub inactivity_penalty: Cycles,
+    pub inactivity_penalty: Credits,
     pub inactivity_duration_weeks: u64,
 
-    pub voting_reward: Cycles,
+    pub voting_reward: Credits,
 
     // top x percentage of users selected as stalwarts
     pub stalwart_percentage: usize,
     pub min_stalwart_activity_weeks: u8,
     pub min_stalwart_account_age_weeks: u8,
-    pub stalwart_moderation_reward: Cycles,
+    pub stalwart_moderation_reward: Credits,
 
     // percentage of stalwarts needed to confirm a report
     pub report_confirmation_percentage: u16,
@@ -98,8 +98,8 @@ pub struct Config {
     pub max_user_info_length: usize,
     pub max_blob_size_bytes: usize,
 
-    pub min_cycles_for_inviting: Cycles,
-    pub invites_budget_cycles: Cycles,
+    pub min_credits_for_inviting: Credits,
+    pub invites_budget_credits: Credits,
 
     pub online_activity_minutes: u64,
 
@@ -110,7 +110,7 @@ pub struct Config {
 
     pub min_positive_reaction_id: u16,
 
-    pub reaction_fee: Cycles,
+    pub reaction_fee: Credits,
 
     pub max_funding_amount: u64,
 
@@ -154,16 +154,16 @@ pub const CONFIG: &Config = &Config {
     token_symbol: "STAGG",
     token_decimals: 2,
     transaction_fee: 25,
-    cycle_transaction_fee: 1,
+    credit_transaction_fee: 1,
 
-    native_cycles_per_xdr: 1000,
+    credits_per_xdr: 1000,
 
     min_treasury_balance_xdrs: 38, // ~$50
 
     individual_minting_threshold_percentage: 1,
     minting_threshold_percentage: 5,
 
-    max_cycles_mint_kilos: 10,
+    max_credits_mint_kilos: 10,
 
     #[cfg(not(feature = "dev"))]
     bootstrap_phase_user_number: 25,
@@ -234,8 +234,8 @@ pub const CONFIG: &Config = &Config {
     reporting_penalty_post: 200,
     reporting_penalty_misbehaviour: 1000,
 
-    min_cycles_for_inviting: 50,
-    invites_budget_cycles: 300,
+    min_credits_for_inviting: 50,
+    invites_budget_credits: 300,
 
     post_cost: 2,
     tag_cost: 3,

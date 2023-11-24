@@ -65,7 +65,7 @@ impl Invoices {
         self.invoices.remove(invoice_id);
     }
 
-    pub async fn outstanding(invoice_id: &Principal, kilo_cycles: u64) -> Result<Invoice, String> {
+    pub async fn outstanding(invoice_id: &Principal, kilo_credits: u64) -> Result<Invoice, String> {
         let invoice = match read(|state| state.accounting.invoices.get(invoice_id).cloned()) {
             Some(invoice) => invoice,
             None => {
@@ -83,7 +83,7 @@ impl Invoices {
             return Ok(invoice);
         }
         let balance = account_balance(invoice.account).await;
-        let costs = Tokens::from_e8s(kilo_cycles.max(1) * invoice.e8s);
+        let costs = Tokens::from_e8s(kilo_credits.max(1) * invoice.e8s);
         if balance >= costs {
             transfer(main_account(), costs, Memo(999), Some(invoice.sub_account)).await?;
             mutate(|state| {
@@ -92,7 +92,7 @@ impl Invoices {
                     invoice.paid_e8s = costs.e8s();
                 }
             });
-        } else if kilo_cycles > 0 {
+        } else if kilo_credits > 0 {
             return Err(format!("ICP balance too low (needed: {} ICP)", costs));
         }
         read(|state| state.accounting.invoices.get(invoice_id).cloned())

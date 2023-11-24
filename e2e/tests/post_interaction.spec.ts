@@ -15,28 +15,28 @@ test("love heart a post", async ({ page, browser }) => {
     });
     const globalNavigation = new GlobalNavigationElement(page, user);
 
-    const cyclesBalance =
-        await test.step("check initial cycles and new karma", async () => {
+    const creditsBalance =
+        await test.step("check initial credits and new karma", async () => {
             const profilePage = await globalNavigation.goToProfilePage();
 
-            const cyclesBalance = await profilePage.getCyclesBalance();
-            expect(cyclesBalance).toEqual(1000);
+            const creditsBalance = await profilePage.getCreditsBalance();
+            expect(creditsBalance).toEqual(1000);
 
             const newKarmaBalance = await profilePage.getNewKarmaBalance();
             expect(newKarmaBalance).toEqual(0);
 
-            return cyclesBalance;
+            return creditsBalance;
         });
 
     const postContent = await test.step("create post", async () => {
         return await createPost(page, user);
     });
 
-    await test.step("check cycles and new karma after post creation", async () => {
+    await test.step("check credits and new karma after post creation", async () => {
         const profilePage = await globalNavigation.goToProfilePage();
 
-        const updatedCyclesBalance = await profilePage.getCyclesBalance();
-        expect(updatedCyclesBalance).toEqual(cyclesBalance - 2);
+        const updatedCreditsBalance = await profilePage.getCreditsBalance();
+        expect(updatedCreditsBalance).toEqual(creditsBalance - 2);
 
         const postCount = await profilePage.getPostCount();
         expect(postCount).toEqual(1);
@@ -55,8 +55,8 @@ test("love heart a post", async ({ page, browser }) => {
                 );
 
                 const profilePage = await globalNavigation.goToProfilePage();
-                const cyclesBalance = await profilePage.getCyclesBalance();
-                expect(cyclesBalance).toEqual(1000);
+                const creditsBalance = await profilePage.getCreditsBalance();
+                expect(creditsBalance).toEqual(1000);
 
                 const homePage = await globalNavigation.goToHomePage();
                 await homePage.showNewPosts();
@@ -69,13 +69,13 @@ test("love heart a post", async ({ page, browser }) => {
 
                 await globalNavigation.goToProfilePage();
                 await page.reload({ waitUntil: "networkidle" });
-                const updatedCyclesBalance =
-                    await profilePage.getCyclesBalance();
-                expect(updatedCyclesBalance).toEqual(cyclesBalance - 2);
+                const updatedCreditsBalance =
+                    await profilePage.getCreditsBalance();
+                expect(updatedCreditsBalance).toEqual(creditsBalance - 2);
             });
         });
 
-    await test.step("check cycles and new karma after post reaction", async () => {
+    await test.step("check credits and new karma after post reaction", async () => {
         const profilePage = await globalNavigation.goToProfilePage();
         await page.reload({ waitUntil: "networkidle" });
         const post = await profilePage.getPostByContent(postContent);
@@ -98,28 +98,28 @@ test("react with fire and comment on a post", async ({ page, browser }) => {
     });
     const globalNavigation = new GlobalNavigationElement(page, user);
 
-    const cyclesBalance =
-        await test.step("check initial cycles and new karma", async () => {
+    const creditsBalance =
+        await test.step("check initial credits and new karma", async () => {
             const profilePage = await globalNavigation.goToProfilePage();
 
-            const cyclesBalance = await profilePage.getCyclesBalance();
-            expect(cyclesBalance).toEqual(1000);
+            const creditsBalance = await profilePage.getCreditsBalance();
+            expect(creditsBalance).toEqual(1000);
 
             const newKarmaBalance = await profilePage.getNewKarmaBalance();
             expect(newKarmaBalance).toEqual(0);
 
-            return cyclesBalance;
+            return creditsBalance;
         });
 
     const postContent = await test.step("create post", async () => {
         return await createPost(page, user);
     });
 
-    await test.step("check cycles and new karma after post creation", async () => {
+    await test.step("check credits and new karma after post creation", async () => {
         const profilePage = await globalNavigation.goToProfilePage();
 
-        const updatedCyclesBalance = await profilePage.getCyclesBalance();
-        expect(updatedCyclesBalance).toEqual(cyclesBalance - 2);
+        const updatedCreditsBalance = await profilePage.getCreditsBalance();
+        expect(updatedCreditsBalance).toEqual(creditsBalance - 2);
 
         const postCount = await profilePage.getPostCount();
         expect(postCount).toEqual(1);
@@ -138,9 +138,9 @@ test("react with fire and comment on a post", async ({ page, browser }) => {
                 );
 
                 const profilePage = await globalNavigation.goToProfilePage();
-                const originalCyclesBalance =
-                    await profilePage.getCyclesBalance();
-                expect(originalCyclesBalance).toEqual(1000);
+                const originalCreditsBalance =
+                    await profilePage.getCreditsBalance();
+                expect(originalCreditsBalance).toEqual(1000);
 
                 const homePage = await globalNavigation.goToHomePage();
                 await homePage.showNewPosts();
@@ -157,17 +157,17 @@ test("react with fire and comment on a post", async ({ page, browser }) => {
 
                 await globalNavigation.goToProfilePage();
                 await page.reload({ waitUntil: "networkidle" });
-                const cyclesBalanceAfterReaction =
-                    await profilePage.getCyclesBalance();
-                expect(cyclesBalanceAfterReaction).toEqual(
-                    originalCyclesBalance - 8,
+                const creditsBalanceAfterReaction =
+                    await profilePage.getCreditsBalance();
+                expect(creditsBalanceAfterReaction).toEqual(
+                    originalCreditsBalance - 8,
                 );
 
                 return commentContent;
             });
         });
 
-    await test.step("check cycles and new karma after post reaction", async () => {
+    await test.step("check credits and new karma after post reaction", async () => {
         const profilePage = await globalNavigation.goToProfilePage();
         await page.reload({ waitUntil: "networkidle" });
         const post = await profilePage.getPostByContent(postContent);

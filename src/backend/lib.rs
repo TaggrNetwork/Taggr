@@ -213,24 +213,24 @@ fn create_user() {
     });
 }
 
-#[export_name = "canister_update transfer_cycles"]
-fn transfer_cycles() {
-    let (recipient, amount): (UserId, Cycles) = parse(&arg_data_raw());
+#[export_name = "canister_update transfer_credits"]
+fn transfer_credits() {
+    let (recipient, amount): (UserId, Credits) = parse(&arg_data_raw());
     reply(mutate(|state| {
         let sender = state.principal_to_user(caller()).expect("no user found");
         let recipient_name = &state.users.get(&recipient).expect("no user found").name;
-        state.cycle_transfer(
+        state.credit_transfer(
             sender.id,
             recipient,
             amount,
-            CONFIG.cycle_transaction_fee,
-            Destination::Cycles,
+            CONFIG.credit_transaction_fee,
+            Destination::Credits,
             format!(
-                "cycle transfer from @{} to @{}",
+                "credit transfer from @{} to @{}",
                 sender.name, recipient_name
             ),
             Some(format!(
-                "You have received `{}` cycles from @{}",
+                "You have received `{}` credits from @{}",
                 amount, sender.name
             )),
         )
@@ -251,18 +251,18 @@ fn transfer_tokens() {
     reply(token::user_transfer(recipient, amount))
 }
 
-#[export_name = "canister_update mint_cycles"]
-fn mint_cycles() {
+#[export_name = "canister_update mint_credits"]
+fn mint_credits() {
     spawn(async {
-        let kilo_cycles: u64 = parse(&arg_data_raw());
-        reply(State::mint_cycles(caller(), kilo_cycles).await)
+        let kilo_credits: u64 = parse(&arg_data_raw());
+        reply(State::mint_credits(caller(), kilo_credits).await)
     });
 }
 
 #[export_name = "canister_update create_invite"]
 fn create_invite() {
-    let cycles: Cycles = parse(&arg_data_raw());
-    mutate(|state| reply(state.create_invite(caller(), cycles)));
+    let credits: Credits = parse(&arg_data_raw());
+    mutate(|state| reply(state.create_invite(caller(), credits)));
 }
 
 #[export_name = "canister_update propose_icp_transfer"]
@@ -407,9 +407,9 @@ fn add_post_data(body: String, realm: Option<String>, extension: Option<Blob>) {
 fn add_post_blob(id: String, blob: Blob) -> Result<(), String> {
     mutate(|state| {
         if let Some(user) = state.principal_to_user_mut(caller()) {
-            let cycles = user.cycles();
+            let credits = user.credits();
             if let Some(draft) = user.draft.as_mut() {
-                if cycles < (draft.blobs.len() + 1) as u64 * CONFIG.blob_cost {
+                if credits < (draft.blobs.len() + 1) as u64 * CONFIG.blob_cost {
                     user.draft.take();
                     return;
                 }

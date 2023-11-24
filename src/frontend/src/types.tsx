@@ -224,9 +224,9 @@ declare global {
                 users: number;
                 active_users: number;
                 users_online: number;
-                cycles: number;
-                burned_cycles: BigInt;
-                burned_cycles_total: BigInt;
+                credits: number;
+                burned_credits: BigInt;
+                burned_credits_total: BigInt;
                 circulating_supply: number;
                 total_rewards_shared: BigInt;
                 total_revenue_shared: BigInt;
@@ -252,8 +252,8 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
-                min_cycles_for_inviting: number;
-                max_cycles_mint_kilos: number;
+                min_credits_for_inviting: number;
+                max_credits_mint_kilos: number;
                 logo: string;
                 poll_revote_deadline_hours: number;
                 tag_cost: number;

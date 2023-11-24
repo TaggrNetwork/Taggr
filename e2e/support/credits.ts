@@ -4,10 +4,10 @@ import { createLedgerClient } from "./ledger";
 import { GlobalNavigationElement } from "../elements";
 import { icpToE8s } from "./conversion";
 
-export async function topUpCycles(
+export async function topUpCredits(
     page: Page,
     user: CommonUser,
-    kiloCycles = 1,
+    kiloCredits = 1,
 ): Promise<void> {
     const ledger = await createLedgerClient();
 
@@ -19,5 +19,5 @@ export async function topUpCycles(
     const to = await walletPage.getIcpAccount();
     await ledger.transfer({ amount, to });
 
-    await walletPage.mintCycles(kiloCycles);
+    await walletPage.mintCredits(kiloCredits);
 }

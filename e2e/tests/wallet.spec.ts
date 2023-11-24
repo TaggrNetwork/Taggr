@@ -3,7 +3,7 @@ import {
     createLedgerClient,
     createSeedPhraseUser,
     generateSubAccount,
-    icpToTaggrCyclesRate,
+    icpToTaggrCreditsRate,
     icpToE8s,
     mintingPrincipal,
 } from "../support";
@@ -71,24 +71,24 @@ test("wallet", async ({ page }) => {
             return amountOnPage;
         });
 
-    await test.step("mint cycles", async () => {
-        const initialCyclesAmount = await walletPage.getCyclesAmount();
-        expect(initialCyclesAmount).toEqual(1_000);
+    await test.step("mint Credits", async () => {
+        const initialCreditsAmount = await walletPage.getCreditsAmount();
+        expect(initialCreditsAmount).toEqual(1_000);
 
-        const kiloCycles = 3;
-        await walletPage.mintCycles(kiloCycles);
-        const updatedCyclesAmount = await walletPage.getCyclesAmount();
-        expect(updatedCyclesAmount).toEqual(
-            initialCyclesAmount + kiloCycles * 1_000,
+        const kiloCredits = 3;
+        await walletPage.mintCredits(kiloCredits);
+        const updatedCreditsAmount = await walletPage.getCreditsAmount();
+        expect(updatedCreditsAmount).toEqual(
+            initialCreditsAmount + kiloCredits * 1_000,
         );
 
-        const icpAmountAfterCycleMinting = await walletPage.getIcpAmount();
-        const taggrCyclesRate = await icpToTaggrCyclesRate();
-        const amountToDeduct = BigInt(kiloCycles) * taggrCyclesRate;
+        const icpAmountAfterCreditMinting = await walletPage.getIcpAmount();
+        const taggrCreditsRate = await icpToTaggrCreditsRate();
+        const amountToDeduct = BigInt(kiloCredits) * taggrCreditsRate;
         const roundedAmountToDeduct =
             (amountToDeduct / BigInt(100_000)) * BigInt(100_000);
 
-        expect(first4Digits(icpAmountAfterCycleMinting)).toEqual(
+        expect(first4Digits(icpAmountAfterCreditMinting)).toEqual(
             first4Digits(icpAfterWithdraw - roundedAmountToDeduct),
         );
     });

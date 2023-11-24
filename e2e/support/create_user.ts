@@ -1,6 +1,6 @@
 import { Page, expect } from "@playwright/test";
 import { AccountIdentifier } from "@dfinity/nns";
-import { HomePage, MintInitialCyclesPage, SettingsPage } from "../pages";
+import { HomePage, MintInitialCreditsPage, SettingsPage } from "../pages";
 import { createLedgerClient } from "./ledger";
 import {
     generateAboutYou,
@@ -59,13 +59,13 @@ export interface CommonUser {
 }
 
 async function completeUserSignup(page: Page): Promise<CommonUser> {
-    const mintInitialCyclesPage = new MintInitialCyclesPage(page);
-    await mintInitialCyclesPage.mintCycles();
+    const mintInitialCreditsPage = new MintInitialCreditsPage(page);
+    await mintInitialCreditsPage.mintCredits();
 
-    const icpAmount = await mintInitialCyclesPage.getIcpAmount();
+    const icpAmount = await mintInitialCreditsPage.getIcpAmount();
     expect(icpAmount).toBeTruthy();
 
-    const icpAccount = await mintInitialCyclesPage.getIcpAccount();
+    const icpAccount = await mintInitialCreditsPage.getIcpAccount();
     expect(icpAccount).toBeTruthy();
 
     const ledger = await createLedgerClient();
@@ -74,8 +74,8 @@ async function completeUserSignup(page: Page): Promise<CommonUser> {
         to: icpAccount,
     });
 
-    await mintInitialCyclesPage.checkPayment();
-    await mintInitialCyclesPage.createUser();
+    await mintInitialCreditsPage.checkPayment();
+    await mintInitialCreditsPage.createUser();
 
     const settingsPage = new SettingsPage(page);
 

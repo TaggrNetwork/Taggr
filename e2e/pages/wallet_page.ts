@@ -6,8 +6,8 @@ export class WalletPage {
     private readonly icpAccountElement: Locator;
     private readonly icpAmountElement: Locator;
     private readonly icpTransferButton: Locator;
-    private readonly cyclesAmountElement: Locator;
-    private readonly mintCyclesAmountButton: Locator;
+    private readonly creditsAmountElement: Locator;
+    private readonly mintCreditsAmountButton: Locator;
     private readonly loadingSpinner: Locator;
 
     constructor(private readonly page: Page) {
@@ -19,8 +19,8 @@ export class WalletPage {
                 hasText: "TRANSFER",
             },
         );
-        this.cyclesAmountElement = page.getByTestId("cycles-amount");
-        this.mintCyclesAmountButton = page.locator("button", {
+        this.creditsAmountElement = page.getByTestId("credits-amount");
+        this.mintCreditsAmountButton = page.locator("button", {
             hasText: "MINT",
         });
         this.loadingSpinner = page.getByTestId("loading-spinner");
@@ -38,10 +38,10 @@ export class WalletPage {
         return icpToE8s(Number(icpAmount));
     }
 
-    public async getCyclesAmount(): Promise<number> {
-        const cyclesAmount = await this.cyclesAmountElement.textContent();
+    public async getCreditsAmount(): Promise<number> {
+        const creditsAmount = await this.creditsAmountElement.textContent();
 
-        return textToNumber(cyclesAmount);
+        return textToNumber(creditsAmount);
     }
 
     public async transferIcp(amount: number, account: string): Promise<void> {
@@ -64,12 +64,12 @@ export class WalletPage {
         await this.loadingSpinner.waitFor({ state: "hidden" });
     }
 
-    public async mintCycles(kiloCycles: number): Promise<void> {
+    public async mintCredits(kiloCredits: number): Promise<void> {
         this.page.on("dialog", (dialog) => {
-            dialog.accept(kiloCycles.toString());
+            dialog.accept(kiloCredits.toString());
         });
 
-        await this.mintCyclesAmountButton.click();
+        await this.mintCreditsAmountButton.click();
         await this.loadingSpinner.waitFor({ state: "visible" });
         await this.loadingSpinner.waitFor({ state: "hidden" });
     }

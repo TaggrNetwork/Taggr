@@ -4,7 +4,7 @@ import {
     createPost,
     createSeedPhraseUser,
     performInNewContext,
-    topUpCycles,
+    topUpCredits,
 } from "../support";
 import { GlobalNavigationElement } from "../elements";
 
@@ -172,7 +172,7 @@ test("seo and metadata", async ({ page, baseURL, browser }) => {
                 await newRealmPage.fillAndSaveRealmForm();
             await realmPage.closeButton.click();
 
-            await topUpCycles(page, user);
+            await topUpCredits(page, user);
 
             return [realmName, realmDescription];
         });

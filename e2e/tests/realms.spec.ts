@@ -19,13 +19,13 @@ test("realms", async ({ page, browser }) => {
         await expect(globalNavigation.toggleRealmsButton).not.toBeVisible();
     });
 
-    await test.step("check initial cycles and new karma", async () => {
+    await test.step("check initial credits and new karma", async () => {
         const profilePage = await globalNavigation.goToProfilePage();
 
-        const cyclesBalance = await profilePage.getCyclesBalance();
-        expect(cyclesBalance).toEqual(1000);
+        const creditsBalance = await profilePage.getCreditsBalance();
+        expect(creditsBalance).toEqual(1000);
 
-        return cyclesBalance;
+        return creditsBalance;
     });
 
     const realmPage = await test.step("create realm", async () => {
@@ -46,10 +46,10 @@ test("realms", async ({ page, browser }) => {
         await realmPage.joinRealm();
     });
 
-    await test.step("check cycles after realm creation", async () => {
+    await test.step("check credits after realm creation", async () => {
         const profilePage = await globalNavigation.goToProfilePage();
-        const updatedCyclesBalance = await profilePage.getCyclesBalance();
-        expect(updatedCyclesBalance).toEqual(0);
+        const updatedCreditsBalance = await profilePage.getCreditsBalance();
+        expect(updatedCreditsBalance).toEqual(0);
     });
 
     const realmName = realmPage.realmName;

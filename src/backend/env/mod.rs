@@ -6,7 +6,7 @@ use self::reports::Report;
 use self::token::account;
 use self::user::{Filters, Notification, Predicate};
 use crate::env::invoices::principal_to_subaccount;
-use crate::env::user::CyclesDelta;
+use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
 use crate::token::{Account, Token, Transaction};
 use crate::{assets, mutate, read};
@@ -35,7 +35,7 @@ pub mod storage;
 pub mod token;
 pub mod user;
 
-pub type Cycles = u64;
+pub type Credits = u64;
 pub type Karma = i64;
 pub type Blob = ByteBuf;
 
@@ -69,10 +69,10 @@ pub struct Stats {
     weekly_karma_leaders: Vec<(UserId, u64)>,
     users: usize,
     bootcamp_users: usize,
-    cycles: Cycles,
+    credits: Credits,
     canister_cycle_balance: u64,
-    burned_cycles: i64,
-    burned_cycles_total: Cycles,
+    burned_credits: i64,
+    burned_credits_total: Credits,
     total_revenue_shared: u64,
     total_rewards_shared: u64,
     posts: usize,
@@ -111,7 +111,7 @@ pub struct Realm {
 #[derive(Default, Serialize, Deserialize)]
 pub struct State {
     pub burned_cycles: i64,
-    pub burned_cycles_total: Cycles,
+    pub burned_cycles_total: Credits,
     pub posts: BTreeMap<PostId, Post>,
     pub users: BTreeMap<UserId, User>,
     pub principals: HashMap<Principal, UserId>,
@@ -124,7 +124,7 @@ pub struct State {
     pub last_hourly_chores: u64,
     pub logger: Logger,
     pub hot: VecDeque<PostId>,
-    pub invites: BTreeMap<String, (UserId, Cycles)>,
+    pub invites: BTreeMap<String, (UserId, Credits)>,
     pub realms: BTreeMap<String, Realm>,
 
     #[serde(skip)]
@@ -192,7 +192,7 @@ impl Logger {
 
 pub enum Destination {
     Karma,
-    Cycles,
+    Credits,
 }
 
 impl State {
@@ -281,7 +281,7 @@ impl State {
         let msg = format!("post {} was moved out of realm {}", post_id, realm);
         user.change_karma(-(CONFIG.realm_cleanup_penalty as Karma), &msg);
         let user_id = user.id;
-        let penalty = CONFIG.realm_cleanup_penalty.min(user.cycles());
+        let penalty = CONFIG.realm_cleanup_penalty.min(user.credits());
         self.charge(user_id, penalty, msg)
             .expect("couldn't charge user");
         post::change_realm(self, post_id, None);
@@ -304,12 +304,12 @@ impl State {
             .sum()
     }
 
-    fn spend_to_user_karma<T: ToString>(&mut self, id: UserId, amount: Cycles, log: T) {
+    fn spend_to_user_karma<T: ToString>(&mut self, id: UserId, amount: Credits, log: T) {
         let user = self.users.get_mut(&id).expect("no user found");
         user.change_karma(amount as Karma, log.to_string());
         if amount > CONFIG.voting_reward {
             self.logger.info(format!(
-                "Spent `{}` cycles on @{}'s karma for {}.",
+                "Spent `{}` credits on @{}'s karma for {}.",
                 amount,
                 user.name,
                 log.to_string()
@@ -318,10 +318,13 @@ impl State {
         self.burned_cycles -= amount as i64;
     }
 
-    fn spend<T: ToString>(&mut self, amount: Cycles, log: T) {
+    fn spend<T: ToString>(&mut self, amount: Credits, log: T) {
         if amount > 5 {
-            self.logger
-                .info(format!("Spent `{}` cycles on {}.", amount, log.to_string()));
+            self.logger.info(format!(
+                "Spent `{}` credits on {}.",
+                amount,
+                log.to_string()
+            ));
         }
         self.burned_cycles -= amount as i64;
     }
@@ -329,31 +332,31 @@ impl State {
     pub fn charge<T: ToString>(
         &mut self,
         id: UserId,
-        amount: Cycles,
+        amount: Credits,
         log: T,
     ) -> Result<(), String> {
         if amount < 1 {
             return Err("non-positive amount".into());
         }
         let user = self.users.get_mut(&id).ok_or("no user found")?;
-        user.change_cycles(amount, CyclesDelta::Minus, log)?;
+        user.change_credits(amount, CreditsDelta::Minus, log)?;
         self.burned_cycles += amount as i64;
         Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn cycle_transfer<T: ToString>(
+    pub fn credit_transfer<T: ToString>(
         &mut self,
         sender_id: UserId,
         receiver_id: UserId,
-        amount: Cycles,
-        fee: Cycles,
+        amount: Credits,
+        fee: Credits,
         destination: Destination,
         log: T,
         notification: Option<String>,
     ) -> Result<(), String> {
         let sender = self.users.get_mut(&sender_id).expect("no sender found");
-        sender.change_cycles(amount + fee, CyclesDelta::Minus, log.to_string())?;
+        sender.change_credits(amount + fee, CreditsDelta::Minus, log.to_string())?;
         let receiver = self.users.get_mut(&receiver_id).expect("no receiver found");
         self.burned_cycles += fee as i64;
         let result = match destination {
@@ -362,7 +365,7 @@ impl State {
                 receiver.change_karma(amount as Karma, log);
                 Ok(())
             }
-            Destination::Cycles => receiver.change_cycles(amount, CyclesDelta::Plus, log),
+            Destination::Credits => receiver.change_credits(amount, CreditsDelta::Plus, log),
         };
         if result.is_ok() {
             if let Some(message) = notification {
@@ -529,7 +532,7 @@ impl State {
         self.charge(user.id, CONFIG.realm_cost, "realm creation".to_string())
             .map_err(|err| {
                 format!(
-                    "couldn't charge {} cycles for realm creation: {}",
+                    "couldn't charge {} credits for realm creation: {}",
                     CONFIG.realm_cost, err
                 )
             })?;
@@ -596,14 +599,14 @@ impl State {
         principal: Principal,
         timestamp: u64,
         name: String,
-        cycles: Option<Cycles>,
+        credits: Option<Credits>,
     ) -> UserId {
         let id = self.new_user_id();
         let mut user = User::new(principal, id, timestamp, name);
         user.notify(format!("**Welcome!** 🎉 Use #{} as your personal blog, micro-blog or a photo blog. Use #hashtags to connect with others. Make sure you understand [how {0} works](/#/whitepaper). And finally, [say hello](#/new) and start earning karma!", CONFIG.name));
-        if let Some(cycles) = cycles {
-            user.change_cycles(cycles, CyclesDelta::Plus, "topped up by an invite")
-                .expect("couldn't add cycles when creating a new user");
+        if let Some(credits) = credits {
+            user.change_credits(credits, CreditsDelta::Plus, "topped up by an invite")
+                .expect("couldn't add credits when creating a new user");
         }
         self.principals.insert(principal, user.id);
         self.logger
@@ -622,29 +625,29 @@ impl State {
             if let Some(user) = state.principal_to_user(principal) {
                 return Err(format!("principal already assigned to user @{}", user.name));
             }
-            if let Some((inviter_id, cycles)) = invite.and_then(|code| state.invites.remove(&code))
+            if let Some((inviter_id, credits)) = invite.and_then(|code| state.invites.remove(&code))
             {
                 let inviter = state.users.get_mut(&inviter_id).ok_or("no user found")?;
-                let new_user_id = if inviter.invites_budget > cycles {
-                    inviter.invites_budget = inviter.invites_budget.saturating_sub(cycles);
-                    state.spend(cycles, "user invite");
-                    state.new_user(principal, time(), name.clone(), Some(cycles))
-                } else if inviter.cycles() > cycles {
+                let new_user_id = if inviter.invites_budget > credits {
+                    inviter.invites_budget = inviter.invites_budget.saturating_sub(credits);
+                    state.spend(credits, "user invite");
+                    state.new_user(principal, time(), name.clone(), Some(credits))
+                } else if inviter.credits() > credits {
                     let new_user_id = state.new_user(principal, time(), name.clone(), None);
                     state
-                        .cycle_transfer(
+                        .credit_transfer(
                             inviter_id,
                             new_user_id,
-                            cycles,
+                            credits,
                             0,
-                            Destination::Cycles,
+                            Destination::Credits,
                             "claimed by invited user",
                             None,
                         )
                         .unwrap_or_else(|err| panic!("couldn't use the invite: {}", err));
                     new_user_id
                 } else {
-                    return Err("inviter has not enough cycles".into());
+                    return Err("inviter has not enough credits".into());
                 };
                 let user = state.users.get_mut(&new_user_id).expect("no user found");
                 user.invited_by = Some(inviter_id);
@@ -663,40 +666,40 @@ impl State {
             return Ok(());
         }
 
-        if let Ok(Invoice { paid: true, .. }) = State::mint_cycles(principal, 0).await {
+        if let Ok(Invoice { paid: true, .. }) = State::mint_credits(principal, 0).await {
             mutate(|state| state.new_user(principal, time(), name, None));
-            // After the user has beed created, transfer cycles.
-            return State::mint_cycles(principal, 0).await.map(|_| ());
+            // After the user has beed created, transfer credits.
+            return State::mint_credits(principal, 0).await.map(|_| ());
         }
 
         Err("payment missing or the invite is invalid".to_string())
     }
 
-    pub fn invites(&self, principal: Principal) -> Vec<(String, Cycles)> {
+    pub fn invites(&self, principal: Principal) -> Vec<(String, Credits)> {
         self.principal_to_user(principal)
             .map(|user| {
                 self.invites
                     .iter()
                     .filter(|(_, (user_id, _))| user_id == &user.id)
-                    .map(|(code, (_, cycles))| (code.clone(), *cycles))
+                    .map(|(code, (_, credits))| (code.clone(), *credits))
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default()
     }
 
-    pub fn create_invite(&mut self, principal: Principal, cycles: Cycles) -> Result<(), String> {
-        let min_cycles = CONFIG.min_cycles_for_inviting;
+    pub fn create_invite(&mut self, principal: Principal, credits: Credits) -> Result<(), String> {
+        let min_credits = CONFIG.min_credits_for_inviting;
         let user = self
             .principal_to_user_mut(principal)
             .ok_or("no user found")?;
-        if cycles < min_cycles {
+        if credits < min_credits {
             return Err(format!(
-                "smallest invite must contain {} cycles",
-                min_cycles
+                "smallest invite must contain {} credits",
+                min_credits
             ));
         }
-        if user.cycles() < cycles {
-            return Err("not enough cycles".into());
+        if user.credits() < credits {
+            return Err("not enough credits".into());
         }
         if !user.trusted() {
             return Err("bootcamp users cannot invite others".into());
@@ -706,7 +709,7 @@ impl State {
         hasher.update(time().to_be_bytes());
         let code = format!("{:x}", hasher.finalize())[..10].to_string();
         let user_id = user.id;
-        self.invites.insert(code, (user_id, cycles));
+        self.invites.insert(code, (user_id, credits));
         Ok(())
     }
 
@@ -773,7 +776,7 @@ impl State {
             CONFIG.min_cycle_balance_main + children.len() as u64 * ICP_CYCLES_PER_XDR;
         if balance < target_balance {
             let xdrs = target_balance / ICP_CYCLES_PER_XDR;
-            // subtract weekly burned cycles to reduce the revenue
+            // subtract weekly burned credits to reduce the revenue
             mutate(|state| state.spend(xdrs * 1000, "canister top up"));
             match invoices::topup_with_icp(&api::id(), xdrs).await {
                 Err(err) => mutate(|state| {
@@ -783,9 +786,9 @@ impl State {
                     err
                 ))
                 }),
-                Ok(_cycles) => mutate(|state| {
+                Ok(_credits) => mutate(|state| {
                     state.logger.info(format!(
-                        "The main canister was topped up with cycles (balance was `{}`, now `{}`).",
+                        "The main canister was topped up with credits (balance was `{}`, now `{}`).",
                         balance,
                         canister_balance()
                     ))
@@ -835,8 +838,8 @@ impl State {
     }
 
     pub fn collect_revenue(&self, now: u64, e8s_for_one_xdr: u64) -> HashMap<UserId, u64> {
-        let burned_cycles = self.burned_cycles;
-        if burned_cycles <= 0 {
+        let burned_credits = self.burned_cycles;
+        if burned_credits <= 0 {
             return Default::default();
         }
         let (active_user_balances, supply_of_active_users) = self.supply_of_active_users(now);
@@ -844,9 +847,9 @@ impl State {
             .into_iter()
             .map(|(user_id, balance)| {
                 let revenue_share =
-                    burned_cycles as f64 * balance as f64 / supply_of_active_users as f64;
-                let e8s = (revenue_share / CONFIG.native_cycles_per_xdr as f64
-                    * e8s_for_one_xdr as f64) as u64;
+                    burned_credits as f64 * balance as f64 / supply_of_active_users as f64;
+                let e8s =
+                    (revenue_share / CONFIG.credits_per_xdr as f64 * e8s_for_one_xdr as f64) as u64;
                 (user_id, e8s)
             })
             .collect()
@@ -974,12 +977,12 @@ impl State {
             .filter(|u| u.karma_to_reward() > 0)
             .filter_map(|user| {
                 let karma = user.karma_to_reward();
-                if let Ok(cycles) = user.top_up_cycles_from_karma() {
+                if let Ok(credits) = user.top_up_credits_from_karma() {
                     user.apply_rewards();
                     if user.karma() < 0 {
                         return None;
                     }
-                    return Some((user.id, karma - cycles));
+                    return Some((user.id, karma - credits));
                 }
                 None
             })
@@ -1016,8 +1019,8 @@ impl State {
                 .map(|(id, karma)| {
                     (
                         id,
-                        (*karma as f64 / CONFIG.native_cycles_per_xdr as f64
-                            * e8s_for_one_xdr as f64) as u64,
+                        (*karma as f64 / CONFIG.credits_per_xdr as f64 * e8s_for_one_xdr as f64)
+                            as u64,
                     )
                 })
                 .collect::<HashMap<_, _>>();
@@ -1040,7 +1043,7 @@ impl State {
             let mut total_revenue = 0;
             for user in state.users.values_mut() {
                 let mut user_revenue = revenue.get(&user.id).copied().unwrap_or_default();
-                let _ = user.top_up_cycles_from_revenue(&mut user_revenue, e8s_for_one_xdr);
+                let _ = user.top_up_credits_from_revenue(&mut user_revenue, e8s_for_one_xdr);
                 let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
                 let e8s = user_reward + user_revenue;
                 if e8s == 0 {
@@ -1057,8 +1060,8 @@ impl State {
                 ));
             }
             if state.burned_cycles > 0 {
-                state.spend(state.burned_cycles as Cycles, "revenue distribution");
-                state.burned_cycles_total += state.burned_cycles as Cycles;
+                state.spend(state.burned_cycles as Credits, "revenue distribution");
+                state.burned_cycles_total += state.burned_cycles as Credits;
             }
             state.total_rewards_shared += total_rewards;
             state.total_revenue_shared += total_revenue;
@@ -1340,7 +1343,7 @@ impl State {
             if user.active_within_weeks(now, 1) {
                 user.active_weeks += 1;
                 if user.trusted() {
-                    user.invites_budget = user.invites_budget.max(CONFIG.invites_budget_cycles);
+                    user.invites_budget = user.invites_budget.max(CONFIG.invites_budget_credits);
                 }
             } else {
                 user.active_weeks = 0;
@@ -1362,32 +1365,32 @@ impl State {
 
     fn charge_for_inactivity(&mut self, now: u64) {
         let mut inactive_users = 0;
-        let mut cycles_total = 0;
+        let mut credits_total = 0;
         let inactive_user_balance_threshold = CONFIG.inactivity_penalty * 4;
-        for (id, cycles) in self
+        for (id, credits) in self
             .users
             .values()
             .filter(|user| {
                 !user.active_within_weeks(now, CONFIG.inactivity_duration_weeks)
-                    && user.cycles() > inactive_user_balance_threshold
+                    && user.credits() > inactive_user_balance_threshold
             })
-            .map(|u| (u.id, u.cycles()))
+            .map(|u| (u.id, u.credits()))
             .collect::<Vec<_>>()
         {
             let costs = CONFIG
                 .inactivity_penalty
-                .min(cycles - inactive_user_balance_threshold);
+                .min(credits - inactive_user_balance_threshold);
             if let Err(err) = self.charge(id, costs, "inactivity penalty".to_string()) {
                 self.logger
                     .error(format!("Couldn't charge inactivity penalty: {:?}", err));
             } else {
-                cycles_total += costs;
+                credits_total += costs;
                 inactive_users += 1;
             }
         }
         self.logger.info(format!(
-            "Charged `{}` inactive users with `{}` cycles.",
-            inactive_users, cycles_total
+            "Charged `{}` inactive users with `{}` credits.",
+            inactive_users, credits_total
         ));
     }
 
@@ -1501,20 +1504,20 @@ impl State {
         Ok(())
     }
 
-    pub async fn mint_cycles(principal: Principal, kilo_cycles: u64) -> Result<Invoice, String> {
-        if kilo_cycles > CONFIG.max_cycles_mint_kilos {
+    pub async fn mint_credits(principal: Principal, kilo_credits: u64) -> Result<Invoice, String> {
+        if kilo_credits > CONFIG.max_credits_mint_kilos {
             return Err(format!(
-                "can't mint more than {} thousands of cycles",
-                CONFIG.max_cycles_mint_kilos
+                "can't mint more than {} thousands of credits",
+                CONFIG.max_credits_mint_kilos
             ));
         }
 
         State::claim_user_icp(principal).await?;
 
-        let invoice = match Invoices::outstanding(&principal, kilo_cycles).await {
+        let invoice = match Invoices::outstanding(&principal, kilo_credits).await {
             Ok(val) => val,
             Err(err) => {
-                if kilo_cycles == 0 {
+                if kilo_credits == 0 {
                     mutate(|state| {
                         state
                             .logger
@@ -1528,17 +1531,16 @@ impl State {
         mutate(|state| {
             if invoice.paid {
                 if let Some(user) = state.principal_to_user_mut(principal) {
-                    user.change_cycles(
+                    user.change_credits(
                         ((invoice.paid_e8s as f64 / invoice.e8s as f64)
-                            * CONFIG.native_cycles_per_xdr as f64)
-                            as Cycles,
-                        CyclesDelta::Plus,
+                            * CONFIG.credits_per_xdr as f64) as Credits,
+                        CreditsDelta::Plus,
                         "top up with ICP".to_string(),
                     )?;
                     let user_name = user.name.clone();
                     state.accounting.close(&principal);
                     state.logger.info(format!(
-                        "@{} minted cycles for `{}` ICP 💰",
+                        "@{} minted credits for `{}` ICP ⚡️",
                         user_name,
                         e8s_to_icp(invoice.paid_e8s)
                     ));
@@ -1821,7 +1823,7 @@ impl State {
         let mut invited_users = 0;
         let mut active_users = 0;
         let mut bots = Vec::new();
-        let mut cycles = 0;
+        let mut credits = 0;
         for user in self.users.values() {
             if user.stalwart {
                 stalwarts.push(user);
@@ -1844,7 +1846,7 @@ impl State {
                     weekly_karma_leaders.push((user.id, user.karma_to_reward()));
                 }
             }
-            cycles += user.cycles();
+            credits += user.credits();
         }
         stalwarts.sort_unstable_by_key(|u1| std::cmp::Reverse(u1.karma()));
         weekly_karma_leaders.sort_unstable_by_key(|k| k.1);
@@ -1869,9 +1871,9 @@ impl State {
             users: self.users.len(),
             posts,
             comments: Post::count(self) - posts,
-            cycles,
-            burned_cycles: self.burned_cycles,
-            burned_cycles_total: self.burned_cycles_total,
+            credits,
+            burned_credits: self.burned_cycles,
+            burned_credits_total: self.burned_cycles_total,
             total_revenue_shared: self.total_revenue_shared,
             total_rewards_shared: self.total_rewards_shared,
             account: invoices::main_account().to_string(),
@@ -1910,7 +1912,7 @@ impl State {
             "post" => Post::mutate(
                 self,
                 &id,
-                |post| -> Result<(UserId, Report, Cycles, String), String> {
+                |post| -> Result<(UserId, Report, Credits, String), String> {
                     post.vote_on_report(stalwarts, user.id, vote)?;
                     let post_user = post.user;
                     let post_report = post.report.clone().ok_or("no report")?;
@@ -1971,17 +1973,17 @@ impl State {
         if reason.len() > 1000 {
             return Err("reason too long".into());
         }
-        let cycles_required = if domain == "post" {
+        let credits_required = if domain == "post" {
             CONFIG.reporting_penalty_post
         } else {
             CONFIG.reporting_penalty_misbehaviour
         } / 2;
         let user = match self.principal_to_user(principal) {
-            Some(user) if user.cycles() >= cycles_required => user.clone(),
+            Some(user) if user.credits() >= credits_required => user.clone(),
             _ => {
                 return Err(format!(
-                    "You need at least {} cycles for this report",
-                    cycles_required
+                    "You need at least {} credits for this report",
+                    credits_required
                 ))
             }
         };
@@ -2042,23 +2044,23 @@ impl State {
         }
 
         let comments_tree_penalty =
-            post.tree_size as Cycles * CONFIG.post_deletion_penalty_factor as Cycles;
+            post.tree_size as Credits * CONFIG.post_deletion_penalty_factor as Credits;
         let karma = reaction_karma();
         let reaction_costs = post
             .reactions
             .iter()
             .filter_map(|(r_id, users)| {
                 let cost = karma.get(r_id).copied().unwrap_or_default();
-                (cost > 0).then_some((users, cost as Cycles))
+                (cost > 0).then_some((users, cost as Credits))
             })
             .collect::<Vec<_>>();
 
-        let costs: Cycles = CONFIG.post_cost
+        let costs: Credits = CONFIG.post_cost
             + reaction_costs.iter().map(|(_, cost)| *cost).sum::<u64>()
             + comments_tree_penalty;
-        if costs > self.users.get(&post.user).ok_or("no user found")?.cycles() {
+        if costs > self.users.get(&post.user).ok_or("no user found")?.credits() {
             return Err(format!(
-                "not enough cycles (this post requires {} cycles to be deleted)",
+                "not enough credits (this post requires {} credits to be deleted)",
                 costs
             ));
         }
@@ -2068,12 +2070,12 @@ impl State {
         // refund rewards
         for (users, amount) in reaction_costs {
             for user_id in users {
-                self.cycle_transfer(
+                self.credit_transfer(
                     post.user,
                     *user_id,
                     amount,
                     0,
-                    Destination::Cycles,
+                    Destination::Credits,
                     format!("rewards refund after deletion of post {}", post.id),
                     None,
                 )?;
@@ -2155,8 +2157,8 @@ impl State {
             self.charge(user.id, delta.unsigned_abs() + CONFIG.reaction_fee, log)
                 .expect("coudln't charge user");
         }
-        // If the user is trusted, they initiate a cycle transfer for upvotes, but burn their own cycles on
-        // down votes + cycles and karma of the author
+        // If the user is trusted, they initiate a credit transfer for upvotes, but burn their own credits on
+        // down votes + credits and karma of the author
         else if delta < 0 {
             self.users
                 .get_mut(&post.user)
@@ -2164,22 +2166,22 @@ impl State {
                 .change_karma(delta, log.clone());
             self.charge(
                 user.id,
-                delta.unsigned_abs().min(user.cycles()),
+                delta.unsigned_abs().min(user.credits()),
                 log.clone(),
             )?;
             self.charge(
                 post.user,
                 delta
                     .unsigned_abs()
-                    .min(self.users.get(&post.user).expect("no user found").cycles()),
+                    .min(self.users.get(&post.user).expect("no user found").credits()),
                 log,
             )
             .expect("couldn't charge user");
         } else {
-            self.cycle_transfer(
+            self.credit_transfer(
                 user.id,
                 post.user,
-                delta as Cycles,
+                delta as Credits,
                 CONFIG.reaction_fee,
                 Destination::Karma,
                 log,
@@ -2293,8 +2295,8 @@ pub(crate) mod tests {
         create_user_with_params(state, p, &p.to_string().replace('-', ""), true, 1000)
     }
 
-    pub fn create_user_with_cycles(state: &mut State, p: Principal, cycles: Cycles) -> UserId {
-        create_user_with_params(state, p, &p.to_string().replace('-', ""), true, cycles)
+    pub fn create_user_with_credits(state: &mut State, p: Principal, credits: Credits) -> UserId {
+        create_user_with_params(state, p, &p.to_string().replace('-', ""), true, credits)
     }
 
     pub fn create_untrusted_user(state: &mut State, p: Principal) -> UserId {
@@ -2306,9 +2308,9 @@ pub(crate) mod tests {
         p: Principal,
         name: &str,
         trusted: bool,
-        cycles: Cycles,
+        credits: Credits,
     ) -> UserId {
-        let id = state.new_user(p, 0, name.to_string(), Some(cycles));
+        let id = state.new_user(p, 0, name.to_string(), Some(credits));
         let u = state.users.get_mut(&id).unwrap();
         if trusted {
             u.change_karma(CONFIG.trusted_user_min_karma, "");
@@ -2330,41 +2332,41 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_cycle_transfer() {
+    fn test_credit_transfer() {
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
             let id1 = create_user_with_params(state, pr(0), "peter", false, 10000);
             let id2 = create_user_with_params(state, pr(0), "peter", false, 0);
 
-            assert_eq!(state.users.get(&id2).unwrap().cycles(), 0);
+            assert_eq!(state.users.get(&id2).unwrap().credits(), 0);
             state
-                .cycle_transfer(
+                .credit_transfer(
                     id1,
                     id2,
                     1000,
-                    CONFIG.cycle_transaction_fee,
-                    Destination::Cycles,
+                    CONFIG.credit_transaction_fee,
+                    Destination::Credits,
                     "",
                     None,
                 )
                 .unwrap();
-            assert_eq!(state.users.get(&id2).unwrap().cycles(), 1000);
+            assert_eq!(state.users.get(&id2).unwrap().credits(), 1000);
             state
-                .cycle_transfer(
+                .credit_transfer(
                     id1,
                     id2,
                     1000,
-                    CONFIG.cycle_transaction_fee,
-                    Destination::Cycles,
+                    CONFIG.credit_transaction_fee,
+                    Destination::Credits,
                     "",
                     None,
                 )
                 .unwrap();
-            assert_eq!(state.users.get(&id2).unwrap().cycles(), 2000);
+            assert_eq!(state.users.get(&id2).unwrap().credits(), 2000);
             assert_eq!(
-                state.users.get(&id1).unwrap().cycles(),
-                10000 - 2 * (1000 + CONFIG.cycle_transaction_fee)
+                state.users.get(&id1).unwrap().credits(),
+                10000 - 2 * (1000 + CONFIG.credit_transaction_fee)
             );
         });
     }
@@ -2843,7 +2845,7 @@ pub(crate) mod tests {
             assert_eq!(user.karma_to_reward(), 0);
             let upvoter_id = create_user(state, pr(1));
             let user = state.users.get_mut(&upvoter_id).unwrap();
-            let upvoter_cycles = user.cycles();
+            let upvoter_credits = user.credits();
             user.change_karma(1000, "test");
             assert!(user.trusted());
             let uid = create_user(state, pr(2));
@@ -2899,9 +2901,9 @@ pub(crate) mod tests {
             );
 
             assert_eq!(
-                state.users.get_mut(&upvoter_id).unwrap().cycles(),
+                state.users.get_mut(&upvoter_id).unwrap().credits(),
                 // reward + fee + post creation
-                upvoter_cycles - 10 - 1 - 2
+                upvoter_credits - 10 - 1 - 2
             );
 
             let versions = vec!["a".into(), "b".into()];
@@ -2911,18 +2913,18 @@ pub(crate) mod tests {
             );
 
             state
-                .charge(id, state.users.get(&id).unwrap().cycles(), "")
+                .charge(id, state.users.get(&id).unwrap().credits(), "")
                 .unwrap();
             assert_eq!(
                 state.delete_post(pr(0), post_id, versions.clone()),
-                Err("not enough cycles (this post requires 47 cycles to be deleted)".into())
+                Err("not enough credits (this post requires 47 credits to be deleted)".into())
             );
 
             state
                 .users
                 .get_mut(&id)
                 .unwrap()
-                .change_cycles(1000, CyclesDelta::Plus, "")
+                .change_credits(1000, CreditsDelta::Plus, "")
                 .unwrap();
 
             assert_eq!(&Post::get(state, &0).unwrap().body, "Test");
@@ -2931,9 +2933,9 @@ pub(crate) mod tests {
             assert_eq!(Post::get(state, &0).unwrap().hashes.len(), versions.len());
 
             assert_eq!(
-                state.users.get(&upvoter_id).unwrap().cycles(),
+                state.users.get(&upvoter_id).unwrap().credits(),
                 // reward received back
-                upvoter_cycles - 10 - 1 - 2 + 10
+                upvoter_credits - 10 - 1 - 2 + 10
             );
             assert_eq!(state.users.get(&id).unwrap().karma_to_reward(), 0);
 
@@ -2955,9 +2957,9 @@ pub(crate) mod tests {
             let _u1 = create_user_with_params(state, p1, "user2", true, 1000);
 
             let user1 = state.users.get_mut(&_u1).unwrap();
-            assert_eq!(user1.cycles(), 1000);
-            user1.change_cycles(500, CyclesDelta::Minus, "").unwrap();
-            assert_eq!(user1.cycles(), 500);
+            assert_eq!(user1.credits(), 1000);
+            user1.change_credits(500, CreditsDelta::Minus, "").unwrap();
+            assert_eq!(user1.credits(), 500);
 
             let name = "TAGGRDAO".to_string();
             let description = "Test description".to_string();
@@ -2988,7 +2990,8 @@ pub(crate) mod tests {
                     controllers.clone()
                 ),
                 Err(
-                    "couldn't charge 1000 cycles for realm creation: not enough cycles".to_string()
+                    "couldn't charge 1000 credits for realm creation: not enough credits"
+                        .to_string()
                 )
             );
 
@@ -3045,7 +3048,7 @@ pub(crate) mod tests {
             );
 
             let user0 = state.users.get_mut(&_u0).unwrap();
-            user0.change_cycles(1000, CyclesDelta::Plus, "").unwrap();
+            user0.change_credits(1000, CreditsDelta::Plus, "").unwrap();
 
             assert_eq!(
                 state.create_realm(
@@ -3259,7 +3262,7 @@ pub(crate) mod tests {
 
             // create a new realm
             let user0 = state.users.get_mut(&_u0).unwrap();
-            user0.change_cycles(1000, CyclesDelta::Plus, "").unwrap();
+            user0.change_credits(1000, CreditsDelta::Plus, "").unwrap();
             assert_eq!(
                 state.create_realm(
                     p0,
@@ -3439,7 +3442,7 @@ pub(crate) mod tests {
         mutate(|state| {
             // create a post author and one post for its principal
             let p = pr(0);
-            let post_author_id = create_user_with_cycles(state, p, 2000);
+            let post_author_id = create_user_with_credits(state, p, 2000);
 
             assert!(state
                 .create_realm(
@@ -3656,10 +3659,10 @@ pub(crate) mod tests {
     fn test_clean_up() {
         STATE.with(|cell| cell.replace(Default::default()));
         mutate(|state| {
-            let inactive_id1 = create_user_with_cycles(state, pr(1), 500);
-            let inactive_id2 = create_user_with_cycles(state, pr(2), 100);
-            let inactive_id3 = create_user_with_cycles(state, pr(3), 200);
-            let active_id = create_user_with_cycles(state, pr(3), 300);
+            let inactive_id1 = create_user_with_credits(state, pr(1), 500);
+            let inactive_id2 = create_user_with_credits(state, pr(2), 100);
+            let inactive_id3 = create_user_with_credits(state, pr(3), 200);
+            let active_id = create_user_with_credits(state, pr(3), 300);
 
             let user = state.users.get_mut(&inactive_id1).unwrap();
             assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
@@ -3680,28 +3683,28 @@ pub(crate) mod tests {
 
             // penalized
             let user = state.users.get_mut(&inactive_id1).unwrap();
-            assert_eq!(user.cycles(), 500 - penalty);
+            assert_eq!(user.credits(), 500 - penalty);
             assert_eq!(user.karma(), 0);
             assert_eq!(user.invites_budget, 0);
             // not penalized due to low balance, but karma penalized
             let user = state.users.get_mut(&inactive_id2).unwrap();
-            assert_eq!(user.cycles(), 100);
+            assert_eq!(user.credits(), 100);
             assert_eq!(user.karma(), 0);
             assert_eq!(user.invites_budget, 0);
             // penalized to the minimum balance
             let user = state.users.get_mut(&inactive_id3).unwrap();
-            assert_eq!(user.cycles(), penalty * 4);
+            assert_eq!(user.credits(), penalty * 4);
             assert_eq!(user.invites_budget, 0);
             // Active user not penalized
             let user = state.users.get_mut(&active_id).unwrap();
-            assert_eq!(user.cycles(), 300);
+            assert_eq!(user.credits(), 300);
             assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
-            assert_eq!(user.invites_budget, CONFIG.invites_budget_cycles);
+            assert_eq!(user.invites_budget, CONFIG.invites_budget_credits);
         })
     }
 
     #[test]
-    fn test_cycles_accounting() {
+    fn test_credits_accounting() {
         STATE.with(|cell| cell.replace(Default::default()));
         mutate(|state| {
             let p0 = pr(0);
@@ -3721,7 +3724,7 @@ pub(crate) mod tests {
             }
             let farmer_id = create_untrusted_user(state, pr(111));
             let c = CONFIG;
-            assert_eq!(state.burned_cycles as Cycles, c.post_cost);
+            assert_eq!(state.burned_cycles as Credits, c.post_cost);
             state
                 .users
                 .get_mut(&lurker_id)
@@ -3740,8 +3743,8 @@ pub(crate) mod tests {
             assert!(!author.trusted());
             assert!(!farmer.trusted());
             assert!(lurker.trusted());
-            assert_eq!(author.cycles(), c.native_cycles_per_xdr - c.post_cost);
-            assert_eq!(lurker.cycles(), c.native_cycles_per_xdr);
+            assert_eq!(author.credits(), c.credits_per_xdr - c.post_cost);
+            assert_eq!(lurker.credits(), c.credits_per_xdr);
 
             assert_eq!(author.karma(), 0);
 
@@ -3749,31 +3752,33 @@ pub(crate) mod tests {
             assert!(state.react(pr(111), post_id, 1, 0).is_err());
             // this is a noop for author
             assert!(state.react(pr(111), post_id, 100, 0).is_ok());
-            let burned_cycles_by_reaction_from_untrusted = 11;
+            let burned_credits_by_reaction_from_untrusted = 11;
             assert_eq!(
-                state.users.get(&post_author_id).unwrap().cycles(),
-                c.native_cycles_per_xdr - c.post_cost
+                state.users.get(&post_author_id).unwrap().credits(),
+                c.credits_per_xdr - c.post_cost
             );
             assert!(state.react(p, post_id, 50, 0).is_ok());
             assert!(state.react(p, post_id, 100, 0).is_err());
             assert!(state.react(p2, post_id, 100, 0).is_ok());
             let reaction_costs_1 = 6;
-            let burned_cycles_by_reactions = 1 + 1;
+            let burned_credits_by_reactions = 1 + 1;
             let mut rewards_from_reactions = 5 + 10;
 
             // try to self upvote (should be a no-op)
             assert!(state.react(p0, post_id, 100, 0).is_err());
 
             let author = state.users.get(&post_author_id).unwrap();
-            assert_eq!(author.cycles(), c.native_cycles_per_xdr - c.post_cost);
+            assert_eq!(author.credits(), c.credits_per_xdr - c.post_cost);
             assert_eq!(author.karma_to_reward(), rewards_from_reactions);
             assert_eq!(
-                state.burned_cycles as Cycles,
-                c.post_cost + burned_cycles_by_reactions + burned_cycles_by_reaction_from_untrusted
+                state.burned_cycles as Credits,
+                c.post_cost
+                    + burned_credits_by_reactions
+                    + burned_credits_by_reaction_from_untrusted
             );
 
             let lurker = state.users.get(&lurker_id).unwrap();
-            assert_eq!(lurker.cycles(), c.native_cycles_per_xdr - reaction_costs_1);
+            assert_eq!(lurker.credits(), c.credits_per_xdr - reaction_costs_1);
 
             // downvote
             assert!(state.react(p3, post_id, 1, 0).is_ok());
@@ -3782,16 +3787,16 @@ pub(crate) mod tests {
             let author = state.users.get(&post_author_id).unwrap();
             let lurker_3 = state.principal_to_user(p3).unwrap();
             assert_eq!(
-                author.cycles(),
-                c.native_cycles_per_xdr - c.post_cost - reaction_penalty
+                author.credits(),
+                c.credits_per_xdr - c.post_cost - reaction_penalty
             );
             assert_eq!(author.karma_to_reward(), rewards_from_reactions);
-            assert_eq!(lurker_3.cycles(), c.native_cycles_per_xdr - 3);
+            assert_eq!(lurker_3.credits(), c.credits_per_xdr - 3);
             assert_eq!(
                 state.burned_cycles,
                 (c.post_cost
-                    + burned_cycles_by_reactions
-                    + burned_cycles_by_reaction_from_untrusted
+                    + burned_credits_by_reactions
+                    + burned_credits_by_reaction_from_untrusted
                     + 2 * 3) as i64
             );
 
@@ -3801,19 +3806,19 @@ pub(crate) mod tests {
             assert_eq!(
                 state.burned_cycles,
                 (2 * c.post_cost
-                    + burned_cycles_by_reactions
-                    + burned_cycles_by_reaction_from_untrusted
+                    + burned_credits_by_reactions
+                    + burned_credits_by_reaction_from_untrusted
                     + 2 * 3) as i64
             );
             let author = state.users.get(&post_author_id).unwrap();
             assert_eq!(
-                author.cycles(),
-                c.native_cycles_per_xdr - c.post_cost - c.post_cost - reaction_penalty
+                author.credits(),
+                c.credits_per_xdr - c.post_cost - c.post_cost - reaction_penalty
             );
 
             let author = state.users.get_mut(&post_author_id).unwrap();
             author
-                .change_cycles(author.cycles(), CyclesDelta::Minus, "")
+                .change_credits(author.credits(), CreditsDelta::Minus, "")
                 .unwrap();
 
             assert!(Post::create(state, "test".to_string(), &[], p0, 0, None, None, None).is_err());
@@ -3825,11 +3830,11 @@ pub(crate) mod tests {
             create_user(state, pr(10));
             let lurker = state.principal_to_user_mut(pr(10)).unwrap();
             lurker
-                .change_cycles(lurker.cycles(), CyclesDelta::Minus, "")
+                .change_credits(lurker.credits(), CreditsDelta::Minus, "")
                 .unwrap();
             assert_eq!(
                 state.react(pr(10), post_id, 10, 0),
-                Err("not enough cycles".into())
+                Err("not enough credits".into())
             );
         })
     }
@@ -3940,22 +3945,22 @@ pub(crate) mod tests {
             let state = &mut *cell.borrow_mut();
             let id = create_user(state, principal);
 
-            // use too many cycles
+            // use too many credits
             assert_eq!(
                 state.create_invite(principal, 1111),
-                Err("not enough cycles".to_string())
+                Err("not enough credits".to_string())
             );
 
-            // use enough cycles and make sure they were deducted
-            let prev_balance = state.users.get(&id).unwrap().cycles();
+            // use enough credits and make sure they were deducted
+            let prev_balance = state.users.get(&id).unwrap().credits();
             assert_eq!(state.create_invite(principal, 111), Ok(()));
-            let new_balance = state.users.get(&id).unwrap().cycles();
+            let new_balance = state.users.get(&id).unwrap().credits();
             // no charging yet
             assert_eq!(new_balance, prev_balance);
             let invite = state.invites(principal);
             assert_eq!(invite.len(), 1);
-            let (code, cycles) = invite.get(0).unwrap().clone();
-            assert_eq!(cycles, 111);
+            let (code, credits) = invite.get(0).unwrap().clone();
+            assert_eq!(credits, 111);
             (id, code, prev_balance)
         });
 
@@ -3964,18 +3969,18 @@ pub(crate) mod tests {
             .await
             .is_ok());
 
-        let new_balance = mutate(|state| state.users.get(&id).unwrap().cycles());
+        let new_balance = mutate(|state| state.users.get(&id).unwrap().credits());
         assert_eq!(new_balance, prev_balance - 111);
 
         // Subsidized invite
         let (id, code, prev_balance) = mutate(|state| {
             let user = state.users.get_mut(&id).unwrap();
             user.invites_budget = 300;
-            let prev_balance = user.cycles();
+            let prev_balance = user.credits();
             assert_eq!(state.create_invite(principal, 222), Ok(()));
             let invite = state.invites(principal);
-            let (code, cycles) = invite.get(0).unwrap().clone();
-            assert_eq!(cycles, 222);
+            let (code, credits) = invite.get(0).unwrap().clone();
+            assert_eq!(credits, 222);
             (id, code, prev_balance)
         });
 
@@ -3986,8 +3991,8 @@ pub(crate) mod tests {
             .is_ok());
 
         let user = read(|state| state.users.get(&id).unwrap().clone());
-        // Make sure didn't pay with own cycles
-        assert_eq!(user.cycles(), prev_balance);
+        // Make sure didn't pay with own credits
+        assert_eq!(user.credits(), prev_balance);
         // Make sure Taggr payed for the invite
         assert_eq!(user.invites_budget, 300 - 222);
         assert_eq!(read(|state| state.burned_cycles), prev_revenue - 222);

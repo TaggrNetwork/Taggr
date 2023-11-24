@@ -8,7 +8,7 @@ import { GlobalNavigationElement } from "../elements";
 import { AcceptInvitePage } from "../pages";
 
 test("user invite", async ({ page, browser }) => {
-    const inviteCycles = 100;
+    const inviteCredits = 100;
 
     const user = await test.step("create user", async () => {
         return await createSeedPhraseUser(page);
@@ -23,7 +23,7 @@ test("user invite", async ({ page, browser }) => {
 
     const inviteUrl = await test.step("create invite", async () => {
         const inviteUrl =
-            await invitesPage.createInviteWithCycles(inviteCycles);
+            await invitesPage.createInviteWithCredits(inviteCredits);
         const openInvites = await invitesPage.getOpenInvites();
         expect(openInvites).toHaveLength(1);
 
@@ -42,8 +42,8 @@ test("user invite", async ({ page, browser }) => {
                     user,
                 );
                 const profilePage = await globalNavigation.goToProfilePage();
-                const cyclesBalance = await profilePage.getCyclesBalance();
-                expect(cyclesBalance).toEqual(inviteCycles);
+                const creditsBalance = await profilePage.getCreditsBalance();
+                expect(creditsBalance).toEqual(inviteCredits);
             });
         });
 

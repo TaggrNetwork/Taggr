@@ -1,7 +1,7 @@
 import { Locator, Page } from "@playwright/test";
 
 export class PostEditorElement {
-    public readonly cycleCost: Locator;
+    public readonly creditCost: Locator;
     private readonly sendButton: Locator;
     private readonly pollButton: Locator;
     private readonly inputTextArea: Locator;
@@ -12,7 +12,7 @@ export class PostEditorElement {
         private readonly page: Page,
         readonly element: Locator,
     ) {
-        this.cycleCost = element.getByTestId("cycle-cost");
+        this.creditCost = element.getByTestId("credit-cost");
         this.sendButton = element.locator("button", { hasText: "SEND" });
         this.pollButton = element.getByTestId("poll-button");
         this.pollEditor = element.getByTestId("poll-editor");

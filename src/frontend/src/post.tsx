@@ -631,7 +631,7 @@ const PostInfo = ({
                                                 post_deletion_penalty_factor;
                                         if (
                                             !confirm(
-                                                `Please confirm the post deletion: it will costs ${cost} cycles.`,
+                                                `Please confirm the post deletion: it will costs ${cost} credits.`,
                                             )
                                         )
                                             return;

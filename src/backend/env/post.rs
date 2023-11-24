@@ -256,10 +256,10 @@ impl Post {
             .collect();
     }
 
-    pub fn costs(&self, blobs: usize) -> Cycles {
-        let tags = self.tags.len() as Cycles;
-        CONFIG.post_cost.max(tags as Cycles * CONFIG.tag_cost)
-            + blobs as Cycles * CONFIG.blob_cost
+    pub fn costs(&self, blobs: usize) -> Credits {
+        let tags = self.tags.len() as Credits;
+        CONFIG.post_cost.max(tags as Credits * CONFIG.tag_cost)
+            + blobs as Credits * CONFIG.blob_cost
             + if matches!(self.extension, Some(Extension::Poll(_))) {
                 CONFIG.poll_cost
             } else {

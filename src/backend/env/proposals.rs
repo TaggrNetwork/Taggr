@@ -161,10 +161,10 @@ impl Proposal {
                     -(CONFIG.proposal_rejection_penalty as Karma),
                     "proposal rejection penalty",
                 );
-                let cycle_balance = proposer.cycles();
+                let credit_balance = proposer.credits();
                 state.charge(
                     self.proposer,
-                    cycle_balance.min(CONFIG.proposal_rejection_penalty),
+                    credit_balance.min(CONFIG.proposal_rejection_penalty),
                     "proposal rejection penalty",
                 )?;
             }
@@ -395,7 +395,7 @@ pub(super) fn execute_proposal(
     if previous_state != proposal.status {
         state.denotify_users(&|user| user.active_within_weeks(time, 1) && user.balance > 0);
         state.logger.info(format!(
-            "Spent `{}` cycles on proposal voting rewards.",
+            "Spent `{}` credits on proposal voting rewards.",
             proposal.bulletins.len() * CONFIG.voting_reward as usize
         ));
     }
@@ -640,7 +640,7 @@ mod tests {
                 user.karma(),
                 1000 - 100 + CONFIG.trusted_user_min_karma + CONFIG.voting_reward as Karma
             );
-            assert_eq!(user.cycles(), 1000 - 2 * CONFIG.post_cost);
+            assert_eq!(user.credits(), 1000 - 2 * CONFIG.post_cost);
 
             assert!(user.stalwart);
 
@@ -663,11 +663,11 @@ mod tests {
                     + CONFIG.voting_reward as Karma
             );
             assert_eq!(
-                user.cycles(),
+                user.credits(),
                 1000 - CONFIG.proposal_rejection_penalty - 2 * CONFIG.post_cost
             );
             assert!(!user.stalwart);
-            user.change_cycles(100, crate::env::user::CyclesDelta::Plus, "")
+            user.change_credits(100, crate::env::user::CreditsDelta::Plus, "")
                 .unwrap();
 
             // create a new proposal
@@ -774,7 +774,7 @@ mod tests {
             let prop_id =
                 propose(state, pr(1), "test".into(), Payload::Noop, 0).expect("couldn't propose");
 
-            assert!(state.principal_to_user(pr(1)).unwrap().cycles() > 0);
+            assert!(state.principal_to_user(pr(1)).unwrap().credits() > 0);
             let proposer = state.principal_to_user(pr(1)).unwrap();
             let data = &"".to_string();
             let proposers_karma = proposer.karma() + proposer.karma_to_reward() as Karma;
@@ -789,7 +789,7 @@ mod tests {
                 state.proposals.iter().last().unwrap().status,
                 Status::Rejected
             );
-            assert_eq!(state.principal_to_user(pr(1)).unwrap().cycles(), 498);
+            assert_eq!(state.principal_to_user(pr(1)).unwrap().credits(), 498);
             assert_eq!(
                 state.principal_to_user(pr(1)).unwrap().karma(),
                 proposers_karma - CONFIG.proposal_rejection_penalty as i64

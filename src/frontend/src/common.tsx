@@ -672,7 +672,7 @@ export const FlagButton = ({
                             ? "reporting_penalty_post"
                             : "reporting_penalty_misbehaviour"
                     ] +
-                    ` cycles and karma. If you want to continue, please justify the report.`,
+                    ` credits and karma. If you want to continue, please justify the report.`,
             );
             if (reason) {
                 let response = await window.api.call<{ [name: string]: any }>(

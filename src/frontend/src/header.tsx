@@ -12,7 +12,7 @@ import {
     Bars,
     Bell,
     CarretDown,
-    Cycles,
+    Credits,
     Document,
     Gear,
     Gem,
@@ -117,7 +117,7 @@ export const Header = ({
                             )}
                             {user && inboxEmpty && (
                                 <div className="vcentered">
-                                    <Cycles />
+                                    <Credits />
                                     <code className="left_half_spaced right_spaced">{`${user.cycles.toLocaleString()}`}</code>
                                 </div>
                             )}

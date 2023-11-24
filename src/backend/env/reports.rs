@@ -42,7 +42,7 @@ impl Report {
 pub fn finalize_report(
     state: &mut State,
     report: &Report,
-    penalty: Cycles,
+    penalty: Credits,
     user_id: UserId,
     subject: String,
 ) -> Result<(), String> {
@@ -62,7 +62,7 @@ pub fn finalize_report(
         );
         user.stalwart = false;
         user.active_weeks = 0;
-        let unit = penalty.min(user.cycles()) / 2;
+        let unit = penalty.min(user.credits()) / 2;
         let reporter = state
             .users
             .get_mut(&report.reporter)
@@ -72,7 +72,7 @@ pub fn finalize_report(
             subject, CONFIG.name
         ));
         state
-            .cycle_transfer(
+            .credit_transfer(
                 user_id,
                 report.reporter,
                 unit,
@@ -93,7 +93,7 @@ pub fn finalize_report(
             "Your report of {} was rejected by stalwarts",
             subject
         ));
-        let unit = penalty.min(reporter.cycles());
+        let unit = penalty.min(reporter.credits());
         let log = format!("false report penalty for {}", subject);
         reporter.change_karma(-(penalty as Karma), log);
         let reporter_id = reporter.id;
@@ -111,7 +111,7 @@ pub fn finalize_report(
     for stalwart_id in stalwarts.iter() {
         let moderator = state.users.get(stalwart_id).expect("no user found").id;
         state
-            .cycle_transfer(
+            .credit_transfer(
                 sponsor_id,
                 moderator,
                 stalwart_reward,
@@ -154,7 +154,7 @@ mod tests {
             user.change_karma(100, "");
 
             assert_eq!(user.inbox.len(), 1);
-            assert_eq!(user.cycles(), 1000);
+            assert_eq!(user.credits(), 1000);
             assert_eq!(user.karma_to_reward(), 100);
 
             for i in 1..20 {
@@ -167,7 +167,7 @@ mod tests {
                 Post::create(state, "bad post".to_string(), &[], p, 0, None, None, None).unwrap();
 
             let user = state.users.get(&u1).unwrap();
-            assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
+            assert_eq!(user.credits(), 1000 - CONFIG.post_cost);
 
             let p = Post::get(state, &post_id).unwrap();
             assert!(p.report.is_none());
@@ -185,25 +185,25 @@ mod tests {
                 None,
             );
 
-            // report should work becasue theuser needs 500 cycles
+            // report should work becasue theuser needs 500 credits
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
-            assert_eq!(reporter_user.cycles(), 998);
+            assert_eq!(reporter_user.credits(), 998);
             reporter_user
-                .change_cycles(998, CyclesDelta::Minus, "")
+                .change_credits(998, CreditsDelta::Minus, "")
                 .unwrap();
-            assert_eq!(reporter_user.cycles(), 0);
+            assert_eq!(reporter_user.credits(), 0);
             assert_eq!(
                 state.report(reporter, "post".into(), post_id, String::new()),
-                Err("You need at least 100 cycles for this report".into())
+                Err("You need at least 100 credits for this report".into())
             );
             let p = Post::get(state, &post_id).unwrap();
             assert!(&p.report.is_none());
 
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
             reporter_user
-                .change_cycles(500, CyclesDelta::Plus, "")
+                .change_credits(500, CreditsDelta::Plus, "")
                 .unwrap();
-            assert_eq!(reporter_user.cycles(), 500);
+            assert_eq!(reporter_user.credits(), 500);
             state
                 .report(reporter, "post".into(), post_id, String::new())
                 .unwrap();
@@ -278,7 +278,7 @@ mod tests {
             let user = state.users.get(&u1).unwrap();
             assert_eq!(user.inbox.len(), 2);
             assert_eq!(
-                user.cycles(),
+                user.credits(),
                 1000 - CONFIG.reporting_penalty_post - CONFIG.post_cost
             );
             assert_eq!(user.karma(), -75);
@@ -315,18 +315,18 @@ mod tests {
                 Post::create(state, "good post".to_string(), &[], p, 0, None, None, None).unwrap();
 
             let user = state.users.get(&u).unwrap();
-            assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
+            assert_eq!(user.credits(), 1000 - CONFIG.post_cost);
 
             let reporter = pr(7);
             state
                 .report(reporter, "post".into(), post_id, String::new())
                 .unwrap();
-            // set cycles to 777
+            // set credits to 777
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
             reporter_user
-                .change_cycles(777 - reporter_user.cycles(), CyclesDelta::Plus, "")
+                .change_credits(777 - reporter_user.credits(), CreditsDelta::Plus, "")
                 .unwrap();
-            assert_eq!(reporter_user.cycles(), 777);
+            assert_eq!(reporter_user.credits(), 777);
             reporter_user.apply_rewards();
             assert_eq!(reporter_user.karma(), 125);
 
@@ -357,15 +357,15 @@ mod tests {
             assert_eq!(report.rejected_by.len(), 3);
             assert!(report.closed);
 
-            // karma and cycles stay untouched
+            // karma and credits stay untouched
             let user = state.users.get(&u).unwrap();
-            assert_eq!(user.cycles(), 1000 - CONFIG.post_cost);
+            assert_eq!(user.credits(), 1000 - CONFIG.post_cost);
             assert_eq!(user.karma_to_reward(), 100);
 
             // reported got penalized
             let reporter = state.principal_to_user(reporter).unwrap();
             let unit = CONFIG.reporting_penalty_post / 2;
-            assert_eq!(reporter.cycles(), 777 - 2 * unit);
+            assert_eq!(reporter.credits(), 777 - 2 * unit);
             assert_eq!(reporter.karma(), -75);
 
             assert_eq!(

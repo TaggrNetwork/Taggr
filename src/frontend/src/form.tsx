@@ -11,7 +11,7 @@ import {
 import {
     Bars,
     Code,
-    Cycles,
+    Credits,
     Pic,
     Link,
     List,
@@ -333,7 +333,7 @@ export const Form = ({
         >
             {tooExpensive && (
                 <div className="banner vertically_spaced">
-                    You are low on cycles! Please mint cycles in{" "}
+                    You are low on credits! Please mint credits in{" "}
                     <a href="#/wallet">your wallet</a> to create this post.
                 </div>
             )}
@@ -439,10 +439,10 @@ export const Form = ({
                         <div className="spaced vcentered top_half_spaced">
                             <div className="vcentered max_width_col flex_ended">
                                 <div className="max_width_col"></div>
-                                <Cycles />
+                                <Credits />
                                 <code
                                     className="left_half_spaced"
-                                    data-testid="cycle-cost"
+                                    data-testid="credit-cost"
                                 >{`${totalCosts}`}</code>
                                 <label
                                     id="file_picker_label"

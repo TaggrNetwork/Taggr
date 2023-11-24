@@ -25,7 +25,7 @@ const Welcome = () => {
 
     const checkPayment = async () => {
         setLoadingInvoice(true);
-        const result = await window.api.call<any>("mint_cycles", 0);
+        const result = await window.api.call<any>("mint_credits", 0);
         setLoadingInvoice(false);
         if ("Err" in result) {
             alert(`Error: ${result.Err}`);
@@ -93,26 +93,26 @@ const Welcome = () => {
                                 <h2>JOINING</h2>
                                 <p>
                                     To join {window.backendCache.config.name}{" "}
-                                    you need "cycles". Cycles are app-internal
+                                    you need "credits". Credits are app-internal
                                     tokens which you spend as a "gas" while
-                                    using the app. You can mint cycles yourself
+                                    using the app. You can mint credits yourself
                                     or you can use an invite pre-charged with
-                                    cycles created by another{" "}
+                                    credits created by another{" "}
                                     {window.backendCache.config.name} user. Ask
                                     around on socials for an invite or keep
-                                    reading to get onboard faster.
+                                    reading to get on board faster.
                                 </p>
                                 <p>
-                                    To mint cycles, you need to transfer a small
-                                    amount of ICP to an account controlled by
-                                    the {window.backendCache.config.name}{" "}
-                                    canister. You get <code>1000</code> cycles
+                                    To mint credits, you need to transfer a
+                                    small amount of ICP to an account controlled
+                                    by the {window.backendCache.config.name}{" "}
+                                    canister. You get <code>1000</code> credits
                                     for as little as <code>~1.3 USD</code>{" "}
                                     (corresponds to 1{" "}
                                     <a href="https://en.wikipedia.org/wiki/Special_drawing_rights">
                                         XDR
                                     </a>
-                                    ). Before you mint cycles, make sure you
+                                    ). Before you mint credits, make sure you
                                     understand{" "}
                                     <a href="#/whitepaper">
                                         how {window.backendCache.config.name}{" "}
@@ -140,7 +140,7 @@ const Welcome = () => {
                                             className="active vertically_spaced"
                                             onClick={checkPayment}
                                         >
-                                            MINT CYCLES
+                                            MINT CREDITS
                                         </button>
                                     </>
                                 )}
@@ -148,7 +148,7 @@ const Welcome = () => {
                                     <>
                                         {invoice.paid && (
                                             <div>
-                                                <h2>CYCLES MINTED! ✅</h2>
+                                                <h2>CREDITS MINTED! ✅</h2>
                                                 <p>
                                                     You can create a user
                                                     account now.
@@ -188,7 +188,7 @@ const Welcome = () => {
                                                     testId="account-to-transfer-to"
                                                 />{" "}
                                                 to mint <code>1000</code>{" "}
-                                                cycles.
+                                                credits.
                                                 <br />
                                                 <br />
                                                 If you transfer a larger amount,
@@ -226,8 +226,8 @@ const shortenPrincipal = (principal: string) => {
 
 export const Wallet = () => {
     const [user, setUser] = React.useState(window.user);
-    const mintCycles = async (kilo_cycles: number) =>
-        await window.api.call("mint_cycles", kilo_cycles);
+    const mintCredits = async (kilo_credits: number) =>
+        await window.api.call("mint_credits", kilo_credits);
     const [transactions, setTransactions] = React.useState(
         [] as [number, Transaction][],
     );
@@ -247,14 +247,14 @@ export const Wallet = () => {
     }, []);
 
     if (!user) return <Welcome />;
-    let { token_symbol, token_decimals, name } = window.backendCache.config;
+    let { token_symbol, token_decimals } = window.backendCache.config;
 
     return (
         <>
             <HeadBar title="WALLET" shareLink="wallets" />
             {user.cycles <= 200 && (
                 <div className="banner bottom_spaced">
-                    You are low on cycles! Please transfer some ICP to your
+                    You are low on credits! Please transfer some ICP to your
                     account displayed below and press the MINT button.
                 </div>
             )}
@@ -322,33 +322,33 @@ export const Wallet = () => {
             </div>
             <div className="stands_out">
                 <div className="vcentered">
-                    <h2 className="max_width_col">{name} Cycles</h2>
+                    <h2 className="max_width_col">Credits</h2>
                     <ButtonWithLoading
                         classNameArg="active"
                         onClick={async () => {
                             const maxKilos =
                                 window.backendCache.config
-                                    .max_cycles_mint_kilos;
-                            const kilo_cycles = parseInt(
+                                    .max_credits_mint_kilos;
+                            const kilo_credits = parseInt(
                                 prompt(
-                                    "Enter the number of 1000s of cycles to mint " +
+                                    "Enter the number of 1000s of credits to mint " +
                                         `(max: ${maxKilos})`,
                                     "1",
                                 ) || "",
                             );
-                            if (Number(kilo_cycles) > maxKilos) {
+                            if (Number(kilo_credits) > maxKilos) {
                                 alert(
                                     `You can't mint more than ${
                                         1000 * maxKilos
-                                    } cycles at once.`,
+                                    } credits at once.`,
                                 );
                                 return;
                             }
-                            if (isNaN(kilo_cycles)) {
+                            if (isNaN(kilo_credits)) {
                                 return;
                             }
-                            const result: any = await mintCycles(
-                                Math.max(1, kilo_cycles),
+                            const result: any = await mintCredits(
+                                Math.max(1, kilo_credits),
                             );
                             if ("Err" in result) {
                                 alert(`Error: ${result.Err}`);
@@ -365,14 +365,17 @@ export const Wallet = () => {
                 </div>
                 <div className="vcentered">
                     <div className="max_width_col"></div>
-                    <code className="xx_large_text" data-testid="cycles-amount">
+                    <code
+                        className="xx_large_text"
+                        data-testid="credits-amount"
+                    >
                         {user.cycles.toLocaleString()}
                     </code>
                 </div>
             </div>
             <div className="stands_out">
                 <div className="vcentered">
-                    <h2 className="max_width_col">${token_symbol} Tokens</h2>
+                    <h2 className="max_width_col">{token_symbol}</h2>
                     <ButtonWithLoading
                         label="TRANSFER"
                         onClick={async () => {

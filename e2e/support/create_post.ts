@@ -11,11 +11,11 @@ export async function initPost(
     const globalNavigation = new GlobalNavigationElement(page, user);
     await globalNavigation.goToHomePage();
     const newPostPage = await globalNavigation.goToNewPostPage();
-    await expect(newPostPage.editor.cycleCost).toHaveText("2");
+    await expect(newPostPage.editor.creditCost).toHaveText("2");
 
     const postTextContent = generateText();
     await newPostPage.editor.addText(postTextContent);
-    await expect(newPostPage.editor.cycleCost).toHaveText("2");
+    await expect(newPostPage.editor.creditCost).toHaveText("2");
 
     return newPostPage;
 }
@@ -52,7 +52,7 @@ export async function createPostWithHashTag(
 
     const hashTagContent = `\n#${hashtag || generateHashTag()}`;
     await newPostPage.editor.addText(hashTagContent);
-    await expect(newPostPage.editor.cycleCost).toHaveText("3");
+    await expect(newPostPage.editor.creditCost).toHaveText("3");
 
     const postTextContent = await newPostPage.editor.getContent();
     await newPostPage.submit();

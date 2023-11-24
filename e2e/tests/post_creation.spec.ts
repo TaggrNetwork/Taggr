@@ -27,16 +27,16 @@ test("post creation", async ({ page, browser }) => {
                 );
 
                 const profilePage = await globalNavigation.goToProfilePage();
-                const cyclesBalance = await profilePage.getCyclesBalance();
-                expect(cyclesBalance).toEqual(1000);
+                const creditsBalance = await profilePage.getCreditsBalance();
+                expect(creditsBalance).toEqual(1000);
 
                 const postContent = await createPost(page, user);
 
                 await globalNavigation.goToProfilePage();
 
-                const updatedCyclesBalance =
-                    await profilePage.getCyclesBalance();
-                expect(updatedCyclesBalance).toEqual(cyclesBalance - 2);
+                const updatedCreditsBalance =
+                    await profilePage.getCreditsBalance();
+                expect(updatedCreditsBalance).toEqual(creditsBalance - 2);
 
                 const postCount = await profilePage.getPostCount();
                 expect(postCount).toEqual(1);
@@ -92,8 +92,8 @@ test("post creation with hashtag", async ({ page, browser }) => {
                 );
 
                 const profilePage = await globalNavigation.goToProfilePage();
-                const cyclesBalance = await profilePage.getCyclesBalance();
-                expect(cyclesBalance).toEqual(1000);
+                const creditsBalance = await profilePage.getCreditsBalance();
+                expect(creditsBalance).toEqual(1000);
 
                 const postContent = await createPostWithHashTag(
                     page,
@@ -103,9 +103,9 @@ test("post creation with hashtag", async ({ page, browser }) => {
 
                 await globalNavigation.goToProfilePage();
 
-                const updatedCyclesBalance =
-                    await profilePage.getCyclesBalance();
-                expect(updatedCyclesBalance).toEqual(cyclesBalance - 3);
+                const updatedCreditsBalance =
+                    await profilePage.getCreditsBalance();
+                expect(updatedCreditsBalance).toEqual(creditsBalance - 3);
 
                 const postCount = await profilePage.getPostCount();
                 expect(postCount).toEqual(1);
@@ -149,13 +149,13 @@ test("post creation with image", async ({ page }) => {
     });
     const globalNavigation = new GlobalNavigationElement(page, user);
 
-    const cyclesBalance =
-        await test.step("check initial cycles on profile page", async () => {
+    const creditsBalance =
+        await test.step("check initial credits on profile page", async () => {
             const profilePage = await globalNavigation.goToProfilePage();
-            const cyclesBalance = await profilePage.getCyclesBalance();
-            expect(cyclesBalance).toEqual(1000);
+            const creditsBalance = await profilePage.getCreditsBalance();
+            expect(creditsBalance).toEqual(1000);
 
-            return cyclesBalance;
+            return creditsBalance;
         });
 
     const [postContent, postPage] =
@@ -163,7 +163,7 @@ test("post creation with image", async ({ page }) => {
             const imagePath = resolve(__dirname, "..", "assets", "smash.jpg");
             const newPostPage = await initPost(page, user);
             await newPostPage.editor.addImage(imagePath);
-            await expect(newPostPage.editor.cycleCost).toHaveText("12");
+            await expect(newPostPage.editor.creditCost).toHaveText("12");
 
             const postContent = await newPostPage.editor.getContent();
             const postPage = await newPostPage.submit();
@@ -185,10 +185,10 @@ test("post creation with image", async ({ page }) => {
         await expect(postPage.imagePreview).not.toBeVisible();
     });
 
-    await test.step("check updated cycles and post on profile page", async () => {
+    await test.step("check updated credits and post on profile page", async () => {
         const profilePage = await globalNavigation.goToProfilePage();
-        const updatedCyclesBalance = await profilePage.getCyclesBalance();
-        expect(updatedCyclesBalance).toEqual(cyclesBalance - 12);
+        const updatedCreditsBalance = await profilePage.getCreditsBalance();
+        expect(updatedCreditsBalance).toEqual(creditsBalance - 12);
 
         const postCount = await profilePage.getPostCount();
         expect(postCount).toEqual(1);
@@ -205,8 +205,8 @@ test("journal", async ({ page }) => {
     const [postOneContent, postTwoContent, postThreeContent] =
         await test.step("create posts", async () => {
             const profilePage = await globalNavigation.goToProfilePage();
-            const cyclesBalance = await profilePage.getCyclesBalance();
-            expect(cyclesBalance).toEqual(1000);
+            const creditsBalance = await profilePage.getCreditsBalance();
+            expect(creditsBalance).toEqual(1000);
 
             const postOneContent = await createPost(page, user);
             const postTwoContent = await createPost(page, user);
@@ -214,8 +214,8 @@ test("journal", async ({ page }) => {
 
             await globalNavigation.goToProfilePage();
 
-            const updatedCyclesBalance = await profilePage.getCyclesBalance();
-            expect(updatedCyclesBalance).toEqual(cyclesBalance - 6);
+            const updatedCreditsBalance = await profilePage.getCreditsBalance();
+            expect(updatedCreditsBalance).toEqual(creditsBalance - 6);
 
             return [postOneContent, postTwoContent, postThreeContent];
         });

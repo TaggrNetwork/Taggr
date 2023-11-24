@@ -18,7 +18,7 @@ impl Filters {
 }
 
 #[derive(PartialEq)]
-pub enum CyclesDelta {
+pub enum CreditsDelta {
     Plus,
     Minus,
 }
@@ -59,7 +59,7 @@ pub struct User {
     pub settings: String,
     karma: Karma,
     rewarded_karma: u64,
-    cycles: Cycles,
+    cycles: Credits,
     pub feeds: Vec<BTreeSet<String>>,
     pub followees: BTreeSet<UserId>,
     pub followers: BTreeSet<UserId>,
@@ -78,7 +78,7 @@ pub struct User {
     pub report: Option<Report>,
     pub karma_from_last_posts: BTreeMap<UserId, Karma>,
     pub treasury_e8s: u64,
-    pub invites_budget: Cycles,
+    pub invites_budget: Credits,
     #[serde(skip)]
     pub draft: Option<Draft>,
     pub filters: Filters,
@@ -293,14 +293,14 @@ impl User {
         self.controllers.iter().any(|p| p.len() == 27)
     }
 
-    pub fn change_cycles<T: ToString>(
+    pub fn change_credits<T: ToString>(
         &mut self,
-        amount: Cycles,
-        delta: CyclesDelta,
+        amount: Credits,
+        delta: CreditsDelta,
         log: T,
     ) -> Result<(), String> {
-        if delta == CyclesDelta::Minus && amount <= self.cycles || delta == CyclesDelta::Plus {
-            if delta == CyclesDelta::Plus {
+        if delta == CreditsDelta::Minus && amount <= self.cycles || delta == CreditsDelta::Plus {
+            if delta == CreditsDelta::Plus {
                 self.cycles += amount;
             } else {
                 self.cycles -= amount;
@@ -308,7 +308,7 @@ impl User {
             self.accounting.push_front((
                 time(),
                 "CYC".to_string(),
-                if delta == CyclesDelta::Plus {
+                if delta == CreditsDelta::Plus {
                     amount as i64
                 } else {
                     -(amount as i64)
@@ -317,7 +317,7 @@ impl User {
             ));
             return Ok(());
         }
-        Err("not enough cycles".into())
+        Err("not enough credits".into())
     }
 
     pub fn change_karma<T: ToString>(&mut self, amount: Karma, log: T) {
@@ -346,7 +346,7 @@ impl User {
             .push_front((time(), "KRM".to_string(), amount, log.to_string()));
     }
 
-    pub fn compute_karma_donation(&mut self, sender: UserId, amount: Cycles) -> Cycles {
+    pub fn compute_karma_donation(&mut self, sender: UserId, amount: Credits) -> Credits {
         let donations = self.karma_donations.entry(sender).or_insert(100);
         let effective_amount = (*donations as u64 * amount / 100).max(1);
         if amount > 1 {
@@ -364,7 +364,7 @@ impl User {
         self.rewarded_karma = 0;
     }
 
-    pub fn cycles(&self) -> Cycles {
+    pub fn credits(&self) -> Credits {
         self.cycles
     }
 
@@ -372,32 +372,32 @@ impl User {
         self.karma
     }
 
-    pub fn top_up_cycles_from_karma(&mut self) -> Result<Cycles, String> {
-        let cycles_needed = CONFIG.native_cycles_per_xdr.saturating_sub(self.cycles());
-        let top_up = cycles_needed.min(self.rewarded_karma) as Cycles;
+    pub fn top_up_credits_from_karma(&mut self) -> Result<Credits, String> {
+        let credits_needed = CONFIG.credits_per_xdr.saturating_sub(self.credits());
+        let top_up = credits_needed.min(self.rewarded_karma) as Credits;
         if top_up == 0 {
             return Ok(0);
         }
-        self.change_cycles(top_up, CyclesDelta::Plus, "cycles top-up from karma")
+        self.change_credits(top_up, CreditsDelta::Plus, "credits top-up from karma")
             .map(|_| top_up)
     }
 
-    pub fn top_up_cycles_from_revenue(
+    pub fn top_up_credits_from_revenue(
         &mut self,
         revenue: &mut u64,
         e8s_for_one_xdr: u64,
     ) -> Result<(), String> {
-        let cycles_needed = CONFIG.native_cycles_per_xdr.saturating_sub(self.cycles());
-        if *revenue > 0 && cycles_needed > 0 {
-            let e8s_needed = cycles_needed * e8s_for_one_xdr / CONFIG.native_cycles_per_xdr;
+        let credits_needed = CONFIG.credits_per_xdr.saturating_sub(self.credits());
+        if *revenue > 0 && credits_needed > 0 {
+            let e8s_needed = credits_needed * e8s_for_one_xdr / CONFIG.credits_per_xdr;
             let top_up_e8s = e8s_needed.min(*revenue);
-            let cycles =
-                top_up_e8s as f32 / e8s_for_one_xdr as f32 * CONFIG.native_cycles_per_xdr as f32;
+            let credits =
+                top_up_e8s as f32 / e8s_for_one_xdr as f32 * CONFIG.credits_per_xdr as f32;
             *revenue = (*revenue).saturating_sub(top_up_e8s);
-            self.change_cycles(
-                cycles as Cycles,
-                CyclesDelta::Plus,
-                "cycles top-up from revenue",
+            self.change_credits(
+                credits as Credits,
+                CreditsDelta::Plus,
+                "credits top-up from revenue",
             )?;
         }
         Ok(())
@@ -494,57 +494,57 @@ mod tests {
         // no top up triggered
         user.cycles = 1000;
         user.rewarded_karma = 30;
-        user.top_up_cycles_from_karma().unwrap();
+        user.top_up_credits_from_karma().unwrap();
         assert_eq!(user.rewarded_karma, 30);
         let mut revenue = 2000_0000;
-        user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
+        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
         assert_eq!(revenue, 2000_0000);
-        assert_eq!(user.cycles(), 1000);
+        assert_eq!(user.credits(), 1000);
 
         // rewards are enough
         user.cycles = 980;
         user.rewarded_karma = 30;
-        let cycles = user.top_up_cycles_from_karma().unwrap();
-        assert_eq!(cycles, 20);
+        let credits = user.top_up_credits_from_karma().unwrap();
+        assert_eq!(credits, 20);
         let mut revenue = 2000_0000;
-        user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
+        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
         assert_eq!(revenue, 2000_0000);
-        assert_eq!(user.cycles(), 1000);
+        assert_eq!(user.credits(), 1000);
 
         // rewards are still enough
         user.cycles = 0;
         user.rewarded_karma = 3000;
-        let cycles = user.top_up_cycles_from_karma().unwrap();
-        assert_eq!(cycles, 1000);
+        let credits = user.top_up_credits_from_karma().unwrap();
+        assert_eq!(credits, 1000);
         let mut revenue = 2000_0000;
-        user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
+        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
         assert_eq!(revenue, 2000_0000);
-        assert_eq!(user.cycles(), 1000);
+        assert_eq!(user.credits(), 1000);
 
         // rewards are not enough
         user.cycles = 0;
         user.rewarded_karma = 500;
-        let cycles = user.top_up_cycles_from_karma().unwrap();
-        assert_eq!(cycles, 500);
+        let credits = user.top_up_credits_from_karma().unwrap();
+        assert_eq!(credits, 500);
         let mut revenue = 2000_0000;
-        user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
+        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
         assert_eq!(revenue, 452_5000);
-        assert_eq!(user.cycles(), 1000);
+        assert_eq!(user.credits(), 1000);
 
         // rewards and revenue not enough
         user.cycles = 0;
         user.rewarded_karma = 500;
-        let cycles = user.top_up_cycles_from_karma().unwrap();
-        assert_eq!(cycles, 500);
+        let credits = user.top_up_credits_from_karma().unwrap();
+        assert_eq!(credits, 500);
         let mut revenue = 1000_0000;
-        user.top_up_cycles_from_revenue(&mut revenue, e8s_for_one_xdr)
+        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
         assert_eq!(revenue, 0);
-        assert_eq!(user.cycles(), 823);
+        assert_eq!(user.credits(), 823);
     }
 
     #[test]
@@ -604,14 +604,14 @@ mod tests {
     }
 
     #[test]
-    fn test_change_cycles() {
+    fn test_change_credits() {
         let mut u = User::new(pr(1), 66, 0, Default::default());
         u.cycles = 100;
-        assert!(u.change_cycles(55, CyclesDelta::Plus, "").is_ok());
-        assert_eq!(u.cycles(), 155);
-        assert!(u.change_cycles(156, CyclesDelta::Minus, "").is_err());
-        assert!(u.change_cycles(155, CyclesDelta::Minus, "").is_ok());
-        assert_eq!(u.cycles(), 0);
+        assert!(u.change_credits(55, CreditsDelta::Plus, "").is_ok());
+        assert_eq!(u.credits(), 155);
+        assert!(u.change_credits(156, CreditsDelta::Minus, "").is_err());
+        assert!(u.change_credits(155, CreditsDelta::Minus, "").is_ok());
+        assert_eq!(u.credits(), 0);
     }
 
     #[test]

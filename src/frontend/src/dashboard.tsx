@@ -23,7 +23,7 @@ import {
     CashCoin,
     Comment,
     Crowd,
-    Cycles,
+    Credits,
     Document,
     Fire,
     Gear,
@@ -150,21 +150,21 @@ export const Dashboard = ({}) => {
                     </div>
                     <div className="db_cell">
                         <label>
-                            <Cycles /> CYCLES SUPPLY
+                            <Credits /> CREDITS SUPPLY
                         </label>
-                        {show(stats.cycles)}
+                        {show(stats.credits)}
                     </div>
                     <div className="db_cell">
                         <label>
-                            <Fire /> CYCLES BURNED
+                            <Fire /> CREDITS BURNED
                         </label>
-                        {show(stats.burned_cycles_total)}
+                        {show(stats.burned_credits_total)}
                     </div>
                     <div className="db_cell">
                         <label>
-                            <Cycles /> WEEK'S REVENUE
+                            <Credits /> WEEK'S REVENUE
                         </label>
-                        {show(stats.burned_cycles)}
+                        {show(stats.burned_credits)}
                     </div>
                     <div className="db_cell">
                         <label>
@@ -213,7 +213,7 @@ export const Dashboard = ({}) => {
                             </div>
                             <div className="db_cell">
                                 <label>
-                                    <Cycles /> IC-CYCLES
+                                    <Credits /> CYCLES
                                 </label>{" "}
                                 {show(
                                     Number(stats.canister_cycle_balance) /
@@ -238,7 +238,7 @@ export const Dashboard = ({}) => {
                                 </div>
                                 <div className="db_cell">
                                     <label>
-                                        <Cycles /> IC-CYCLES
+                                        <Credits /> CYCLES
                                     </label>{" "}
                                     <CycleBalance id={bucket_id} />
                                 </div>

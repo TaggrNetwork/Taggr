@@ -36,7 +36,7 @@ export async function createLedgerClient(): Promise<LedgerCanister> {
     });
 }
 
-export async function icpToTaggrCyclesRate(): Promise<bigint> {
+export async function icpToTaggrCreditsRate(): Promise<bigint> {
     const agent = await createAgent();
 
     const cyclesMintingCanister = CMCCanister.create({
