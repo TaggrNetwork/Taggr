@@ -252,7 +252,7 @@ pub const CONFIG: &Config = &Config {
 
     post_deletion_penalty_factor: 10,
 
-    voting_reward: 5,
+    voting_reward: 3,
 
     response_reward: 1,
 
