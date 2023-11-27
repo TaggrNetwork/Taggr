@@ -95,13 +95,13 @@ pub struct Standard {
 #[query]
 fn icrc1_metadata() -> Vec<(String, Value)> {
     vec![
+        ("icrc1:symbol".into(), Value::Text(icrc1_symbol())),
+        ("icrc1:name".into(), Value::Text(icrc1_name())),
         (
-            "icrc1:symbol".into(),
-            Value::Text(CONFIG.token_symbol.into()),
+            "icrc1:decimals".into(),
+            Value::Nat(icrc1_decimals() as u128),
         ),
-        ("icrc1:name".into(), Value::Text(CONFIG.name.into())),
-        ("icrc1:decimals".into(), Value::Nat(2)),
-        ("icrc1:fee".into(), Value::Nat(1)),
+        ("icrc1:fee".into(), Value::Nat(icrc1_fee())),
         (
             "icrc1:logo".into(),
             Value::Text(format!(
