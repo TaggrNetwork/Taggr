@@ -1136,10 +1136,6 @@ impl State {
 
             state.recompute_stalwarts(now);
         });
-
-        if let Ok(e8s_for_one_xdr) = invoices::get_xdr_in_e8s().await {
-            mutate(|state| state.e8s_for_one_xdr = e8s_for_one_xdr);
-        }
     }
 
     fn archive_cold_data(&mut self) -> Result<(), String> {
@@ -1267,6 +1263,10 @@ impl State {
         State::top_up().await;
 
         State::handle_nns_proposals(now).await;
+
+        if let Ok(e8s_for_one_xdr) = invoices::get_xdr_in_e8s().await {
+            mutate(|state| state.e8s_for_one_xdr = e8s_for_one_xdr);
+        }
     }
 
     pub async fn chores(now: u64) {
@@ -1307,25 +1307,15 @@ impl State {
 
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
-            mutate(|state| state.mint());
-            match invoices::get_xdr_in_e8s().await {
-                Ok(e8s_for_one_xdr) => {
-                    let (karma, revenues) = mutate(|state| {
-                        (
-                            state.collect_new_karma(),
-                            state.collect_revenue(time(), e8s_for_one_xdr),
-                        )
-                    });
-                    State::distribute_icp(e8s_for_one_xdr, karma, revenues).await;
-                }
-                Err(err) => {
-                    mutate(|state| {
-                        state
-                            .logger
-                            .error(format!("Couldn't fetch ICP/XDR rate: {:?}", err))
-                    });
-                }
-            };
+            let (karma, revenues, e8s_for_one_xdr) = mutate(|state| {
+                state.mint();
+                (
+                    state.collect_new_karma(),
+                    state.collect_revenue(time(), state.e8s_for_one_xdr),
+                    state.e8s_for_one_xdr,
+                )
+            });
+            State::distribute_icp(e8s_for_one_xdr, karma, revenues).await;
         } else {
             mutate(|state| {
                 state
@@ -1514,7 +1504,8 @@ impl State {
 
         State::claim_user_icp(principal).await?;
 
-        let invoice = match Invoices::outstanding(&principal, kilo_credits).await {
+        let e8s_for_one_xdr = read(|state| state.e8s_for_one_xdr);
+        let invoice = match Invoices::outstanding(&principal, kilo_credits, e8s_for_one_xdr).await {
             Ok(val) => val,
             Err(err) => {
                 if kilo_credits == 0 {

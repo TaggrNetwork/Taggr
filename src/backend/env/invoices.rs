@@ -46,13 +46,13 @@ impl Invoices {
             .retain(|_, invoice| time() - invoice.time < INVOICE_MAX_AGE_HOURS)
     }
 
-    async fn create(invoice_id: Principal) -> Result<Invoice, String> {
+    async fn create(invoice_id: Principal, e8s_for_one_xdr: u64) -> Result<Invoice, String> {
         let time = time();
         let sub_account = principal_to_subaccount(&invoice_id);
         let account = AccountIdentifier::new(&id(), &sub_account);
         let invoice = Invoice {
             paid: false,
-            e8s: get_xdr_in_e8s().await?,
+            e8s: e8s_for_one_xdr,
             paid_e8s: 0,
             time,
             account,
@@ -65,11 +65,15 @@ impl Invoices {
         self.invoices.remove(invoice_id);
     }
 
-    pub async fn outstanding(invoice_id: &Principal, kilo_credits: u64) -> Result<Invoice, String> {
+    pub async fn outstanding(
+        invoice_id: &Principal,
+        kilo_credits: u64,
+        e8s_for_one_xdr: u64,
+    ) -> Result<Invoice, String> {
         let invoice = match read(|state| state.accounting.invoices.get(invoice_id).cloned()) {
             Some(invoice) => invoice,
             None => {
-                let invoice = Invoices::create(*invoice_id).await?;
+                let invoice = Invoices::create(*invoice_id, e8s_for_one_xdr).await?;
                 mutate(|state| {
                     state
                         .accounting
