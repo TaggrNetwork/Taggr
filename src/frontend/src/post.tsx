@@ -454,15 +454,13 @@ export const PostView = ({
                             )}
                         </>
                     )}
-                    {
-                        <PostInfo
-                            post={post}
-                            version={version}
-                            versionSpecified={versionSpecified}
-                            postCreated={postCreated}
-                            callback={async () => await loadData()}
-                        />
-                    }
+                    <PostInfo
+                        post={post}
+                        version={version}
+                        versionSpecified={versionSpecified}
+                        postCreated={postCreated}
+                        callback={async () => await loadData()}
+                    />
                 </div>
             )}
             {(showComments || prime) && post.children.length > 0 && (
@@ -501,182 +499,199 @@ const PostInfo = ({
         post.realm && window.backendCache.realms[post.realm][1];
     return (
         <>
-            {window.user && (
-                <div className="row_container top_half_spaced">
-                    <ShareButton
-                        classNameArg="max_width_col"
-                        url={`${post.parent ? "thread" : "post"}/${post.id}${
-                            versionSpecified ? "/" + version : ""
-                        }`}
-                        title={`Post ${post.id} on ${window.backendCache.config.name}`}
-                    />
-                    <ToggleButton
-                        onTitle="Unwatch post"
-                        offTitle="Watch post"
-                        classNameArg="max_width_col"
-                        offLabel={<Bell />}
-                        onLabel={<BellOff />}
-                        currState={() =>
-                            post.watchers.includes(window.user?.id)
-                        }
-                        toggler={() =>
-                            window.api.call("toggle_following_post", post.id)
-                        }
-                    />
-                    <button
-                        title="Repost"
-                        className="max_width_col"
-                        onClick={() => {
-                            window.api.call("toggle_following_post", post.id);
-                            location.href = `/#/new/repost/${post.id}`;
-                        }}
-                    >
-                        <Repost />
-                    </button>
-                    <ToggleButton
-                        offTitle="Bookmark post"
-                        onTitle="Remove from bookmarks"
-                        classNameArg="max_width_col"
-                        offLabel={<Save />}
-                        onLabel={<Unsave />}
-                        currState={() =>
-                            window.user.bookmarks.includes(post.id)
-                        }
-                        toggler={() =>
-                            window.api
-                                .call("toggle_bookmark", post.id)
-                                .then(window.reloadUser)
-                        }
-                        testId="bookmark-post"
-                    />
-                    <ButtonWithLoading
-                        title="Tip"
-                        classNameArg="max_width_col"
-                        onClick={async () => {
-                            const amount = prompt(
-                                `Tip @${post.userObject.name} with ICP:`,
-                            );
-                            if (
-                                amount == null ||
-                                !confirm(
-                                    `Transfer ${amount} ICP to @${post.userObject.name} as a tip?`,
+            <div className="row_container top_half_spaced">
+                <ShareButton
+                    text={!window.user}
+                    classNameArg="max_width_col"
+                    url={`${post.parent ? "thread" : "post"}/${post.id}${
+                        versionSpecified ? "/" + version : ""
+                    }`}
+                    title={`Post ${post.id} on ${window.backendCache.config.name}`}
+                />
+                {window.user && (
+                    <>
+                        <ToggleButton
+                            onTitle="Unwatch post"
+                            offTitle="Watch post"
+                            classNameArg="max_width_col"
+                            offLabel={<Bell />}
+                            onLabel={<BellOff />}
+                            currState={() =>
+                                post.watchers.includes(window.user?.id)
+                            }
+                            toggler={() =>
+                                window.api.call(
+                                    "toggle_following_post",
+                                    post.id,
                                 )
-                            )
-                                return;
-                            let response = await window.api.call<any>(
-                                "tip",
-                                post.id,
-                                amount,
-                            );
-                            if ("Err" in response) {
-                                alert(`Error: ${response.Err}`);
-                            } else await callback();
-                        }}
-                        label={<Coin />}
-                    />
-                    {realmController && isRoot(post) && (
+                            }
+                        />
+                        <button
+                            title="Repost"
+                            className="max_width_col"
+                            onClick={() => {
+                                window.api.call(
+                                    "toggle_following_post",
+                                    post.id,
+                                );
+                                location.href = `/#/new/repost/${post.id}`;
+                            }}
+                        >
+                            <Repost />
+                        </button>
+                        <ToggleButton
+                            offTitle="Bookmark post"
+                            onTitle="Remove from bookmarks"
+                            classNameArg="max_width_col"
+                            offLabel={<Save />}
+                            onLabel={<Unsave />}
+                            currState={() =>
+                                window.user.bookmarks.includes(post.id)
+                            }
+                            toggler={() =>
+                                window.api
+                                    .call("toggle_bookmark", post.id)
+                                    .then(window.reloadUser)
+                            }
+                            testId="bookmark-post"
+                        />
                         <ButtonWithLoading
-                            title="Remove from realm"
+                            title="Tip"
                             classNameArg="max_width_col"
                             onClick={async () => {
+                                const amount = prompt(
+                                    `Tip @${post.userObject.name} with ICP:`,
+                                );
                                 if (
+                                    amount == null ||
                                     !confirm(
-                                        "Do you want to remove the post from this realm?",
+                                        `Transfer ${amount} ICP to @${post.userObject.name} as a tip?`,
                                     )
                                 )
                                     return;
-                                await window.api.call(
-                                    "realm_clean_up",
+                                let response = await window.api.call<any>(
+                                    "tip",
                                     post.id,
+                                    amount,
                                 );
-                                alert("This post was removed from this realm.");
+                                if ("Err" in response) {
+                                    alert(`Error: ${response.Err}`);
+                                } else await callback();
                             }}
-                            label={<Close />}
+                            label={<Coin />}
                         />
-                    )}
-                    {!postAuthor && <FlagButton id={post.id} domain="post" />}
-                    {postAuthor && (
-                        <>
-                            {post.hashes.length == 0 && (
-                                <ButtonWithLoading
-                                    title="Delete post"
-                                    classNameArg="max_width_col"
-                                    onClick={async () => {
-                                        const {
-                                            post_cost,
-                                            post_deletion_penalty_factor,
-                                        } = window.backendCache.config;
-                                        const cost =
-                                            objectReduce(
-                                                post.reactions,
-                                                (
-                                                    acc: number,
-                                                    id: string,
-                                                    users: UserId[],
-                                                ) => {
-                                                    const costTable =
-                                                        reactionCosts();
-                                                    let cost =
-                                                        costTable[parseInt(id)];
-                                                    return (
-                                                        acc +
-                                                        (cost > 0 ? cost : 0) *
-                                                            users.length
-                                                    );
-                                                },
-                                                0,
-                                            ) +
-                                            post_cost +
-                                            post.tree_size *
-                                                post_deletion_penalty_factor;
-                                        if (
-                                            !confirm(
-                                                `Please confirm the post deletion: it will costs ${cost} credits.`,
-                                            )
+                        {realmController && isRoot(post) && (
+                            <ButtonWithLoading
+                                title="Remove from realm"
+                                classNameArg="max_width_col"
+                                onClick={async () => {
+                                    if (
+                                        !confirm(
+                                            "Do you want to remove the post from this realm?",
                                         )
-                                            return;
-                                        let current = post.body;
-                                        const versions = [current];
-                                        for (
-                                            let i = post.patches.length - 1;
-                                            i >= 0;
-                                            i--
-                                        ) {
-                                            const [_timestamp, patch] =
-                                                post.patches[i];
-                                            current = applyPatch(
-                                                current,
-                                                patch,
-                                            )[0];
-                                            versions.push(current);
-                                        }
-                                        versions.reverse();
-                                        let response =
-                                            await window.api.call<any>(
-                                                "delete_post",
-                                                post.id,
-                                                versions,
-                                            );
-                                        if ("Err" in response) {
-                                            alert(`Error: ${response.Err}`);
-                                        } else await callback();
-                                    }}
-                                    label={<Trash />}
-                                />
-                            )}
-                            <button
-                                title="Edit"
-                                className="max_width_col"
-                                onClick={() =>
-                                    (location.href = `/#/edit/${post.id}`)
-                                }
-                            >
-                                <Edit />
-                            </button>
-                        </>
-                    )}
-                </div>
-            )}
+                                    )
+                                        return;
+                                    await window.api.call(
+                                        "realm_clean_up",
+                                        post.id,
+                                    );
+                                    alert(
+                                        "This post was removed from this realm.",
+                                    );
+                                }}
+                                label={<Close />}
+                            />
+                        )}
+                        {!postAuthor && (
+                            <FlagButton id={post.id} domain="post" />
+                        )}
+                        {postAuthor && (
+                            <>
+                                {post.hashes.length == 0 && (
+                                    <ButtonWithLoading
+                                        title="Delete post"
+                                        classNameArg="max_width_col"
+                                        onClick={async () => {
+                                            const {
+                                                post_cost,
+                                                post_deletion_penalty_factor,
+                                            } = window.backendCache.config;
+                                            const cost =
+                                                objectReduce(
+                                                    post.reactions,
+                                                    (
+                                                        acc: number,
+                                                        id: string,
+                                                        users: UserId[],
+                                                    ) => {
+                                                        const costTable =
+                                                            reactionCosts();
+                                                        let cost =
+                                                            costTable[
+                                                                parseInt(id)
+                                                            ];
+                                                        return (
+                                                            acc +
+                                                            (cost > 0
+                                                                ? cost
+                                                                : 0) *
+                                                                users.length
+                                                        );
+                                                    },
+                                                    0,
+                                                ) +
+                                                post_cost +
+                                                post.tree_size *
+                                                    post_deletion_penalty_factor;
+                                            if (
+                                                !confirm(
+                                                    `Please confirm the post deletion: it will costs ${cost} credits.`,
+                                                )
+                                            )
+                                                return;
+                                            let current = post.body;
+                                            const versions = [current];
+                                            for (
+                                                let i = post.patches.length - 1;
+                                                i >= 0;
+                                                i--
+                                            ) {
+                                                const [_timestamp, patch] =
+                                                    post.patches[i];
+                                                current = applyPatch(
+                                                    current,
+                                                    patch,
+                                                )[0];
+                                                versions.push(current);
+                                            }
+                                            versions.reverse();
+                                            let response =
+                                                await window.api.call<any>(
+                                                    "delete_post",
+                                                    post.id,
+                                                    versions,
+                                                );
+                                            if ("Err" in response) {
+                                                alert(`Error: ${response.Err}`);
+                                            } else await callback();
+                                        }}
+                                        label={<Trash />}
+                                    />
+                                )}
+                                <button
+                                    title="Edit"
+                                    className="max_width_col"
+                                    onClick={() =>
+                                        (location.href = `/#/edit/${post.id}`)
+                                    }
+                                >
+                                    <Edit />
+                                </button>
+                            </>
+                        )}
+                    </>
+                )}
+            </div>
             <div className="small_text top_spaced bottom_spaced">
                 <div>
                     <b>CREATED</b>:{" "}
