@@ -229,7 +229,7 @@ export const Content = ({
                             urls,
                             setUrls,
                             blobs,
-                            blogTitle,
+                            undefined,
                             preview,
                         )
                     ))}
