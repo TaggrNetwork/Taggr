@@ -155,13 +155,15 @@ impl User {
                 Ok(id) => {
                     if !self.filters.users.remove(&id) {
                         self.filters.users.insert(id);
+                        self.followees.remove(&id);
                     }
                     Ok(())
                 }
             },
             "tag" => {
                 if !self.filters.tags.remove(&value) {
-                    self.filters.tags.insert(value);
+                    self.filters.tags.insert(value.clone());
+                    self.feeds.retain(|feed| !feed.contains(&value));
                 }
                 Ok(())
             }
@@ -237,13 +239,6 @@ impl User {
                 iterators: iterators.into_iter().map(|i| i.peekable()).collect(),
             }
             .filter(move |post| with_comments || post.parent.is_none())
-            // if the post if from a realm, it's only included if user if part of it
-            .filter(move |post| {
-                post.realm
-                    .as_ref()
-                    .map(|id| self.realms.contains(id))
-                    .unwrap_or(true)
-            })
             .skip(page * CONFIG.feed_page_size)
             .take(CONFIG.feed_page_size),
         )
