@@ -103,7 +103,7 @@ const splitParagraphsAndPics = (
     return result;
 };
 
-const linkOrImageExp = /(!?\[.*?\]\(.*?\)|`.+`)/gs;
+const linkOrImageExp = /(!?\[.*?\]\(.*?\)|```.+?```|`.+?`)/gs;
 const linkTagsAndUsers = (mdString: string) =>
     mdString
         .split(linkOrImageExp)

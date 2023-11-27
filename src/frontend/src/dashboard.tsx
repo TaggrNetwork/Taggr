@@ -289,9 +289,7 @@ export const Dashboard = ({}) => {
                             ({ timestamp, level, message }) =>
                                 `\`${shortDate(
                                     new Date(Number(timestamp) / 1000000),
-                                )}\`: ` +
-                                `${level2icon(level)} ` +
-                                `${message}`,
+                                )}\`: ${level2icon(level)} ${message}`,
                         )
                         .join("\n- - -\n")}
                 />
