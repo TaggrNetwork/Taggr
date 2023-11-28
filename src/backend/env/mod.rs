@@ -448,6 +448,7 @@ impl State {
             return false;
         }
         user.realms.push(name.clone());
+        user.filters.realms.remove(&name);
         self.realms
             .get_mut(&name)
             .expect("no realm found")
@@ -2208,6 +2209,7 @@ impl State {
                     false
                 } else {
                     user.followees.insert(followee_id);
+                    user.filters.users.remove(&followee_id);
                     true
                 },
                 (user.id, user.name.clone()),

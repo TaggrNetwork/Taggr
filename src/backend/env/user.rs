@@ -206,6 +206,9 @@ impl User {
             self.feeds.remove(i);
             return false;
         }
+        if let Some(tag) = tags.first() {
+            self.filters.tags.remove(tag);
+        }
         self.feeds.push(tags.into_iter().collect());
         true
     }
