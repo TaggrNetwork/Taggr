@@ -25,6 +25,7 @@ use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use ic_ledger_types::{AccountIdentifier, Tokens};
 use serde_bytes::ByteBuf;
+use std::time::Duration;
 
 mod assets;
 #[cfg(feature = "dev")]
@@ -53,15 +54,6 @@ where
     STATE.with(|cell| f(&mut cell.borrow_mut()))
 }
 
-fn set_timers() {
-    set_timer(std::time::Duration::from_secs(1), || {
-        spawn(State::finalize_upgrade())
-    });
-    set_timer_interval(std::time::Duration::from_secs(15 * 60), || {
-        spawn(State::chores(api::time()))
-    });
-}
-
 #[init]
 fn init() {
     mutate(|state| {
@@ -70,13 +62,16 @@ fn init() {
         state.last_daily_chores = time();
         state.last_hourly_chores = time();
     });
-    set_timers();
-    set_timer(std::time::Duration::from_secs(1), || {
+    set_timer(Duration::from_millis(1), || {
+        spawn(State::fetch_xdr_rate());
         spawn(async {
             if let Err(err) = Storage::allocate_space().await {
                 mutate(|state| state.logger.error(err));
             }
-        })
+        });
+    });
+    set_timer_interval(Duration::from_secs(15 * 60), || {
+        spawn(State::chores(api::time()))
     });
 }
 
@@ -97,10 +92,16 @@ fn post_upgrade() {
     }
     stable_to_heap_core();
     mutate(|state| state.load());
-    set_timers();
+    set_timer_interval(Duration::from_secs(15 * 60), || {
+        spawn(State::chores(api::time()))
+    });
+    set_timer(
+        Duration::from_millis(1),
+        || spawn(State::finalize_upgrade()),
+    );
 
     // temporary post upgrade logic goes here
-    // set_timer(std::time::Duration::from_secs(1), move || {
+    // set_timer(Duration::from_secs(1), move || {
     //     spawn(post_upgrade_fixtures())
     // });
 }

@@ -1251,6 +1251,12 @@ impl State {
         }
     }
 
+    pub async fn fetch_xdr_rate() {
+        if let Ok(e8s_for_one_xdr) = invoices::get_xdr_in_e8s().await {
+            mutate(|state| state.e8s_for_one_xdr = e8s_for_one_xdr);
+        }
+    }
+
     async fn hourly_chores(now: u64) {
         mutate(|state| {
             // Automatically dump the heap to the stable memory. This should be the first
@@ -1260,13 +1266,11 @@ impl State {
             state.conclude_polls(now)
         });
 
+        State::fetch_xdr_rate().await;
+
         State::top_up().await;
 
         State::handle_nns_proposals(now).await;
-
-        if let Ok(e8s_for_one_xdr) = invoices::get_xdr_in_e8s().await {
-            mutate(|state| state.e8s_for_one_xdr = e8s_for_one_xdr);
-        }
     }
 
     pub async fn chores(now: u64) {
