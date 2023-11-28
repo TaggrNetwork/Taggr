@@ -8,7 +8,7 @@ type Timestamp = u64;
 
 pub type Subaccount = Vec<u8>;
 
-type Memo = [u8; 32];
+type Memo = Vec<u8>;
 
 pub type Token = u64;
 
@@ -199,6 +199,13 @@ fn transfer(
         }));
     }
 
+    if memo.as_ref().map(|bytes| bytes.len()) > Some(32) {
+        return Err(TransferError::GenericError(GenericError {
+            error_code: 2,
+            message: "memo longer than 32 bytes".to_string(),
+        }));
+    }
+
     // check the time
     let effective_time = created_at_time.unwrap_or(now);
     if effective_time + 5 * MINUTE < now {
@@ -362,6 +369,29 @@ mod tests {
     fn test_transfers() {
         let mut state = State::default();
         env::tests::create_user(&mut state, pr(0));
+
+        let mut memo = Vec::new();
+        memo.resize(33, 0);
+
+        assert_eq!(
+            transfer(
+                &mut state,
+                1000 * MINUTE,
+                pr(0),
+                TransferArgs {
+                    from_subaccount: None,
+                    to: account(pr(1)),
+                    amount: 1,
+                    fee: Some(1),
+                    memo: Some(memo),
+                    created_at_time: None
+                }
+            ),
+            Err(TransferError::GenericError(GenericError {
+                error_code: 2,
+                message: "memo longer than 32 bytes".into()
+            }))
+        );
 
         assert_eq!(
             transfer(
