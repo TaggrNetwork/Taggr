@@ -15,6 +15,8 @@ pub struct Config {
     pub logo: &'static str,
     pub staging: &'static str,
 
+    pub nns_voting_enabled: bool,
+
     pub transaction_fee: u64,
     pub credit_transaction_fee: u64,
     pub token_decimals: u8,
@@ -176,6 +178,11 @@ pub const CONFIG: &Config = &Config {
     supply_threshold_for_transfer_percentage: 0,
     #[cfg(feature = "dev")]
     supply_threshold_for_transfer_percentage: 10,
+
+    #[cfg(not(any(feature = "dev", feature = "staging")))]
+    nns_voting_enabled: true,
+    #[cfg(any(feature = "dev", feature = "staging"))]
+    nns_voting_enabled: false,
 
     karma_donation_decline_percentage: 15,
 

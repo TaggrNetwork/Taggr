@@ -1144,8 +1144,9 @@ impl State {
     }
 
     async fn handle_nns_proposals(now: u64) {
-        #[cfg(feature = "staging")]
-        return;
+        if !CONFIG.nns_voting_enabled {
+            return;
+        }
 
         // Vote on proposals if pending ones exist
         for (proposal_id, post_id) in read(|state| state.pending_nns_proposals.clone()) {
