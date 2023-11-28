@@ -453,7 +453,7 @@ export const ProposalView = ({
                         <div className="row_container bottom_half_spaced">
                             COMMIT:
                             <a
-                                className="left_spaced"
+                                className="left_half_spaced"
                                 href={
                                     open
                                         ? REPO_RELEASE
