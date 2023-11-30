@@ -98,6 +98,10 @@ h5 {
     padding-bottom: 0.5em;
 }
 
+article.prime {
+    font-size: 115%;
+}
+
 .prime h1 {
     font-size: 250%;
     line-height: normal;
@@ -966,8 +970,14 @@ label svg {
     .mobile_only {
         display: inline;
     }
+
     .desktop_only {
         display: none;
+    }
+
+    .prime h1 {
+        font-size: 200%;
+        line-height: normal;
     }
 }
 
