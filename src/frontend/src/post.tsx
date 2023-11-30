@@ -815,10 +815,11 @@ const PostBar = ({
                 <div className="row_container" style={{ alignItems: "center" }}>
                     {!isJournalView && (
                         <a
+                            className="right_half_spaced"
                             href={`#/user/${post.userObject.id}`}
                         >{`${post.userObject.name}`}</a>
                     )}
-                    <div className="left_half_spaced no_wrap vcentered">
+                    <div className="no_wrap vcentered">
                         {time}
                         {newPost && (
                             <New classNameArg="left_half_spaced accent" />
