@@ -135,7 +135,7 @@ fn icrc1_fee() -> u128 {
 
 #[query]
 fn icrc1_total_supply() -> u128 {
-    CONFIG.total_supply as u128
+    read(|state| state.balances.values().copied().sum::<u64>() as u128)
 }
 
 #[query]
