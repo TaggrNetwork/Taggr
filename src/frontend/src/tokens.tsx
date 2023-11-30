@@ -294,7 +294,12 @@ export const TransactionView = ({ id }: { id: number }) => {
                 {tx.memo && (
                     <>
                         {" "}
-                        MEMO <code>{JSON.stringify(tx.memo)}</code>
+                        MEMO{" "}
+                        <code>
+                            {new TextDecoder("utf-8").decode(
+                                new Uint8Array(tx.memo),
+                            )}
+                        </code>
                     </>
                 )}
             </div>
