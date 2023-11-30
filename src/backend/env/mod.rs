@@ -1338,6 +1338,13 @@ impl State {
     }
 
     fn clean_up(&mut self, now: u64) {
+        self.logger.info(format!(
+            "`{}` users exhausted the karma budget this week.",
+            self.users
+                .values()
+                .filter(|user| user.karma_budget == 0)
+                .count()
+        ));
         for user in self.users.values_mut() {
             user.accounting.clear();
             if user.active_within_weeks(now, 1) {
