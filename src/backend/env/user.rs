@@ -51,7 +51,6 @@ pub struct Draft {
 pub struct User {
     pub id: UserId,
     pub name: String,
-    #[serde(default)]
     pub num_posts: u64,
     pub bookmarks: VecDeque<PostId>,
     pub about: String,
@@ -83,8 +82,9 @@ pub struct User {
     pub draft: Option<Draft>,
     pub filters: Filters,
     pub karma_donations: BTreeMap<UserId, u32>,
-    #[serde(default)]
     pub previous_names: Vec<String>,
+    #[serde(default)]
+    pub karma_budget: Credits,
 }
 
 impl User {
@@ -127,6 +127,7 @@ impl User {
             filters: Default::default(),
             karma_donations: Default::default(),
             previous_names: Default::default(),
+            karma_budget: 0,
         }
     }
 
@@ -179,6 +180,14 @@ impl User {
 
     pub fn active_within_weeks(&self, now: u64, n: u64) -> bool {
         self.last_activity + n * WEEK > now
+    }
+
+    pub fn decrease_karma_budget(&mut self, amount: Credits) {
+        self.karma_budget = self.karma_budget.saturating_sub(amount);
+    }
+
+    pub fn karma_donor(&self) -> bool {
+        self.trusted() && self.karma_budget > 0
     }
 
     pub fn trusted(&self) -> bool {

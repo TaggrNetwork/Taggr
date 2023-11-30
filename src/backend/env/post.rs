@@ -518,7 +518,7 @@ impl Post {
         );
         let costs = post.costs(blobs.len());
         post.valid(blobs)?;
-        let trusted_user = user.trusted();
+        let karma_donor = user.karma_donor();
         let future_id = state.next_post_id;
         state.charge(user_id, costs, format!("new post {}", future_id))?;
         let user = state.users.get_mut(&user_id).expect("no user found");
@@ -539,7 +539,7 @@ impl Post {
             let result = Post::mutate(state, &parent_id, |parent_post| {
                 parent_post.children.push(id);
                 parent_post.watchers.insert(user_id);
-                if parent_post.user != user_id && trusted_user {
+                if parent_post.user != user_id && karma_donor {
                     return Ok(Some((parent_post.user, parent_post.id)));
                 }
                 Ok(None)
