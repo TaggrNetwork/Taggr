@@ -62,7 +62,7 @@ fn init() {
         state.last_daily_chores = time();
         state.last_hourly_chores = time();
     });
-    set_timer(Duration::from_millis(1), || {
+    set_timer(Duration::from_millis(0), || {
         spawn(State::fetch_xdr_rate());
         spawn(async {
             if let Err(err) = Storage::allocate_space().await {
@@ -96,7 +96,7 @@ fn post_upgrade() {
         spawn(State::chores(api::time()))
     });
     set_timer(
-        Duration::from_millis(1),
+        Duration::from_millis(0),
         || spawn(State::finalize_upgrade()),
     );
 
