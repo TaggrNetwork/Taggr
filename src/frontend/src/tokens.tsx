@@ -66,7 +66,9 @@ export const Tokens = () => {
     const mintedSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
     const { total_supply, proposal_approval_threshold, transaction_fee } =
         window.backendCache.config;
-    const balanceAmounts = balances.map(([_, balance]) => balance);
+    const balanceAmounts = balances
+        .filter(([_0, _1, userId]) => !isNaN(userId))
+        .map(([_, balance]) => balance);
     balanceAmounts.sort((a, b) => b - a);
     let balancesTotal = balanceAmounts.length;
     let vp = 0;
