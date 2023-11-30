@@ -52,6 +52,8 @@ pub struct Config {
 
     pub feed_page_size: usize,
 
+    pub weekly_karma_budget: Credits,
+
     pub reporting_penalty_post: Credits,
     pub reporting_penalty_misbehaviour: Credits,
 
@@ -237,6 +239,8 @@ pub const CONFIG: &Config = &Config {
     max_comments_per_hour: 15,
 
     feed_page_size: 30,
+
+    weekly_karma_budget: 400,
 
     reporting_penalty_post: 200,
     reporting_penalty_misbehaviour: 1000,

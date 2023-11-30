@@ -190,6 +190,7 @@ impl Logger {
     }
 }
 
+#[derive(PartialEq)]
 pub enum Destination {
     Karma,
     Credits,
@@ -357,6 +358,9 @@ impl State {
     ) -> Result<(), String> {
         let sender = self.users.get_mut(&sender_id).expect("no sender found");
         sender.change_credits(amount + fee, CreditsDelta::Minus, log.to_string())?;
+        if destination == Destination::Karma {
+            sender.decrease_karma_budget(amount);
+        }
         let receiver = self.users.get_mut(&receiver_id).expect("no receiver found");
         self.burned_cycles += fee as i64;
         let result = match destination {
@@ -1355,6 +1359,7 @@ impl State {
                 );
             }
             user.karma_donations.clear();
+            user.karma_budget = CONFIG.weekly_karma_budget;
         }
         self.accounting.clean_up();
     }
@@ -2147,15 +2152,15 @@ impl State {
         let log = format!("reaction to post {}", post_id);
         // If the user is untrusted, they can only upvote, but this does not affect author's karma.
         // We skip this check if the project is in the bootstrap phase and has too few users.
-        if self.users.len() as u32 > CONFIG.bootstrap_phase_user_number && !user.trusted() {
-            if delta < 0 {
+        if self.users.len() as u32 > CONFIG.bootstrap_phase_user_number && !user.karma_donor() {
+            if !user.trusted() && delta < 0 {
                 return Err("bootcamp users can't downvote".into());
             }
             self.charge(user.id, delta.unsigned_abs() + CONFIG.reaction_fee, log)
                 .expect("coudln't charge user");
         }
         // If the user is trusted, they initiate a credit transfer for upvotes, but burn their own credits on
-        // down votes + credits and karma of the author
+        // downvotes + credits and karma of the author
         else if delta < 0 {
             self.users
                 .get_mut(&post.user)
@@ -2310,6 +2315,7 @@ pub(crate) mod tests {
     ) -> UserId {
         let id = state.new_user(p, 0, name.to_string(), Some(credits));
         let u = state.users.get_mut(&id).unwrap();
+        u.karma_budget = CONFIG.weekly_karma_budget;
         if trusted {
             u.change_karma(CONFIG.trusted_user_min_karma, "");
             u.apply_rewards();
@@ -3834,6 +3840,39 @@ pub(crate) mod tests {
                 state.react(pr(10), post_id, 10, 0),
                 Err("not enough credits".into())
             );
+
+            // Create a new user and a new post
+            let user_id111 = create_user_with_params(state, pr(55), "user111", true, 1000);
+            let id =
+                Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
+
+            // add 6 credits and decrease the weekly budget to 8
+            let lurker = state.principal_to_user_mut(pr(10)).unwrap();
+            lurker.change_credits(100, CreditsDelta::Plus, "").unwrap();
+            lurker.karma_budget = 8;
+            let lurker_principal = lurker.principal;
+            assert!(state.react(lurker_principal, id, 50, 0).is_ok());
+            assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 5);
+            let lurker = state.principal_to_user_mut(pr(10)).unwrap();
+            assert_eq!(lurker.karma_budget, 3);
+
+            // another reaction on a new post
+            let id =
+                Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
+            assert!(state.react(lurker_principal, id, 50, 0).is_ok());
+            let lurker = state.principal_to_user_mut(pr(10)).unwrap();
+            assert_eq!(lurker.karma_budget, 0);
+
+            assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 9);
+
+            // another reaction on a new post
+            let id =
+                Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
+            assert!(state.react(lurker_principal, id, 50, 0).is_ok());
+            let lurker = state.principal_to_user_mut(pr(10)).unwrap();
+            assert_eq!(lurker.karma_budget, 0);
+
+            assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 9);
         })
     }
 
