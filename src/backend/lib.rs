@@ -9,7 +9,6 @@ use env::{
     memory, parse_amount,
     post::{Extension, Post, PostId},
     proposals::{Release, Reward},
-    storage::Storage,
     token::account,
     user::{Draft, User, UserId},
     State, *,
@@ -64,11 +63,6 @@ fn init() {
     });
     set_timer(Duration::from_millis(0), || {
         spawn(State::fetch_xdr_rate());
-        spawn(async {
-            if let Err(err) = Storage::allocate_space().await {
-                mutate(|state| state.logger.error(err));
-            }
-        });
     });
     set_timer_interval(Duration::from_secs(15 * 60), || {
         spawn(State::chores(api::time()))

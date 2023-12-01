@@ -17,7 +17,7 @@ const BUCKET_WASM_GZ: &[u8] =
     include_bytes!("../../../target/wasm32-unknown-unknown/release/bucket.wasm.gz");
 
 impl Storage {
-    pub async fn allocate_space() -> Result<Principal, String> {
+    async fn allocate_space() -> Result<Principal, String> {
         if let Some(id) = read(|state| {
             state
                 .storage

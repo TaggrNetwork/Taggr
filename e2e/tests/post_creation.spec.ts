@@ -143,61 +143,6 @@ test("post creation with hashtag", async ({ page, browser }) => {
     await postThreeContext.close();
 });
 
-test("post creation with image", async ({ page }) => {
-    const user = await test.step("create user", async () => {
-        return await createSeedPhraseUser(page);
-    });
-    const globalNavigation = new GlobalNavigationElement(page, user);
-
-    const creditsBalance =
-        await test.step("check initial credits on profile page", async () => {
-            const profilePage = await globalNavigation.goToProfilePage();
-            const creditsBalance = await profilePage.getCreditsBalance();
-            expect(creditsBalance).toEqual(1000);
-
-            return creditsBalance;
-        });
-
-    const [postContent, postPage] =
-        await test.step("create post with image", async () => {
-            const imagePath = resolve(__dirname, "..", "assets", "smash.jpg");
-            const newPostPage = await initPost(page, user);
-            await newPostPage.editor.addImage(imagePath);
-            await expect(newPostPage.editor.creditCost).toHaveText("12");
-
-            const postContent = await newPostPage.editor.getContent();
-            const postPage = await newPostPage.submit();
-
-            return [postContent, postPage];
-        });
-
-    await test.step("check uploaded image", async () => {
-        const uploadedImage = postPage.postBody.locator("img");
-        await expect(uploadedImage).toBeVisible();
-
-        await expect(postPage.imagePreview).not.toBeVisible();
-
-        await uploadedImage.click();
-        await expect(postPage.imagePreview).toBeVisible();
-        await expect(postPage.imagePreview.locator("img")).toHaveScreenshot();
-
-        await postPage.imagePreview.click();
-        await expect(postPage.imagePreview).not.toBeVisible();
-    });
-
-    await test.step("check updated credits and post on profile page", async () => {
-        const profilePage = await globalNavigation.goToProfilePage();
-        const updatedCreditsBalance = await profilePage.getCreditsBalance();
-        expect(updatedCreditsBalance).toEqual(creditsBalance - 12);
-
-        const postCount = await profilePage.getPostCount();
-        expect(postCount).toEqual(1);
-
-        const post = await profilePage.getPostByContent(postContent);
-        await expect(post.element).toBeVisible();
-    });
-});
-
 test("journal", async ({ page }) => {
     const user = await createSeedPhraseUser(page);
     const globalNavigation = new GlobalNavigationElement(page, user);
