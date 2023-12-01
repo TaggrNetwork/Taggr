@@ -377,17 +377,18 @@ export const Form = ({
                                         .join("\n"),
                                 )}
                                 {formButton(<Quote />, (v) => `> ${v}`)}
-                                {formButton(
-                                    <Link />,
-                                    (v) => `[${v}](${prompt("URL:")})`,
-                                )}
-                                {formButton(
-                                    <Pic />,
-                                    () =>
-                                        `![${prompt("Image name")}](${prompt(
-                                            "URL",
-                                        )})`,
-                                )}
+                                {formButton(<Link />, (v) => {
+                                    const link = prompt("URL:");
+                                    if (!link) return "";
+                                    return `[${v}](${link})`;
+                                })}
+                                {formButton(<Pic />, () => {
+                                    const alt = prompt("Image name");
+                                    if (!alt) return "";
+                                    const src = prompt("URL");
+                                    if (!src) return "";
+                                    return `![${alt}](${src})`;
+                                })}
                                 {formButton(<Code />, (v) => `\`${v}\``)}
                                 {formButton(<Table />, (_) => tableTemplate)}
                             </div>

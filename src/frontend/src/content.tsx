@@ -342,6 +342,11 @@ const markdownizer = (
                     return <p {...props}>{children}</p>;
                 },
                 img: ({ node, ...props }: any) => {
+                    try {
+                        if (!props.src.startsWith("/blob/")) new URL(props.src);
+                    } catch (_) {
+                        return null;
+                    }
                     let id: string;
                     if (props.src.startsWith("/blob/")) {
                         id = props.src.replace("/blob/", "");
