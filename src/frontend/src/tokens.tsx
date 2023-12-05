@@ -160,7 +160,7 @@ export const Tokens = () => {
                                 height: "5em",
                                 width: percentage(b[1], mintedSupply),
                                 background:
-                                    holder == b[2] ? "white" : genColor(b[0]),
+                                    holder == b[2] ? "black" : genColor(b[0]),
                             }}
                             onMouseOver={() => setHolder(b[2])}
                             onClick={() => setHolder(b[2])}
