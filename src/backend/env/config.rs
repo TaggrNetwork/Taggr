@@ -240,7 +240,7 @@ pub const CONFIG: &Config = &Config {
 
     feed_page_size: 30,
 
-    weekly_karma_budget: 400,
+    weekly_karma_budget: 800,
 
     reporting_penalty_post: 200,
     reporting_penalty_misbehaviour: 1000,
@@ -263,7 +263,7 @@ pub const CONFIG: &Config = &Config {
 
     post_deletion_penalty_factor: 10,
 
-    voting_reward: 3,
+    voting_reward: 0,
 
     response_reward: 1,
 
