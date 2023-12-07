@@ -186,7 +186,6 @@ fn transfer(
         from_subaccount,
         to,
         amount,
-        fee,
         created_at_time,
         memo,
         ..
@@ -234,7 +233,7 @@ fn transfer(
             balance: 0,
         }));
     }
-    let effective_fee = fee.unwrap_or_else(icrc1_fee) as Token;
+    let effective_fee = icrc1_fee() as Token;
     if from.owner != Principal::anonymous() {
         let effective_amount = amount as Token + effective_fee;
         if balance < effective_amount {
@@ -496,7 +495,10 @@ mod tests {
             ),
             Ok(0),
         );
-        assert_eq!(state.balances.get(&account(pr(0))), Some(&(1000 - 500 - 1)));
+        assert_eq!(
+            state.balances.get(&account(pr(0))),
+            Some(&(1000 - 500 - 25))
+        );
         assert_eq!(state.balances.get(&account(pr(1))), Some(&500));
 
         assert_eq!(
@@ -507,7 +509,7 @@ mod tests {
                 TransferArgs {
                     from_subaccount: None,
                     to: icrc1_minting_account().unwrap(),
-                    amount: 490,
+                    amount: 350,
                     fee: Some(1),
                     memo: None,
                     created_at_time: None
@@ -517,9 +519,9 @@ mod tests {
         );
         assert_eq!(
             state.balances.get(&account(pr(0))),
-            Some(&(1000 - 500 - 1 - 490 - 1))
+            Some(&(1000 - 500 - 25 - 350 - 25))
         );
-        assert_eq!(state.balances.get(&icrc1_minting_account().unwrap()), None,);
+        assert_eq!(state.balances.get(&icrc1_minting_account().unwrap()), None);
 
         assert_eq!(
             transfer(
@@ -536,7 +538,7 @@ mod tests {
                 }
             ),
             Err(TransferError::InsufficientFunds(InsufficientFunds {
-                balance: 8
+                balance: 100
             }))
         );
     }
