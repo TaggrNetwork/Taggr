@@ -5,6 +5,8 @@ import { Clipboard, ClipboardCheck, Flag, Menu, Share } from "./icons";
 import { loadFile } from "./form";
 import { Post, PostId, Report, User, UserId } from "./types";
 
+export const XDR_TO_USD = 1.32;
+
 export const MAX_POST_SIZE_BYTES = Math.ceil(1024 * 1024 * 1.9);
 
 export const percentage = (n: number | BigInt, total: number) => {

@@ -9,6 +9,7 @@ import {
     ButtonWithLoading,
     bigScreen,
     IcpAccountLink,
+    XDR_TO_USD,
 } from "./common";
 import * as React from "react";
 import { Transactions } from "./tokens";
@@ -107,8 +108,9 @@ const Welcome = () => {
                                     small amount of ICP to an account controlled
                                     by the {window.backendCache.config.name}{" "}
                                     canister. You get <code>1000</code> credits
-                                    for as little as <code>~1.3 USD</code>{" "}
-                                    (corresponds to 1{" "}
+                                    for as little as{" "}
+                                    <code>~{XDR_TO_USD} USD</code> (corresponds
+                                    to 1{" "}
                                     <a href="https://en.wikipedia.org/wiki/Special_drawing_rights">
                                         XDR
                                     </a>
