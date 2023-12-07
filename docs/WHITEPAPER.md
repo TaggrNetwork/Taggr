@@ -50,7 +50,7 @@ If after the bootcamp period a user still has less than `$trusted_user_min_karma
 
 ## Stalwarts
 
-Stalwarts represent the top `$stalwart_percentage%` of users with the highest karma, active during the last `$min_stalwart_activity_weeks` consecutive weeks, possessing accounts older than `$min_stalwart_account_age_weeks` weeks, and maintaining at least `$min_stalwart_karma` karma points.
+Stalwarts represent the union of top `$stalwart_percentage%` of users with the highest karma and with the highest $`$token_symbol`  balance, active during the last`$min_stalwart_activity_weeks` consecutive weeks, possessing accounts older than `$min_stalwart_account_age_weeks`weeks, and maintaining at least`$min_stalwart_karma` karma points.
 They are considered trusted community members, authorized to carry out moderating actions and propose upgrades.
 
 ## Realms

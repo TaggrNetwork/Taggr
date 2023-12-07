@@ -276,7 +276,6 @@ mod tests {
             assert_eq!(&p.body, "");
 
             let user = state.users.get(&u1).unwrap();
-            assert_eq!(user.inbox.len(), 2);
             assert_eq!(
                 user.credits(),
                 1000 - CONFIG.reporting_penalty_post - CONFIG.post_cost

@@ -1403,10 +1403,26 @@ impl State {
     }
 
     fn recompute_stalwarts(&mut self, now: u64) {
+        use std::cmp::Reverse;
+
+        let mut balances = self
+            .balances
+            .iter()
+            .filter_map(|(acc, balance)| {
+                self.principal_to_user(acc.owner)
+                    .map(|user| (user.id, *balance))
+            })
+            .collect::<Vec<_>>();
+        balances.sort_unstable_by_key(|(_, balance)| Reverse(*balance));
+
         let mut users = self.users.values_mut().collect::<Vec<_>>();
-        users.sort_unstable_by_key(|a| std::cmp::Reverse(a.karma()));
+        users.sort_unstable_by_key(|a| Reverse(a.karma()));
 
         let mut stalwart_seats = (users.len() * CONFIG.stalwart_percentage / 100).max(3);
+        let top_balances = balances
+            .into_iter()
+            .take(stalwart_seats)
+            .collect::<BTreeMap<_, _>>();
         let mut left = Vec::new();
         let mut joined = Vec::new();
         let mut left_logs = Vec::new();
@@ -1426,26 +1442,39 @@ impl State {
                 u.stalwart,
                 u.active_weeks >= CONFIG.min_stalwart_activity_weeks as u32,
                 u.karma() > CONFIG.min_stalwart_karma,
+                top_balances.is_empty() || top_balances.contains_key(&u.id),
                 stalwart_seats,
             ) {
-                // User is qualified but seats left or they lost karma
-                (true, true, true, 0) | (true, _, false, _) => {
+                // User is qualified but no seats left
+                (true, true, true, true, 0) => {
+                    u.stalwart = false;
+                    left.push(u.id);
+                    left_logs.push(format!("@{} (outcompeted)", u.name));
+                }
+                // A user is qualified and is already a stalwart and seats available
+                (true, true, true, true, _) => {
+                    stalwart_seats = stalwart_seats.saturating_sub(1);
+                }
+                // User is qualified but not enough karma
+                (true, true, false, true, _) => {
                     u.stalwart = false;
                     left.push(u.id);
                     left_logs.push(format!("@{} (karma)", u.name));
                 }
-                // A user is qualified and is already a stalwart and seats available
-                (true, true, true, _) => {
-                    stalwart_seats = stalwart_seats.saturating_sub(1);
+                // User is qualified but not enough balance
+                (true, true, true, false, _) => {
+                    u.stalwart = false;
+                    left.push(u.id);
+                    left_logs.push(format!("@{} (balance)", u.name));
                 }
                 // A user is a stalwart but became inactive
-                (true, false, _, _) => {
+                (true, false, _, _, _) => {
                     u.stalwart = false;
                     left.push(u.id);
                     left_logs.push(format!("@{} (inactivity)", u.name));
                 }
                 // A user is not a stalwart, but qualified and there are seats left
-                (false, true, true, seats) if seats > 0 => {
+                (false, true, true, true, seats) if seats > 0 => {
                     u.stalwart = true;
                     joined.push(u.id);
                     joined_logs.push(format!("@{}", u.name));
@@ -3981,10 +4010,14 @@ pub(crate) mod tests {
 
             state.recompute_stalwarts(now + WEEK * 2);
 
-            // make sure we have right number of stalwarts
+            // make sure we have right stalwarts
             assert_eq!(
-                state.users.values().filter(|u| u.stalwart).count(),
-                CONFIG.stalwart_percentage * 2
+                state
+                    .users
+                    .values()
+                    .filter_map(|u| u.stalwart.then_some(u.id))
+                    .collect::<Vec<UserId>>(),
+                vec![188, 190, 192, 194, 196, 198]
             );
             assert!(!state
                 .realms
@@ -3992,6 +4025,20 @@ pub(crate) mod tests {
                 .unwrap()
                 .controllers
                 .is_empty());
+
+            for i in 0..200 {
+                state.balances.insert(account(pr(i as u8)), i * 100);
+            }
+
+            state.recompute_stalwarts(now + WEEK * 3);
+            assert_eq!(
+                state
+                    .users
+                    .values()
+                    .filter_map(|u| u.stalwart.then_some(u.id))
+                    .collect::<Vec<UserId>>(),
+                vec![194, 196, 198]
+            );
         })
     }
 
