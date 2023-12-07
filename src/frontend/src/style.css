@@ -429,7 +429,7 @@ article,
     overflow-wrap: anywhere;
 }
 
-article..prime {
+article.prime {
     line-height: 160%;
     margin-bottom: 2em;
     margin-top: 1em;

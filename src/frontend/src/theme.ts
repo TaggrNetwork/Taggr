@@ -44,7 +44,7 @@ const themes: { [name: string]: Theme } = {
         accent: "OrangeRed",
     },
     dark: {
-        text: "#e0e0c8",
+        text: "#d0d0b8",
         background: "#1e1e23",
         code: "White",
         clickable: "#30d5c8",

@@ -301,6 +301,13 @@ export const PostView = ({
             className={classNameArg}
             data-testid="post-body"
         >
+            {showReport && post.report && (
+                <ReportBanner
+                    id={post.id}
+                    reportArg={post.report}
+                    domain="post"
+                />
+            )}
             <div
                 ref={refPost as any}
                 className={`post_box ${isInactive ? "inactive" : ""} ${cls} ${
@@ -308,13 +315,6 @@ export const PostView = ({
                 }`}
                 style={{ position: "relative" }}
             >
-                {showReport && post.report && (
-                    <ReportBanner
-                        id={post.id}
-                        reportArg={post.report}
-                        domain="post"
-                    />
-                )}
                 {isNSFW && (
                     <div
                         className={`${
