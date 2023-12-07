@@ -373,7 +373,7 @@ export const PostView = ({
                 )}
                 {commentAsPost && !deleted && (
                     <a className="reply_tag" href={`#/thread/${post.id}`}>
-                        {post.parent} &#8592;
+                        &#8676; REPLY
                     </a>
                 )}
                 {realmPost && post.realm && (
