@@ -2021,6 +2021,11 @@ impl State {
                     format!("@{} reported this post by @{}", user.name, author_name),
                     Predicate::ReportOpen(id),
                 );
+                let post_author = self.users.get_mut(&post_user).expect("no user found");
+                post_author.notify(format!(
+                    "Your [post](#/post/{}) was reported. Consider deleting it to avoid karma and credit penalties.",
+                    id
+                ));
             }
             "misbehaviour" => {
                 let misbehaving_user = self.users.get_mut(&id).ok_or("no user found")?;
@@ -2051,6 +2056,8 @@ impl State {
         if self.principal_to_user(principal).map(|user| user.id) != Some(post.user) {
             return Err("not authorized".into());
         }
+
+        let has_open_report = post.report.map(|report| !report.closed).unwrap_or_default();
 
         let comments_tree_penalty =
             post.tree_size as Credits * CONFIG.post_deletion_penalty_factor as Credits;
@@ -2123,6 +2130,13 @@ impl State {
             post.delete(versions.clone());
             Ok(())
         })
+        .expect("couldn't delete post");
+
+        if has_open_report {
+            self.denotify_users(&|u| u.stalwart);
+        }
+
+        Ok(())
     }
 
     pub fn react(

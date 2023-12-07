@@ -254,6 +254,9 @@ impl Post {
                 format!("{:x}", hasher.finalize())
             })
             .collect();
+        if let Some(report) = self.report.as_mut() {
+            report.closed = true;
+        }
     }
 
     pub fn costs(&self, blobs: usize) -> Credits {

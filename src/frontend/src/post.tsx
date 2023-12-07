@@ -371,7 +371,7 @@ export const PostView = ({
                         />
                     </article>
                 )}
-                {commentAsPost && (
+                {commentAsPost && !deleted && (
                     <a className="reply_tag" href={`#/thread/${post.id}`}>
                         {post.parent} &#8592;
                     </a>
