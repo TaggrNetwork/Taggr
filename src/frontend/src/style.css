@@ -173,8 +173,8 @@ select {
 }
 
 .feed_item > .post_box.gallery_post > article > div.gallery:first-child > img {
-    border-top-left-radius: 5px;
-    border-top-right-radius: 5px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
 }
 
 .active_element {
