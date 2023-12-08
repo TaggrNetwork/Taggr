@@ -266,6 +266,7 @@ const linkRenderer =
                     if (child == props.href.replace(/&amp;/g, "&")) {
                         className = "external";
                         label = url.hostname.toUpperCase();
+                        props.rel = "nofollow noopener noreferrer";
                     } else {
                         label = child;
                     }
