@@ -308,7 +308,7 @@ impl State {
     fn spend_to_user_karma<T: ToString>(&mut self, id: UserId, amount: Credits, log: T) {
         let user = self.users.get_mut(&id).expect("no user found");
         user.change_karma(amount as Karma, log.to_string());
-        if amount > CONFIG.voting_reward {
+        if amount > CONFIG.response_reward {
             self.logger.info(format!(
                 "Spent `{}` credits on @{}'s karma for {}.",
                 amount,

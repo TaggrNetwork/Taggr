@@ -521,7 +521,6 @@ impl Post {
         );
         let costs = post.costs(blobs.len());
         post.valid(blobs)?;
-        let karma_donor = user.karma_donor();
         let future_id = state.next_post_id;
         state.charge(user_id, costs, format!("new post {}", future_id))?;
         let user = state.users.get_mut(&user_id).expect("no user found");
@@ -532,6 +531,8 @@ impl Post {
             user.realms.push(name.clone());
         }
         user.last_activity = timestamp;
+        let karma_donor = user.karma_donor();
+        user.decrease_karma_budget(CONFIG.response_reward);
         let id = state.new_post_id();
         post.id = id;
         if let Some(realm) = realm.and_then(|name| state.realms.get_mut(&name)) {
