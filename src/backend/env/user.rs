@@ -127,7 +127,7 @@ impl User {
             filters: Default::default(),
             karma_donations: Default::default(),
             previous_names: Default::default(),
-            karma_budget: CONFIG.weekly_karma_budget,
+            karma_budget: CONFIG.min_weekly_karma_budget,
         }
     }
 

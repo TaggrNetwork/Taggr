@@ -52,7 +52,8 @@ pub struct Config {
 
     pub feed_page_size: usize,
 
-    pub weekly_karma_budget: Credits,
+    pub max_weekly_karma_budget: Credits,
+    pub min_weekly_karma_budget: Credits,
 
     pub reporting_penalty_post: Credits,
     pub reporting_penalty_misbehaviour: Credits,
@@ -240,7 +241,8 @@ pub const CONFIG: &Config = &Config {
 
     feed_page_size: 30,
 
-    weekly_karma_budget: 800,
+    max_weekly_karma_budget: 1000,
+    min_weekly_karma_budget: 10,
 
     reporting_penalty_post: 200,
     reporting_penalty_misbehaviour: 1000,

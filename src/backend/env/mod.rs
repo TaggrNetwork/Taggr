@@ -1345,6 +1345,7 @@ impl State {
                 .filter(|user| user.karma_budget == 0)
                 .count()
         ));
+        let ratio = self.minting_ratio();
         for user in self.users.values_mut() {
             user.accounting.clear();
             if user.active_within_weeks(now, 1) {
@@ -1366,7 +1367,9 @@ impl State {
                 );
             }
             user.karma_donations.clear();
-            user.karma_budget = CONFIG.weekly_karma_budget;
+            user.karma_budget = (user.karma().max(0) as Credits / ratio)
+                .max(CONFIG.min_weekly_karma_budget)
+                .min(CONFIG.max_weekly_karma_budget);
         }
         self.accounting.clean_up();
     }
@@ -2365,7 +2368,7 @@ pub(crate) mod tests {
     ) -> UserId {
         let id = state.new_user(p, 0, name.to_string(), Some(credits));
         let u = state.users.get_mut(&id).unwrap();
-        u.karma_budget = CONFIG.weekly_karma_budget;
+        u.karma_budget = CONFIG.min_weekly_karma_budget;
         if trusted {
             u.change_karma(CONFIG.trusted_user_min_karma, "");
             u.apply_rewards();
@@ -3754,6 +3757,34 @@ pub(crate) mod tests {
             assert_eq!(user.credits(), 300);
             assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
             assert_eq!(user.invites_budget, CONFIG.invites_budget_credits);
+
+            // check karma budgets
+            for (id, karma) in &[
+                (inactive_id1, 100),
+                (inactive_id2, 1000),
+                (inactive_id3, 10000),
+                (active_id, 20000),
+            ] {
+                let user = state.users.get_mut(&id).unwrap();
+                user.change_karma(*karma, "");
+                user.apply_rewards();
+            }
+
+            state.balances.insert(account(pr(5)), 20000000);
+            assert_eq!(state.minting_ratio(), 4);
+
+            state.clean_up(WEEK);
+
+            assert_eq!(state.users.get_mut(&inactive_id1).unwrap().karma_budget, 25);
+            assert_eq!(
+                state.users.get_mut(&inactive_id2).unwrap().karma_budget,
+                250
+            );
+            assert_eq!(
+                state.users.get_mut(&inactive_id3).unwrap().karma_budget,
+                1000
+            );
+            assert_eq!(state.users.get_mut(&active_id).unwrap().karma_budget, 1000);
         })
     }
 
