@@ -81,7 +81,7 @@ test("love heart a post", async ({ page, browser }) => {
         const post = await profilePage.getPostByContent(postContent);
 
         const updatedKarmaBalance = await profilePage.getNewKarmaBalance();
-        expect(updatedKarmaBalance).toEqual(0);
+        expect(updatedKarmaBalance).toEqual(1);
 
         const heartReaction = post.getHeartReaction();
         expect(heartReaction).toBeVisible();
@@ -173,7 +173,7 @@ test("react with fire and comment on a post", async ({ page, browser }) => {
         const post = await profilePage.getPostByContent(postContent);
 
         const updatedKarmaBalance = await profilePage.getNewKarmaBalance();
-        expect(updatedKarmaBalance).toEqual(0);
+        expect(updatedKarmaBalance).toEqual(6);
 
         const fireReaction = post.getFireReaction();
         expect(fireReaction).toBeVisible();

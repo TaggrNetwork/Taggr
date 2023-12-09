@@ -95,12 +95,19 @@ fn post_upgrade() {
     );
 
     // temporary post upgrade logic goes here
-    // set_timer(Duration::from_secs(1), move || {
-    //     spawn(post_upgrade_fixtures())
-    // });
+    set_timer(Duration::from_secs(1), move || {
+        spawn(post_upgrade_fixtures())
+    });
 }
 
-// async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    mutate(|state| {
+        state
+            .users
+            .values_mut()
+            .for_each(|user| user.karma_donations.clear())
+    })
+}
 
 /*
  * UPDATES
@@ -800,7 +807,6 @@ fn user() {
                 .get(&token::account(user.principal))
                 .copied()
                 .unwrap_or_default();
-            user.karma_donations.clear();
             if own_profile_fetch {
                 user.accounting.clear();
             } else {

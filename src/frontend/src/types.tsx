@@ -177,6 +177,7 @@ export type User = {
     num_posts: number;
     balance: number;
     controllers: string[];
+    karma_donations: { [key: UserId]: number };
     filters: Filters;
     inbox: { [key: string]: Notification };
 };

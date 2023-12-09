@@ -14,6 +14,7 @@ import {
     ShareButton,
     ButtonWithLoading,
     realmList,
+    UserLink,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -331,6 +332,8 @@ export const UserInfo = ({ profile }: { profile: User }) => {
     const inviter = profile.invited_by;
     const filters = profile.filters;
 
+    const donations = Object.entries(profile.karma_donations);
+
     return (
         <div className="spaced">
             {profile.previous_names.length > 0 && (
@@ -424,6 +427,19 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                             )),
                         )}
                     </div>
+                    <hr />
+                </>
+            )}
+            {donations.length > 0 && (
+                <>
+                    <h2>Rewards Given</h2>
+                    {commaSeparated(
+                        donations.map(([user_id, karma]) => (
+                            <span key={user_id}>
+                                <UserLink id={Number(user_id)} />: {karma}
+                            </span>
+                        )),
+                    )}
                     <hr />
                 </>
             )}
