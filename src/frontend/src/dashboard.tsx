@@ -6,7 +6,6 @@ import {
     hoursTillNext,
     HeadBar,
     userList,
-    token,
     UserLink,
     icpCode,
     IcpAccountLink,
@@ -15,19 +14,15 @@ import { Content } from "./content";
 import {
     ActiveUser,
     Binary,
-    Bootcamp,
     Box,
     Canister,
     Canisters,
     Cash,
     CashCoin,
     Comment,
-    Crowd,
     Credits,
     Document,
-    Fire,
     Gear,
-    Gem,
     HourGlass,
     Online,
     Post,
@@ -92,12 +87,6 @@ export const Dashboard = ({}) => {
                     </div>
                     <div className="db_cell">
                         <label>
-                            <Crowd /> INVITED
-                        </label>
-                        {show(stats.invited_users)}
-                    </div>
-                    <div className="db_cell">
-                        <label>
                             <Post /> POSTS
                         </label>
                         {show(stats.posts)}
@@ -107,12 +96,6 @@ export const Dashboard = ({}) => {
                             <Comment /> COMMENTS
                         </label>
                         {show(stats.comments)}
-                    </div>
-                    <div className="db_cell">
-                        <label>
-                            <Bootcamp /> BOOTCAMPERS
-                        </label>
-                        {show(stats.bootcamp_users)}
                     </div>
                     <div className="db_cell">
                         <label>
@@ -156,23 +139,9 @@ export const Dashboard = ({}) => {
                     </div>
                     <div className="db_cell">
                         <label>
-                            <Fire /> CREDITS BURNED
-                        </label>
-                        {show(stats.burned_credits_total)}
-                    </div>
-                    <div className="db_cell">
-                        <label>
                             <Credits /> WEEK'S REVENUE
                         </label>
                         {show(stats.burned_credits)}
-                    </div>
-                    <div className="db_cell">
-                        <label>
-                            <Gem /> <a href="#/tokens">TOKEN SUPPLY</a>
-                        </label>
-                        <code className="xx_large_text">
-                            {token(stats.circulating_supply)}
-                        </code>
                     </div>
                     <div className="db_cell">
                         <label>

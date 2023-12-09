@@ -19,7 +19,7 @@ export class ProfilePage {
             .locator("div:has-text('CREDITS') > code")
             .locator("visible=true");
         this.newKarma = page
-            .locator("div:has-text('NEW KARMA') > code")
+            .locator("div:has-text('REWARDS') > code")
             .locator("visible=true");
         this.postCount = page
             .locator("div:has-text('POSTS') > code")
