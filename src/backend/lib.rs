@@ -95,19 +95,12 @@ fn post_upgrade() {
     );
 
     // temporary post upgrade logic goes here
-    set_timer(Duration::from_secs(1), move || {
-        spawn(post_upgrade_fixtures())
-    });
+    // set_timer(Duration::from_secs(1), move || {
+    //     spawn(post_upgrade_fixtures())
+    // });
 }
 
-async fn post_upgrade_fixtures() {
-    mutate(|state| {
-        state
-            .users
-            .values_mut()
-            .for_each(|user| user.karma_donations.clear())
-    })
-}
+// async fn post_upgrade_fixtures() {}
 
 /*
  * UPDATES

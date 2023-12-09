@@ -84,8 +84,6 @@ pub struct User {
     pub filters: Filters,
     pub karma_donations: BTreeMap<UserId, Credits>,
     pub previous_names: Vec<String>,
-    #[serde(skip)]
-    pub karma_budget: Credits,
 }
 
 impl User {
@@ -128,7 +126,6 @@ impl User {
             filters: Default::default(),
             karma_donations: Default::default(),
             previous_names: Default::default(),
-            karma_budget: 0,
         }
     }
 

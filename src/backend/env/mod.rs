@@ -1336,13 +1336,6 @@ impl State {
     }
 
     fn clean_up(&mut self, now: u64) {
-        self.logger.info(format!(
-            "`{}` users exhausted the karma budget this week.",
-            self.users
-                .values()
-                .filter(|user| user.karma_budget == 0)
-                .count()
-        ));
         for user in self.users.values_mut() {
             user.accounting.clear();
             if user.active_within_weeks(now, 1) {
@@ -3874,7 +3867,6 @@ pub(crate) mod tests {
             // add 6 credits and decrease the weekly budget to 8
             let lurker = state.principal_to_user_mut(pr(10)).unwrap();
             lurker.change_credits(100, CreditsDelta::Plus, "").unwrap();
-            lurker.karma_budget = 8;
             let lurker_principal = lurker.principal;
             assert!(state.react(lurker_principal, id, 50, 0).is_ok());
             assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 5);
