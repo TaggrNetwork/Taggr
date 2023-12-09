@@ -11,8 +11,6 @@ import {
     tokenBalance,
     FlagButton,
     ReportBanner,
-    UserLink,
-    percentage,
     ShareButton,
     ButtonWithLoading,
     realmList,
@@ -21,12 +19,11 @@ import { Content } from "./content";
 import { Journal } from "./icons";
 import { PostFeed } from "./post_feed";
 import { Credits, YinYan } from "./icons";
-import { User, UserId } from "./types";
+import { User } from "./types";
 
 export const Profile = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
     const [profile, setProfile] = React.useState({} as User);
-    const [allEndorsememnts, setAllEndorsements] = React.useState(false);
     const [fullAccounting, setFullAccounting] = React.useState(false);
     const [tab, setTab] = React.useState("LAST");
 
@@ -60,16 +57,6 @@ export const Profile = ({ handle }: { handle: string }) => {
     const user = window.user;
     const showReport =
         profile.report && !profile.report.closed && user && user.stalwart;
-    const karma_from_last_posts: [UserId, number][] = Object.entries(
-        profile.karma_from_last_posts,
-    )
-        .filter(([_, karma]) => karma >= 0)
-        .map(([user_id, karma]) => [parseInt(user_id), karma]);
-    karma_from_last_posts.sort(([_id1, e1], [_id2, e2]) => e2 - e1);
-    const endorsementsTotal = karma_from_last_posts.reduce(
-        (acc, [_, karma]) => acc + karma,
-        0,
-    );
 
     const title = (
         <div className="text_centered vertically_spaced">
@@ -195,43 +182,6 @@ export const Profile = ({ handle }: { handle: string }) => {
                 />
             )}
             <UserInfo profile={profile} />
-            {karma_from_last_posts.length > 0 && (
-                <>
-                    <div className="spaced">
-                        <h2>
-                            Karma from last{" "}
-                            {window.backendCache.config.feed_page_size * 3}{" "}
-                            posts
-                        </h2>
-
-                        <div className="dynamic_table">
-                            {(allEndorsememnts
-                                ? karma_from_last_posts
-                                : karma_from_last_posts.slice(
-                                      0,
-                                      bigScreen() ? 8 : 6,
-                                  )
-                            ).map(([userId, karma]) => (
-                                <div key={userId} className="db_cell">
-                                    {<UserLink id={userId} />}
-                                    <code>
-                                        {percentage(karma, endorsementsTotal)}
-                                    </code>
-                                </div>
-                            ))}
-                        </div>
-                        {!allEndorsememnts && (
-                            <button
-                                className="top_spaced"
-                                onClick={() => setAllEndorsements(true)}
-                            >
-                                SHOW ALL
-                            </button>
-                        )}
-                    </div>
-                    <hr />
-                </>
-            )}
             {profile.accounting.length > 0 && (
                 <>
                     <div className="spaced">

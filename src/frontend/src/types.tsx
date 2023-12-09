@@ -164,7 +164,6 @@ export type User = {
     karma: number;
     report?: Report;
     stalwart: boolean;
-    karma_from_last_posts: { [id: UserId]: number };
     followees: UserId[];
     followers: UserId[];
     feeds: string[][];

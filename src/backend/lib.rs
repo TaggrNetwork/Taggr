@@ -1,11 +1,11 @@
 use std::{
     cell::RefCell,
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeSet, HashMap},
 };
 
 use env::{
     canisters::get_full_neuron,
-    config::{reaction_karma, CONFIG},
+    config::CONFIG,
     memory, parse_amount,
     post::{Extension, Post, PostId},
     proposals::{Release, Reward},
@@ -804,24 +804,9 @@ fn user() {
             if own_profile_fetch {
                 user.accounting.clear();
             } else {
-                let karma = reaction_karma();
                 user.bookmarks.clear();
                 user.settings.clear();
                 user.inbox.clear();
-                user.karma_from_last_posts = user
-                    .posts(state)
-                    .take(CONFIG.feed_page_size * 3)
-                    .flat_map(|post| post.reactions.iter())
-                    .flat_map(|(r_id, users)| {
-                        let cost = karma.get(r_id).copied().unwrap_or_default();
-                        users.iter().map(move |user_id| (*user_id, cost))
-                    })
-                    .fold(BTreeMap::default(), |mut acc, (user_id, karma)| {
-                        acc.entry(user_id)
-                            .and_modify(|e| *e += karma)
-                            .or_insert(karma);
-                        acc
-                    });
             }
             user
         })

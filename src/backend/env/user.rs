@@ -75,6 +75,7 @@ pub struct User {
     pub active_weeks: u32,
     pub principal: Principal,
     pub report: Option<Report>,
+    #[serde(skip)]
     pub karma_from_last_posts: BTreeMap<UserId, Karma>,
     pub treasury_e8s: u64,
     pub invites_budget: Credits,
