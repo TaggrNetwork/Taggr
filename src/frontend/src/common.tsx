@@ -722,7 +722,7 @@ export const ReportBanner = ({
                 </a>
                 . Please confirm the deletion or reject the report.
             </h3>
-            <h4>Reason: {report.reason}</h4>
+            Reason: {report.reason}
             {tookAction && (
                 <div className="medium_text">
                     {confirmed_by.length > 0 && (
