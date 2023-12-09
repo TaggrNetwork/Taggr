@@ -1343,7 +1343,6 @@ impl State {
                 .filter(|user| user.karma_budget == 0)
                 .count()
         ));
-        let ratio = self.minting_ratio();
         for user in self.users.values_mut() {
             user.accounting.clear();
             if user.active_within_weeks(now, 1) {
@@ -1362,10 +1361,6 @@ impl State {
                     "inactivity_penalty".to_string(),
                 );
             }
-            user.karma_donations.clear();
-            user.karma_budget = (user.karma().max(0) as Credits / ratio)
-                .max(CONFIG.min_weekly_karma_budget)
-                .min(CONFIG.max_weekly_karma_budget);
             user.karma_donations.clear();
         }
         self.accounting.clean_up();
@@ -2351,7 +2346,6 @@ pub(crate) mod tests {
     ) -> UserId {
         let id = state.new_user(p, 0, name.to_string(), Some(credits));
         let u = state.users.get_mut(&id).unwrap();
-        u.karma_budget = CONFIG.min_weekly_karma_budget;
         u.change_karma(25, "");
         u.apply_rewards();
         id
