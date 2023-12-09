@@ -83,7 +83,7 @@ pub struct User {
     pub filters: Filters,
     pub karma_donations: BTreeMap<UserId, u32>,
     pub previous_names: Vec<String>,
-    #[serde(default)]
+    #[serde(skip)]
     pub karma_budget: Credits,
 }
 
@@ -180,19 +180,6 @@ impl User {
 
     pub fn active_within_weeks(&self, now: u64, n: u64) -> bool {
         self.last_activity + n * WEEK > now
-    }
-
-    pub fn decrease_karma_budget(&mut self, amount: Credits) {
-        self.karma_budget = self.karma_budget.saturating_sub(amount);
-    }
-
-    pub fn karma_donor(&self) -> bool {
-        self.trusted() && self.karma_budget > 0
-    }
-
-    pub fn trusted(&self) -> bool {
-        self.karma >= CONFIG.trusted_user_min_karma
-            && time().saturating_sub(self.timestamp) >= CONFIG.trusted_user_min_age_weeks * WEEK
     }
 
     pub fn valid_info(about: &str, settings: &str) -> bool {

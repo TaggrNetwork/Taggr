@@ -814,15 +814,7 @@ fn user() {
                     .flat_map(|post| post.reactions.iter())
                     .flat_map(|(r_id, users)| {
                         let cost = karma.get(r_id).copied().unwrap_or_default();
-                        users
-                            .iter()
-                            .filter(|user_id| {
-                                state
-                                    .users
-                                    .get(user_id)
-                                    .map_or(false, |user| user.trusted())
-                            })
-                            .map(move |user_id| (*user_id, cost))
+                        users.iter().map(move |user_id| (*user_id, cost))
                     })
                     .fold(BTreeMap::default(), |mut acc, (user_id, karma)| {
                         acc.entry(user_id)

@@ -70,9 +70,6 @@ impl Proposal {
         data: &str,
     ) -> Result<(), String> {
         let user = state.principal_to_user(principal).ok_or("no user found")?;
-        if !user.trusted() {
-            return Err("only trusted users can vote".into());
-        }
         if self.bulletins.iter().any(|(voter, _, _)| *voter == user.id) {
             return Err("double vote".into());
         }
@@ -427,8 +424,6 @@ mod tests {
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(1000, "test");
-                assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
-                assert!(user.trusted());
             }
 
             assert_eq!(
@@ -541,8 +536,6 @@ mod tests {
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(1000, "test");
-                assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
-                assert!(user.trusted());
             }
 
             // mint tokens
@@ -553,10 +546,6 @@ mod tests {
             assert_eq!(
                 state.principal_to_user(proposer).unwrap().karma_to_reward(),
                 1000
-            );
-            assert_eq!(
-                state.principal_to_user(proposer).unwrap().karma(),
-                CONFIG.trusted_user_min_karma
             );
 
             // make sure all got the right amount of minted tokens
@@ -605,12 +594,6 @@ mod tests {
                 vote_on_proposal(state, 0, pr(111), prop_id, false, data),
                 Err("no user found".to_string())
             );
-            let id = create_user(state, pr(111));
-            assert!(state.users.get(&id).unwrap().trusted());
-            assert_eq!(
-                vote_on_proposal(state, 0, pr(111), prop_id, false, data),
-                Err("only token holders can vote".to_string())
-            );
 
             // vote no 3 times
             for i in 1..4 {
@@ -638,7 +621,7 @@ mod tests {
             user.change_karma(-100, "");
             assert_eq!(
                 user.karma(),
-                1000 - 100 + CONFIG.trusted_user_min_karma + CONFIG.voting_reward as Karma
+                1000 - 100 + 25 + CONFIG.voting_reward as Karma
             );
             assert_eq!(user.credits(), 1000 - 2 * CONFIG.post_cost);
 
@@ -658,8 +641,7 @@ mod tests {
             let user = state.principal_to_user_mut(proposer).unwrap();
             assert_eq!(
                 user.karma(),
-                1000 - 100 + CONFIG.trusted_user_min_karma
-                    - CONFIG.proposal_rejection_penalty as Karma
+                1000 - 100 + 25 - CONFIG.proposal_rejection_penalty as Karma
                     + CONFIG.voting_reward as Karma
             );
             assert_eq!(
@@ -676,11 +658,6 @@ mod tests {
 
             let prop_id = propose(state, proposer, "test".into(), Payload::Noop, 0)
                 .expect("couldn't propose");
-
-            assert_eq!(
-                vote_on_proposal(state, 0, proposer, prop_id, true, data),
-                Err("only trusted users can vote".into())
-            );
 
             // make sure it is executed when 2/3 have voted
             for i in 2..7 {
@@ -715,7 +692,7 @@ mod tests {
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(100, "test");
-                assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
+                assert_eq!(user.karma(), 25);
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
@@ -764,7 +741,7 @@ mod tests {
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(100, "test");
-                assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
+                assert_eq!(user.karma(), 25);
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
@@ -809,7 +786,7 @@ mod tests {
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(100 * (1 << i), "test");
-                assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
+                assert_eq!(user.karma(), 25);
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
@@ -848,7 +825,7 @@ mod tests {
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(100 * (1 << i), "test");
-                assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
+                assert_eq!(user.karma(), 25);
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
             state.principal_to_user_mut(pr(2)).unwrap().stalwart = true;

@@ -282,96 +282,6 @@ export const Profile = ({ handle }: { handle: string }) => {
                     <hr />
                 </>
             )}
-            {trusted(profile) && !stalwart(profile) && !isBot(profile) && (
-                <>
-                    <div className="spaced">
-                        <h2>Stalwart Progress</h2>
-                        <div className="dynamic_table">
-                            <div className="db_cell">
-                                KARMA NEEDED
-                                <code>
-                                    {Math.max(
-                                        0,
-                                        stalwartMinKarma() - profile.karma,
-                                    )}
-                                </code>
-                            </div>
-                            <div className="db_cell">
-                                AGE NEEDED
-                                <code>
-                                    {Math.ceil(
-                                        Math.max(
-                                            0,
-                                            (window.backendCache.config
-                                                .min_stalwart_account_age_weeks *
-                                                7 *
-                                                daySeconds -
-                                                secondsSince(
-                                                    profile.timestamp,
-                                                )) /
-                                                daySeconds /
-                                                7,
-                                        ),
-                                    )}{" "}
-                                    WEEKS
-                                </code>
-                            </div>
-                            <div className="db_cell">
-                                ACTIVITY NEEDED
-                                <code>
-                                    {Math.max(
-                                        0,
-                                        window.backendCache.config
-                                            .min_stalwart_activity_weeks -
-                                            profile.active_weeks,
-                                    )}{" "}
-                                    WEEKS
-                                </code>
-                            </div>
-                        </div>
-                    </div>
-                    <hr />
-                </>
-            )}
-            {!trusted(profile) && (
-                <>
-                    <div className="spaced">
-                        <h2>Bootcamp Progress</h2>
-                        <div className="dynamic_table">
-                            <div className="db_cell">
-                                KARMA NEEDED
-                                <code>
-                                    {Math.max(
-                                        0,
-                                        window.backendCache.config
-                                            .trusted_user_min_karma -
-                                            profile.karma,
-                                    )}
-                                </code>
-                            </div>
-                            <div className="db_cell">
-                                TIME LEFT
-                                <code>
-                                    {Math.ceil(
-                                        Math.max(
-                                            0,
-                                            window.backendCache.config
-                                                .trusted_user_min_age_weeks *
-                                                7 -
-                                                secondsSince(
-                                                    profile.timestamp,
-                                                ) /
-                                                    daySeconds,
-                                        ),
-                                    )}{" "}
-                                    DAYS
-                                </code>
-                            </div>
-                        </div>
-                    </div>
-                    <hr />
-                </>
-            )}
             <PostFeed
                 title={title}
                 useList={true}
@@ -581,8 +491,6 @@ export const getLabels = (profile: User) => {
     }
     if (profile.stalwart) {
         labels.push(["STALWART", "Salmon"]);
-    } else if (!trusted(profile)) {
-        labels.push(["BOOTCAMP", "OliveDrab"]);
     }
     if (profile.active_weeks > 12) {
         labels.push(["FREQUENTER", "SlateBlue"]);
@@ -627,31 +535,8 @@ const daySeconds = 24 * 3600;
 const secondsSince = (val: BigInt) =>
     (Number(new Date()) - Number(val) / 1000000) / 1000;
 
-export const trusted = (profile: User) =>
-    profile.karma >= window.backendCache.config.trusted_user_min_karma &&
-    secondsSince(profile.timestamp) >=
-        window.backendCache.config.trusted_user_min_age_weeks * 7 * daySeconds;
-
 const isBot = (profile: User) =>
     profile.controllers.find((p) => p.length == 27);
-
-const stalwart = (profile: User) =>
-    !isBot(profile) &&
-    secondsSince(profile.timestamp) >=
-        window.backendCache.config.min_stalwart_account_age_weeks *
-            7 *
-            daySeconds &&
-    profile.active_weeks >=
-        window.backendCache.config.min_stalwart_activity_weeks &&
-    profile.karma >= stalwartMinKarma();
-
-const stalwartMinKarma = () =>
-    Math.min(
-        window.backendCache.config.min_stalwart_karma,
-        window.backendCache.karma[
-            window.backendCache.stats.stalwarts.at(-1) || 0
-        ] || 0,
-    );
 
 const linkPost = (line: string) => {
     const [prefix, id] = line.split(" post ");

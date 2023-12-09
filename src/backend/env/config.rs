@@ -62,9 +62,6 @@ pub struct Config {
 
     pub num_hot_posts: usize,
 
-    pub trusted_user_min_karma: Karma,
-    pub trusted_user_min_age_weeks: u64,
-
     pub post_cost: Credits,
     pub tag_cost: Credits,
     pub blob_cost: Credits,
@@ -121,8 +118,6 @@ pub struct Config {
 
     pub post_deletion_penalty_factor: u32,
 
-    pub bootstrap_phase_user_number: u32,
-
     #[serde(with = "string")]
     pub neuron_id: u64,
 }
@@ -170,11 +165,6 @@ pub const CONFIG: &Config = &Config {
 
     max_credits_mint_kilos: 10,
 
-    #[cfg(not(feature = "dev"))]
-    bootstrap_phase_user_number: 25,
-    #[cfg(feature = "dev")]
-    bootstrap_phase_user_number: 0,
-
     #[cfg(not(any(feature = "dev", feature = "staging")))]
     supply_threshold_for_transfer_percentage: 20,
     #[cfg(feature = "staging")]
@@ -219,13 +209,6 @@ pub const CONFIG: &Config = &Config {
     report_confirmation_percentage: 15,
     #[cfg(not(any(test, feature = "dev")))]
     report_confirmation_percentage: 20,
-
-    trusted_user_min_karma: 25,
-
-    #[cfg(not(feature = "staging"))]
-    trusted_user_min_age_weeks: 4,
-    #[cfg(feature = "staging")]
-    trusted_user_min_age_weeks: 1,
 
     minimal_tip: 1,
 

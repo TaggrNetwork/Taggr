@@ -531,8 +531,6 @@ impl Post {
             user.realms.push(name.clone());
         }
         user.last_activity = timestamp;
-        let karma_donor = user.karma_donor();
-        user.decrease_karma_budget(CONFIG.response_reward);
         let id = state.new_post_id();
         post.id = id;
         if let Some(realm) = realm.and_then(|name| state.realms.get_mut(&name)) {
@@ -543,7 +541,7 @@ impl Post {
             let result = Post::mutate(state, &parent_id, |parent_post| {
                 parent_post.children.push(id);
                 parent_post.watchers.insert(user_id);
-                if parent_post.user != user_id && karma_donor {
+                if parent_post.user != user_id {
                     return Ok(Some((parent_post.user, parent_post.id)));
                 }
                 Ok(None)

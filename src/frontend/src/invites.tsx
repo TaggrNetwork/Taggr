@@ -1,7 +1,6 @@
 import * as React from "react";
 import { bigScreen, CopyToClipboard, HeadBar, Loading } from "./common";
 import { Credits } from "./icons";
-import { trusted } from "./profile";
 
 export const Invites = () => {
     const [credits, setCredits] = React.useState(
@@ -17,17 +16,6 @@ export const Invites = () => {
     React.useEffect(() => {
         loadInvites();
     }, []);
-
-    if (!trusted(window.user)) {
-        return (
-            <>
-                <HeadBar title="INVITES" shareLink="invites" />
-                <div className="spaced">
-                    Only trusted users can create invites.
-                </div>
-            </>
-        );
-    }
 
     return (
         <>

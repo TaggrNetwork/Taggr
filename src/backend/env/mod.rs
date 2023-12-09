@@ -68,7 +68,6 @@ pub struct Stats {
     team_tokens: HashMap<UserId, Token>,
     weekly_karma_leaders: Vec<(UserId, u64)>,
     users: usize,
-    bootcamp_users: usize,
     credits: Credits,
     canister_cycle_balance: u64,
     burned_credits: i64,
@@ -358,9 +357,6 @@ impl State {
     ) -> Result<(), String> {
         let sender = self.users.get_mut(&sender_id).expect("no sender found");
         sender.change_credits(amount + fee, CreditsDelta::Minus, log.to_string())?;
-        if destination == Destination::Karma {
-            sender.decrease_karma_budget(amount);
-        }
         let receiver = self.users.get_mut(&receiver_id).expect("no receiver found");
         self.burned_cycles += fee as i64;
         let result = match destination {
@@ -705,9 +701,6 @@ impl State {
         }
         if user.credits() < credits {
             return Err("not enough credits".into());
-        }
-        if !user.trusted() {
-            return Err("bootcamp users cannot invite others".into());
         }
         let mut hasher = Sha256::new();
         hasher.update(principal.as_slice());
@@ -1350,9 +1343,7 @@ impl State {
             user.accounting.clear();
             if user.active_within_weeks(now, 1) {
                 user.active_weeks += 1;
-                if user.trusted() {
-                    user.invites_budget = user.invites_budget.max(CONFIG.invites_budget_credits);
-                }
+                user.invites_budget = user.invites_budget.max(CONFIG.invites_budget_credits);
             } else {
                 user.active_weeks = 0;
             }
@@ -1433,7 +1424,6 @@ impl State {
 
         for u in users {
             if u.is_bot()
-                || !u.trusted()
                 || u.report.is_some()
                 || now.saturating_sub(u.timestamp)
                     < WEEK * CONFIG.min_stalwart_account_age_weeks as u64
@@ -1859,7 +1849,6 @@ impl State {
     pub fn stats(&self, now: u64) -> Stats {
         let mut stalwarts = Vec::new();
         let mut weekly_karma_leaders = Vec::new();
-        let mut bootcamp_users = 0;
         let mut users_online = 0;
         let mut invited_users = 0;
         let mut active_users = 0;
@@ -1868,9 +1857,6 @@ impl State {
         for user in self.users.values() {
             if user.stalwart {
                 stalwarts.push(user);
-            }
-            if !user.trusted() {
-                bootcamp_users += 1;
             }
             if now < user.last_activity + CONFIG.online_activity_minutes {
                 users_online += 1;
@@ -1901,7 +1887,6 @@ impl State {
             team_tokens: self.team_tokens.clone(),
             meta: format!("Memory health: {}", self.memory.health("MB")),
             weekly_karma_leaders,
-            bootcamp_users,
             module_hash: self.module_hash.clone(),
             canister_id: ic_cdk::id(),
             last_upgrade: self.last_upgrade,
@@ -2203,18 +2188,9 @@ impl State {
         }
 
         let log = format!("reaction to post {}", post_id);
-        // If the user is untrusted, they can only upvote, but this does not affect author's karma.
-        // We skip this check if the project is in the bootstrap phase and has too few users.
-        if self.users.len() as u32 > CONFIG.bootstrap_phase_user_number && !user.karma_donor() {
-            if !user.trusted() && delta < 0 {
-                return Err("bootcamp users can't downvote".into());
-            }
-            self.charge(user.id, delta.unsigned_abs() + CONFIG.reaction_fee, log)
-                .expect("coudln't charge user");
-        }
-        // If the user is trusted, they initiate a credit transfer for upvotes, but burn their own credits on
+        // Users initiate a credit transfer for upvotes, but burn their own credits on
         // downvotes + credits and karma of the author
-        else if delta < 0 {
+        if delta < 0 {
             self.users
                 .get_mut(&post.user)
                 .expect("user not found")
@@ -2311,7 +2287,7 @@ pub fn id() -> Principal {
 
 pub fn time() -> u64 {
     #[cfg(test)]
-    return CONFIG.trusted_user_min_age_weeks * WEEK + 1;
+    return 0;
     #[cfg(not(test))]
     api::time()
 }
@@ -2348,31 +2324,24 @@ pub(crate) mod tests {
     }
 
     pub fn create_user(state: &mut State, p: Principal) -> UserId {
-        create_user_with_params(state, p, &p.to_string().replace('-', ""), true, 1000)
+        create_user_with_params(state, p, &p.to_string().replace('-', ""), 1000)
     }
 
     pub fn create_user_with_credits(state: &mut State, p: Principal, credits: Credits) -> UserId {
-        create_user_with_params(state, p, &p.to_string().replace('-', ""), true, credits)
-    }
-
-    pub fn create_untrusted_user(state: &mut State, p: Principal) -> UserId {
-        create_user_with_params(state, p, &p.to_string().replace('-', ""), false, 1000)
+        create_user_with_params(state, p, &p.to_string().replace('-', ""), credits)
     }
 
     fn create_user_with_params(
         state: &mut State,
         p: Principal,
         name: &str,
-        trusted: bool,
         credits: Credits,
     ) -> UserId {
         let id = state.new_user(p, 0, name.to_string(), Some(credits));
         let u = state.users.get_mut(&id).unwrap();
         u.karma_budget = CONFIG.min_weekly_karma_budget;
-        if trusted {
-            u.change_karma(CONFIG.trusted_user_min_karma, "");
-            u.apply_rewards();
-        }
+        u.change_karma(25, "");
+        u.apply_rewards();
         id
     }
 
@@ -2393,8 +2362,8 @@ pub(crate) mod tests {
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
-            let id1 = create_user_with_params(state, pr(0), "peter", false, 10000);
-            let id2 = create_user_with_params(state, pr(0), "peter", false, 0);
+            let id1 = create_user_with_params(state, pr(0), "peter", 10000);
+            let id2 = create_user_with_params(state, pr(0), "peter", 0);
 
             assert_eq!(state.users.get(&id2).unwrap().credits(), 0);
             state
@@ -2433,7 +2402,7 @@ pub(crate) mod tests {
         let id = STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
-            create_user_with_params(state, pr(0), "peter", false, 10000)
+            create_user_with_params(state, pr(0), "peter", 10000)
         });
 
         let user = read(|state| state.users.get(&id).unwrap().clone());
@@ -2518,9 +2487,9 @@ pub(crate) mod tests {
                 // Active user with 100 tokens and no karma
                 (10000, 0, now),
                 // Active, with 200 tokens and some karma
-                (20000, CONFIG.trusted_user_min_karma, now),
+                (20000, 25, now),
                 // Inactive, with 300 tokens and some karma
-                (30000, CONFIG.trusted_user_min_karma, 0),
+                (30000, 25, 0),
             ]
             .into_iter()
             .enumerate()
@@ -2564,8 +2533,8 @@ pub(crate) mod tests {
                 karma_insert(state, i as u64, 1 + i as u64 * 100);
             }
 
-            // Create one untrusted user
-            let untrusted_id = create_untrusted_user(state, pr(10));
+            // Create one user
+            let untrusted_id = create_user(state, pr(10));
             let user = state.users.get_mut(&untrusted_id).unwrap();
             user.change_karma(100, "");
 
@@ -2676,7 +2645,7 @@ pub(crate) mod tests {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
-            // create users each having trusted_user_min_karma + i*10, e.g.
+            // create users each having 25 + i*10, e.g.
             // user 1: 35, user 2: 45, user 3: 55, etc...
             for i in 1..11 {
                 let p = pr(i);
@@ -2687,11 +2656,7 @@ pub(crate) mod tests {
                 user.change_karma(i as Karma * 10, "test");
                 user.apply_rewards();
                 user.change_karma(i as Karma * 10, "test");
-                assert_eq!(
-                    user.karma(),
-                    i as Karma * 10 + CONFIG.trusted_user_min_karma
-                );
-                assert!(user.trusted());
+                assert_eq!(user.karma(), i as Karma * 10 + 25);
             }
 
             // mint tokens
@@ -2758,8 +2723,7 @@ pub(crate) mod tests {
                 create_user(state, p);
                 let user = state.principal_to_user_mut(pr(i)).unwrap();
                 user.change_karma(i as Karma * 111, "test");
-                assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
-                assert!(user.trusted());
+                assert_eq!(user.karma(), 25);
             }
 
             // mint tokens
@@ -2904,7 +2868,6 @@ pub(crate) mod tests {
             let user = state.users.get_mut(&upvoter_id).unwrap();
             let upvoter_credits = user.credits();
             user.change_karma(1000, "test");
-            assert!(user.trusted());
             let uid = create_user(state, pr(2));
             create_user(state, pr(3));
             state
@@ -3010,8 +2973,8 @@ pub(crate) mod tests {
             let state = &mut *cell.borrow_mut();
             let p0 = pr(0);
             let p1 = pr(1);
-            let _u0 = create_user_with_params(state, p0, "user1", true, 1000);
-            let _u1 = create_user_with_params(state, p1, "user2", true, 1000);
+            let _u0 = create_user_with_params(state, p0, "user1", 1000);
+            let _u1 = create_user_with_params(state, p1, "user2", 1000);
 
             let user1 = state.users.get_mut(&_u1).unwrap();
             assert_eq!(user1.credits(), 1000);
@@ -3478,9 +3441,9 @@ pub(crate) mod tests {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
-            let u1 = create_user_with_params(state, pr(0), "user1", true, 1000);
-            let u2 = create_user_with_params(state, pr(1), "user2", true, 1000);
-            let u3 = create_user_with_params(state, pr(2), "user3", true, 1000);
+            let u1 = create_user_with_params(state, pr(0), "user1", 1000);
+            let u2 = create_user_with_params(state, pr(1), "user2", 1000);
+            let u3 = create_user_with_params(state, pr(2), "user3", 1000);
 
             assert_eq!(state.user("user1").unwrap().id, u1);
             assert_eq!(state.user("0").unwrap().id, u1);
@@ -3722,12 +3685,12 @@ pub(crate) mod tests {
             let active_id = create_user_with_credits(state, pr(3), 300);
 
             let user = state.users.get_mut(&inactive_id1).unwrap();
-            assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
+            assert_eq!(user.karma(), 25);
             assert_eq!(user.invites_budget, 0);
             let user = state.users.get_mut(&inactive_id3).unwrap();
-            assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
+            assert_eq!(user.karma(), 25);
             let user = state.users.get_mut(&active_id).unwrap();
-            assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
+            assert_eq!(user.karma(), 25);
             assert_eq!(user.invites_budget, 0);
 
             let now = WEEK * 27;
@@ -3755,7 +3718,7 @@ pub(crate) mod tests {
             // Active user not penalized
             let user = state.users.get_mut(&active_id).unwrap();
             assert_eq!(user.credits(), 300);
-            assert_eq!(user.karma(), CONFIG.trusted_user_min_karma);
+            assert_eq!(user.karma(), 25);
             assert_eq!(user.invites_budget, CONFIG.invites_budget_credits);
 
             // check karma budgets
@@ -3804,10 +3767,9 @@ pub(crate) mod tests {
             create_user(state, p2);
             create_user(state, p3);
             // add more users to skip the bootstrapping phase
-            for i in 4..CONFIG.bootstrap_phase_user_number {
+            for i in 4..20 {
                 create_user(state, pr(i as u8));
             }
-            let farmer_id = create_untrusted_user(state, pr(111));
             let c = CONFIG;
             assert_eq!(state.burned_cycles as Credits, c.post_cost);
             state
@@ -3821,13 +3783,9 @@ pub(crate) mod tests {
                 .users
                 .get_mut(&post_author_id)
                 .unwrap()
-                .change_karma(-CONFIG.trusted_user_min_karma, "");
+                .change_karma(-25, "");
             let author = state.users.get(&post_author_id).unwrap();
-            let farmer = state.users.get(&farmer_id).unwrap();
             let lurker = state.users.get(&lurker_id).unwrap();
-            assert!(!author.trusted());
-            assert!(!farmer.trusted());
-            assert!(lurker.trusted());
             assert_eq!(author.credits(), c.credits_per_xdr - c.post_cost);
             assert_eq!(lurker.credits(), c.credits_per_xdr);
 
@@ -3835,9 +3793,6 @@ pub(crate) mod tests {
 
             // react on the new post
             assert!(state.react(pr(111), post_id, 1, 0).is_err());
-            // this is a noop for author
-            assert!(state.react(pr(111), post_id, 100, 0).is_ok());
-            let burned_credits_by_reaction_from_untrusted = 11;
             assert_eq!(
                 state.users.get(&post_author_id).unwrap().credits(),
                 c.credits_per_xdr - c.post_cost
@@ -3857,9 +3812,7 @@ pub(crate) mod tests {
             assert_eq!(author.karma_to_reward(), rewards_from_reactions);
             assert_eq!(
                 state.burned_cycles as Credits,
-                c.post_cost
-                    + burned_credits_by_reactions
-                    + burned_credits_by_reaction_from_untrusted
+                c.post_cost + burned_credits_by_reactions
             );
 
             let lurker = state.users.get(&lurker_id).unwrap();
@@ -3879,10 +3832,7 @@ pub(crate) mod tests {
             assert_eq!(lurker_3.credits(), c.credits_per_xdr - 3);
             assert_eq!(
                 state.burned_cycles,
-                (c.post_cost
-                    + burned_credits_by_reactions
-                    + burned_credits_by_reaction_from_untrusted
-                    + 2 * 3) as i64
+                (c.post_cost + burned_credits_by_reactions + 2 * 3) as i64
             );
 
             Post::create(state, "test".to_string(), &[], p0, 0, Some(0), None, None).unwrap();
@@ -3890,10 +3840,7 @@ pub(crate) mod tests {
             let c = CONFIG;
             assert_eq!(
                 state.burned_cycles,
-                (2 * c.post_cost
-                    + burned_credits_by_reactions
-                    + burned_credits_by_reaction_from_untrusted
-                    + 2 * 3) as i64
+                (2 * c.post_cost + burned_credits_by_reactions + 2 * 3) as i64
             );
             let author = state.users.get(&post_author_id).unwrap();
             assert_eq!(
@@ -3923,7 +3870,7 @@ pub(crate) mod tests {
             );
 
             // Create a new user and a new post
-            let user_id111 = create_user_with_params(state, pr(55), "user111", true, 1000);
+            let user_id111 = create_user_with_params(state, pr(55), "user111", 1000);
             let id =
                 Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
 
@@ -3934,15 +3881,11 @@ pub(crate) mod tests {
             let lurker_principal = lurker.principal;
             assert!(state.react(lurker_principal, id, 50, 0).is_ok());
             assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 5);
-            let lurker = state.principal_to_user_mut(pr(10)).unwrap();
-            assert_eq!(lurker.karma_budget, 3);
 
             // another reaction on a new post
             let id =
                 Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
             assert!(state.react(lurker_principal, id, 50, 0).is_ok());
-            let lurker = state.principal_to_user_mut(pr(10)).unwrap();
-            assert_eq!(lurker.karma_budget, 0);
 
             assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 9);
 
@@ -3950,10 +3893,8 @@ pub(crate) mod tests {
             let id =
                 Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
             assert!(state.react(lurker_principal, id, 50, 0).is_ok());
-            let lurker = state.principal_to_user_mut(pr(10)).unwrap();
-            assert_eq!(lurker.karma_budget, 0);
 
-            assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 9);
+            assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 12);
         })
     }
 
