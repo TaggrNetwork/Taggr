@@ -68,7 +68,7 @@ pub fn finalize_report(
             .get_mut(&report.reporter)
             .ok_or("no user found")?;
         reporter.notify(format!(
-            "Your report for {} was deleted by stalwarts. Thanks for keeping {} safe and clean!",
+            "Your report for {} was confirmed by stalwarts. Thanks for keeping {} safe and clean!",
             subject, CONFIG.name
         ));
         state
