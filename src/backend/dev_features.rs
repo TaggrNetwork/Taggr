@@ -33,7 +33,7 @@ async fn godmode(username: String) {
         user.stalwart = true;
         user.last_activity = time();
         user.active_weeks = CONFIG.min_stalwart_activity_weeks as u32;
-        user.change_karma(CONFIG.trusted_user_min_karma, "test");
+        user.change_karma(25, "test");
         user.apply_rewards();
         let principal = user.principal;
         token::mint(state, account(principal), CONFIG.max_funding_amount);
@@ -46,10 +46,10 @@ async fn demigodmode(username: String) {
     mutate(|state| {
         let user_id = state.user(&username).expect("no user found").id;
         let user = state.users.get_mut(&user_id).expect("no user found");
-        user.timestamp -= CONFIG.trusted_user_min_age_weeks * env::WEEK;
+        user.timestamp -= 4 * env::WEEK;
         user.last_activity = time();
-        user.active_weeks = CONFIG.trusted_user_min_age_weeks as u32;
-        user.change_karma(CONFIG.trusted_user_min_karma, "test");
+        user.active_weeks = 4 as u32;
+        user.change_karma(25, "test");
         user.apply_rewards();
         let principal = user.principal;
         token::mint(state, account(principal), CONFIG.max_funding_amount);

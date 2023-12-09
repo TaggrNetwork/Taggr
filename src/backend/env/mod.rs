@@ -361,7 +361,6 @@ impl State {
         self.burned_cycles += fee as i64;
         let result = match destination {
             Destination::Karma => {
-                let amount = receiver.compute_karma_donation(sender_id, amount);
                 receiver.change_karma(amount as Karma, log);
                 Ok(())
             }
@@ -2218,6 +2217,12 @@ impl State {
                 log,
                 None,
             )?;
+            self.principal_to_user_mut(principal)
+                .expect("no user for principal found")
+                .karma_donations
+                .entry(post.user)
+                .and_modify(|donated| *donated += delta as Credits)
+                .or_insert(delta as Credits);
             post.make_hot(&mut self.hot, self.users.len(), user.id);
         }
 
@@ -3887,14 +3892,14 @@ pub(crate) mod tests {
                 Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
             assert!(state.react(lurker_principal, id, 50, 0).is_ok());
 
-            assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 9);
+            assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 10);
 
             // another reaction on a new post
             let id =
                 Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
             assert!(state.react(lurker_principal, id, 50, 0).is_ok());
 
-            assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 12);
+            assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 15);
         })
     }
 
