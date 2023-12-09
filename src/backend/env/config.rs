@@ -219,8 +219,8 @@ pub const CONFIG: &Config = &Config {
     #[cfg(feature = "dev")]
     max_posts_per_hour: 15,
     #[cfg(not(feature = "dev"))]
-    max_posts_per_hour: 3,
-    max_comments_per_hour: 15,
+    max_posts_per_hour: 5,
+    max_comments_per_hour: 30,
 
     feed_page_size: 30,
 
