@@ -63,15 +63,16 @@ Each realm can establish its own terms and conditions, breaching which can lead 
 
 Upon joining a realm, users implicitly agree to its terms and conditions.
 
-## Content Policy
+## Content and Behavior Policy
 
 Decentralization does not equate to lawlessness!
-Content permitted on $name aligns with community-approved moderation guidelines.
-Content not permitted on $name falls into one of the following categories:
+Content and behavior permitted on $name aligns with community-approved moderation guidelines.
+Content and behavior not permitted on $name falls into one of the following categories:
 
--   Posts that jeopardize $name as a public service (e.g., those illegal in many jurisdictions).
--   Posts created with malicious intent, such as gaming the $name system, or posing threats to the community, sustainability, or decentralization of $name.
--   Posts that violate realm-specific rules.
+-   Content and behavior that jeopardize $name as a public service (e.g., those illegal in many jurisdictions).
+-   Content or behavior detrimental to the community, sustainability, or decentralization of $name.
+-   Content created with malicious intent, such as gaming the $name system.
+-   Content and behavior that violate realm-specific rules.
 
 This policy is intentionally broad and necessitates social consensus among stalwarts.
 
