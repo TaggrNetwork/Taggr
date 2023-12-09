@@ -859,23 +859,29 @@ impl State {
     }
 
     pub fn mint(&mut self) {
-        let karma = self
-            .users
-            .values()
-            .filter(|user| user.karma() >= 0)
-            .map(|user| (user.id, user.karma_to_reward()))
-            .collect::<HashMap<_, _>>();
         let circulating_supply: Token = self.balances.values().sum();
         if circulating_supply >= CONFIG.total_supply {
             return;
         }
 
+        let mut tokens_to_mint: HashMap<UserId, Token> = Default::default();
+
+        for (user_id, tokens) in self
+            .users
+            .values()
+            .flat_map(|user| user.mintable_tokens(self))
+        {
+            tokens_to_mint
+                .entry(user_id)
+                .and_modify(|balance| *balance += tokens)
+                .or_insert(tokens);
+        }
+
         let mut minted_tokens = 0;
         let mut minters = Vec::new();
-        let base = 10_u64.pow(CONFIG.token_decimals as u32);
         let ratio = self.minting_ratio();
 
-        let total_tokens_to_mint: u64 = karma.values().map(|karma| *karma / ratio * base).sum();
+        let total_tokens_to_mint: u64 = tokens_to_mint.values().sum();
 
         if ratio > 1
             && total_tokens_to_mint * 100 / circulating_supply > CONFIG.minting_threshold_percentage
@@ -887,33 +893,33 @@ impl State {
             return;
         }
 
-        for (user_id, user_karma) in karma {
-            let minted = (user_karma as f64 / ratio as f64 * base as f64) as u64;
-            if minted == 0 {
+        for (user_id, tokens) in tokens_to_mint {
+            if tokens == 0 {
                 continue;
             }
             // This is a circuit breaker to avoid unforeseen side-effects due to hacks or bugs.
             if ratio > 1
-                && minted * 100 / circulating_supply
+                && tokens * 100 / circulating_supply
                     > CONFIG.individual_minting_threshold_percentage
             {
                 self.logger.error(format!(
                     "Minting skipped: `{}` tokens for user_id=`{}` exceed the configured threshold of `{}`% of existing supply.",
-                    minted, user_id, CONFIG.individual_minting_threshold_percentage
+                    tokens, user_id, CONFIG.individual_minting_threshold_percentage
                 ));
                 continue;
             }
 
+            let base = 10_u64.pow(CONFIG.token_decimals as u32);
             if let Some(user) = self.users.get_mut(&user_id) {
-                let minted_fractional = minted as f64 / base as f64;
+                let minted_fractional = tokens as f64 / base as f64;
                 user.notify(format!(
-                    "{} minted `{}` ${} tokens for you! 💎",
+                    "{} tokens `{}` ${} tokens for you! 💎",
                     CONFIG.name, minted_fractional, CONFIG.token_symbol,
                 ));
                 minters.push(format!("`{}` to @{}", minted_fractional, user.name));
                 let acc = account(user.principal);
-                crate::token::mint(self, acc, minted);
-                minted_tokens += minted / base;
+                crate::token::mint(self, acc, tokens);
+                minted_tokens += tokens / base;
             }
         }
 
@@ -1360,6 +1366,7 @@ impl State {
             user.karma_budget = (user.karma().max(0) as Credits / ratio)
                 .max(CONFIG.min_weekly_karma_budget)
                 .min(CONFIG.max_weekly_karma_budget);
+            user.karma_donations.clear();
         }
         self.accounting.clean_up();
     }
@@ -2525,92 +2532,73 @@ pub(crate) mod tests {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
-            let karma_insert = |state: &mut State, user_id, karma| {
+            let karma_insert = |state: &mut State, donor_id, user_id, karma| {
                 state
                     .users
-                    .get_mut(&user_id)
+                    .get_mut(&donor_id)
                     .unwrap()
-                    .change_karma(karma as Karma, "")
+                    .karma_donations
+                    .insert(user_id, karma)
             };
 
             for i in 0..5 {
                 create_user(state, pr(i));
-                karma_insert(state, i as u64, 1 + i as u64 * 100);
+                state
+                    .balances
+                    .insert(account(pr(i)), (((i + 1) as u64) << 2) * 10000);
+                for j in 0..5 {
+                    if i != j {
+                        karma_insert(state, i as u64, j as u64, ((j + 1) * (i + 1)) as u64 * 100);
+                    }
+                }
             }
-
-            // Create one user
-            let untrusted_id = create_user(state, pr(10));
-            let user = state.users.get_mut(&untrusted_id).unwrap();
-            user.change_karma(100, "");
 
             let minting_acc = account(Principal::anonymous());
             state
                 .balances
                 .insert(minting_acc.clone(), CONFIG.total_supply);
 
-            state.mint();
-
             // no minting hapened due to max supply
-            assert_eq!(state.balances.len(), 1);
+            assert_eq!(state.balances.get(&account(pr(0))).unwrap(), &40000);
+            state.mint();
+            assert_eq!(state.balances.get(&account(pr(0))).unwrap(), &40000);
 
             state.balances.remove(&minting_acc);
             state.mint();
 
-            assert_eq!(state.balances.len(), 6);
-            assert_eq!(*state.balances.get(&account(pr(0))).unwrap(), 100);
-            assert_eq!(*state.balances.get(&account(pr(1))).unwrap(), 10100);
-            assert_eq!(*state.balances.get(&account(pr(2))).unwrap(), 20100);
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 30100);
-            assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 40100);
-            assert_eq!(*state.balances.get(&account(pr(10))).unwrap(), 10000);
+            assert_eq!(state.balances.len(), 5);
+            assert_eq!(*state.balances.get(&account(pr(0))).unwrap(), 95155);
+            assert_eq!(*state.balances.get(&account(pr(1))).unwrap(), 173510);
+            assert_eq!(*state.balances.get(&account(pr(2))).unwrap(), 249761);
+            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 314877);
+            assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 366688);
 
             // increase minting ratio
             assert_eq!(state.minting_ratio(), 1);
-            state.balances.insert(account(pr(5)), 10000000);
+            state.balances.insert(account(pr(4)), 10000000);
             assert_eq!(state.minting_ratio(), 2);
 
             // Test circuit breaking
-            karma_insert(state, 3, 301);
-            karma_insert(state, 4, 60_000);
-            state.mint();
+            karma_insert(state, 4, 3, 301);
+            karma_insert(state, 4, 4, 60_000);
 
             // Tokens were not minted to to circuit breaking
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 30100);
-            assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 40100);
+            state.mint();
+            assert_eq!(*state.balances.get(&account(pr(2))).unwrap(), 249761);
+            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 314877);
 
             // Imitate a healthy minting grow by increasing the supply
             state.balances.insert(minting_acc.clone(), 20000000);
             state.mint();
 
             // Tokens were minted for user 3
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 37625);
+            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 335426);
             // Tokens were not minted for user 4
-            assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 40100);
+            assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 10000000);
 
             // increase minting ratio to 512:1
             state.balances.insert(account(pr(7)), 60000000);
             assert_eq!(state.minting_ratio(), 512);
-
-            // create new users and make them earn fractions of the minting ratio
-            create_user(state, pr(111));
-            create_user(state, pr(112));
-            create_user(state, pr(113));
-            let user = state.principal_to_user_mut(pr(111)).unwrap();
-            user.change_karma(100, "");
-            assert_eq!(user.karma_to_reward(), 100);
-            let user = state.principal_to_user_mut(pr(112)).unwrap();
-            user.change_karma(256, "");
-            assert_eq!(user.karma_to_reward(), 256);
-            let user = state.principal_to_user_mut(pr(113)).unwrap();
-            user.change_karma(500, "");
-            assert_eq!(user.karma_to_reward(), 500);
-
-            state.mint();
-
-            // make sure fractional tokens were minted
-            assert_eq!(*state.balances.get(&account(pr(111))).unwrap(), 19);
-            assert_eq!(*state.balances.get(&account(pr(112))).unwrap(), 50);
-            assert_eq!(*state.balances.get(&account(pr(113))).unwrap(), 97);
         })
     }
 
@@ -2655,6 +2643,7 @@ pub(crate) mod tests {
             for i in 1..11 {
                 let p = pr(i);
                 let id = create_user(state, p);
+                state.balances.insert(account(p), (i as u64 * 10) * 100);
                 let user = state.users.get_mut(&id).unwrap();
                 // we create the same amount of new and hard karma so that we have both karma and
                 // balances after minting
@@ -2666,7 +2655,6 @@ pub(crate) mod tests {
 
             // mint tokens
             state.mint();
-            assert_eq!(state.ledger.len(), 10);
 
             let post_id = Post::create(
                 state,
@@ -2726,6 +2714,7 @@ pub(crate) mod tests {
             for i in 1..3 {
                 let p = pr(i);
                 create_user(state, p);
+                state.balances.insert(account(p), i as u64 * 111 * 100);
                 let user = state.principal_to_user_mut(pr(i)).unwrap();
                 user.change_karma(i as Karma * 111, "test");
                 assert_eq!(user.karma(), 25);
@@ -2733,7 +2722,6 @@ pub(crate) mod tests {
 
             // mint tokens
             state.mint();
-            assert_eq!(state.ledger.len(), 2);
             assert_eq!(*state.balances.get(&account(pr(1))).unwrap(), 11100);
 
             let user = state.principal_to_user_mut(pr(1)).unwrap();
@@ -3733,7 +3721,7 @@ pub(crate) mod tests {
                 (inactive_id3, 10000),
                 (active_id, 20000),
             ] {
-                let user = state.users.get_mut(&id).unwrap();
+                let user = state.users.get_mut(id).unwrap();
                 user.change_karma(*karma, "");
                 user.apply_rewards();
             }
@@ -3741,18 +3729,28 @@ pub(crate) mod tests {
             state.balances.insert(account(pr(5)), 20000000);
             assert_eq!(state.minting_ratio(), 4);
 
+            state
+                .users
+                .get_mut(&inactive_id1)
+                .unwrap()
+                .karma_donations
+                .insert(0, 1000);
+
+            assert!(!state
+                .users
+                .get_mut(&inactive_id1)
+                .unwrap()
+                .karma_donations
+                .is_empty());
+
             state.clean_up(WEEK);
 
-            assert_eq!(state.users.get_mut(&inactive_id1).unwrap().karma_budget, 25);
-            assert_eq!(
-                state.users.get_mut(&inactive_id2).unwrap().karma_budget,
-                250
-            );
-            assert_eq!(
-                state.users.get_mut(&inactive_id3).unwrap().karma_budget,
-                1000
-            );
-            assert_eq!(state.users.get_mut(&active_id).unwrap().karma_budget, 1000);
+            assert!(state
+                .users
+                .get_mut(&inactive_id1)
+                .unwrap()
+                .karma_donations
+                .is_empty())
         })
     }
 

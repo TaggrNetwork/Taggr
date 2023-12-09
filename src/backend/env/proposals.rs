@@ -536,11 +536,8 @@ mod tests {
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(1000, "test");
+                state.balances.insert(account(p), 1000 * 100);
             }
-
-            // mint tokens
-            state.mint();
-            assert_eq!(state.ledger.len(), 10);
 
             // make sure the karma accounting was correct
             assert_eq!(
@@ -690,14 +687,12 @@ mod tests {
             for i in 1..=3 {
                 let p = pr(i);
                 let id = create_user(state, p);
+                state.balances.insert(account(p), 100 * 100);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(100, "test");
                 assert_eq!(user.karma(), 25);
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
-
-            // mint tokens
-            state.mint();
 
             let prop_id = propose(state, pr(1), "test".into(), Payload::Noop, time())
                 .expect("couldn't propose");
@@ -739,14 +734,12 @@ mod tests {
             for i in 1..=5 {
                 let p = pr(i);
                 let id = create_user(state, p);
+                state.balances.insert(account(p), 100 * 100);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(100, "test");
                 assert_eq!(user.karma(), 25);
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
-
-            // mint tokens
-            state.mint();
 
             let prop_id =
                 propose(state, pr(1), "test".into(), Payload::Noop, 0).expect("couldn't propose");
@@ -786,12 +779,10 @@ mod tests {
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(100 * (1 << i), "test");
+                state.balances.insert(account(p), (100 * (1 << i)) * 100);
                 assert_eq!(user.karma(), 25);
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
-
-            // mint tokens
-            state.mint();
 
             let prop_id = propose(
                 state,
@@ -823,15 +814,13 @@ mod tests {
             for i in 1..=3 {
                 let p = pr(i);
                 let id = create_user(state, p);
+                state.balances.insert(account(p), (100 * (1 << i)) * 100);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_karma(100 * (1 << i), "test");
                 assert_eq!(user.karma(), 25);
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
             state.principal_to_user_mut(pr(2)).unwrap().stalwart = true;
-
-            // mint tokens
-            state.mint();
 
             // Case 1: all agree
             let prop_id = propose(
