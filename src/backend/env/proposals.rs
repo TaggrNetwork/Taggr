@@ -226,7 +226,7 @@ fn mint_tokens(state: &mut State, receiver: &str, mut tokens: Token) -> Result<(
 }
 
 impl Payload {
-    fn validate(&mut self, minting_ratio: u64) -> Result<(), String> {
+    fn validate(&mut self, minting_ratio: u64, current_supply: u64) -> Result<(), String> {
         match self {
             Payload::Release(release) => {
                 if release.commit.is_empty() {
@@ -241,12 +241,23 @@ impl Payload {
             }
             Payload::Fund(controller, tokens) => {
                 Principal::from_text(controller).map_err(|err| err.to_string())?;
-                let base = 10_u64.pow(CONFIG.token_decimals as u32);
-                let max_funding_amount = CONFIG.max_funding_amount / minting_ratio / base;
-                if *tokens / base > max_funding_amount {
+                if current_supply >= CONFIG.total_supply {
+                    return Err(format!(
+                        "no funding is allowed when the curent supply is above maximum",
+                    ));
+                }
+                let max_funding_amount = CONFIG.max_funding_amount / minting_ratio;
+                if *tokens > max_funding_amount {
                     return Err(format!(
                         "funding amount is higher than the configured maximum of {} tokens",
                         max_funding_amount
+                    ));
+                }
+            }
+            Payload::Reward(_) => {
+                if current_supply >= CONFIG.total_supply {
+                    return Err(format!(
+                        "no funding is allowed when the curent supply is above maximum",
                     ));
                 }
             }
@@ -263,7 +274,7 @@ pub fn propose(
     mut payload: Payload,
     time: u64,
 ) -> Result<u32, String> {
-    payload.validate(state.minting_ratio())?;
+    payload.validate(state.minting_ratio(), state.balances.values().sum())?;
     let user = state
         .principal_to_user_mut(caller)
         .ok_or("proposer user not found")?;
@@ -784,6 +795,23 @@ mod tests {
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
+            state.balances.insert(account(pr(222)), CONFIG.total_supply);
+            assert_eq!(
+                propose(
+                    state,
+                    pr(1),
+                    "test".into(),
+                    Payload::Reward(Reward {
+                        receiver: pr(4).to_string(),
+                        votes: Default::default(),
+                        minted: 0,
+                    }),
+                    time(),
+                ),
+                Err("no funding is allowed when the curent supply is above maximum".to_string())
+            );
+            state.balances.remove(&account(pr(222)));
+
             let prop_id = propose(
                 state,
                 pr(1),
@@ -821,6 +849,24 @@ mod tests {
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
             state.principal_to_user_mut(pr(2)).unwrap().stalwart = true;
+
+            // Case 0: max supply reached
+            state.balances.insert(account(pr(222)), CONFIG.total_supply);
+            assert_eq!(
+                propose(
+                    state,
+                    pr(1),
+                    "test".into(),
+                    Payload::Reward(Reward {
+                        receiver: pr(4).to_string(),
+                        votes: Default::default(),
+                        minted: 0,
+                    }),
+                    time(),
+                ),
+                Err("no funding is allowed when the curent supply is above maximum".to_string())
+            );
+            state.balances.remove(&account(pr(222)));
 
             // Case 1: all agree
             let prop_id = propose(
