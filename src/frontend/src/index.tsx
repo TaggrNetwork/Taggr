@@ -33,6 +33,7 @@ import { MAINNET_MODE, TEST_MODE, CANISTER_ID } from "./env";
 import { UserId } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Close } from "./icons";
+import { Search } from "./search";
 
 const { hash, pathname } = location;
 
@@ -108,10 +109,6 @@ const App = () => {
 
     if (handler == "settings") {
         content = auth(<Settings />);
-    } else if (handler == "whitepaper" || handler == "about") {
-        content = <Whitepaper />;
-    } else if (handler == "dashboard" || handler == "stats") {
-        content = <Dashboard />;
     } else if (handler == "welcome") {
         subtle = !window.principalId;
         content = window.principalId ? (
@@ -152,6 +149,12 @@ const App = () => {
         content = <Proposals />;
     } else if (handler == "tokens") {
         content = <Tokens />;
+    } else if (handler == "whitepaper" || handler == "about") {
+        content = <Whitepaper />;
+    } else if (handler == "dashboard" || handler == "stats") {
+        content = <Dashboard />;
+    } else if (handler == "search") {
+        content = <Search query={param} />;
     } else if (handler == "bookmarks") {
         content = auth(
             <PostFeed

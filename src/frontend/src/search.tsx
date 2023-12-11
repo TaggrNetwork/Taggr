@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Loading } from "./common";
+import { Loading, ShareButton } from "./common";
 import { PostId, UserId } from "./types";
 
 type SearchResult = {
@@ -10,38 +10,49 @@ type SearchResult = {
     relevant: string;
 };
 
-export const Search = () => {
-    const [term, setTerm] = React.useState("");
+export const Search = ({ query }: { query?: string }) => {
+    const [term, setTerm] = React.useState(decodeURIComponent(query || ""));
     const [results, setResults] = React.useState<SearchResult[]>([]);
     const [timer, setTimer] = React.useState<any>(null);
     const [searching, setSearching] = React.useState(false);
 
+    const search = async () => {
+        if (term.length < 2) {
+            setResults([]);
+            return;
+        }
+        setSearching(true);
+        setResults((await window.api.query("search", term)) || []);
+        setSearching(false);
+    };
+
+    React.useEffect(() => {
+        search();
+    }, []);
+
     return (
         <div className="column_container spaced">
-            <input
-                id="search_field"
-                type="search"
-                placeholder={`Search #${window.backendCache.config.name}`}
-                value={term}
-                onChange={(event) => {
-                    clearTimeout(timer as unknown as any);
-                    const term = event.target.value;
-                    setTerm(term);
-                    setTimer(
-                        setTimeout(async () => {
-                            if (term.length < 2) {
-                                setResults([]);
-                                return;
-                            }
-                            setSearching(true);
-                            setResults(
-                                (await window.api.query("search", term)) || [],
-                            );
-                            setSearching(false);
-                        }, 300),
-                    );
-                }}
-            />
+            <div className="row_container">
+                <input
+                    id="search_field"
+                    className="max_width_col"
+                    type="search"
+                    placeholder={`Search #${window.backendCache.config.name}`}
+                    value={term}
+                    onChange={(event) => {
+                        clearTimeout(timer as unknown as any);
+                        const term = event.target.value;
+                        setTerm(term);
+                        setTimer(setTimeout(search, 300));
+                    }}
+                />
+                {term && (
+                    <ShareButton
+                        url={`#/search/${encodeURIComponent(term)}`}
+                        text={true}
+                    />
+                )}
+            </div>
             {!searching && results.length > 0 && (
                 <ul>
                     {results.map((i) => (
