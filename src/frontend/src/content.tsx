@@ -245,7 +245,6 @@ const isALink = (val: string) =>
 const linkRenderer =
     (preview?: boolean) =>
     ({ node, children, ...props }: any) => {
-        let target = "_self";
         let className = null;
         let label: string = children;
         let child: string = children;
@@ -267,6 +266,7 @@ const linkRenderer =
                         className = "external";
                         label = url.hostname.toUpperCase();
                         props.rel = "nofollow noopener noreferrer";
+                        props.target = "_blank";
                     } else {
                         label = child;
                     }
@@ -280,8 +280,6 @@ const linkRenderer =
                         let link = url.href.replace(url.origin + "/", "");
                         props.href = (link.startsWith("#") ? "" : "#/") + link;
                     }
-                    // External links
-                    else target = "_blank";
                 } catch (e) {}
             }
             // local link
@@ -290,7 +288,7 @@ const linkRenderer =
             }
         }
         return (
-            <a target={target} className={className} {...props}>
+            <a className={className} {...props}>
                 {label}
             </a>
         );
