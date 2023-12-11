@@ -125,8 +125,7 @@ export const Tokens = () => {
                     <div className="db_cell">
                         MINTING RATIO
                         <code>
-                            {1 <<
-                                Math.floor((10 * mintedSupply) / total_supply)}
+                            {window.backendCache.stats.minting_ratio}
                             :1
                         </code>
                     </div>

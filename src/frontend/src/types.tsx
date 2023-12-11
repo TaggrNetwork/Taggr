@@ -221,6 +221,7 @@ declare global {
             recent_tags: string[];
             realms: { [name: string]: [string, boolean] };
             stats: {
+                minting_ratio: number;
                 users: number;
                 active_users: number;
                 users_online: number;
@@ -252,6 +253,7 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                max_funding_amount: number;
                 min_stalwart_karma: number;
                 min_credits_for_inviting: number;
                 max_credits_mint_kilos: number;

@@ -63,6 +63,7 @@ pub struct Event {
 #[derive(Serialize, Deserialize)]
 pub struct Stats {
     holders: usize,
+    minting_ratio: u64,
     e8s_revenue_per_1k: u64,
     e8s_for_one_xdr: u64,
     team_tokens: HashMap<UserId, Token>,
@@ -1874,6 +1875,7 @@ impl State {
         weekly_karma_leaders = weekly_karma_leaders.into_iter().rev().take(12).collect();
         let posts = self.root_posts;
         Stats {
+            minting_ratio: self.minting_ratio(),
             holders: self.balances.len(),
             e8s_for_one_xdr: self.e8s_for_one_xdr,
             e8s_revenue_per_1k: self.last_revenues.iter().sum::<u64>()

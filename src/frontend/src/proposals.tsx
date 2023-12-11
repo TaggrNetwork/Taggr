@@ -363,8 +363,14 @@ export const ProposalView = ({
                 if (!data) return;
             }
             if ("Reward" in proposal.payload) {
+                const { max_funding_amount, token_symbol } =
+                    window.backendCache.config;
+                const cap = token(
+                    max_funding_amount /
+                        window.backendCache.stats.minting_ratio,
+                );
                 data = prompt(
-                    "Please enter the token amount which would be an appropriate reward for the efforts described:",
+                    `Please enter the amount of ${token_symbol} tokens which would be an appropriate reward for the efforts described (max. ${cap} ${token_symbol}):`,
                 );
                 if (!data) return;
                 if (
