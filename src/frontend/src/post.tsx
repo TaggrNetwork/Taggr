@@ -248,10 +248,6 @@ export const PostView = ({
     const showReport =
         post.report && !post.report.closed && user && user.stalwart;
     const deleted = post.hashes.length > 0;
-    const deletedByModeration =
-        post.report &&
-        post.report.closed &&
-        post.report.confirmed_by.length > post.report.rejected_by.length;
     const isComment = !isRoot(post);
     const commentAsPost = isComment && !isCommentView;
     const realmPost =
@@ -280,9 +276,6 @@ export const PostView = ({
             : undefined;
 
     if (prime) setTitle(`Post #${post.id} by @${post.userObject.name}`);
-
-    if (deletedByModeration)
-        return <h4 className="banner">DELETED VIA MODERATION</h4>;
 
     let cls = "";
     if (!deleted && !isNSFW && !showReport) {

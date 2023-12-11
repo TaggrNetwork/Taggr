@@ -704,7 +704,7 @@ export const ReportBanner = ({
     domain: string;
 }) => {
     const [report, setReport] = React.useState(reportArg);
-    const { reporter, confirmed_by, rejected_by } = report;
+    const { confirmed_by, rejected_by } = report;
     let tookAction =
         window.user?.id == report.reporter ||
         rejected_by.concat(confirmed_by).includes(window.user.id);
@@ -714,25 +714,11 @@ export const ReportBanner = ({
     ];
     return (
         <div className="post_head banner">
-            <h3>
-                This {domain == "post" ? "post" : "user"} was <b>REPORTED</b>{" "}
-                by&nbsp;
-                <a href={`/#/user/${reporter}`}>
-                    {window.backendCache.users[reporter]}
-                </a>
-                . Please confirm the deletion or reject the report.
-            </h3>
-            Reason: {report.reason}
-            {tookAction && (
-                <div className="medium_text">
-                    {confirmed_by.length > 0 && (
-                        <div>CONFIRMED BY {userList(confirmed_by)}</div>
-                    )}
-                    {rejected_by.length > 0 && (
-                        <div>REJECTED BY {userList(rejected_by)}</div>
-                    )}
-                </div>
-            )}
+            <strong>
+                This {domain == "post" ? "post" : "user"} was REPORTED. Please
+                confirm the deletion or reject the report.
+            </strong>
+            <p>Reason: {report.reason}</p>
             {!tookAction && (
                 <div
                     className="row_container"

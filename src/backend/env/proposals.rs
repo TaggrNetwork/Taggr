@@ -242,9 +242,9 @@ impl Payload {
             Payload::Fund(controller, tokens) => {
                 Principal::from_text(controller).map_err(|err| err.to_string())?;
                 if current_supply >= CONFIG.total_supply {
-                    return Err(format!(
-                        "no funding is allowed when the curent supply is above maximum",
-                    ));
+                    return Err(
+                        "no funding is allowed when the curent supply is above maximum".into(),
+                    );
                 }
                 let max_funding_amount = CONFIG.max_funding_amount / minting_ratio;
                 if *tokens > max_funding_amount {
@@ -256,9 +256,9 @@ impl Payload {
             }
             Payload::Reward(_) => {
                 if current_supply >= CONFIG.total_supply {
-                    return Err(format!(
-                        "no funding is allowed when the curent supply is above maximum",
-                    ));
+                    return Err(
+                        "no funding is allowed when the curent supply is above maximum".into(),
+                    );
                 }
             }
             _ => {}

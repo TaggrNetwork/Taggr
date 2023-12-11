@@ -2024,14 +2024,9 @@ impl State {
                     post.report = report.clone();
                     Ok(post.user)
                 })?;
-                let author_name = self
-                    .users
-                    .get(&post_user)
-                    .map(|user| user.name.clone())
-                    .unwrap_or_default();
                 self.notify_with_predicate(
                     &|u| u.stalwart && u.id != user.id,
-                    format!("@{} reported this post by @{}", user.name, author_name),
+                    "This post was reported. Please review the report!",
                     Predicate::ReportOpen(id),
                 );
                 let post_author = self.users.get_mut(&post_user).expect("no user found");
@@ -2049,7 +2044,7 @@ impl State {
                 let user_name = misbehaving_user.name.clone();
                 self.notify_with_predicate(
                     &|u| u.stalwart && u.id != id,
-                    format!("@{} reported user @{}", user.name, user_name),
+                    format!("The user @{} was reported. Please open their profile and review the report!", user_name),
                     Predicate::UserReportOpen(id),
                 );
             }
