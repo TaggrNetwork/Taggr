@@ -261,7 +261,12 @@ impl State {
         false
     }
 
-    pub fn clean_up_realm(&mut self, principal: Principal, post_id: PostId) -> Result<(), String> {
+    pub fn clean_up_realm(
+        &mut self,
+        principal: Principal,
+        post_id: PostId,
+        reason: String,
+    ) -> Result<(), String> {
         let controller = self.principal_to_user(principal).ok_or("no user found")?.id;
         let post = Post::get(self, &post_id).ok_or("no post found")?;
         if post.parent.is_some() {
@@ -279,7 +284,10 @@ impl State {
             return Err("only realm controller can clean up".into());
         }
         let user = self.users.get_mut(&post_user).ok_or("no user found")?;
-        let msg = format!("post {} was moved out of realm {}", post_id, realm);
+        let msg = format!(
+            "post {} was moved out of realm {}: {}",
+            post_id, realm, reason
+        );
         user.change_karma(-(CONFIG.realm_cleanup_penalty as Karma), &msg);
         let user_id = user.id;
         let penalty = CONFIG.realm_cleanup_penalty.min(user.credits());

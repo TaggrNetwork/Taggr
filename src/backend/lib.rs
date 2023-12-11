@@ -535,8 +535,8 @@ fn edit_realm() {
 #[export_name = "canister_update realm_clean_up"]
 fn realm_clean_up() {
     mutate(|state| {
-        let post_id: PostId = parse(&arg_data_raw());
-        reply(state.clean_up_realm(caller(), post_id))
+        let (post_id, reason): (PostId, String) = parse(&arg_data_raw());
+        reply(state.clean_up_realm(caller(), post_id, reason))
     });
 }
 

@@ -578,15 +578,14 @@ const PostInfo = ({
                                 title="Remove from realm"
                                 classNameArg="max_width_col"
                                 onClick={async () => {
-                                    if (
-                                        !confirm(
-                                            "Do you want to remove the post from this realm?",
-                                        )
-                                    )
-                                        return;
+                                    const reason = prompt(
+                                        "Please specify the reason for moving the post out of its realm.",
+                                    );
+                                    if (!reason) return;
                                     await window.api.call(
                                         "realm_clean_up",
                                         post.id,
+                                        reason,
                                     );
                                     alert(
                                         "This post was removed from this realm.",
