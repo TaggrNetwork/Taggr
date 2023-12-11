@@ -95,12 +95,27 @@ fn post_upgrade() {
     );
 
     // temporary post upgrade logic goes here
-    // set_timer(Duration::from_secs(1), move || {
-    //     spawn(post_upgrade_fixtures())
-    // });
+    set_timer(Duration::from_secs(1), move || {
+        spawn(post_upgrade_fixtures())
+    });
 }
 
-// async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    // This code will remove from all users' settings dscvr and distrikt handles used in the past
+    mutate(|state| {
+        fn parse<'a, T: serde::Deserialize<'a>>(bytes: &'a [u8]) -> Result<T, ()> {
+            serde_json::from_slice(bytes).map_err(|_| ())
+        }
+        for user in state.users.values_mut() {
+            let mut settings: std::collections::BTreeMap<String, String> =
+                parse(user.settings.as_bytes()).unwrap_or_default();
+            if settings.remove("dscvr").is_some() || settings.remove("distrikt").is_some() {
+                ic_cdk::print("Cleaned up settings");
+                user.settings = serde_json::json!(settings).to_string();
+            }
+        }
+    })
+}
 
 /*
  * UPDATES
@@ -804,7 +819,6 @@ fn user() {
                 user.accounting.clear();
             } else {
                 user.bookmarks.clear();
-                user.settings.clear();
                 user.inbox.clear();
             }
             user

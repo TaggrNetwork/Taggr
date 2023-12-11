@@ -122,6 +122,14 @@ export const Settings = ({ invite }: { invite?: string }) => {
                     value={about}
                     onChange={(event) => setAbout(event.target.value)}
                 />
+                <div className="bottom_half_spaced">Your OpenChat User Id</div>
+                <input
+                    placeholder="Your Canister Id"
+                    className="bottom_spaced"
+                    type="text"
+                    value={settings.open_chat}
+                    onChange={(event) => setSetting("open_chat", event)}
+                />
                 <div className="bottom_half_spaced">COLOR THEME</div>
                 <select
                     value={settings.theme}

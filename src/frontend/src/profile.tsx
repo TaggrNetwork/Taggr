@@ -21,6 +21,7 @@ import { Journal } from "./icons";
 import { PostFeed } from "./post_feed";
 import { Credits, YinYan } from "./icons";
 import { User } from "./types";
+import { Principal } from "@dfinity/principal";
 
 export const Profile = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
@@ -35,6 +36,13 @@ export const Profile = ({ handle }: { handle: string }) => {
             return;
         }
         setStatus(1);
+        try {
+            profile.settings = JSON.parse(
+                profile.settings as unknown as string,
+            );
+        } catch (e) {
+            console.error(e);
+        }
         setProfile(profile);
     };
 
@@ -111,7 +119,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                     <div className="row_container">
                         <ShareButton
                             url={`/user/${profile.name}`}
-                            classNameArg="left_half_spaced max_width_col"
+                            classNameArg="max_width_col"
                             text={true}
                         />
                         {user && (
@@ -120,6 +128,23 @@ export const Profile = ({ handle }: { handle: string }) => {
                                     id={profile.id}
                                     domain="misbehaviour"
                                     text={true}
+                                />
+                                <ToggleButton
+                                    offLabel="MUTE"
+                                    onLabel="UNMUTE"
+                                    classNameArg="max_width_col"
+                                    currState={() =>
+                                        user.filters.users.includes(profile.id)
+                                    }
+                                    toggler={() =>
+                                        window.api
+                                            .call(
+                                                "toggle_filter",
+                                                "user",
+                                                profile.id.toString(),
+                                            )
+                                            .then(window.reloadUser)
+                                    }
                                 />
                                 {user.id != profile.id && (
                                     <ButtonWithLoading
@@ -153,23 +178,26 @@ export const Profile = ({ handle }: { handle: string }) => {
                                         }}
                                     />
                                 )}
-                                <ToggleButton
-                                    offLabel="MUTE"
-                                    onLabel="UNMUTE"
-                                    classNameArg="max_width_col"
-                                    currState={() =>
-                                        user.filters.users.includes(profile.id)
-                                    }
-                                    toggler={() =>
-                                        window.api
-                                            .call(
-                                                "toggle_filter",
-                                                "user",
-                                                profile.id.toString(),
-                                            )
-                                            .then(window.reloadUser)
-                                    }
-                                />
+                                {profile.settings.open_chat && (
+                                    <ButtonWithLoading
+                                        label="OPEN CHAT"
+                                        classNameArg="max_width_col"
+                                        onClick={async () => {
+                                            try {
+                                                // Make sure it parses as cansiter id;
+                                                let canister_id =
+                                                    Principal.fromText(
+                                                        profile.settings
+                                                            .open_chat,
+                                                    );
+                                                const url = `https://oc.app/user/${canister_id.toString()}`;
+                                                window.open(url, "_blank");
+                                            } catch (e) {
+                                                console.error(e);
+                                            }
+                                        }}
+                                    />
+                                )}
                             </>
                         )}
                     </div>
