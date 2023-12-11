@@ -30,10 +30,9 @@ Below is a breakdown of costs.
 
 Notes:
 
-1. Karma donated to the same user via engagements described above declines by `$karma_donation_decline_percentage%` every time when more than `1` karma point is donated. This accounting is reset on a weekly basis.
-2. Each response to a post increases the author's karma by `$response_reward`.
-3. Inactive users' karma and credits decrease by `$inactivity_penalty` per week after `$inactivity_duration_weeks` weeks of inactivity.
-4. Users with negative karma don't participate in reward distributions.
+1. Each response to a post increases the author's karma by `$response_reward`.
+2. Inactive users' karma and credits decrease by `$inactivity_penalty` per week after `$inactivity_duration_weeks` weeks of inactivity.
+3. Users with negative karma don't participate in reward distributions.
 
 ## Rewards and Revenue Distribution
 
@@ -113,14 +112,40 @@ For any pending proposal the following holds until it gets adopted, rejected or 
 
 ## Tokenomics
 
-$name has a total supply of `$total_supply`  tokens. Tokens can only be mined. Currently, all users who earn karma automatically mine  `$token_symbol` tokens.
-Token minting occurs weekly by converting earned karma to `$token_symbol`  tokens at an exponentially declining ratio.
-The ratio starts at  `1:1`  for the first  `10%`  of supply, then decreases to  `2:1`  for the next  `10%`, further decreasing to `4:1`, and so on.
-Hence, the last `10%`  of supply will be minted at a ratio of  `512:1`.
+The utility of the `$token_symbol` token is the $name governance and a share in $name's revenue.
+$name has a total supply of `$total_supply` tokens.
 
-Token utility includes governance and ownership of $name's revenue.
+### Supply Increase
 
-#### Team Tokens
+New tokens can only be mined by users or minted via proposals.
+The minting will be suspended automatically once the maximum supply is reached.
+
+### Supply Decrease
+
+When a `$token_symbol` transfer transaction gets executed, the fee of `$fee` gets burned.
+Once the maximal supply is reached, it can go below the maximum again after enough fees are burned via transfer transactions.
+In this case, the minting will be activated again.
+This will make the supply to find an equilibrium around the maximal supply.
+
+### Distribution of minted tokens
+
+Currently, all users who earn karma become eligible for receiving newly minted `$token_symbol` tokens.
+On a weekly basis, for every user who rewarded others (the karma donor), $name will generate new tokens limited by donor's  `$token_symbol`  balance divided by the minting ratio  `R`(see below).
+These new tokens will be assigned to all rewarded users weighted by the share of received karma and an additional factor `F`   which depends on receivers    `$token_symbol` balance:
+
+| Receiver's $token_symbol balance | `F`    |
+| -------------------------------- | ------ |
+| Below `100`                      | `1.2`  |
+| Below `250`                      | `1.15` |
+| Below `500`                      | `1.1`  |
+| Below `1000`                     | `1`    |
+
+The minting ratio `R` is algorithmically computed by $name.
+It starts at `1:1` and remains at this level until `10%` of supply is minted.
+Then the ratio decreases to `2:1` for the next `10%`, further decreasing to `4:1`, and so on.
+Hence, the last `10%` of supply will be minted at a ratio of `512:1`.
+
+### Team Tokens
 
 `20%` of tokens are allocated to the first two users forming an informal bootstrapping team before the tokenization:
 

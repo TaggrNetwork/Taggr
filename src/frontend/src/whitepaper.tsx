@@ -21,6 +21,10 @@ export const Whitepaper = () => {
                 value = tokenBalance(team_tokens[0]);
             else if (key == "vesting_tokens_m")
                 value = tokenBalance(team_tokens[305]);
+            else if (key == "fee")
+                value = tokenBalance(
+                    window.backendCache.config.transaction_fee,
+                );
             else if (key == "canister_id")
                 value = window.backendCache.stats.canister_id;
             return acc.replace(e, value);
