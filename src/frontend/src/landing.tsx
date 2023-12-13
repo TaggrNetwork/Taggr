@@ -48,7 +48,7 @@ export const Landing = () => {
                 <div className="vertically_spaced text_centered">
                     <h1>WELCOME ABOARD</h1>
                     <span>
-                        of a <b>fully decentralized</b> social network.
+                        To the Future of Decentralized Social Networking.
                     </span>
                     <br />
                     <br />
