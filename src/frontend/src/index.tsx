@@ -154,7 +154,7 @@ const App = () => {
     } else if (handler == "dashboard" || handler == "stats") {
         content = <Dashboard />;
     } else if (handler == "search") {
-        content = <Search query={param} />;
+        content = <Search initQuery={param} />;
     } else if (handler == "bookmarks") {
         content = auth(
             <PostFeed

@@ -10,24 +10,26 @@ type SearchResult = {
     relevant: string;
 };
 
-export const Search = ({ query }: { query?: string }) => {
-    const [term, setTerm] = React.useState(decodeURIComponent(query || ""));
+export const Search = ({ initQuery }: { initQuery?: string }) => {
+    const [query, setTerm] = React.useState(
+        decodeURIComponent(initQuery || ""),
+    );
     const [results, setResults] = React.useState<SearchResult[]>([]);
     const [timer, setTimer] = React.useState<any>(null);
     const [searching, setSearching] = React.useState(false);
 
-    const search = async () => {
-        if (term.length < 2) {
+    const search = async (query: string) => {
+        if (query.length < 2) {
             setResults([]);
             return;
         }
         setSearching(true);
-        setResults((await window.api.query("search", term)) || []);
+        setResults((await window.api.query("search", query)) || []);
         setSearching(false);
     };
 
     React.useEffect(() => {
-        search();
+        search(query);
     }, []);
 
     return (
@@ -38,17 +40,17 @@ export const Search = ({ query }: { query?: string }) => {
                     className="max_width_col"
                     type="search"
                     placeholder={`Search #${window.backendCache.config.name}`}
-                    value={term}
+                    value={query}
                     onChange={(event) => {
                         clearTimeout(timer as unknown as any);
-                        const term = event.target.value;
-                        setTerm(term);
-                        setTimer(setTimeout(search, 300));
+                        const query = event.target.value;
+                        setTerm(query);
+                        setTimer(setTimeout(() => search(query), 300));
                     }}
                 />
-                {term && (
+                {query && (
                     <ShareButton
-                        url={`#/search/${encodeURIComponent(term)}`}
+                        url={`#/search/${encodeURIComponent(query)}`}
                         text={true}
                     />
                 )}
