@@ -15,8 +15,22 @@ import {
 import * as React from "react";
 import { UserId, Transaction } from "./types";
 import { Principal } from "@dfinity/principal";
+import { IcrcAccount, encodeIcrcAccount } from "@dfinity/ledger";
 
 type Balances = [string, number, UserId][];
+
+const accToIcrcAcc = ({
+    owner,
+    subaccount,
+}: {
+    owner: string;
+    subaccount: number[];
+}): IcrcAccount => {
+    return {
+        owner: Principal.fromText(owner),
+        subaccount: Uint8Array.from(subaccount || []),
+    };
+};
 
 export const Tokens = () => {
     const [status, setStatus] = React.useState(0);
@@ -280,11 +294,15 @@ export const TransactionView = ({ id }: { id: number }) => {
                 {tx.from.owner == Principal.anonymous().toString() ? (
                     <code>MINTING ACCOUNT 🌱</code>
                 ) : (
-                    <CopyToClipboard value={tx.from.owner} />
+                    <CopyToClipboard
+                        value={encodeIcrcAccount(accToIcrcAcc(tx.from))}
+                    />
                 )}
                 <hr />
                 TO
-                <CopyToClipboard value={tx.to.owner} />
+                <CopyToClipboard
+                    value={encodeIcrcAccount(accToIcrcAcc(tx.to))}
+                />
                 <hr />
                 AMOUNT{" "}
                 <code className="xx_large_text">{tokenBalance(tx.amount)}</code>
@@ -338,10 +356,10 @@ export const Transactions = ({
                         {timeAgo(t.timestamp)}
                     </td>
                     <td style={{ textAlign: "center" }}>
-                        {format(t.from.owner)}
+                        {format(encodeIcrcAccount(accToIcrcAcc(t.from)))}
                     </td>
                     <td style={{ textAlign: "center" }}>
-                        {format(t.to.owner)}
+                        {format(encodeIcrcAccount(accToIcrcAcc(t.to)))}
                     </td>
                     <td>{tokenBalance(t.amount)}</td>
                 </tr>

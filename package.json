@@ -50,6 +50,7 @@
         "@dfinity/agent": "0.19.3",
         "@dfinity/auth-client": "0.19.2",
         "@dfinity/candid": "0.19.3",
+        "@dfinity/ledger": "^1.0.0",
         "assert": "2.1.0",
         "diff-match-patch": "1.0.5",
         "react": "18.2.0",

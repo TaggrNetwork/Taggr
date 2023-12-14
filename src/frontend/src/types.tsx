@@ -107,6 +107,7 @@ export type BlogTitle = {
 
 export type Account = {
     owner: string;
+    subaccount: number[];
 };
 
 export type Transaction = {
