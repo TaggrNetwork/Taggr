@@ -346,6 +346,9 @@ export const ProposalView = ({
 
     if (status < 0) return <NotFound />;
     if (!proposal || status == 0) return <Loading />;
+    // @ts-ignore
+    if (proposal.payload == "Noop")
+        return <div className="banner">UNSUPPORTED PROPOSAL TYPE</div>;
 
     const statusEmoji = (status: string) => {
         return (
