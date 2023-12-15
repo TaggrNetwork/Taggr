@@ -1320,8 +1320,6 @@ impl State {
     }
 
     async fn weekly_chores(now: u64) {
-        mutate(|state| state.clean_up(now));
-
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
             let (karma, revenues, e8s_for_one_xdr) = mutate(|state| {
@@ -1340,8 +1338,10 @@ impl State {
                     .info("Skipping minting & distributions due to open proposals")
             });
         }
-
-        mutate(|state| state.charge_for_inactivity(now));
+        mutate(|state| {
+            state.clean_up(now);
+            state.charge_for_inactivity(now);
+        });
     }
 
     fn clean_up(&mut self, now: u64) {
