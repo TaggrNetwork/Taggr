@@ -16,40 +16,33 @@ Each interaction with other users on $name consumes credits.
 All payments are directed to [$name's Treasury](https://dashboard.internetcomputer.org/account/dee15d98a70029163c79ace6ec9cf33b21917355f1766f44f87b4cb9f4d3b393) which holds the revenue.
 Below is a breakdown of costs.
 
-| Function             |       credits 🔥 | Comments                                       |
-| :------------------- | ---------------: | :--------------------------------------------- |
-| New post or comment  |     `$post_cost` | Excluding hashtags                             |
-| Hashtags             |  `T * $tag_cost` | For `T` unique hashtags in a post or comment   |
-| On-chain pictures    | `B * $blob_cost` | For `B` pictures in a post or comment          |
-| Poll                 |     `$poll_cost` | For adding a poll to a post or comment         |
-| Reacting with ❤️     |              `2` | Burns `$reaction_fee` credits, adds `1` karma  |
-| Reacting with 🔥, 😆 |              `6` | Burns `$reaction_fee` credits, adds `5` karma  |
-| Reacting with ⭐️    |             `11` | Burns `$reaction_fee` credits, adds `10` karma |
-| Reacting with 👎     |              `3` | Burns `3` credits and karma of post's author   |
-| New realm creation   |    `$realm_cost` | Burns `$realm_cost` credits                    |
+| Function             |       credits 🔥 | Comments                                         |
+| :------------------- | ---------------: | :----------------------------------------------- |
+| New post or comment  |     `$post_cost` | Excluding hashtags                               |
+| Hashtags             |  `T * $tag_cost` | For `T` unique hashtags in a post or comment     |
+| On-chain pictures    | `B * $blob_cost` | For `B` pictures in a post or comment            |
+| Poll                 |     `$poll_cost` | For adding a poll to a post or comment           |
+| Reacting with ❤️     |              `2` | Burns `$reaction_fee` credits, adds `1` reward   |
+| Reacting with 🔥, 😆 |              `6` | Burns `$reaction_fee` credits, adds `5` rewards  |
+| Reacting with ⭐️    |             `11` | Burns `$reaction_fee` credits, adds `10` rewards |
+| Reacting with 👎     |              `3` | Burns `3` credits and rewards of post's author   |
+| New realm creation   |    `$realm_cost` | Burns `$realm_cost` credits                      |
 
 Notes:
 
-1. Each response to a post increases the author's karma by `$response_reward`.
-2. Inactive users' karma and credits decrease by `$inactivity_penalty` per week after `$inactivity_duration_weeks` weeks of inactivity.
-3. Users with negative karma don't participate in reward distributions.
+1. Each response to a post increases the author's rewards by `$response_reward`.
+2. Inactive users' credits decrease by `$inactivity_penalty` per week after `$inactivity_duration_weeks` weeks of inactivity.
+3. Users with negative rewards don't participate in reward distributions or minting.
 
 ## Rewards and Revenue Distribution
 
--   During positive interactions, users can receive karma from other users.
--   Earned karma points are converted to rewards during the next distribution.
--   Rewards are calculated by converting `$credits_per_xdr` karma points to ICP at the credit minting rate (`1 XDR` / `$credits_per_xdr`).
+-   During positive interactions, users can receive rewards from other users.
+-   Earned rewards points are converted to ICP during the next distribution by converting `$credits_per_xdr` reward points to ICP at the credit minting ratio (`1 XDR` / `$credits_per_xdr`).
 -   Additionally, users owning tokens and being active within the last `$revenue_share_activity_weeks` weeks receive a share of $name's revenue proportionate to their token holdings.
-
-## Bootcamp
-
-New users undergo a "bootcamp" period lasting `$trusted_user_min_age_weeks` weeks.
-During this period, users cannot impact others' karma through engagements, downvote posts, or vote on proposals.
-If after the bootcamp period a user still has less than `$trusted_user_min_karma` karma points, they remain in bootcamp until the karma threshold is reached.
 
 ## Stalwarts
 
-Stalwarts represent the union of top `$stalwart_percentage%` of users with the highest karma and with the highest $`$token_symbol`  balance, active during the last`$min_stalwart_activity_weeks` consecutive weeks, possessing accounts older than `$min_stalwart_account_age_weeks`weeks, and maintaining at least`$min_stalwart_karma` karma points.
+Stalwarts represent the union of top `$stalwart_percentage%` of users with the highest $`$token_symbol`  balance, active during the last  `$min_stalwart_activity_weeks` consecutive weeks and possessing accounts older than `$min_stalwart_account_age_weeks` weeks.
 They are considered trusted community members, authorized to carry out moderating actions and propose upgrades.
 
 ## Realms
@@ -58,7 +51,7 @@ Realms are sub-communities centered around specific topics.
 Each realm can establish its own terms and conditions, breaching which can lead to:
 
 -   Flagging of the user's post to stalwarts.
--   Removal of the post from the realm, incurring a penalty of `$realm_cleanup_penalty` credits and karma points.
+-   Removal of the post from the realm, incurring a penalty of `$realm_cleanup_penalty` credits.
 
 Upon joining a realm, users implicitly agree to its terms and conditions.
 
@@ -84,11 +77,11 @@ Whenever a post or user is reported, all stalwarts receive notifications and are
 Once `$report_confirmation_percentage%` of stalwarts concur on the report's validity, it is closed.
 For confirmed reports:
 
--   The violating user loses `$reporting_penalty_post` (post report) or `$reporting_penalty_misbehaviour` (user report) karma points, along with an equivalent amount of credits.
--   The reporter receives half of this penalty as karma points.
+-   The violating user loses `$reporting_penalty_post` (post report) or `$reporting_penalty_misbehaviour` (user report) rewards, along with an equivalent amount of credits.
+-   The reporter receives half of this penalty as rewards.
 
-If stalwarts dismiss the report, the reporter loses half the penalty as credits and karma points.
-In both cases, participating stalwarts share karma points from the penalty fee, capped at `$stalwart_moderation_reward`.
+If stalwarts dismiss the report, the reporter loses half the penalty as credits and rewards.
+In both cases, participating stalwarts share rewards from the penalty fee, capped at `$stalwart_moderation_reward`.
 
 ## Governance
 
@@ -97,13 +90,13 @@ There are proposals for upgrading the main smart contract, for minting new token
 
 A proposal succeeds if `$proposal_approval_threshold%` of users approve it or fails if `(100 - $proposal_approval_threshold)%` of users reject it.
 Only tokens of registered users active within `$voting_power_activity_weeks` weeks count as participating votes.
-To prevent low-quality proposals, a proposal rejected with a rejected/adopted ratio under `$proposal_controversy_threashold%` incurs a loss of `$proposal_rejection_penalty` karma points and credits for the proposer.
+To prevent low-quality proposals, a proposal rejected with a rejected/adopted ratio under `$proposal_controversy_threashold%` incurs a loss of `$proposal_rejection_penalty` rewards and credits for the proposer.
 
 The total voting power of all registered users required to adopt or reject a proposal decreases daily by `1%` while the proposal remains open.
 This is achieved by multiplying the total available voting power by a factor `d%`, where `d` is the number of days the proposal remains open.
 This ensures any proposal eventually passes within `100` days.
 
-Voting on a proposal is rewarded with `$voting_reward` karma points.
+Voting on a proposal is rewarded with `$voting_reward` rewards.
 
 For any pending proposal the following holds until it gets adopted, rejected or cancelled:
 
@@ -129,9 +122,11 @@ This will make the supply to find an equilibrium around the maximal supply.
 
 ### Distribution of minted tokens
 
-Currently, all users who earn karma become eligible for receiving newly minted `$token_symbol` tokens.
-On a weekly basis, for every user who rewarded others (the karma donor), $name will generate new tokens limited by donor's  `$token_symbol`  balance divided by the minting ratio  `R`(see below).
-These new tokens will be assigned to all rewarded users weighted by the share of received karma and an additional factor `F`   which depends on receivers    `$token_symbol` balance:
+Currently, all users who earn rewards become eligible for receiving newly minted `$token_symbol` tokens.
+The amount of minted tokens is computed weekly according to the following algorithm:
+
+1. For every user `U` who rewarded others, $name will mint new tokens limited by `U`'s  `$token_symbol`  balance divided by the minting ratio  `R` (see below).
+2. Assign the newly minted tokens to users (rewarded by `U`) weighted by their share of received rewards and an additional factor `F` which depends on receiver's `$token_symbol` balance:
 
 | Receiver's $token_symbol balance | `F`    |
 | -------------------------------- | ------ |
@@ -185,7 +180,7 @@ $name canister's `get_neuron_info` method confirms this:
 #### Voting
 
 Proposals categorized as "Governance", "Network Economics", "Replica Version Management," and "SNS & Community Fund" display as posts with polls.
-$name canister votes on these proposals after 3 days, weighted by voters' square root of karma.
+$name canister votes on these proposals after 3 days, weighted by voters' token balances.
 
 Other proposals are automatically rejected.
 $name DAO commits to:
@@ -219,10 +214,10 @@ $name's [code](https://github.com/TaggrNetwork/taggr) is open source, under GPL 
 
 $name's DAO has a bug bounty program with classifications and rewards in `$token_symbol`.
 
-| SEV | DESCRIPTION                                                                                                                         | BOUNTY |
-| :-: | ----------------------------------------------------------------------------------------------------------------------------------- | -----: |
-|  0  | Bugs enabling unsanctioned state mutations affecting assets like credits, karma, tokens, Treasury, or critically endangering $name. | `1000` |
-|  1  | Bugs enabling unsanctioned state mutations affecting data, with moderate impact on decentralization or autonomy.                    |  `400` |
-|  2  | Bugs enabling unsanctioned state mutations without substantial impact on $name.                                                     |  `100` |
+| SEV | DESCRIPTION                                                                                                                           | BOUNTY |
+| :-: | ------------------------------------------------------------------------------------------------------------------------------------- | -----: |
+|  0  | Bugs enabling unsanctioned state mutations affecting assets like credits, rewards, tokens, Treasury, or critically endangering $name. | `1000` |
+|  1  | Bugs enabling unsanctioned state mutations affecting data, with moderate impact on decentralization or autonomy.                      |  `400` |
+|  2  | Bugs enabling unsanctioned state mutations without substantial impact on $name.                                                       |  `100` |
 
 Report bugs to stalwarts immediately if they fall under any of these categories.

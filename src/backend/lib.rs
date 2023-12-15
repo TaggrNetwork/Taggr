@@ -1059,8 +1059,8 @@ fn users() {
             state
                 .users
                 .values()
-                .map(|user| (user.id, user.name.clone(), user.karma()))
-                .collect::<Vec<(UserId, String, Karma)>>(),
+                .map(|user| (user.id, user.name.clone(), user.rewards()))
+                .collect::<Vec<(UserId, String, i64)>>(),
         )
     });
 }

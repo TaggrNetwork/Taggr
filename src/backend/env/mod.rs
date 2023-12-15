@@ -11,7 +11,7 @@ use crate::proposals::Proposal;
 use crate::token::{Account, Token, Transaction};
 use crate::{assets, mutate, read};
 use candid::Principal;
-use config::{reaction_karma, CONFIG, ICP_CYCLES_PER_XDR};
+use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{self, canister_balance};
 use ic_ledger_types::{AccountIdentifier, Memo, Tokens};
@@ -36,7 +36,6 @@ pub mod token;
 pub mod user;
 
 pub type Credits = u64;
-pub type Karma = i64;
 pub type Blob = ByteBuf;
 
 pub const MINUTE: u64 = 60000000000_u64;
@@ -67,7 +66,6 @@ pub struct Stats {
     e8s_revenue_per_1k: u64,
     e8s_for_one_xdr: u64,
     team_tokens: HashMap<UserId, Token>,
-    weekly_karma_leaders: Vec<(UserId, u64)>,
     users: usize,
     credits: Credits,
     canister_cycle_balance: u64,
@@ -192,7 +190,7 @@ impl Logger {
 
 #[derive(PartialEq)]
 pub enum Destination {
-    Karma,
+    Rewards,
     Credits,
 }
 
@@ -288,7 +286,7 @@ impl State {
             "post {} was moved out of realm {}: {}",
             post_id, realm, reason
         );
-        user.change_karma(-(CONFIG.realm_cleanup_penalty as Karma), &msg);
+        user.change_rewards(-(CONFIG.realm_cleanup_penalty as i64), &msg);
         let user_id = user.id;
         let penalty = CONFIG.realm_cleanup_penalty.min(user.credits());
         self.charge(user_id, penalty, msg)
@@ -313,12 +311,12 @@ impl State {
             .sum()
     }
 
-    fn spend_to_user_karma<T: ToString>(&mut self, id: UserId, amount: Credits, log: T) {
+    fn spend_to_user_rewards<T: ToString>(&mut self, id: UserId, amount: Credits, log: T) {
         let user = self.users.get_mut(&id).expect("no user found");
-        user.change_karma(amount as Karma, log.to_string());
+        user.change_rewards(amount as i64, log.to_string());
         if amount > CONFIG.response_reward {
             self.logger.info(format!(
-                "Spent `{}` credits on @{}'s karma for {}.",
+                "Spent `{}` credits on @{}'s rewards for {}.",
                 amount,
                 user.name,
                 log.to_string()
@@ -369,8 +367,8 @@ impl State {
         let receiver = self.users.get_mut(&receiver_id).expect("no receiver found");
         self.burned_cycles += fee as i64;
         let result = match destination {
-            Destination::Karma => {
-                receiver.change_karma(amount as Karma, log);
+            Destination::Rewards => {
+                receiver.change_rewards(amount as i64, log);
                 Ok(())
             }
             Destination::Credits => receiver.change_credits(amount, CreditsDelta::Plus, log),
@@ -612,7 +610,7 @@ impl State {
     ) -> UserId {
         let id = self.new_user_id();
         let mut user = User::new(principal, id, timestamp, name);
-        user.notify(format!("**Welcome!** 🎉 Use #{} as your personal blog, micro-blog or a photo blog. Use #hashtags to connect with others. Make sure you understand [how {0} works](/#/whitepaper). And finally, [say hello](#/new) and start earning karma!", CONFIG.name));
+        user.notify(format!("**Welcome!** 🎉 Use #{} as your personal blog, micro-blog or a photo blog. Use #hashtags to connect with others. Make sure you understand [how {0} works](/#/whitepaper). And finally, [say hello](#/new) and start earning rewards!", CONFIG.name));
         if let Some(credits) = credits {
             user.change_credits(credits, CreditsDelta::Plus, "topped up by an invite")
                 .expect("couldn't add credits when creating a new user");
@@ -903,7 +901,13 @@ impl State {
         }
 
         for (user_id, tokens) in tokens_to_mint {
-            if tokens == 0 {
+            if tokens == 0
+                || self
+                    .users
+                    .get(&user_id)
+                    .map(|user| user.rewards() < 0)
+                    .unwrap_or_default()
+            {
                 continue;
             }
             // This is a circuit breaker to avoid unforeseen side-effects due to hacks or bugs.
@@ -973,7 +977,7 @@ impl State {
             self.logger.info("no tokens were minted".to_string());
         } else {
             self.logger.info(format!(
-                "{} minted `{}` ${} tokens 💎 from the earned karma at the ratio `{}:1` as follows: {}",
+                "{} minted `{}` ${} tokens 💎 from the earned reward at the ratio `{}:1` as follows: {}",
                 CONFIG.name,
                 minted_tokens,
                 CONFIG.token_symbol,
@@ -983,20 +987,16 @@ impl State {
         }
     }
 
-    pub fn collect_new_karma(&mut self) -> HashMap<UserId, u64> {
+    pub fn collect_new_rewards(&mut self) -> HashMap<UserId, u64> {
         self.users
             .values_mut()
-            .filter(|u| u.karma_to_reward() > 0)
+            .filter(|u| u.rewards() > 0)
             .filter_map(|user| {
-                let karma = user.karma_to_reward();
-                if let Ok(credits) = user.top_up_credits_from_karma() {
-                    user.apply_rewards();
-                    if user.karma() < 0 {
-                        return None;
-                    }
-                    return Some((user.id, karma - credits));
-                }
-                None
+                user.top_up_credits_from_rewards().ok().map(|credits| {
+                    let rewards = user.rewards();
+                    user.take_positive_rewards();
+                    (user.id, rewards as Credits - credits)
+                })
             })
             .collect()
     }
@@ -1021,12 +1021,12 @@ impl State {
 
     async fn distribute_icp(
         e8s_for_one_xdr: u64,
-        karma_to_reward: HashMap<UserId, u64>,
+        rewards: HashMap<UserId, u64>,
         revenue: HashMap<UserId, u64>,
     ) {
         let treasury_balance = invoices::main_account_balance().await.e8s();
         let debt = mutate(|state| {
-            let rewards = karma_to_reward
+            let rewards = rewards
                 .iter()
                 .map(|(id, karma)| {
                     (
@@ -1170,8 +1170,8 @@ impl State {
                     continue;
                 }
 
-                let adopted = poll.weighted_by_karma.get(&0).copied().unwrap_or_default();
-                let rejected = poll.weighted_by_karma.get(&1).copied().unwrap_or_default();
+                let adopted = poll.weighted_by_tokens.get(&0).copied().unwrap_or_default();
+                let rejected = poll.weighted_by_tokens.get(&1).copied().unwrap_or_default();
                 if let Err(err) = canisters::vote_on_nns_proposal(
                     proposal_id,
                     if adopted > rejected {
@@ -1325,7 +1325,7 @@ impl State {
             let (karma, revenues, e8s_for_one_xdr) = mutate(|state| {
                 state.mint();
                 (
-                    state.collect_new_karma(),
+                    state.collect_new_rewards(),
                     state.collect_revenue(time(), state.e8s_for_one_xdr),
                     state.e8s_for_one_xdr,
                 )
@@ -1357,9 +1357,9 @@ impl State {
             if inactive || user.is_bot() {
                 user.clear_notifications(Vec::new())
             }
-            if inactive && user.karma() > 0 {
-                user.change_karma(
-                    -(CONFIG.inactivity_penalty as Karma).min(user.karma()),
+            if inactive && user.rewards() > 0 {
+                user.change_rewards(
+                    -(CONFIG.inactivity_penalty as i64).min(user.rewards()),
                     "inactivity_penalty".to_string(),
                 );
             }
@@ -1412,8 +1412,7 @@ impl State {
             .collect::<Vec<_>>();
         balances.sort_unstable_by_key(|(_, balance)| Reverse(*balance));
 
-        let mut users = self.users.values_mut().collect::<Vec<_>>();
-        users.sort_unstable_by_key(|a| Reverse(a.karma()));
+        let users = self.users.values_mut().collect::<Vec<_>>();
 
         let mut stalwart_seats = (users.len() * CONFIG.stalwart_percentage / 100).max(3);
         let top_balances = balances
@@ -1437,40 +1436,33 @@ impl State {
             match (
                 u.stalwart,
                 u.active_weeks >= CONFIG.min_stalwart_activity_weeks as u32,
-                u.karma() > CONFIG.min_stalwart_karma,
                 top_balances.is_empty() || top_balances.contains_key(&u.id),
                 stalwart_seats,
             ) {
                 // User is qualified but no seats left
-                (true, true, true, true, 0) => {
+                (true, true, true, 0) => {
                     u.stalwart = false;
                     left.push(u.id);
                     left_logs.push(format!("@{} (outcompeted)", u.name));
                 }
                 // A user is qualified and is already a stalwart and seats available
-                (true, true, true, true, _) => {
+                (true, true, true, _) => {
                     stalwart_seats = stalwart_seats.saturating_sub(1);
                 }
-                // User is qualified but not enough karma
-                (true, true, false, true, _) => {
-                    u.stalwart = false;
-                    left.push(u.id);
-                    left_logs.push(format!("@{} (karma)", u.name));
-                }
                 // User is qualified but not enough balance
-                (true, true, true, false, _) => {
+                (true, true, false, _) => {
                     u.stalwart = false;
                     left.push(u.id);
                     left_logs.push(format!("@{} (balance)", u.name));
                 }
                 // A user is a stalwart but became inactive
-                (true, false, _, _, _) => {
+                (true, false, _, _) => {
                     u.stalwart = false;
                     left.push(u.id);
                     left_logs.push(format!("@{} (inactivity)", u.name));
                 }
                 // A user is not a stalwart, but qualified and there are seats left
-                (false, true, true, true, seats) if seats > 0 => {
+                (false, true, true, seats) if seats > 0 => {
                     u.stalwart = true;
                     joined.push(u.id);
                     joined_logs.push(format!("@{}", u.name));
@@ -1851,10 +1843,9 @@ impl State {
 
     pub fn stats(&self, now: u64) -> Stats {
         let mut stalwarts = Vec::new();
-        let mut weekly_karma_leaders = Vec::new();
         let mut users_online = 0;
         let mut invited_users = 0;
-        let mut active_users = 0;
+        let active_users = 0;
         let mut bots = Vec::new();
         let mut credits = 0;
         for user in self.users.values() {
@@ -1870,17 +1861,9 @@ impl State {
             if user.invited_by.is_some() {
                 invited_users += 1;
             }
-            if user.active_within_weeks(now, 1) {
-                active_users += 1;
-                if user.karma_to_reward() > 0 {
-                    weekly_karma_leaders.push((user.id, user.karma_to_reward()));
-                }
-            }
             credits += user.credits();
         }
-        stalwarts.sort_unstable_by_key(|u1| std::cmp::Reverse(u1.karma()));
-        weekly_karma_leaders.sort_unstable_by_key(|k| k.1);
-        weekly_karma_leaders = weekly_karma_leaders.into_iter().rev().take(12).collect();
+        stalwarts.sort_unstable_by_key(|u| u.id);
         let posts = self.root_posts;
         Stats {
             minting_ratio: self.minting_ratio(),
@@ -1890,7 +1873,6 @@ impl State {
                 / self.last_revenues.len().max(1) as u64,
             team_tokens: self.team_tokens.clone(),
             meta: format!("Memory health: {}", self.memory.health("MB")),
-            weekly_karma_leaders,
             module_hash: self.module_hash.clone(),
             canister_id: ic_cdk::id(),
             last_upgrade: self.last_upgrade,
@@ -2009,10 +1991,13 @@ impl State {
             CONFIG.reporting_penalty_misbehaviour
         } / 2;
         let user = match self.principal_to_user(principal) {
+            Some(user) if user.rewards() < 0 => {
+                return Err("no reports with negative reward balance possible".into())
+            }
             Some(user) if user.credits() >= credits_required => user.clone(),
             _ => {
                 return Err(format!(
-                    "You need at least {} credits for this report",
+                    "at least {} credits needed for this report",
                     credits_required
                 ))
             }
@@ -2039,7 +2024,7 @@ impl State {
                 );
                 let post_author = self.users.get_mut(&post_user).expect("no user found");
                 post_author.notify(format!(
-                    "Your [post](#/post/{}) was reported. Consider deleting it to avoid karma and credit penalties.",
+                    "Your [post](#/post/{}) was reported. Consider deleting it to avoid rewards and credit penalties.",
                     id
                 ));
             }
@@ -2077,7 +2062,7 @@ impl State {
 
         let comments_tree_penalty =
             post.tree_size as Credits * CONFIG.post_deletion_penalty_factor as Credits;
-        let karma = reaction_karma();
+        let karma = config::reaction_rewards();
         let reaction_costs = post
             .reactions
             .iter()
@@ -2097,7 +2082,7 @@ impl State {
             ));
         }
 
-        let mut karma_penalty = post.children.len() as Karma * CONFIG.response_reward as Karma;
+        let mut karma_penalty = post.children.len() as i64 * CONFIG.response_reward as i64;
 
         // refund rewards
         for (users, amount) in reaction_costs {
@@ -2111,7 +2096,7 @@ impl State {
                     format!("rewards refund after deletion of post {}", post.id),
                     None,
                 )?;
-                karma_penalty += amount as Karma;
+                karma_penalty += amount as i64;
             }
         }
 
@@ -2126,7 +2111,7 @@ impl State {
         self.users
             .get_mut(&post.user)
             .expect("no user found")
-            .change_karma(-karma_penalty, format!("deletion of post {}", post.id));
+            .change_rewards(-karma_penalty, format!("deletion of post {}", post.id));
 
         self.hot.retain(|id| id != &post_id);
 
@@ -2190,10 +2175,13 @@ impl State {
         // Users initiate a credit transfer for upvotes, but burn their own credits on
         // downvotes + credits and karma of the author
         if delta < 0 {
+            if user.rewards() < 0 {
+                return Err("no downvotes for users with negative rewards balance".into());
+            }
             self.users
                 .get_mut(&post.user)
                 .expect("user not found")
-                .change_karma(delta, log.clone());
+                .change_rewards(delta, log.clone());
             self.charge(
                 user.id,
                 delta.unsigned_abs().min(user.credits()),
@@ -2213,7 +2201,7 @@ impl State {
                 post.user,
                 delta as Credits,
                 CONFIG.reaction_fee,
-                Destination::Karma,
+                Destination::Rewards,
                 log,
                 None,
             )?;
@@ -2344,8 +2332,8 @@ pub(crate) mod tests {
     ) -> UserId {
         let id = state.new_user(p, 0, name.to_string(), Some(credits));
         let u = state.users.get_mut(&id).unwrap();
-        u.change_karma(25, "");
-        u.apply_rewards();
+        u.change_rewards(25, "");
+        u.take_positive_rewards();
         id
     }
 
@@ -2450,33 +2438,27 @@ pub(crate) mod tests {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
-            for (i, (karma_to_reward, total_karma)) in
-                vec![(125, 0), (34, -22), (0, 55)].into_iter().enumerate()
-            {
+            for (i, rewards) in vec![125, -11, 0].into_iter().enumerate() {
                 let id = create_user(state, pr(i as u8));
                 let user = state.users.get_mut(&id).unwrap();
-                // remove first whatever karma is there
-                user.change_karma(-user.karma(), "");
-                user.change_karma(total_karma, "");
-                user.apply_rewards();
-                user.change_karma(karma_to_reward, "");
+                user.change_rewards(rewards, "");
             }
 
-            let new_karma = state.collect_new_karma();
+            let new_karma = state.collect_new_rewards();
 
             let user = state.principal_to_user(pr(0)).unwrap();
             assert_eq!(*new_karma.get(&user.id).unwrap(), 125);
-            assert_eq!(user.karma(), 125);
+            assert_eq!(user.rewards(), 0);
 
             let user = state.principal_to_user(pr(1)).unwrap();
             // no new karma was collected
             assert!(!new_karma.contains_key(&user.id));
-            assert_eq!(user.karma(), -22 + 34);
+            assert_eq!(user.rewards(), -11);
 
             let user = state.principal_to_user(pr(2)).unwrap();
             // no new karma was collected
             assert!(!new_karma.contains_key(&user.id));
-            assert_eq!(user.karma(), 55);
+            assert_eq!(user.rewards(), 0);
         });
     }
 
@@ -2502,8 +2484,8 @@ pub(crate) mod tests {
                 let id = create_user(state, principal);
                 let user = state.users.get_mut(&id).unwrap();
                 // remove first whatever karma is there
-                user.change_karma(-user.karma(), "");
-                user.change_karma(total_karma, "");
+                user.change_rewards(-user.rewards(), "");
+                user.change_rewards(total_karma, "");
                 user.last_activity = last_activity;
                 state.balances.insert(account(principal), balance);
             }
@@ -2639,10 +2621,8 @@ pub(crate) mod tests {
                 let user = state.users.get_mut(&id).unwrap();
                 // we create the same amount of new and hard karma so that we have both karma and
                 // balances after minting
-                user.change_karma(i as Karma * 10, "test");
-                user.apply_rewards();
-                user.change_karma(i as Karma * 10, "test");
-                assert_eq!(user.karma(), i as Karma * 10 + 25);
+                user.change_rewards(i as i64 * 10, "test");
+                assert_eq!(user.rewards(), i as i64 * 10);
             }
 
             // mint tokens
@@ -2685,9 +2665,6 @@ pub(crate) mod tests {
             {
                 // Here we can see that by karma the difference is way smaller becasue values are
                 // normalized by the square root.
-                assert_eq!(*poll.weighted_by_karma.get(&0).unwrap(), 21);
-                assert_eq!(*poll.weighted_by_karma.get(&1).unwrap(), 26);
-                assert_eq!(*poll.weighted_by_karma.get(&2).unwrap(), 31);
                 assert_eq!(*poll.weighted_by_tokens.get(&0).unwrap(), 9000);
                 assert_eq!(*poll.weighted_by_tokens.get(&1).unwrap(), 18000);
                 assert_eq!(*poll.weighted_by_tokens.get(&2).unwrap(), 27000);
@@ -2708,8 +2685,7 @@ pub(crate) mod tests {
                 create_user(state, p);
                 state.balances.insert(account(p), i as u64 * 111 * 100);
                 let user = state.principal_to_user_mut(pr(i)).unwrap();
-                user.change_karma(i as Karma * 111, "test");
-                assert_eq!(user.karma(), 25);
+                user.change_rewards(i as i64 * 111, "test");
             }
 
             // mint tokens
@@ -2848,18 +2824,18 @@ pub(crate) mod tests {
 
             let id = create_user(state, pr(0));
             let user = state.users.get_mut(&id).unwrap();
-            assert_eq!(user.karma_to_reward(), 0);
+            assert_eq!(user.rewards(), 0);
             let upvoter_id = create_user(state, pr(1));
             let user = state.users.get_mut(&upvoter_id).unwrap();
             let upvoter_credits = user.credits();
-            user.change_karma(1000, "test");
+            user.change_rewards(1000, "test");
             let uid = create_user(state, pr(2));
             create_user(state, pr(3));
             state
                 .users
                 .get_mut(&uid)
                 .unwrap()
-                .change_karma(1000, "test");
+                .change_rewards(1000, "test");
 
             let post_id =
                 Post::create(state, "Test".to_string(), &[], pr(0), 0, None, None, None).unwrap();
@@ -2901,7 +2877,7 @@ pub(crate) mod tests {
             assert!(state.react(pr(2), post_id, 50, 0).is_ok());
 
             assert_eq!(
-                state.users.get(&id).unwrap().karma_to_reward(),
+                state.users.get(&id).unwrap().rewards() as Credits,
                 10 + 5 + 2 * CONFIG.response_reward
             );
 
@@ -2942,7 +2918,7 @@ pub(crate) mod tests {
                 // reward received back
                 upvoter_credits - 10 - 1 - 2 + 10
             );
-            assert_eq!(state.users.get(&id).unwrap().karma_to_reward(), 0);
+            assert_eq!(state.users.get(&id).unwrap().rewards(), 0);
 
             assert_eq!(
                 state.react(pr(1), post_id, 1, 0),
@@ -3670,12 +3646,15 @@ pub(crate) mod tests {
             let active_id = create_user_with_credits(state, pr(3), 300);
 
             let user = state.users.get_mut(&inactive_id1).unwrap();
-            assert_eq!(user.karma(), 25);
+            user.change_rewards(25, "");
+            assert_eq!(user.rewards(), 25);
             assert_eq!(user.invites_budget, 0);
             let user = state.users.get_mut(&inactive_id3).unwrap();
-            assert_eq!(user.karma(), 25);
+            user.change_rewards(25, "");
+            assert_eq!(user.rewards(), 25);
             let user = state.users.get_mut(&active_id).unwrap();
-            assert_eq!(user.karma(), 25);
+            user.change_rewards(25, "");
+            assert_eq!(user.rewards(), 25);
             assert_eq!(user.invites_budget, 0);
 
             let now = WEEK * 27;
@@ -3689,12 +3668,12 @@ pub(crate) mod tests {
             // penalized
             let user = state.users.get_mut(&inactive_id1).unwrap();
             assert_eq!(user.credits(), 500 - penalty);
-            assert_eq!(user.karma(), 0);
+            assert_eq!(user.rewards(), 0);
             assert_eq!(user.invites_budget, 0);
             // not penalized due to low balance, but karma penalized
             let user = state.users.get_mut(&inactive_id2).unwrap();
             assert_eq!(user.credits(), 100);
-            assert_eq!(user.karma(), 0);
+            assert_eq!(user.rewards(), 0);
             assert_eq!(user.invites_budget, 0);
             // penalized to the minimum balance
             let user = state.users.get_mut(&inactive_id3).unwrap();
@@ -3703,7 +3682,7 @@ pub(crate) mod tests {
             // Active user not penalized
             let user = state.users.get_mut(&active_id).unwrap();
             assert_eq!(user.credits(), 300);
-            assert_eq!(user.karma(), 25);
+            assert_eq!(user.rewards(), 25);
             assert_eq!(user.invites_budget, CONFIG.invites_budget_credits);
 
             // check karma budgets
@@ -3714,8 +3693,8 @@ pub(crate) mod tests {
                 (active_id, 20000),
             ] {
                 let user = state.users.get_mut(id).unwrap();
-                user.change_karma(*karma, "");
-                user.apply_rewards();
+                user.change_rewards(*karma, "");
+                user.take_positive_rewards();
             }
 
             state.balances.insert(account(pr(5)), 20000000);
@@ -3771,20 +3750,24 @@ pub(crate) mod tests {
                 .users
                 .get_mut(&lurker_id)
                 .unwrap()
-                .change_karma(10, "");
-            state.users.get_mut(&lurker_id).unwrap().apply_rewards();
+                .change_rewards(10, "");
+            state
+                .users
+                .get_mut(&lurker_id)
+                .unwrap()
+                .take_positive_rewards();
             // make author to a new user
             state
                 .users
                 .get_mut(&post_author_id)
                 .unwrap()
-                .change_karma(-25, "");
+                .change_rewards(-25, "");
             let author = state.users.get(&post_author_id).unwrap();
             let lurker = state.users.get(&lurker_id).unwrap();
             assert_eq!(author.credits(), c.credits_per_xdr - c.post_cost);
             assert_eq!(lurker.credits(), c.credits_per_xdr);
 
-            assert_eq!(author.karma(), 0);
+            assert_eq!(author.rewards(), -25);
 
             // react on the new post
             assert!(state.react(pr(111), post_id, 1, 0).is_err());
@@ -3804,7 +3787,7 @@ pub(crate) mod tests {
 
             let author = state.users.get(&post_author_id).unwrap();
             assert_eq!(author.credits(), c.credits_per_xdr - c.post_cost);
-            assert_eq!(author.karma_to_reward(), rewards_from_reactions);
+            assert_eq!(author.rewards(), -25 + rewards_from_reactions);
             assert_eq!(
                 state.burned_cycles as Credits,
                 c.post_cost + burned_credits_by_reactions
@@ -3823,7 +3806,7 @@ pub(crate) mod tests {
                 author.credits(),
                 c.credits_per_xdr - c.post_cost - reaction_penalty
             );
-            assert_eq!(author.karma_to_reward(), rewards_from_reactions);
+            assert_eq!(author.rewards(), -25 + rewards_from_reactions);
             assert_eq!(lurker_3.credits(), c.credits_per_xdr - 3);
             assert_eq!(
                 state.burned_cycles,
@@ -3874,21 +3857,21 @@ pub(crate) mod tests {
             lurker.change_credits(100, CreditsDelta::Plus, "").unwrap();
             let lurker_principal = lurker.principal;
             assert!(state.react(lurker_principal, id, 50, 0).is_ok());
-            assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 5);
+            assert_eq!(state.users.get(&user_id111).unwrap().rewards(), 5);
 
             // another reaction on a new post
             let id =
                 Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
             assert!(state.react(lurker_principal, id, 50, 0).is_ok());
 
-            assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 10);
+            assert_eq!(state.users.get(&user_id111).unwrap().rewards(), 10);
 
             // another reaction on a new post
             let id =
                 Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
             assert!(state.react(lurker_principal, id, 50, 0).is_ok());
 
-            assert_eq!(state.users.get(&user_id111).unwrap().karma_to_reward(), 15);
+            assert_eq!(state.users.get(&user_id111).unwrap().rewards(), 15);
         })
     }
 
@@ -3962,29 +3945,19 @@ pub(crate) mod tests {
             for i in 0..200 {
                 let id = create_user(state, pr(i as u8));
                 let user = state.users.get_mut(&id).unwrap();
-                user.change_karma(i as i64, "");
-                user.apply_rewards();
+                user.change_rewards(i as i64, "");
+                user.take_positive_rewards();
                 // every second user was active
                 if i % 2 == 0 {
                     user.last_activity = now;
                     user.active_weeks = CONFIG.min_stalwart_activity_weeks as u32;
                     user.timestamp = 0;
-                    user.change_karma(CONFIG.min_stalwart_karma, "");
-                    user.apply_rewards();
+                    user.take_positive_rewards();
                 }
             }
 
             state.recompute_stalwarts(now + WEEK * 2);
 
-            // make sure we have right stalwarts
-            assert_eq!(
-                state
-                    .users
-                    .values()
-                    .filter_map(|u| u.stalwart.then_some(u.id))
-                    .collect::<Vec<UserId>>(),
-                vec![188, 190, 192, 194, 196, 198]
-            );
             assert!(!state
                 .realms
                 .get(CONFIG.dao_realm)

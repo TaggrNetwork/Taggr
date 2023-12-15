@@ -56,8 +56,8 @@ pub fn finalize_report(
             "Somebody create a report for your {}. Reason: {}",
             subject, report.reason
         ));
-        user.change_karma(
-            -(penalty as Karma),
+        user.change_rewards(
+            -(penalty as i64),
             format!("moderation penalty for {}", subject),
         );
         user.stalwart = false;
@@ -77,7 +77,7 @@ pub fn finalize_report(
                 report.reporter,
                 unit,
                 0,
-                Destination::Karma,
+                Destination::Rewards,
                 format!("moderation rewards for {}", subject),
                 None,
             )
@@ -95,7 +95,7 @@ pub fn finalize_report(
         ));
         let unit = penalty.min(reporter.credits());
         let log = format!("false report penalty for {}", subject);
-        reporter.change_karma(-(penalty as Karma), log);
+        reporter.change_rewards(-(penalty as i64), log);
         let reporter_id = reporter.id;
         (reporter_id, unit)
     };
@@ -116,7 +116,7 @@ pub fn finalize_report(
                 moderator,
                 stalwart_reward,
                 0,
-                Destination::Karma,
+                Destination::Rewards,
                 log,
                 None,
             )
@@ -151,11 +151,11 @@ mod tests {
             let p = pr(0);
             let u1 = create_user(state, p);
             let user = state.users.get_mut(&u1).unwrap();
-            user.change_karma(100, "");
+            user.change_rewards(100, "");
 
             assert_eq!(user.inbox.len(), 1);
             assert_eq!(user.credits(), 1000);
-            assert_eq!(user.karma_to_reward(), 100);
+            assert_eq!(user.rewards(), 100);
 
             for i in 1..20 {
                 let id = create_user(state, pr(i as u8));
@@ -194,7 +194,7 @@ mod tests {
             assert_eq!(reporter_user.credits(), 0);
             assert_eq!(
                 state.report(reporter, "post".into(), post_id, String::new()),
-                Err("You need at least 100 credits for this report".into())
+                Err("at least 100 credits needed for this report".into())
             );
             let p = Post::get(state, &post_id).unwrap();
             assert!(&p.report.is_none());
@@ -261,7 +261,7 @@ mod tests {
             assert_eq!(report.rejected_by.len(), 1);
 
             // stalwart has no karma to reward
-            assert_eq!(state.principal_to_user(pr(3)).unwrap().karma_to_reward(), 0);
+            assert_eq!(state.principal_to_user(pr(3)).unwrap().rewards(), 0);
 
             state
                 .vote_on_report(pr(13), "post".into(), post_id, true)
@@ -280,24 +280,24 @@ mod tests {
                 user.credits(),
                 1000 - CONFIG.reporting_penalty_post - CONFIG.post_cost
             );
-            assert_eq!(user.karma(), -75);
+            assert_eq!(user.rewards(), -100);
 
             let reporter = state.principal_to_user(reporter).unwrap();
             assert_eq!(
-                reporter.karma_to_reward(),
+                reporter.rewards() as Credits,
                 CONFIG.reporting_penalty_post / 2
             );
             // stalwarts rewarded too
             assert_eq!(
-                state.principal_to_user(pr(3)).unwrap().karma_to_reward(),
+                state.principal_to_user(pr(3)).unwrap().rewards() as Credits,
                 CONFIG.stalwart_moderation_reward
             );
             assert_eq!(
-                state.principal_to_user(pr(6)).unwrap().karma_to_reward(),
+                state.principal_to_user(pr(6)).unwrap().rewards() as Credits,
                 CONFIG.stalwart_moderation_reward
             );
             assert_eq!(
-                state.principal_to_user(pr(12)).unwrap().karma_to_reward(),
+                state.principal_to_user(pr(12)).unwrap().rewards() as Credits,
                 CONFIG.stalwart_moderation_reward
             );
         });
@@ -308,7 +308,7 @@ mod tests {
             let p = pr(100);
             let u = create_user(state, p);
             let user = state.users.get_mut(&u).unwrap();
-            user.change_karma(100, "");
+            user.change_rewards(100, "");
 
             let post_id =
                 Post::create(state, "good post".to_string(), &[], p, 0, None, None, None).unwrap();
@@ -326,8 +326,7 @@ mod tests {
                 .change_credits(777 - reporter_user.credits(), CreditsDelta::Plus, "")
                 .unwrap();
             assert_eq!(reporter_user.credits(), 777);
-            reporter_user.apply_rewards();
-            assert_eq!(reporter_user.karma(), 125);
+            assert_eq!(reporter_user.rewards(), 100);
 
             state
                 .vote_on_report(pr(6), "post".into(), post_id, false)
@@ -359,21 +358,20 @@ mod tests {
             // karma and credits stay untouched
             let user = state.users.get(&u).unwrap();
             assert_eq!(user.credits(), 1000 - CONFIG.post_cost);
-            assert_eq!(user.karma_to_reward(), 100);
+            assert_eq!(user.rewards(), 100);
 
             // reported got penalized
             let reporter = state.principal_to_user(reporter).unwrap();
             let unit = CONFIG.reporting_penalty_post / 2;
             assert_eq!(reporter.credits(), 777 - 2 * unit);
-            assert_eq!(reporter.karma(), -75);
 
             assert_eq!(
-                state.principal_to_user(pr(9)).unwrap().karma_to_reward(),
+                state.principal_to_user(pr(9)).unwrap().rewards() as Credits,
                 CONFIG.stalwart_moderation_reward
             );
             // he voted twice
             assert_eq!(
-                state.principal_to_user(pr(6)).unwrap().karma_to_reward(),
+                state.principal_to_user(pr(6)).unwrap().rewards() as Credits,
                 CONFIG.stalwart_moderation_reward * 2
             );
         })

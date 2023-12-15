@@ -447,8 +447,8 @@ export const loadPosts = async (ids: PostId[]) =>
 
 export const expandUser = (post: Post) => {
     const id = post.user;
-    const { users, karma } = window.backendCache;
-    post.userObject = { id, name: users[id], karma: karma[id] };
+    const { users, rewards } = window.backendCache;
+    post.userObject = { id, name: users[id], rewards: rewards[id] };
     return post;
 };
 
@@ -674,7 +674,7 @@ export const FlagButton = ({
                             ? "reporting_penalty_post"
                             : "reporting_penalty_misbehaviour"
                     ] +
-                    ` credits and karma. If you want to continue, please justify the report.`,
+                    ` credits and rewards. If you want to continue, please justify the report.`,
             );
             if (reason) {
                 let response = await window.api.call<{ [name: string]: any }>(

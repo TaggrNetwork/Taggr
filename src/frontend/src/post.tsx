@@ -243,7 +243,7 @@ export const PostView = ({
             post.reactions,
             (acc, id, users) => acc + costTable[id as any] * users.length,
             0,
-        ) < 0 || post.userObject.karma < 0;
+        ) < 0 || post.userObject.rewards < 0;
     const user = window.user;
     const showReport =
         post.report && !post.report.closed && user && user.stalwart;

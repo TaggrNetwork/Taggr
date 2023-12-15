@@ -2,7 +2,7 @@ use super::config::CONFIG;
 use super::post::{Extension, Post, PostId};
 use super::token::account;
 use super::user::Predicate;
-use super::{invoices, Karma, HOUR};
+use super::{invoices, HOUR};
 use super::{user::UserId, State};
 use crate::mutate;
 use crate::token::Token;
@@ -154,8 +154,8 @@ impl Proposal {
                     .ok_or("user not found")?;
                 proposer.stalwart = false;
                 proposer.active_weeks = 0;
-                proposer.change_karma(
-                    -(CONFIG.proposal_rejection_penalty as Karma),
+                proposer.change_rewards(
+                    -(CONFIG.proposal_rejection_penalty as i64),
                     "proposal rejection penalty",
                 );
                 let credit_balance = proposer.credits();
@@ -358,7 +358,7 @@ pub fn vote_on_proposal(
         return Err(err);
     }
     if let Some(user) = state.principal_to_user(caller) {
-        state.spend_to_user_karma(
+        state.spend_to_user_rewards(
             user.id,
             CONFIG.voting_reward,
             format!("voting rewards for proposal {}", proposal_id),
@@ -418,7 +418,7 @@ mod tests {
     use crate::{
         env::{
             tests::{create_user, pr},
-            time, Karma,
+            time,
         },
         STATE,
     };
@@ -434,7 +434,7 @@ mod tests {
                 let p = pr(i);
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
-                user.change_karma(1000, "test");
+                user.change_rewards(1000, "test");
             }
 
             assert_eq!(
@@ -546,15 +546,12 @@ mod tests {
                 let p = pr(i);
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
-                user.change_karma(1000, "test");
+                user.change_rewards(1000, "test");
                 state.balances.insert(account(p), 1000 * 100);
             }
 
             // make sure the karma accounting was correct
-            assert_eq!(
-                state.principal_to_user(proposer).unwrap().karma_to_reward(),
-                1000
-            );
+            assert_eq!(state.principal_to_user(proposer).unwrap().rewards(), 1000);
 
             // make sure all got the right amount of minted tokens
             for i in 1..11 {
@@ -622,15 +619,7 @@ mod tests {
                 Err("no user found".to_string())
             );
 
-            // adjust karma so that after the proposal is rejected, the user turns into an untrusted
-            // one
             let user = state.principal_to_user_mut(proposer).unwrap();
-            user.apply_rewards();
-            user.change_karma(-100, "");
-            assert_eq!(
-                user.karma(),
-                1000 - 100 + 25 + CONFIG.voting_reward as Karma
-            );
             assert_eq!(user.credits(), 1000 - 2 * CONFIG.post_cost);
 
             assert!(user.stalwart);
@@ -648,9 +637,8 @@ mod tests {
             // make sure the user was penalized
             let user = state.principal_to_user_mut(proposer).unwrap();
             assert_eq!(
-                user.karma(),
-                1000 - 100 + 25 - CONFIG.proposal_rejection_penalty as Karma
-                    + CONFIG.voting_reward as Karma
+                user.rewards(),
+                1000 - CONFIG.proposal_rejection_penalty as i64 + CONFIG.voting_reward as i64
             );
             assert_eq!(
                 user.credits(),
@@ -662,7 +650,7 @@ mod tests {
 
             // create a new proposal
             user.stalwart = true;
-            user.change_karma(-1000, "");
+            user.change_rewards(-1000, "");
 
             let prop_id = propose(state, proposer, "test".into(), Payload::Noop, 0)
                 .expect("couldn't propose");
@@ -700,8 +688,7 @@ mod tests {
                 let id = create_user(state, p);
                 state.balances.insert(account(p), 100 * 100);
                 let user = state.users.get_mut(&id).unwrap();
-                user.change_karma(100, "test");
-                assert_eq!(user.karma(), 25);
+                user.change_rewards(100, "test");
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
@@ -747,8 +734,7 @@ mod tests {
                 let id = create_user(state, p);
                 state.balances.insert(account(p), 100 * 100);
                 let user = state.users.get_mut(&id).unwrap();
-                user.change_karma(100, "test");
-                assert_eq!(user.karma(), 25);
+                user.change_rewards(100, "test");
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
@@ -758,7 +744,7 @@ mod tests {
             assert!(state.principal_to_user(pr(1)).unwrap().credits() > 0);
             let proposer = state.principal_to_user(pr(1)).unwrap();
             let data = &"".to_string();
-            let proposers_karma = proposer.karma() + proposer.karma_to_reward() as Karma;
+            let rewards = proposer.rewards() as i64;
             for i in 2..4 {
                 assert_eq!(
                     vote_on_proposal(state, time(), pr(i), prop_id, false, data),
@@ -772,8 +758,8 @@ mod tests {
             );
             assert_eq!(state.principal_to_user(pr(1)).unwrap().credits(), 498);
             assert_eq!(
-                state.principal_to_user(pr(1)).unwrap().karma(),
-                proposers_karma - CONFIG.proposal_rejection_penalty as i64
+                state.principal_to_user(pr(1)).unwrap().rewards(),
+                rewards - CONFIG.proposal_rejection_penalty as i64
             );
         })
     }
@@ -789,9 +775,8 @@ mod tests {
                 let p = pr(i);
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
-                user.change_karma(100 * (1 << i), "test");
+                user.change_rewards(100 * (1 << i), "test");
                 state.balances.insert(account(p), (100 * (1 << i)) * 100);
-                assert_eq!(user.karma(), 25);
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
@@ -844,8 +829,7 @@ mod tests {
                 let id = create_user(state, p);
                 state.balances.insert(account(p), (100 * (1 << i)) * 100);
                 let user = state.users.get_mut(&id).unwrap();
-                user.change_karma(100 * (1 << i), "test");
-                assert_eq!(user.karma(), 25);
+                user.change_rewards(100 * (1 << i), "test");
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
             state.principal_to_user_mut(pr(2)).unwrap().stalwart = true;

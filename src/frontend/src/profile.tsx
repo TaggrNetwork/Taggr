@@ -19,7 +19,6 @@ import {
 import { Content } from "./content";
 import { Journal } from "./icons";
 import { PostFeed } from "./post_feed";
-import { Credits, YinYan } from "./icons";
 import { User } from "./types";
 import { Principal } from "@dfinity/principal";
 
@@ -214,7 +213,7 @@ export const Profile = ({ handle }: { handle: string }) => {
             {profile.accounting.length > 0 && (
                 <>
                     <div className="spaced">
-                        <h2>Karma and Credits Changes</h2>
+                        <h2>Credits Changes</h2>
                         <table
                             style={{ width: "100%" }}
                             className={bigScreen() ? undefined : "small_text"}
@@ -239,11 +238,9 @@ export const Profile = ({ handle }: { handle: string }) => {
                                         >
                                             {delta > 0 ? "+" : ""}
                                             {delta}{" "}
-                                            {type == "KRM" ? (
-                                                <YinYan />
-                                            ) : (
-                                                <Credits />
-                                            )}
+                                            {type == "CRE"
+                                                ? "credits"
+                                                : "rewards"}
                                         </td>
                                         <td style={{ textAlign: "right" }}>
                                             {linkPost(log)}
@@ -379,13 +376,13 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             <hr />
             <div className="dynamic_table">
                 <div className="db_cell">
-                    KARMA
-                    <code>{profile.karma.toLocaleString()}</code>
+                    TOKENS
+                    <code>{tokenBalance(profile.balance)}</code>
                 </div>
                 <div className="db_cell">
                     REWARDS
                     <code className="accent">
-                        {profile.rewarded_karma.toLocaleString()}
+                        {profile.rewards.toLocaleString()}
                     </code>
                 </div>
                 <div className="db_cell">
@@ -407,10 +404,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 <div className="db_cell">
                     POSTS
                     <code>{profile.num_posts.toLocaleString()}</code>
-                </div>
-                <div className="db_cell">
-                    TOKENS
-                    <code>{tokenBalance(profile.balance)}</code>
                 </div>
                 {followees}
                 {followers}

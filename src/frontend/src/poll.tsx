@@ -1,7 +1,6 @@
 import * as React from "react";
 import { userList } from "./common";
 import { Content } from "./content";
-import { Gem, YinYan } from "./icons";
 import { Poll, PostId } from "./types";
 
 export const PollView = ({
@@ -169,32 +168,12 @@ export const PollView = ({
                 </span>
             )}
             {expired && (
-                <div className="top_spaced">
-                    <h4>RESULTS</h4>
-                    <div className="small_text">
-                        <div className="bottom_half_spaced">
-                            <YinYan />{" "}
-                            <span className="left_spaced">KARMA: </span>{" "}
-                            <Content
-                                value={
-                                    data.options[
-                                        keyWithMaxVal(data.weighted_by_karma)
-                                    ]
-                                }
-                            />
-                        </div>
-                        <div>
-                            <Gem /> <span className="left_spaced">DAO: </span>{" "}
-                            <Content
-                                value={
-                                    data.options[
-                                        keyWithMaxVal(data.weighted_by_tokens)
-                                    ]
-                                }
-                            />
-                        </div>
-                    </div>
-                </div>
+                <Content
+                    post={false}
+                    value={`RESULT BY VP: **${
+                        data.options[keyWithMaxVal(data.weighted_by_tokens)]
+                    }**`}
+                />
             )}
         </div>
     );

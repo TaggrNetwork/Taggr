@@ -34,7 +34,7 @@ pub struct Poll {
     pub votes: BTreeMap<u16, BTreeSet<UserId>>,
     pub deadline: u64,
     #[serde(default)]
-    pub weighted_by_karma: BTreeMap<u16, Karma>,
+    pub weighted_by_karma: BTreeMap<u16, i64>,
     #[serde(default)]
     pub weighted_by_tokens: BTreeMap<u16, Token>,
 }
@@ -288,12 +288,12 @@ impl Post {
             return;
         }
         // negative reactions balance
-        let karma = reaction_karma();
+        let rewards = config::reaction_rewards();
         if self
             .reactions
             .iter()
             .map(|(r_id, users)| {
-                karma.get(r_id).copied().unwrap_or_default() * users.len() as Karma
+                rewards.get(r_id).copied().unwrap_or_default() * users.len() as i64
             })
             .sum::<i64>()
             < 0
@@ -347,22 +347,6 @@ impl Post {
                 if timestamp + poll.deadline * HOUR > now {
                     return Ok(false);
                 }
-                poll.weighted_by_karma = poll
-                    .votes
-                    .clone()
-                    .into_iter()
-                    .map(|(k, ids)| {
-                        (
-                            k,
-                            ids.iter()
-                                .filter_map(|id| users.get(id))
-                                .filter(|user| user.karma() > 0)
-                                .map(|user| (user.karma() as f32).sqrt() as Karma)
-                                .sum(),
-                        )
-                    })
-                    .collect();
-
                 poll.weighted_by_tokens = poll
                     .votes
                     .iter()
@@ -548,7 +532,7 @@ impl Post {
             })?;
             // Reward user for spawning activity with their post.
             if let Some((parent_post_author, parent_post_id)) = result {
-                state.spend_to_user_karma(
+                state.spend_to_user_rewards(
                     parent_post_author,
                     CONFIG.response_reward,
                     format!("response to post {}", parent_post_id),

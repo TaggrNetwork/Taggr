@@ -83,7 +83,7 @@ export type Post = {
     watchers: UserId[];
     children: PostId[];
     user: UserId;
-    userObject: { id: UserId; name: string; karma: number };
+    userObject: { id: UserId; name: string; rewards: number };
     report?: Report;
     body: string;
     effBody: string;
@@ -162,7 +162,6 @@ export type User = {
     settings: { theme: string; columns: string; open_chat: string };
     realms: string[];
     previous_names: string[];
-    karma: number;
     report?: Report;
     stalwart: boolean;
     followees: UserId[];
@@ -173,7 +172,7 @@ export type User = {
     active_weeks: number;
     invited_by?: UserId;
     about: string;
-    rewarded_karma: number;
+    rewards: number;
     cycles: number;
     num_posts: number;
     balance: number;
@@ -218,7 +217,7 @@ declare global {
         uiInitialized: boolean;
         backendCache: {
             users: { [name: UserId]: string };
-            karma: { [name: UserId]: number };
+            rewards: { [name: UserId]: number };
             recent_tags: string[];
             realms: { [name: string]: [string, boolean] };
             stats: {

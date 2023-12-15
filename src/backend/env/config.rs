@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::token::Token;
 
-use super::{Credits, Karma};
+use super::Credits;
 use candid::CandidType;
 use serde::Serialize;
 
@@ -32,12 +32,9 @@ pub struct Config {
 
     pub supply_threshold_for_transfer_percentage: u64,
 
-    pub karma_donation_decline_percentage: u32,
-
     pub proposal_approval_threshold: u16,
     pub proposal_controversy_threashold: u16,
     pub proposal_rejection_penalty: Credits,
-    pub min_stalwart_karma: Karma,
 
     pub max_credits_mint_kilos: u64,
 
@@ -174,8 +171,6 @@ pub const CONFIG: &Config = &Config {
     #[cfg(any(feature = "dev", feature = "staging"))]
     nns_voting_enabled: false,
 
-    karma_donation_decline_percentage: 15,
-
     dao_realm: "DAO",
 
     #[cfg(feature = "dev")]
@@ -188,11 +183,6 @@ pub const CONFIG: &Config = &Config {
     proposal_rejection_penalty: 500,
     #[cfg(feature = "staging")]
     proposal_rejection_penalty: 50,
-
-    #[cfg(not(feature = "staging"))]
-    min_stalwart_karma: 1000,
-    #[cfg(feature = "staging")]
-    min_stalwart_karma: 300,
 
     total_supply: 100_000_000,
 
@@ -284,12 +274,12 @@ pub const CONFIG: &Config = &Config {
     neuron_id: 16737374299031693047,
 };
 
-pub fn reaction_karma() -> BTreeMap<u16, Karma> {
+pub fn reaction_rewards() -> BTreeMap<u16, i64> {
     CONFIG
         .reactions
         .iter()
-        .fold(BTreeMap::default(), |mut acc, (id, karma)| {
-            acc.insert(*id, *karma);
+        .fold(BTreeMap::default(), |mut acc, (id, rewards)| {
+            acc.insert(*id, *rewards);
             acc
         })
 }

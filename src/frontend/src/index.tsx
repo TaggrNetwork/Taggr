@@ -215,7 +215,7 @@ const reloadCache = async () => {
             acc[id] = name;
             return acc;
         }, {} as any),
-        karma: (users || []).reduce((acc, [id, _, karma]) => {
+        rewards: (users || []).reduce((acc, [id, _, karma]) => {
             acc[id] = karma;
             return acc;
         }, {} as any),

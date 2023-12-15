@@ -33,8 +33,7 @@ async fn godmode(username: String) {
         user.stalwart = true;
         user.last_activity = time();
         user.active_weeks = CONFIG.min_stalwart_activity_weeks as u32;
-        user.change_karma(25, "test");
-        user.apply_rewards();
+        user.change_rewards(25, "test");
         let principal = user.principal;
         token::mint(state, account(principal), CONFIG.max_funding_amount);
     });
@@ -49,8 +48,7 @@ async fn demigodmode(username: String) {
         user.timestamp -= 4 * env::WEEK;
         user.last_activity = time();
         user.active_weeks = 4 as u32;
-        user.change_karma(25, "test");
-        user.apply_rewards();
+        user.change_rewards(25, "test");
         let principal = user.principal;
         token::mint(state, account(principal), CONFIG.max_funding_amount);
     });
@@ -65,7 +63,7 @@ async fn peasantmode(username: String) {
         user.timestamp = time();
         user.last_activity = time();
         user.active_weeks = 0;
-        user.change_karma(-user.karma(), "test");
+        user.change_rewards(-user.rewards(), "test");
         state.balances.remove(&account(user.principal));
     });
 }

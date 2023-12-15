@@ -56,9 +56,15 @@ pub struct User {
     pub about: String,
     pub account: String,
     pub settings: String,
-    karma: Karma,
+    #[allow(dead_code)]
+    #[serde(skip)]
+    karma: i64,
+    #[allow(dead_code)]
+    #[serde(skip)]
     rewarded_karma: Credits,
     cycles: Credits,
+    #[serde(default)]
+    rewards: i64,
     pub feeds: Vec<BTreeSet<String>>,
     pub followees: BTreeSet<UserId>,
     pub followers: BTreeSet<UserId>,
@@ -75,8 +81,6 @@ pub struct User {
     pub active_weeks: u32,
     pub principal: Principal,
     pub report: Option<Report>,
-    #[serde(skip)]
-    pub karma_from_last_posts: BTreeMap<UserId, Karma>,
     pub treasury_e8s: u64,
     pub invites_budget: Credits,
     #[serde(skip)]
@@ -119,13 +123,13 @@ impl User {
             balance: 0,
             active_weeks: 0,
             principal,
-            karma_from_last_posts: Default::default(),
             treasury_e8s: 0,
             invites_budget: 0,
             draft: None,
             filters: Default::default(),
             karma_donations: Default::default(),
             previous_names: Default::default(),
+            rewards: 0,
         }
     }
 
@@ -299,7 +303,7 @@ impl User {
             }
             self.accounting.push_front((
                 time(),
-                "CYC".to_string(),
+                "CRE".to_string(),
                 if delta == CreditsDelta::Plus {
                     amount as i64
                 } else {
@@ -312,56 +316,37 @@ impl User {
         Err("not enough credits".into())
     }
 
-    pub fn change_karma<T: ToString>(&mut self, amount: Karma, log: T) {
-        if amount > 0 {
-            if self.karma >= 0 {
-                // if total karma is positivie and the amount is positive, increase rewards
-                self.rewarded_karma += amount as u64;
-            } else {
-                // if total karma is negative and the amount positive, increase total karma, not
-                // rewards
-                self.karma += amount;
-            }
-        } else if amount.abs() > self.rewarded_karma as Karma {
-            // if amount is negative and larger than collected rewards, destroy them and
-            // subtract from total karma the rest.
-            self.karma -= amount.abs() - self.rewarded_karma as Karma;
-            self.rewarded_karma = 0;
-        } else {
-            // if amount is negative and small than collected rewards, subtract from rewards
-            self.rewarded_karma = self.rewarded_karma.saturating_sub(amount.unsigned_abs());
-        }
-        if self.karma < 0 {
-            self.rewarded_karma = 0;
-        }
+    pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {
+        self.rewards += amount;
         self.accounting
-            .push_front((time(), "KRM".to_string(), amount, log.to_string()));
+            .push_front((time(), "RWD".to_string(), amount, log.to_string()));
     }
 
-    pub fn karma_to_reward(&self) -> Credits {
-        self.rewarded_karma
+    pub fn rewards(&self) -> i64 {
+        self.rewards
     }
 
-    pub fn apply_rewards(&mut self) {
-        self.karma += self.rewarded_karma as Karma;
-        self.rewarded_karma = 0;
+    pub fn take_positive_rewards(&mut self) {
+        if self.rewards > 0 {
+            self.rewards = 0;
+        }
     }
 
     pub fn credits(&self) -> Credits {
         self.cycles
     }
 
-    pub fn karma(&self) -> Karma {
-        self.karma
-    }
-
-    pub fn top_up_credits_from_karma(&mut self) -> Result<Credits, String> {
+    pub fn top_up_credits_from_rewards(&mut self) -> Result<Credits, String> {
         let credits_needed = CONFIG.credits_per_xdr.saturating_sub(self.credits());
-        let top_up = credits_needed.min(self.rewarded_karma) as Credits;
+        let top_up = if self.rewards < 0 {
+            self.rewards.abs() as Credits + credits_needed
+        } else {
+            credits_needed.min(self.rewards as Credits) as Credits
+        };
         if top_up == 0 {
             return Ok(0);
         }
-        self.change_credits(top_up, CreditsDelta::Plus, "credits top-up from karma")
+        self.change_credits(top_up, CreditsDelta::Plus, "credits top-up from rewards")
             .map(|_| top_up)
     }
 
@@ -529,7 +514,7 @@ mod tests {
     use crate::tests::create_user;
 
     #[test]
-    // check that we cannot donate more tokens than karma / ratio even if the balance would allow
+    // check that we cannot donate more tokens than rewards / ratio even if the balance would allow
     fn test_mintable_tokens_with_balance_higher_than_karma() {
         let state = &mut State::default();
         let donor_id = create_user(state, pr(0));
@@ -571,7 +556,7 @@ mod tests {
     }
 
     #[test]
-    // check that we cannot donate more tokens than balance / ratio even if donated karma was high
+    // check that we cannot donate more tokens than balance / ratio even if donated rewards was high
     fn test_mintable_tokens_with_karma_higher_than_balance() {
         let state = &mut State::default();
         let donor_id = create_user(state, pr(0));
@@ -620,9 +605,9 @@ mod tests {
 
         // no top up triggered
         user.cycles = 1000;
-        user.rewarded_karma = 30;
-        user.top_up_credits_from_karma().unwrap();
-        assert_eq!(user.rewarded_karma, 30);
+        user.rewards = 30;
+        user.top_up_credits_from_rewards().unwrap();
+        assert_eq!(user.rewards, 30);
         let mut revenue = 2000_0000;
         user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
@@ -631,8 +616,8 @@ mod tests {
 
         // rewards are enough
         user.cycles = 980;
-        user.rewarded_karma = 30;
-        let credits = user.top_up_credits_from_karma().unwrap();
+        user.rewards = 30;
+        let credits = user.top_up_credits_from_rewards().unwrap();
         assert_eq!(credits, 20);
         let mut revenue = 2000_0000;
         user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
@@ -642,8 +627,8 @@ mod tests {
 
         // rewards are still enough
         user.cycles = 0;
-        user.rewarded_karma = 3000;
-        let credits = user.top_up_credits_from_karma().unwrap();
+        user.rewards = 3000;
+        let credits = user.top_up_credits_from_rewards().unwrap();
         assert_eq!(credits, 1000);
         let mut revenue = 2000_0000;
         user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
@@ -653,8 +638,8 @@ mod tests {
 
         // rewards are not enough
         user.cycles = 0;
-        user.rewarded_karma = 500;
-        let credits = user.top_up_credits_from_karma().unwrap();
+        user.rewards = 500;
+        let credits = user.top_up_credits_from_rewards().unwrap();
         assert_eq!(credits, 500);
         let mut revenue = 2000_0000;
         user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
@@ -664,50 +649,14 @@ mod tests {
 
         // rewards and revenue not enough
         user.cycles = 0;
-        user.rewarded_karma = 500;
-        let credits = user.top_up_credits_from_karma().unwrap();
+        user.rewards = 500;
+        let credits = user.top_up_credits_from_rewards().unwrap();
         assert_eq!(credits, 500);
         let mut revenue = 1000_0000;
         user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
         assert_eq!(revenue, 0);
         assert_eq!(user.credits(), 823);
-    }
-
-    #[test]
-    fn test_rewarding() {
-        let mut u = User::new(pr(0), 66, 0, Default::default());
-
-        assert_eq!(u.karma(), 0);
-        assert_eq!(u.karma_to_reward(), 0);
-
-        u.change_karma(100, "");
-        assert_eq!(u.karma(), 0);
-        assert_eq!(u.karma_to_reward(), 100);
-
-        u.change_karma(-50, "");
-        assert_eq!(u.karma(), 0);
-        assert_eq!(u.karma_to_reward(), 50);
-
-        u.change_karma(-100, "");
-        assert_eq!(u.karma(), -50);
-        assert_eq!(u.karma_to_reward(), 0);
-
-        u.change_karma(100, "");
-        assert_eq!(u.karma(), 50);
-        assert_eq!(u.karma_to_reward(), 0);
-
-        u.change_karma(20, "");
-        assert_eq!(u.karma(), 50);
-        assert_eq!(u.karma_to_reward(), 20);
-
-        u.apply_rewards();
-        assert_eq!(u.karma(), 70);
-        assert_eq!(u.karma_to_reward(), 0);
-
-        u.change_karma(-100, "");
-        assert_eq!(u.karma(), -30);
-        assert_eq!(u.karma_to_reward(), 0);
     }
 
     #[test]
@@ -719,17 +668,5 @@ mod tests {
         assert!(u.change_credits(156, CreditsDelta::Minus, "").is_err());
         assert!(u.change_credits(155, CreditsDelta::Minus, "").is_ok());
         assert_eq!(u.credits(), 0);
-    }
-
-    #[test]
-    fn test_change_karma() {
-        let mut u = User::new(pr(1), 66, 0, Default::default());
-        u.karma = 100;
-        u.rewarded_karma = 100;
-        assert_eq!(u.karma(), 100);
-        assert_eq!(u.karma_to_reward(), 100);
-        u.change_karma(-150, "");
-        assert_eq!(u.karma(), 50);
-        assert_eq!(u.karma_to_reward(), 0);
     }
 }
