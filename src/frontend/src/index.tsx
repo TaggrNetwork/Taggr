@@ -402,5 +402,9 @@ const updateDoc = () => {
         window.lastActivity = new Date();
         window.scrollUpButton.style.display = "none";
     });
-    window.addEventListener("popstate", App);
+    window.addEventListener("popstate", () => {
+        let preview = document.getElementById("preview");
+        if (preview) preview.style.display = "none";
+        App();
+    });
 };

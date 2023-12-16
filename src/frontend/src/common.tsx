@@ -1,9 +1,10 @@
 import * as React from "react";
 // @ts-ignore
 import DiffMatchPatch from "diff-match-patch";
-import { Clipboard, ClipboardCheck, Flag, Menu, Share } from "./icons";
+import { Clipboard, ClipboardCheck, Close, Flag, Menu, Share } from "./icons";
 import { loadFile } from "./form";
 import { Post, PostId, Report, User, UserId } from "./types";
+import { createRoot } from "react-dom/client";
 
 export const XDR_TO_USD = 1.32;
 
@@ -753,5 +754,36 @@ export const ReportBanner = ({
                 </div>
             )}
         </div>
+    );
+};
+
+export const popUp = (content: JSX.Element) => {
+    const preview = document.getElementById("preview");
+    if (!preview) return;
+    while (preview.hasChildNodes()) {
+        let firstChild = preview.firstChild;
+        if (firstChild) preview.removeChild(firstChild);
+    }
+    preview.style.display = "flex";
+    preview.style.flexDirection = "column";
+    preview.style.justifyContent = "center";
+    const closePreview = () => (preview.style.display = "none");
+
+    preview.onclick = (event) => {
+        let target: any = event.target;
+        if (target?.id == "preview") preview.style.display = "none";
+    };
+    const root = document.createElement("div");
+    root.className = "popup_body";
+    preview.appendChild(root);
+    createRoot(root).render(
+        <>
+            <div className="row_container bottom_spaced" onClick={closePreview}>
+                <div style={{ marginLeft: "auto" }}>
+                    <Close classNameArg="clickable" size={18} />
+                </div>
+            </div>
+            {content}
+        </>,
     );
 };

@@ -15,6 +15,7 @@ import {
     ButtonWithLoading,
     realmList,
     UserLink,
+    popUp,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -25,7 +26,6 @@ import { Principal } from "@dfinity/principal";
 export const Profile = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
     const [profile, setProfile] = React.useState({} as User);
-    const [fullAccounting, setFullAccounting] = React.useState(false);
     const [tab, setTab] = React.useState("LAST");
 
     const updateState = async () => {
@@ -210,54 +210,6 @@ export const Profile = ({ handle }: { handle: string }) => {
                 />
             )}
             <UserInfo profile={profile} />
-            {profile.accounting.length > 0 && (
-                <>
-                    <div className="spaced">
-                        <h2>Credits Changes</h2>
-                        <table
-                            style={{ width: "100%" }}
-                            className={bigScreen() ? undefined : "small_text"}
-                        >
-                            <tbody>
-                                {(fullAccounting
-                                    ? profile.accounting
-                                    : profile.accounting.slice(0, 10)
-                                ).map(([timestamp, type, delta, log], i) => (
-                                    <tr
-                                        className="stands_out"
-                                        key={type + log + i}
-                                    >
-                                        <td>{timeAgo(timestamp)}</td>
-                                        <td
-                                            style={{
-                                                color:
-                                                    delta > 0 ? "green" : "red",
-                                                textAlign: "right",
-                                            }}
-                                            className="no_wrap"
-                                        >
-                                            {delta > 0 ? "+" : ""}
-                                            {delta}{" "}
-                                            {type == "CRE"
-                                                ? "credits"
-                                                : "rewards"}
-                                        </td>
-                                        <td style={{ textAlign: "right" }}>
-                                            {linkPost(log)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        {!fullAccounting && (
-                            <button onClick={() => setFullAccounting(true)}>
-                                SHOW ALL
-                            </button>
-                        )}
-                    </div>
-                    <hr />
-                </>
-            )}
             <PostFeed
                 title={title}
                 useList={true}
@@ -288,33 +240,22 @@ export const Profile = ({ handle }: { handle: string }) => {
 };
 
 export const UserInfo = ({ profile }: { profile: User }) => {
-    const [followeesVisible, setFolloweesVisibility] = React.useState(false);
-    const [followersVisible, setFollowersVisibility] = React.useState(false);
-    const placeholder = (
-        status: boolean,
-        unfold: any,
-        label: number,
-        content: any,
-    ) =>
+    const placeholder = (label: number, content: any) =>
         status ? (
             <div className="small_text">{content}</div>
         ) : (
-            <a
-                className="x_large_text"
-                href="#"
-                onClick={(e) => {
-                    e.preventDefault();
-                    unfold(true);
-                }}
-            >{`${label}`}</a>
+            <span
+                className="clickable clickable_color"
+                onClick={() => popUp(content)}
+            >
+                {label}
+            </span>
         );
     const followees =
         profile.followees.length > 0 ? (
             <div className="db_cell">
                 FOLLOWS
                 {placeholder(
-                    followeesVisible,
-                    setFolloweesVisibility,
                     profile.followees.length,
                     userList(profile.followees),
                 )}
@@ -325,8 +266,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             <div className="db_cell">
                 FOLLOWERS
                 {placeholder(
-                    followersVisible,
-                    setFollowersVisibility,
                     profile.followers.length,
                     userList(profile.followers),
                 )}
@@ -358,6 +297,42 @@ export const UserInfo = ({ profile }: { profile: User }) => {
     const filters = profile.filters;
 
     const donations = Object.entries(profile.karma_donations);
+    const accountingList = (
+        <table
+            style={{ width: "100%" }}
+            className={bigScreen() ? undefined : "small_text"}
+        >
+            <tbody>
+                {profile.accounting.map(([timestamp, type, delta, log], i) => (
+                    <tr key={type + log + i}>
+                        <td>{timeAgo(timestamp)}</td>
+                        <td
+                            style={{
+                                color: delta > 0 ? "green" : "red",
+                            }}
+                            className="no_wrap"
+                        >
+                            {delta > 0 ? "+" : ""}
+                            {delta} {type == "CRE" ? "credits" : "rewards"}
+                        </td>
+                        <td style={{ textAlign: "right" }}>{linkPost(log)}</td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    );
+
+    const givenRewardsList = (
+        <>
+            {commaSeparated(
+                donations.map(([user_id, karma]) => (
+                    <span key={user_id}>
+                        <UserLink id={Number(user_id)} />: {karma}
+                    </span>
+                )),
+            )}
+        </>
+    );
 
     return (
         <div className="spaced">
@@ -386,10 +361,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     </code>
                 </div>
                 <div className="db_cell">
-                    CREDITS
-                    <code>{`${profile.cycles.toLocaleString()}`}</code>
-                </div>
-                <div className="db_cell">
                     JOINED
                     <span>{`${timeAgo(profile.timestamp)}`}</span>
                 </div>
@@ -407,6 +378,32 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 </div>
                 {followees}
                 {followers}
+                {profile.accounting.length > 0 && (
+                    <div className="db_cell">
+                        ACCOUNTING
+                        <code
+                            className="clickable clickable_color"
+                            onClick={() => popUp(accountingList)}
+                        >
+                            {profile.accounting.length}
+                        </code>
+                    </div>
+                )}
+                {Object.keys(profile.karma_donations).length > 0 && (
+                    <div className="db_cell">
+                        GIVEN REWARDS
+                        <code
+                            className="clickable clickable_color"
+                            onClick={() => popUp(givenRewardsList)}
+                        >
+                            {Object.keys(profile.karma_donations).length}
+                        </code>
+                    </div>
+                )}
+                <div className="db_cell">
+                    CREDITS
+                    <code>{`${profile.cycles.toLocaleString()}`}</code>
+                </div>
                 {inviter != undefined && (
                     <div className="db_cell">
                         INVITED BY
@@ -448,19 +445,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                             )),
                         )}
                     </div>
-                    <hr />
-                </>
-            )}
-            {donations.length > 0 && (
-                <>
-                    <h2>Rewards Given</h2>
-                    {commaSeparated(
-                        donations.map(([user_id, karma]) => (
-                            <span key={user_id}>
-                                <UserLink id={Number(user_id)} />: {karma}
-                            </span>
-                        )),
-                    )}
                     <hr />
                 </>
             )}
