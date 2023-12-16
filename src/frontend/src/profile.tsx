@@ -352,7 +352,12 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             <div className="dynamic_table">
                 <div className="db_cell">
                     TOKENS
-                    <code>{tokenBalance(profile.balance)}</code>
+                    <a
+                        className="xx_large_text"
+                        href={`#/transactions/${profile.principal}`}
+                    >
+                        {tokenBalance(profile.balance)}
+                    </a>
                 </div>
                 <div className="db_cell">
                     REWARDS

@@ -26,7 +26,7 @@ import { Settings } from "./settings";
 import { ApiGenerator } from "./api";
 import { Wallet, WelcomeInvited } from "./wallet";
 import { Proposals } from "./proposals";
-import { Tokens, TransactionView } from "./tokens";
+import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
 import { MAINNET_MODE, TEST_MODE, CANISTER_ID } from "./env";
@@ -145,6 +145,8 @@ const App = () => {
         inboxMode = true;
     } else if (handler == "transaction") {
         content = <TransactionView id={parseInt(param)} />;
+    } else if (handler == "transactions") {
+        content = <TransactionsView principal={param} prime={true} />;
     } else if (handler == "proposals") {
         content = <Proposals />;
     } else if (handler == "tokens") {

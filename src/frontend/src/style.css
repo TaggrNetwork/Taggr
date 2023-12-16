@@ -97,7 +97,8 @@ h5 {
     font-size: 80%;
 }
 
-.monospace * {
+.monospace *,
+.monospace {
     font-family: ui-monospace, "Menlo", "Consolas", "Roboto Mono",
         "DejaVu Sans Mono", monospace;
 }

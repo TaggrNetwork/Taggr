@@ -3,6 +3,7 @@ use std::{
     collections::{BTreeSet, HashMap},
 };
 
+use candid::Principal;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
@@ -665,14 +666,20 @@ fn transaction() {
 
 #[export_name = "canister_query transactions"]
 fn transactions() {
-    let (page, search_term): (usize, String) = parse(&arg_data_raw());
+    let (page, principal, subaccount): (usize, String, String) = parse(&arg_data_raw());
     read(|state| {
         let iter = state.ledger.iter().enumerate();
-        let iter: Box<dyn DoubleEndedIterator<Item = _>> = if search_term.is_empty() {
+        let owner = Principal::from_text(principal).expect("invalid principal");
+        let subaccount = hex::decode(subaccount).expect("invalid subaccount");
+        let iter: Box<dyn DoubleEndedIterator<Item = _>> = if Principal::anonymous() == owner {
             Box::new(iter)
         } else {
             Box::new(iter.filter(|(_, t)| {
-                (t.to.owner.to_string() + &t.from.owner.to_string()).contains(&search_term)
+                t.to.owner == owner
+                    && (t.to.subaccount.is_none() || t.to.subaccount.as_ref() == Some(&subaccount))
+                    || t.from.owner == owner
+                        && (t.from.subaccount.is_none()
+                            || t.from.subaccount.as_ref() == Some(&subaccount))
             }))
         };
         reply(

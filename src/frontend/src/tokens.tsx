@@ -15,7 +15,11 @@ import {
 import * as React from "react";
 import { UserId, Transaction } from "./types";
 import { Principal } from "@dfinity/principal";
-import { IcrcAccount, encodeIcrcAccount } from "@dfinity/ledger";
+import {
+    IcrcAccount,
+    decodeIcrcAccount,
+    encodeIcrcAccount,
+} from "@dfinity/ledger";
 
 type Balances = [string, number, UserId][];
 
@@ -34,18 +38,12 @@ const accToIcrcAcc = ({
 
 export const Tokens = () => {
     const [status, setStatus] = React.useState(0);
+    const [timer, setTimer] = React.useState<any>(null);
+    const [searchValue, setSearchValue] = React.useState("");
+    const [query, setQuery] = React.useState("");
     const [balances, setBalances] = React.useState([] as Balances);
-    const [term, setTerm] = React.useState("");
-    const [noMoreData, setNoMoreData] = React.useState(false);
-    const [transactions, setTransactions] = React.useState(
-        [] as [number, Transaction][],
-    );
-    const [txPage, setTxPage] = React.useState(0);
     const [balPage, setBalPage] = React.useState(0);
     const [holder, setHolder] = React.useState(-1);
-
-    const loadState = async () =>
-        await Promise.all([loadBalances(), loadTransactions()]);
 
     const loadBalances = async () => {
         const balances = await window.api.query<Balances>("balances");
@@ -58,25 +56,9 @@ export const Tokens = () => {
         setBalances(balances);
     };
 
-    const loadTransactions = async () => {
-        const txs =
-            (await window.api.query<[number, Transaction][]>(
-                "transactions",
-                txPage,
-                userToPrincipal[term.toLowerCase()] || term,
-            )) || [];
-        if (txs?.length == 0) {
-            setNoMoreData(true);
-        }
-        setTransactions(term && txPage == 0 ? txs : transactions.concat(txs));
-    };
-
     React.useEffect(() => {
-        loadState();
+        loadBalances();
     }, []);
-    React.useEffect(() => {
-        loadTransactions();
-    }, [txPage]);
 
     const mintedSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
     const { total_supply, proposal_approval_threshold, transaction_fee } =
@@ -182,8 +164,6 @@ export const Tokens = () => {
                     ))}
                 </div>
                 Holder: {holder < 0 ? "none" : <UserLink id={holder} />}
-                <hr />
-                <h2>Balances</h2>
                 <table style={{ width: "100%" }}>
                     <thead className={bigScreen() ? undefined : "small_text"}>
                         <tr>
@@ -200,9 +180,11 @@ export const Tokens = () => {
                         {balances.slice(0, (balPage + 1) * 25).map((b) => (
                             <tr key={b[0]}>
                                 <td style={{ textAlign: "left" }}>
-                                    {principal(b[0])}
+                                    {showPrincipal(b[0])}
                                 </td>
-                                <td>{token(b[1])}</td>
+                                <td>
+                                    <code>{token(b[1])}</code>
+                                </td>
                                 <td>{percentage(b[1], mintedSupply)}</td>
                                 <td>
                                     <UserLink id={b[2]} />
@@ -225,36 +207,104 @@ export const Tokens = () => {
                         id="search_field"
                         className="max_width_col"
                         type="search"
-                        placeholder="Principal or username"
-                        value={term}
-                        onChange={(event) => setTerm(event.target.value)}
+                        placeholder="Search for user name or principal..."
+                        value={searchValue}
+                        onChange={(event) => {
+                            clearTimeout(timer as unknown as any);
+                            setSearchValue(event.target.value);
+                            setTimer(
+                                setTimeout(
+                                    () => setQuery(event.target.value),
+                                    300,
+                                ),
+                            );
+                        }}
                     />
-                    <button
-                        className="active"
-                        onClick={async () => {
-                            setTxPage(0);
-                            await loadTransactions();
-                        }}
-                    >
-                        SEARCH
-                    </button>
                 </div>
-                <Transactions transactions={transactions} />
-                {!noMoreData && (
-                    <div
-                        style={{
-                            display: "flex",
-                            justifyContent: "center",
-                        }}
-                    >
-                        <ButtonWithLoading
-                            classNameArg="active"
-                            onClick={async () => setTxPage(txPage + 1)}
-                            label="MORE"
-                        />
-                    </div>
-                )}
+                <TransactionsView
+                    principal={userToPrincipal[query.toLowerCase()] || query}
+                />
             </div>
+        </>
+    );
+};
+
+export const TransactionsView = ({
+    principal,
+    prime,
+}: {
+    principal?: string;
+    prime?: boolean;
+}) => {
+    const [noMoreData, setNoMoreData] = React.useState(false);
+    const [loading, setLoading] = React.useState(false);
+    const [transactions, setTransactions] = React.useState(
+        [] as [number, Transaction][],
+    );
+    const [txPage, setTxPage] = React.useState(0);
+
+    const loadTransactions = async () => {
+        setLoading(true);
+        const acc = decodeIcrcAccount(
+            principal || Principal.anonymous().toString(),
+        );
+        const txs =
+            (await window.api.query<[number, Transaction][]>(
+                "transactions",
+                txPage,
+                acc.owner.toString(),
+                Buffer.from(acc.subaccount || new Uint8Array(32)).toString(
+                    "hex",
+                ),
+            )) || [];
+        if (txs?.length == 0) {
+            setNoMoreData(true);
+        }
+        setTransactions(
+            principal && txPage == 0 ? txs : transactions.concat(txs),
+        );
+        setLoading(false);
+    };
+
+    React.useEffect(() => {
+        loadTransactions();
+    }, [txPage, principal]);
+
+    if (loading) return <Loading />;
+
+    return (
+        <>
+            {principal && prime && (
+                <HeadBar
+                    title={
+                        <>
+                            TRANSACTIONS OF{" "}
+                            <CopyToClipboard
+                                value={principal}
+                                displayMap={(value) =>
+                                    value.split("-")[0].toUpperCase()
+                                }
+                            />
+                        </>
+                    }
+                    shareLink={`transactions/${principal}`}
+                />
+            )}
+            <Transactions transactions={transactions} />
+            {!noMoreData && (
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "center",
+                    }}
+                >
+                    <ButtonWithLoading
+                        classNameArg="active"
+                        onClick={async () => setTxPage(txPage + 1)}
+                        label="MORE"
+                    />
+                </div>
+            )}
         </>
     );
 };
@@ -296,6 +346,9 @@ export const TransactionView = ({ id }: { id: number }) => {
                 ) : (
                     <CopyToClipboard
                         value={encodeIcrcAccount(accToIcrcAcc(tx.from))}
+                        displayMap={(id) =>
+                            id in knownAddresses ? knownAddresses[id] : id
+                        }
                     />
                 )}
                 <hr />
@@ -356,26 +409,18 @@ export const Transactions = ({
                         {timeAgo(t.timestamp)}
                     </td>
                     <td style={{ textAlign: "center" }}>
-                        {format(encodeIcrcAccount(accToIcrcAcc(t.from)))}
+                        {showPrincipal(encodeIcrcAccount(accToIcrcAcc(t.from)))}
                     </td>
                     <td style={{ textAlign: "center" }}>
-                        {format(encodeIcrcAccount(accToIcrcAcc(t.to)))}
+                        {showPrincipal(encodeIcrcAccount(accToIcrcAcc(t.to)))}
                     </td>
-                    <td>{tokenBalance(t.amount)}</td>
+                    <td>
+                        <code>{tokenBalance(t.amount)}</code>
+                    </td>
                 </tr>
             ))}
         </tbody>
     </table>
-);
-
-const format = (acc: string) => (acc == "2vxsx-fae" ? "🌱" : principal(acc));
-
-const principal = (p: string) => (
-    <CopyToClipboard
-        classNameArg="monospace"
-        value={p}
-        displayMap={(id) => id.split("-")[0]}
-    />
 );
 
 const genColor = (val: string) => {
@@ -389,4 +434,18 @@ const genColor = (val: string) => {
         color += ("00" + value.toString(16)).substr(-2);
     }
     return color;
+};
+
+const showPrincipal = (principal: string) => (
+    <a className="monospace" href={`#/transactions/${principal}`}>
+        {principal in knownAddresses
+            ? knownAddresses[principal]
+            : principal == "2vxsx-fae"
+            ? "🌱"
+            : principal.split("-")[0]}
+    </a>
+);
+
+const knownAddresses: { [key: string]: string } = {
+    "opl73-raaaa-aaaag-qcunq-cai": "ICPSwap",
 };
