@@ -1845,7 +1845,7 @@ impl State {
         let mut stalwarts = Vec::new();
         let mut users_online = 0;
         let mut invited_users = 0;
-        let active_users = 0;
+        let mut active_users = 0;
         let mut bots = Vec::new();
         let mut credits = 0;
         for user in self.users.values() {
@@ -1860,6 +1860,9 @@ impl State {
             }
             if user.invited_by.is_some() {
                 invited_users += 1;
+            }
+            if user.active_within_weeks(now, 1) {
+                active_users += 1;
             }
             credits += user.credits();
         }
