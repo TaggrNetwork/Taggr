@@ -94,130 +94,13 @@ fn post_upgrade() {
         || spawn(State::finalize_upgrade()),
     );
 
-    // temporary post upgrade logic goes here
-    set_timer(Duration::from_secs(1), move || {
+    // post upgrade logic goes here
+    set_timer(Duration::from_secs(0), move || {
         spawn(post_upgrade_fixtures())
     });
 }
 
-async fn post_upgrade_fixtures() {
-    mutate(|state| {
-        for (amount, handle) in &[
-            ("0.75", "wpb"),
-            ("1.34", "Dolby"),
-            ("3.86", "Smarth"),
-            ("2.33", "Toji01"),
-            ("6.67", "Wizord"),
-            ("39.39", "Guru"),
-            ("17.38", "NathanosDev"),
-            ("3.59", "Santii"),
-            ("2.79", "TheSwop"),
-            ("5.72", "MetaMaximus"),
-            ("6.21", "Jerryz"),
-            ("0.21", "yungsucc"),
-            ("1.71", "Angelina7"),
-            ("9.38", "Dheeraj5"),
-            ("1.52", "aligatorr"),
-            ("0.43", "songge"),
-            ("0.39", "oomlout"),
-            ("0.56", "Urk"),
-            ("1.29", "Marys"),
-            ("0.01", "BenJF"),
-            ("1.9", "Security"),
-            ("23.04", "iamCryptoRay"),
-            ("24", "rxke"),
-            ("0.21", "SabordeHaiti"),
-            ("76.26", "MntYetti"),
-            ("0.66", "Fabrizio"),
-            ("0.1", "vmr"),
-            ("1.69", "Wasrek"),
-            ("0.66", "shogaku"),
-            ("0.76", "Minski"),
-            ("4.59", "Diavolo"),
-            ("8.18", "Tm"),
-            ("0.01", "Elias"),
-            ("0.78", "Kokolet"),
-            ("18.45", "Danska"),
-            ("0.19", "ericrosedev"),
-            ("9.07", "Mreminencesure"),
-            ("2.15", "Ferose"),
-            ("4.4", "Andy"),
-            ("0.43", "Riddle"),
-            ("1.01", "Abdulwasih29"),
-            ("9.45", "Stxckr"),
-            ("0.79", "Dustypool"),
-            ("0.02", "Grinmeta"),
-            ("0.28", "XBot"),
-            ("0.1", "thatCULTguy"),
-            ("2.86", "Vladislav"),
-            ("0.05", "Julia"),
-            ("0.99", "Dunic"),
-            ("0.19", "danly3x"),
-            ("50.61", "Danz"),
-            ("8.31", "Eoabolaji"),
-            ("1.51", "Alexx"),
-            ("4.64", "Saratoshi"),
-            ("0.7", "sang"),
-            ("0.6", "Ibrahimovic11"),
-            ("9.01", "Aashi"),
-            ("12.29", "Zeeshan"),
-            ("0.61", "charm"),
-            ("49.82", "mechaquan"),
-            ("16.73", "Herbs"),
-            ("0.9", "SUCCESS"),
-            ("30.99", "Vaslim1979"),
-            ("4.02", "PsychoGamen"),
-            ("0.5", "ANONYMUS"),
-            ("4.93", "virtualmachine"),
-            ("29.51", "albtraumIl"),
-            ("2.51", "WastedYouth"),
-            ("45.81", "radudaniel"),
-            ("63.87", "Limestonecowboy"),
-            ("2.19", "FreelanceG"),
-            ("84.29", "NFHX"),
-            ("0.18", "Amy"),
-            ("15.78", "accumulatingICP"),
-            ("0.8", "Vhicthour"),
-            ("9.93", "Thepreciousfm"),
-            ("1.65", "superuser"),
-            ("0.74", "Davie"),
-            ("6.69", "treb0r"),
-            ("6.14", "zitim"),
-            ("0.2", "fugu"),
-            ("9.16", "julianjelfs"),
-            ("27.2", "Grayghost"),
-            ("0.01", "Fenandez"),
-            ("13.25", "pirosiki"),
-            ("0.75", "Jeshli"),
-            ("55.54", "X"),
-            ("0.46", "Blockriver"),
-            ("13.97", "Apin"),
-            ("5.2", "Abolajig1"),
-            ("9.04", "aimsomnia"),
-            ("23.36", "YellowChicken"),
-            ("3.56", "TrapDefi"),
-            ("1.69", "lws"),
-            ("2.87", "domwoe"),
-            ("5.48", "domnochy"),
-            ("35.76", "Justinchiang"),
-            ("24.73", "christian"),
-            ("3.08", "Midun"),
-            ("0.18", "Michaelpack40"),
-            ("1.29", "ckHEDGE"),
-            ("17.64", "housewind"),
-        ] {
-            if let Some(user) = state
-                .user(handle)
-                .and_then(|user| state.users.get(&user.id))
-                .cloned()
-            {
-                let acc = account(user.principal);
-                let tokens = amount.parse::<f64>().unwrap() * 100.0;
-                crate::token::mint(state, acc, tokens as u64);
-            }
-        }
-    })
-}
+async fn post_upgrade_fixtures() {}
 
 /*
  * UPDATES

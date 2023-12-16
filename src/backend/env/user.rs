@@ -56,14 +56,7 @@ pub struct User {
     pub about: String,
     pub account: String,
     pub settings: String,
-    #[allow(dead_code)]
-    #[serde(skip)]
-    karma: i64,
-    #[allow(dead_code)]
-    #[serde(skip)]
-    rewarded_karma: Credits,
     cycles: Credits,
-    #[serde(default)]
     rewards: i64,
     pub feeds: Vec<BTreeSet<String>>,
     pub followees: BTreeSet<UserId>,
@@ -104,8 +97,6 @@ impl User {
             .to_string(),
             settings: Default::default(),
             cycles: 0,
-            karma: 0,
-            rewarded_karma: 0,
             timestamp,
             num_posts: 0,
             bookmarks: Default::default(),
