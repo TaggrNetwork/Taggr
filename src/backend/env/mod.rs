@@ -2021,7 +2021,7 @@ impl State {
         match domain.as_str() {
             "post" => {
                 let post_user = Post::mutate(self, &id, |post| {
-                    if post.report.is_some() {
+                    if post.report.as_ref().map(|r| !r.closed).unwrap_or_default() {
                         return Err("this post is already reported".into());
                     }
                     post.report = report.clone();
@@ -2040,7 +2040,12 @@ impl State {
             }
             "misbehaviour" => {
                 let misbehaving_user = self.users.get_mut(&id).ok_or("no user found")?;
-                if misbehaving_user.report.as_ref().map(|r| r.closed) == Some(true) {
+                if misbehaving_user
+                    .report
+                    .as_ref()
+                    .map(|r| !r.closed)
+                    .unwrap_or_default()
+                {
                     return Err("this user is already reported".into());
                 }
                 misbehaving_user.report = report;
