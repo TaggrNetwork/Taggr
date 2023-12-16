@@ -42,6 +42,7 @@ impl Report {
 pub fn finalize_report(
     state: &mut State,
     report: &Report,
+    domain: &str,
     penalty: Credits,
     user_id: UserId,
     subject: String,
@@ -49,6 +50,7 @@ pub fn finalize_report(
     if !report.closed {
         return Ok(());
     }
+    let mut confirmed_user_report = false;
     let (sponsor_id, unit) = if report.confirmed_by.len() > report.rejected_by.len() {
         // penalty for the user
         let user = state.users.get_mut(&user_id).ok_or("no user found")?;
@@ -82,6 +84,7 @@ pub fn finalize_report(
                 None,
             )
             .map_err(|err| format!("couldn't reward reporter: {}", err))?;
+        confirmed_user_report = domain == "misbehaviour";
         (user_id, unit)
     } else {
         // penalty for reporter
@@ -133,6 +136,10 @@ pub fn finalize_report(
             .expect("couldn't charge user");
     }
     state.denotify_users(&|u| u.stalwart);
+    let user = state.users.get(&user_id).ok_or("no user found")?;
+    if confirmed_user_report && user.credits() > 0 {
+        state.charge(user_id, user.credits(), "penalty for misbehaviour")?;
+    }
     Ok(())
 }
 

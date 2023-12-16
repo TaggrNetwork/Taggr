@@ -744,7 +744,7 @@ mod tests {
             assert!(state.principal_to_user(pr(1)).unwrap().credits() > 0);
             let proposer = state.principal_to_user(pr(1)).unwrap();
             let data = &"".to_string();
-            let rewards = proposer.rewards() as i64;
+            let rewards = proposer.rewards();
             for i in 2..4 {
                 assert_eq!(
                     vote_on_proposal(state, time(), pr(i), prop_id, false, data),

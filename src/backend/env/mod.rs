@@ -1955,7 +1955,7 @@ impl State {
             }
             _ => return Err("unknown report type".into()),
         };
-        reports::finalize_report(self, &report, penalty, user_id, subject)
+        reports::finalize_report(self, &report, &domain, penalty, user_id, subject)
     }
 
     pub fn vote_on_poll(

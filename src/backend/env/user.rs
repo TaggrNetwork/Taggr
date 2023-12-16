@@ -339,7 +339,7 @@ impl User {
     pub fn top_up_credits_from_rewards(&mut self) -> Result<Credits, String> {
         let credits_needed = CONFIG.credits_per_xdr.saturating_sub(self.credits());
         let top_up = if self.rewards < 0 {
-            self.rewards.abs() as Credits + credits_needed
+            self.rewards.unsigned_abs() + credits_needed
         } else {
             credits_needed.min(self.rewards as Credits) as Credits
         };
