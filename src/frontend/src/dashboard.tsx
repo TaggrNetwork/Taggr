@@ -6,7 +6,6 @@ import {
     hoursTillNext,
     HeadBar,
     userList,
-    UserLink,
     icpCode,
     IcpAccountLink,
 } from "./common";
@@ -28,7 +27,6 @@ import {
     Post,
     StorageCanister,
     Treasury,
-    Trophy,
     User,
 } from "./icons";
 
@@ -233,19 +231,6 @@ export const Dashboard = ({}) => {
                 <div>
                     <h2>STALWARTS</h2>
                     {userList(stats.stalwarts)}
-                </div>
-                <hr />
-                <h2>
-                    <Trophy /> WEEKLY KARMA LEADERS
-                </h2>
-                <hr />
-                <div className="dynamic_table">
-                    {stats.weekly_karma_leaders.map(([id, karma]) => (
-                        <div className="db_cell" key={id}>
-                            <UserLink id={id} />
-                            <code>{karma.toLocaleString()}</code>
-                        </div>
-                    ))}
                 </div>
                 <hr />
                 <h2>
