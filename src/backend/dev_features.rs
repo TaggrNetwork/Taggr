@@ -8,6 +8,11 @@ async fn chores() {
     State::chores(time()).await;
 }
 
+#[update]
+async fn weekly_chores() {
+    State::weekly_chores(time()).await;
+}
+
 #[query]
 async fn check() {
     let (sum, last_id): (u64, u64) = read(|state| {

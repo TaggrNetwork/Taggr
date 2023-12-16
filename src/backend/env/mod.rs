@@ -1319,7 +1319,7 @@ impl State {
         }
     }
 
-    async fn weekly_chores(now: u64) {
+    pub async fn weekly_chores(now: u64) {
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
             let (karma, revenues, e8s_for_one_xdr) = mutate(|state| {
