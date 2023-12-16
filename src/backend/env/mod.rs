@@ -1991,6 +1991,16 @@ impl State {
             CONFIG.reporting_penalty_misbehaviour
         } / 2;
         let user = match self.principal_to_user(principal) {
+            Some(user)
+                if self
+                    .balances
+                    .get(&account(user.principal))
+                    .copied()
+                    .unwrap_or_default()
+                    < 10 * CONFIG.transaction_fee =>
+            {
+                return Err("no reports with low token balance".into())
+            }
             Some(user) if user.rewards() < 0 => {
                 return Err("no reports with negative reward balance possible".into())
             }
