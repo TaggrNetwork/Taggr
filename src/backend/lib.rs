@@ -100,7 +100,21 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    mutate(|state| {
+        for user in state.users.values_mut() {
+            let mut rewards = 0;
+            for (_, _, a, _) in user
+                .accounting
+                .iter()
+                .filter(|v| v.1 == "KRM" || v.1 == "RWD")
+            {
+                rewards += a;
+            }
+            user.rewards = rewards;
+        }
+    })
+}
 
 /*
  * UPDATES
