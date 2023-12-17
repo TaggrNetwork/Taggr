@@ -12,10 +12,9 @@ import {
     XDR_TO_USD,
 } from "./common";
 import * as React from "react";
-import { Transactions } from "./tokens";
 import { LoginMasks, logout, SeedPhraseForm } from "./logins";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
-import { Transaction } from "./types";
+import { TransactionsView } from "./tokens";
 
 type Invoice = { paid: boolean; e8s: BigInt; account: number[] };
 
@@ -230,23 +229,6 @@ export const Wallet = () => {
     const [user, setUser] = React.useState(window.user);
     const mintCredits = async (kilo_credits: number) =>
         await window.api.call("mint_credits", kilo_credits);
-    const [transactions, setTransactions] = React.useState(
-        [] as [number, Transaction][],
-    );
-
-    const loadTransactions = async () => {
-        if (!window.user) return;
-        const txs = await window.api.query<any>(
-            "transactions",
-            0,
-            window.user.principal,
-        );
-        setTransactions(txs);
-    };
-
-    React.useEffect(() => {
-        loadTransactions();
-    }, []);
 
     if (!user) return <Welcome />;
     let { token_symbol, token_decimals } = window.backendCache.config;
@@ -408,7 +390,6 @@ export const Wallet = () => {
                                 return;
                             }
                             await window.reloadUser();
-                            await loadTransactions();
                             setUser(window.user);
                         }}
                     />
@@ -428,7 +409,10 @@ export const Wallet = () => {
                 </div>
                 <hr />
                 <h2>Latest Transactions</h2>
-                <Transactions transactions={transactions} />
+                <TransactionsView
+                    principal={user.principal}
+                    heartbeat={new Date()}
+                />
             </div>
         </>
     );

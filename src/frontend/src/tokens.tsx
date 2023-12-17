@@ -232,9 +232,11 @@ export const Tokens = () => {
 export const TransactionsView = ({
     principal,
     prime,
+    heartbeat,
 }: {
     principal?: string;
     prime?: boolean;
+    heartbeat?: any;
 }) => {
     const [noMoreData, setNoMoreData] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
@@ -268,7 +270,7 @@ export const TransactionsView = ({
 
     React.useEffect(() => {
         loadTransactions();
-    }, [txPage, principal]);
+    }, [txPage, principal, heartbeat]);
 
     if (loading) return <Loading />;
 
@@ -378,7 +380,7 @@ export const TransactionView = ({ id }: { id: number }) => {
     );
 };
 
-export const Transactions = ({
+const Transactions = ({
     transactions,
 }: {
     transactions: [number, Transaction][];
