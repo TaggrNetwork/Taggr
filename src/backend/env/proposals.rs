@@ -47,6 +47,7 @@ pub enum Payload {
     Fund(String, Token),
     ICPTransfer(AccountIdentifier, Tokens),
     Reward(Reward),
+    AddRealmController(String, UserId),
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -181,6 +182,11 @@ impl Proposal {
                     reward.votes.clear();
                     reward.minted = tokens_to_mint;
                 }
+                Payload::AddRealmController(realm_id, user_id) => {
+                    if let Some(realm) = state.realms.get_mut(realm_id) {
+                        realm.controllers.insert(*user_id);
+                    }
+                }
                 Payload::ICPTransfer(account, amount) => {
                     let amount = *amount;
                     let account = *account;
@@ -226,8 +232,18 @@ fn mint_tokens(state: &mut State, receiver: &str, mut tokens: Token) -> Result<(
 }
 
 impl Payload {
-    fn validate(&mut self, minting_ratio: u64, current_supply: u64) -> Result<(), String> {
+    fn validate(&mut self, state: &State) -> Result<(), String> {
+        let minting_ratio = state.minting_ratio();
+        let current_supply: Token = state.balances.values().sum();
         match self {
+            Payload::AddRealmController(realm_id, user_id) => {
+                if !state.users.contains_key(user_id) {
+                    return Err("user not found".to_string());
+                }
+                if !state.realms.contains_key(realm_id) {
+                    return Err("realm not found".to_string());
+                }
+            }
             Payload::Release(release) => {
                 if release.commit.is_empty() {
                     return Err("commit is not specified".to_string());
@@ -274,7 +290,7 @@ pub fn propose(
     mut payload: Payload,
     time: u64,
 ) -> Result<u32, String> {
-    payload.validate(state.minting_ratio(), state.balances.values().sum())?;
+    payload.validate(state)?;
     let user = state
         .principal_to_user_mut(caller)
         .ok_or("proposer user not found")?;

@@ -11,6 +11,7 @@ import {
     NotFound,
     icp,
     hex,
+    UserLink,
 } from "./common";
 import * as React from "react";
 import { Content } from "./content";
@@ -21,11 +22,23 @@ import { PostId, Proposal } from "./types";
 const REPO_RELEASE = "https://github.com/TaggrNetwork/taggr/releases/latest";
 const REPO_COMMIT = "https://github.com/TaggrNetwork/taggr/commit";
 
+enum ProposalType {
+    IcpTranfer = "ICP TRANSFER",
+    AddRealmController = "ADD REALM CONTROLLER",
+    Funding = "FUNDING",
+    Reward = "REWARD",
+    Release = "RELEASE",
+}
+
 export const Proposals = () => {
-    const [currentMask, setCurrentMask] = React.useState("");
+    const [proposalType, setProposalType] = React.useState<ProposalType | null>(
+        null,
+    );
     const [receiver, setReceiver] = React.useState("");
     const [fundingAmount, setFundingAmount] = React.useState(0);
     const [icpAmount, setICPAmount] = React.useState(0);
+    const [userName, setUserName] = React.useState("");
+    const [realmId, setRealmId] = React.useState("");
     const [binary, setBinary] = React.useState(null);
     const [commit, setCommit] = React.useState("");
     const [proposal, setProposal] = React.useState(null);
@@ -40,35 +53,100 @@ export const Proposals = () => {
                 burgerTestId="proposals-burger-button"
                 content={
                     <div className="row_container">
-                        <button
-                            className="max_width_col"
-                            onClick={() => setCurrentMask("icp_transfer")}
-                        >
-                            ICP TRANSFER
-                        </button>
-                        <button
-                            className="max_width_col"
-                            onClick={() => setCurrentMask("funding")}
-                        >
-                            FUNDING
-                        </button>
-                        <button
-                            className="max_width_col"
-                            onClick={() => setCurrentMask("reward")}
-                        >
-                            REWARD
-                        </button>
-                        <button
-                            className="max_width_col"
-                            onClick={() => setCurrentMask("release")}
-                        >
-                            RELEASE
-                        </button>
+                        {Object.values(ProposalType).map((id) => (
+                            <button
+                                key={id}
+                                className="max_width_col"
+                                onClick={() => setProposalType(id)}
+                            >
+                                {id}
+                            </button>
+                        ))}
                     </div>
                 }
             />
             <div className="vertically_spaced">
-                {currentMask == "icp_transfer" && (
+                {proposalType && (
+                    <div className="column_container">
+                        <h1>NEW PROPOSAL: {proposalType?.toString()}</h1>
+                        <div className="bottom_half_spaced">DESCRIPTION</div>
+                        <textarea
+                            className="bottom_spaced"
+                            rows={10}
+                            value={description}
+                            onChange={(event) =>
+                                setDescription(event.target.value)
+                            }
+                        ></textarea>
+                        {description && (
+                            <Content
+                                value={description}
+                                preview={true}
+                                classNameArg="bottom_spaced framed"
+                            />
+                        )}
+                    </div>
+                )}
+                {proposalType == ProposalType.AddRealmController && (
+                    <div className="spaced column_container">
+                        <div className="vcentered bottom_half_spaced">
+                            NEW CONTROLLER
+                            <input
+                                type="text"
+                                className="left_spaced max_width_col"
+                                value={userName}
+                                onChange={async (ev) => {
+                                    setUserName(ev.target.value);
+                                }}
+                            />
+                        </div>
+                        <div className="vcentered bottom_half_spaced">
+                            REALM
+                            <input
+                                type="text"
+                                className="left_spaced max_width_col"
+                                value={realmId}
+                                onChange={async (ev) => {
+                                    setRealmId(ev.target.value);
+                                }}
+                            />
+                        </div>
+                        <ButtonWithLoading
+                            classNameArg="top_spaced active"
+                            onClick={async () => {
+                                if (!description || !userName || !realmId) {
+                                    alert("Error: incomplete data.");
+                                    return;
+                                }
+                                const userEntry = Object.entries(
+                                    window.backendCache.users,
+                                ).find(
+                                    ([_, name]) =>
+                                        name.toLowerCase() ==
+                                        userName.toLowerCase(),
+                                );
+                                if (!userEntry) {
+                                    alert(`No user ${userName} found!`);
+                                    return;
+                                }
+                                let response = await window.api.call<any>(
+                                    "propose_add_realm_controller",
+                                    description,
+                                    Number(userEntry[0]),
+                                    realmId.toUpperCase(),
+                                );
+                                if ("Err" in response) {
+                                    alert(`Error: ${response.Err}`);
+                                    return;
+                                }
+                                setProposalType(null);
+                                setProposal(response.Ok);
+                            }}
+                            label="SUBMIT"
+                        />
+                    </div>
+                )}
+                {proposalType == ProposalType.IcpTranfer && (
                     <div className="spaced column_container">
                         <div className="vcentered bottom_half_spaced">
                             RECEIVER
@@ -90,24 +168,8 @@ export const Proposals = () => {
                                 }}
                             />
                         </div>
-                        <div className="bottom_half_spaced">DESCRIPTION</div>
-                        <textarea
-                            className="bottom_spaced"
-                            rows={10}
-                            value={description}
-                            onChange={(event) =>
-                                setDescription(event.target.value)
-                            }
-                        ></textarea>
-                        {description && (
-                            <Content
-                                value={description}
-                                preview={true}
-                                classNameArg="bottom_spaced framed"
-                            />
-                        )}
                         <ButtonWithLoading
-                            classNameArg="active"
+                            classNameArg="top_spaced active"
                             onClick={async () => {
                                 if (!description || !receiver || !icpAmount) {
                                     alert("Error: incomplete data.");
@@ -123,14 +185,14 @@ export const Proposals = () => {
                                     alert(`Error: ${response.Err}`);
                                     return;
                                 }
-                                setCurrentMask("");
+                                setProposalType(null);
                                 setProposal(response.Ok);
                             }}
                             label="SUBMIT"
                         />
                     </div>
                 )}
-                {currentMask == "reward" && (
+                {proposalType == ProposalType.Reward && (
                     <div className="spaced column_container">
                         <div className="vcentered bottom_half_spaced">
                             RECEIVER
@@ -142,24 +204,8 @@ export const Proposals = () => {
                                 }}
                             />
                         </div>
-                        <div className="bottom_half_spaced">DESCRIPTION</div>
-                        <textarea
-                            className="bottom_spaced"
-                            rows={10}
-                            value={description}
-                            onChange={(event) =>
-                                setDescription(event.target.value)
-                            }
-                        ></textarea>
-                        {description && (
-                            <Content
-                                value={description}
-                                preview={true}
-                                classNameArg="bottom_spaced framed"
-                            />
-                        )}
                         <ButtonWithLoading
-                            classNameArg="active"
+                            classNameArg="top_spaced active"
                             onClick={async () => {
                                 if (!description || !receiver) {
                                     alert("Error: incomplete data.");
@@ -174,14 +220,14 @@ export const Proposals = () => {
                                     alert(`Error: ${response.Err}`);
                                     return;
                                 }
-                                setCurrentMask("");
+                                setProposalType(null);
                                 setProposal(response.Ok);
                             }}
                             label="SUBMIT"
                         />
                     </div>
                 )}
-                {currentMask == "funding" && (
+                {proposalType == ProposalType.Funding && (
                     <div className="spaced column_container">
                         <div className="vcentered bottom_half_spaced">
                             RECEIVER
@@ -203,24 +249,8 @@ export const Proposals = () => {
                                 }}
                             />
                         </div>
-                        <div className="bottom_half_spaced">DESCRIPTION</div>
-                        <textarea
-                            className="bottom_spaced"
-                            rows={10}
-                            value={description}
-                            onChange={(event) =>
-                                setDescription(event.target.value)
-                            }
-                        ></textarea>
-                        {description && (
-                            <Content
-                                value={description}
-                                preview={true}
-                                classNameArg="bottom_spaced framed"
-                            />
-                        )}
                         <ButtonWithLoading
-                            classNameArg="active"
+                            classNameArg="top_spaced active"
                             onClick={async () => {
                                 if (
                                     !description ||
@@ -240,14 +270,14 @@ export const Proposals = () => {
                                     alert(`Error: ${response.Err}`);
                                     return;
                                 }
-                                setCurrentMask("");
+                                setProposalType(null);
                                 setProposal(response.Ok);
                             }}
                             label="SUBMIT"
                         />
                     </div>
                 )}
-                {currentMask == "release" && (
+                {proposalType == ProposalType.Release && (
                     <div className="spaced column_container">
                         <div className="vcentered bottom_half_spaced">
                             COMMIT
@@ -266,24 +296,8 @@ export const Proposals = () => {
                                 callback={setBinary as unknown as any}
                             />
                         </div>
-                        <div className="bottom_half_spaced">DESCRIPTION</div>
-                        <textarea
-                            className="bottom_spaced"
-                            rows={10}
-                            value={description}
-                            onChange={(event) =>
-                                setDescription(event.target.value)
-                            }
-                        ></textarea>
-                        {description && (
-                            <Content
-                                value={description}
-                                preview={true}
-                                classNameArg="bottom_spaced framed"
-                            />
-                        )}
                         <ButtonWithLoading
-                            classNameArg="active"
+                            classNameArg="top_spaced active"
                             onClick={async () => {
                                 if (!description || !binary) {
                                     alert("Error: incomplete data.");
@@ -299,7 +313,7 @@ export const Proposals = () => {
                                     alert(`Error: ${response.Err}`);
                                     return;
                                 }
-                                setCurrentMask("");
+                                setProposalType(null);
                                 setProposal(response.Ok);
                             }}
                             label="SUBMIT"
@@ -438,14 +452,14 @@ export const ProposalView = ({
             <div className="bottom_half_spaced">
                 TYPE:{" "}
                 <strong>
-                    {Object.keys(proposal.payload)[0].toUpperCase()}
+                    {
+                        // @ts-ignore
+                        ProposalType[Object.keys(proposal.payload)[0]]
+                    }
                 </strong>
             </div>
             <div className="bottom_half_spaced">
-                PROPOSER:{" "}
-                <a href={`#/user/${proposal.proposer}`}>{`@${
-                    users[proposal.proposer]
-                }`}</a>
+                PROPOSER: <UserLink id={proposal.proposer} />
             </div>
             <div className="bottom_half_spaced">
                 CREATED: {timeAgo(proposal.timestamp)}
@@ -480,6 +494,22 @@ export const ProposalView = ({
                         </div>
                     )}
                 </div>
+            )}
+            {"AddRealmController" in proposal.payload && (
+                <>
+                    <div className="bottom_half_spaced">
+                        NEW CONTROLLER:{" "}
+                        <UserLink id={proposal.payload.AddRealmController[1]} />
+                    </div>
+                    <div className="bottom_spaced">
+                        REALM:{" "}
+                        <a
+                            href={`#/realm/${proposal.payload.AddRealmController[0]}`}
+                        >
+                            {proposal.payload.AddRealmController[0]}
+                        </a>
+                    </div>
+                </>
             )}
             {"ICPTransfer" in proposal.payload && (
                 <>

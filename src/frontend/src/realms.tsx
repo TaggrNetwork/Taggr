@@ -376,7 +376,6 @@ export const RealmHeader = ({ name }: { name: string }) => {
                 content={
                     <>
                         <ButtonWithLoading
-                            classNameArg="left_half_spaced"
                             styleArg={colors}
                             testId="realm-close-button"
                             onClick={async () => {

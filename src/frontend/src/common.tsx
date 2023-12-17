@@ -30,7 +30,6 @@ export const FileUploadInput = ({
     <input
         type="file"
         className={classNameArg}
-        style={{ maxWidth: "90%" }}
         onChange={async (ev) => {
             const files = (
                 (ev as unknown as DragEvent).dataTransfer || ev.target

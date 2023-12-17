@@ -275,6 +275,20 @@ fn create_invite() {
     mutate(|state| reply(state.create_invite(caller(), credits)));
 }
 
+#[export_name = "canister_update propose_add_realm_controller"]
+fn propose_add_realm_controller() {
+    let (description, user_id, realm_id): (String, UserId, RealmId) = parse(&arg_data_raw());
+    reply(mutate(|state| {
+        proposals::propose(
+            state,
+            caller(),
+            description,
+            proposals::Payload::AddRealmController(realm_id, user_id),
+            time(),
+        )
+    }))
+}
+
 #[export_name = "canister_update propose_icp_transfer"]
 fn propose_icp_transfer() {
     let (description, receiver, amount): (String, String, String) = parse(&arg_data_raw());
@@ -374,7 +388,7 @@ async fn add_post(
     body: String,
     blobs: Vec<(String, Blob)>,
     parent: Option<PostId>,
-    realm: Option<String>,
+    realm: Option<RealmId>,
     extension: Option<Blob>,
 ) -> Result<PostId, String> {
     let post_id = mutate(|state| {
@@ -399,7 +413,7 @@ async fn add_post(
 
 #[update]
 /// This method initiates an asynchronous post creation.
-fn add_post_data(body: String, realm: Option<String>, extension: Option<Blob>) {
+fn add_post_data(body: String, realm: Option<RealmId>, extension: Option<Blob>) {
     mutate(|state| {
         if let Some(user) = state.principal_to_user_mut(caller()) {
             user.draft = Some(Draft {
@@ -455,7 +469,7 @@ async fn edit_post(
     body: String,
     blobs: Vec<(String, Blob)>,
     patch: String,
-    realm: Option<String>,
+    realm: Option<RealmId>,
 ) -> Result<(), String> {
     Post::edit(id, body, blobs, patch, realm, caller(), api::time()).await
 }
@@ -512,8 +526,8 @@ fn toggle_following_feed() {
 #[export_name = "canister_update edit_realm"]
 fn edit_realm() {
     mutate(|state| {
-        let (name, logo, label_color, theme, description, controllers): (
-            String,
+        let (id, logo, label_color, theme, description, controllers): (
+            RealmId,
             String,
             String,
             String,
@@ -522,7 +536,7 @@ fn edit_realm() {
         ) = parse(&arg_data_raw());
         reply(state.edit_realm(
             caller(),
-            name,
+            id,
             logo,
             label_color,
             theme,

@@ -3,8 +3,8 @@ import { Root } from "react-dom/client";
 import { AuthClient } from "@dfinity/auth-client";
 
 export type PostId = number;
-
 export type UserId = number;
+export type RealmId = string;
 
 export type ICP = {
     e8s: BigInt;
@@ -50,6 +50,9 @@ export type Payload =
       }
     | {
           ["ICPTransfer"]: [number[], ICP];
+      }
+    | {
+          ["AddRealmController"]: [RealmId, UserId];
       }
     | {
           ["Reward"]: Reward;

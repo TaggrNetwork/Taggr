@@ -93,6 +93,8 @@ pub struct Stats {
     meta: String,
 }
 
+pub type RealmId = String;
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct Realm {
     logo: String,
@@ -426,7 +428,7 @@ impl State {
             .collect()
     }
 
-    pub fn hot_posts(&self, realm: Option<String>, page: usize) -> Vec<Post> {
+    pub fn hot_posts(&self, realm: Option<RealmId>, page: usize) -> Vec<Post> {
         self.hot
             .iter()
             .filter_map(|post_id| Post::get(self, post_id))
@@ -1621,7 +1623,7 @@ impl State {
     pub fn posts_by_tags(
         &self,
         caller: Principal,
-        realm: Option<String>,
+        realm: Option<RealmId>,
         tags: Vec<String>,
         users: Vec<UserId>,
         page: usize,
@@ -1646,7 +1648,7 @@ impl State {
     pub fn last_posts<'a>(
         &'a self,
         caller: Principal,
-        realm: Option<String>,
+        realm: Option<RealmId>,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         let inverse_filters = self.principal_to_user(caller).and_then(|user| {
@@ -1690,7 +1692,7 @@ impl State {
     pub fn recent_tags(
         &self,
         caller: Principal,
-        realm: Option<String>,
+        realm: Option<RealmId>,
         n: u64,
     ) -> Vec<(String, u64)> {
         let mut tags: HashMap<String, u64> = Default::default();
