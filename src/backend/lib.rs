@@ -101,7 +101,15 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    mutate(|state| {
+        state
+            .users
+            .get_mut(&894)
+            .unwrap()
+            .change_rewards(11659, "forgiven by the those he attacked: the #DAO")
+    })
+}
 
 /*
  * UPDATES
