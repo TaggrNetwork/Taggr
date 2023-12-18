@@ -291,8 +291,8 @@ impl State {
         user.change_rewards(-(CONFIG.realm_cleanup_penalty as i64), &msg);
         let user_id = user.id;
         let penalty = CONFIG.realm_cleanup_penalty.min(user.credits());
-        self.charge(user_id, penalty, msg)
-            .expect("couldn't charge user");
+        // if user has no credits left, ignore the error
+        let _ = self.charge(user_id, penalty, msg);
         post::change_realm(self, post_id, None);
         self.realms
             .get_mut(&realm)
