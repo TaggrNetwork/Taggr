@@ -76,8 +76,6 @@ pub struct Config {
     pub inactivity_penalty: Credits,
     pub inactivity_duration_weeks: u64,
 
-    pub voting_reward: Credits,
-
     // top x percentage of users selected as stalwarts
     pub stalwart_percentage: usize,
     pub min_stalwart_activity_weeks: u8,
@@ -231,8 +229,6 @@ pub const CONFIG: &Config = &Config {
     max_realm_logo_len: 16 * 1024,
 
     post_deletion_penalty_factor: 10,
-
-    voting_reward: 0,
 
     response_reward: 1,
 

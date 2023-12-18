@@ -373,13 +373,6 @@ pub fn vote_on_proposal(
         state.proposals = proposals;
         return Err(err);
     }
-    if let Some(user) = state.principal_to_user(caller) {
-        state.spend_to_user_rewards(
-            user.id,
-            CONFIG.voting_reward,
-            format!("voting rewards for proposal {}", proposal_id),
-        );
-    }
     state.proposals = proposals;
     execute_proposal(state, proposal_id, time)
 }
@@ -418,10 +411,6 @@ pub(super) fn execute_proposal(
     }
     if previous_state != proposal.status {
         state.denotify_users(&|user| user.active_within_weeks(time, 1) && user.balance > 0);
-        state.logger.info(format!(
-            "Spent `{}` credits on proposal voting rewards.",
-            proposal.bulletins.len() * CONFIG.voting_reward as usize
-        ));
     }
     state.proposals = proposals;
     result
@@ -654,7 +643,7 @@ mod tests {
             let user = state.principal_to_user_mut(proposer).unwrap();
             assert_eq!(
                 user.rewards(),
-                1000 - CONFIG.proposal_rejection_penalty as i64 + CONFIG.voting_reward as i64
+                1000 - CONFIG.proposal_rejection_penalty as i64
             );
             assert_eq!(
                 user.credits(),
