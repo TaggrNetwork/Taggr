@@ -119,6 +119,10 @@ article.prime {
     line-height: normal;
 }
 
+textarea {
+    resize: none;
+}
+
 #search_field,
 textarea,
 input,
@@ -330,7 +334,7 @@ path {
 
 .two_columns_grid {
     display: grid;
-    row-gap: 2em;
+    row-gap: 1em;
     grid-template-columns: 50% 50%;
 }
 

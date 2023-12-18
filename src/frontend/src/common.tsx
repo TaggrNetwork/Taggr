@@ -779,7 +779,7 @@ export const popUp = (content: JSX.Element) => {
         <>
             <div className="row_container bottom_spaced" onClick={closePreview}>
                 <div style={{ marginLeft: "auto" }}>
-                    <Close classNameArg="clickable" size={18} />
+                    <Close classNameArg="action" size={18} />
                 </div>
             </div>
             {content}

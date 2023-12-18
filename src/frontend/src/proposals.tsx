@@ -52,7 +52,7 @@ export const Proposals = () => {
                 menu={true}
                 burgerTestId="proposals-burger-button"
                 content={
-                    <div className="row_container">
+                    <div className="two_columns_grid">
                         {Object.values(ProposalType).map((id) => (
                             <button
                                 key={id}
@@ -67,7 +67,7 @@ export const Proposals = () => {
             />
             <div className="vertically_spaced">
                 {proposalType && (
-                    <div className="column_container">
+                    <div className="column_container spaced">
                         <h1>NEW PROPOSAL: {proposalType?.toString()}</h1>
                         <div className="bottom_half_spaced">DESCRIPTION</div>
                         <textarea

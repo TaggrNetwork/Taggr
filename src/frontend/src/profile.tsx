@@ -257,7 +257,10 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 FOLLOWS
                 {placeholder(
                     profile.followees.length,
-                    userList(profile.followees),
+                    <>
+                        <h2>Follows</h2>
+                        {userList(profile.followees)}
+                    </>,
                 )}
             </div>
         ) : null;
@@ -267,7 +270,10 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 FOLLOWERS
                 {placeholder(
                     profile.followers.length,
-                    userList(profile.followers),
+                    <>
+                        <h2>Followers</h2>
+                        {userList(profile.followers)}
+                    </>,
                 )}
             </div>
         ) : null;
@@ -298,32 +304,41 @@ export const UserInfo = ({ profile }: { profile: User }) => {
 
     const donations = Object.entries(profile.karma_donations);
     const accountingList = (
-        <table
-            style={{ width: "100%" }}
-            className={bigScreen() ? undefined : "small_text"}
-        >
-            <tbody>
-                {profile.accounting.map(([timestamp, type, delta, log], i) => (
-                    <tr key={type + log + i}>
-                        <td>{timeAgo(timestamp)}</td>
-                        <td
-                            style={{
-                                color: delta > 0 ? "green" : "red",
-                            }}
-                            className="no_wrap"
-                        >
-                            {delta > 0 ? "+" : ""}
-                            {delta} {type == "CRE" ? "credits" : "rewards"}
-                        </td>
-                        <td style={{ textAlign: "right" }}>{linkPost(log)}</td>
-                    </tr>
-                ))}
-            </tbody>
-        </table>
+        <>
+            <h2>Rewards and Credits Accounting</h2>
+            <table
+                style={{ width: "100%" }}
+                className={bigScreen() ? undefined : "small_text"}
+            >
+                <tbody>
+                    {profile.accounting.map(
+                        ([timestamp, type, delta, log], i) => (
+                            <tr key={type + log + i}>
+                                <td>{timeAgo(timestamp)}</td>
+                                <td
+                                    style={{
+                                        color: delta > 0 ? "green" : "red",
+                                    }}
+                                    className="no_wrap"
+                                >
+                                    {delta > 0 ? "+" : ""}
+                                    {delta}{" "}
+                                    {type == "CRE" ? "credits" : "rewards"}
+                                </td>
+                                <td style={{ textAlign: "right" }}>
+                                    {linkPost(log)}
+                                </td>
+                            </tr>
+                        ),
+                    )}
+                </tbody>
+            </table>
+        </>
     );
 
     const givenRewardsList = (
         <>
+            <h2>Given Rewards</h2>
             {commaSeparated(
                 donations.map(([user_id, karma]) => (
                     <span key={user_id}>
