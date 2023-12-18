@@ -22,7 +22,7 @@ import {
 } from "@dfinity/ledger";
 import { Content } from "./content";
 
-type Balances = [string, number, UserId][];
+type Balances = [IcrcAccount, number, UserId][];
 
 const accToIcrcAcc = ({
     owner,
@@ -62,13 +62,17 @@ export const Tokens = () => {
     }, []);
 
     const mintedSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
+    const heldByUsers = balances.reduce(
+        (acc, [_0, balance, userId]) => (userId == null ? acc : acc + balance),
+        0,
+    );
     const { total_supply, proposal_approval_threshold, transaction_fee } =
         window.backendCache.config;
     const balanceAmounts = balances
         .filter(([_0, _1, userId]) => !isNaN(userId))
         .map(([_, balance]) => balance);
     balanceAmounts.sort((a, b) => b - a);
-    let balancesTotal = balanceAmounts.length;
+    const balancesTotal = balanceAmounts.length;
     let vp = 0;
     while (
         balanceAmounts.length > 0 &&
@@ -79,13 +83,14 @@ export const Tokens = () => {
     const userToPrincipal = balances.reduce(
         (acc, balance) => {
             const userName = window.backendCache.users[balance[2]];
-            if (userName) acc[userName.toLowerCase()] = balance[0];
+            if (userName)
+                acc[userName.toLowerCase()] = balance[0].owner.toString();
             return acc;
         },
         {} as { [name: string]: string },
     );
-    const { holders, e8s_for_one_xdr, e8s_revenue_per_1k } =
-        window.backendCache.stats;
+    const { e8s_for_one_xdr, e8s_revenue_per_1k } = window.backendCache.stats;
+    const holders = balances.length;
 
     switch (status) {
         case 0:
@@ -114,6 +119,9 @@ export const Tokens = () => {
                         HOLDERS<code>{holders}</code>
                     </div>
                     <div className="db_cell">
+                        HELD BY USERS<code>{token(heldByUsers)}</code>
+                    </div>
+                    <div className="db_cell">
                         WEEKLY REVENUE / 10K
                         <code>
                             $
@@ -140,6 +148,18 @@ export const Tokens = () => {
                         <code>{balancesTotal - balanceAmounts.length}</code>
                     </div>
                     <div className="db_cell">
+                        VOLUME 24H
+                        <code>
+                            {token(window.backendCache.stats.volume_day)}
+                        </code>
+                    </div>
+                    <div className="db_cell">
+                        VOLUME 7D
+                        <code>
+                            {token(window.backendCache.stats.volume_week)}
+                        </code>
+                    </div>
+                    <div className="db_cell">
                         TRANSACTION FEE
                         <code>
                             {Number(
@@ -152,17 +172,25 @@ export const Tokens = () => {
                             ).toLocaleString()}
                         </code>
                     </div>
+                    <div className="db_cell">
+                        TOTAL FEES BURNED
+                        <code>
+                            {token(window.backendCache.stats.fees_burned)}
+                        </code>
+                    </div>
                 </div>
                 <h2>Top 100 token holders</h2>
                 <div className="row_container bottom_spaced">
                     {balances.slice(0, 100).map((b) => (
                         <div
-                            key={b[0]}
+                            key={b[0].owner.toString()}
                             style={{
                                 height: "5em",
                                 width: percentage(b[1], mintedSupply),
                                 background:
-                                    holder == b[2] ? "black" : genColor(b[0]),
+                                    holder == b[2]
+                                        ? "black"
+                                        : genColor(b[0].owner.toString()),
                             }}
                             onMouseOver={() => setHolder(b[2])}
                             onClick={() => setHolder(b[2])}
@@ -184,9 +212,9 @@ export const Tokens = () => {
                         className={bigScreen() ? "" : "small_text"}
                     >
                         {balances.slice(0, (balPage + 1) * 25).map((b) => (
-                            <tr key={b[0]}>
+                            <tr key={b[0].owner.toString()}>
                                 <td style={{ textAlign: "left" }}>
-                                    {showPrincipal(b[0])}
+                                    {showPrincipal(b[0].owner.toString())}
                                 </td>
                                 <td>
                                     <code>{token(b[1])}</code>

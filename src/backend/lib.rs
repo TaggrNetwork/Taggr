@@ -647,18 +647,11 @@ fn balances() {
             state
                 .balances
                 .iter()
-                .fold(HashMap::new(), |mut map, (account, balance)| {
-                    map.entry(account.owner)
-                        .and_modify(|b| *b += *balance)
-                        .or_insert(*balance);
-                    map
-                })
-                .into_iter()
-                .map(|(principal, balance)| {
+                .map(|(acc, balance)| {
                     (
-                        principal,
+                        acc,
                         balance,
-                        state.principal_to_user(principal).map(|u| u.id),
+                        state.principal_to_user(acc.owner).map(|u| u.id),
                     )
                 })
                 .collect::<Vec<_>>(),

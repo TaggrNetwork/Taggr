@@ -225,6 +225,9 @@ declare global {
             recent_tags: string[];
             realms: { [name: string]: [string, boolean] };
             stats: {
+                fees_burned: number;
+                volume_day: number;
+                volume_week: number;
                 minting_ratio: number;
                 users: number;
                 active_users: number;
@@ -247,7 +250,6 @@ declare global {
                 state_size: number;
                 account: string;
                 last_weekly_chores: BigInt;
-                holders: number;
                 e8s_for_one_xdr: BigInt;
                 e8s_revenue_per_1k: BigInt;
                 canister_id: string;

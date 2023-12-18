@@ -62,7 +62,6 @@ pub struct Event {
 
 #[derive(Serialize, Deserialize)]
 pub struct Stats {
-    holders: usize,
     minting_ratio: u64,
     e8s_revenue_per_1k: u64,
     e8s_for_one_xdr: u64,
@@ -92,6 +91,10 @@ pub struct Stats {
     canister_id: Principal,
     circulating_supply: u64,
     meta: String,
+
+    fees_burned: Token,
+    volume_day: Token,
+    volume_week: Token,
 }
 
 pub type RealmId = String;
@@ -1894,7 +1897,7 @@ impl State {
         )
     }
 
-    pub fn stats(&self, now: u64) -> Stats {
+    pub fn stats(&self, now: Time) -> Stats {
         let mut stalwarts = Vec::new();
         let mut users_online = 0;
         let mut invited_users = 0;
@@ -1921,9 +1924,27 @@ impl State {
         }
         stalwarts.sort_unstable_by_key(|u| u.id);
         let posts = self.root_posts;
+        let volume_day = self
+            .ledger
+            .iter()
+            .rev()
+            .take_while(|tx| tx.timestamp + DAY >= now)
+            .map(|tx| tx.amount)
+            .sum();
+        let volume_week = self
+            .ledger
+            .iter()
+            .rev()
+            .take_while(|tx| tx.timestamp + WEEK >= now)
+            .map(|tx| tx.amount)
+            .sum();
+        let fees_burned = self.ledger.iter().map(|tx| tx.fee).sum();
+
         Stats {
+            fees_burned,
+            volume_day,
+            volume_week,
             minting_ratio: self.minting_ratio(),
-            holders: self.balances.len(),
             e8s_for_one_xdr: self.e8s_for_one_xdr,
             e8s_revenue_per_1k: self.last_revenues.iter().sum::<u64>()
                 / self.last_revenues.len().max(1) as u64,
