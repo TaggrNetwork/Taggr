@@ -403,7 +403,11 @@ impl Post {
                 .filter(|(id, _)| !old_blob_ids.contains(id.as_str()))
                 .count();
             let costs = post.costs(new_blobs);
-            state.charge(user_id, costs, format!("editing of post {}", id))?;
+            state.charge(
+                user_id,
+                costs,
+                format!("editing of post [{0}](#/post/${0})", id),
+            )?;
             post.patches.push((post.timestamp, patch));
             post.timestamp = timestamp;
 
@@ -506,7 +510,11 @@ impl Post {
         let costs = post.costs(blobs.len());
         post.valid(blobs)?;
         let future_id = state.next_post_id;
-        state.charge(user_id, costs, format!("new post {}", future_id))?;
+        state.charge(
+            user_id,
+            costs,
+            format!("new post [{0}](#/post/{0})", future_id),
+        )?;
         let user = state.users.get_mut(&user_id).expect("no user found");
         user.num_posts += 1;
         // reorder realms

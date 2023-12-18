@@ -326,7 +326,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                                     {type == "CRE" ? "credits" : "rewards"}
                                 </td>
                                 <td style={{ textAlign: "right" }}>
-                                    {linkPost(log)}
+                                    {<Content post={false} value={log} />}
                                 </td>
                             </tr>
                         ),
@@ -528,14 +528,3 @@ const secondsSince = (val: BigInt) =>
 
 const isBot = (profile: User) =>
     profile.controllers.find((p) => p.length == 27);
-
-const linkPost = (line: string) => {
-    const [prefix, id] = line.split(" post ");
-    if (id) {
-        return (
-            <span>
-                {prefix} post <a href={`#/post/${id}`}>{id}</a>
-            </span>
-        );
-    } else return line;
-};

@@ -285,7 +285,7 @@ impl State {
         }
         let user = self.users.get_mut(&post_user).ok_or("no user found")?;
         let msg = format!(
-            "post {} was moved out of realm {}: {}",
+            "post {} was moved out of realm /{}: {}",
             post_id, realm, reason
         );
         user.change_rewards(-(CONFIG.realm_cleanup_penalty as i64), &msg);
@@ -538,7 +538,7 @@ impl State {
             .ok_or("no user found")?
             .clone();
 
-        self.charge(user.id, CONFIG.realm_cost, "realm creation".to_string())
+        self.charge(user.id, CONFIG.realm_cost, format!("new realm /{}", name))
             .map_err(|err| {
                 format!(
                     "couldn't charge {} credits for realm creation: {}",
@@ -2136,7 +2136,10 @@ impl State {
         self.users
             .get_mut(&post.user)
             .expect("no user found")
-            .change_rewards(-karma_penalty, format!("deletion of post {}", post.id));
+            .change_rewards(
+                -karma_penalty,
+                format!("deletion of post [{0}](#/post/{0})", post.id),
+            );
 
         self.hot.retain(|id| id != &post_id);
 
