@@ -1339,8 +1339,8 @@ impl State {
         }
     }
 
-    pub async fn weekly_chores(now: u64) {
-        mutate(|state| state.distribute_realm_revenue());
+    pub async fn weekly_chores(now: Time) {
+        mutate(|state| state.distribute_realm_revenue(now));
 
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
@@ -1367,7 +1367,7 @@ impl State {
         });
     }
 
-    fn distribute_realm_revenue(&mut self) {
+    fn distribute_realm_revenue(&mut self, now: Time) {
         for (realm_id, revenue, controllers) in self
             .realms
             .iter_mut()
@@ -1381,8 +1381,18 @@ impl State {
             })
             .collect::<Vec<_>>()
         {
-            let controller_revenue =
-                revenue * CONFIG.realm_revenue_percentage as u64 / 100 / controllers.len() as u64;
+            let controllers = controllers
+                .into_iter()
+                .filter(|user_id| {
+                    self.users
+                        .get(user_id)
+                        .map(|user| user.active_within_weeks(now, 1))
+                        .unwrap_or_default()
+                })
+                .collect::<Vec<_>>();
+            let controller_revenue = revenue * CONFIG.realm_revenue_percentage as u64
+                / 100
+                / controllers.len().max(1) as u64;
             for id in controllers.iter() {
                 self.spend_to_user_rewards(
                     *id,
@@ -2242,7 +2252,7 @@ impl State {
         principal: Principal,
         post_id: PostId,
         reaction: u16,
-        time: u64,
+        time: Time,
     ) -> Result<(), String> {
         let delta: i64 = match CONFIG.reactions.iter().find(|(id, _)| id == &reaction) {
             Some((_, delta)) => *delta,
@@ -2849,16 +2859,14 @@ pub(crate) mod tests {
             let state = &mut *cell.borrow_mut();
             create_user(state, pr(0));
             create_user(state, pr(1));
+            create_user(state, pr(2));
             let test_realm = Realm {
-                controllers: [0, 1].iter().copied().collect(),
+                controllers: [0, 1, 2].iter().copied().collect(),
                 ..Default::default()
             };
-            for i in [0, 1] {
-                state
-                    .principal_to_user_mut(pr(i))
-                    .unwrap()
-                    .realms
-                    .push("TEST".into());
+            for i in 0..=2 {
+                let user = state.principal_to_user_mut(pr(i)).unwrap();
+                user.realms.push("TEST".into());
             }
             state.realms.insert("TEST".into(), test_realm);
             for i in 0..100 {
@@ -2867,20 +2875,21 @@ pub(crate) mod tests {
                     "test".to_string(),
                     &[],
                     pr(i % 2),
-                    0,
+                    WEEK,
                     None,
                     Some("TEST".into()),
                     None,
                 )
                 .unwrap();
-                assert!(state.react(pr((i + 1) % 2), post_id, 100, 0).is_ok());
+                assert!(state.react(pr((i + 1) % 2), post_id, 100, WEEK).is_ok());
             }
 
             assert_eq!(state.realms.values().next().unwrap().revenue, 200);
             assert_eq!(state.principal_to_user(pr(0)).unwrap().rewards(), 500);
             assert_eq!(state.principal_to_user(pr(1)).unwrap().rewards(), 500);
+            assert_eq!(state.principal_to_user(pr(2)).unwrap().rewards(), 0);
             assert_eq!(state.burned_cycles, 300);
-            state.distribute_realm_revenue();
+            state.distribute_realm_revenue(WEEK + WEEK / 2);
             assert_eq!(state.realms.values().next().unwrap().revenue, 0);
             let expected_revenue = (200 / 100 * CONFIG.realm_revenue_percentage / 2) as i64;
             assert_eq!(state.burned_cycles, 300 - 2 * expected_revenue);
@@ -2892,6 +2901,7 @@ pub(crate) mod tests {
                 state.principal_to_user(pr(1)).unwrap().rewards(),
                 500 + expected_revenue
             );
+            assert_eq!(state.principal_to_user(pr(2)).unwrap().rewards(), 0);
         })
     }
 

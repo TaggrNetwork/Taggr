@@ -205,9 +205,9 @@ pub const CONFIG: &Config = &Config {
 
     max_bucket_size: 1024 * 1024 * 1024 * 48, // 48Gb
 
-    #[cfg(feature = "dev")]
-    max_posts_per_hour: 15,
-    #[cfg(not(feature = "dev"))]
+    #[cfg(any(test, feature = "dev"))]
+    max_posts_per_hour: 150,
+    #[cfg(not(any(test, feature = "dev")))]
     max_posts_per_hour: 5,
     max_comments_per_hour: 30,
 
