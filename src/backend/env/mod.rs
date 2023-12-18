@@ -1740,6 +1740,11 @@ impl State {
             .ok()
             .and_then(|id| self.users.get(&id))
             .or_else(|| {
+                Principal::from_text(handle)
+                    .ok()
+                    .and_then(|principal| self.principal_to_user(principal))
+            })
+            .or_else(|| {
                 self.users.values().find(|user| {
                     std::iter::once(&user.name)
                         .chain(user.previous_names.iter())

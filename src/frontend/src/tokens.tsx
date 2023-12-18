@@ -13,13 +13,14 @@ import {
     XDR_TO_USD,
 } from "./common";
 import * as React from "react";
-import { UserId, Transaction } from "./types";
+import { UserId, Transaction, User } from "./types";
 import { Principal } from "@dfinity/principal";
 import {
     IcrcAccount,
     decodeIcrcAccount,
     encodeIcrcAccount,
 } from "@dfinity/ledger";
+import { Content } from "./content";
 
 type Balances = [string, number, UserId][];
 
@@ -92,7 +93,12 @@ export const Tokens = () => {
         case -1:
             return <NotFound />;
     }
-
+    let searchedPrincipal;
+    try {
+        searchedPrincipal = Principal.fromText(
+            userToPrincipal[query.toLowerCase()] || query,
+        ).toString();
+    } catch (_) {}
     return (
         <>
             <HeadBar title="TOKENS" shareLink="tokens" />
@@ -221,9 +227,7 @@ export const Tokens = () => {
                         }}
                     />
                 </div>
-                <TransactionsView
-                    principal={userToPrincipal[query.toLowerCase()] || query}
-                />
+                <TransactionsView principal={searchedPrincipal} />
             </div>
         </>
     );
@@ -240,10 +244,22 @@ export const TransactionsView = ({
 }) => {
     const [noMoreData, setNoMoreData] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
+    const [identifiedUser, setIdentifiedUser] = React.useState<User | null>(
+        null,
+    );
     const [transactions, setTransactions] = React.useState(
         [] as [number, Transaction][],
     );
     const [txPage, setTxPage] = React.useState(0);
+
+    const loadUser = async () => {
+        if (!principal) return;
+        const profile = await window.api.query<User>("user", [principal]);
+        if (!profile) {
+            return;
+        }
+        setIdentifiedUser(profile);
+    };
 
     const loadTransactions = async () => {
         setLoading(true);
@@ -270,6 +286,7 @@ export const TransactionsView = ({
 
     React.useEffect(() => {
         loadTransactions();
+        loadUser();
     }, [txPage, principal, heartbeat]);
 
     if (loading) return <Loading />;
@@ -292,7 +309,17 @@ export const TransactionsView = ({
                     shareLink={`transactions/${principal}`}
                 />
             )}
-            <Transactions transactions={transactions} />
+            {identifiedUser && (
+                <div className="stands_out top_spaced">
+                    <h2 className="larger_text ">
+                        User <UserLink id={identifiedUser.id} />
+                    </h2>
+                    <Content value={identifiedUser.about} />
+                </div>
+            )}
+            <div className="spaced">
+                <Transactions transactions={transactions} />
+            </div>
             {!noMoreData && (
                 <div
                     style={{
