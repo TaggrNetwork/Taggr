@@ -417,9 +417,10 @@ impl Post {
                 .filter(|(id, _)| !old_blob_ids.contains(id.as_str()))
                 .count();
             let costs = post.costs(new_blobs);
-            state.charge(
+            state.charge_in_realm(
                 user_id,
                 costs,
+                post.realm.clone(),
                 format!("editing of post [{0}](#/post/${0})", id),
             )?;
             post.patches.push((post.timestamp, patch));
@@ -524,9 +525,10 @@ impl Post {
         let costs = post.costs(blobs.len());
         post.valid(blobs)?;
         let future_id = state.next_post_id;
-        state.charge(
+        state.charge_in_realm(
             user_id,
             costs,
+            realm.clone(),
             format!("new post [{0}](#/post/{0})", future_id),
         )?;
         let user = state.users.get_mut(&user_id).expect("no user found");

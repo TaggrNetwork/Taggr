@@ -104,8 +104,9 @@ pub struct Realm {
     theme: String,
     pub num_posts: u64,
     pub num_members: u64,
-    #[serde(default)]
     pub last_update: u64,
+    #[serde(default)]
+    pub revenue: Credits,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -344,12 +345,25 @@ impl State {
         amount: Credits,
         log: T,
     ) -> Result<(), String> {
+        self.charge_in_realm(id, amount, None, log)
+    }
+
+    pub fn charge_in_realm<T: ToString>(
+        &mut self,
+        id: UserId,
+        amount: Credits,
+        realm_id: Option<RealmId>,
+        log: T,
+    ) -> Result<(), String> {
         if amount < 1 {
             return Err("non-positive amount".into());
         }
         let user = self.users.get_mut(&id).ok_or("no user found")?;
         user.change_credits(amount, CreditsDelta::Minus, log)?;
         self.burned_cycles += amount as i64;
+        if let Some(realm) = realm_id.and_then(|id| self.realms.get_mut(&id)) {
+            realm.revenue += amount
+        }
         Ok(())
     }
 
@@ -2127,9 +2141,10 @@ impl State {
         }
 
         // penalize for comments tree destruction
-        self.charge(
+        self.charge_in_realm(
             post.user,
             CONFIG.post_cost + comments_tree_penalty,
+            post.realm,
             format!("deletion of post {}", post.id),
         )?;
 
@@ -2211,16 +2226,18 @@ impl State {
                 .get_mut(&post.user)
                 .expect("user not found")
                 .change_rewards(delta, log.clone());
-            self.charge(
+            self.charge_in_realm(
                 user.id,
                 delta.unsigned_abs().min(user.credits()),
+                post.realm.clone(),
                 log.clone(),
             )?;
-            self.charge(
+            self.charge_in_realm(
                 post.user,
                 delta
                     .unsigned_abs()
                     .min(self.users.get(&post.user).expect("no user found").credits()),
+                post.realm.clone(),
                 log,
             )
             .expect("couldn't charge user");
