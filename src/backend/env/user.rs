@@ -57,8 +57,7 @@ pub struct User {
     pub account: String,
     pub settings: String,
     cycles: Credits,
-    // TODO: remove pub
-    pub rewards: i64,
+    rewards: i64,
     pub feeds: Vec<BTreeSet<String>>,
     pub followees: BTreeSet<UserId>,
     pub followers: BTreeSet<UserId>,
