@@ -68,7 +68,7 @@ pub struct User {
     pub stalwart: bool,
     pub controllers: Vec<String>,
     pub invited_by: Option<UserId>,
-    pub accounting: VecDeque<(u64, String, i64, String)>,
+    pub accounting: VecDeque<(Time, String, i64, String)>,
     pub realms: Vec<String>,
     pub balance: Token,
     pub active_weeks: u32,

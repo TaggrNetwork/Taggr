@@ -40,6 +40,8 @@ pub struct Config {
 
     pub dao_realm: &'static str,
 
+    pub realm_revenue_percentage: u32,
+
     pub min_cycle_balance_main: u64,
 
     pub max_bucket_size: u64,
@@ -170,6 +172,8 @@ pub const CONFIG: &Config = &Config {
     nns_voting_enabled: false,
 
     dao_realm: "DAO",
+
+    realm_revenue_percentage: 5,
 
     #[cfg(feature = "dev")]
     proposal_approval_threshold: 1,

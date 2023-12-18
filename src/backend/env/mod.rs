@@ -37,6 +37,7 @@ pub mod user;
 
 pub type Credits = u64;
 pub type Blob = ByteBuf;
+pub type Time = u64;
 
 pub const MINUTE: u64 = 60000000000_u64;
 pub const HOUR: u64 = 60 * MINUTE;
@@ -126,7 +127,7 @@ pub struct State {
     pub logger: Logger,
     pub hot: VecDeque<PostId>,
     pub invites: BTreeMap<String, (UserId, Credits)>,
-    pub realms: BTreeMap<String, Realm>,
+    pub realms: BTreeMap<RealmId, Realm>,
 
     #[serde(skip)]
     pub balances: HashMap<Account, Token>,
@@ -314,8 +315,8 @@ impl State {
             .sum()
     }
 
-    fn spend_to_user_rewards<T: ToString>(&mut self, id: UserId, amount: Credits, log: T) {
-        let user = self.users.get_mut(&id).expect("no user found");
+    fn spend_to_user_rewards<T: ToString>(&mut self, user_id: UserId, amount: Credits, log: T) {
+        let user = self.users.get_mut(&user_id).expect("no user found");
         user.change_rewards(amount as i64, log.to_string());
         if amount > CONFIG.response_reward {
             self.logger.info(format!(
@@ -1336,6 +1337,8 @@ impl State {
     }
 
     pub async fn weekly_chores(now: u64) {
+        mutate(|state| state.distribute_realm_revenue());
+
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
             let (karma, revenues, e8s_for_one_xdr) = mutate(|state| {
@@ -1354,15 +1357,44 @@ impl State {
                     .info("Skipping minting & distributions due to open proposals")
             });
         }
+
         mutate(|state| {
             state.clean_up(now);
             state.charge_for_inactivity(now);
         });
     }
 
-    fn clean_up(&mut self, now: u64) {
+    fn distribute_realm_revenue(&mut self) {
+        for (realm_id, revenue, controllers) in self
+            .realms
+            .iter_mut()
+            .filter(|(id, _)| id.as_str() != CONFIG.dao_realm)
+            .map(|(id, realm)| {
+                (
+                    id.clone(),
+                    std::mem::replace(&mut realm.revenue, 0),
+                    realm.controllers.clone(),
+                )
+            })
+            .collect::<Vec<_>>()
+        {
+            let controller_revenue =
+                revenue * CONFIG.realm_revenue_percentage as u64 / 100 / controllers.len() as u64;
+            for id in controllers.iter() {
+                self.spend_to_user_rewards(
+                    *id,
+                    controller_revenue,
+                    format!("revenue from realm /{}", realm_id),
+                );
+            }
+        }
+    }
+
+    fn clean_up(&mut self, now: Time) {
         for user in self.users.values_mut() {
-            user.accounting.clear();
+            // clean up all accounting entries older than 2 weeks
+            user.accounting
+                .retain(|(time, _, _, _)| time + 2 * WEEK >= now);
             if user.active_within_weeks(now, 1) {
                 user.active_weeks += 1;
                 user.invites_budget = user.invites_budget.max(CONFIG.invites_budget_credits);
@@ -2785,6 +2817,59 @@ pub(crate) mod tests {
             assert_eq!(
                 user.account,
                 AccountIdentifier::new(&id(), &principal_to_subaccount(&principal)).to_string()
+            );
+        })
+    }
+
+    #[test]
+    fn test_realm_revenue() {
+        STATE.with(|cell| {
+            cell.replace(Default::default());
+            let state = &mut *cell.borrow_mut();
+            create_user(state, pr(0));
+            create_user(state, pr(1));
+            let test_realm = Realm {
+                controllers: [0, 1].iter().copied().collect(),
+                ..Default::default()
+            };
+            for i in [0, 1] {
+                state
+                    .principal_to_user_mut(pr(i))
+                    .unwrap()
+                    .realms
+                    .push("TEST".into());
+            }
+            state.realms.insert("TEST".into(), test_realm);
+            for i in 0..100 {
+                let post_id = Post::create(
+                    state,
+                    "test".to_string(),
+                    &[],
+                    pr(i % 2),
+                    0,
+                    None,
+                    Some("TEST".into()),
+                    None,
+                )
+                .unwrap();
+                assert!(state.react(pr((i + 1) % 2), post_id, 100, 0).is_ok());
+            }
+
+            assert_eq!(state.realms.values().next().unwrap().revenue, 200);
+            assert_eq!(state.principal_to_user(pr(0)).unwrap().rewards(), 500);
+            assert_eq!(state.principal_to_user(pr(1)).unwrap().rewards(), 500);
+            assert_eq!(state.burned_cycles, 300);
+            state.distribute_realm_revenue();
+            assert_eq!(state.realms.values().next().unwrap().revenue, 0);
+            let expected_revenue = (200 / 100 * CONFIG.realm_revenue_percentage / 2) as i64;
+            assert_eq!(state.burned_cycles, 300 - 2 * expected_revenue);
+            assert_eq!(
+                state.principal_to_user(pr(0)).unwrap().rewards(),
+                500 + expected_revenue
+            );
+            assert_eq!(
+                state.principal_to_user(pr(1)).unwrap().rewards(),
+                500 + expected_revenue
             );
         })
     }
