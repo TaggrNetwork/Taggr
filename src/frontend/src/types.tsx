@@ -13,6 +13,7 @@ export type ICP = {
 export type Poll = {
     options: string[];
     votes: { [option: number]: UserId[] };
+    voters: UserId[];
     deadline: number;
     weighted_by_karma: { [key: number]: number };
     weighted_by_tokens: { [key: number]: number };

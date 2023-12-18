@@ -1,5 +1,5 @@
 import * as React from "react";
-import { userList } from "./common";
+import { ButtonWithLoading, userList } from "./common";
 import { Content } from "./content";
 import { Poll, PostId } from "./types";
 
@@ -12,6 +12,7 @@ export const PollView = ({
     post_id?: PostId;
     created: number | BigInt;
 }) => {
+    const [vote, setVote] = React.useState<number | null>(null);
     const [data, setData] = React.useState(poll);
     const [revoteMode, setRevoteMode] = React.useState(false);
 
@@ -19,8 +20,14 @@ export const PollView = ({
 
     const radio_group_name = post_id ? `${post_id}-poll` : "poll";
     const user_id = window.user?.id;
+    const votedAnonymously =
+        data.voters.includes(user_id) &&
+        !Object.values(data.votes).flat().includes(user_id);
     const voted =
-        Object.values(data.votes).flat().includes(user_id) && !revoteMode;
+        !revoteMode &&
+        (Object.values(data.votes).flat().includes(user_id) ||
+            votedAnonymously);
+
     const totalVotes = Object.values(data.votes)
         .map((votes) => votes.length)
         .reduce((acc, e) => acc + e, 0);
@@ -29,6 +36,7 @@ export const PollView = ({
     );
     const expired = createdHoursAgo >= poll.deadline;
     const canChangeVote =
+        !votedAnonymously &&
         voted &&
         poll.deadline - createdHoursAgo >
             window.backendCache.config.poll_revote_deadline_hours;
@@ -65,33 +73,7 @@ export const PollView = ({
                                 onChange={(e) => {
                                     if (post_id == undefined || !window.user)
                                         return;
-                                    e.preventDefault();
-                                    let vote = Number(e.target.value);
-                                    if (
-                                        !confirm(
-                                            `Please confirm your choice: ${data.options[vote]}`,
-                                        )
-                                    )
-                                        return;
-                                    window.api
-                                        .call<any>(
-                                            "vote_on_poll",
-                                            post_id,
-                                            vote,
-                                        )
-                                        .then((response) => {
-                                            if (response.Err) {
-                                                alert(
-                                                    `Error: ${response.Err}!`,
-                                                );
-                                                return;
-                                            }
-                                        });
-                                    const list = poll.votes[vote] || [];
-                                    list.push(user_id);
-                                    poll.votes[vote] = list;
-                                    setRevoteMode(false);
-                                    setData({ ...poll });
+                                    setVote(Number(e.target.value));
                                 }}
                             />
                         )}
@@ -137,6 +119,44 @@ export const PollView = ({
                     </label>
                 );
             })}
+            {vote != null && (!voted || revoteMode) && (
+                <div className="row_container">
+                    {[
+                        ["SUBMIT ANONYMOUSLY", true],
+                        ["SUBMIT", false],
+                    ].map(([label, anonymously]: any) => (
+                        <ButtonWithLoading
+                            key={label}
+                            classNameArg="top_spaced bottom_spaced max_width_col"
+                            onClick={async () => {
+                                window.api
+                                    .call<any>(
+                                        "vote_on_poll",
+                                        post_id,
+                                        vote,
+                                        anonymously,
+                                    )
+                                    .then((response) => {
+                                        if (response.Err) {
+                                            alert(`Error: ${response.Err}!`);
+                                            return;
+                                        }
+                                    });
+                                const list = poll.votes[vote] || [];
+                                list.push(
+                                    anonymously
+                                        ? Number.MAX_SAFE_INTEGER
+                                        : user_id,
+                                );
+                                poll.votes[vote] = list;
+                                setRevoteMode(false);
+                                setData({ ...poll });
+                            }}
+                            label={label}
+                        />
+                    ))}
+                </div>
+            )}
             {!expired && (
                 <span className="top_spaced small_text text_centered">
                     <span className="inactive">

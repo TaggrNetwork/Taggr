@@ -135,8 +135,8 @@ async fn get_neuron_info() -> Result<String, String> {
 
 #[export_name = "canister_update vote_on_poll"]
 fn vote_on_poll() {
-    let (post_id, vote): (PostId, u16) = parse(&arg_data_raw());
-    mutate(|state| reply(state.vote_on_poll(caller(), api::time(), post_id, vote)));
+    let (post_id, vote, anonymously): (PostId, u16, bool) = parse(&arg_data_raw());
+    mutate(|state| reply(state.vote_on_poll(caller(), api::time(), post_id, vote, anonymously)));
 }
 
 #[export_name = "canister_update report"]

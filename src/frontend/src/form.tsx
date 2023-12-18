@@ -479,6 +479,7 @@ export const Form = ({
                                                               "...",
                                                           ],
                                                           votes: {},
+                                                          voters: [],
                                                           deadline: 24,
                                                           weighted_by_karma: {},
                                                           weighted_by_tokens:

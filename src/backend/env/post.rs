@@ -34,6 +34,8 @@ pub struct Poll {
     pub votes: BTreeMap<u16, BTreeSet<UserId>>,
     pub deadline: u64,
     #[serde(default)]
+    pub voters: BTreeSet<UserId>,
+    #[serde(default)]
     pub weighted_by_karma: BTreeMap<u16, i64>,
     #[serde(default)]
     pub weighted_by_tokens: BTreeMap<u16, Token>,
@@ -147,6 +149,7 @@ impl Post {
         user_realms: Vec<String>,
         time: u64,
         vote: u16,
+        anonymously: bool,
     ) -> Result<(), String> {
         if let Some(realm) = self.realm.as_ref() {
             if !user_realms.contains(realm) {
@@ -161,18 +164,30 @@ impl Post {
             if time > timestamp + HOUR * poll.deadline {
                 return Err("poll expired".into());
             }
-            if poll.votes.values().flatten().any(|id| id == &user_id) {
-                // check if the user can still re-vote
-                if time + CONFIG.poll_revote_deadline_hours * HOUR
-                    >= timestamp + HOUR * poll.deadline
-                {
-                    return Err("your vote cannot be changed anymore".into());
+
+            // if user voted already, check the conditions
+            if poll.voters.contains(&user_id) {
+                // if the voter voted unanonymously
+                if poll.votes.values().flatten().any(|id| id == &user_id) {
+                    // check if the user can still re-vote
+                    if time + CONFIG.poll_revote_deadline_hours * HOUR
+                        >= timestamp + HOUR * poll.deadline
+                    {
+                        return Err("your vote cannot be changed anymore".into());
+                    }
+                    poll.votes.values_mut().for_each(|votes| {
+                        votes.remove(&user_id);
+                    });
+                } else {
+                    return Err("anonymous votes cannot be changed".into());
                 }
-                poll.votes.values_mut().for_each(|votes| {
-                    votes.remove(&user_id);
-                });
             }
-            poll.votes.entry(vote).or_default().insert(user_id);
+            poll.voters.insert(user_id);
+            poll.votes.entry(vote).or_default().insert(if anonymously {
+                UserId::MAX
+            } else {
+                user_id
+            });
         }
         Ok(())
     }
@@ -309,8 +324,7 @@ impl Post {
     }
 
     /// Checks if the poll has ended. If not, returns `Ok(false)`. If the poll ended,
-    /// returns `Ok(true)` and assings the result weighted by the square root of karma and by the token
-    /// voting power.
+    /// returns `Ok(true)` and assings the result weighted by the token voting power.
     pub fn conclude_poll(state: &mut State, post_id: &PostId, now: u64) -> Result<bool, String> {
         let (balances, users) = Post::get(state, post_id)
             .and_then(|post| {

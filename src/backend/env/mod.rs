@@ -1974,6 +1974,7 @@ impl State {
         time: u64,
         post_id: PostId,
         vote: u16,
+        anonymously: bool,
     ) -> Result<(), String> {
         let user = self
             .principal_to_user(principal)
@@ -1981,7 +1982,7 @@ impl State {
         let (user_id, user_realms) = (user.id, user.realms.clone());
         Post::mutate(self, &post_id, |post| {
             post.watchers.insert(user_id);
-            post.vote_on_poll(user_id, user_realms.clone(), time, vote)
+            post.vote_on_poll(user_id, user_realms.clone(), time, vote, anonymously)
         })
     }
 
