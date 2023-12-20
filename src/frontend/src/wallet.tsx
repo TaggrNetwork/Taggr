@@ -411,6 +411,7 @@ export const Wallet = () => {
                 <h2>Latest Transactions</h2>
                 <TransactionsView
                     principal={user.principal}
+                    hideUserInfo={true}
                     heartbeat={new Date()}
                 />
             </div>

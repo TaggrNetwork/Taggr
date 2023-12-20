@@ -265,10 +265,12 @@ export const TransactionsView = ({
     principal,
     prime,
     heartbeat,
+    hideUserInfo,
 }: {
     principal?: string;
     prime?: boolean;
     heartbeat?: any;
+    hideUserInfo?: boolean;
 }) => {
     const [noMoreData, setNoMoreData] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
@@ -328,16 +330,21 @@ export const TransactionsView = ({
                             TRANSACTIONS OF{" "}
                             <CopyToClipboard
                                 value={principal}
-                                displayMap={(value) =>
-                                    value.split("-")[0].toUpperCase()
-                                }
+                                displayMap={(value) => {
+                                    const [acc, subacc] = value.split(".");
+                                    let result = (
+                                        acc.split("-")[0] +
+                                        (subacc ? `.${subacc.slice(0, 6)}` : "")
+                                    ).toUpperCase();
+                                    return result;
+                                }}
                             />
                         </>
                     }
                     shareLink={`transactions/${principal}`}
                 />
             )}
-            {identifiedUser && (
+            {identifiedUser && !hideUserInfo && (
                 <div className="stands_out top_spaced">
                     <h2 className="larger_text ">
                         User <UserLink id={identifiedUser.id} />
