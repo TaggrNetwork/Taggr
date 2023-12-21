@@ -925,8 +925,7 @@ fn personal_feed() {
             None => Default::default(),
             Some(user) => user
                 .personal_feed(state, page, with_comments)
-                .cloned()
-                .collect::<Vec<Post>>(),
+                .collect::<Vec<_>>(),
         })
     });
 }

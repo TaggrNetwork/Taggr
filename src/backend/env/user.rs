@@ -11,12 +11,6 @@ pub struct Filters {
     pub realms: BTreeSet<String>,
 }
 
-impl Filters {
-    pub fn is_empty(&self) -> bool {
-        self.users.is_empty() && self.tags.is_empty() && self.realms.is_empty()
-    }
-}
-
 #[derive(PartialEq)]
 pub enum CreditsDelta {
     Plus,
@@ -231,6 +225,7 @@ impl User {
                 iterators: iterators.into_iter().map(|i| i.peekable()).collect(),
             }
             .filter(move |post| with_comments || post.parent.is_none())
+            .filter(move |post| !post.matches_filters(&self.filters))
             .skip(page * CONFIG.feed_page_size)
             .take(CONFIG.feed_page_size),
         )

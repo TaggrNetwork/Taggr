@@ -1710,14 +1710,7 @@ impl State {
         realm: Option<RealmId>,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let inverse_filters = self.principal_to_user(caller).and_then(|user| {
-            let filters = &user.filters;
-            if filters.is_empty() {
-                None
-            } else {
-                Some(filters)
-            }
-        });
+        let inverse_filters = self.principal_to_user(caller).map(|user| &user.filters);
         Box::new(
             {
                 let last_id = self.next_post_id.saturating_sub(1);
@@ -1729,20 +1722,7 @@ impl State {
                     && (with_comments || post.parent.is_none())
                     && (realm.is_none() || post.realm == realm)
                     && inverse_filters
-                        .map(
-                            |Filters {
-                                 users,
-                                 tags,
-                                 realms,
-                             }| {
-                                post.realm
-                                    .as_ref()
-                                    .map(|id| Some(id) == realm.as_ref() || !realms.contains(id))
-                                    .unwrap_or(true)
-                                    && !users.contains(&post.user)
-                                    && tags.is_disjoint(&post.tags)
-                            },
-                        )
+                        .map(|filters| !post.matches_filters(filters))
                         .unwrap_or(true)
             }),
         )
@@ -3716,7 +3696,7 @@ pub(crate) mod tests {
             let _post_author_id = create_user(state, p);
             let post_id2 = Post::create(
                 state,
-                "This is a different #post, but with the same #tags".to_string(),
+                "This is a different #post, but with the same #tags and one #more".to_string(),
                 &[],
                 p,
                 0,
@@ -3795,6 +3775,29 @@ pub(crate) mod tests {
             assert_eq!(feed.len(), 2);
             assert!(feed.contains(&post_id));
             assert!(feed.contains(&post_id2));
+
+            // testing inverse filters
+            let user = state.users.get_mut(&user_id).unwrap();
+            user.toggle_filter("tag".into(), "more".into()).unwrap();
+            let feed = state
+                .users
+                .get(&user_id)
+                .unwrap()
+                .personal_feed(state, 0, true)
+                .map(|post| post.id)
+                .collect::<Vec<_>>();
+            assert!(feed.contains(&post_id));
+            assert!(!feed.contains(&post_id2));
+            let user = state.users.get_mut(&user_id).unwrap();
+            user.toggle_filter("user".into(), "0".into()).unwrap();
+            let feed = state
+                .users
+                .get(&user_id)
+                .unwrap()
+                .personal_feed(state, 0, true)
+                .map(|post| post.id)
+                .collect::<Vec<_>>();
+            assert!(!feed.contains(&post_id));
         });
     }
 

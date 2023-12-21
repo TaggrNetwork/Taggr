@@ -641,6 +641,16 @@ impl Post {
             panic!("no post should exist")
         }
     }
+
+    pub fn matches_filters(&self, filters: &Filters) -> bool {
+        filters.users.contains(&self.user)
+            || filters.tags.intersection(&self.tags).count() > 0
+            || self
+                .realm
+                .as_ref()
+                .map(|id| filters.realms.contains(id))
+                .unwrap_or_default()
+    }
 }
 
 // Moves a configured number of posts from hot to cold memory.
