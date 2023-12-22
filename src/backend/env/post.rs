@@ -421,7 +421,7 @@ impl Post {
                 user_id,
                 costs,
                 post.realm.clone(),
-                format!("editing of post [{0}](#/post/${0})", id),
+                format!("editing of post [{0}](#/post/{0})", id),
             )?;
             post.patches.push((post.timestamp, patch));
             post.timestamp = timestamp;
