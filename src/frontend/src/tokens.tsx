@@ -511,5 +511,6 @@ const showPrincipal = (principal: string) => (
 );
 
 const knownAddresses: { [key: string]: string } = {
+    "cetrr-jaaaa-aaaak-afgxq-cai": "BEACON",
     "opl73-raaaa-aaaag-qcunq-cai": "ICPSwap",
 };
