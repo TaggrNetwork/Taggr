@@ -99,6 +99,8 @@ pub fn load() {
     let mut domains = Vec::from(CONFIG.domains);
     let can_domain = format!("{}.ic0.app", super::id());
     domains.push(&can_domain);
+    let can_domain2 = format!("{}.icp0.io", super::id());
+    domains.push(&can_domain2);
     add_asset(
         &["/.well-known/ii-alternative-origins"],
         vec![
