@@ -136,7 +136,7 @@ pub fn heap_address() -> (u64, u64) {
 
 pub fn stable_to_heap() -> super::State {
     let (offset, len) = heap_address();
-    ic_cdk::println!("Reading heap from coordinates: {:?}", (offset, len),);
+    ic_cdk::println!("Reading heap from coordinates: {:?}", (offset, len));
     let api = Api::default();
     let mut state: super::State = api.read(offset, len);
     state.memory.unpack();

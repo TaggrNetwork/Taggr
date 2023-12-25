@@ -29,7 +29,7 @@ use std::time::Duration;
 
 mod assets;
 #[cfg(feature = "dev")]
-mod dev_features;
+mod dev_helpers;
 mod env;
 mod http;
 mod metadata;

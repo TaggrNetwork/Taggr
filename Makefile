@@ -1,20 +1,20 @@
 start:
 	dfx start --background -qqqq
 
-deploy_staging:
+staging_deploy:
 	NODE_ENV=production DFX_NETWORK=staging make fe
 	FEATURES=staging dfx build
 	FEATURES=staging dfx --identity prod deploy --network staging taggr
 
-deploy_local:
+local_deploy:
 	FEATURES=dev dfx deploy
 
-build_dev:
+dev_build:
 	FEATURES=dev ./build.sh bucket
 	FEATURES=dev ./build.sh taggr
 	FEATURES=dev dfx build
 
-reinstall:
+local_reinstall:
 	make fe
 	FEATURES=dev dfx deploy --mode=reinstall taggr -y
 
