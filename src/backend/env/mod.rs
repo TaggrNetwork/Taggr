@@ -2258,7 +2258,7 @@ impl State {
             return Err("multiple reactions are forbidden".into());
         }
 
-        let log = format!("reaction to post {}", post_id);
+        let log = format!("reaction to post [{0}](#/post/{0})", post_id);
         // Users initiate a credit transfer for upvotes, but burn their own credits on
         // downvotes + credits and karma of the author
         if delta < 0 {
