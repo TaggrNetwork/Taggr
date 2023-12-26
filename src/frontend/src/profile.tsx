@@ -361,9 +361,11 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             )}
             {getLabels(profile)}
             {profile.about && (
-                <Content classNameArg="larger_text " value={profile.about} />
+                <>
+                    <Content classNameArg="larger_text" value={profile.about} />
+                    <hr />
+                </>
             )}
-            <hr />
             <div className="dynamic_table">
                 <div className="db_cell">
                     TOKENS
