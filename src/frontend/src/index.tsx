@@ -103,7 +103,6 @@ const App = () => {
     setTitle(handler);
     setUI();
     if (handler == "realm" && currentRealm() != param) {
-        window.resetUI();
         setRealmUI(param.toUpperCase());
     }
 
