@@ -85,6 +85,14 @@ export const Header = ({
                     subtle ? "subtle" : ""
                 }`}
             >
+                {!["/", "#/", ""].includes(location.hash) && (
+                    <span
+                        className="clickable_color clickable"
+                        onClick={() => history.back()}
+                    >
+                        &#9664;
+                    </span>
+                )}
                 <a
                     href="#/home"
                     id="logo"
