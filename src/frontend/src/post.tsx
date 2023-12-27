@@ -23,8 +23,9 @@ import {
     UserLink,
     FlagButton,
     ReportBanner,
-    icp,
+    tokens,
     currentRealm,
+    parseNumber,
 } from "./common";
 import { PostFeed } from "./post_feed";
 import {
@@ -490,6 +491,7 @@ const PostInfo = ({
     const postAuthor = window.user?.id == post.userObject.id;
     const realmController =
         post.realm && window.backendCache.realms[post.realm][1];
+    const { token_symbol, token_decimals } = window.backendCache.config;
     return (
         <>
             <div className="row_container top_half_spaced">
@@ -552,13 +554,22 @@ const PostInfo = ({
                             title="Tip"
                             classNameArg="max_width_col"
                             onClick={async () => {
-                                const amount = prompt(
-                                    `Tip @${post.userObject.name} with ICP:`,
-                                );
+                                const amount =
+                                    parseNumber(
+                                        prompt(
+                                            `Tip @${post.userObject.name} with ${token_symbol}:`,
+                                        ) || "",
+                                        token_decimals,
+                                    ) || NaN;
+                                if (isNaN(amount)) return;
                                 if (
-                                    amount == null ||
                                     !confirm(
-                                        `Transfer ${amount} ICP to @${post.userObject.name} as a tip?`,
+                                        `Transfer ${tokens(
+                                            amount,
+                                            token_decimals,
+                                        )} ${token_symbol} to @${
+                                            post.userObject.name
+                                        } as a tip?`,
                                     )
                                 )
                                     return;
@@ -722,12 +733,14 @@ const PostInfo = ({
                 )}
                 {post.tips.length > 0 && (
                     <div>
-                        <b>ICP TIPS</b>:{" "}
+                        <b>{token_symbol} TIPS</b>:{" "}
                         {commaSeparated(
                             post.tips.map(([id, tip]) => (
                                 <span key={id + Number(tip)}>
-                                    <code>{icp(tip, 2)}</code> from{" "}
-                                    {<UserLink id={id} />}
+                                    <code>
+                                        {tokens(Number(tip), token_decimals)}
+                                    </code>{" "}
+                                    from {<UserLink id={id} />}
                                 </span>
                             )),
                         )}

@@ -8,13 +8,19 @@ import {
     icpCode,
     ButtonWithLoading,
     bigScreen,
-    IcpAccountLink,
     XDR_TO_USD,
+    ICP_LEDGER_ID,
+    icrcTransfer,
+    parseNumber,
+    tokens,
+    ICP_DEFAULT_FEE,
 } from "./common";
 import * as React from "react";
 import { LoginMasks, logout, SeedPhraseForm } from "./logins";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { TransactionsView } from "./tokens";
+import { Principal } from "@dfinity/principal";
+import { CANISTER_ID } from "./env";
 
 type Invoice = { paid: boolean; e8s: BigInt; account: number[] };
 
@@ -217,9 +223,9 @@ const Welcome = () => {
     );
 };
 
-const shortenAccount = (account: string) => {
-    return `${account.slice(0, 6)}..${account.substr(account.length - 6)}`;
-};
+const shortenAccount = (account: string) =>
+    `${account.slice(0, 6)}..${account.substr(account.length - 6)}`;
+
 const shortenPrincipal = (principal: string) => {
     const parts = principal.split("-");
     return `${parts[0]}-...-${parts[parts.length - 1]}`;
@@ -231,7 +237,8 @@ export const Wallet = () => {
         await window.api.call("mint_credits", kilo_credits);
 
     if (!user) return <Welcome />;
-    let { token_symbol, token_decimals } = window.backendCache.config;
+    let { token_symbol, token_decimals, transaction_fee } =
+        window.backendCache.config;
 
     return (
         <>
@@ -242,67 +249,102 @@ export const Wallet = () => {
                     account displayed below and press the MINT button.
                 </div>
             )}
+            <div className="stands_out row_container">
+                <div className="max_width_col">YOUR PRINCIPAL</div>
+                <code>
+                    <CopyToClipboard
+                        value={user.principal}
+                        displayMap={(val) =>
+                            bigScreen() ? val : val.split("-")[0]
+                        }
+                    />
+                </code>
+            </div>
             <div className="stands_out">
                 <div className="vcentered">
                     <h2 className="max_width_col">ICP</h2>
+                    {Number(user.treasury_e8s) > 0 && (
+                        <ButtonWithLoading
+                            label="WITHDRAW REWARDS"
+                            onClick={async () => {
+                                let result =
+                                    await window.api.call<any>(
+                                        "withdraw_rewards",
+                                    );
+                                if ("Err" in result)
+                                    alert(`Error: ${result.Err}`);
+                                await window.reloadUser();
+                                setUser(window.user);
+                            }}
+                        />
+                    )}
                     <ButtonWithLoading
                         label="TRANSFER"
                         onClick={async () => {
-                            const amount = prompt(
-                                "Enter the amount (fee: 0.0001 ICP)",
-                            )?.trim();
-                            if (!amount) return;
-                            const recipient = prompt(
-                                "Enter the recipient address",
-                            )?.trim();
-                            if (!recipient) return;
-                            if (
-                                !confirm(
-                                    `You are transferring\n\n${amount} ICP\n\nto\n\n${recipient}`,
-                                )
-                            )
-                                return;
-                            let result = await window.api.call<any>(
-                                "transfer_icp",
-                                recipient,
-                                amount,
-                            );
-                            await window.reloadUser();
-                            setUser(window.user);
-                            if ("Err" in result) {
-                                alert(`Error: ${result.Err}`);
-                                return;
+                            try {
+                                const recipient =
+                                    prompt(
+                                        "Enter the recipient principal or ICP account address",
+                                    )?.trim() || "";
+                                if (!recipient) return;
+                                if (recipient.length == 64) {
+                                    const amount = parseNumber(
+                                        prompt(
+                                            `Enter the amount (fee: ${tokens(
+                                                ICP_DEFAULT_FEE,
+                                                8,
+                                            )} ICP)`,
+                                        )?.trim() || "",
+                                        8,
+                                    );
+                                    if (!amount) return;
+                                    let response: any =
+                                        await window.api.icp_transfer(
+                                            recipient,
+                                            amount,
+                                        );
+                                    if ("Err" in response) {
+                                        console.error(response);
+                                        alert("Transfer failed");
+                                    }
+                                    await window.reloadUser();
+                                    setUser(window.user);
+                                    return;
+                                }
+                                await icrcTransfer(
+                                    ICP_LEDGER_ID,
+                                    "ICP",
+                                    8,
+                                    ICP_DEFAULT_FEE,
+                                    recipient,
+                                );
+                                await window.reloadUser();
+                                setUser(window.user);
+                            } catch (e) {
+                                alert(e);
                             }
                         }}
                     />
                 </div>
                 <div className="vcentered">
-                    <code className="max_width_col">
-                        <CopyToClipboard
-                            value={user.account}
-                            displayMap={(val) => (
-                                <IcpAccountLink
-                                    label={bigScreen() ? val : val.slice(0, 16)}
-                                    address={user.account}
-                                />
-                            )}
-                        />
-                    </code>
+                    <div className="max_width_col"></div>
                     <code data-testid="icp-amount">
                         <ICPAccountBalance
                             heartbeat={new Date()}
-                            address={user.account}
+                            address={Principal.fromText(user.principal)}
                             units={false}
-                            decimals={4}
+                            decimals={8}
                         />
                     </code>
                 </div>
-                <div className="vcentered top_spaced">
-                    <div className="max_width_col">Rewards</div>
-                    <code className="accent">
-                        {icpCode(user.treasury_e8s, 4, false)}
-                    </code>
-                </div>
+                {Number(user.treasury_e8s) > 0 && (
+                    <div className="vcentered top_spaced">
+                        <div className="max_width_col">Rewards</div>
+                        <code className="accent">
+                            {icpCode(user.treasury_e8s, 8, false)}
+                        </code>
+                    </div>
+                )}
             </div>
             <div className="stands_out">
                 <div className="vcentered">
@@ -330,6 +372,23 @@ export const Wallet = () => {
                             }
                             if (isNaN(kilo_credits)) {
                                 return;
+                            }
+                            const { e8s_for_one_xdr } =
+                                window.backendCache.stats;
+                            const amount =
+                                Number(e8s_for_one_xdr) * kilo_credits +
+                                ICP_DEFAULT_FEE;
+                            const response: any = await window.api.icp_transfer(
+                                user.account,
+                                amount,
+                            );
+                            if ("Err" in response) {
+                                alert(
+                                    `Couldn't transfer ICP for minting. Make sure you have at least ${tokens(
+                                        amount,
+                                        8,
+                                    )} ICP on your wallet and try again.`,
+                                );
                             }
                             const result: any = await mintCredits(
                                 Math.max(1, kilo_credits),
@@ -363,46 +422,19 @@ export const Wallet = () => {
                     <ButtonWithLoading
                         label="TRANSFER"
                         onClick={async () => {
-                            const amount = prompt(
-                                `Enter the amount (fee: ${
-                                    window.backendCache.config.transaction_fee /
-                                    Math.pow(10, token_decimals)
-                                } ${token_symbol})`,
-                            )?.trim();
-                            if (!amount) return;
-                            const recipient = prompt(
-                                "Enter the recipient principal",
-                            )?.trim();
-                            if (!recipient) return;
-                            if (
-                                !confirm(
-                                    `You are transferring\n\n${amount} ${token_symbol}\n\nto\n\n${recipient}`,
-                                )
-                            )
-                                return;
-                            let result: any = await window.api.call(
-                                "transfer_tokens",
-                                recipient,
-                                amount,
+                            await icrcTransfer(
+                                Principal.fromText(CANISTER_ID),
+                                token_symbol,
+                                token_decimals,
+                                transaction_fee,
                             );
-                            if ("Err" in result) {
-                                alert(`Error: ${result.Err}`);
-                                return;
-                            }
                             await window.reloadUser();
                             setUser(window.user);
                         }}
                     />
                 </div>
                 <div className="vcentered">
-                    <code className="max_width_col">
-                        <CopyToClipboard
-                            value={user.principal}
-                            displayMap={(val) =>
-                                bigScreen() ? val : val.split("-")[0]
-                            }
-                        />
-                    </code>
+                    <div className="max_width_col"></div>
                     <code className="xx_large_text">
                         {tokenBalance(user.balance)}
                     </code>

@@ -1,9 +1,9 @@
-use self::canisters::{upgrade_main_canister, NNSVote};
-use self::invoices::{parse_account, user_icp_account, Invoice, USER_ICP_SUBACCOUNT};
+use self::canisters::{icrc_transfer, upgrade_main_canister, NNSVote};
+use self::invoices::{Invoice, USER_ICP_SUBACCOUNT};
 use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
 use self::proposals::{Payload, Status};
 use self::reports::Report;
-use self::token::account;
+use self::token::{account, TransferArgs};
 use self::user::{Filters, Notification, Predicate};
 use crate::env::invoices::principal_to_subaccount;
 use crate::env::user::CreditsDelta;
@@ -14,7 +14,7 @@ use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{self, canister_balance};
-use ic_ledger_types::{AccountIdentifier, Memo, Tokens};
+use ic_ledger_types::{AccountIdentifier, Tokens, MAINNET_LEDGER_CANISTER_ID};
 use invoices::e8s_to_icp;
 use invoices::Invoices;
 use serde::{Deserialize, Serialize};
@@ -584,36 +584,44 @@ impl State {
         Ok(())
     }
 
-    pub async fn tip(principal: Principal, post_id: PostId, amount: String) -> Result<(), String> {
+    pub async fn tip(principal: Principal, post_id: PostId, amount: u64) -> Result<(), String> {
         let result: Result<_, String> = read(|state| {
             let tipper = state.principal_to_user(principal).ok_or("no user found")?;
             let tipper_id = tipper.id;
             let tipper_name = tipper.name.clone();
             let author_id = Post::get(state, &post_id).ok_or("post not found")?.user;
-            let recipient = state
-                .users
-                .get(&author_id)
-                .ok_or("no user found")?
-                .account
-                .clone();
-            Ok((recipient, tipper_name, author_id, tipper_id))
+            let author = state.users.get(&author_id).ok_or("no user found")?.clone();
+            Ok((tipper_name, tipper_id, author))
         });
-        let (recipient, tipper_name, author_id, tipper_id) = result?;
-        let tip = State::icp_transfer(principal, recipient, &amount).await?;
+        let (tipper_name, tipper_id, author) = result?;
         mutate(|state| {
+            token::transfer(
+                state,
+                time(),
+                principal,
+                TransferArgs {
+                    from_subaccount: None,
+                    to: account(author.principal),
+                    fee: Some(1), // special tipping fee
+                    amount: amount as u128,
+                    memo: None,
+                    created_at_time: None,
+                },
+            )
+            .map_err(|err| format!("tip transfer failed: {:?}", err))?;
             Post::mutate(state, &post_id, |post| {
                 post.watchers.insert(tipper_id);
-                post.tips.push((tipper_id, tip.e8s()));
+                post.tips.push((tipper_id, amount));
                 Ok(())
             })?;
             state
                 .users
-                .get_mut(&author_id)
+                .get_mut(&author.id)
                 .expect("user not found")
                 .notify_about_post(
                     format!(
-                        "@{} tipped you with `{}` ICP for your post",
-                        tipper_name, amount,
+                        "@{} tipped you with `{}` {} for your post",
+                        tipper_name, amount, CONFIG.token_symbol
                     ),
                     post_id,
                 );
@@ -1021,24 +1029,6 @@ impl State {
             .collect()
     }
 
-    pub async fn icp_transfer(
-        principal: Principal,
-        recipient: String,
-        amount: &str,
-    ) -> Result<Tokens, String> {
-        State::claim_user_icp(principal).await?;
-
-        let amount = Tokens::from_e8s(parse_amount(amount, 8)?);
-        invoices::transfer(
-            parse_account(&recipient)?,
-            amount + invoices::fee(),
-            Memo(1),
-            Some(principal_to_subaccount(&principal)),
-        )
-        .await
-        .map(|_| amount)
-    }
-
     async fn distribute_icp(
         e8s_for_one_xdr: u64,
         rewards: HashMap<UserId, u64>,
@@ -1113,8 +1103,16 @@ impl State {
             total_rewards + total_revenue
         });
 
-        if let Err(err) =
-            invoices::transfer(user_icp_account(), Tokens::from_e8s(debt), Memo(4545), None).await
+        if let Err(err) = canisters::icrc_transfer(
+            MAINNET_LEDGER_CANISTER_ID,
+            None,
+            Account {
+                owner: id(),
+                subaccount: Some(USER_ICP_SUBACCOUNT.to_vec()),
+            },
+            debt as u128,
+        )
+        .await
         {
             mutate(|state| {
                 state.logger.error(format!(
@@ -1566,19 +1564,18 @@ impl State {
         ));
     }
 
-    // Check if user has some unclaimed e8s in the Treasury and transfers them to user's account.
-    async fn claim_user_icp(principal: Principal) -> Result<(), String> {
+    pub async fn withdraw_rewards(principal: Principal) -> Result<(), String> {
         let user = match read(|state| state.principal_to_user(principal).cloned()) {
             Some(user) => user,
             None => return Ok(()),
         };
         let fee = invoices::fee();
         if Tokens::from_e8s(user.treasury_e8s) > fee {
-            invoices::transfer(
-                parse_account(&user.account)?,
-                Tokens::from_e8s(user.treasury_e8s) - fee,
-                Memo(777),
-                Some(USER_ICP_SUBACCOUNT),
+            icrc_transfer(
+                MAINNET_LEDGER_CANISTER_ID,
+                Some(USER_ICP_SUBACCOUNT.to_vec()),
+                account(user.principal),
+                user.treasury_e8s as u128,
             )
             .await?;
             mutate(|state| {
@@ -1597,8 +1594,6 @@ impl State {
                 CONFIG.max_credits_mint_kilos
             ));
         }
-
-        State::claim_user_icp(principal).await?;
 
         let e8s_for_one_xdr = read(|state| state.e8s_for_one_xdr);
         let invoice = match Invoices::outstanding(&principal, kilo_credits, e8s_for_one_xdr).await {
@@ -1800,7 +1795,7 @@ impl State {
             return Err("pending proposal with the current principal as voter exists".into());
         }
         #[allow(unused_variables)]
-        let account_identifier = mutate(|state| {
+        mutate(|state| {
             let new_principal =
                 Principal::from_text(new_principal_str).map_err(|e| e.to_string())?;
             if state.principals.contains_key(&new_principal) {
@@ -1826,22 +1821,8 @@ impl State {
                 crate::token::move_funds(state, &acc, account(new_principal))
                     .expect("couldn't transfer token funds");
             }
-            Ok(account_identifier)
-        })?;
-        #[cfg(not(test))]
-        {
-            let balance = invoices::account_balance_of_principal(principal).await;
-            if balance > invoices::fee() {
-                invoices::transfer(
-                    account_identifier,
-                    balance,
-                    Memo(10101),
-                    Some(principal_to_subaccount(&principal)),
-                )
-                .await?;
-            }
-        }
-        Ok(())
+            Ok(())
+        })
     }
 
     pub fn principal_to_user(&self, principal: Principal) -> Option<&User> {

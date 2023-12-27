@@ -2,6 +2,7 @@ import { Principal } from "@dfinity/principal";
 import { HttpAgent, HttpAgentOptions, Identity, polling } from "@dfinity/agent";
 import { IDL, JsonValue } from "@dfinity/candid";
 import { CANISTER_ID } from "./env";
+import { ICP_DEFAULT_FEE, ICP_LEDGER_ID } from "./common";
 
 export type Backend = {
     query: <T>(
@@ -63,7 +64,18 @@ export type Backend = {
         realm: string[],
     ) => Promise<JsonValue | null>;
 
-    account_balance: (address: string) => Promise<BigInt>;
+    icp_account_balance: (address: string) => Promise<BigInt>;
+
+    account_balance: (token: Principal, owner: Principal) => Promise<bigint>;
+
+    icp_transfer: (account: string, e8s: number) => Promise<JsonValue>;
+
+    transfer: (
+        tokenId: Principal,
+        recipient: Principal,
+        subaccount: Uint8Array,
+        amount: bigint,
+    ) => Promise<JsonValue>;
 };
 
 export const ApiGenerator = (
@@ -289,13 +301,13 @@ export const ApiGenerator = (
                 response,
             )[0];
         },
-        account_balance: async (address: string): Promise<BigInt> => {
+        icp_account_balance: async (address: string): Promise<BigInt> => {
             const arg = IDL.encode(
                 [IDL.Record({ account: IDL.Vec(IDL.Nat8) })],
                 [{ account: hexToBytes(address) }],
             );
             const response = await query_raw(
-                "ryjl3-tyaaa-aaaaa-aaaba-cai",
+                ICP_LEDGER_ID.toString(),
                 "account_balance",
                 arg,
             );
@@ -306,6 +318,92 @@ export const ApiGenerator = (
             return (
                 IDL.decode([IDL.Record({ e8s: IDL.Nat64 })], response)[0] as any
             ).e8s;
+        },
+
+        icp_transfer: async (account: string, e8s: number) => {
+            const arg = IDL.encode(
+                [
+                    IDL.Record({
+                        to: IDL.Vec(IDL.Nat8),
+                        amount: IDL.Record({ e8s: IDL.Nat64 }),
+                        fee: IDL.Record({ e8s: IDL.Nat64 }),
+                        memo: IDL.Nat64,
+                    }),
+                ],
+                [
+                    {
+                        to: hexToBytes(account),
+                        amount: { e8s },
+                        fee: { e8s: ICP_DEFAULT_FEE },
+                        memo: 0,
+                    },
+                ],
+            );
+            const response = await call_raw(ICP_LEDGER_ID, "transfer", arg);
+            if (!response) {
+                return null;
+            }
+            return IDL.decode(
+                [IDL.Variant({ Ok: IDL.Nat64, Err: IDL.Unknown })],
+                response,
+            )[0] as any;
+        },
+
+        transfer: async (
+            tokenId: Principal,
+            recipient: Principal,
+            subaccount: Uint8Array,
+            amount: bigint,
+        ) => {
+            let resized = new Uint8Array(32);
+            resized.set(Uint8Array.from(subaccount).subarray(0, 32));
+            const to = {
+                owner: recipient,
+                subaccount: [resized],
+            };
+
+            const arg = IDL.encode(
+                [
+                    IDL.Record({
+                        to: IDL.Record({
+                            owner: IDL.Principal,
+                            subaccount: IDL.Opt(IDL.Vec(IDL.Nat8)),
+                        }),
+                        amount: IDL.Nat,
+                    }),
+                ],
+                [
+                    {
+                        to,
+                        amount,
+                    },
+                ],
+            );
+            const response = await call_raw(tokenId, "icrc1_transfer", arg);
+            if (!response) {
+                return null;
+            }
+            return IDL.decode(
+                [IDL.Variant({ Ok: IDL.Nat, Err: IDL.Unknown })],
+                response,
+            )[0] as any;
+        },
+
+        account_balance: async (
+            tokenId: Principal,
+            principal: Principal,
+        ): Promise<bigint> => {
+            const arg = IDL.encode(
+                [IDL.Record({ owner: IDL.Principal })],
+                [{ owner: principal }],
+            );
+            const response: any = await query_raw(
+                tokenId.toString(),
+                "icrc1_balance_of",
+                arg,
+            );
+            if (!response) return BigInt(0);
+            return IDL.decode([IDL.Nat], response)[0] as unknown as bigint;
         },
     };
 };

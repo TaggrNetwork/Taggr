@@ -9,7 +9,7 @@ import {
     FileUploadInput,
     tokenBalance,
     NotFound,
-    icp,
+    tokens,
     hex,
     UserLink,
 } from "./common";
@@ -528,7 +528,10 @@ export const ProposalView = ({
                     <div className="bottom_spaced">
                         AMOUNT:{" "}
                         <code>
-                            {icp(proposal.payload.ICPTransfer[1].e8s, 2)}
+                            {tokens(
+                                Number(proposal.payload.ICPTransfer[1].e8s),
+                                8,
+                            )}
                         </code>
                     </div>
                 </>

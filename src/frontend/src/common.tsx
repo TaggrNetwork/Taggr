@@ -5,6 +5,7 @@ import { Clipboard, ClipboardCheck, Close, Flag, Menu, Share } from "./icons";
 import { loadFile } from "./form";
 import { Post, PostId, Report, User, UserId } from "./types";
 import { createRoot } from "react-dom/client";
+import { Principal } from "@dfinity/principal";
 
 export const XDR_TO_USD = 1.32;
 
@@ -361,21 +362,24 @@ export const tokenBalance = (balance: number) =>
         balance / Math.pow(10, window.backendCache.config.token_decimals)
     ).toLocaleString();
 
-export const icpCode = (e8s: BigInt, decimals: number, units = true) => (
+export const icpCode = (e8s: BigInt, decimals?: number, units = true) => (
     <code className="xx_large_text">
-        {icp(e8s, decimals)}
+        {tokens(Number(e8s), decimals || 8, decimals == 0)}
         {units && " ICP"}
     </code>
 );
 
-export const icp = (e8s: BigInt, decimals: number = 2) => {
-    let n = Number(e8s);
-    let base = Math.pow(10, 8);
+export const tokens = (n: number, decimals: number, hideDecimals?: boolean) => {
+    let base = Math.pow(10, decimals);
     let v = n / base;
-    return (decimals ? v : Math.floor(v)).toLocaleString(undefined, {
+    return (hideDecimals ? Math.floor(v) : v).toLocaleString(undefined, {
         minimumFractionDigits: decimals,
     });
 };
+
+export const ICP_LEDGER_ID = Principal.fromText("ryjl3-tyaaa-aaaaa-aaaba-cai");
+
+export const ICP_DEFAULT_FEE = 10000;
 
 export const ICPAccountBalance = ({
     address,
@@ -383,14 +387,17 @@ export const ICPAccountBalance = ({
     units,
     heartbeat,
 }: {
-    address: string;
-    decimals: number;
+    address: string | Principal;
+    decimals?: number;
     units?: boolean;
     heartbeat?: any;
 }) => {
     const [e8s, setE8s] = React.useState(0 as unknown as BigInt);
     React.useEffect(() => {
-        window.api.account_balance(address).then((n) => setE8s(n));
+        (typeof address == "string"
+            ? window.api.icp_account_balance(address)
+            : window.api.account_balance(ICP_LEDGER_ID, address)
+        ).then((n) => setE8s(n));
     }, [address, heartbeat]);
     return icpCode(e8s, decimals, units);
 };
@@ -785,4 +792,85 @@ export const popUp = (content: JSX.Element) => {
             {content}
         </>,
     );
+};
+
+export function parseNumber(
+    amount: string,
+    tokenDecimals: number,
+): number | null {
+    const parse = (s: string): number | null => {
+        let num = Number(s);
+        if (isNaN(num)) {
+            return null;
+        }
+        return num;
+    };
+
+    const tokens = amount.split(".");
+    switch (tokens.length) {
+        case 1:
+            const parsedToken = parse(tokens[0]);
+            return parsedToken !== null
+                ? parsedToken * Math.pow(10, tokenDecimals)
+                : null;
+        case 2:
+            let afterComma = tokens[1];
+            while (afterComma.length < tokenDecimals) {
+                afterComma = afterComma + "0";
+            }
+            afterComma = afterComma.substring(0, tokenDecimals);
+            const parsedTokens = parse(tokens[0]);
+            const parsedAfterComma = parse(afterComma);
+            return parsedTokens !== null && parsedAfterComma !== null
+                ? parsedTokens * Math.pow(10, tokenDecimals) + parsedAfterComma
+                : null;
+        default:
+            return null;
+    }
+}
+
+export const icrcTransfer = async (
+    token: Principal,
+    symbol: string,
+    decimals: number,
+    fee: number,
+    to?: string,
+) => {
+    try {
+        const input =
+            to || prompt("Enter the recipient principal")?.trim() || "";
+        if (!input) return;
+        const recipient = Principal.fromText(input);
+        const amount = parseNumber(
+            prompt(
+                `Enter the amount (fee: ${tokens(fee, decimals)} ${symbol})`,
+            )?.trim() || "",
+            decimals,
+        );
+        if (!amount) return 0;
+        if (
+            !confirm(
+                `You are transferring\n\n${tokens(
+                    amount,
+                    decimals,
+                )} ${symbol}\n\nto\n\n${recipient}`,
+            )
+        )
+            return 0;
+        let result: any = await window.api.transfer(
+            token,
+            recipient,
+            new Uint8Array(32),
+            BigInt(amount),
+        );
+        if ("Err" in result) {
+            console.error(result);
+            alert("Transfer failed");
+            return 0;
+        }
+        return amount;
+    } catch (e) {
+        alert("Transfer failed");
+        return 0;
+    }
 };

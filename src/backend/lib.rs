@@ -7,6 +7,7 @@ use candid::Principal;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
+    invoices::principal_to_subaccount,
     memory, parse_amount,
     post::{Extension, Post, PostId},
     proposals::{Release, Reward},
@@ -23,7 +24,7 @@ use ic_cdk::{
 };
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
-use ic_ledger_types::{AccountIdentifier, Tokens};
+use ic_ledger_types::{AccountIdentifier, Memo, Tokens, DEFAULT_FEE, DEFAULT_SUBACCOUNT};
 use serde_bytes::ByteBuf;
 use std::time::Duration;
 
@@ -102,14 +103,42 @@ fn post_upgrade() {
 }
 
 async fn post_upgrade_fixtures() {
+    // Remove default subaccount
     mutate(|state| {
-        // since this slipped into the last release, YellowChicken was "forgiven" twice
-        state
-            .users
-            .get_mut(&894)
-            .unwrap()
-            .change_rewards(-11659, "fix");
+        for tx in &mut state.ledger {
+            if let Some(subacc) = tx.to.subaccount.as_ref() {
+                if subacc.len() == 32 && subacc.iter().all(|b| b == &0) {
+                    tx.to.subaccount = None;
+                }
+            }
+        }
     });
+
+    // This moves all ICP funds from TAGGR subaccounts to users principal, removing TAGGR as
+    // intermediary.
+    for user in read(|state| state.users.values().cloned().collect::<Vec<_>>()) {
+        let user_subacc = principal_to_subaccount(&user.principal);
+        let user_acc = AccountIdentifier::new(&id(), &user_subacc);
+        let balance = invoices::account_balance(user_acc).await;
+        if balance < DEFAULT_FEE {
+            continue;
+        }
+        if let Err(err) = invoices::transfer(
+            AccountIdentifier::new(&user.principal, &DEFAULT_SUBACCOUNT),
+            balance - DEFAULT_FEE,
+            Memo(7779),
+            Some(user_subacc),
+        )
+        .await
+        {
+            mutate(|state| {
+                state.logger.error(format!(
+                    "couldn't transfer {} e8s to user {}: {}",
+                    balance, user.name, err
+                ))
+            });
+        };
+    }
 }
 
 /*
@@ -165,10 +194,17 @@ fn clear_notifications() {
     })
 }
 
+#[export_name = "canister_update withdraw_rewards"]
+fn withdraw_rewards() {
+    spawn(async {
+        reply(State::withdraw_rewards(caller()).await);
+    })
+}
+
 #[export_name = "canister_update tip"]
 fn tip() {
     spawn(async {
-        let (post_id, amount): (PostId, String) = parse(&arg_data_raw());
+        let (post_id, amount): (PostId, u64) = parse(&arg_data_raw());
         reply(State::tip(caller(), post_id, amount).await);
     })
 }
@@ -246,18 +282,9 @@ fn transfer_credits() {
     }))
 }
 
-#[export_name = "canister_update transfer_icp"]
-fn transfer_icp() {
-    spawn(async {
-        let (recipient, amount): (String, String) = parse(&arg_data_raw());
-        reply(State::icp_transfer(caller(), recipient, &amount).await)
-    });
-}
-
-#[export_name = "canister_update transfer_tokens"]
-fn transfer_tokens() {
-    let (recipient, amount): (String, String) = parse(&arg_data_raw());
-    reply(token::user_transfer(recipient, amount))
+#[export_name = "canister_update widthdraw_rewards"]
+fn widthdraw_rewards() {
+    spawn(async { reply(State::withdraw_rewards(caller()).await) });
 }
 
 #[export_name = "canister_update mint_credits"]

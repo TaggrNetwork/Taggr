@@ -1,4 +1,4 @@
-use super::{parse_amount, MINUTE};
+use super::MINUTE;
 use crate::*;
 use base64::{engine::general_purpose, Engine as _};
 use candid::{CandidType, Deserialize, Principal};
@@ -20,12 +20,12 @@ pub struct Account {
 
 #[derive(CandidType, Deserialize)]
 pub struct TransferArgs {
-    from_subaccount: Option<Subaccount>,
-    to: Account,
-    amount: u128,
-    fee: Option<u128>,
-    memo: Option<Memo>,
-    created_at_time: Option<Timestamp>,
+    pub from_subaccount: Option<Subaccount>,
+    pub to: Account,
+    pub amount: u128,
+    pub fee: Option<u128>,
+    pub memo: Option<Memo>,
+    pub created_at_time: Option<Timestamp>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -50,23 +50,23 @@ pub struct Transaction {
 //     duplicate_of: u64,
 // }
 
-#[derive(CandidType, Debug, PartialEq, Serialize)]
+#[derive(CandidType, Debug, PartialEq, Serialize, Deserialize)]
 pub struct InsufficientFunds {
     balance: u128,
 }
 
-#[derive(CandidType, Debug, PartialEq, Serialize)]
+#[derive(CandidType, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CreatedInFuture {
     ledger_time: Timestamp,
 }
 
-#[derive(CandidType, Debug, PartialEq, Serialize)]
+#[derive(CandidType, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GenericError {
     error_code: u128,
     message: String,
 }
 
-#[derive(CandidType, Debug, PartialEq, Serialize)]
+#[derive(CandidType, Debug, PartialEq, Serialize, Deserialize)]
 pub enum TransferError {
     // BadFee(BadFee),
     // BadBurn(BadBurn),
@@ -165,7 +165,7 @@ fn icrc1_supported_standards() -> Vec<Standard> {
 }
 
 #[update]
-fn icrc1_transfer(args: TransferArgs) -> Result<u128, TransferError> {
+fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
     let owner = caller();
     if owner == Principal::anonymous() {
         return Err(TransferError::GenericError(GenericError {
@@ -173,10 +173,11 @@ fn icrc1_transfer(args: TransferArgs) -> Result<u128, TransferError> {
             message: "No transfers from the minting account possible.".into(),
         }));
     }
+    args.fee = Some(icrc1_fee());
     mutate(|state| transfer(state, time(), owner, args))
 }
 
-fn transfer(
+pub fn transfer(
     state: &mut State,
     now: u64,
     owner: Principal,
@@ -184,9 +185,10 @@ fn transfer(
 ) -> Result<u128, TransferError> {
     let TransferArgs {
         from_subaccount,
-        to,
+        mut to,
         amount,
         created_at_time,
+        fee,
         memo,
         ..
     } = args;
@@ -225,6 +227,16 @@ fn transfer(
     } else {
         from_subaccount
     };
+
+    if to
+        .subaccount
+        .as_ref()
+        .map(|val| val.len() == 32 && val.iter().all(|b| b == &0))
+        .unwrap_or_default()
+    {
+        to.subaccount = None;
+    }
+
     let from = Account { owner, subaccount };
 
     let balance = state.balances.get(&from).copied().unwrap_or_default();
@@ -233,7 +245,7 @@ fn transfer(
             balance: 0,
         }));
     }
-    let effective_fee = icrc1_fee() as Token;
+    let effective_fee = fee.unwrap_or(icrc1_fee()) as Token;
     if from.owner != Principal::anonymous() {
         let effective_amount = amount as Token + effective_fee;
         if balance < effective_amount {
@@ -282,7 +294,7 @@ pub fn mint(state: &mut State, account: Account, tokens: Token) {
             from_subaccount: None,
             to: account,
             amount: tokens as u128,
-            fee: Some(0),
+            fee: None,
             memo: None,
             created_at_time: Some(now),
         },
@@ -310,47 +322,6 @@ pub fn move_funds(state: &mut State, from: &Account, to: Account) -> Result<u128
     }
     state.balances.remove(from);
     Ok(n)
-}
-
-pub fn user_transfer(recipient: String, amount: String) -> Result<u64, String> {
-    let minted_supply: Token = read(|state| state.balances.values().sum());
-
-    if minted_supply * 100 < CONFIG.supply_threshold_for_transfer_percentage * CONFIG.total_supply {
-        return Err(format!(
-            "transfers will be enabled when the minted supply reaches {}% of total supply",
-            CONFIG.supply_threshold_for_transfer_percentage
-        ));
-    }
-
-    let recipient_principal = Principal::from_text(recipient)
-        .map_err(|err| format!("couldn't parse the recipient: {:?}", err))?;
-
-    let transaction_id = icrc1_transfer(TransferArgs {
-        from_subaccount: None,
-        to: account(recipient_principal),
-        amount: parse_amount(&amount, CONFIG.token_decimals)? as u128,
-        fee: Some(icrc1_fee()),
-        memo: None,
-        created_at_time: Some(time()),
-    })
-    .map(|n| n as u64)
-    .map_err(|err| format!("transfer failed: {:?}", err))?;
-
-    mutate(|state| {
-        if let (Some(sender_name), Some(recipient)) = (
-            state
-                .principal_to_user(caller())
-                .map(|user| user.name.clone()),
-            state.principal_to_user_mut(recipient_principal),
-        ) {
-            recipient.notify(format!(
-                "You received `{}` ${} from @{}! 💸",
-                amount, CONFIG.token_symbol, sender_name
-            ));
-        }
-    });
-
-    Ok(transaction_id)
 }
 
 #[cfg(test)]
@@ -495,10 +466,7 @@ mod tests {
             ),
             Ok(0),
         );
-        assert_eq!(
-            state.balances.get(&account(pr(0))),
-            Some(&(1000 - 500 - 25))
-        );
+        assert_eq!(state.balances.get(&account(pr(0))), Some(&(1000 - 500 - 1)));
         assert_eq!(state.balances.get(&account(pr(1))), Some(&500));
 
         assert_eq!(
@@ -510,7 +478,7 @@ mod tests {
                     from_subaccount: None,
                     to: icrc1_minting_account().unwrap(),
                     amount: 350,
-                    fee: Some(1),
+                    fee: Some(25),
                     memo: None,
                     created_at_time: None
                 }
@@ -519,7 +487,7 @@ mod tests {
         );
         assert_eq!(
             state.balances.get(&account(pr(0))),
-            Some(&(1000 - 500 - 25 - 350 - 25))
+            Some(&(1000 - 500 - 1 - 350 - 25))
         );
         assert_eq!(state.balances.get(&icrc1_minting_account().unwrap()), None);
 
@@ -538,7 +506,7 @@ mod tests {
                 }
             ),
             Err(TransferError::InsufficientFunds(InsufficientFunds {
-                balance: 100
+                balance: 124
             }))
         );
     }

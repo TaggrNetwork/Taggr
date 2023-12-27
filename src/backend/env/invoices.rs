@@ -7,7 +7,6 @@ use ic_ledger_types::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::convert::TryFrom;
 
 use crate::{mutate, read};
 
@@ -90,6 +89,17 @@ impl Invoices {
         let costs = Tokens::from_e8s(kilo_credits.max(1) * invoice.e8s);
         if balance >= costs {
             transfer(main_account(), costs, Memo(999), Some(invoice.sub_account)).await?;
+            // If after minting we still have some balance, move it to user's wallet.
+            let rest = balance - costs;
+            if rest > fee() {
+                transfer(
+                    AccountIdentifier::new(invoice_id, &DEFAULT_SUBACCOUNT),
+                    rest,
+                    Memo(999),
+                    Some(invoice.sub_account),
+                )
+                .await?;
+            }
             mutate(|state| {
                 if let Some(invoice) = state.accounting.invoices.get_mut(invoice_id) {
                     invoice.paid = true;
@@ -97,22 +107,14 @@ impl Invoices {
                 }
             });
         } else if kilo_credits > 0 {
-            return Err(format!("ICP balance too low (needed: {} ICP)", costs));
+            return Err(format!(
+                "ICP balance too low (need: {} ICP, got: {} ICP)",
+                costs, balance
+            ));
         }
         read(|state| state.accounting.invoices.get(invoice_id).cloned())
             .ok_or("no invoice found".into())
     }
-}
-
-pub fn parse_account(acc: &str) -> Result<AccountIdentifier, String> {
-    let decoded_acc =
-        &hex::decode(acc).map_err(|err| format!("couldn't decode account address: {:?}", err))?;
-    if decoded_acc.len() != 32 {
-        return Err(format!("malformed account address {:?}", acc));
-    }
-    let mut id: [u8; 32] = Default::default();
-    id.copy_from_slice(decoded_acc);
-    AccountIdentifier::try_from(id).map_err(|err| format!("couldn't parse account: {:?}", err))
 }
 
 pub fn fee() -> Tokens {
@@ -123,11 +125,7 @@ pub fn main_account() -> AccountIdentifier {
     AccountIdentifier::new(&id(), &DEFAULT_SUBACCOUNT)
 }
 
-pub const USER_ICP_SUBACCOUNT: Subaccount = Subaccount([1; 32]);
-
-pub fn user_icp_account() -> AccountIdentifier {
-    AccountIdentifier::new(&id(), &USER_ICP_SUBACCOUNT)
-}
+pub const USER_ICP_SUBACCOUNT: [u8; 32] = [1; 32];
 
 pub async fn main_account_balance() -> Tokens {
     account_balance(main_account()).await
@@ -170,16 +168,7 @@ pub async fn transfer(
     })
 }
 
-#[cfg(not(test))]
-pub async fn account_balance_of_principal(principal: Principal) -> Tokens {
-    account_balance(AccountIdentifier::new(
-        &id(),
-        &principal_to_subaccount(&principal),
-    ))
-    .await
-}
-
-async fn account_balance(account: AccountIdentifier) -> Tokens {
+pub async fn account_balance(account: AccountIdentifier) -> Tokens {
     let (balance,): (Tokens,) = call_canister(
         MAINNET_LEDGER_CANISTER_ID,
         "account_balance",

@@ -1,6 +1,7 @@
 import * as React from "react";
-import { ButtonWithLoading, HeadBar } from "./common";
+import { ButtonWithLoading, HeadBar, ICP_LEDGER_ID } from "./common";
 import { User } from "./types";
+import { Principal } from "@dfinity/principal";
 
 export const Settings = ({ invite }: { invite?: string }) => {
     const user = window.user;
@@ -219,7 +220,18 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                         : "inactive"
                                 }
                                 onClick={async () => {
-                                    let response = await window.api.call<any>(
+                                    const accountBalance =
+                                        await window.api.account_balance(
+                                            ICP_LEDGER_ID,
+                                            Principal.fromText(user.principal),
+                                        );
+                                    if (accountBalance > 0) {
+                                        alert(
+                                            "Your ICP balance is not empty. Please open your wallet and withdraw all funds before changing the principal.",
+                                        );
+                                        return;
+                                    }
+                                    const response = await window.api.call<any>(
                                         "change_principal",
                                         principal.trim(),
                                     );

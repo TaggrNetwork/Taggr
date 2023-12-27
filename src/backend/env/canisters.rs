@@ -1,4 +1,8 @@
-use super::{time, Logger, MINUTE};
+use super::{
+    time,
+    token::{Account, Subaccount, TransferArgs, TransferError},
+    Logger, MINUTE,
+};
 use crate::env::config::CONFIG;
 use crate::env::NNSProposal;
 use candid::{
@@ -370,6 +374,26 @@ pub async fn vote_on_nns_proposal(proposal_id: u64, vote: NNSVote) -> Result<(),
                 .map_err(|err| format!("couldn't call the governance canister: {:?}", err));
         }
     }
+}
+
+pub async fn icrc_transfer(
+    token: Principal,
+    from_subaccount: Option<Subaccount>,
+    to: Account,
+    amount: u128,
+) -> Result<u128, String> {
+    let args = TransferArgs {
+        from_subaccount,
+        to,
+        amount,
+        memo: None,
+        fee: None,
+        created_at_time: None,
+    };
+    let (result,): (Result<u128, TransferError>,) = call_canister(token, "icrc1_transfer", (args,))
+        .await
+        .map_err(|err| format!("icrc1_transfer call failed: {:?}", err))?;
+    result.map_err(|err| format!("{:?}", err))
 }
 
 pub async fn call_canister_raw(id: Principal, method: &str, args: &[u8]) -> CallResult<Vec<u8>> {

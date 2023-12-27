@@ -115,10 +115,7 @@ export const Dashboard = ({}) => {
                                 label={"TREASURY"}
                             />
                         </label>
-                        <ICPAccountBalance
-                            address={stats.account}
-                            decimals={0}
-                        />
+                        <ICPAccountBalance address={stats.account} />
                     </div>
                     <div className="db_cell">
                         <label>
@@ -145,13 +142,13 @@ export const Dashboard = ({}) => {
                         <label>
                             <CashCoin /> REWARDS SHARED
                         </label>
-                        {icpCode(stats.total_rewards_shared, 0)}
+                        {icpCode(stats.total_rewards_shared)}
                     </div>
                     <div className="db_cell">
                         <label>
                             <Cash /> REVENUE SHARED
                         </label>
-                        {icpCode(stats.total_revenue_shared, 0)}
+                        {icpCode(stats.total_revenue_shared)}
                     </div>
                 </div>
             </div>
