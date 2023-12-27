@@ -103,12 +103,13 @@ fn post_upgrade() {
 
 async fn post_upgrade_fixtures() {
     mutate(|state| {
+        // since this slipped into the last release, YellowChicken was "forgiven" twice
         state
             .users
             .get_mut(&894)
             .unwrap()
-            .change_rewards(11659, "forgiven by the those he attacked: the #DAO")
-    })
+            .change_rewards(-11659, "fix");
+    });
 }
 
 /*
