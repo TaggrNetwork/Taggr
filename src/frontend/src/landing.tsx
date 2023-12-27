@@ -13,17 +13,17 @@ import { New, User, Fire, Realm } from "./icons";
 export const Landing = () => {
     const user = window.user;
     const realm = currentRealm();
-    const FEED_KEY = `${realm}_feed`;
     const [feed, setFeed] = React.useState(
-        localStorage.getItem(FEED_KEY) || (realm ? "NEW" : "HOT"),
+        (user && user.settings.tab) || "HOT",
     );
     const labels: [JSX.Element, string][] = [
         [<New />, "NEW"],
         [<Fire />, "HOT"],
     ];
-    if (user && !realm) labels.push([<User />, "FOLLOWED"]);
-    if (user && !realm && user.realms.length > 0)
-        labels.push([<Realm />, "REALMS"]);
+    if (user && !realm) {
+        labels.push([<User />, "FOLLOWED"]);
+        if (user.realms.length > 0) labels.push([<Realm />, "REALMS"]);
+    }
 
     const title = (
         <div className="text_centered vertically_spaced small_text">
@@ -31,7 +31,11 @@ export const Landing = () => {
                 <button
                     key={id}
                     onClick={() => {
-                        localStorage.setItem(FEED_KEY, id);
+                        user.settings.tab = id;
+                        window.api.call<any>(
+                            "update_user_settings",
+                            JSON.stringify(user.settings),
+                        );
                         setFeed(id);
                     }}
                     className={feed == id ? "active" : "unselected"}

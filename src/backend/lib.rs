@@ -199,15 +199,19 @@ fn change_principal() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (new_name, about, principals, settings): (String, String, Vec<String>, String) =
-        parse(&arg_data_raw());
+    let (new_name, about, principals): (String, String, Vec<String>) = parse(&arg_data_raw());
     reply(User::update(
         caller(),
         optional(new_name),
         about,
         principals,
-        settings,
     ))
+}
+
+#[export_name = "canister_update update_user_settings"]
+fn update_user_settings() {
+    let settings: String = parse(&arg_data_raw());
+    reply(User::update_settings(caller(), settings))
 }
 
 #[export_name = "canister_update create_user"]

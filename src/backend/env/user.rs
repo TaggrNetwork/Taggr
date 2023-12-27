@@ -357,16 +357,24 @@ impl User {
         Ok(())
     }
 
+    pub fn update_settings(caller: Principal, settings: String) -> Result<(), String> {
+        mutate(|state| {
+            if let Some(user) = state.principal_to_user_mut(caller) {
+                if !User::valid_info(&user.about, &settings) {
+                    return Err("too long inputs".to_string());
+                }
+                user.settings = settings;
+            }
+            Ok(())
+        })
+    }
+
     pub fn update(
         caller: Principal,
         new_name: Option<String>,
         about: String,
         principals: Vec<String>,
-        settings: String,
     ) -> Result<(), String> {
-        if !User::valid_info(&about, &settings) {
-            return Err("invalid user info".to_string());
-        }
         if read(|state| {
             state
                 .users
@@ -383,6 +391,9 @@ impl User {
 
         mutate(|state| {
             let user = state.principal_to_user(caller).ok_or("user not found")?;
+            if !User::valid_info(&about, &user.settings) {
+                return Err("too long inputs".to_string());
+            }
             let user_id = user.id;
             let old_name = user.name.clone();
             if let Some(name) = &new_name {
@@ -394,7 +405,6 @@ impl User {
             }
             if let Some(user) = state.principal_to_user_mut(caller) {
                 user.about = about;
-                user.settings = settings;
                 user.controllers = principals;
                 if let Some(name) = new_name {
                     user.previous_names.push(user.name.clone());

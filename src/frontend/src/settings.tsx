@@ -79,16 +79,24 @@ export const Settings = ({ invite }: { invite?: string }) => {
             .split("\n")
             .map((v) => v.trim())
             .filter((id) => id.length > 0);
-        const response = await window.api.call<any>(
-            "update_user",
-            nameChange ? name : "",
-            about,
-            principal_ids,
-            JSON.stringify(settings),
-        );
-        if ("Err" in response) {
-            alert(`Error: ${response.Err}`);
-            return;
+        const responses = await Promise.all([
+            window.api.call<any>(
+                "update_user",
+                nameChange ? name : "",
+                about,
+                principal_ids,
+            ),
+            window.api.call<any>(
+                "update_user_settings",
+                JSON.stringify(settings),
+            ),
+        ]);
+        for (let i in responses) {
+            const response = responses[i];
+            if ("Err" in response) {
+                alert(`Error: ${response.Err}`);
+                return;
+            }
         }
         if (!user || nameChange) location.href = "/";
         else if (uiRefresh) {

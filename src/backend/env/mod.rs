@@ -2491,24 +2491,10 @@ pub(crate) mod tests {
         assert!(user.previous_names.is_empty());
 
         // update with wrong principal
-        assert!(User::update(
-            pr(1),
-            Some("john".into()),
-            Default::default(),
-            vec![],
-            Default::default()
-        )
-        .is_err());
+        assert!(User::update(pr(1), Some("john".into()), Default::default(), vec![],).is_err());
 
         // correct update
-        assert!(User::update(
-            pr(0),
-            Some("john".into()),
-            Default::default(),
-            vec![],
-            Default::default()
-        )
-        .is_ok());
+        assert!(User::update(pr(0), Some("john".into()), Default::default(), vec![],).is_ok());
 
         let user = read(|state| state.users.get(&id).unwrap().clone());
         assert_eq!(user.name, "john".to_string());
