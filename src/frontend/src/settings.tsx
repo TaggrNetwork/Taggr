@@ -224,6 +224,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                         await window.api.account_balance(
                                             ICP_LEDGER_ID,
                                             Principal.fromText(user.principal),
+                                            [],
                                         );
                                     if (accountBalance > 0) {
                                         alert(

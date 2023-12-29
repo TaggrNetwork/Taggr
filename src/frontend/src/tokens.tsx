@@ -8,6 +8,7 @@ import {
     percentage,
     timeAgo,
     token,
+    TokenBalance,
     tokenBalance,
     UserLink,
     XDR_TO_USD,
@@ -21,6 +22,7 @@ import {
     encodeIcrcAccount,
 } from "@dfinity/ledger";
 import { Content } from "./content";
+import { CANISTER_ID } from "./env";
 
 type Balances = [IcrcAccount, number, UserId][];
 
@@ -255,19 +257,19 @@ export const Tokens = () => {
                         }}
                     />
                 </div>
-                <TransactionsView principal={searchedPrincipal} />
+                <TransactionsView icrcAccount={searchedPrincipal} />
             </div>
         </>
     );
 };
 
 export const TransactionsView = ({
-    principal,
+    icrcAccount,
     prime,
     heartbeat,
     hideUserInfo,
 }: {
-    principal?: string;
+    icrcAccount?: string;
     prime?: boolean;
     heartbeat?: any;
     hideUserInfo?: boolean;
@@ -283,8 +285,8 @@ export const TransactionsView = ({
     const [txPage, setTxPage] = React.useState(0);
 
     const loadUser = async () => {
-        if (!principal) return;
-        const profile = await window.api.query<User>("user", [principal]);
+        if (!icrcAccount) return;
+        const profile = await window.api.query<User>("user", [icrcAccount]);
         if (!profile) {
             return;
         }
@@ -294,7 +296,7 @@ export const TransactionsView = ({
     const loadTransactions = async () => {
         setLoading(true);
         const acc = decodeIcrcAccount(
-            principal || Principal.anonymous().toString(),
+            icrcAccount || Principal.anonymous().toString(),
         );
         const txs =
             (await window.api.query<[number, Transaction][]>(
@@ -309,7 +311,7 @@ export const TransactionsView = ({
             setNoMoreData(true);
         }
         setTransactions(
-            principal && txPage == 0 ? txs : transactions.concat(txs),
+            icrcAccount && txPage == 0 ? txs : transactions.concat(txs),
         );
         setLoading(false);
     };
@@ -317,19 +319,20 @@ export const TransactionsView = ({
     React.useEffect(() => {
         loadTransactions();
         loadUser();
-    }, [txPage, principal, heartbeat]);
+    }, [txPage, icrcAccount, heartbeat]);
 
     if (loading) return <Loading />;
+    const { token_symbol, token_decimals } = window.backendCache.config;
 
     return (
         <>
-            {principal && prime && (
+            {icrcAccount && prime && (
                 <HeadBar
                     title={
                         <>
                             TRANSACTIONS OF{" "}
                             <CopyToClipboard
-                                value={principal}
+                                value={icrcAccount}
                                 displayMap={(value) => {
                                     const [acc, subacc] = value.split(".");
                                     let result = (
@@ -341,17 +344,32 @@ export const TransactionsView = ({
                             />
                         </>
                     }
-                    shareLink={`transactions/${principal}`}
+                    shareLink={`transactions/${icrcAccount}`}
                 />
             )}
-            {identifiedUser && !hideUserInfo && (
-                <div className="stands_out top_spaced">
-                    <h2 className="larger_text ">
-                        User <UserLink id={identifiedUser.id} />
+            <div className="stands_out top_spaced">
+                {icrcAccount && (
+                    <h2>
+                        BALANCE:{" "}
+                        <code>
+                            <TokenBalance
+                                ledgerId={Principal.fromText(CANISTER_ID)}
+                                decimals={token_decimals}
+                                symbol={token_symbol}
+                                account={decodeIcrcAccount(icrcAccount)}
+                            />
+                        </code>
                     </h2>
-                    <Content value={identifiedUser.about} />
-                </div>
-            )}
+                )}
+                {identifiedUser && !hideUserInfo && (
+                    <>
+                        <h3 className="larger_text ">
+                            User <UserLink id={identifiedUser.id} />
+                        </h3>
+                        <Content value={identifiedUser.about} />
+                    </>
+                )}
+            </div>
             <div className="spaced">
                 <Transactions transactions={transactions} />
             </div>

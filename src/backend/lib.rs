@@ -107,10 +107,22 @@ async fn post_upgrade_fixtures() {
     mutate(|state| {
         for tx in &mut state.ledger {
             if let Some(subacc) = tx.to.subaccount.as_ref() {
-                if subacc.len() == 32 && subacc.iter().all(|b| b == &0) {
+                if subacc.iter().all(|b| b == &0) {
                     tx.to.subaccount = None;
                 }
             }
+            if let Some(subacc) = tx.from.subaccount.as_ref() {
+                if subacc.iter().all(|b| b == &0) {
+                    tx.to.subaccount = None;
+                }
+            }
+        }
+        match token::balances_from_ledger(&state.ledger) {
+            Ok(value) => state.balances = value,
+            Err(err) => state.logger.log(
+                format!("the token ledger is inconsistent: {}", err),
+                "CRITICAL".into(),
+            ),
         }
     });
 

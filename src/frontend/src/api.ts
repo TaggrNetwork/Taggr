@@ -66,7 +66,11 @@ export type Backend = {
 
     icp_account_balance: (address: string) => Promise<BigInt>;
 
-    account_balance: (token: Principal, owner: Principal) => Promise<bigint>;
+    account_balance: (
+        token: Principal,
+        owner: Principal,
+        subaccount: Uint8Array[],
+    ) => Promise<bigint>;
 
     icp_transfer: (account: string, e8s: number) => Promise<JsonValue>;
 
@@ -391,11 +395,17 @@ export const ApiGenerator = (
 
         account_balance: async (
             tokenId: Principal,
-            principal: Principal,
+            owner: Principal,
+            subaccount: Uint8Array[],
         ): Promise<bigint> => {
             const arg = IDL.encode(
-                [IDL.Record({ owner: IDL.Principal })],
-                [{ owner: principal }],
+                [
+                    IDL.Record({
+                        owner: IDL.Principal,
+                        subaccount: IDL.Opt(IDL.Vec(IDL.Nat8)),
+                    }),
+                ],
+                [{ owner, subaccount }],
             );
             const response: any = await query_raw(
                 tokenId.toString(),

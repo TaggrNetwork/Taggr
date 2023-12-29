@@ -6,6 +6,7 @@ import { loadFile } from "./form";
 import { Post, PostId, Report, User, UserId } from "./types";
 import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
+import { IcrcAccount } from "@dfinity/ledger";
 
 export const XDR_TO_USD = 1.32;
 
@@ -396,7 +397,7 @@ export const ICPAccountBalance = ({
     React.useEffect(() => {
         (typeof address == "string"
             ? window.api.icp_account_balance(address)
-            : window.api.account_balance(ICP_LEDGER_ID, address)
+            : window.api.account_balance(ICP_LEDGER_ID, address, [])
         ).then((n) => setE8s(n));
     }, [address, heartbeat]);
     return icpCode(e8s, decimals, units);
@@ -416,6 +417,27 @@ export const IcpAccountLink = ({
         {label}
     </a>
 );
+
+export const TokenBalance = ({
+    ledgerId,
+    decimals,
+    account,
+    symbol,
+}: {
+    ledgerId: Principal;
+    account: IcrcAccount;
+    decimals: number;
+    symbol: string;
+}) => {
+    const [balance, setBalance] = React.useState(BigInt(0));
+    const { owner, subaccount } = account;
+    React.useEffect(() => {
+        window.api
+            .account_balance(ledgerId, owner, subaccount ? [subaccount] : [])
+            .then((n) => setBalance(n));
+    }, []);
+    return `${tokens(Number(balance), decimals)} ${symbol}`;
+};
 
 export const Loading = ({
     classNameArg,

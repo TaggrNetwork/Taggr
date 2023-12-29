@@ -145,7 +145,7 @@ const App = () => {
     } else if (handler == "transaction") {
         content = <TransactionView id={parseInt(param)} />;
     } else if (handler == "transactions") {
-        content = <TransactionsView principal={param} prime={true} />;
+        content = <TransactionsView icrcAccount={param} prime={true} />;
     } else if (handler == "proposals") {
         content = <Proposals />;
     } else if (handler == "tokens") {
