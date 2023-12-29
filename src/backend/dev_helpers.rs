@@ -3,6 +3,15 @@
 use super::*;
 
 #[update]
+async fn reset() {
+    clear_buckets().await;
+    STATE.with(|cell| cell.replace(Default::default()));
+    set_timer(Duration::from_millis(0), || {
+        spawn(State::fetch_xdr_rate());
+    });
+}
+
+#[update]
 // This method needs to be triggered to test an upgrade locally.
 async fn chores() {
     State::chores(time()).await;
@@ -35,6 +44,19 @@ async fn clear_buckets() {
         let _: Result<(), _> = management_canister_call(canister_id, "stop_canister").await;
         let _: Result<(), _> = management_canister_call(canister_id, "delete_canister").await;
     }
+}
+
+#[update]
+fn make_stalwart(user_handle: String) {
+    mutate(|state| {
+        state
+            .users
+            .values_mut()
+            .find(|user| &user.name == &user_handle)
+            .map(|user| {
+                user.stalwart = true;
+            })
+    });
 }
 
 #[update]

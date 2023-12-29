@@ -1,0 +1,30 @@
+import { test, expect } from "@playwright/test";
+
+test("Sanity check", async ({ page }) => {
+    await page.goto("/");
+
+    await page.getByRole("heading", { name: "WELCOME ABOARD" }).click();
+    await expect(page).toHaveTitle("TAGGR: HOT");
+    await expect(
+        page.getByText("To the Future of Decentralized Social Networking"),
+    ).toBeVisible();
+});
+
+test("Important links work", async ({ page }) => {
+    await page.goto("/");
+
+    await page.getByRole("link", { name: "WHITE PAPER" }).click();
+    await expect(
+        page.getByRole("heading", { name: "WHITE PAPER" }),
+    ).toBeVisible();
+    await expect(
+        page.getByRole("heading", { name: "Stalwarts" }),
+    ).toBeVisible();
+    await page.goBack();
+
+    await page.getByRole("link", { name: "DASHBOARD" }).click();
+    await expect(page.getByText("LAST UPGRADE")).toBeVisible();
+    await page.goBack();
+    await page.getByTestId("tab-NEW").click();
+    await expect(page).toHaveTitle("TAGGR: NEW");
+});

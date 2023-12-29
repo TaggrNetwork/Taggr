@@ -419,16 +419,22 @@ impl User {
 
     pub fn mintable_tokens(&self, state: &State) -> Vec<(UserId, Token)> {
         let ratio = state.minting_ratio();
+        let boostraping_mode = state.balances.values().sum::<Token>() < 10000;
         let base = 10_u64.pow(CONFIG.token_decimals as u32);
         let karma_donated_total: Credits = self.karma_donations.values().sum();
         // we can donate only min(balance/ratio, donated_karma/ratio);
-        let spendable_tokens = (state
+        let donated_karma = karma_donated_total * base;
+        let balance = state
             .balances
             .get(&account(self.principal))
             .copied()
-            .unwrap_or_default())
-        .min(karma_donated_total * base)
-            / ratio;
+            .unwrap_or_default();
+        let spendable_tokens = if boostraping_mode {
+            // During the bootstrap period, use karma and not balances
+            donated_karma
+        } else {
+            balance.min(donated_karma)
+        } / ratio;
 
         let priority_factor = |user_id| {
             let balance = state

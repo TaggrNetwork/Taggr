@@ -169,6 +169,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                 <div className="column_container bottom_spaced">
                     <div className="bottom_half_spaced">DESCRIPTION</div>
                     <textarea
+                        data-testid="realm-textarea"
                         rows={10}
                         value={description}
                         onChange={(event) => setDescription(event.target.value)}

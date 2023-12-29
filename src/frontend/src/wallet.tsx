@@ -179,7 +179,6 @@ const Welcome = () => {
                                                         Number(invoice.e8s) /
                                                         1e8
                                                     ).toString()}
-                                                    testId="amount-to-transfer"
                                                 />
                                                 &nbsp;ICP to account
                                                 <br />
@@ -280,6 +279,7 @@ export const Wallet = () => {
                     )}
                     <ButtonWithLoading
                         label="TRANSFER"
+                        testId="icp-transfer-button"
                         onClick={async () => {
                             try {
                                 const recipient =
@@ -328,7 +328,7 @@ export const Wallet = () => {
                 </div>
                 <div className="vcentered">
                     <div className="max_width_col"></div>
-                    <code data-testid="icp-amount">
+                    <code data-testid="icp-balance">
                         <ICPAccountBalance
                             heartbeat={new Date()}
                             address={Principal.fromText(user.principal)}
@@ -410,7 +410,7 @@ export const Wallet = () => {
                     <div className="max_width_col"></div>
                     <code
                         className="xx_large_text"
-                        data-testid="credits-amount"
+                        data-testid="credits-balance"
                     >
                         {user.cycles.toLocaleString()}
                     </code>
@@ -421,6 +421,7 @@ export const Wallet = () => {
                     <h2 className="max_width_col">{token_symbol}</h2>
                     <ButtonWithLoading
                         label="TRANSFER"
+                        testId="tokens-transfer-button"
                         onClick={async () => {
                             await icrcTransfer(
                                 Principal.fromText(CANISTER_ID),
@@ -435,7 +436,7 @@ export const Wallet = () => {
                 </div>
                 <div className="vcentered">
                     <div className="max_width_col"></div>
-                    <code className="xx_large_text">
+                    <code data-testid="token-balance" className="xx_large_text">
                         {tokenBalance(user.balance)}
                     </code>
                 </div>

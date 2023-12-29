@@ -29,7 +29,7 @@ import { Proposals } from "./proposals";
 import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
-import { MAINNET_MODE, TEST_MODE, CANISTER_ID } from "./env";
+import { MAINNET_MODE, CANISTER_ID } from "./env";
 import { UserId } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Close } from "./icons";
@@ -54,17 +54,6 @@ const footerRoot = createRoot(document.getElementById("footer") as Element);
 const stack = document.getElementById("stack") as HTMLElement;
 
 const renderFrame = (content: React.ReactNode) => {
-    // don't use the cache in testing mode
-    if (TEST_MODE) {
-        console.log("RUNNING IN TEST MODE!");
-        if (!window.stackRoot) {
-            window.stackRoot = createRoot(stack);
-        }
-        if (location.hash == "#/home") location.href = "#/";
-        else window.stackRoot.render(content);
-        return;
-    }
-
     // This resets the stack.
     if (location.hash == "#/home") {
         window.resetUI();
@@ -229,10 +218,9 @@ const reloadCache = async () => {
         config,
     };
     window.resetUI = () => {
-        if (TEST_MODE) return;
+        window.uiInitialized = false;
         const frames = Array.from(stack.children);
         frames.forEach((frame) => frame.remove());
-        window.uiInitialized = false;
     };
     if (window.lastSavedUpgrade == 0) {
         window.lastSavedUpgrade = window.backendCache.stats.last_upgrade;

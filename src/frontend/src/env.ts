@@ -1,7 +1,5 @@
 export const MAINNET_MODE = process.env.DFX_NETWORK == "ic";
 
-export const TEST_MODE = process.env.TEST_MODE;
-
 export const STAGING_MODE = process.env.DFX_NETWORK == "staging";
 
 export const CANISTER_ID = process.env.CANISTER_ID || "";

@@ -90,7 +90,7 @@ impl Invoices {
         if balance >= costs {
             transfer(main_account(), costs, Memo(999), Some(invoice.sub_account)).await?;
             // If after minting we still have some balance, move it to user's wallet.
-            let rest = balance - costs;
+            let rest = balance - costs - fee();
             if rest > fee() {
                 transfer(
                     AccountIdentifier::new(invoice_id, &DEFAULT_SUBACCOUNT),

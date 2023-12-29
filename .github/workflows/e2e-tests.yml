@@ -36,26 +36,22 @@ jobs:
       - name: Start DFX
         run: dfx start --background
 
+      - name: Import local minter
+        run: ./e2e/import_local_minter.sh
+
       - name: Set up NNS canisters
         run: |
           dfx extension install nns
           dfx nns install
 
-      - name: Build canister
+      - name: Deploy canister
         run: |
           dfx canister create --all
           make e2e_build
+          make local_deploy
 
       - name: Run e2e tests
         run: npm run test:e2e
 
       - name: Stop DFX
         run: dfx stop
-
-      - name: Upload test report
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 30

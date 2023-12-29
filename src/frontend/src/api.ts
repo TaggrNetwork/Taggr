@@ -104,16 +104,21 @@ export const ApiGenerator = (
         methodName: string,
         arg = new ArrayBuffer(0),
     ): Promise<ArrayBuffer | null> => {
-        let response = await agent.query(
-            canisterId,
-            { methodName, arg },
-            identity,
-        );
-        if (response.status != "replied") {
-            console.error(response);
+        try {
+            let response = await agent.query(
+                canisterId,
+                { methodName, arg },
+                identity,
+            );
+            if (response.status != "replied") {
+                console.error(response);
+                return null;
+            }
+            return response.reply.arg;
+        } catch (error) {
+            console.error(error);
             return null;
         }
-        return response.reply.arg;
     };
 
     const query = async <T>(

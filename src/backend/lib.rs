@@ -97,7 +97,7 @@ fn post_upgrade() {
     );
 
     // post upgrade logic goes here
-    set_timer(Duration::from_secs(0), move || {
+    set_timer(Duration::from_millis(2), move || {
         spawn(post_upgrade_fixtures())
     });
 }

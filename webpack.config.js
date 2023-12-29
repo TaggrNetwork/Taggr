@@ -4,17 +4,10 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyPlugin = require("copy-webpack-plugin");
 
 const isDevelopment = process.env.NODE_ENV !== "production";
-const isTest = process.env.TEST_MODE || false;
 
 const NETWORK = process.env.DFX_NETWORK || (isDevelopment ? "local" : "ic");
 
 function initCanisterEnv() {
-    if (isTest) {
-        return {
-            CANISTER_ID: "6nxqb-aaaae-bqibi-ga4ea-scq",
-        };
-    }
-
     let localCanisters, prodCanisters;
     try {
         localCanisters = require(
@@ -114,7 +107,6 @@ module.exports = {
         new webpack.EnvironmentPlugin({
             NODE_ENV: "development",
             DFX_NETWORK: NETWORK,
-            TEST_MODE: isTest,
             ...canisterEnvVariables,
         }),
         new webpack.ProvidePlugin({

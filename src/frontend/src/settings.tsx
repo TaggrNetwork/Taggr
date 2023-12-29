@@ -125,7 +125,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 />
                 <div className="bottom_half_spaced">ABOUT YOU</div>
                 <input
-                    placeholder="you can use markdown, URLs, hashtags, ..."
+                    placeholder="tell us what we should know about you"
                     className="bottom_spaced"
                     type="text"
                     value={about}

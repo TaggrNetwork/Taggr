@@ -37,7 +37,7 @@ export const Profile = ({ handle }: { handle: string }) => {
         setStatus(1);
         try {
             profile.settings = JSON.parse(
-                profile.settings as unknown as string,
+                (profile.settings as unknown as string) || "{}",
             );
         } catch (e) {
             console.error(e);
@@ -114,6 +114,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                     ) : undefined
                 }
                 menu={true}
+                burgerTestId="profile-burger-menu"
                 content={
                     <div className="row_container">
                         <ShareButton
@@ -360,11 +361,13 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 </div>
             )}
             {getLabels(profile)}
-            {profile.about && (
+            {profile.about ? (
                 <>
                     <Content classNameArg="larger_text" value={profile.about} />
                     <hr />
                 </>
+            ) : (
+                <br />
             )}
             <div className="dynamic_table">
                 <div className="db_cell">

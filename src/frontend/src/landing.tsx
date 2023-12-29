@@ -30,12 +30,15 @@ export const Landing = () => {
             {labels.map(([icon, id]: [JSX.Element, string]) => (
                 <button
                     key={id}
+                    data-testid={`tab-${id}`}
                     onClick={() => {
-                        user.settings.tab = id;
-                        window.api.call<any>(
-                            "update_user_settings",
-                            JSON.stringify(user.settings),
-                        );
+                        if (user) {
+                            user.settings.tab = id;
+                            window.api.call<any>(
+                                "update_user_settings",
+                                JSON.stringify(user.settings),
+                            );
+                        }
                         setFeed(id);
                     }}
                     className={feed == id ? "active" : "unselected"}

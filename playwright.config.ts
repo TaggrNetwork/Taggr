@@ -5,16 +5,14 @@ export default defineConfig({
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
-    workers: process.env.CI ? 1 : 4,
-    globalSetup: require.resolve("./e2e/setup"),
-    globalTeardown: require.resolve("./e2e/teardown"),
+    workers: 4,
     reporter: [
         ["list", { printSteps: true }],
         ["html", { open: "never" }],
     ],
     use: {
-        baseURL: process.env["BASE_URL"],
         trace: "on-first-retry",
+        baseURL: process.env["BASE_URL"],
     },
     projects: [
         {
@@ -22,4 +20,5 @@ export default defineConfig({
             use: { ...devices["Desktop Chrome"] },
         },
     ],
+    globalSetup: require.resolve("./e2e/setup"),
 });

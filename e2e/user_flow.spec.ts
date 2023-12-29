@@ -1,0 +1,283 @@
+import { test, expect, Page } from "@playwright/test";
+import { resolve } from "node:path";
+import { exec } from "./command";
+
+test.describe.configure({ mode: "serial" });
+
+test.describe("Regular users flow", () => {
+    let page: Page;
+    let inviteLink: string;
+
+    test.beforeAll(async ({ browser }) => {
+        page = await browser.newPage();
+    });
+
+    test("Registration", async () => {
+        await page.goto("/");
+
+        // Registration flow
+        await page.getByRole("button", { name: "CONNECT" }).click();
+        await page.getByRole("button", { name: "PASSWORD" }).click();
+        await page.getByPlaceholder("Enter your password...").fill("alice");
+        await page.getByRole("button", { name: "JOIN" }).click();
+        await page.getByPlaceholder("Enter your password...").fill("alice");
+        await page.getByRole("button", { name: "JOIN" }).click();
+        const alicePrincipal =
+            "nxu2q-em5br-fw5za-34owr-pxlfb-p6g73-6fe6i-sgggr-vtt27-hnxqk-gqe";
+        await expect(page.getByText(alicePrincipal)).toBeVisible();
+        exec(
+            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 bc06aa9368ad008cdbbe14e4a2af46d39c6d231e1b39874887ea969b2403b5b7",
+        );
+        await page.getByRole("button", { name: "MINT CREDITS" }).click();
+        await page.getByRole("button", { name: "CREATE USER" }).click();
+        await page.getByPlaceholder("alphanumeric").fill("alice");
+        await page
+            .getByPlaceholder("tell us what we should know about you")
+            .fill("I am a #Taggr fan");
+        await page.getByRole("button", { name: "SAVE" }).click();
+        await expect(page).toHaveTitle("TAGGR: HOT");
+        await page.getByTestId("tab-NEW").click();
+        await expect(page).toHaveTitle("TAGGR: NEW");
+
+        await page.goto("/#/inbox");
+        await expect(
+            page.getByRole("heading", { name: "INBOX" }),
+        ).toBeVisible();
+        await expect(
+            page.getByText("Use #Taggr as your personal blog"),
+        ).toBeVisible();
+
+        // Logout
+        await page.getByTestId("burger-button").click();
+        await page.getByRole("link", { name: /.*LOGOUT.*/ }).click();
+    });
+
+    test("Login and post", async () => {
+        // Login flow
+        await page.getByRole("button", { name: "CONNECT" }).click();
+        await page.getByRole("button", { name: "PASSWORD" }).click();
+        await page.getByPlaceholder("Enter your password...").fill("alice");
+        await page.getByRole("button", { name: "JOIN" }).click();
+        await page.getByTestId("burger-button").click();
+        const profileButton = page.getByRole("link", { name: /.*ALICE.*/ });
+        await expect(profileButton).toBeVisible();
+
+        // Open our own profile and make sure it works
+        await profileButton.click();
+        await expect(
+            page.getByRole("heading", { name: "Alice" }),
+        ).toBeVisible();
+        await expect(page.locator("p")).toHaveText("I am a #Taggr fan");
+
+        // Create a post
+        await page.getByRole("button", { name: "POST" }).click();
+        await page.locator("textarea").fill("Hello world!");
+        const imagePath = resolve(
+            __dirname,
+            "..",
+            "src",
+            "frontend",
+            "assets",
+            "apple-touch-icon.png",
+        );
+        const [fileChooser] = await Promise.all([
+            page.waitForEvent("filechooser"),
+            page.getByTestId("file-picker").click(),
+        ]);
+        await fileChooser.setFiles([imagePath]);
+        await page.getByRole("button", { name: "SEND" }).click();
+        await page.waitForURL(/#\/post\//);
+
+        // Make sure the post loads
+        await expect(
+            page.locator("article", { hasText: /Hello world/ }),
+        ).toBeVisible();
+        await expect(page.locator("img")).toBeVisible();
+
+        // Edit the post
+        await page.getByTestId("post-info-toggle").click();
+        await page.locator("button[title=Edit]").click();
+        const value = await page.locator("textarea").textContent();
+        await page
+            .locator("textarea")
+            .fill(value + "\n\n**Edit:** this is a post-scriptum");
+        await page.getByRole("button", { name: "SEND" }).click();
+        await page.waitForURL(/#\/post\//);
+        await expect(page.getByText("post-scriptum")).toBeVisible();
+
+        // Make sure the post is visible on the front page too
+        await page.goto("/");
+        await expect(
+            page.locator("article", {
+                hasText: "Hello world!\n" + "Edit: this is a post-scriptum",
+            }),
+        ).toBeVisible();
+        await expect(page.locator("img")).toBeVisible();
+    });
+
+    test("Wallet", async () => {
+        // Test the wallet functionality
+        await page.goto("/#/wallet");
+
+        // Let's mint cycles
+        await expect(page.getByTestId("credits-balance")).toHaveText("986");
+        page.on("dialog", async (dialog) => {
+            if (
+                dialog
+                    .message()
+                    .includes("Enter the number of 1000s of credits to mint")
+            ) {
+                await dialog.accept("1");
+            }
+        });
+        await page.getByRole("button", { name: "MINT" }).click();
+        await expect(page.getByTestId("credits-balance")).toHaveText("1,986");
+
+        // Let's transfer some ICP
+        const icpBalance = parseFloat(
+            await page.getByTestId("icp-balance").textContent(),
+        );
+
+        const transferExecuted = new Promise((resolve, _reject) => {
+            page.on("dialog", async (dialog) => {
+                if (
+                    dialog
+                        .message()
+                        .includes(
+                            "Enter the recipient principal or ICP account address",
+                        )
+                ) {
+                    await dialog.accept("6qfxa-ryaaa-aaaai-qbhsq-cai");
+                }
+                if (
+                    dialog
+                        .message()
+                        .includes("Enter the amount (fee: 0.00010000 ICP)")
+                ) {
+                    const transferAmount = (icpBalance / 2).toString();
+                    await dialog.accept(transferAmount);
+                }
+                if (dialog.message().includes("You are transferring")) {
+                    await dialog.accept();
+                    await page.waitForLoadState("networkidle");
+                    await page.waitForTimeout(3000);
+                    resolve(null);
+                }
+            });
+        });
+
+        await page.getByTestId("icp-transfer-button").click();
+
+        await transferExecuted;
+
+        const newBalance = parseFloat(
+            await page.getByTestId("icp-balance").textContent(),
+        );
+        expect(newBalance).toBeLessThan(icpBalance);
+    });
+
+    test("Realms", async () => {
+        // Now we can create a new realm
+        await page.goto("/#/realms");
+        await page.getByRole("button", { name: "CREATE" }).click();
+        await page.getByPlaceholder("alphanumeric").fill("WONDERLAND");
+        await page.getByTestId("realm-textarea").fill("Alice in wonderland");
+        await page.getByRole("button", { name: "CREATE" }).click();
+
+        // Make sure we're in the realm
+        await page.getByTestId("realm-burger-button").click();
+        await expect(page.getByRole("button", { name: "LEAVE" })).toBeVisible();
+
+        // Now we can create a new post in the new realm
+        await page.getByRole("button", { name: "POST" }).click();
+        await page.locator("#form_undefined_3").fill("Hello from Alice!");
+        await page.getByRole("button", { name: "SEND" }).click();
+
+        // Make sure the post is visible on the front page and is labeled with realm tag
+        await page.locator("#logo").click();
+        await expect(
+            page.locator("article", { hasText: "Hello from Alice!" }),
+        ).toBeVisible();
+        await expect(page.locator('[class="realm_span realm_tag"]')).toHaveText(
+            "WONDERLAND",
+        );
+    });
+
+    test("Invites", async () => {
+        // Now we can create a new realm
+        await page.goto("/#/invites");
+        await page.getByRole("button", { name: "CREATE" }).click();
+        inviteLink = await page.getByText(/.*#\/welcome.*/).textContent();
+        await page.getByTestId("burger-button").click();
+        await page.getByRole("link", { name: /.*LOGOUT.*/ }).click();
+    });
+
+    test("Registration by invite", async () => {
+        await page.goto(inviteLink);
+        await page.getByRole("button", { name: "PASSWORD" }).click();
+        await page.getByPlaceholder("Enter your password...").fill("bob");
+        await page.getByPlaceholder("Repeat your password...").fill("bob");
+        await page.getByRole("button", { name: "JOIN" }).click();
+        await page.getByPlaceholder("alphanumeric").fill("bob");
+        await page
+            .getByPlaceholder("tell us what we should know about you")
+            .fill("Alice invited me");
+        await page.getByRole("button", { name: "SAVE" }).click();
+        await page.waitForURL(/\//);
+    });
+
+    test("Interacting with posts", async () => {
+        await page.getByTestId("tab-NEW").click();
+        await page
+            .locator(".feed_item", { hasText: /Hello world/ })
+            .getByTestId("post-info-toggle")
+            .click();
+        // React with a star
+        await page
+            .locator(".feed_item", { hasText: /Hello world/ })
+            .locator('button[title="Karma points: 10"]')
+            .click();
+        // comment on the first post
+        await page
+            .locator(".feed_item", { hasText: /Hello world/ })
+            .getByTestId("post-info-toggle")
+            .click();
+        await page.getByPlaceholder("Reply here...").focus();
+        await page.locator("textarea").fill("Bob was here");
+        await page.getByRole("button", { name: "SEND" }).click();
+
+        // Wait because the UI waits for 4s before sending the command
+        await page.waitForTimeout(4000);
+
+        // Check data on the post page
+        await page.locator("p", { hasText: /Hello world/ }).click();
+        await page.waitForURL(/#\/post\//);
+        await expect(
+            page.getByTestId("post-comments-toggle").first(),
+        ).toHaveText("1");
+        await expect(
+            page
+                .locator(".post_box", { hasText: /Hello world/ })
+                .getByTestId("100-reaction"),
+        ).toHaveText("1");
+        await page.locator("#logo").click();
+        await page.waitForTimeout(2000);
+    });
+
+    test("User profile", async () => {
+        // Check data on alice's profile
+        await page.getByRole("link", { name: "alice" }).first().click();
+        await expect(page.locator("div:has-text('REWARDS') > code")).toHaveText(
+            "11",
+        );
+        await expect(page.locator("div:has-text('POSTS') > code")).toHaveText(
+            "2",
+        );
+        await page.getByRole("heading", { name: "Interests" }).click();
+        await expect(
+            page.locator(
+                '[class="realm_span clickable padded_rounded right_half_spaced top_half_spaced"]',
+            ),
+        ).toHaveText("WONDERLAND");
+    });
+});

@@ -32,7 +32,7 @@ fe:
 	npm run build --quiet
 
 e2e_build:
-	TEST_MODE=true NODE_ENV=production DFX_NETWORK=local npm run build
+	NODE_ENV=production DFX_NETWORK=local npm run build
 	FEATURES=dev ./build.sh bucket
 	FEATURES=dev ./build.sh taggr
 

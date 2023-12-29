@@ -20,7 +20,7 @@ export const PostSubmissionForm = ({
     const [blobs, setBlobs] = React.useState({});
 
     const load = async () => {
-        if (!id) return;
+        if (id == undefined) return;
         const post = (await loadPosts([id])).pop();
         if (!post) return;
         setPost(post);
@@ -40,7 +40,7 @@ export const PostSubmissionForm = ({
         let postId;
         text = text.trim();
         const optionalRealm = realm ? [realm] : [];
-        if (post?.id) {
+        if (post?.id != undefined) {
             const patch = getPatch(text, post.body);
             let response: any = await window.api.edit_post(
                 post.id,
