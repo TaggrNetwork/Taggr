@@ -57,7 +57,6 @@ const renderFrame = (content: React.ReactNode) => {
     // This resets the stack.
     if (location.hash == "#/home") {
         window.resetUI();
-        window.realm = "";
         location.href = "#/";
         return;
     }
@@ -88,6 +87,12 @@ const App = () => {
     let subtle = false;
     let inboxMode = false;
     let content = null;
+
+    // This resets the stack.
+    if (["#", "#/"].includes(location.hash)) {
+        window.realm = "";
+        window.uiInitialized = false;
+    }
 
     setTitle(handler);
     setUI();
