@@ -97,70 +97,12 @@ fn post_upgrade() {
     );
 
     // post upgrade logic goes here
-    set_timer(Duration::from_millis(2), move || {
+    set_timer(Duration::from_millis(0), move || {
         spawn(post_upgrade_fixtures())
     });
 }
 
-async fn post_upgrade_fixtures() {
-    mutate(|state| {
-        for user in state.users.values_mut() {
-            ic_cdk::println!("{}", &user.settings);
-            if let Ok(object) = serde_json::from_slice::<std::collections::BTreeMap<String, String>>(
-                user.settings.as_bytes(),
-            ) {
-                user.settings_object = object;
-            }
-        }
-
-        // Remove default subaccount
-        for tx in &mut state.ledger {
-            if let Some(subacc) = tx.to.subaccount.as_ref() {
-                if subacc.iter().all(|b| b == &0) {
-                    tx.to.subaccount = None;
-                }
-            }
-            if let Some(subacc) = tx.from.subaccount.as_ref() {
-                if subacc.iter().all(|b| b == &0) {
-                    tx.to.subaccount = None;
-                }
-            }
-        }
-        match token::balances_from_ledger(&state.ledger) {
-            Ok(value) => state.balances = value,
-            Err(err) => state.logger.log(
-                format!("the token ledger is inconsistent: {}", err),
-                "CRITICAL".into(),
-            ),
-        }
-    });
-
-    // This moves all ICP funds from TAGGR subaccounts to users principal, removing TAGGR as
-    // intermediary.
-    for user in read(|state| state.users.values().cloned().collect::<Vec<_>>()) {
-        let user_subacc = principal_to_subaccount(&user.principal);
-        let user_acc = AccountIdentifier::new(&id(), &user_subacc);
-        let balance = invoices::account_balance(user_acc).await;
-        if balance < DEFAULT_FEE {
-            continue;
-        }
-        if let Err(err) = invoices::transfer(
-            AccountIdentifier::new(&user.principal, &DEFAULT_SUBACCOUNT),
-            balance - DEFAULT_FEE,
-            Memo(7779),
-            Some(user_subacc),
-        )
-        .await
-        {
-            mutate(|state| {
-                state.logger.error(format!(
-                    "couldn't transfer {} e8s to user {}: {}",
-                    balance, user.name, err
-                ))
-            });
-        };
-    }
-}
+async fn post_upgrade_fixtures() {}
 
 /*
  * UPDATES

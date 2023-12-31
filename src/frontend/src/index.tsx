@@ -88,7 +88,6 @@ const App = () => {
     let inboxMode = false;
     let content = null;
 
-    // This resets the stack.
     if (["#", "#/"].includes(location.hash)) {
         window.realm = "";
         window.uiInitialized = false;

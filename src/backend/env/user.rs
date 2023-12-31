@@ -49,6 +49,7 @@ pub struct User {
     pub bookmarks: VecDeque<PostId>,
     pub about: String,
     pub account: String,
+    #[serde(skip)]
     pub settings: String,
     #[serde(default)]
     pub settings_object: BTreeMap<String, String>,
