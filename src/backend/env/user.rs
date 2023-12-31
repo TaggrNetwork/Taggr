@@ -50,6 +50,8 @@ pub struct User {
     pub about: String,
     pub account: String,
     pub settings: String,
+    #[serde(default)]
+    pub settings_object: BTreeMap<String, String>,
     cycles: Credits,
     rewards: i64,
     pub feeds: Vec<BTreeSet<String>>,
@@ -115,6 +117,7 @@ impl User {
             karma_donations: Default::default(),
             previous_names: Default::default(),
             rewards: 0,
+            settings_object: Default::default(),
         }
     }
 
@@ -169,8 +172,14 @@ impl User {
         self.last_activity + n * WEEK > now
     }
 
-    pub fn valid_info(about: &str, settings: &str) -> bool {
-        about.len() + settings.len() < CONFIG.max_user_info_length
+    pub fn valid_info(about: &str, settings: &BTreeMap<String, String>) -> bool {
+        about.len()
+            + settings
+                .keys()
+                .chain(settings.values())
+                .map(|v| v.len())
+                .sum::<usize>()
+            < CONFIG.max_user_info_length
     }
 
     pub fn clear_notifications(&mut self, ids: Vec<String>) {
@@ -357,13 +366,16 @@ impl User {
         Ok(())
     }
 
-    pub fn update_settings(caller: Principal, settings: String) -> Result<(), String> {
+    pub fn update_settings(
+        caller: Principal,
+        settings: BTreeMap<String, String>,
+    ) -> Result<(), String> {
         mutate(|state| {
             if let Some(user) = state.principal_to_user_mut(caller) {
                 if !User::valid_info(&user.about, &settings) {
                     return Err("too long inputs".to_string());
                 }
-                user.settings = settings;
+                user.settings_object = settings;
             }
             Ok(())
         })
@@ -391,7 +403,7 @@ impl User {
 
         mutate(|state| {
             let user = state.principal_to_user(caller).ok_or("user not found")?;
-            if !User::valid_info(&about, &user.settings) {
+            if !User::valid_info(&about, &user.settings_object) {
                 return Err("too long inputs".to_string());
             }
             let user_id = user.id;

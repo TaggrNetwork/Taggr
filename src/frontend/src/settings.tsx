@@ -21,7 +21,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         setName(user.name);
         setAbout(user.about);
         setControllers(user.controllers.join("\n"));
-        setSettings(user.settings);
+        setSettings(user.settings_object);
     };
 
     React.useEffect(() => updateData(user), [user]);
@@ -87,10 +87,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 about,
                 principal_ids,
             ),
-            window.api.call<any>(
-                "update_user_settings",
-                JSON.stringify(settings),
-            ),
+            window.api.call<any>("update_user_settings", settings),
         ]);
         for (let i in responses) {
             const response = responses[i];

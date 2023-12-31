@@ -10,11 +10,13 @@ import {
 } from "./common";
 import { New, User, Fire, Realm } from "./icons";
 
+const tabKey = () => `${currentRealm()}_tab`;
+
 export const Landing = () => {
     const user = window.user;
     const realm = currentRealm();
     const [feed, setFeed] = React.useState(
-        (user && user.settings.tab) || "HOT",
+        (user && user.settings_object[tabKey()]) || "HOT",
     );
     const labels: [JSX.Element, string][] = [
         [<New />, "NEW"],
@@ -33,10 +35,10 @@ export const Landing = () => {
                     data-testid={`tab-${id}`}
                     onClick={() => {
                         if (user) {
-                            user.settings.tab = id;
+                            user.settings_object[tabKey()] = id;
                             window.api.call<any>(
                                 "update_user_settings",
-                                JSON.stringify(user.settings),
+                                user.settings_object,
                             );
                         }
                         setFeed(id);

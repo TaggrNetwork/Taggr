@@ -103,8 +103,17 @@ fn post_upgrade() {
 }
 
 async fn post_upgrade_fixtures() {
-    // Remove default subaccount
     mutate(|state| {
+        for user in state.users.values_mut() {
+            ic_cdk::println!("{}", &user.settings);
+            if let Ok(object) = serde_json::from_slice::<std::collections::BTreeMap<String, String>>(
+                user.settings.as_bytes(),
+            ) {
+                user.settings_object = object;
+            }
+        }
+
+        // Remove default subaccount
         for tx in &mut state.ledger {
             if let Some(subacc) = tx.to.subaccount.as_ref() {
                 if subacc.iter().all(|b| b == &0) {
@@ -258,7 +267,7 @@ fn update_user() {
 
 #[export_name = "canister_update update_user_settings"]
 fn update_user_settings() {
-    let settings: String = parse(&arg_data_raw());
+    let settings: std::collections::BTreeMap<String, String> = parse(&arg_data_raw());
     reply(User::update_settings(caller(), settings))
 }
 

@@ -282,7 +282,6 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                 if (data) {
                     window.user = data;
                     window.user.realms.reverse();
-                    window.user.settings = JSON.parse(data.settings || "{}");
                     if (600000 < microSecsSince(window.user.last_activity)) {
                         window.lastVisit = window.user.last_activity;
                         api.call("update_last_activity");

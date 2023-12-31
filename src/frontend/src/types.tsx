@@ -163,11 +163,8 @@ export type User = {
     principal: string;
     bookmarks: number[];
     last_activity: BigInt;
-    settings: {
-        theme: string;
-        columns: string;
-        open_chat: string;
-        tab: string;
+    settings_object: {
+        [key: string]: string;
     };
     realms: string[];
     previous_names: string[];

@@ -35,13 +35,6 @@ export const Profile = ({ handle }: { handle: string }) => {
             return;
         }
         setStatus(1);
-        try {
-            profile.settings = JSON.parse(
-                (profile.settings as unknown as string) || "{}",
-            );
-        } catch (e) {
-            console.error(e);
-        }
         setProfile(profile);
     };
 
@@ -178,7 +171,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                         }}
                                     />
                                 )}
-                                {profile.settings.open_chat && (
+                                {profile.settings_object.open_chat && (
                                     <ButtonWithLoading
                                         label="OPEN CHAT"
                                         classNameArg="max_width_col"
@@ -187,7 +180,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                                 // Make sure it parses as cansiter id;
                                                 let canister_id =
                                                     Principal.fromText(
-                                                        profile.settings
+                                                        profile.settings_object
                                                             .open_chat,
                                                     );
                                                 const url = `https://oc.app/user/${canister_id.toString()}`;
