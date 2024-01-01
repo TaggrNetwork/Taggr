@@ -110,3 +110,31 @@ At this point, you can refer to the [command reference](#command-reference) to d
 ```shell
 dfx ledger transfer --memo 1000 --amount 10 ${accountId}
 ```
+
+## e2e Tests
+
+Make sure to follow the [first time setup instructions](#first-time-setup) before running e2e tests without using the Dockerfile.
+
+Run the test UI, this is great for watching the tests run as they are happening and checking screenshots at each stage:
+
+```shell
+npm run test:e2e -- --ui
+```
+
+To collect a static trace for tests:
+
+```shell
+npm run test:e2e -- --trace on
+```
+
+To help determine if tests are flaky, run them multiple times, note that only the file's name is required, not its full path. If the filename is omitted then all tests will be run multiple times:
+
+```shell
+npm run test:e2e -- ${test_filename}.spec.ts --trace on --repeat-each 10
+```
+
+During development, it can be common to write an incorrect selector or something else that will cause the test to timeout. If it's happening frequently and slowing down the feedback cycle then the max timeout can be set to a lower value. Be careful not to set it too low or you may get false negatives in the tests:
+
+```shell
+npm run test:e2e -- --timeout 10000
+```
