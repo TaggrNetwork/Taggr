@@ -137,6 +137,7 @@ impl User {
             return false;
         }
         self.bookmarks.push_front(post_id);
+        self.notify_about_post("Added to your bookmarks", post_id);
         true
     }
 
