@@ -38,6 +38,10 @@ pub struct Config {
 
     pub max_credits_mint_kilos: u64,
 
+    // When there are less tokens than defined by this threshold, only the user karma is used to
+    // determine the number of minted tokens.
+    pub boostrapping_threshold_tokens: u64,
+
     pub dao_realm: &'static str,
 
     pub realm_revenue_percentage: u32,
@@ -151,6 +155,8 @@ pub const CONFIG: &Config = &Config {
     credit_transaction_fee: 1,
 
     credits_per_xdr: 1000,
+
+    boostrapping_threshold_tokens: 100000,
 
     min_treasury_balance_xdrs: 38, // ~$50
 

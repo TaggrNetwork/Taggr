@@ -7,7 +7,6 @@ use candid::Principal;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
-    invoices::principal_to_subaccount,
     memory, parse_amount,
     post::{Extension, Post, PostId},
     proposals::{Release, Reward},
@@ -24,7 +23,7 @@ use ic_cdk::{
 };
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
-use ic_ledger_types::{AccountIdentifier, Memo, Tokens, DEFAULT_FEE, DEFAULT_SUBACCOUNT};
+use ic_ledger_types::{AccountIdentifier, Tokens};
 use serde_bytes::ByteBuf;
 use std::time::Duration;
 
