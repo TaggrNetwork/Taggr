@@ -88,7 +88,11 @@ const App = () => {
     let inboxMode = false;
     let content = null;
 
-    if (["#", "#/"].includes(location.hash)) {
+    if (
+        ["#/realm", "#/post"].every(
+            (prefix: string) => !location.hash.startsWith(prefix),
+        )
+    ) {
         window.realm = "";
         window.uiInitialized = false;
     }
