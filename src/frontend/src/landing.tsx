@@ -16,7 +16,8 @@ export const Landing = () => {
     const user = window.user;
     const realm = currentRealm();
     const [feed, setFeed] = React.useState(
-        (user && user.settings_object[tabKey()]) || "HOT",
+        (user && user.settings_object[tabKey()]) ||
+            (currentRealm() ? "NEW" : "HOT"),
     );
     const labels: [JSX.Element, string][] = [
         [<New />, "NEW"],
