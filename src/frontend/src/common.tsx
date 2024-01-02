@@ -374,7 +374,7 @@ export const tokens = (n: number, decimals: number, hideDecimals?: boolean) => {
     let base = Math.pow(10, decimals);
     let v = n / base;
     return (hideDecimals ? Math.floor(v) : v).toLocaleString(undefined, {
-        minimumFractionDigits: decimals,
+        minimumFractionDigits: hideDecimals ? 0 : decimals,
     });
 };
 
