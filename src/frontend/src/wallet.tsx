@@ -444,7 +444,6 @@ export const Wallet = () => {
                 <h2>Latest Transactions</h2>
                 <TransactionsView
                     icrcAccount={user.principal}
-                    hideUserInfo={true}
                     heartbeat={new Date()}
                 />
             </div>

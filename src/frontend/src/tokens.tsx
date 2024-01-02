@@ -14,30 +14,13 @@ import {
     XDR_TO_USD,
 } from "./common";
 import * as React from "react";
-import { UserId, Transaction, User } from "./types";
+import { UserId, Transaction, User, Account } from "./types";
 import { Principal } from "@dfinity/principal";
-import {
-    IcrcAccount,
-    decodeIcrcAccount,
-    encodeIcrcAccount,
-} from "@dfinity/ledger";
+import { decodeIcrcAccount, encodeIcrcAccount } from "@dfinity/ledger";
 import { Content } from "./content";
 import { CANISTER_ID } from "./env";
 
-type Balances = [IcrcAccount, number, UserId][];
-
-const accToIcrcAcc = ({
-    owner,
-    subaccount,
-}: {
-    owner: string;
-    subaccount: number[];
-}): IcrcAccount => {
-    return {
-        owner: Principal.fromText(owner),
-        subaccount: Uint8Array.from(subaccount || []),
-    };
-};
+type Balances = [Account, number, UserId][];
 
 export const Tokens = () => {
     const [status, setStatus] = React.useState(0);
@@ -216,7 +199,7 @@ export const Tokens = () => {
                         {balances.slice(0, (balPage + 1) * 25).map((b) => (
                             <tr key={b[0].owner.toString()}>
                                 <td style={{ textAlign: "left" }}>
-                                    {showPrincipal(b[0].owner.toString())}
+                                    {showPrincipal(b[0])}
                                 </td>
                                 <td>
                                     <code>{token(b[1])}</code>
@@ -267,12 +250,10 @@ export const TransactionsView = ({
     icrcAccount,
     prime,
     heartbeat,
-    hideUserInfo,
 }: {
     icrcAccount?: string;
     prime?: boolean;
     heartbeat?: any;
-    hideUserInfo?: boolean;
 }) => {
     const [noMoreData, setNoMoreData] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
@@ -327,49 +308,55 @@ export const TransactionsView = ({
     return (
         <>
             {icrcAccount && prime && (
-                <HeadBar
-                    title={
-                        <>
-                            TRANSACTIONS OF{" "}
-                            <CopyToClipboard
-                                value={icrcAccount}
-                                displayMap={(value) => {
-                                    const [acc, subacc] = value.split(".");
-                                    let result = (
-                                        acc.split("-")[0] +
-                                        (subacc ? `.${subacc.slice(0, 6)}` : "")
-                                    ).toUpperCase();
-                                    return result;
-                                }}
-                            />
-                        </>
-                    }
-                    shareLink={`transactions/${icrcAccount}`}
-                />
+                <>
+                    <HeadBar
+                        title={
+                            <>
+                                TRANSACTIONS OF{" "}
+                                <CopyToClipboard
+                                    value={icrcAccount}
+                                    displayMap={(value) => {
+                                        const [acc, subacc] = value.split(".");
+                                        let result = (
+                                            acc.split("-")[0] +
+                                            (subacc
+                                                ? `.${subacc.slice(0, 6)}`
+                                                : "")
+                                        ).toUpperCase();
+                                        return result;
+                                    }}
+                                />
+                            </>
+                        }
+                        shareLink={`transactions/${icrcAccount}`}
+                    />
+                    <div className="stands_out top_spaced">
+                        {icrcAccount && (
+                            <h2>
+                                BALANCE:{" "}
+                                <code>
+                                    <TokenBalance
+                                        ledgerId={Principal.fromText(
+                                            CANISTER_ID,
+                                        )}
+                                        decimals={token_decimals}
+                                        symbol={token_symbol}
+                                        account={decodeIcrcAccount(icrcAccount)}
+                                    />
+                                </code>
+                            </h2>
+                        )}
+                        {identifiedUser && (
+                            <>
+                                <h3 className="larger_text ">
+                                    User <UserLink id={identifiedUser.id} />
+                                </h3>
+                                <Content value={identifiedUser.about} />
+                            </>
+                        )}
+                    </div>
+                </>
             )}
-            <div className="stands_out top_spaced">
-                {icrcAccount && (
-                    <h2>
-                        BALANCE:{" "}
-                        <code>
-                            <TokenBalance
-                                ledgerId={Principal.fromText(CANISTER_ID)}
-                                decimals={token_decimals}
-                                symbol={token_symbol}
-                                account={decodeIcrcAccount(icrcAccount)}
-                            />
-                        </code>
-                    </h2>
-                )}
-                {identifiedUser && !hideUserInfo && (
-                    <>
-                        <h3 className="larger_text ">
-                            User <UserLink id={identifiedUser.id} />
-                        </h3>
-                        <Content value={identifiedUser.about} />
-                    </>
-                )}
-            </div>
             <div className="spaced">
                 <Transactions transactions={transactions} />
             </div>
@@ -426,18 +413,11 @@ export const TransactionView = ({ id }: { id: number }) => {
                 {tx.from.owner == Principal.anonymous().toString() ? (
                     <code>MINTING ACCOUNT 🌱</code>
                 ) : (
-                    <CopyToClipboard
-                        value={encodeIcrcAccount(accToIcrcAcc(tx.from))}
-                        displayMap={(id) =>
-                            id in knownAddresses ? knownAddresses[id] : id
-                        }
-                    />
+                    showPrincipal(tx.from, "long")
                 )}
                 <hr />
                 TO
-                <CopyToClipboard
-                    value={encodeIcrcAccount(accToIcrcAcc(tx.to))}
-                />
+                {showPrincipal(tx.to, "long")}
                 <hr />
                 AMOUNT{" "}
                 <code className="xx_large_text">{tokenBalance(tx.amount)}</code>
@@ -491,10 +471,10 @@ const Transactions = ({
                         {timeAgo(t.timestamp)}
                     </td>
                     <td style={{ textAlign: "center" }}>
-                        {showPrincipal(encodeIcrcAccount(accToIcrcAcc(t.from)))}
+                        {showPrincipal(t.from)}
                     </td>
                     <td style={{ textAlign: "center" }}>
-                        {showPrincipal(encodeIcrcAccount(accToIcrcAcc(t.to)))}
+                        {showPrincipal(t.to)}
                     </td>
                     <td>
                         <code>{tokenBalance(t.amount)}</code>
@@ -518,15 +498,31 @@ const genColor = (val: string) => {
     return color;
 };
 
-const showPrincipal = (principal: string) => (
-    <a className="monospace" href={`#/transactions/${principal}`}>
-        {principal in knownAddresses
-            ? knownAddresses[principal]
-            : principal == "2vxsx-fae"
-            ? "🌱"
-            : principal.split("-")[0]}
-    </a>
-);
+const showPrincipal = ({ owner, subaccount }: Account, long?: string) => {
+    const icrcAccount = {
+        owner: Principal.fromText(owner),
+        subaccount: Uint8Array.from(subaccount || []),
+    };
+    let principal: string = encodeIcrcAccount(icrcAccount);
+    return (
+        <CopyToClipboard
+            value={
+                principal in knownAddresses
+                    ? knownAddresses[principal]
+                    : principal == "2vxsx-fae"
+                    ? "🌱"
+                    : long
+                    ? principal
+                    : principal.split("-")[0]
+            }
+            displayMap={(val) => (
+                <a className="monospace" href={`#/transactions/${principal}`}>
+                    {val}
+                </a>
+            )}
+        />
+    );
+};
 
 const knownAddresses: { [key: string]: string } = {
     "cetrr-jaaaa-aaaak-afgxq-cai": "BEACON",
