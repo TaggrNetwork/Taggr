@@ -15,7 +15,6 @@ use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{self, canister_balance};
 use ic_ledger_types::{AccountIdentifier, Tokens, MAINNET_LEDGER_CANISTER_ID};
-use invoices::e8s_to_icp;
 use invoices::Invoices;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -621,7 +620,9 @@ impl State {
                 .notify_about_post(
                     format!(
                         "@{} tipped you with `{}` {} for your post",
-                        tipper_name, amount, CONFIG.token_symbol
+                        tipper_name,
+                        display_tokens(amount, CONFIG.token_decimals as u32),
+                        CONFIG.token_symbol
                     ),
                     post_id,
                 );
@@ -1074,11 +1075,11 @@ impl State {
                 user.treasury_e8s += e8s;
                 total_rewards += user_reward;
                 total_revenue += user_revenue;
-                payments.push(format!("`{}` to @{}", e8s_to_icp(e8s), &user.name));
+                payments.push(format!("`{}` to @{}", display_tokens(e8s, 8), &user.name));
                 user.notify(format!(
                     "You received `{}` ICP as rewards and `{}` ICP as revenue! 💸",
-                    e8s_to_icp(user_reward),
-                    e8s_to_icp(user_revenue)
+                    display_tokens(user_reward, 8),
+                    display_tokens(user_revenue, 8)
                 ));
             }
             if state.burned_cycles > 0 {
@@ -1096,8 +1097,8 @@ impl State {
             }
             state.logger.info(format!(
                 "Paid out `{}` ICP as rewards and `{}` ICP as revenue as follows: {}",
-                e8s_to_icp(total_rewards),
-                e8s_to_icp(total_revenue),
+                display_tokens(total_rewards, 8),
+                display_tokens(total_revenue, 8),
                 payments.join(", ")
             ));
             total_rewards + total_revenue
@@ -1624,7 +1625,7 @@ impl State {
                     state.logger.info(format!(
                         "@{} minted credits for `{}` ICP ⚡️",
                         user_name,
-                        e8s_to_icp(invoice.paid_e8s)
+                        display_tokens(invoice.paid_e8s, 8)
                     ));
                 }
             }
@@ -2374,6 +2375,15 @@ pub fn parse_amount(amount: &str, token_decimals: u8) -> Result<u64, String> {
     }
 }
 
+pub fn display_tokens(amount: u64, decimals: u32) -> String {
+    let base = 10_u64.pow(decimals);
+    if decimals == 8 {
+        format!("{}.{:08}", amount / base, (amount % base) as usize)
+    } else {
+        format!("{}.{:02}", amount / base, (amount % base) as usize)
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
 
@@ -2405,6 +2415,13 @@ pub(crate) mod tests {
         u.change_rewards(25, "");
         u.take_positive_rewards();
         id
+    }
+
+    #[test]
+    fn test_display_tokens() {
+        assert_eq!(display_tokens(10000000, 8), "0.10000000");
+        assert_eq!(display_tokens(123456789, 8), "1.23456789");
+        assert_eq!(display_tokens(34544, 2), "345.44");
     }
 
     #[test]

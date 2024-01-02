@@ -131,10 +131,6 @@ pub async fn main_account_balance() -> Tokens {
     account_balance(main_account()).await
 }
 
-pub fn e8s_to_icp(e8s: u64) -> String {
-    format!("{}.{:08}", e8s / 100000000, e8s % 100000000)
-}
-
 pub async fn transfer(
     to: AccountIdentifier,
     amount: Tokens,
