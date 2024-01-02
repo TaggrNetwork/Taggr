@@ -848,6 +848,7 @@ fn posts() {
 fn journal() {
     let (handle, page): (String, usize) = parse(&arg_data_raw());
     read(|state| {
+        let inverse_filters = state.principal_to_user(caller()).map(|user| &user.filters);
         reply(
             state
                 .user(&handle)
@@ -859,6 +860,9 @@ fn journal() {
                             !post.is_deleted()
                                 && post.parent.is_none()
                                 && !post.body.starts_with('@')
+                                && inverse_filters
+                                    .map(|filters| !post.matches_filters(filters))
+                                    .unwrap_or(true)
                         })
                         .skip(page * CONFIG.feed_page_size)
                         .take(CONFIG.feed_page_size)
