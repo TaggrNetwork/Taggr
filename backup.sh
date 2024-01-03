@@ -3,6 +3,7 @@
 DIR=$1
 echo "Using directory $DIR"
 CMD=$2
+# This script is based on https://forum.dfinity.org/t/canister-backup/11777/26
 QU=../qu/target/release/qu
 
 set -e
