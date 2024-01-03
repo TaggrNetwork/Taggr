@@ -133,7 +133,7 @@ The amount of minted tokens is computed weekly according to the following algori
 | Below `100`                      | `1.2`  |
 | Below `250`                      | `1.15` |
 | Below `500`                      | `1.1`  |
-| Below `1000`                     | `1`    |
+| Above `500`                      | `1`    |
 
 The minting ratio `R` is algorithmically computed by $name.
 It starts at `1:1` and remains at this level until `10%` of supply is minted.
