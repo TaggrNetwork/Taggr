@@ -23,6 +23,8 @@ pub struct Config {
     pub token_symbol: &'static str,
     pub total_supply: Token,
 
+    pub min_age_hot_post_days: u64,
+
     pub credits_per_xdr: u64,
 
     pub individual_minting_threshold_percentage: u64,
@@ -162,6 +164,8 @@ pub const CONFIG: &Config = &Config {
 
     individual_minting_threshold_percentage: 1,
     minting_threshold_percentage: 5,
+
+    min_age_hot_post_days: 7,
 
     max_credits_mint_kilos: 10,
 
