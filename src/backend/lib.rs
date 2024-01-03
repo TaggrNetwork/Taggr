@@ -102,9 +102,20 @@ fn post_upgrade() {
 }
 
 async fn post_upgrade_fixtures() {
+    // Bury accs with broken principals, see https://taggr.link/post/54008
     mutate(|state| {
+        pub fn pr(s: &[u8]) -> Principal {
+            Principal::from_slice(s)
+        }
+        state.principals.remove(&Principal::anonymous());
         for u in state.users.values_mut() {
             u.account = AccountIdentifier::new(&u.principal, &DEFAULT_SUBACCOUNT).to_string();
+
+            // fix broken user accounts as discussed in https://taggr.link/post/54008
+            if u.principal == Principal::anonymous() {
+                u.principal = pr(&u.id.to_be_bytes());
+                state.principals.insert(u.principal, u.id);
+            }
         }
     })
 }

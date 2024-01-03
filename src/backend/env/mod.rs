@@ -636,7 +636,10 @@ impl State {
         timestamp: u64,
         name: String,
         credits: Option<Credits>,
-    ) -> UserId {
+    ) -> Result<UserId, String> {
+        if self.principals.contains_key(&principal) {
+            return Err("another user assigned to the same principal".into());
+        }
         let id = self.new_user_id();
         let mut user = User::new(principal, id, timestamp, name);
         user.notify(format!("**Welcome!** 🎉 Use #{} as your personal blog, micro-blog or a photo blog. Use #hashtags to connect with others. Make sure you understand [how {0} works](/#/whitepaper). And finally, [say hello](#/new) and start earning rewards!", CONFIG.name));
@@ -648,7 +651,7 @@ impl State {
         self.logger
             .info(format!("@{} joined {} 🚀", &user.name, CONFIG.name));
         self.users.insert(user.id, user);
-        id
+        Ok(id)
     }
 
     pub async fn create_user(
@@ -667,9 +670,9 @@ impl State {
                 let new_user_id = if inviter.invites_budget > credits {
                     inviter.invites_budget = inviter.invites_budget.saturating_sub(credits);
                     state.spend(credits, "user invite");
-                    state.new_user(principal, time(), name.clone(), Some(credits))
+                    state.new_user(principal, time(), name.clone(), Some(credits))?
                 } else if inviter.credits() > credits {
-                    let new_user_id = state.new_user(principal, time(), name.clone(), None);
+                    let new_user_id = state.new_user(principal, time(), name.clone(), None)?;
                     state
                         .credit_transfer(
                             inviter_id,
@@ -703,7 +706,7 @@ impl State {
         }
 
         if let Ok(Invoice { paid: true, .. }) = State::mint_credits(principal, 0).await {
-            mutate(|state| state.new_user(principal, time(), name, None));
+            mutate(|state| state.new_user(principal, time(), name, None))?;
             // After the user has beed created, transfer credits.
             return State::mint_credits(principal, 0).await.map(|_| ());
         }
@@ -2421,7 +2424,9 @@ pub(crate) mod tests {
         name: &str,
         credits: Credits,
     ) -> UserId {
-        let id = state.new_user(p, 0, name.to_string(), Some(credits));
+        let id = state
+            .new_user(p, 0, name.to_string(), Some(credits))
+            .unwrap();
         let u = state.users.get_mut(&id).unwrap();
         u.change_rewards(25, "");
         u.take_positive_rewards();
@@ -2453,7 +2458,7 @@ pub(crate) mod tests {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
             let id1 = create_user_with_params(state, pr(0), "peter", 10000);
-            let id2 = create_user_with_params(state, pr(0), "peter", 0);
+            let id2 = create_user_with_params(state, pr(1), "peter", 0);
 
             assert_eq!(state.users.get(&id2).unwrap().credits(), 0);
             state
@@ -3803,7 +3808,7 @@ pub(crate) mod tests {
             let inactive_id1 = create_user_with_credits(state, pr(1), 500);
             let inactive_id2 = create_user_with_credits(state, pr(2), 100);
             let inactive_id3 = create_user_with_credits(state, pr(3), 200);
-            let active_id = create_user_with_credits(state, pr(3), 300);
+            let active_id = create_user_with_credits(state, pr(4), 300);
 
             let user = state.users.get_mut(&inactive_id1).unwrap();
             user.change_rewards(25, "");
@@ -3900,10 +3905,6 @@ pub(crate) mod tests {
             let lurker_id = create_user(state, p);
             create_user(state, p2);
             create_user(state, p3);
-            // add more users to skip the bootstrapping phase
-            for i in 4..20 {
-                create_user(state, pr(i as u8));
-            }
             let c = CONFIG;
             assert_eq!(state.burned_cycles as Credits, c.post_cost);
             state
