@@ -11,7 +11,7 @@ local_deploy:
 
 dev_build:
 	FEATURES=dev ./build.sh bucket
-	FEATURES=dev ./build.sh taggr
+	FEATURES=dev ./build.sh taggr with_candid
 	FEATURES=dev dfx build
 
 local_reinstall:
@@ -21,7 +21,7 @@ local_reinstall:
 build:
 	NODE_ENV=production make fe
 	./build.sh bucket
-	./build.sh taggr
+	./build.sh taggr with_candid
 
 test:
 	cargo clippy --tests --benches -- -D clippy::all
@@ -34,7 +34,7 @@ fe:
 e2e_build:
 	NODE_ENV=production DFX_NETWORK=local npm run build
 	FEATURES=dev ./build.sh bucket
-	FEATURES=dev ./build.sh taggr
+	FEATURES=dev ./build.sh taggr with_candid
 
 e2e_test:
 	npm run install:e2e

@@ -1039,3 +1039,7 @@ fn optional(s: String) -> Option<String> {
         Some(s)
     }
 }
+
+use crate::http::{HttpRequest, HttpResponse};
+use crate::token::{Account, Standard, TransferArgs, TransferError, Value};
+export_candid!();

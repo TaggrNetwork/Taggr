@@ -1,1 +1,65 @@
-service : { }
+type Account = record { owner : principal; subaccount : opt vec nat8 };
+type CreatedInFuture = record { ledger_time : nat64 };
+type GenericError = record { message : text; error_code : nat };
+type HttpRequest = record { url : text; headers : vec record { text; text } };
+type HttpResponse = record {
+  body : vec nat8;
+  headers : vec record { text; text };
+  upgrade : opt bool;
+  status_code : nat16;
+};
+type InsufficientFunds = record { balance : nat };
+type Result = variant { Ok : nat64; Err : text };
+type Result_1 = variant { Ok; Err : text };
+type Result_2 = variant { Ok : text; Err : text };
+type Result_3 = variant { Ok : nat; Err : TransferError };
+type Result_4 = variant { Ok : nat32; Err : text };
+type Standard = record { url : text; name : text };
+type TransferArgs = record {
+  to : Account;
+  fee : opt nat;
+  memo : opt vec nat8;
+  from_subaccount : opt vec nat8;
+  created_at_time : opt nat64;
+  amount : nat;
+};
+type TransferError = variant {
+  GenericError : GenericError;
+  CreatedInFuture : CreatedInFuture;
+  TooOld;
+  InsufficientFunds : InsufficientFunds;
+};
+type Value = variant { Nat : nat; Text : text };
+service : () -> {
+  add_post : (
+      text,
+      vec record { text; vec nat8 },
+      opt nat64,
+      opt text,
+      opt vec nat8,
+    ) -> (Result);
+  add_post_blob : (text, vec nat8) -> (Result_1);
+  add_post_data : (text, opt text, opt vec nat8) -> ();
+  commit_post : () -> (Result);
+  edit_post : (nat64, text, vec record { text; vec nat8 }, text, opt text) -> (
+      Result_1,
+    );
+  force_emergency_upgrade : () -> (bool);
+  get_neuron_info : () -> (Result_2);
+  http_request : (HttpRequest) -> (HttpResponse) query;
+  http_request_update : (HttpRequest) -> (HttpResponse);
+  icrc1_balance_of : (Account) -> (nat) query;
+  icrc1_decimals : () -> (nat8) query;
+  icrc1_fee : () -> (nat) query;
+  icrc1_metadata : () -> (vec record { text; Value }) query;
+  icrc1_minting_account : () -> (opt Account) query;
+  icrc1_name : () -> (text) query;
+  icrc1_supported_standards : () -> (vec Standard) query;
+  icrc1_symbol : () -> (text) query;
+  icrc1_total_supply : () -> (nat) query;
+  icrc1_transfer : (TransferArgs) -> (Result_3);
+  prod_release : () -> (bool);
+  propose_release : (text, text, vec nat8) -> (Result_4);
+  set_emergency_release : (vec nat8) -> ();
+  stable_mem_read : (nat64) -> (vec record { nat64; vec nat8 }) query;
+}
