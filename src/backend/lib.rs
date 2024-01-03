@@ -626,8 +626,8 @@ fn confirm_emergency_release() {
 
 // This function is the last resort of triggering the emergency upgrade and is expected to be used.
 #[update]
-fn force_emergency_upgrade() {
-    mutate(|state| state.execute_pending_emergency_upgrade(true));
+fn force_emergency_upgrade() -> bool {
+    mutate(|state| state.execute_pending_emergency_upgrade(true))
 }
 
 /*
