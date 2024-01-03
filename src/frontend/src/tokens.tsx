@@ -506,18 +506,16 @@ const showPrincipal = ({ owner, subaccount }: Account, long?: string) => {
     let principal: string = encodeIcrcAccount(icrcAccount);
     return (
         <CopyToClipboard
-            value={
-                principal in knownAddresses
-                    ? knownAddresses[principal]
-                    : principal == "2vxsx-fae"
-                    ? "🌱"
-                    : long
-                    ? principal
-                    : principal.split("-")[0]
-            }
-            displayMap={(val) => (
+            value={principal}
+            displayMap={(principal) => (
                 <a className="monospace" href={`#/transactions/${principal}`}>
-                    {val}
+                    {principal in knownAddresses
+                        ? knownAddresses[principal]
+                        : principal == "2vxsx-fae"
+                        ? "🌱"
+                        : long
+                        ? principal
+                        : principal.split("-")[0]}
                 </a>
             )}
         />
