@@ -1035,7 +1035,18 @@ impl State {
         rewards: HashMap<UserId, u64>,
         revenue: HashMap<UserId, u64>,
     ) {
-        let treasury_balance = invoices::main_account_balance().await.e8s();
+        let treasury_balance = match invoices::account_balance(invoices::main_account()).await {
+            Ok(balance) => balance.e8s(),
+            Err(err) => {
+                mutate(|state| {
+                    state.logger.error(format!(
+                        "couldn't fetch the balance of main account: {}",
+                        err
+                    ));
+                });
+                return;
+            }
+        };
         let debt = mutate(|state| {
             let rewards = rewards
                 .iter()

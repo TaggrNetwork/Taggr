@@ -88,7 +88,7 @@ impl Invoices {
         if invoice.paid {
             return Ok(invoice);
         }
-        let balance = account_balance(invoice.account).await;
+        let balance = account_balance(invoice.account).await?;
         let costs = Tokens::from_e8s(kilo_credits.max(1) * invoice.e8s);
         if balance >= costs {
             transfer(main_account(), costs, Memo(999), Some(invoice.sub_account)).await?;
@@ -130,10 +130,6 @@ pub fn main_account() -> AccountIdentifier {
 
 pub const USER_ICP_SUBACCOUNT: [u8; 32] = [1; 32];
 
-pub async fn main_account_balance() -> Tokens {
-    account_balance(main_account()).await
-}
-
 pub async fn transfer(
     to: AccountIdentifier,
     amount: Tokens,
@@ -167,15 +163,15 @@ pub async fn transfer(
     })
 }
 
-pub async fn account_balance(account: AccountIdentifier) -> Tokens {
+pub async fn account_balance(account: AccountIdentifier) -> Result<Tokens, String> {
     let (balance,): (Tokens,) = call_canister(
         MAINNET_LEDGER_CANISTER_ID,
         "account_balance",
         (AccountBalanceArgs { account },),
     )
     .await
-    .expect("couldn't check balance");
-    balance
+    .map_err(|err| format!("couldn't check balance: {:?}", err))?;
+    Ok(balance)
 }
 
 pub async fn get_xdr_in_e8s() -> Result<u64, String> {
