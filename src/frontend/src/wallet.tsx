@@ -248,16 +248,29 @@ export const Wallet = () => {
                     account displayed below and press the MINT button.
                 </div>
             )}
-            <div className="stands_out row_container">
-                <div className="max_width_col">YOUR PRINCIPAL</div>
-                <code>
-                    <CopyToClipboard
-                        value={user.principal}
-                        displayMap={(val) =>
-                            bigScreen() ? val : val.split("-")[0]
-                        }
-                    />
-                </code>
+            <div className="stands_out column_container">
+                <div className="row_container bottom_spaced">
+                    <div className="max_width_col">YOUR PRINCIPAL</div>
+                    <code>
+                        <CopyToClipboard
+                            value={user.principal}
+                            displayMap={(val) =>
+                                bigScreen() ? val : val.split("-")[0]
+                            }
+                        />
+                    </code>
+                </div>
+                <div className="row_container">
+                    <div className="max_width_col">YOUR ICP ACCOUNT</div>
+                    <code>
+                        <CopyToClipboard
+                            value={user.account}
+                            displayMap={(val) =>
+                                bigScreen() ? val : val.split("-")[0]
+                            }
+                        />
+                    </code>
+                </div>
             </div>
             <div className="stands_out">
                 <div className="vcentered">
