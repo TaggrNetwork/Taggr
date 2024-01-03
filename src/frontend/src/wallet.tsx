@@ -265,9 +265,13 @@ export const Wallet = () => {
                     <code>
                         <CopyToClipboard
                             value={user.account}
-                            displayMap={(val) =>
-                                bigScreen() ? val : val.split("-")[0]
-                            }
+                            displayMap={(val) => (
+                                <a
+                                    href={`https://dashboard.internetcomputer.org/account/${val}`}
+                                >
+                                    {bigScreen() ? val : val.split("-")[0]}
+                                </a>
+                            )}
                         />
                     </code>
                 </div>

@@ -5,7 +5,7 @@ use ic_ledger_types::{
     TransferResult, DEFAULT_FEE, DEFAULT_SUBACCOUNT, MAINNET_CYCLES_MINTING_CANISTER_ID,
     MAINNET_LEDGER_CANISTER_ID,
 };
-use serde::{de::IntoDeserializer, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{mutate, read};

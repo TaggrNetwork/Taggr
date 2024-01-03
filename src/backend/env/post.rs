@@ -559,7 +559,7 @@ impl Post {
                 state.spend_to_user_rewards(
                     parent_post_author,
                     CONFIG.response_reward,
-                    format!("response to post {}", parent_post_id),
+                    format!("response to post [{0}](#/post/{0})", parent_post_id),
                 )
             }
         }
