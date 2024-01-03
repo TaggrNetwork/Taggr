@@ -5,7 +5,7 @@ use ic_ledger_types::{
     TransferResult, DEFAULT_FEE, DEFAULT_SUBACCOUNT, MAINNET_CYCLES_MINTING_CANISTER_ID,
     MAINNET_LEDGER_CANISTER_ID,
 };
-use serde::{Deserialize, Serialize};
+use serde::{de::IntoDeserializer, Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{mutate, read};
@@ -46,6 +46,9 @@ impl Invoices {
     }
 
     fn create(invoice_id: Principal, e8s: u64) -> Result<Invoice, String> {
+        if e8s == 0 {
+            return Err("wrong ICP/XDR ratio".into());
+        }
         let time = time();
         let sub_account = principal_to_subaccount(&invoice_id);
         let account = AccountIdentifier::new(&id(), &sub_account);
