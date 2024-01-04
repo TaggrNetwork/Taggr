@@ -269,7 +269,7 @@ export const Wallet = () => {
                                 <a
                                     href={`https://dashboard.internetcomputer.org/account/${val}`}
                                 >
-                                    {bigScreen() ? val : val.split("-")[0]}
+                                    {bigScreen() ? val : val.slice(0, 8)}
                                 </a>
                             )}
                         />
@@ -390,13 +390,24 @@ export const Wallet = () => {
                             if (isNaN(kilo_credits)) {
                                 return;
                             }
+                            const invoice_result = await window.api.call<any>(
+                                "mint_credits",
+                                0,
+                            );
+                            if ("Err" in invoice_result) {
+                                alert(`Error: ${invoice_result.Err}`);
+                                return;
+                            }
+                            const userSubaccount = hex(
+                                invoice_result.Ok.account,
+                            );
                             const { e8s_for_one_xdr } =
                                 window.backendCache.stats;
                             const amount =
                                 Number(e8s_for_one_xdr) * kilo_credits +
                                 ICP_DEFAULT_FEE;
                             const response: any = await window.api.icp_transfer(
-                                user.account,
+                                userSubaccount,
                                 amount,
                             );
                             if ("Err" in response) {

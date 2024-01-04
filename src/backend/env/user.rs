@@ -1,5 +1,5 @@
 use super::{reports::Report, *};
-use ic_ledger_types::AccountIdentifier;
+use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT};
 use serde::{Deserialize, Serialize};
 
 pub type UserId = u64;
@@ -87,11 +87,7 @@ impl User {
             name,
             about: Default::default(),
             report: None,
-            account: AccountIdentifier::new(
-                &super::id(),
-                &invoices::principal_to_subaccount(&principal),
-            )
-            .to_string(),
+            account: AccountIdentifier::new(&principal, &DEFAULT_SUBACCOUNT).to_string(),
             settings: Default::default(),
             cycles: 0,
             timestamp,
