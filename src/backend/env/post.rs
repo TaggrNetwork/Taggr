@@ -287,7 +287,10 @@ impl Post {
 
     pub fn make_hot(&self, hot_list: &mut VecDeque<PostId>, total_users: usize, user_id: UserId) {
         // if it's a comment, a reaction is from the users itself or the post is too old, exit
-        if self.parent.is_some() || self.user == user_id || self.timestamp() + WEEK < time() {
+        if self.parent.is_some()
+            || self.user == user_id
+            || self.timestamp() + CONFIG.max_age_hot_post_days * DAY < time()
+        {
             return;
         };
         let engagements = self
