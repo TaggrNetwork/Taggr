@@ -382,7 +382,11 @@ impl State {
         notification: Option<String>,
     ) -> Result<(), String> {
         let sender = self.users.get_mut(&sender_id).expect("no sender found");
-        sender.change_credits(amount + fee, CreditsDelta::Minus, log.to_string())?;
+        sender.change_credits(
+            amount.saturating_add(fee),
+            CreditsDelta::Minus,
+            log.to_string(),
+        )?;
         let receiver = self.users.get_mut(&receiver_id).expect("no receiver found");
         self.burned_cycles += fee as i64;
         let result = match destination {

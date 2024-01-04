@@ -247,7 +247,7 @@ pub fn transfer(
     }
     let effective_fee = fee.unwrap_or(icrc1_fee()) as Token;
     if from.owner != Principal::anonymous() {
-        let effective_amount = amount as Token + effective_fee;
+        let effective_amount = (amount as Token).saturating_add(effective_fee);
         if balance < effective_amount {
             return Err(TransferError::InsufficientFunds(InsufficientFunds {
                 balance: balance as u128,
@@ -262,9 +262,10 @@ pub fn transfer(
     }
     if to.owner != Principal::anonymous() {
         let recipient_balance = state.balances.remove(&to).unwrap_or_default();
-        state
-            .balances
-            .insert(to.clone(), recipient_balance + amount as Token);
+        state.balances.insert(
+            to.clone(),
+            recipient_balance.saturating_add(amount as Token),
+        );
     }
     state.ledger.push(Transaction {
         timestamp: now,
