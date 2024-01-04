@@ -117,7 +117,18 @@ async fn post_upgrade_fixtures() {
                 state.principals.insert(u.principal, u.id);
             }
         }
-    })
+    });
+
+    // Social recovery of @Moonlambo, see https://taggr.link/post/54802
+    let wrong_principal =
+        Principal::from_text("gusp6-joylr-5wpio-75tuu-jxrrf-kmc2s-ow6xw-dkiw7-2avcr-k5twv-bqe")
+            .unwrap();
+    State::change_principal(
+        wrong_principal,
+        "knxc7-gpmaj-q6xlo-lpfrd-l7jxr-oe3lg-eu74c-og7be-zmu2g-ueocv-cae".into(),
+    )
+    .await
+    .unwrap();
 }
 
 /*
