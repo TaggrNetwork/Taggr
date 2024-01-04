@@ -70,7 +70,11 @@ export const PostFeed = ({
         loadPage(0);
     }, [heartbeat, refreshBeat]);
 
-    const itemRenderer = (post: Post, lastItem?: boolean) => (
+    const itemRenderer = (
+        post: Post,
+        firstItem?: boolean,
+        lastItem?: boolean,
+    ) => (
         <PostView
             id={post.id}
             key={post.id}
@@ -84,6 +88,8 @@ export const PostFeed = ({
                 `${
                     !isRoot(post) && (comments || thread)
                         ? "comment"
+                        : firstItem
+                        ? "prime"
                         : "feed_item"
                 }`
             }
@@ -96,7 +102,9 @@ export const PostFeed = ({
     const useGrid =
         !useList && bigScreen() && window.user?.settings.columns != "off";
     let renderColumns = () =>
-        posts.map((item, i) => itemRenderer(item, i == posts.length - 1));
+        posts.map((item, i) =>
+            itemRenderer(item, i == 0, i == posts.length - 1),
+        );
     const renderGrid = () => (
         <GridFeed posts={posts} itemRenderer={itemRenderer} />
     );
