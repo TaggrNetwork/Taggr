@@ -88,8 +88,10 @@ const App = () => {
     let inboxMode = false;
     let content = null;
 
+    // If we're in a realm, but navigate outside of realm routes, reset the UI.
     if (
-        ["#/realm", "#/post"].every(
+        currentRealm() &&
+        ["#/realm", "#/feed", "#/post"].every(
             (prefix: string) => !location.hash.startsWith(prefix),
         )
     ) {
