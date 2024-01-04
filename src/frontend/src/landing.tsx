@@ -16,8 +16,7 @@ export const Landing = () => {
     const user = window.user;
     const realm = currentRealm();
     const [feed, setFeed] = React.useState(
-        (user && user.settings_object[tabKey()]) ||
-            (currentRealm() ? "NEW" : "HOT"),
+        (user && user.settings[tabKey()]) || (currentRealm() ? "NEW" : "HOT"),
     );
     const labels: [JSX.Element, string][] = [
         [<New />, "NEW"],
@@ -36,10 +35,10 @@ export const Landing = () => {
                     data-testid={`tab-${id}`}
                     onClick={() => {
                         if (user) {
-                            user.settings_object[tabKey()] = id;
+                            user.settings[tabKey()] = id;
                             window.api.call<any>(
                                 "update_user_settings",
-                                user.settings_object,
+                                user.settings,
                             );
                         }
                         setFeed(id);

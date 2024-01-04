@@ -49,8 +49,8 @@ pub struct User {
     pub bookmarks: VecDeque<PostId>,
     pub about: String,
     pub account: String,
-    #[serde(skip)]
-    pub settings: String,
+    #[serde(default)]
+    pub settings: BTreeMap<String, String>,
     #[serde(default)]
     pub settings_object: BTreeMap<String, String>,
     cycles: Credits,
@@ -377,7 +377,7 @@ impl User {
                 if !User::valid_info(&user.about, &settings) {
                     return Err("too long inputs".to_string());
                 }
-                user.settings_object = settings;
+                user.settings = settings;
             }
             Ok(())
         })
@@ -405,7 +405,7 @@ impl User {
 
         mutate(|state| {
             let user = state.principal_to_user(caller).ok_or("user not found")?;
-            if !User::valid_info(&about, &user.settings_object) {
+            if !User::valid_info(&about, &user.settings) {
                 return Err("too long inputs".to_string());
             }
             let user_id = user.id;

@@ -171,7 +171,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                         }}
                                     />
                                 )}
-                                {profile.settings_object.open_chat && (
+                                {profile.settings.open_chat && (
                                     <ButtonWithLoading
                                         label="OPEN CHAT"
                                         classNameArg="max_width_col"
@@ -180,7 +180,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                                 // Make sure it parses as cansiter id;
                                                 let canister_id =
                                                     Principal.fromText(
-                                                        profile.settings_object
+                                                        profile.settings
                                                             .open_chat,
                                                     );
                                                 const url = `https://oc.app/user/${canister_id.toString()}`;

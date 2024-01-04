@@ -21,7 +21,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         setName(user.name);
         setAbout(user.about);
         setControllers(user.controllers.join("\n"));
-        setSettings(user.settings_object);
+        setSettings(user.settings);
     };
 
     React.useEffect(() => updateData(user), [user]);

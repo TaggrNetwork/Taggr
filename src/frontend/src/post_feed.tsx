@@ -94,9 +94,7 @@ export const PostFeed = ({
     );
 
     const useGrid =
-        !useList &&
-        bigScreen() &&
-        window.user?.settings_object.columns != "off";
+        !useList && bigScreen() && window.user?.settings.columns != "off";
     let renderColumns = () =>
         posts.map((item, i) => itemRenderer(item, i == posts.length - 1));
     const renderGrid = () => (

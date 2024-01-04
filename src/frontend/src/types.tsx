@@ -163,7 +163,7 @@ export type User = {
     principal: string;
     bookmarks: number[];
     last_activity: BigInt;
-    settings_object: {
+    settings: {
         [key: string]: string;
     };
     realms: string[];

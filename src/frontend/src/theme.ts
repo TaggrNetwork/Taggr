@@ -82,7 +82,7 @@ export const applyTheme = (palette: Theme) => {
 // If no realm is selected, set styling once.
 export const setUI = (force?: boolean) => {
     if (!force && (currentRealm() || window.uiInitialized)) return;
-    applyTheme(getTheme(window.user?.settings_object.theme));
+    applyTheme(getTheme(window.user?.settings.theme));
     window.uiInitialized = true;
 };
 

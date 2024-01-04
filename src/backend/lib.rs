@@ -23,7 +23,7 @@ use ic_cdk::{
 };
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
-use ic_ledger_types::{AccountIdentifier, Tokens, DEFAULT_SUBACCOUNT};
+use ic_ledger_types::{AccountIdentifier, Tokens};
 use serde_bytes::ByteBuf;
 use std::time::Duration;
 
@@ -102,33 +102,12 @@ fn post_upgrade() {
 }
 
 async fn post_upgrade_fixtures() {
-    // Bury accs with broken principals, see https://taggr.link/post/54008
     mutate(|state| {
-        pub fn pr(s: &[u8]) -> Principal {
-            Principal::from_slice(s)
-        }
-        state.principals.remove(&Principal::anonymous());
         for u in state.users.values_mut() {
-            u.account = AccountIdentifier::new(&u.principal, &DEFAULT_SUBACCOUNT).to_string();
-
-            // fix broken user accounts as discussed in https://taggr.link/post/54008
-            if u.principal == Principal::anonymous() {
-                u.principal = pr(&u.id.to_be_bytes());
-                state.principals.insert(u.principal, u.id);
-            }
+            // field renaming
+            u.settings = u.settings_object.clone();
         }
     });
-
-    // Social recovery of @Moonlambo, see https://taggr.link/post/54802
-    let wrong_principal =
-        Principal::from_text("gusp6-joylr-5wpio-75tuu-jxrrf-kmc2s-ow6xw-dkiw7-2avcr-k5twv-bqe")
-            .unwrap();
-    State::change_principal(
-        wrong_principal,
-        "knxc7-gpmaj-q6xlo-lpfrd-l7jxr-oe3lg-eu74c-og7be-zmu2g-ueocv-cae".into(),
-    )
-    .await
-    .unwrap();
 }
 
 /*
