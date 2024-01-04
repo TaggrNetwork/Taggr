@@ -1,5 +1,8 @@
 use candid::{CandidType, Principal};
-use ic_cdk::api::{id, time};
+use ic_cdk::{
+    api::{id, time},
+    spawn,
+};
 use ic_ledger_types::{
     AccountBalanceArgs, AccountIdentifier, BlockIndex, Memo, Subaccount, Tokens, TransferArgs,
     TransferResult, DEFAULT_FEE, DEFAULT_SUBACCOUNT, MAINNET_CYCLES_MINTING_CANISTER_ID,
@@ -93,15 +96,19 @@ impl Invoices {
         if balance >= costs {
             transfer(main_account(), costs, Memo(999), Some(invoice.sub_account)).await?;
             // If after minting we still have some balance, move it to user's wallet.
-            let rest = balance - costs - fee();
+            let rest = Tokens::from_e8s(balance.e8s().saturating_sub(costs.e8s() + fee().e8s()));
             if rest > fee() {
-                transfer(
+                let future = transfer(
                     AccountIdentifier::new(invoice_id, &DEFAULT_SUBACCOUNT),
                     rest,
                     Memo(999),
                     Some(invoice.sub_account),
-                )
-                .await?;
+                );
+                // We don't block on the transfer of remaining funds, because these funds are not
+                // critical for the further workflow.
+                spawn(async {
+                    let _ = future.await;
+                });
             }
             mutate(|state| {
                 if let Some(invoice) = state.accounting.invoices.get_mut(invoice_id) {
