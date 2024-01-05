@@ -103,6 +103,17 @@ fn post_upgrade() {
 
 async fn post_upgrade_fixtures() {
     assets::export_token_supply(token::icrc1_total_supply());
+
+    // Update user balances
+    mutate(|state| {
+        for user in state.users.values_mut() {
+            user.balance = state
+                .balances
+                .get(&token::account(user.principal))
+                .copied()
+                .unwrap_or_default();
+        }
+    });
 }
 
 /*
@@ -812,20 +823,13 @@ fn user() {
     let input: Vec<String> = parse(&arg_data_raw());
     let own_profile_fetch = input.is_empty();
     reply(resolve_handle(input.into_iter().next()).map(|mut user| {
-        read(|state| {
-            user.balance = state
-                .balances
-                .get(&token::account(user.principal))
-                .copied()
-                .unwrap_or_default();
-            if own_profile_fetch {
-                user.accounting.clear();
-            } else {
-                user.bookmarks.clear();
-                user.inbox.clear();
-            }
-            user
-        })
+        if own_profile_fetch {
+            user.accounting.clear();
+        } else {
+            user.bookmarks.clear();
+            user.inbox.clear();
+        }
+        user
     }));
 }
 

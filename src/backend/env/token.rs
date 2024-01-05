@@ -266,11 +266,13 @@ pub fn transfer(
     }
     if to.owner != Principal::anonymous() {
         let recipient_balance = state.balances.remove(&to).unwrap_or_default();
-        state.balances.insert(
-            to.clone(),
-            recipient_balance.saturating_add(amount as Token),
-        );
+        let updated_balance = recipient_balance.saturating_add(amount as Token);
+        state.balances.insert(to.clone(), updated_balance);
+        if let Some(user) = state.principal_to_user_mut(owner) {
+            user.balance = updated_balance
+        }
     }
+
     state.ledger.push(Transaction {
         timestamp: now,
         from,
