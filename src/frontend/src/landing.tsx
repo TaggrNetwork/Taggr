@@ -166,6 +166,7 @@ export const TagCloud = ({
         loadTags();
     }, [heartbeat]);
     if (tags == null) return <Loading />;
+    if (tags.length == 0) return null;
     return (
         <div id="tag_cloud" className="row_container ">
             {tags.map(([tag, size]) => (
