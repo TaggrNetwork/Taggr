@@ -130,7 +130,7 @@ pub fn finalize_report(
         state
             .charge(
                 sponsor_id,
-                unit - total_stalwart_rewards,
+                unit.saturating_sub(total_stalwart_rewards),
                 format!("moderation penalty for {}", subject),
             )
             .expect("couldn't charge user");

@@ -96,7 +96,12 @@ impl Invoices {
         if balance >= costs {
             transfer(main_account(), costs, Memo(999), Some(invoice.sub_account)).await?;
             // If after minting we still have some balance, move it to user's wallet.
-            let rest = Tokens::from_e8s(balance.e8s().saturating_sub(costs.e8s() + fee().e8s()));
+            let rest = Tokens::from_e8s(
+                balance
+                    .e8s()
+                    .checked_sub(costs.e8s().checked_add(fee().e8s()).ok_or("wrong costs")?)
+                    .ok_or("wrong balance")?,
+            );
             if rest > fee() {
                 let future = transfer(
                     AccountIdentifier::new(invoice_id, &DEFAULT_SUBACCOUNT),

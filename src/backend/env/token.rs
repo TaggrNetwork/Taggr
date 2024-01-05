@@ -318,8 +318,8 @@ pub fn move_funds(state: &mut State, from: &Account, to: Account) -> Result<u128
             TransferArgs {
                 from_subaccount: from.subaccount.clone(),
                 to,
-                amount: (balance - fee as Token) as u128,
-                fee: Some(icrc1_fee()),
+                amount: balance.saturating_sub(fee as Token) as u128,
+                fee: Some(fee),
                 memo: Default::default(),
                 created_at_time: None,
             },
@@ -523,16 +523,28 @@ pub fn balances_from_ledger(ledger: &[Transaction]) -> Result<HashMap<Account, T
     for transaction in ledger {
         balances
             .entry(transaction.to.clone())
-            .and_modify(|balance| *balance += transaction.amount)
+            .and_modify(|balance: &mut u64| *balance = balance.saturating_add(transaction.amount))
             .or_insert(transaction.amount);
         if transaction.from != minting_account {
             let from = balances
                 .get_mut(&transaction.from)
                 .ok_or("paying account not found")?;
-            if transaction.amount + transaction.fee > *from {
+            if transaction
+                .amount
+                .checked_add(transaction.fee)
+                .ok_or("invalid transaction")?
+                > *from
+            {
                 return Err("account has not enough funds".into());
             }
-            *from -= transaction.amount + transaction.fee;
+            *from = from
+                .checked_sub(
+                    transaction
+                        .amount
+                        .checked_add(transaction.fee)
+                        .ok_or("wrong amount")?,
+                )
+                .ok_or("wrong amount")?;
         }
     }
     Ok(balances)

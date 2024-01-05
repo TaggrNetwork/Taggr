@@ -329,7 +329,7 @@ impl State {
                 log.to_string()
             ));
         }
-        self.burned_cycles -= amount as i64;
+        self.burned_cycles = self.burned_cycles.saturating_sub(amount as i64);
     }
 
     fn spend<T: ToString>(&mut self, amount: Credits, log: T) {
@@ -340,7 +340,7 @@ impl State {
                 log.to_string()
             ));
         }
-        self.burned_cycles -= amount as i64;
+        self.burned_cycles = self.burned_cycles.saturating_sub(amount as i64);
     }
 
     pub fn charge<T: ToString>(
@@ -364,9 +364,12 @@ impl State {
         }
         let user = self.users.get_mut(&id).ok_or("no user found")?;
         user.change_credits(amount, CreditsDelta::Minus, log)?;
-        self.burned_cycles += amount as i64;
+        self.burned_cycles = self
+            .burned_cycles
+            .checked_add(amount as i64)
+            .ok_or("wrong amount")?;
         if let Some(realm) = realm_id.and_then(|id| self.realms.get_mut(&id)) {
-            realm.revenue += amount
+            realm.revenue = realm.revenue.checked_add(amount).ok_or("wrong amount")?
         }
         Ok(())
     }
@@ -384,12 +387,15 @@ impl State {
     ) -> Result<(), String> {
         let sender = self.users.get_mut(&sender_id).expect("no sender found");
         sender.change_credits(
-            amount.saturating_add(fee),
+            amount.checked_add(fee).ok_or("wrong credit amount")?,
             CreditsDelta::Minus,
             log.to_string(),
         )?;
         let receiver = self.users.get_mut(&receiver_id).expect("no receiver found");
-        self.burned_cycles += fee as i64;
+        self.burned_cycles = self
+            .burned_cycles
+            .checked_add(fee as i64)
+            .ok_or("wrong fee")?;
         let result = match destination {
             Destination::Rewards => {
                 receiver.change_rewards(amount as i64, log);
@@ -994,7 +1000,7 @@ impl State {
                     if self.balances.get(&acc).copied().unwrap_or_default() <= cap
                         || circulating_supply * 3 > CONFIG.maximum_supply * 2
                     {
-                        *balance -= vested;
+                        *balance = balance.saturating_sub(vested);
                         Some((vested, *balance))
                     } else {
                         None
@@ -1090,11 +1096,14 @@ impl State {
                 let mut user_revenue = revenue.get(&user.id).copied().unwrap_or_default();
                 let _ = user.top_up_credits_from_revenue(&mut user_revenue, e8s_for_one_xdr);
                 let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
-                let e8s = user_reward + user_revenue;
-                if e8s == 0 {
-                    continue;
-                }
-                user.treasury_e8s += e8s;
+                let e8s = match user_reward.checked_add(user_revenue) {
+                    Some(0) | None => continue,
+                    Some(value) => value,
+                };
+                user.treasury_e8s = match user.treasury_e8s.checked_add(e8s) {
+                    Some(0) | None => continue,
+                    Some(value) => value,
+                };
                 total_rewards += user_reward;
                 total_revenue += user_revenue;
                 payments.push(format!("`{}` to @{}", display_tokens(e8s, 8), &user.name));
@@ -2185,7 +2194,7 @@ impl State {
                     format!("rewards refund after deletion of post {}", post.id),
                     None,
                 )?;
-                karma_penalty += amount as i64;
+                karma_penalty = karma_penalty.saturating_add(amount as i64);
             }
         }
 
@@ -2304,7 +2313,7 @@ impl State {
                 .expect("no user for principal found")
                 .karma_donations
                 .entry(post.user)
-                .and_modify(|donated| *donated += delta as Credits)
+                .and_modify(|donated| *donated = delta.saturating_add(delta) as Credits)
                 .or_insert(delta as Credits);
             post.make_hot(&mut self.hot, self.users.len(), user.id);
         }

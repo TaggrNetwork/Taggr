@@ -290,9 +290,15 @@ impl User {
     ) -> Result<(), String> {
         if delta == CreditsDelta::Minus && amount <= self.cycles || delta == CreditsDelta::Plus {
             if delta == CreditsDelta::Plus {
-                self.cycles += amount;
+                self.cycles = self
+                    .cycles
+                    .checked_add(amount)
+                    .ok_or("wrong positive delta amount")?;
             } else {
-                self.cycles -= amount;
+                self.cycles = self
+                    .cycles
+                    .checked_sub(amount)
+                    .ok_or("wrong negative delta amount")?;
             }
             self.accounting.push_front((
                 time(),
@@ -310,7 +316,7 @@ impl User {
     }
 
     pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {
-        self.rewards += amount;
+        self.rewards = self.rewards.saturating_add(amount);
         self.accounting
             .push_front((time(), "RWD".to_string(), amount, log.to_string()));
     }
