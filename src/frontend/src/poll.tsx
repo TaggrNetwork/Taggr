@@ -149,6 +149,7 @@ export const PollView = ({
                                         : user_id,
                                 );
                                 poll.votes[vote] = list;
+                                poll.voters.push(user_id);
                                 setRevoteMode(false);
                                 setData({ ...poll });
                             }}
