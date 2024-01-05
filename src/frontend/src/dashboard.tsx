@@ -8,6 +8,7 @@ import {
     userList,
     icpCode,
     IcpAccountLink,
+    XDR_TO_USD,
 } from "./common";
 import { Content } from "./content";
 import {
@@ -21,6 +22,7 @@ import {
     Comment,
     Credits,
     Document,
+    Fire,
     Gear,
     HourGlass,
     Online,
@@ -30,10 +32,11 @@ import {
     User,
 } from "./icons";
 
-const show = (val: number | BigInt, unit?: string) => (
+const show = (val: number | BigInt, unit?: string, unit_position?: string) => (
     <code>
+        {unit_position == "prefix" && unit}
         {val.toLocaleString()}
-        {unit}
+        {unit_position != "prefix" && unit}
     </code>
 );
 
@@ -44,7 +47,6 @@ type Log = {
 };
 
 export const Dashboard = ({}) => {
-    const stats = window.backendCache.stats;
     const [logs, setLogs] = React.useState<Log[]>([]);
 
     React.useEffect(() => {
@@ -55,9 +57,7 @@ export const Dashboard = ({}) => {
         });
     }, []);
 
-    const {
-        stats: { last_weekly_chores },
-    } = window.backendCache;
+    const { config, stats } = window.backendCache;
     return (
         <>
             <HeadBar title="DASHBOARD" shareLink="dashboard" />
@@ -126,7 +126,7 @@ export const Dashboard = ({}) => {
                         </label>
                         <code className="xx_large_text">{`${hoursTillNext(
                             604800000000000,
-                            last_weekly_chores,
+                            stats.last_weekly_chores,
                         )}h`}</code>
                     </div>
                     <div className="db_cell">
@@ -137,9 +137,15 @@ export const Dashboard = ({}) => {
                     </div>
                     <div className="db_cell">
                         <label>
-                            <Credits /> WEEK'S REVENUE
+                            <Fire /> WEEK'S REVENUE
                         </label>
-                        {show(stats.burned_credits)}
+                        {show(
+                            Number(stats.burned_credits) /
+                                config.credits_per_xdr /
+                                XDR_TO_USD,
+                            "$",
+                            "prefix",
+                        )}
                     </div>
                     <div className="db_cell">
                         <label>
