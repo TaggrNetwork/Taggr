@@ -55,6 +55,8 @@ Each realm can establish its own terms and conditions, breaching which can lead 
 
 Upon joining a realm, users implicitly agree to its terms and conditions.
 
+Currently, `$realm_revenue_percentage%` of revenue generated inside the realm is shared with its controllers.
+
 ## Content and Behavior Policy
 
 Decentralization does not equate to lawlessness!
