@@ -641,6 +641,9 @@ impl State {
         name: String,
         credits: Option<Credits>,
     ) -> Result<UserId, String> {
+        if principal == Principal::anonymous() {
+            return Err("invalid principal".into());
+        }
         if self.principals.contains_key(&principal) {
             return Err("another user assigned to the same principal".into());
         }

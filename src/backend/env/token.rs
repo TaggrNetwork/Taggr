@@ -193,6 +193,10 @@ pub fn transfer(
         ..
     } = args;
 
+    if fee.is_none() && owner != icrc1_minting_account().expect("no minting account").owner {
+        panic!("only minting transactions are allowed without a fee")
+    }
+
     if state.voted_on_pending_proposal(owner) {
         return Err(TransferError::GenericError(GenericError {
             error_code: 1,
@@ -315,7 +319,7 @@ pub fn move_funds(state: &mut State, from: &Account, to: Account) -> Result<u128
                 from_subaccount: from.subaccount.clone(),
                 to,
                 amount: (balance - fee as Token) as u128,
-                fee: None,
+                fee: Some(icrc1_fee()),
                 memo: Default::default(),
                 created_at_time: None,
             },
