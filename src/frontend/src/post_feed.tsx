@@ -88,7 +88,7 @@ export const PostFeed = ({
                 `${
                     !isRoot(post) && (comments || thread)
                         ? "comment"
-                        : firstItem
+                        : firstItem && thread
                         ? "prime"
                         : "feed_item"
                 }`
