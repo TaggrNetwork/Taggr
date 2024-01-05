@@ -142,11 +142,9 @@ export const Settings = ({ invite }: { invite?: string }) => {
                     className="bottom_spaced"
                     onChange={(event) => setSetting("theme", event)}
                 >
-                    <option value="auto">AUTO</option>
-                    <option value="light">LIGHT</option>
-                    <option value="dark">DARK</option>
-                    <option value="classic">CLASSIC</option>
                     <option value="calm">CALM</option>
+                    <option value="classic">CLASSIC</option>
+                    <option value="dark">DARK</option>
                     <option value="midnight">MIDNIGHT</option>
                 </select>
                 <div className="bottom_half_spaced">

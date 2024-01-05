@@ -36,13 +36,6 @@ const themes: { [name: string]: Theme } = {
         clickable: "#30d5c8",
         accent: "#FFc700",
     },
-    light: {
-        text: "#23383F",
-        background: "#c3c3b4",
-        code: "Black",
-        clickable: "#008080",
-        accent: "OrangeRed",
-    },
     dark: {
         text: "#d0d0b8",
         background: "#1e1e23",
@@ -60,12 +53,7 @@ const themes: { [name: string]: Theme } = {
 };
 
 export const applyTheme = (palette: Theme) => {
-    let autoTheme =
-        window.matchMedia &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches
-            ? "dark"
-            : "light";
-    const effPalette: Theme = palette ? palette : themes[autoTheme];
+    const effPalette: Theme = palette ? palette : themes["dark"];
     effPalette.light_background = "#" + shade(effPalette.background, 3);
     effPalette.dark_background = "#" + shade(effPalette.background, -5);
     effPalette.visited_clickable = "#" + shade(effPalette.clickable, -20);
