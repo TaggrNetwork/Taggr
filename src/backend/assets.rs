@@ -1,4 +1,4 @@
-use crate::{config::CONFIG, metadata::set_index_metadata};
+use crate::{config::CONFIG, env::token, metadata::set_index_metadata};
 use base64::{engine::general_purpose, Engine as _};
 use ic_certified_map::{labeled, labeled_hash, AsHashTree, Hash, RbTree};
 use serde_bytes::ByteBuf;
@@ -169,12 +169,9 @@ pub fn export_token_supply(total_supply: u128) {
                 ("Content-Type".to_string(), "application/json".to_string()),
                 ("Cache-Control".to_string(), "public".to_string()),
             ],
-            format!(
-                "{}",
-                *tokens as f64 / 10_u64.pow(CONFIG.token_decimals as u32) as f64
-            )
-            .as_bytes()
-            .to_vec(),
+            format!("{}", *tokens as f64 / token::base() as f64)
+                .as_bytes()
+                .to_vec(),
         )
     }
     set_certified_data(&labeled_hash(LABEL, &asset_hashes().root_hash()));

@@ -355,7 +355,7 @@ fn propose_funding() {
             state,
             caller(),
             description,
-            proposals::Payload::Fund(receiver, tokens * 10_u64.pow(CONFIG.token_decimals as u32)),
+            proposals::Payload::Fund(receiver, tokens * token::base()),
             time(),
         ))
     })

@@ -263,12 +263,15 @@ pub fn transfer(
         } else {
             state.balances.insert(from.clone(), resulting_balance);
         }
+        if let Some(user) = state.principal_to_user_mut(from.owner) {
+            user.balance = resulting_balance
+        }
     }
     if to.owner != Principal::anonymous() {
         let recipient_balance = state.balances.remove(&to).unwrap_or_default();
         let updated_balance = recipient_balance.saturating_add(amount as Token);
         state.balances.insert(to.clone(), updated_balance);
-        if let Some(user) = state.principal_to_user_mut(owner) {
+        if let Some(user) = state.principal_to_user_mut(to.owner) {
             user.balance = updated_balance
         }
     }
@@ -289,6 +292,11 @@ pub fn account(owner: Principal) -> Account {
         owner,
         subaccount: None,
     }
+}
+
+/// Smallest amount of non-fractional tokens
+pub fn base() -> Token {
+    10_u64.pow(CONFIG.token_decimals as u32)
 }
 
 pub fn mint(state: &mut State, account: Account, tokens: Token) {

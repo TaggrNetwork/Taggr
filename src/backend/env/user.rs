@@ -437,7 +437,7 @@ impl User {
         let ratio = state.minting_ratio();
         let boostraping_mode =
             state.balances.values().sum::<Token>() < CONFIG.boostrapping_threshold_tokens;
-        let base = 10_u64.pow(CONFIG.token_decimals as u32);
+        let base = token::base();
         let karma_donated_total: Credits = self.karma_donations.values().sum();
         // we can donate only min(balance/ratio, donated_karma/ratio);
         let donated_karma = karma_donated_total * base;

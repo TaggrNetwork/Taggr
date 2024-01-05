@@ -1,6 +1,6 @@
 use super::config::CONFIG;
 use super::post::{Extension, Post, PostId};
-use super::token::account;
+use super::token::{self, account};
 use super::user::Predicate;
 use super::{invoices, HOUR};
 use super::{user::UserId, State};
@@ -97,7 +97,7 @@ impl Proposal {
                     return Err("reward receivers can not vote".into());
                 }
                 let minting_ratio = state.minting_ratio();
-                let base = 10_u64.pow(CONFIG.token_decimals as u32);
+                let base = token::base();
                 let max_funding_amount = CONFIG.max_funding_amount / minting_ratio / base;
                 let tokens = if approve {
                     data.parse::<Token>()
@@ -217,7 +217,7 @@ impl Proposal {
 fn mint_tokens(state: &mut State, receiver: &str, mut tokens: Token) -> Result<(), String> {
     let receiver = Principal::from_text(receiver).map_err(|e| e.to_string())?;
     crate::token::mint(state, account(receiver), tokens);
-    tokens /= 10_u64.pow(CONFIG.token_decimals as u32);
+    tokens /= token::base();
     state.logger.info(format!(
         "`{}` ${} tokens were minted for `{}` via proposal execution.",
         tokens, CONFIG.token_symbol, receiver

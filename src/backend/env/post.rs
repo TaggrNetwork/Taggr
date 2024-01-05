@@ -285,10 +285,17 @@ impl Post {
             }
     }
 
-    pub fn make_hot(&self, hot_list: &mut VecDeque<PostId>, total_users: usize, user_id: UserId) {
+    pub fn make_hot(
+        &self,
+        hot_list: &mut VecDeque<PostId>,
+        total_users: usize,
+        user_id: UserId,
+        user_balance: Token,
+    ) {
         // if it's a comment, a reaction is from the users itself or the post is too old, exit
         if self.parent.is_some()
             || self.user == user_id
+            || user_balance < token::base()
             || self.timestamp() + CONFIG.max_age_hot_post_days * DAY < time()
         {
             return;
@@ -516,6 +523,7 @@ impl Post {
             }
         }
         let user_id = user.id;
+        let user_balance = user.balance;
         let mut post = Post::new(
             user_id,
             tags(CONFIG.max_tag_length, &body),
@@ -587,7 +595,7 @@ impl Post {
                 Post::mutate(state, &id, |post| {
                     post.tree_size += 1;
                     post.tree_update = timestamp;
-                    post.make_hot(&mut hot_posts, users_len, user_id);
+                    post.make_hot(&mut hot_posts, users_len, user_id, user_balance);
                     Ok(())
                 })
             })

@@ -968,7 +968,7 @@ impl State {
                 continue;
             }
 
-            let base = 10_u64.pow(CONFIG.token_decimals as u32);
+            let base = token::base();
             if let Some(user) = self.users.get_mut(&user_id) {
                 let minted_fractional = tokens as f64 / base as f64;
                 user.notify(format!(
@@ -1120,8 +1120,8 @@ impl State {
             state.total_rewards_shared += total_rewards;
             state.total_revenue_shared += total_revenue;
             let (_, supply_of_active_users) = state.supply_of_active_users(time());
-            let e8s_revenue_per_1k = total_revenue
-                / (supply_of_active_users / 1000 / 10_u64.pow(CONFIG.token_decimals as u32)).max(1);
+            let e8s_revenue_per_1k =
+                total_revenue / (supply_of_active_users / 1000 / token::base()).max(1);
             state.last_revenues.push_back(e8s_revenue_per_1k);
             while state.last_revenues.len() > 12 {
                 state.last_revenues.pop_front();
@@ -2315,7 +2315,7 @@ impl State {
                 .entry(post.user)
                 .and_modify(|donated| *donated = delta.saturating_add(delta) as Credits)
                 .or_insert(delta as Credits);
-            post.make_hot(&mut self.hot, self.users.len(), user.id);
+            post.make_hot(&mut self.hot, self.users.len(), user.id, user.balance);
         }
 
         self.principal_to_user_mut(principal)
