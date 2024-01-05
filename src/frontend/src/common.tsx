@@ -656,8 +656,12 @@ export function CopyToClipboard({
             title="Copy to clipboard"
             className={`clickable ${classNameArg}`}
             onClick={async () => {
-                const cb = navigator.clipboard;
-                await cb.writeText(map(value));
+                try {
+                    const cb = navigator.clipboard;
+                    await cb.writeText(map(value));
+                } catch (err) {
+                    console.error(err);
+                }
                 setCopied(true);
             }}
             data-testid={testId}

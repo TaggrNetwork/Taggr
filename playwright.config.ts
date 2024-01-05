@@ -4,7 +4,7 @@ export default defineConfig({
     testDir: "./e2e",
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
-    retries: process.env.CI ? 2 : 0,
+    retries: 0,
     workers: 4,
     reporter: [
         ["list", { printSteps: true }],
@@ -20,5 +20,6 @@ export default defineConfig({
             use: { ...devices["Desktop Chrome"] },
         },
     ],
+    expect: { timeout: 10000 },
     globalSetup: require.resolve("./e2e/setup"),
 });

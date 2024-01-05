@@ -91,7 +91,7 @@ const App = () => {
     // If we're in a realm, but navigate outside of realm routes, reset the UI.
     if (
         currentRealm() &&
-        ["#/realm", "#/feed", "#/post"].every(
+        ["#/realm", "#/feed", "#/post", "#/new"].every(
             (prefix: string) => !location.hash.startsWith(prefix),
         )
     ) {

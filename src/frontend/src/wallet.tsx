@@ -367,8 +367,13 @@ export const Wallet = () => {
                 <div className="vcentered">
                     <h2 className="max_width_col">Credits</h2>
                     <ButtonWithLoading
+                        label="MINT"
                         classNameArg="active"
                         onClick={async () => {
+                            const future_invoice = window.api.call<any>(
+                                "mint_credits",
+                                0,
+                            );
                             const maxKilos =
                                 window.backendCache.config
                                     .max_credits_mint_kilos;
@@ -390,10 +395,7 @@ export const Wallet = () => {
                             if (isNaN(kilo_credits)) {
                                 return;
                             }
-                            const invoice_result = await window.api.call<any>(
-                                "mint_credits",
-                                0,
-                            );
+                            const invoice_result = await future_invoice;
                             if ("Err" in invoice_result) {
                                 alert(`Error: ${invoice_result.Err}`);
                                 return;
@@ -431,7 +433,6 @@ export const Wallet = () => {
                                 setUser(window.user);
                             }
                         }}
-                        label="MINT"
                     />
                 </div>
                 <div className="vcentered">
