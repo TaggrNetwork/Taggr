@@ -51,7 +51,7 @@ pub struct User {
     pub account: String,
     #[serde(default)]
     pub settings: BTreeMap<String, String>,
-    #[serde(default)]
+    #[serde(skip)]
     pub settings_object: BTreeMap<String, String>,
     cycles: Credits,
     rewards: i64,

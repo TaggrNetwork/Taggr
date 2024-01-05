@@ -101,13 +101,7 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {
-    mutate(|state| {
-        for u in state.users.values_mut() {
-            u.account = AccountIdentifier::new(&u.principal, &DEFAULT_SUBACCOUNT).to_string();
-        }
-    });
-}
+async fn post_upgrade_fixtures() {}
 
 /*
  * UPDATES
