@@ -51,7 +51,7 @@ export const Tokens = () => {
         (acc, [_0, balance, userId]) => (userId == null ? acc : acc + balance),
         0,
     );
-    const { total_supply, proposal_approval_threshold, transaction_fee } =
+    const { maximum_supply, proposal_approval_threshold, transaction_fee } =
         window.backendCache.config;
     const balanceAmounts = balances
         .filter(([_0, _1, userId]) => !isNaN(userId))
@@ -98,7 +98,7 @@ export const Tokens = () => {
                         CIRCULATING<code>{token(mintedSupply)}</code>
                     </div>
                     <div className="db_cell">
-                        MAXIMUM<code>{token(total_supply)}</code>
+                        MAXIMUM<code>{token(maximum_supply)}</code>
                     </div>
                     <div className="db_cell">
                         HOLDERS<code>{holders}</code>

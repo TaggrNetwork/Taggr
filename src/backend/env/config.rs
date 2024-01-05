@@ -21,7 +21,7 @@ pub struct Config {
     pub credit_transaction_fee: u64,
     pub token_decimals: u8,
     pub token_symbol: &'static str,
-    pub total_supply: Token,
+    pub maximum_supply: Token,
 
     pub max_age_hot_post_days: u64,
 
@@ -196,7 +196,7 @@ pub const CONFIG: &Config = &Config {
     #[cfg(feature = "staging")]
     proposal_rejection_penalty: 50,
 
-    total_supply: 100_000_000,
+    maximum_supply: 100_000_000,
 
     min_cycle_balance_main: 2 * ICP_CYCLES_PER_XDR,
 

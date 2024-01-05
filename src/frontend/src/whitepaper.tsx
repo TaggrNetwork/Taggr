@@ -12,7 +12,7 @@ export const Whitepaper = () => {
             let value = window.backendCache.config[key];
             let { team_tokens } = window.backendCache.stats;
             // Remove decimals
-            if (key == "total_supply")
+            if (key == "maximum_supply")
                 value = (
                     value /
                     Math.pow(10, window.backendCache.config.token_decimals)

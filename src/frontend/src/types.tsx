@@ -280,7 +280,7 @@ declare global {
                 post_deletion_penalty_factor: number;
                 token_symbol: string;
                 transaction_fee: number;
-                total_supply: number;
+                maximum_supply: number;
                 proposal_approval_threshold: number;
                 name: string;
                 proposal_rejection_penalty: number;

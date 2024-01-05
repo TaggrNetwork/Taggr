@@ -5,6 +5,7 @@ use self::proposals::{Payload, Status};
 use self::reports::Report;
 use self::token::{account, TransferArgs};
 use self::user::{Filters, Notification, Predicate};
+use crate::assets::export_token_supply;
 use crate::env::invoices::principal_to_subaccount;
 use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
@@ -900,13 +901,13 @@ impl State {
 
     pub fn minting_ratio(&self) -> u64 {
         let circulating_supply: Token = self.balances.values().sum();
-        let factor = (circulating_supply as f64 / CONFIG.total_supply as f64 * 10.0) as u64;
+        let factor = (circulating_supply as f64 / CONFIG.maximum_supply as f64 * 10.0) as u64;
         1 << factor
     }
 
     pub fn mint(&mut self) {
         let circulating_supply: Token = self.balances.values().sum();
-        if circulating_supply >= CONFIG.total_supply {
+        if circulating_supply >= CONFIG.maximum_supply {
             return;
         }
 
@@ -991,7 +992,7 @@ impl State {
                     // Vesting is allowed if the total voting power of the team member stays below
                     // 15% of the current supply, or if 2/3 of total supply is minted.
                     if self.balances.get(&acc).copied().unwrap_or_default() <= cap
-                        || circulating_supply * 3 > CONFIG.total_supply * 2
+                        || circulating_supply * 3 > CONFIG.maximum_supply * 2
                     {
                         *balance -= vested;
                         Some((vested, *balance))
@@ -1188,6 +1189,8 @@ impl State {
 
             state.recompute_stalwarts(now);
         });
+
+        export_token_supply(token::icrc1_total_supply());
     }
 
     fn archive_cold_data(&mut self) -> Result<(), String> {
@@ -2626,7 +2629,7 @@ pub(crate) mod tests {
             let minting_acc = account(Principal::anonymous());
             state
                 .balances
-                .insert(minting_acc.clone(), CONFIG.total_supply);
+                .insert(minting_acc.clone(), CONFIG.maximum_supply);
 
             // no minting hapened due to max supply
             assert_eq!(state.balances.get(&account(pr(0))).unwrap(), &40000);

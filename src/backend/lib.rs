@@ -23,7 +23,7 @@ use ic_cdk::{
 };
 use ic_cdk_macros::*;
 use ic_cdk_timers::{set_timer, set_timer_interval};
-use ic_ledger_types::{AccountIdentifier, Tokens, DEFAULT_SUBACCOUNT};
+use ic_ledger_types::{AccountIdentifier, Tokens};
 use serde_bytes::ByteBuf;
 use std::time::Duration;
 
@@ -101,7 +101,9 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    assets::export_token_supply(token::icrc1_total_supply());
+}
 
 /*
  * UPDATES

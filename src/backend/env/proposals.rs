@@ -257,7 +257,7 @@ impl Payload {
             }
             Payload::Fund(controller, tokens) => {
                 Principal::from_text(controller).map_err(|err| err.to_string())?;
-                if current_supply >= CONFIG.total_supply {
+                if current_supply >= CONFIG.maximum_supply {
                     return Err(
                         "no funding is allowed when the curent supply is above maximum".into(),
                     );
@@ -271,7 +271,7 @@ impl Payload {
                 }
             }
             Payload::Reward(_) => {
-                if current_supply >= CONFIG.total_supply {
+                if current_supply >= CONFIG.maximum_supply {
                     return Err(
                         "no funding is allowed when the curent supply is above maximum".into(),
                     );
@@ -785,7 +785,9 @@ mod tests {
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
-            state.balances.insert(account(pr(222)), CONFIG.total_supply);
+            state
+                .balances
+                .insert(account(pr(222)), CONFIG.maximum_supply);
             assert_eq!(
                 propose(
                     state,
@@ -840,7 +842,9 @@ mod tests {
             state.principal_to_user_mut(pr(2)).unwrap().stalwart = true;
 
             // Case 0: max supply reached
-            state.balances.insert(account(pr(222)), CONFIG.total_supply);
+            state
+                .balances
+                .insert(account(pr(222)), CONFIG.maximum_supply);
             assert_eq!(
                 propose(
                     state,

@@ -158,6 +158,28 @@ pub fn asset(path: &str) -> Option<(Headers, ByteBuf)> {
     Some((headers.clone(), ByteBuf::from(bytes.as_slice())))
 }
 
+pub fn export_token_supply(total_supply: u128) {
+    for (path, tokens) in &[
+        ("total_supply", total_supply),
+        ("maximum_supply", CONFIG.maximum_supply as u128),
+    ] {
+        add_asset(
+            &[format!("/api/v1/{}", path).as_str()],
+            vec![
+                ("Content-Type".to_string(), "application/json".to_string()),
+                ("Cache-Control".to_string(), "public".to_string()),
+            ],
+            format!(
+                "{}",
+                *tokens as f64 / 10_u64.pow(CONFIG.token_decimals as u32) as f64
+            )
+            .as_bytes()
+            .to_vec(),
+        )
+    }
+    set_certified_data(&labeled_hash(LABEL, &asset_hashes().root_hash()));
+}
+
 fn certificate_header(path: &str) -> (String, String) {
     let certificate = ic_cdk::api::data_certificate().expect("no certificate");
     let witness = asset_hashes().witness(path.as_bytes());
