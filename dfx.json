@@ -5,7 +5,14 @@
             "package": "taggr",
             "type": "custom",
             "wasm": "target/wasm32-unknown-unknown/release/taggr.wasm.gz",
-            "build": "./build.sh taggr"
+            "build": "./build.sh taggr",
+            "metadata": [
+                {
+                    "name": "candid:service",
+                    "networks": ["local", "ic"],
+                    "visibility": "public"
+                }
+            ]
         }
     },
     "networks": {
