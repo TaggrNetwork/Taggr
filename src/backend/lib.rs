@@ -916,13 +916,11 @@ fn posts_by_tags() {
 
 #[export_name = "canister_query personal_feed"]
 fn personal_feed() {
-    let (page, with_comments): (usize, bool) = parse(&arg_data_raw());
+    let page: usize = parse(&arg_data_raw());
     read(|state| {
         reply(match state.principal_to_user(caller()) {
             None => Default::default(),
-            Some(user) => user
-                .personal_feed(state, page, with_comments)
-                .collect::<Vec<_>>(),
+            Some(user) => user.personal_feed(state, page).collect::<Vec<_>>(),
         })
     });
 }

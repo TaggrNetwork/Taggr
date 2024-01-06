@@ -207,34 +207,24 @@ impl User {
         &'a self,
         state: &'a State,
         page: usize,
-        with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let posts_by_tags = Box::new(
+        Box::new(
             state
-                .last_posts(self.principal, None, with_comments)
+                .last_posts(self.principal, None, false)
                 .filter(move |post| {
+                    !post.is_deleted()
+                        && post.parent.is_none()
+                        && !post.matches_filters(&self.filters)
+                })
+                .filter(move |post| {
+                    if self.followees.contains(&post.user) {
+                        return true;
+                    }
                     let lc_tags: BTreeSet<_> = post.tags.iter().map(|t| t.to_lowercase()).collect();
                     covered_by_feeds(&self.feeds, &lc_tags, false).is_some()
-                }),
-        );
-
-        let mut iterators: Vec<Box<dyn Iterator<Item = &'a Post> + 'a>> = self
-            .followees
-            .iter()
-            .filter_map(move |id| state.users.get(id))
-            .map(|user| user.posts(state))
-            .collect();
-
-        iterators.push(posts_by_tags);
-
-        Box::new(
-            IteratorMerger {
-                iterators: iterators.into_iter().map(|i| i.peekable()).collect(),
-            }
-            .filter(move |post| with_comments || post.parent.is_none())
-            .filter(move |post| !post.matches_filters(&self.filters))
-            .skip(page * CONFIG.feed_page_size)
-            .take(CONFIG.feed_page_size),
+                })
+                .skip(page * CONFIG.feed_page_size)
+                .take(CONFIG.feed_page_size),
         )
     }
 
@@ -496,33 +486,6 @@ impl User {
                 )
             })
             .collect()
-    }
-}
-
-struct IteratorMerger<'a, T> {
-    iterators: Vec<std::iter::Peekable<Box<dyn Iterator<Item = &'a T> + 'a>>>,
-}
-
-impl<'a, T: Clone + PartialOrd> Iterator for IteratorMerger<'a, T> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut max_val = None;
-        let mut indexes = vec![];
-        for (i, iter) in self.iterators.iter_mut().enumerate() {
-            let candidate = iter.peek().cloned();
-            if candidate == max_val {
-                indexes.push(i);
-            } else if candidate > max_val {
-                max_val = candidate;
-                indexes = vec![i];
-            }
-        }
-        max_val.as_ref()?;
-        indexes.into_iter().for_each(|i| {
-            self.iterators[i].next();
-        });
-        max_val
     }
 }
 

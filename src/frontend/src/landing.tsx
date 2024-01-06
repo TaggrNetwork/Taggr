@@ -86,11 +86,7 @@ export const Landing = () => {
                 feedLoader={async (page) => {
                     setTitle(feed);
                     if (feed == "FOLLOWED")
-                        return await window.api.query(
-                            "personal_feed",
-                            page,
-                            false,
-                        );
+                        return await window.api.query("personal_feed", page);
                     if (feed == "HOT")
                         return await window.api.query("hot_posts", realm, page);
                     if (feed == "REALMS")
