@@ -113,7 +113,7 @@ $name has a total supply of `$total_supply` tokens.
 ### Supply Increase
 
 New tokens can only be mined by users or minted via proposals.
-The minting will be suspended automatically once the maximum supply is reached.
+Once the maximum supply is reached, the minting will be suspended and funding & rewards proposals will be impossible to create.
 
 ### Supply Decrease
 
