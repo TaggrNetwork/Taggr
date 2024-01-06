@@ -382,7 +382,7 @@ export const Wallet = () => {
                                     "Enter the number of 1000s of credits to mint " +
                                         `(max: ${maxKilos})`,
                                     "1",
-                                ) || "",
+                                ) || "0",
                             );
                             if (Number(kilo_credits) > maxKilos) {
                                 alert(
@@ -392,7 +392,7 @@ export const Wallet = () => {
                                 );
                                 return;
                             }
-                            if (isNaN(kilo_credits)) {
+                            if (!kilo_credits || isNaN(kilo_credits)) {
                                 return;
                             }
                             const invoice_result = await future_invoice;
@@ -400,14 +400,9 @@ export const Wallet = () => {
                                 alert(`Error: ${invoice_result.Err}`);
                                 return;
                             }
-                            const userSubaccount = hex(
-                                invoice_result.Ok.account,
-                            );
-                            const { e8s_for_one_xdr } =
-                                window.backendCache.stats;
-                            const amount =
-                                Number(e8s_for_one_xdr) * kilo_credits +
-                                ICP_DEFAULT_FEE;
+                            const { account, e8s } = invoice_result.Ok;
+                            const userSubaccount = hex(account);
+                            const amount = Number(e8s) * kilo_credits;
                             const response: any = await window.api.icp_transfer(
                                 userSubaccount,
                                 amount,
@@ -415,14 +410,12 @@ export const Wallet = () => {
                             if ("Err" in response) {
                                 alert(
                                     `Couldn't transfer ICP for minting. Make sure you have at least ${tokens(
-                                        amount,
+                                        amount + ICP_DEFAULT_FEE,
                                         8,
                                     )} ICP on your wallet and try again.`,
                                 );
                             }
-                            const result: any = await mintCredits(
-                                Math.max(1, kilo_credits),
-                            );
+                            const result: any = await mintCredits(kilo_credits);
                             if ("Err" in result) {
                                 alert(`Error: ${result.Err}`);
                                 return;
