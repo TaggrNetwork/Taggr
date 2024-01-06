@@ -87,7 +87,7 @@ export const Header = ({
             >
                 {!["/", "#/", ""].includes(location.hash) && (
                     <span
-                        className="clickable_color clickable"
+                        className="clickable_color clickable right_half_spaced left_half_spaced"
                         onClick={() => history.back()}
                     >
                         &#9664;
