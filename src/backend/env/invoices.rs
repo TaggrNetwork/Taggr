@@ -99,8 +99,7 @@ impl Invoices {
             let rest = Tokens::from_e8s(
                 balance
                     .e8s()
-                    .checked_sub(costs.e8s().checked_add(fee().e8s()).ok_or("wrong costs")?)
-                    .ok_or("wrong balance")?,
+                    .saturating_sub(costs.e8s().checked_add(fee().e8s()).ok_or("wrong costs")?),
             );
             if rest > fee() {
                 let future = transfer(
