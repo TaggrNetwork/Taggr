@@ -241,7 +241,7 @@ pub const CONFIG: &Config = &Config {
 
     name_change_cost: 1000,
 
-    max_realm_name: 12,
+    max_realm_name: 20,
     max_realm_logo_len: 16 * 1024,
 
     post_deletion_penalty_factor: 10,
