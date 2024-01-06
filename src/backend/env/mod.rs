@@ -1077,10 +1077,10 @@ impl State {
         let debt = mutate(|state| {
             let rewards = rewards
                 .iter()
-                .map(|(id, karma)| {
+                .map(|(id, donations)| {
                     (
                         id,
-                        (*karma as f64 / CONFIG.credits_per_xdr as f64 * e8s_for_one_xdr as f64)
+                        (*donations as f64 / CONFIG.credits_per_xdr as f64 * e8s_for_one_xdr as f64)
                             as u64,
                     )
                 })
