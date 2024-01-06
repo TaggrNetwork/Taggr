@@ -69,6 +69,9 @@ pub struct Post {
     pub realm: Option<String>,
     pub hashes: Vec<String>,
 
+    #[serde(default)]
+    pub heat: u32,
+
     #[serde(skip)]
     pub archived: bool,
 }
@@ -86,6 +89,7 @@ impl PartialOrd for Post {
 }
 
 impl Post {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         user: UserId,
         tags: BTreeSet<String>,
@@ -94,6 +98,7 @@ impl Post {
         parent: Option<PostId>,
         mut extension: Option<Extension>,
         realm: Option<String>,
+        heat: u32,
     ) -> Self {
         // initialize all extensions properly
         if let Some(Extension::Poll(poll)) = &mut extension {
@@ -120,6 +125,7 @@ impl Post {
             extension,
             archived: false,
             realm,
+            heat,
         }
     }
 
@@ -285,33 +291,15 @@ impl Post {
             }
     }
 
-    pub fn make_hot(
-        &self,
-        hot_list: &mut VecDeque<PostId>,
-        total_users: usize,
-        user_id: UserId,
-        user_balance: Token,
-    ) {
+    pub fn make_hot(&mut self, user_id: UserId, user_balance: Token) {
         // if it's a comment, a reaction is from the users itself or the post is too old, exit
         if self.parent.is_some()
             || self.user == user_id
-            || user_balance < token::base()
             || self.timestamp() + CONFIG.max_age_hot_post_days * DAY < time()
         {
             return;
         };
-        let engagements = self
-            .reactions
-            .iter()
-            .filter_map(|(id, users)| {
-                (*id >= CONFIG.min_positive_reaction_id).then_some(users.len())
-            })
-            .sum::<usize>() as u32
-            + self.tree_size;
 
-        if engagements as f32 / (total_users as f32) < CONFIG.hot_post_engagement_percentage {
-            return;
-        }
         // negative reactions balance
         let rewards = config::reaction_rewards();
         if self
@@ -326,11 +314,7 @@ impl Post {
             return;
         }
 
-        hot_list.retain(|post_id| *post_id != self.id);
-        hot_list.push_front(self.id);
-        if hot_list.len() > CONFIG.num_hot_posts {
-            hot_list.pop_back();
-        }
+        self.heat += (user_balance as f32).sqrt() as u32;
     }
 
     /// Checks if the poll has ended. If not, returns `Ok(false)`. If the poll ended,
@@ -532,6 +516,7 @@ impl Post {
             parent,
             extension,
             realm.clone(),
+            (user_balance / token::base()).min(CONFIG.post_heat_token_balance_cap) as u32,
         );
         let costs = post.costs(blobs.len());
         post.valid(blobs)?;
@@ -586,8 +571,6 @@ impl Post {
 
         Post::save(state, post);
 
-        let users_len = state.users.len();
-        let mut hot_posts = std::mem::take(&mut state.hot);
         state
             .thread(id)
             .filter(|post_id| post_id != &id)
@@ -595,13 +578,12 @@ impl Post {
                 Post::mutate(state, &id, |post| {
                     post.tree_size += 1;
                     post.tree_update = timestamp;
-                    post.make_hot(&mut hot_posts, users_len, user_id, user_balance);
+                    post.make_hot(user_id, user_balance);
                     Ok(())
                 })
             })
             .expect("couldn't adjust post on the thread");
 
-        state.hot = hot_posts;
         Ok(id)
     }
 
@@ -916,7 +898,7 @@ mod tests {
             archive_cold_posts(state, 5).unwrap();
             assert_eq!(
                 state.memory.health("B"),
-                "boundary=819B, mem_size=819B, segments=0".to_string()
+                "boundary=849B, mem_size=849B, segments=0".to_string()
             );
 
             // Make sure we have the right numbers in cold and hot memories
@@ -960,7 +942,7 @@ mod tests {
             assert_eq!(state.memory.posts.len(), 3);
             assert_eq!(
                 state.memory.health("B"),
-                "boundary=819B, mem_size=819B, segments=2".to_string()
+                "boundary=849B, mem_size=849B, segments=2".to_string()
             );
 
             // Archive posts again
@@ -971,7 +953,7 @@ mod tests {
             // old posts
             assert_eq!(
                 state.memory.health("B"),
-                "boundary=1145B, mem_size=1145B, segments=1".to_string()
+                "boundary=1187B, mem_size=1187B, segments=1".to_string()
             );
         });
     }

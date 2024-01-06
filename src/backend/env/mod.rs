@@ -128,6 +128,7 @@ pub struct State {
     pub last_daily_chores: u64,
     pub last_hourly_chores: u64,
     pub logger: Logger,
+    #[serde(skip)]
     pub hot: VecDeque<PostId>,
     pub invites: BTreeMap<String, (UserId, Credits)>,
     pub realms: BTreeMap<RealmId, Realm>,
@@ -456,15 +457,24 @@ impl State {
             .collect()
     }
 
-    pub fn hot_posts(&self, realm: Option<RealmId>, page: usize) -> Vec<Post> {
-        self.hot
-            .iter()
-            .filter_map(|post_id| Post::get(self, post_id))
-            .filter(|post| realm.is_none() || post.realm == realm)
-            .skip(page * CONFIG.feed_page_size)
-            .take(CONFIG.feed_page_size)
-            .cloned()
-            .collect()
+    pub fn hot_posts(
+        &self,
+        caller: Principal,
+        realm: Option<RealmId>,
+        page: usize,
+    ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
+        let mut hot_posts = self
+            .last_posts(caller, realm, false)
+            .filter(|post| post.timestamp() + CONFIG.max_age_hot_post_days * DAY >= time())
+            .take(1000)
+            .collect::<Vec<_>>();
+        hot_posts.sort_unstable_by_key(|post| std::cmp::Reverse(post.heat));
+        Box::new(
+            hot_posts
+                .into_iter()
+                .skip(page * CONFIG.feed_page_size)
+                .take(CONFIG.feed_page_size),
+        )
     }
 
     pub fn toggle_realm_membership(&mut self, principal: Principal, name: String) -> bool {
@@ -2315,7 +2325,6 @@ impl State {
                 .entry(post.user)
                 .and_modify(|donated| *donated = donated.saturating_add(delta as Credits))
                 .or_insert(delta as Credits);
-            post.make_hot(&mut self.hot, self.users.len(), user.id, user.balance);
         }
 
         self.principal_to_user_mut(principal)
@@ -2324,6 +2333,7 @@ impl State {
         let user_id = user.id;
         Post::mutate(self, &post_id, |post| {
             post.reactions.entry(reaction).or_default().insert(user_id);
+            post.make_hot(user.id, user.balance);
             Ok(())
         })
     }

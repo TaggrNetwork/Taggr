@@ -883,7 +883,13 @@ fn journal() {
 #[export_name = "canister_query hot_posts"]
 fn hot_posts() {
     let (realm, page): (String, usize) = parse(&arg_data_raw());
-    read(|state| reply(state.hot_posts(optional(realm), page)));
+    read(|state| {
+        reply(
+            state
+                .hot_posts(caller(), optional(realm), page)
+                .collect::<Vec<_>>(),
+        )
+    });
 }
 
 #[export_name = "canister_query realms_posts"]

@@ -38,6 +38,8 @@ pub struct Config {
     pub proposal_controversy_threashold: u16,
     pub proposal_rejection_penalty: Credits,
 
+    pub post_heat_token_balance_cap: Token,
+
     pub max_credits_mint_kilos: u64,
 
     // When there are less tokens than defined by this threshold, only the user karma is used to
@@ -92,8 +94,6 @@ pub struct Config {
 
     // percentage of stalwarts needed to confirm a report
     pub report_confirmation_percentage: u16,
-
-    pub hot_post_engagement_percentage: f32,
 
     pub max_post_length: usize,
     pub max_tag_length: usize,
@@ -157,6 +157,8 @@ pub const CONFIG: &Config = &Config {
     credit_transaction_fee: 1,
 
     credits_per_xdr: 1000,
+
+    post_heat_token_balance_cap: 5,
 
     boostrapping_threshold_tokens: 100000,
 
@@ -263,8 +265,6 @@ pub const CONFIG: &Config = &Config {
     min_stalwart_account_age_weeks: 26,
 
     stalwart_moderation_reward: 20,
-
-    hot_post_engagement_percentage: 0.01,
 
     max_post_length: 15000,
     max_tag_length: 30,
