@@ -101,20 +101,7 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {
-    assets::export_token_supply(token::icrc1_total_supply());
-
-    // Update user balances
-    mutate(|state| {
-        for user in state.users.values_mut() {
-            user.balance = state
-                .balances
-                .get(&token::account(user.principal))
-                .copied()
-                .unwrap_or_default();
-        }
-    });
-}
+async fn post_upgrade_fixtures() {}
 
 /*
  * UPDATES
