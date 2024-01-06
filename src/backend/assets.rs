@@ -165,10 +165,7 @@ pub fn export_token_supply(total_supply: u128) {
     ] {
         add_asset(
             &[format!("/api/v1/{}", path).as_str()],
-            vec![
-                ("Content-Type".to_string(), "application/json".to_string()),
-                ("Cache-Control".to_string(), "public".to_string()),
-            ],
+            vec![("Content-Type".to_string(), "application/json".to_string())],
             format!("{}", *tokens as f64 / token::base() as f64)
                 .as_bytes()
                 .to_vec(),
