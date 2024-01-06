@@ -111,7 +111,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                 content={
                     <div className="row_container">
                         <ShareButton
-                            url={`/user/${profile.name}`}
+                            url={`user/${profile.name}`}
                             classNameArg="max_width_col"
                             text={true}
                         />
