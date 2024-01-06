@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 FEATURES="${FEATURES:-}"
 echo "Features: $FEATURES"

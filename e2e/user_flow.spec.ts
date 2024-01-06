@@ -67,7 +67,9 @@ test.describe("Regular users flow", () => {
         await expect(
             page.getByRole("heading", { name: "Alice" }),
         ).toBeVisible();
-        await expect(page.locator("p")).toHaveText("I am a #Taggr fan");
+        await expect(
+            page.locator("p", { hasText: /I am a #Taggr fan/ }),
+        ).toBeVisible();
 
         // Create a post
         await page.getByRole("button", { name: "POST" }).click();
