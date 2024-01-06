@@ -425,27 +425,12 @@ export const PostView = ({
                                 post={post}
                                 react={react}
                             />
-                            {post.realm &&
-                                !user.realms.includes(post.realm) && (
-                                    <div className="text_centered framed">
-                                        JOIN REALM{" "}
-                                        <a href={`#/realm/${post.realm}`}>
-                                            {post.realm}
-                                        </a>{" "}
-                                        TO COMMENT
-                                    </div>
-                                )}
-                            {(!post.realm ||
-                                user.realms.includes(post.realm)) && (
-                                <Form
-                                    submitCallback={commentSubmissionCallback}
-                                    postId={post.id}
-                                    writingCallback={() =>
-                                        setCommentIncoming(true)
-                                    }
-                                    comment={true}
-                                />
-                            )}
+                            <Form
+                                submitCallback={commentSubmissionCallback}
+                                postId={post.id}
+                                writingCallback={() => setCommentIncoming(true)}
+                                comment={true}
+                            />
                         </>
                     )}
                     <PostInfo

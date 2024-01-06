@@ -502,7 +502,7 @@ impl Post {
             },
         };
         if let Some(name) = &realm {
-            if !user.realms.contains(name) {
+            if parent.is_none() && !user.realms.contains(name) {
                 return Err(format!("not a member of the realm {}", name));
             }
         }
@@ -531,8 +531,10 @@ impl Post {
         user.num_posts += 1;
         // reorder realms
         if let Some(name) = &realm {
-            user.realms.retain(|id| id != name);
-            user.realms.push(name.clone());
+            if user.realms.contains(name) {
+                user.realms.retain(|id| id != name);
+                user.realms.push(name.clone());
+            }
         }
         user.last_activity = timestamp;
         let id = state.new_post_id();

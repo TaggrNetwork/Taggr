@@ -3364,7 +3364,7 @@ pub(crate) mod tests {
 
             assert_eq!(Post::get(state, &post_id).unwrap().realm, None,);
 
-            // comments not possible if user is not in the realm
+            // comments are possible even if user is not in the realm
             assert_eq!(
                 Post::create(
                     state,
@@ -3376,7 +3376,7 @@ pub(crate) mod tests {
                     None,
                     None
                 ),
-                Err("not a member of the realm TAGGRDAO".to_string())
+                Ok(2)
             );
 
             assert!(state.toggle_realm_membership(p0, name.clone()));
@@ -3393,7 +3393,7 @@ pub(crate) mod tests {
                     None,
                     None
                 ),
-                Ok(2)
+                Ok(3)
             );
 
             assert!(realm_posts(state, &name).contains(&2));
@@ -3490,7 +3490,7 @@ pub(crate) mod tests {
                     Some(realm_name.clone()),
                     None
                 ),
-                Ok(5)
+                Ok(6)
             );
             assert_eq!(state.realms.get(&realm_name).unwrap().num_posts, 1);
 
@@ -3506,7 +3506,7 @@ pub(crate) mod tests {
         // Move the post to non-joined realm
         assert_eq!(
             Post::edit(
-                5,
+                6,
                 "changed".to_string(),
                 vec![],
                 "".to_string(),
@@ -3519,12 +3519,12 @@ pub(crate) mod tests {
         );
 
         read(|state| {
-            assert_eq!(Post::get(state, &5).unwrap().realm, Some(realm_name));
-            assert_eq!(state.realms.get("TAGGRDAO").unwrap().num_posts, 2);
+            assert_eq!(Post::get(state, &6).unwrap().realm, Some(realm_name));
+            assert_eq!(state.realms.get("TAGGRDAO").unwrap().num_posts, 3);
         });
         assert_eq!(
             Post::edit(
-                5,
+                6,
                 "changed".to_string(),
                 vec![],
                 "".to_string(),
@@ -3538,9 +3538,9 @@ pub(crate) mod tests {
 
         read(|state| {
             assert_eq!(state.realms.get("NEW_REALM").unwrap().num_posts, 0);
-            assert_eq!(state.realms.get("TAGGRDAO").unwrap().num_posts, 3);
+            assert_eq!(state.realms.get("TAGGRDAO").unwrap().num_posts, 4);
             assert_eq!(
-                Post::get(state, &5).unwrap().realm,
+                Post::get(state, &6).unwrap().realm,
                 Some("TAGGRDAO".to_string())
             );
         });
