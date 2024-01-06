@@ -47,6 +47,15 @@ async fn clear_buckets() {
 }
 
 #[update]
+fn replace_user_principal(principal: String, user_id: UserId) {
+    mutate(|state| {
+        state
+            .principals
+            .insert(Principal::from_text(principal).unwrap(), user_id)
+    });
+}
+
+#[update]
 fn make_stalwart(user_handle: String) {
     mutate(|state| {
         state
