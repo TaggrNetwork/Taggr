@@ -33,7 +33,7 @@ RUN mkdir -p /opt/ic-wasm && \
     chmod +x /opt/ic-wasm/ic-wasm
 
 # Install candid-extractor
-RUN cargo install candid-extractor
+RUN cargo install candid-extractor@0.1.2
 
 # Install dfx
 COPY dfx.json ./
