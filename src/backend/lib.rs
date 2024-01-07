@@ -128,14 +128,16 @@ async fn get_neuron_info() -> Result<String, String> {
 #[export_name = "canister_update vote_on_poll"]
 fn vote_on_poll() {
     let (post_id, vote, anonymously): (PostId, u16, bool) = parse(&arg_data_raw());
-    mutate(|state| reply(state.vote_on_poll(caller(), api::time(), post_id, vote, anonymously)));
+    mutate(|state| {
+        reply(state.vote_on_poll(user_principal(), api::time(), post_id, vote, anonymously))
+    });
 }
 
 #[export_name = "canister_update report"]
 fn report() {
     mutate(|state| {
         let (domain, id, reason): (String, u64, String) = parse(&arg_data_raw());
-        reply(state.report(caller(), domain, id, reason))
+        reply(state.report(user_principal(), domain, id, reason))
     });
 }
 
@@ -143,7 +145,7 @@ fn report() {
 fn vote_on_report() {
     mutate(|state| {
         let (domain, id, vote): (String, u64, bool) = parse(&arg_data_raw());
-        reply(state.vote_on_report(caller(), domain, id, vote))
+        reply(state.vote_on_report(user_principal(), domain, id, vote))
     });
 }
 
@@ -151,7 +153,7 @@ fn vote_on_report() {
 fn clear_notifications() {
     mutate(|state| {
         let ids: Vec<String> = parse(&arg_data_raw());
-        state.clear_notifications(caller(), ids);
+        state.clear_notifications(user_principal(), ids);
         reply_raw(&[]);
     })
 }
@@ -159,7 +161,7 @@ fn clear_notifications() {
 #[export_name = "canister_update withdraw_rewards"]
 fn withdraw_rewards() {
     spawn(async {
-        reply(State::withdraw_rewards(caller()).await);
+        reply(State::withdraw_rewards(user_principal()).await);
     })
 }
 
@@ -167,20 +169,20 @@ fn withdraw_rewards() {
 fn tip() {
     spawn(async {
         let (post_id, amount): (PostId, u64) = parse(&arg_data_raw());
-        reply(State::tip(caller(), post_id, amount).await);
+        reply(State::tip(user_principal(), post_id, amount).await);
     })
 }
 
 #[export_name = "canister_update react"]
 fn react() {
     let (post_id, reaction): (PostId, u16) = parse(&arg_data_raw());
-    mutate(|state| reply(state.react(caller(), post_id, reaction, api::time())));
+    mutate(|state| reply(state.react(user_principal(), post_id, reaction, api::time())));
 }
 
 #[export_name = "canister_update update_last_activity"]
 fn update_last_activity() {
     mutate(|state| {
-        if let Some(user) = state.principal_to_user_mut(caller()) {
+        if let Some(user) = state.principal_to_user_mut(user_principal()) {
             user.last_activity = api::time()
         }
     });
@@ -191,7 +193,7 @@ fn update_last_activity() {
 fn change_principal() {
     spawn(async {
         let principal: String = parse(&arg_data_raw());
-        reply(State::change_principal(caller(), principal).await);
+        reply(State::change_principal(user_principal(), principal).await);
     });
 }
 
@@ -199,7 +201,7 @@ fn change_principal() {
 fn update_user() {
     let (new_name, about, principals): (String, String, Vec<String>) = parse(&arg_data_raw());
     reply(User::update(
-        caller(),
+        user_principal(),
         optional(new_name),
         about,
         principals,
@@ -209,14 +211,14 @@ fn update_user() {
 #[export_name = "canister_update update_user_settings"]
 fn update_user_settings() {
     let settings: std::collections::BTreeMap<String, String> = parse(&arg_data_raw());
-    reply(User::update_settings(caller(), settings))
+    reply(User::update_settings(user_principal(), settings))
 }
 
 #[export_name = "canister_update create_user"]
 fn create_user() {
     let (name, invite): (String, Option<String>) = parse(&arg_data_raw());
     spawn(async {
-        reply(State::create_user(caller(), name, invite).await);
+        reply(State::create_user(user_principal(), name, invite).await);
     });
 }
 
@@ -224,7 +226,9 @@ fn create_user() {
 fn transfer_credits() {
     let (recipient, amount): (UserId, Credits) = parse(&arg_data_raw());
     reply(mutate(|state| {
-        let sender = state.principal_to_user(caller()).expect("no user found");
+        let sender = state
+            .principal_to_user(user_principal())
+            .expect("no user found");
         let recipient_name = &state.users.get(&recipient).expect("no user found").name;
         state.credit_transfer(
             sender.id,
@@ -246,21 +250,21 @@ fn transfer_credits() {
 
 #[export_name = "canister_update widthdraw_rewards"]
 fn widthdraw_rewards() {
-    spawn(async { reply(State::withdraw_rewards(caller()).await) });
+    spawn(async { reply(State::withdraw_rewards(user_principal()).await) });
 }
 
 #[export_name = "canister_update mint_credits"]
 fn mint_credits() {
     spawn(async {
         let kilo_credits: u64 = parse(&arg_data_raw());
-        reply(State::mint_credits(caller(), kilo_credits).await)
+        reply(State::mint_credits(user_principal(), kilo_credits).await)
     });
 }
 
 #[export_name = "canister_update create_invite"]
 fn create_invite() {
     let credits: Credits = parse(&arg_data_raw());
-    mutate(|state| reply(state.create_invite(caller(), credits)));
+    mutate(|state| reply(state.create_invite(user_principal(), credits)));
 }
 
 #[export_name = "canister_update propose_add_realm_controller"]
@@ -269,7 +273,7 @@ fn propose_add_realm_controller() {
     reply(mutate(|state| {
         proposals::propose(
             state,
-            caller(),
+            user_principal(),
             description,
             proposals::Payload::AddRealmController(realm_id, user_id),
             time(),
@@ -288,7 +292,7 @@ fn propose_icp_transfer() {
             (Ok(account), Ok(amount)) => mutate(|state| {
                 proposals::propose(
                     state,
-                    caller(),
+                    user_principal(),
                     description,
                     proposals::Payload::ICPTransfer(account, Tokens::from_e8s(amount)),
                     time(),
@@ -304,7 +308,7 @@ fn propose_release(description: String, commit: String, binary: ByteBuf) -> Resu
     mutate(|state| {
         proposals::propose(
             state,
-            caller(),
+            user_principal(),
             description,
             proposals::Payload::Release(Release {
                 commit,
@@ -322,7 +326,7 @@ fn propose_reward() {
     mutate(|state| {
         reply(proposals::propose(
             state,
-            caller(),
+            user_principal(),
             description,
             proposals::Payload::Reward(Reward {
                 receiver,
@@ -340,7 +344,7 @@ fn propose_funding() {
     mutate(|state| {
         reply(proposals::propose(
             state,
-            caller(),
+            user_principal(),
             description,
             proposals::Payload::Fund(receiver, tokens * token::base()),
             time(),
@@ -355,7 +359,7 @@ fn vote_on_proposal() {
         reply(proposals::vote_on_proposal(
             state,
             time(),
-            caller(),
+            user_principal(),
             proposal_id,
             vote,
             &data,
@@ -366,7 +370,7 @@ fn vote_on_proposal() {
 #[export_name = "canister_update cancel_proposal"]
 fn cancel_proposal() {
     let proposal_id: u32 = parse(&arg_data_raw());
-    mutate(|state| proposals::cancel_proposal(state, caller(), proposal_id));
+    mutate(|state| proposals::cancel_proposal(state, user_principal(), proposal_id));
     reply(());
 }
 
@@ -385,7 +389,7 @@ async fn add_post(
             state,
             body,
             &blobs,
-            caller(),
+            user_principal(),
             api::time(),
             parent,
             realm,
@@ -403,7 +407,7 @@ async fn add_post(
 /// This method initiates an asynchronous post creation.
 fn add_post_data(body: String, realm: Option<RealmId>, extension: Option<Blob>) {
     mutate(|state| {
-        if let Some(user) = state.principal_to_user_mut(caller()) {
+        if let Some(user) = state.principal_to_user_mut(user_principal()) {
             user.draft = Some(Draft {
                 body,
                 realm,
@@ -418,7 +422,7 @@ fn add_post_data(body: String, realm: Option<RealmId>, extension: Option<Blob>) 
 /// This method adds a blob to a post being created
 fn add_post_blob(id: String, blob: Blob) -> Result<(), String> {
     mutate(|state| {
-        if let Some(user) = state.principal_to_user_mut(caller()) {
+        if let Some(user) = state.principal_to_user_mut(user_principal()) {
             let credits = user.credits();
             if let Some(draft) = user.draft.as_mut() {
                 if credits < (draft.blobs.len() + 1) as u64 * CONFIG.blob_cost {
@@ -442,7 +446,7 @@ async fn commit_post() -> Result<PostId, String> {
         blobs,
     })) = mutate(|state| {
         state
-            .principal_to_user_mut(caller())
+            .principal_to_user_mut(user_principal())
             .map(|user| user.draft.take())
     }) {
         add_post(body, blobs, None, realm, extension).await
@@ -459,14 +463,14 @@ async fn edit_post(
     patch: String,
     realm: Option<RealmId>,
 ) -> Result<(), String> {
-    Post::edit(id, body, blobs, patch, realm, caller(), api::time()).await
+    Post::edit(id, body, blobs, patch, realm, user_principal(), api::time()).await
 }
 
 #[export_name = "canister_update delete_post"]
 fn delete_post() {
     mutate(|state| {
         let (post_id, versions): (PostId, Vec<String>) = parse(&arg_data_raw());
-        reply(state.delete_post(caller(), post_id, versions))
+        reply(state.delete_post(user_principal(), post_id, versions))
     });
 }
 
@@ -474,7 +478,7 @@ fn delete_post() {
 fn toggle_bookmark() {
     mutate(|state| {
         let post_id: PostId = parse(&arg_data_raw());
-        if let Some(user) = state.principal_to_user_mut(caller()) {
+        if let Some(user) = state.principal_to_user_mut(user_principal()) {
             reply(user.toggle_bookmark(post_id));
             return;
         };
@@ -485,7 +489,12 @@ fn toggle_bookmark() {
 #[export_name = "canister_update toggle_following_post"]
 fn toggle_following_post() {
     let post_id: PostId = parse(&arg_data_raw());
-    let user_id = read(|state| state.principal_to_user(caller()).expect("no user found").id);
+    let user_id = read(|state| {
+        state
+            .principal_to_user(user_principal())
+            .expect("no user found")
+            .id
+    });
     reply(
         mutate(|state| Post::mutate(state, &post_id, |post| Ok(post.toggle_following(user_id))))
             .unwrap_or_default(),
@@ -495,7 +504,7 @@ fn toggle_following_post() {
 #[export_name = "canister_update toggle_following_user"]
 fn toggle_following_user() {
     let followee_id: UserId = parse(&arg_data_raw());
-    mutate(|state| reply(state.toggle_following_user(caller(), followee_id)))
+    mutate(|state| reply(state.toggle_following_user(user_principal(), followee_id)))
 }
 
 #[export_name = "canister_update toggle_following_feed"]
@@ -504,7 +513,7 @@ fn toggle_following_feed() {
         let tags: Vec<String> = parse(&arg_data_raw());
         reply(
             state
-                .principal_to_user_mut(caller())
+                .principal_to_user_mut(user_principal())
                 .map(|user| user.toggle_following_feed(tags))
                 .unwrap_or_default(),
         )
@@ -523,7 +532,7 @@ fn edit_realm() {
             BTreeSet<UserId>,
         ) = parse(&arg_data_raw());
         reply(state.edit_realm(
-            caller(),
+            user_principal(),
             id,
             logo,
             label_color,
@@ -538,7 +547,7 @@ fn edit_realm() {
 fn realm_clean_up() {
     mutate(|state| {
         let (post_id, reason): (PostId, String) = parse(&arg_data_raw());
-        reply(state.clean_up_realm(caller(), post_id, reason))
+        reply(state.clean_up_realm(user_principal(), post_id, reason))
     });
 }
 
@@ -554,7 +563,7 @@ fn create_realm() {
             BTreeSet<UserId>,
         ) = parse(&arg_data_raw());
         reply(state.create_realm(
-            caller(),
+            user_principal(),
             name,
             logo,
             label_color,
@@ -569,7 +578,7 @@ fn create_realm() {
 fn toggle_realm_membership() {
     mutate(|state| {
         let name: String = parse(&arg_data_raw());
-        reply(state.toggle_realm_membership(caller(), name))
+        reply(state.toggle_realm_membership(user_principal(), name))
     })
 }
 
@@ -577,11 +586,13 @@ fn toggle_realm_membership() {
 fn toggle_filter() {
     mutate(|state| {
         let (filter, value): (String, String) = parse(&arg_data_raw());
-        reply(if let Some(user) = state.principal_to_user_mut(caller()) {
-            user.toggle_filter(filter, value)
-        } else {
-            Err("no user found".into())
-        });
+        reply(
+            if let Some(user) = state.principal_to_user_mut(user_principal()) {
+                user.toggle_filter(filter, value)
+            } else {
+                Err("no user found".into())
+            },
+        );
     })
 }
 
@@ -590,7 +601,7 @@ async fn set_emergency_release(binary: ByteBuf) {
     mutate(|state| {
         if binary.is_empty()
             || !state
-                .principal_to_user(caller())
+                .principal_to_user(user_principal())
                 .map(|user| user.stalwart)
                 .unwrap_or_default()
         {
@@ -604,7 +615,7 @@ async fn set_emergency_release(binary: ByteBuf) {
 #[export_name = "canister_update confirm_emergency_release"]
 fn confirm_emergency_release() {
     mutate(|state| {
-        let principal = caller();
+        let principal = user_principal();
         if let Some(balance) = state.balances.get(&account(principal)) {
             let hash: String = parse(&arg_data_raw());
             use sha2::{Digest, Sha256};
@@ -1030,6 +1041,12 @@ fn optional(s: String) -> Option<String> {
     } else {
         Some(s)
     }
+}
+
+fn user_principal() -> Principal {
+    let caller = caller();
+    assert_ne!(caller, Principal::anonymous(), "authentication required");
+    caller
 }
 
 use crate::http::{HttpRequest, HttpResponse};
