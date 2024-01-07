@@ -1965,11 +1965,7 @@ impl State {
             e8s_revenue_per_1k: self.last_revenues.iter().sum::<u64>()
                 / self.last_revenues.len().max(1) as u64,
             team_tokens: self.team_tokens.clone(),
-            meta: format!(
-                "Memory health: {}, heap size: {} MB",
-                self.memory.health("MB"),
-                memory::heap_address().1 / 1024 / 1024
-            ),
+            meta: format!("Memory health: {}", self.memory.health("MB")),
             module_hash: self.module_hash.clone(),
             canister_id: ic_cdk::id(),
             last_upgrade: self.last_upgrade,
