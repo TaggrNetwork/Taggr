@@ -32,9 +32,6 @@ RUN mkdir -p /opt/ic-wasm && \
     curl -L https://github.com/dfinity/ic-wasm/releases/download/$(cat .ic-wasm-version | xargs)/ic-wasm-linux64 -o /opt/ic-wasm/ic-wasm && \
     chmod +x /opt/ic-wasm/ic-wasm
 
-# Install candid-extractor
-RUN cargo install candid-extractor@0.1.2
-
 # Install dfx
 COPY dfx.json ./
 RUN DFX_VERSION=$(cat dfx.json | jq -r .dfx) sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"

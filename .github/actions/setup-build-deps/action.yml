@@ -27,20 +27,3 @@ runs:
         fi
         echo "IC WASM version"
         ic-wasm --version
-
-    - name: Cache Candid Extractor
-      uses: actions/cache@v3
-      with:
-        path: $HOME/.cargo/bin/candid-extractor
-        key: candid-extractor-cache
-
-    - name: Install Candid Extractor
-      shell: bash
-      run: |
-        if command -v candid-extractor
-        then
-          echo "Candid Extractor restored from cache"
-        else
-          echo "Candid Extractor not restored from cache, installing:"
-          cargo install candid-extractor@0.1.2
-        fi
