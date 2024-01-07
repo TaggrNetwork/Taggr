@@ -2342,7 +2342,7 @@ impl State {
     }
 
     pub fn toggle_following_user(&mut self, principal: Principal, followee_id: UserId) -> bool {
-        let (added, (id, name)) = {
+        let (added, (id, name, about, num_followers)) = {
             let user = match self.principal_to_user_mut(principal) {
                 Some(user) => user,
                 _ => return false,
@@ -2356,13 +2356,22 @@ impl State {
                     user.filters.users.remove(&followee_id);
                     true
                 },
-                (user.id, user.name.clone()),
+                (
+                    user.id,
+                    user.name.clone(),
+                    user.about.clone(),
+                    user.followers.len(),
+                ),
             )
         };
         let followee = self.users.get_mut(&followee_id).expect("User not found");
+        let about = if about.is_empty() { "no info" } else { &about };
         if added {
             followee.followers.insert(id);
-            followee.notify(format!("@{} followed you", name));
+            followee.notify(format!(
+                "@{} followed you ({}, `{}` followers)",
+                name, about, num_followers
+            ));
         } else {
             followee.followers.remove(&id);
         }
