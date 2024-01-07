@@ -332,7 +332,7 @@ impl State {
         self.burned_cycles = self.burned_cycles.saturating_sub(amount as i64);
     }
 
-    fn spend<T: ToString>(&mut self, amount: Credits, log: T) {
+    pub fn spend<T: ToString>(&mut self, amount: Credits, log: T) {
         if amount > 5 {
             self.logger.info(format!(
                 "Spent `{}` credits on {}.",
