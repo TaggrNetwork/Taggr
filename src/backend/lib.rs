@@ -104,9 +104,6 @@ fn post_upgrade() {
 async fn post_upgrade_fixtures() {
     // Refund credits to users
     mutate(|state| {
-        if state.users.len() < 1000 {
-            return;
-        }
         let msg = "refund after lost credits due to a bug";
         // this one goes to X because he refunded a user already with 1k credits:
         // https://tagr.link/#/thread/63000
