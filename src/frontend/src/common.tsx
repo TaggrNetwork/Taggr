@@ -8,7 +8,7 @@ import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger";
 
-export const XDR_TO_USD = 1.32;
+export const XDR_TO_USD = 1.33;
 
 export const MAX_POST_SIZE_BYTES = Math.ceil(1024 * 1024 * 1.9);
 

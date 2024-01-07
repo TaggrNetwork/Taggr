@@ -18,6 +18,7 @@ body,
 button,
 input,
 textarea,
+select,
 code {
     font-family:
         "Barlow",
@@ -251,6 +252,10 @@ button {
     padding-right: 0.6em;
     margin-left: 0.1em;
     margin-right: 0.1em;
+}
+
+#stack button {
+    min-height: 3em;
 }
 
 .vertically_aligned {
