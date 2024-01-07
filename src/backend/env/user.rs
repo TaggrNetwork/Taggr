@@ -118,11 +118,15 @@ impl User {
         }
     }
 
-    pub fn posts<'a>(&'a self, state: &'a State) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+    pub fn posts<'a>(
+        &'a self,
+        state: &'a State,
+        offset: PostId,
+    ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         let id = self.id;
         Box::new(
             state
-                .last_posts(Principal::anonymous(), None, true)
+                .last_posts(Principal::anonymous(), None, offset, true)
                 .filter(move |post| post.user == id),
         )
     }
@@ -207,10 +211,11 @@ impl User {
         &'a self,
         state: &'a State,
         page: usize,
+        offset: PostId,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         Box::new(
             state
-                .last_posts(self.principal, None, false)
+                .last_posts(self.principal, None, offset, false)
                 .filter(move |post| {
                     !post.is_deleted()
                         && post.parent.is_none()

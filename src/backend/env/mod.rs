@@ -436,7 +436,7 @@ impl State {
         self.last_hourly_chores = time();
     }
 
-    pub fn realms_posts(&self, caller: Principal, page: usize) -> Vec<Post> {
+    pub fn realms_posts(&self, caller: Principal, page: usize, offset: PostId) -> Vec<Post> {
         let realm_ids = match self
             .principal_to_user(caller)
             .map(|user| user.realms.as_slice())
@@ -444,7 +444,7 @@ impl State {
             None | Some(&[]) => return Default::default(),
             Some(ids) => ids.iter().collect::<BTreeSet<_>>(),
         };
-        self.last_posts(caller, None, false)
+        self.last_posts(caller, None, offset, false)
             .filter(|post| {
                 post.realm
                     .as_ref()
@@ -462,9 +462,10 @@ impl State {
         caller: Principal,
         realm: Option<RealmId>,
         page: usize,
+        offset: PostId,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
-            .last_posts(caller, realm, false)
+            .last_posts(caller, realm, offset, false)
             .filter(|post| post.timestamp() + CONFIG.max_age_hot_post_days * DAY >= time())
             .take(1000)
             .collect::<Vec<_>>();
@@ -1725,9 +1726,10 @@ impl State {
         tags: Vec<String>,
         users: Vec<UserId>,
         page: usize,
+        offset: PostId,
     ) -> Vec<Post> {
         let query: HashSet<_> = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
-        self.last_posts(caller, realm, true)
+        self.last_posts(caller, realm, offset, true)
             .filter(|post| {
                 (users.is_empty() || users.contains(&post.user))
                     && post
@@ -1747,6 +1749,7 @@ impl State {
         &'a self,
         caller: Principal,
         realm: Option<RealmId>,
+        offset: PostId,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         let inverse_filters = self.principal_to_user(caller).map(|user| &user.filters);
@@ -1755,6 +1758,7 @@ impl State {
                 let last_id = self.next_post_id.saturating_sub(1);
                 Box::new((0..=last_id).rev())
             }
+            .skip_while(move |id| offset > 0 && id > &offset)
             .filter_map(move |i| Post::get(self, &i))
             .filter(move |post| {
                 !post.is_deleted()
@@ -1776,7 +1780,7 @@ impl State {
         let mut tags: HashMap<String, u64> = Default::default();
         let mut tags_found = 0;
         'OUTER: for post in self
-            .last_posts(caller, realm, true)
+            .last_posts(caller, realm, 0, true)
             .take_while(|post| !post.archived)
         {
             for tag in &post.tags {
@@ -3010,7 +3014,7 @@ pub(crate) mod tests {
 
     fn realm_posts(state: &State, name: &str) -> Vec<PostId> {
         state
-            .last_posts(Principal::anonymous(), None, true)
+            .last_posts(Principal::anonymous(), None, 0, true)
             .filter(|post| post.realm.as_ref() == Some(&name.to_string()))
             .map(|post| post.id)
             .collect::<Vec<_>>()
@@ -3656,7 +3660,7 @@ pub(crate) mod tests {
             // without filters we see the new post
             let post_visible = |state: &State| {
                 state
-                    .last_posts(caller, None, true)
+                    .last_posts(caller, None, 0, true)
                     .any(|post| post.id == post_id)
             };
             assert!(post_visible(state));
@@ -3711,7 +3715,7 @@ pub(crate) mod tests {
             assert!(state
                 .user(&user_id.to_string())
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed(state, 0, 0)
                 .next()
                 .is_none());
 
@@ -3724,7 +3728,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed(state, 0, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 1);
@@ -3743,7 +3747,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed(state, 0, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 1);
@@ -3769,7 +3773,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed(state, 0, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -3796,7 +3800,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed(state, 0, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -3812,7 +3816,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed(state, 0, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 3);
@@ -3827,7 +3831,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed(state, 0, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -3841,7 +3845,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed(state, 0, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert!(feed.contains(&post_id));
@@ -3852,7 +3856,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed(state, 0, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert!(!feed.contains(&post_id));

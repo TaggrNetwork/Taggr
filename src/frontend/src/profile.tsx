@@ -20,7 +20,7 @@ import {
 import { Content } from "./content";
 import { Journal } from "./icons";
 import { PostFeed } from "./post_feed";
-import { User } from "./types";
+import { PostId, User } from "./types";
 import { Principal } from "@dfinity/principal";
 
 export const Profile = ({ handle }: { handle: string }) => {
@@ -207,24 +207,27 @@ export const Profile = ({ handle }: { handle: string }) => {
             <PostFeed
                 title={title}
                 useList={true}
-                feedLoader={async (page: number) => {
+                feedLoader={async (page: number, offset: PostId) => {
                     if (status != 1) return null;
                     if (tab == "TAGS")
                         return await window.api.query(
                             "user_tags",
                             profile.name,
                             page,
+                            offset,
                         );
                     if (tab == "REWARDED")
                         return await window.api.query(
                             "rewarded_posts",
                             profile.id.toString(),
                             page,
+                            offset,
                         );
                     return await window.api.query(
                         "user_posts",
                         profile.id.toString(),
                         page,
+                        offset,
                     );
                 }}
                 heartbeat={profile.id + tab}

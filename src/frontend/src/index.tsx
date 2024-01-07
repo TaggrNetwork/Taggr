@@ -392,7 +392,10 @@ const updateDoc = () => {
         const percent =
             ((h[st] || b[st]) / ((h[sh] || b[sh]) - h.clientHeight)) * 100;
         if (percent > 60) {
-            const pageFlipper = document.getElementById("pageFlipper");
+            const visibleFrame = stack.lastElementChild;
+            const pageFlipper = visibleFrame?.getElementsByClassName(
+                "pageFlipper",
+            )[0] as unknown as HTMLButtonElement;
             if (pageFlipper) pageFlipper.click();
         }
     });

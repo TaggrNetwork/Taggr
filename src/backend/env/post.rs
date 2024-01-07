@@ -476,7 +476,7 @@ impl Post {
         } as usize;
 
         if user
-            .posts(state)
+            .posts(state, 0)
             .filter(|post| {
                 !(parent.is_none() ^ post.parent.is_none())
                     && post.timestamp() > timestamp.saturating_sub(HOUR)

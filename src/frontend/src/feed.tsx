@@ -2,7 +2,7 @@ import * as React from "react";
 import { currentRealm, HeadBar, setTitle } from "./common";
 import { ToggleButton } from "./common";
 import { PostFeed } from "./post_feed";
-import { UserId } from "./types";
+import { PostId, UserId } from "./types";
 
 const userId = (handle: string) => {
     const users = window.backendCache.users;
@@ -20,7 +20,7 @@ export const Feed = ({ params }: { params: string[] }) => {
         <div className="column_container">
             <FeedBar params={params} callback={setFilter} />
             <PostFeed
-                feedLoader={async (page: number) => {
+                feedLoader={async (page: number, offset: PostId) => {
                     const tags: string[] = [],
                         users: UserId[] = [];
                     filter.forEach((token) => {
@@ -33,6 +33,7 @@ export const Feed = ({ params }: { params: string[] }) => {
                         tags,
                         users,
                         page,
+                        offset,
                     );
                 }}
                 heartbeat={filter.concat(params).join("")}

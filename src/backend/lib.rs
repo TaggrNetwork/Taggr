@@ -760,11 +760,11 @@ fn realms() {
 
 #[export_name = "canister_query user_posts"]
 fn user_posts() {
-    let (handle, page): (String, usize) = parse(&arg_data_raw());
+    let (handle, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     read(|state| {
         resolve_handle(Some(handle)).map(|user| {
             reply(
-                user.posts(state)
+                user.posts(state, offset)
                     .skip(CONFIG.feed_page_size * page)
                     .take(CONFIG.feed_page_size)
                     .collect::<Vec<_>>(),
@@ -775,11 +775,11 @@ fn user_posts() {
 
 #[export_name = "canister_query rewarded_posts"]
 fn rewarded_posts() {
-    let (handle, page): (String, usize) = parse(&arg_data_raw());
+    let (handle, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     read(|state| {
         resolve_handle(Some(handle)).map(|user| {
             reply(
-                user.posts(state)
+                user.posts(state, offset)
                     .filter(|post| !post.reactions.is_empty())
                     .skip(CONFIG.feed_page_size * page)
                     .take(CONFIG.feed_page_size)
@@ -791,12 +791,12 @@ fn rewarded_posts() {
 
 #[export_name = "canister_query user_tags"]
 fn user_tags() {
-    let (handle, page): (String, usize) = parse(&arg_data_raw());
+    let (handle, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     let tag = format!("@{}", handle);
     read(|state| {
         reply(
             state
-                .last_posts(caller(), None, true)
+                .last_posts(caller(), None, offset, true)
                 .filter(|post| post.body.contains(&tag))
                 .skip(CONFIG.feed_page_size * page)
                 .take(CONFIG.feed_page_size)
@@ -839,14 +839,14 @@ fn posts() {
 
 #[export_name = "canister_query journal"]
 fn journal() {
-    let (handle, page): (String, usize) = parse(&arg_data_raw());
+    let (handle, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     read(|state| {
         let inverse_filters = state.principal_to_user(caller()).map(|user| &user.filters);
         reply(
             state
                 .user(&handle)
                 .map(|user| {
-                    user.posts(state)
+                    user.posts(state, offset)
                         // we filter out responses, root posts starting with tagging another user
                         // and deletet posts
                         .filter(|post| {
@@ -869,11 +869,11 @@ fn journal() {
 
 #[export_name = "canister_query hot_posts"]
 fn hot_posts() {
-    let (realm, page): (String, usize) = parse(&arg_data_raw());
+    let (realm, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     read(|state| {
         reply(
             state
-                .hot_posts(caller(), optional(realm), page)
+                .hot_posts(caller(), optional(realm), page, offset)
                 .collect::<Vec<_>>(),
         )
     });
@@ -881,17 +881,18 @@ fn hot_posts() {
 
 #[export_name = "canister_query realms_posts"]
 fn realms_posts() {
-    let page: usize = parse(&arg_data_raw());
-    read(|state| reply(state.realms_posts(caller(), page)));
+    let (page, offset): (usize, PostId) = parse(&arg_data_raw());
+    read(|state| reply(state.realms_posts(caller(), page, offset)));
 }
 
 #[export_name = "canister_query last_posts"]
 fn last_posts() {
-    let (realm, page, with_comments): (String, usize, bool) = parse(&arg_data_raw());
+    let (realm, page, offset, with_comments): (String, usize, PostId, bool) =
+        parse(&arg_data_raw());
     read(|state| {
         reply(
             state
-                .last_posts(caller(), optional(realm), with_comments)
+                .last_posts(caller(), optional(realm), offset, with_comments)
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
                 .cloned()
@@ -902,12 +903,12 @@ fn last_posts() {
 
 #[export_name = "canister_query posts_by_tags"]
 fn posts_by_tags() {
-    let (realm, tags, users, page): (String, Vec<String>, Vec<UserId>, usize) =
+    let (realm, tags, users, page, offset): (String, Vec<String>, Vec<UserId>, usize, PostId) =
         parse(&arg_data_raw());
     read(|state| {
         reply(
             state
-                .posts_by_tags(caller(), optional(realm), tags, users, page)
+                .posts_by_tags(caller(), optional(realm), tags, users, page, offset)
                 .into_iter()
                 .collect::<Vec<Post>>(),
         )
@@ -916,11 +917,11 @@ fn posts_by_tags() {
 
 #[export_name = "canister_query personal_feed"]
 fn personal_feed() {
-    let page: usize = parse(&arg_data_raw());
+    let (page, offset): (usize, PostId) = parse(&arg_data_raw());
     read(|state| {
         reply(match state.principal_to_user(caller()) {
             None => Default::default(),
-            Some(user) => user.personal_feed(state, page).collect::<Vec<_>>(),
+            Some(user) => user.personal_feed(state, page, offset).collect::<Vec<_>>(),
         })
     });
 }

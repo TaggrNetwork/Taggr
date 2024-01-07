@@ -20,7 +20,11 @@ export const PostFeed = ({
 }: {
     classNameArg?: string;
     focusedPost?: PostId;
-    feedLoader: (page: number, comments?: boolean) => Promise<Post[] | null>;
+    feedLoader: (
+        page: number,
+        offset: number,
+        comments?: boolean,
+    ) => Promise<Post[] | null>;
     heartbeat?: any;
     title?: JSX.Element;
     comments?: boolean;
@@ -33,6 +37,7 @@ export const PostFeed = ({
     refreshRateSecs?: number;
 }) => {
     const [page, setPage] = React.useState(0);
+    const [offset, setOffset] = React.useState(0);
     const [posts, setPosts] = React.useState<Post[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [displayPageFlipper, setPageVlipperVisibility] = React.useState(
@@ -56,10 +61,11 @@ export const PostFeed = ({
     const loadPage = async (page: number) => {
         // only show the loading indicator on the first load
         setLoading(refreshBeat == 0);
-        const loadedPost = await feedLoader(page, !!includeComments);
+        const loadedPost = await feedLoader(page, offset, !!includeComments);
         if (!loadedPost) return;
         let nextPosts = loadedPost.map(expandUser);
         setPosts(page == 0 ? nextPosts : posts.concat(nextPosts));
+        if (page == 0 && nextPosts.length > 0) setOffset(nextPosts[0].id);
         if (nextPosts.length < window.backendCache.config.feed_page_size)
             setPageVlipperVisibility(false);
         setLoading(false);
@@ -118,7 +124,7 @@ export const PostFeed = ({
             {displayPageFlipper && !loading && posts.length > 0 && (
                 <div style={{ display: "flex", justifyContent: "center" }}>
                     <button
-                        id="pageFlipper"
+                        className="pageFlipper"
                         onClick={async () => {
                             const nextPage = page + 1;
                             setPage(nextPage);

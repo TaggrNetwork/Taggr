@@ -2,7 +2,7 @@ import * as React from "react";
 import { bigScreen, Loading, NotFound, ShareButton } from "./common";
 import { Content } from "./content";
 import { PostFeed } from "./post_feed";
-import { User } from "./types";
+import { PostId, User } from "./types";
 
 export const Journal = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
@@ -60,8 +60,8 @@ export const Journal = ({ handle }: { handle: string }) => {
                 classNameArg={bigScreen() ? "journal" : undefined}
                 useList={true}
                 journal={true}
-                feedLoader={async (page: number) =>
-                    await window.api.query("journal", handle, page)
+                feedLoader={async (page: number, offset: PostId) =>
+                    await window.api.query("journal", handle, page, offset)
                 }
             />
         </>

@@ -41,7 +41,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
             let realm = &realm[1..].to_uppercase();
             let ids = user_ids(user_name);
             state
-                .last_posts(Principal::anonymous(), Some(realm.to_string()), true)
+                .last_posts(Principal::anonymous(), Some(realm.to_string()), 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     if ids.contains(user) {
                         let search_body = body.to_lowercase();
@@ -65,7 +65,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
             let realm = &realm[1..].to_uppercase();
             let ids = user_ids(user_name);
             state
-                .last_posts(Principal::anonymous(), Some(realm.to_string()), true)
+                .last_posts(Principal::anonymous(), Some(realm.to_string()), 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     if ids.contains(user) {
                         return Some(SearchResult {
@@ -85,7 +85,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         [user_name, word] if user_name.starts_with('@') => {
             let ids = user_ids(user_name);
             state
-                .last_posts(Principal::anonymous(), None, true)
+                .last_posts(Principal::anonymous(), None, 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     if ids.contains(user) {
                         let search_body = body.to_lowercase();
@@ -108,7 +108,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         [realm, word] if realm.starts_with('/') => {
             let realm = &realm[1..].to_uppercase();
             state
-                .last_posts(Principal::anonymous(), Some(realm.to_string()), true)
+                .last_posts(Principal::anonymous(), Some(realm.to_string()), 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     let search_body = body.to_lowercase();
                     if let Some(i) = search_body.find(word) {
@@ -194,7 +194,7 @@ fn wildcard_search(state: &State, term: &str) -> Vec<SearchResult> {
         )
         .chain(
             state
-                .last_posts(Principal::anonymous(), None, true)
+                .last_posts(Principal::anonymous(), None, 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     if id.to_string() == term {
                         return Some(SearchResult {

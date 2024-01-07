@@ -9,6 +9,7 @@ import {
     setTitle,
 } from "./common";
 import { New, User, Fire, Realm } from "./icons";
+import { PostId } from "./types";
 
 const tabKey = () => `${currentRealm()}_tab`;
 
@@ -83,19 +84,33 @@ export const Landing = () => {
                 heartbeat={feed}
                 refreshRateSecs={10 * 60}
                 title={title}
-                feedLoader={async (page) => {
+                feedLoader={async (page: number, offset: PostId) => {
                     setTitle(feed);
                     if (feed == "FOLLOWED")
-                        return await window.api.query("personal_feed", page);
+                        return await window.api.query(
+                            "personal_feed",
+                            page,
+                            offset,
+                        );
                     if (feed == "HOT")
-                        return await window.api.query("hot_posts", realm, page);
+                        return await window.api.query(
+                            "hot_posts",
+                            realm,
+                            page,
+                            offset,
+                        );
                     if (feed == "REALMS")
-                        return await window.api.query("realms_posts", page);
+                        return await window.api.query(
+                            "realms_posts",
+                            page,
+                            offset,
+                        );
                     else
                         return await window.api.query(
                             "last_posts",
                             realm,
                             page,
+                            offset,
                             false,
                         );
                 }}
