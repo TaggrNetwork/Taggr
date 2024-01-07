@@ -653,7 +653,7 @@ const suggestTokens = (
     }
     if (value[i] == trigger) {
         const result = tokens
-            .filter((tag) => tag.length > currentTag.length)
+            .filter((tag) => tag.length >= currentTag.length)
             .filter((tag) =>
                 tag.toLowerCase().startsWith(currentTag.toLowerCase()),
             );
