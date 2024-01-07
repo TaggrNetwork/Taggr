@@ -32,12 +32,13 @@ Notes:
 
 1. Each response to a post increases the author's rewards by `$response_reward`.
 2. Inactive users' credits decrease by `$inactivity_penalty` per week after `$inactivity_duration_weeks` weeks of inactivity.
-3. Users with negative rewards don't participate in reward distributions or minting.
+3. Users with negative rewards balance don't participate in reward distributions or minting.
 
 ## Rewards and Revenue Distribution
 
 -   During positive interactions, users can receive rewards from other users.
--   Earned rewards points are converted to ICP during the next distribution by converting `$credits_per_xdr` reward points to ICP at the credit minting ratio (`1 XDR` / `$credits_per_xdr`).
+-   Rewards are converted to ICP and distributed to users every Friday.
+-   Earned rewards points are converted to ICP at the ratio `$credits_per_xdr` rewards / `$xdr_in_usd` USD.
 -   Additionally, users owning tokens and being active within the last `$revenue_share_activity_weeks` weeks receive a share of $name's revenue proportionate to their token holdings.
 
 ## Stalwarts
@@ -98,8 +99,6 @@ The total voting power of all registered users required to adopt or reject a pro
 This is achieved by multiplying the total available voting power by a factor `d%`, where `d` is the number of days the proposal remains open.
 This ensures any proposal eventually passes within `100` days.
 
-Voting on a proposal is rewarded with `$voting_reward` rewards.
-
 For any pending proposal the following holds until it gets adopted, rejected or cancelled:
 
 -   the $$token_symbol tokens of voters who voted on that proposal are locked and cannot be transferred;
@@ -108,19 +107,19 @@ For any pending proposal the following holds until it gets adopted, rejected or 
 ## Tokenomics
 
 The utility of the `$token_symbol` token is the $name governance and a share in $name's revenue.
-$name has a total supply of `$total_supply` tokens.
+$name has a maximal supply of `$maximum_supply` tokens.
 
 ### Supply Increase
 
-New tokens can only be mined by users or minted via proposals.
-Once the maximum supply is reached, the minting will be suspended and funding & rewards proposals will be impossible to create.
+New tokens can only be mined by users or minted via minting proposals.
+Once the maximal supply is reached, both the weekly minting and minting proposal will be suspended.
 
 ### Supply Decrease
 
 When a `$token_symbol` transfer transaction gets executed, the fee of `$fee` gets burned.
 Once the maximal supply is reached, it can go below the maximum again after enough fees are burned via transfer transactions.
 In this case, the minting will be activated again.
-This will make the supply to find an equilibrium around the maximal supply.
+This will make the supply to keep an equilibrium around the maximal supply.
 
 ### Distribution of minted tokens
 
@@ -172,9 +171,8 @@ $name DAO votes on NNS proposals with neuron [$neuron_id](http://dashboard.inter
 
 #### Neuron Decentralization
 
-Neuron's controller lacks a known secret key.
-The main canister votes via the hot-key mechanism.
-The neuron doesn't follow anyone in neuron management.
+The neuron is only controlled by $name's canister as the assigned neuron's controller lacks a known secret key.
+The $name canister votes via the hot-key mechanism.
 $name canister's `get_neuron_info` method confirms this:
 
     dfx canister --network ic call $canister_id get_neuron_info
