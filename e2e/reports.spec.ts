@@ -115,17 +115,15 @@ test.describe("Reports", () => {
         await page.locator("#logo").click();
         await page.getByTestId("tab-NEW").click();
         // Find jane's post and react with a star
-        await page
-            .locator(".feed_item", { hasText: /Good stuff/ })
-            .getByTestId("post-info-toggle")
-            .click();
-        await page
-            .locator(".feed_item", { hasText: /Good stuff/ })
-            .locator('button[title="Karma points: 10"]')
-            .click();
+        const feedItem = page.locator(".feed_item", {
+            hasText: /Good stuff/,
+        });
+        await feedItem.getByTestId("post-info-toggle").click();
+        await feedItem.locator('button[title="Karma points: 10"]').click();
         // Wait because the UI waits for 4s before sending the command
-        await page.waitForTimeout(4000);
+        await page.waitForTimeout(4500);
         exec("dfx canister call taggr weekly_chores");
+        await page.waitForTimeout(500);
     });
 
     test("Login and report user", async ({ page }) => {
