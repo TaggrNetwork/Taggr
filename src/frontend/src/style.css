@@ -254,10 +254,6 @@ button {
     margin-right: 0.1em;
 }
 
-#stack button {
-    min-height: 3em;
-}
-
 .vertically_aligned {
     vertical-align: middle;
 }
