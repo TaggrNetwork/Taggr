@@ -320,29 +320,14 @@ impl Post {
     /// Checks if the poll has ended. If not, returns `Ok(false)`. If the poll ended,
     /// returns `Ok(true)` and assings the result weighted by the token voting power.
     pub fn conclude_poll(state: &mut State, post_id: &PostId, now: u64) -> Result<bool, String> {
-        let (balances, users) = Post::get(state, post_id)
+        let users = Post::get(state, post_id)
             .and_then(|post| {
                 if let Some(Extension::Poll(poll)) = post.extension.as_ref() {
                     let user_ids = poll.votes.values().flatten().cloned();
                     let users = user_ids
                         .filter_map(|id| state.users.get(&id).map(|user| (id, user.clone())))
                         .collect::<BTreeMap<_, _>>();
-                    Some((
-                        users
-                            .values()
-                            .map(|user| {
-                                (
-                                    user.principal,
-                                    state
-                                        .balances
-                                        .get(&account(user.principal))
-                                        .copied()
-                                        .unwrap_or_default(),
-                                )
-                            })
-                            .collect::<BTreeMap<_, _>>(),
-                        users,
-                    ))
+                    Some(users)
                 } else {
                     None
                 }
@@ -363,7 +348,7 @@ impl Post {
                             *k,
                             ids.iter()
                                 .filter_map(|id| users.get(id))
-                                .filter_map(|user| balances.get(&user.principal))
+                                .map(|user| user.balance)
                                 .sum(),
                         )
                     })

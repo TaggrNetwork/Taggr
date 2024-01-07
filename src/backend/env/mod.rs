@@ -20,6 +20,7 @@ use invoices::Invoices;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use sha2::{Digest, Sha256};
+use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use user::{User, UserId};
 
@@ -469,7 +470,7 @@ impl State {
             .filter(|post| post.timestamp() + CONFIG.max_age_hot_post_days * DAY >= time())
             .take(1000)
             .collect::<Vec<_>>();
-        hot_posts.sort_unstable_by_key(|post| std::cmp::Reverse(post.heat));
+        hot_posts.sort_unstable_by_key(|post| Reverse(post.heat));
         Box::new(
             hot_posts
                 .into_iter()
@@ -1504,8 +1505,6 @@ impl State {
     }
 
     fn recompute_stalwarts(&mut self, now: u64) {
-        use std::cmp::Reverse;
-
         let mut balances = self
             .balances
             .iter()
@@ -2451,6 +2450,13 @@ pub(crate) mod tests {
         create_user_with_params(state, p, &p.to_string().replace('-', ""), credits)
     }
 
+    pub fn insert_balance(state: &mut State, principal: Principal, amount: Token) {
+        state.balances.insert(account(principal), amount);
+        if let Some(user) = state.principal_to_user_mut(principal) {
+            user.balance = amount
+        }
+    }
+
     fn create_user_with_params(
         state: &mut State,
         p: Principal,
@@ -2668,9 +2674,7 @@ pub(crate) mod tests {
 
             for i in 0..5 {
                 create_user(state, pr(i));
-                state
-                    .balances
-                    .insert(account(pr(i)), (((i + 1) as u64) << 2) * 10000);
+                insert_balance(state, pr(i), (((i + 1) as u64) << 2) * 10000);
                 for j in 0..5 {
                     if i != j {
                         karma_insert(state, i as u64, j as u64, ((j + 1) * (i + 1)) as u64 * 100);
@@ -2700,7 +2704,7 @@ pub(crate) mod tests {
 
             // increase minting ratio
             assert_eq!(state.minting_ratio(), 1);
-            state.balances.insert(account(pr(4)), 10000000);
+            insert_balance(state, pr(4), 10000000);
             assert_eq!(state.minting_ratio(), 2);
 
             // Test circuit breaking
@@ -2768,7 +2772,7 @@ pub(crate) mod tests {
             for i in 1..11 {
                 let p = pr(i);
                 let id = create_user(state, p);
-                state.balances.insert(account(p), (i as u64 * 10) * 100);
+                insert_balance(state, p, (i as u64 * 10) * 100);
                 let user = state.users.get_mut(&id).unwrap();
                 // we create the same amount of new and hard karma so that we have both karma and
                 // balances after minting

@@ -436,24 +436,18 @@ impl User {
         let karma_donated_total: Credits = self.karma_donations.values().sum();
         // we can donate only min(balance/ratio, donated_karma/ratio);
         let donated_karma = karma_donated_total * base;
-        let balance = state
-            .balances
-            .get(&account(self.principal))
-            .copied()
-            .unwrap_or_default();
         let spendable_tokens = if boostraping_mode {
             // During the bootstrap period, use karma and not balances
             donated_karma
         } else {
-            balance.min(donated_karma)
+            self.balance.min(donated_karma)
         } / ratio;
 
         let priority_factor = |user_id| {
             let balance = state
                 .users
                 .get(&user_id)
-                .and_then(|user| state.balances.get(&account(user.principal)))
-                .copied()
+                .map(|user| user.balance)
                 .unwrap_or_default()
                 / base;
             if balance <= 100 {
@@ -498,7 +492,7 @@ impl User {
 mod tests {
     use super::*;
     use crate::env::tests::pr;
-    use crate::tests::create_user;
+    use crate::tests::{create_user, insert_balance};
 
     #[test]
     // check that we cannot donate more tokens than rewards / ratio even if the balance would allow
@@ -509,12 +503,12 @@ mod tests {
         let u2 = create_user(state, pr(2));
         let u3 = create_user(state, pr(3));
         let u4 = create_user(state, pr(4));
-        state.balances.insert(account(pr(255)), 20000000);
-        state.balances.insert(account(pr(0)), 600000); // spendable tokens
-        state.balances.insert(account(pr(1)), 9900);
-        state.balances.insert(account(pr(2)), 24900);
-        state.balances.insert(account(pr(3)), 49900);
-        state.balances.insert(account(pr(4)), 100000);
+        insert_balance(state, pr(255), 20000000);
+        insert_balance(state, pr(0), 600000); // spendable tokens
+        insert_balance(state, pr(1), 9900);
+        insert_balance(state, pr(2), 24900);
+        insert_balance(state, pr(3), 49900);
+        insert_balance(state, pr(4), 100000);
         assert_eq!(state.minting_ratio(), 4);
         let bob = state.users.get_mut(&donor_id).unwrap();
 
@@ -551,12 +545,12 @@ mod tests {
         let u2 = create_user(state, pr(2));
         let u3 = create_user(state, pr(3));
         let u4 = create_user(state, pr(4));
-        state.balances.insert(account(pr(255)), 20000000);
-        state.balances.insert(account(pr(0)), 60000); // spendable tokens
-        state.balances.insert(account(pr(1)), 9900);
-        state.balances.insert(account(pr(2)), 24900);
-        state.balances.insert(account(pr(3)), 49900);
-        state.balances.insert(account(pr(4)), 100000);
+        insert_balance(state, pr(255), 20000000);
+        insert_balance(state, pr(0), 60000); // spendable tokens
+        insert_balance(state, pr(1), 9900);
+        insert_balance(state, pr(2), 24900);
+        insert_balance(state, pr(3), 49900);
+        insert_balance(state, pr(4), 100000);
         assert_eq!(state.minting_ratio(), 4);
         let bob = state.users.get_mut(&donor_id).unwrap();
 
