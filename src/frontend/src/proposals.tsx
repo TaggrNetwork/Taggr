@@ -25,7 +25,7 @@ const REPO_COMMIT = "https://github.com/TaggrNetwork/taggr/commit";
 enum ProposalType {
     IcpTranfer = "ICP TRANSFER",
     AddRealmController = "ADD REALM CONTROLLER",
-    Funding = "FUNDING",
+    Fund = "FUND",
     Reward = "REWARD",
     Release = "RELEASE",
 }
@@ -227,7 +227,7 @@ export const Proposals = () => {
                         />
                     </div>
                 )}
-                {proposalType == ProposalType.Funding && (
+                {proposalType == ProposalType.Fund && (
                     <div className="spaced column_container">
                         <div className="vcentered bottom_half_spaced">
                             RECEIVER
