@@ -101,42 +101,7 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {
-    // Refund credits to users
-    mutate(|state| {
-        let msg = "refund after lost credits due to a bug";
-        // this one goes to X because he refunded a user already with 1k credits:
-        // https://tagr.link/#/thread/63000
-        let amount = 1000;
-        state.spend(amount, msg);
-        state
-            .users
-            .get_mut(&0)
-            .unwrap()
-            .change_credits(amount, user::CreditsDelta::Plus, msg)
-            .unwrap();
-
-        // https://taggr.link/#/thread/62934
-        let amount = 4000;
-        state.spend(amount, msg);
-        state
-            .users
-            .get_mut(&1815)
-            .unwrap()
-            .change_credits(amount, user::CreditsDelta::Plus, msg)
-            .unwrap();
-
-        // https://taggr.link/#/thread/65857
-        let amount = 7000;
-        state.spend(amount, msg);
-        state
-            .users
-            .get_mut(&1016)
-            .unwrap()
-            .change_credits(amount, user::CreditsDelta::Plus, msg)
-            .unwrap();
-    })
-}
+async fn post_upgrade_fixtures() {}
 
 /*
  * UPDATES
