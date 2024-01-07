@@ -61,7 +61,11 @@ export const PostFeed = ({
     const loadPage = async (page: number) => {
         // only show the loading indicator on the first load
         setLoading(refreshBeat == 0);
-        const loadedPost = await feedLoader(page, offset, !!includeComments);
+        const loadedPost = await feedLoader(
+            page,
+            page == 0 ? 0 : offset,
+            !!includeComments,
+        );
         if (!loadedPost) return;
         let nextPosts = loadedPost.map(expandUser);
         setPosts(page == 0 ? nextPosts : posts.concat(nextPosts));
