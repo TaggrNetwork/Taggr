@@ -810,7 +810,10 @@ const PostBar = ({
     const newComments =
         window.user && (post.tree_update > window.lastVisit || updatedRecently);
     return (
-        <div className="post_bar vcentered smaller_text flex_ended">
+        <div
+            onClick={(e) => goInside(e)}
+            className="post_bar vcentered smaller_text flex_ended"
+        >
             {!blogTitle && (
                 <div className="row_container" style={{ alignItems: "center" }}>
                     {!isJournalView && (
