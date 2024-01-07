@@ -380,7 +380,9 @@ impl Post {
                 return Err("unauthorized".to_string());
             }
             if let Some(false) = picked_realm.as_ref().map(|name| user.realms.contains(name)) {
-                return Err("you're not in the realm".into());
+                if post.parent.is_none() {
+                    return Err("you're not in the realm".into());
+                }
             }
             let user_id = user.id;
             post.tags = tags(CONFIG.max_tag_length, &body);

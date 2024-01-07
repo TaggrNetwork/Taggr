@@ -500,11 +500,13 @@ export const Form = ({
                                         <option value="">
                                             {window.backendCache.config.name.toUpperCase()}
                                         </option>
-                                        {user.realms.map((name) => (
-                                            <option key={name} value={name}>
-                                                {name}
-                                            </option>
-                                        ))}
+                                        {[realm]
+                                            .concat(user.realms)
+                                            .map((name) => (
+                                                <option key={name} value={name}>
+                                                    {name}
+                                                </option>
+                                            ))}
                                     </select>
                                 )}
                                 {!tooExpensive && (
