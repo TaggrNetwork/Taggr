@@ -129,8 +129,6 @@ pub struct State {
     pub last_daily_chores: u64,
     pub last_hourly_chores: u64,
     pub logger: Logger,
-    #[serde(skip)]
-    pub hot: VecDeque<PostId>,
     pub invites: BTreeMap<String, (UserId, Credits)>,
     pub realms: BTreeMap<RealmId, Realm>,
 
@@ -2227,8 +2225,6 @@ impl State {
                 -karma_penalty,
                 format!("deletion of post [{0}](#/post/{0})", post.id),
             );
-
-        self.hot.retain(|id| id != &post_id);
 
         match &post.extension {
             Some(Extension::Proposal(proposal_id)) => {

@@ -175,6 +175,7 @@ const Welcome = () => {
                                             <>
                                                 Please transfer at least&nbsp;
                                                 <CopyToClipboard
+                                                    testId="invoice-amount"
                                                     value={(
                                                         Number(invoice.e8s) /
                                                         1e8

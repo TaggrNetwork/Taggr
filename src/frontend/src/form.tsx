@@ -112,7 +112,7 @@ export const Form = ({
             let extension;
             if (poll) {
                 extension = { Poll: poll };
-            } else if (repost) {
+            } else if (repost != undefined) {
                 extension = { Repost: repost };
             }
             const result = await submitCallback(
