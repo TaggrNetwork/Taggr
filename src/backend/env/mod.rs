@@ -2078,7 +2078,7 @@ impl State {
         id: u64,
         reason: String,
     ) -> Result<(), String> {
-        if reason.len() > 1000 {
+        if reason.len() > CONFIG.max_report_length {
             return Err("reason too long".into());
         }
         let credits_required = if domain == "post" {

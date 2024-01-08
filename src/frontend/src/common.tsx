@@ -7,6 +7,7 @@ import { Post, PostId, Report, User, UserId } from "./types";
 import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger";
+import { Content } from "./content";
 
 export const XDR_TO_USD = 1.33;
 
@@ -697,18 +698,38 @@ export const FlagButton = ({
         title="Flag post"
         classNameArg="max_width_col"
         onClick={async () => {
-            let reason = prompt(
-                `You are reporting this ${
-                    domain == "post" ? "post" : "user"
-                } to stalwarts. ` +
-                    `If the report gets rejected, you'll lose ` +
-                    window.backendCache.config[
-                        domain == "post"
-                            ? "reporting_penalty_post"
-                            : "reporting_penalty_misbehaviour"
-                    ] +
-                    ` credits and rewards. If you want to continue, please justify the report.`,
-            );
+            let reason = "";
+            let success = false;
+            const max_size = window.backendCache.config.max_report_length;
+            while (!success) {
+                reason =
+                    prompt(
+                        `You are reporting this ${
+                            domain == "post" ? "post" : "user"
+                        } to stalwarts. ` +
+                            (domain == "user"
+                                ? `It is recommended to talk to stalwarts first. `
+                                : "") +
+                            `Reporting is a SERIOUS measure. ` +
+                            `If there is a chance to convince a user to stop misbehaving, please do this without a report! ` +
+                            `If the report gets rejected, you'll lose ` +
+                            window.backendCache.config[
+                                domain == "post"
+                                    ? "reporting_penalty_post"
+                                    : "reporting_penalty_misbehaviour"
+                            ] +
+                            ` credits and rewards. If you want to continue, please justify the report very well.`,
+                        reason,
+                    ) || "";
+                if (reason.length == 0) return;
+                if (reason.length > max_size) {
+                    alert(
+                        `The report has ${reason.length} characters, but has to have between 0 and ${max_size}. Please adjust accordingly.`,
+                    );
+                } else {
+                    success = true;
+                }
+            }
             if (reason) {
                 let response = await window.api.call<{ [name: string]: any }>(
                     "report",
@@ -751,7 +772,7 @@ export const ReportBanner = ({
                 This {domain == "post" ? "post" : "user"} was REPORTED. Please
                 confirm the deletion or reject the report.
             </strong>
-            <p>Reason: {report.reason}</p>
+            <Content value={report.reason} post={false} />
             {!tookAction && (
                 <div
                     className="row_container"

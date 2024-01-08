@@ -261,6 +261,7 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                max_report_length: number;
                 credits_per_xdr: number;
                 max_funding_amount: number;
                 min_stalwart_karma: number;

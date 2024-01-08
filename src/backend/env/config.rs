@@ -38,6 +38,8 @@ pub struct Config {
     pub proposal_controversy_threashold: u16,
     pub proposal_rejection_penalty: Credits,
 
+    pub max_report_length: usize,
+
     pub post_heat_token_balance_cap: Token,
 
     pub max_credits_mint_kilos: u64,
@@ -157,6 +159,8 @@ pub const CONFIG: &Config = &Config {
     credit_transaction_fee: 1,
 
     credits_per_xdr: 1000,
+
+    max_report_length: 3000,
 
     post_heat_token_balance_cap: 5,
 
