@@ -2289,6 +2289,9 @@ impl State {
             if user.rewards() < 0 {
                 return Err("no downvotes for users with negative rewards balance".into());
             }
+            if user.balance < token::base() {
+                return Err("no downvotes for users with low token balance".into());
+            }
             self.users
                 .get_mut(&post.user)
                 .expect("user not found")
@@ -3976,6 +3979,7 @@ pub(crate) mod tests {
             let lurker_id = create_user(state, p);
             create_user(state, p2);
             create_user(state, p3);
+            insert_balance(state, p3, 10 * token::base());
             let c = CONFIG;
             assert_eq!(state.burned_cycles as Credits, c.post_cost);
             state
