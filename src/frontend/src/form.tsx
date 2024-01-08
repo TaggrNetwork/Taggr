@@ -489,26 +489,26 @@ export const Form = ({
                                         }}
                                     />
                                 )}
-                                {!comment && user.realms.length > 0 && (
-                                    <select
-                                        value={realm || ""}
-                                        className="small_text left_spaced"
-                                        onChange={(event) =>
-                                            setRealm(event.target.value)
-                                        }
-                                    >
-                                        <option value="">
-                                            {window.backendCache.config.name.toUpperCase()}
-                                        </option>
-                                        {[realm]
-                                            .concat(user.realms)
-                                            .map((name) => (
+                                {!comment &&
+                                    user.realms.length > 0 &&
+                                    (!realm || user.realms.includes(realm)) && (
+                                        <select
+                                            value={realm || ""}
+                                            className="small_text left_spaced"
+                                            onChange={(event) =>
+                                                setRealm(event.target.value)
+                                            }
+                                        >
+                                            <option value="">
+                                                {window.backendCache.config.name.toUpperCase()}
+                                            </option>
+                                            {user.realms.map((name) => (
                                                 <option key={name} value={name}>
                                                     {name}
                                                 </option>
                                             ))}
-                                    </select>
-                                )}
+                                        </select>
+                                    )}
                                 {!tooExpensive && (
                                     <ButtonWithLoading
                                         classNameArg="active left_spaced"
