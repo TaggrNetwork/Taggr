@@ -465,10 +465,10 @@ impl State {
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
             .last_posts(caller, realm, offset, false)
-            .filter(|post| post.timestamp() + CONFIG.max_age_hot_post_days * DAY >= time())
+            .filter(|post| post.heat() > 0)
             .take(1000)
             .collect::<Vec<_>>();
-        hot_posts.sort_unstable_by_key(|post| Reverse(post.heat));
+        hot_posts.sort_unstable_by_key(|post| Reverse(post.heat()));
         Box::new(
             hot_posts
                 .into_iter()

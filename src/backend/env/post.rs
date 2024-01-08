@@ -70,7 +70,7 @@ pub struct Post {
     pub hashes: Vec<String>,
 
     #[serde(default)]
-    pub heat: u32,
+    heat: u32,
 
     #[serde(skip)]
     pub archived: bool,
@@ -315,6 +315,13 @@ impl Post {
         }
 
         self.heat += (user_balance as f32).sqrt() as u32;
+    }
+
+    pub fn heat(&self) -> u64 {
+        let time_left = (CONFIG.max_age_hot_post_days * DAY)
+            .saturating_sub(time().saturating_sub(self.timestamp))
+            / 1000000;
+        self.heat as u64 * time_left
     }
 
     /// Checks if the poll has ended. If not, returns `Ok(false)`. If the poll ended,
