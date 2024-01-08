@@ -39,6 +39,11 @@ fn balances() {
     });
 }
 
+#[export_name = "canister_query tokens_to_mint"]
+fn tokens_to_mint() {
+    read(|state| reply(state.tokens_to_mint()))
+}
+
 #[export_name = "canister_query transaction"]
 fn transaction() {
     let id: usize = parse(&arg_data_raw());

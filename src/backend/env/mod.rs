@@ -931,13 +931,8 @@ impl State {
         1 << factor
     }
 
-    pub fn mint(&mut self) {
-        let circulating_supply: Token = self.balances.values().sum();
-        if circulating_supply >= CONFIG.maximum_supply {
-            return;
-        }
-
-        let mut tokens_to_mint: HashMap<UserId, Token> = Default::default();
+    pub fn tokens_to_mint(&self) -> BTreeMap<UserId, Token> {
+        let mut tokens_to_mint: BTreeMap<UserId, Token> = Default::default();
 
         for (user_id, tokens) in self
             .users
@@ -949,6 +944,17 @@ impl State {
                 .and_modify(|balance| *balance += tokens)
                 .or_insert(tokens);
         }
+
+        tokens_to_mint
+    }
+
+    pub fn mint(&mut self) {
+        let circulating_supply: Token = self.balances.values().sum();
+        if circulating_supply >= CONFIG.maximum_supply {
+            return;
+        }
+
+        let tokens_to_mint = self.tokens_to_mint();
 
         let mut minted_tokens = 0;
         let mut minters = Vec::new();
