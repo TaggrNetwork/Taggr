@@ -405,7 +405,7 @@ hr {
 }
 
 .selected {
-    background: $dark_background;
+    background: $selected_background;
     border-radius: 10px;
 }
 
@@ -424,7 +424,7 @@ hr {
 }
 
 .reaction_button:hover {
-    background: $dark_background;
+    background: $selected_background;
 }
 
 .reaction_button path {

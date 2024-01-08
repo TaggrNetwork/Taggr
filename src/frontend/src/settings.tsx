@@ -2,6 +2,7 @@ import * as React from "react";
 import { ButtonWithLoading, HeadBar, ICP_LEDGER_ID } from "./common";
 import { User } from "./types";
 import { Principal } from "@dfinity/principal";
+import { setTheme } from "./theme";
 
 export const Settings = ({ invite }: { invite?: string }) => {
     const user = window.user;
@@ -32,6 +33,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         newSettings[key] = e.target.value;
         setSettings(newSettings);
         if (["theme", "columns"].includes(key)) setUIRefresh(true);
+        return newSettings[key];
     };
 
     const namePicker = (event: any) => {
@@ -140,7 +142,10 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 <select
                     value={settings.theme}
                     className="bottom_spaced"
-                    onChange={(event) => setSetting("theme", event)}
+                    onChange={(event) => {
+                        const name = setSetting("theme", event);
+                        setTheme(name);
+                    }}
                 >
                     <option value="black">BLACK</option>
                     <option value="calm">CALM</option>

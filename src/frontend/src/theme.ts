@@ -24,12 +24,11 @@ export const getTheme = (name: string) => themes[name];
 const themes: { [name: string]: Theme } = {
     black: {
         text: "#d0d0d0",
-        background: "#050505",
+        background: "#060606",
+        selected_background: "#202020",
         code: "White",
         clickable: "#4CB381",
         accent: "Gold",
-        darkeningFactor: 10,
-        lighteningFactor: 5,
     },
     calm: {
         text: "#e0e0c8",
@@ -68,15 +67,13 @@ const themes: { [name: string]: Theme } = {
     },
 };
 
-export const applyTheme = (palette: Theme) => {
+const applyTheme = (palette: Theme) => {
     const effPalette: Theme = palette ? palette : themes["dark"];
-    const lighteningFactor = effPalette.lighteningFactor || 3;
-    effPalette.light_background =
-        "#" + shade(effPalette.background, lighteningFactor);
-    const darkeningFactor = effPalette.darkeningFactor || -5;
-    effPalette.dark_background =
-        "#" + shade(effPalette.background, darkeningFactor);
+    effPalette.light_background = "#" + shade(effPalette.background, 3);
+    effPalette.dark_background = "#" + shade(effPalette.background, -5);
     effPalette.visited_clickable = "#" + shade(effPalette.clickable, -20);
+    effPalette.selected_background =
+        effPalette.selected_background || effPalette.dark_background;
     const styleNode = document.getElementById("style");
     if (!styleNode) return;
     styleNode.innerText = Object.keys(effPalette).reduce(
@@ -87,10 +84,12 @@ export const applyTheme = (palette: Theme) => {
     if (element) element.setAttribute("content", effPalette.background);
 };
 
+export const setTheme = (name: string) => applyTheme(getTheme(name));
+
 // If no realm is selected, set styling once.
 export const setUI = (force?: boolean) => {
     if (!force && (currentRealm() || window.uiInitialized)) return;
-    applyTheme(getTheme(window.user?.settings.theme));
+    setTheme(window.user?.settings.theme);
     window.uiInitialized = true;
 };
 
