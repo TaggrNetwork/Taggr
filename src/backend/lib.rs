@@ -101,7 +101,13 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    mutate(|state| {
+        for u in state.users.values_mut() {
+            u.followees.insert(u.id);
+        }
+    })
+}
 
 /*
  * UPDATES

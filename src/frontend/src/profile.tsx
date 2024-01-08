@@ -90,7 +90,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                     </button>
                 }
                 button2={
-                    user ? (
+                    user && user.id != profile.id ? (
                         <ToggleButton
                             offLabel="FOLLOW"
                             onLabel="UNFOLLOW"
@@ -256,7 +256,9 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     profile.followees.length,
                     <>
                         <h2>Follows</h2>
-                        {userList(profile.followees)}
+                        {userList(
+                            profile.followees.filter((id) => id != profile.id),
+                        )}
                     </>,
                 )}
             </div>

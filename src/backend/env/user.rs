@@ -94,7 +94,7 @@ impl User {
             num_posts: 0,
             bookmarks: Default::default(),
             feeds: Default::default(),
-            followees: Default::default(),
+            followees: vec![id].into_iter().collect(),
             followers: Default::default(),
             accounting: Default::default(),
             controllers: Default::default(),
