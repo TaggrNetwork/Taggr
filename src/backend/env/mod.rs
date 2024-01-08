@@ -1839,12 +1839,14 @@ impl State {
         if read(|state| state.voted_on_pending_proposal(principal)) {
             return Err("pending proposal with the current principal as voter exists".into());
         }
+        let new_principal = Principal::from_text(new_principal_str).map_err(|e| e.to_string())?;
+        if new_principal == Principal::anonymous() {
+            return Err("wrong principal".into());
+        }
         #[allow(unused_variables)]
         mutate(|state| {
-            let new_principal =
-                Principal::from_text(new_principal_str).map_err(|e| e.to_string())?;
             if state.principals.contains_key(&new_principal) {
-                return Err("principal already controls a user".to_string());
+                return Err("principal already assigned to a user".to_string());
             }
             let user_id = state
                 .principals

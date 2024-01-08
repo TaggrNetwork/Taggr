@@ -2,6 +2,7 @@ use super::MINUTE;
 use crate::*;
 use base64::{engine::general_purpose, Engine as _};
 use candid::{CandidType, Deserialize, Principal};
+use ic_cdk_macros::{query, update};
 use serde::Serialize;
 
 type Timestamp = u64;
