@@ -41,7 +41,7 @@ fn balances() {
 
 #[export_name = "canister_query tokens_to_mint"]
 fn tokens_to_mint() {
-    read(|state| reply(state.tokens_to_mint()))
+    read(|state| reply(state.tokens_to_mint().into_iter().collect::<Vec<_>>()))
 }
 
 #[export_name = "canister_query transaction"]

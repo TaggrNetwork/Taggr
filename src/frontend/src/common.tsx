@@ -23,6 +23,16 @@ export const hex = (arr: number[]) =>
         ("0" + (byte & 0xff).toString(16)).slice(-2),
     ).join("");
 
+export const MoreButton = ({ callback }: { callback: () => Promise<void> }) => (
+    <div style={{ display: "flex", justifyContent: "center" }}>
+        <ButtonWithLoading
+            classNameArg="top_spaced"
+            onClick={callback}
+            label="MORE"
+        />
+    </div>
+);
+
 export const FileUploadInput = ({
     classNameArg,
     callback,

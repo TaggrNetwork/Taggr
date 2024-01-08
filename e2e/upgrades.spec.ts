@@ -179,6 +179,7 @@ test.describe("Upgrades & token transfer flow", () => {
     test("Verify recovery upgrade", async () => {
         await page.waitForTimeout(6000);
         await page.goto("/#/dashboard");
+        await page.getByRole("button", { name: "TECHNICAL" }).click();
         await expect(
             page.getByText("Executing the canister upgrade"),
         ).toBeVisible();
@@ -234,10 +235,10 @@ test.describe("Upgrades & token transfer flow", () => {
     test("Verify regular upgrade", async () => {
         await page.waitForTimeout(6000);
         await page.goto("/#/dashboard");
-
         await page.waitForURL(/dashboard/);
         await page.waitForLoadState("networkidle");
         await page.waitForTimeout(2000);
+        await page.getByRole("button", { name: "TECHNICAL" }).click();
 
         expect(
             await page.locator("p", { hasText: /Upgrade succeeded/ }).count(),

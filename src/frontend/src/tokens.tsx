@@ -1,9 +1,9 @@
 import {
     bigScreen,
-    ButtonWithLoading,
     CopyToClipboard,
     HeadBar,
     Loading,
+    MoreButton,
     NotFound,
     percentage,
     timeAgo,
@@ -212,13 +212,7 @@ export const Tokens = () => {
                         ))}
                     </tbody>
                 </table>
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                    <ButtonWithLoading
-                        classNameArg="active"
-                        onClick={async () => setBalPage(balPage + 1)}
-                        label="MORE"
-                    />
-                </div>
+                <MoreButton callback={async () => setBalPage(balPage + 1)} />
                 <hr />
                 <h2>Latest transactions</h2>
                 <div className="row_container">
@@ -361,18 +355,7 @@ export const TransactionsView = ({
                 <Transactions transactions={transactions} />
             </div>
             {!noMoreData && (
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "center",
-                    }}
-                >
-                    <ButtonWithLoading
-                        classNameArg="active"
-                        onClick={async () => setTxPage(txPage + 1)}
-                        label="MORE"
-                    />
-                </div>
+                <MoreButton callback={async () => setTxPage(txPage + 1)} />
             )}
         </>
     );
