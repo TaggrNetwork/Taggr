@@ -43,7 +43,8 @@ const previewImg = (
         const newId = gallery[mod(pos + (next ? 1 : -1), gallery.length)];
         id = newId;
         fadeInPicture(pic);
-        pic.src = urls[newId];
+        let src = urls[newId];
+        pic.src = src ? src : id;
     };
 
     pic.onclick = (event) => {
@@ -346,7 +347,7 @@ const markdownizer = (
                     } catch (_) {
                         return null;
                     }
-                    let id: string;
+                    let id: string = props.src;
                     if (props.src.startsWith("/blob/")) {
                         id = props.src.replace("/blob/", "");
                         if (id in urls) {
