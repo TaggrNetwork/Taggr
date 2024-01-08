@@ -493,14 +493,9 @@ const PostInfo = ({
                         <ToggleButton
                             onTitle="Unwatch post"
                             offTitle="Watch post"
-                            classNameArg={
-                                "max_width_col " +
-                                (post.watchers.includes(window.user?.id)
-                                    ? "accent"
-                                    : "")
-                            }
+                            classNameArg="max_width_col"
                             offLabel={<Bell />}
-                            onLabel={<BellOff />}
+                            onLabel={<BellOff classNameArg="accent" />}
                             currState={() =>
                                 post.watchers.includes(window.user?.id)
                             }
@@ -527,14 +522,9 @@ const PostInfo = ({
                         <ToggleButton
                             offTitle="Bookmark post"
                             onTitle="Remove from bookmarks"
-                            classNameArg={
-                                "max_width_col " +
-                                (window.user.bookmarks.includes(post.id)
-                                    ? "accent"
-                                    : "")
-                            }
+                            classNameArg="max_width_col "
                             offLabel={<Save />}
-                            onLabel={<Unsave />}
+                            onLabel={<Unsave classNameArg="accent" />}
                             currState={() =>
                                 window.user.bookmarks.includes(post.id)
                             }
