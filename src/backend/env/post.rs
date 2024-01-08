@@ -672,7 +672,7 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
 
     state
         .logger
-        .info(format!("`{}` posts archived.", posts_to_archive));
+        .debug(format!("`{}` posts archived.", posts_to_archive));
     Ok(())
 }
 

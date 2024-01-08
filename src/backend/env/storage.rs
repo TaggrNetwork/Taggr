@@ -30,13 +30,13 @@ impl Storage {
         let id = crate::canisters::new().await?;
         mutate(|state| {
             state.storage.buckets.insert(id, 0);
-            state.logger.info(format!("New bucket {} created.", id));
+            state.logger.debug(format!("New bucket {} created.", id));
         });
         canisters::install(id, BUCKET_WASM_GZ, CanisterInstallMode::Install).await?;
         mutate(|state| {
             state
                 .logger
-                .info(format!("WASM installed to bucket {}.", id));
+                .debug(format!("WASM installed to bucket {}.", id));
         });
         Ok(id)
     }
@@ -69,6 +69,6 @@ pub async fn upgrade_buckets() {
     mutate(|state| {
         state
             .logger
-            .info("Successfully upgraded all storage buckets.")
+            .debug("Successfully upgraded all storage buckets.")
     });
 }

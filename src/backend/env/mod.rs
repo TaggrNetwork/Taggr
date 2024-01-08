@@ -128,7 +128,7 @@ pub struct State {
     pub last_weekly_chores: u64,
     pub last_daily_chores: u64,
     pub last_hourly_chores: u64,
-    pub logger: Logger,
+    logger: Logger,
     pub invites: BTreeMap<String, (UserId, Credits)>,
     pub realms: BTreeMap<RealmId, Realm>,
 
@@ -175,8 +175,20 @@ pub struct Logger {
 }
 
 impl Logger {
+    pub fn critical<T: ToString>(&mut self, message: T) {
+        self.log(message, "CRITICAL".to_string());
+    }
+
     pub fn error<T: ToString>(&mut self, message: T) {
         self.log(message, "ERROR".to_string());
+    }
+
+    pub fn warn<T: ToString>(&mut self, message: T) {
+        self.log(message, "WARN".to_string());
+    }
+
+    pub fn debug<T: ToString>(&mut self, message: T) {
+        self.log(message, "DEBUG".to_string());
     }
 
     pub fn info<T: ToString>(&mut self, message: T) {
@@ -224,7 +236,7 @@ impl State {
             .unwrap_or_default();
         mutate(|state| {
             state.module_hash = current_hash.clone();
-            state.logger.info(format!(
+            state.logger.debug(format!(
                 "Upgrade succeeded: new version is `{}`.",
                 &current_hash[0..8]
             ));
@@ -415,10 +427,9 @@ impl State {
         assets::load();
         match token::balances_from_ledger(&self.ledger) {
             Ok(value) => self.balances = value,
-            Err(err) => self.logger.log(
-                format!("the token ledger is inconsistent: {}", err),
-                "CRITICAL".into(),
-            ),
+            Err(err) => self
+                .logger
+                .critical(format!("the token ledger is inconsistent: {}", err)),
         }
         if !self.realms.contains_key(CONFIG.dao_realm) {
             self.realms.insert(
@@ -774,8 +785,7 @@ impl State {
     }
 
     fn critical<T: ToString>(&mut self, message: T) {
-        self.logger
-            .log(&message.to_string(), "CRITICAL".to_string());
+        self.logger.critical(&message.to_string());
         self.users.values_mut().for_each(|user| {
             user.notify(format!("CRITICAL SYSTEM ERROR: {}", message.to_string()))
         });
@@ -847,7 +857,7 @@ impl State {
                 ))
                 }),
                 Ok(_credits) => mutate(|state| {
-                    state.logger.info(format!(
+                    state.logger.debug(format!(
                         "The main canister was topped up with credits (balance was `{}`, now `{}`).",
                         balance,
                         canister_balance()
@@ -867,7 +877,7 @@ impl State {
         }
         if !topped_up.is_empty() {
             mutate(|state| {
-                state.logger.info(format!(
+                state.logger.debug(format!(
                     "Topped up canisters: {:?}.",
                     topped_up
                         .into_iter()
@@ -949,7 +959,7 @@ impl State {
         if ratio > 1
             && total_tokens_to_mint * 100 / circulating_supply > CONFIG.minting_threshold_percentage
         {
-            self.logger.error(format!(
+            self.logger.warn(format!(
                 "Skipping minting: `{}` tokens exceed the configured threshold of `{}`% of existing supply.",
                 total_tokens_to_mint, CONFIG.minting_threshold_percentage
             ));
@@ -971,7 +981,7 @@ impl State {
                 && tokens * 100 / circulating_supply
                     > CONFIG.individual_minting_threshold_percentage
             {
-                self.logger.error(format!(
+                self.logger.warn(format!(
                     "Minting skipped: `{}` tokens for user_id=`{}` exceed the configured threshold of `{}`% of existing supply.",
                     tokens, user_id, CONFIG.individual_minting_threshold_percentage
                 ));
@@ -1066,7 +1076,7 @@ impl State {
             Ok(balance) => balance.e8s(),
             Err(err) => {
                 mutate(|state| {
-                    state.logger.error(format!(
+                    state.logger.warn(format!(
                         "couldn't fetch the balance of main account: {}",
                         err
                     ));
@@ -1245,7 +1255,7 @@ impl State {
                 .await
                 {
                     mutate(|state| {
-                        state.logger.error(format!(
+                        state.logger.warn(format!(
                             "couldn't vote on NNS proposal {}: {}",
                             proposal_id, err
                         ))
@@ -1263,7 +1273,7 @@ impl State {
                 mutate(|state| {
                     state
                         .logger
-                        .error(format!("couldn't fetch proposals: {}", err))
+                        .warn(format!("couldn't fetch proposals: {}", err))
                 });
                 Default::default()
             }
@@ -1308,7 +1318,7 @@ impl State {
                         mutate(|state| {
                             state
                                 .logger
-                                .error(format!("couldn't create a NNS proposal post: {:?}", err))
+                                .warn(format!("couldn't create an NNS proposal post: {:?}", err))
                         });
                     }
                 };
@@ -1317,7 +1327,7 @@ impl State {
             if let Err(err) = canisters::vote_on_nns_proposal(proposal.id, NNSVote::Reject).await {
                 mutate(|state| {
                     state.last_nns_proposal = state.last_nns_proposal.max(proposal.id);
-                    state.logger.error(format!(
+                    state.logger.warn(format!(
                         "couldn't vote on NNS proposal {}: {}",
                         proposal.id, err
                     ))
@@ -1490,7 +1500,7 @@ impl State {
                 .min(credits - inactive_user_balance_threshold);
             if let Err(err) = self.charge(id, costs, "inactivity penalty".to_string()) {
                 self.logger
-                    .error(format!("Couldn't charge inactivity penalty: {:?}", err));
+                    .warn(format!("Couldn't charge inactivity penalty: {:?}", err));
             } else {
                 credits_total += costs;
                 inactive_users += 1;
@@ -1645,7 +1655,7 @@ impl State {
                     mutate(|state| {
                         state
                             .logger
-                            .error(&format!("couldn't generate invoice: {:?}", err))
+                            .warn(&format!("couldn't generate invoice: {:?}", err))
                     });
                 }
                 return Err(err);

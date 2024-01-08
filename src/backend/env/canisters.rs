@@ -179,11 +179,11 @@ pub async fn install(
 
 pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: bool) {
     check_for_pending_upgrade();
-    logger.info("Executing the canister upgrade...");
+    logger.debug("Executing the canister upgrade...");
     let calls = calls_open();
     if calls > 0 && !force {
         CALLS.with(|cell| {
-            logger.error(format!(
+            logger.warn(format!(
                 "Upgrade execution failed due to open canister calls: {:?}",
                 cell.borrow()
                     .iter()

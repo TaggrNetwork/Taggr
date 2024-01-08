@@ -21,7 +21,6 @@ import {
     CashCoin,
     Comment,
     Credits,
-    Document,
     Fire,
     Gear,
     HourGlass,
@@ -46,8 +45,13 @@ type Log = {
     message: string;
 };
 
+const TAB_KEY = "logs_tab";
+
 export const Dashboard = ({}) => {
     const [logs, setLogs] = React.useState<Log[]>([]);
+    const [tab, setTab] = React.useState(
+        Number(localStorage.getItem(TAB_KEY)) || 0,
+    );
 
     React.useEffect(() => {
         window.api.query<Log[]>("logs").then((logs) => {
@@ -56,6 +60,25 @@ export const Dashboard = ({}) => {
             setLogs(logs);
         });
     }, []);
+
+    const logSelector = (
+        <div className="text_centered vertically_spaced">
+            {["SOCIAL", "TECHNICAL"].map((label, i) => (
+                <button
+                    key={label}
+                    onClick={() => {
+                        localStorage.setItem(TAB_KEY, i.toString());
+                        setTab(i);
+                    }}
+                    className={
+                        "medium_text " + (tab == i ? "active" : "unselected")
+                    }
+                >
+                    {label}
+                </button>
+            ))}
+        </div>
+    );
 
     const { config, stats } = window.backendCache;
     return (
@@ -239,12 +262,15 @@ export const Dashboard = ({}) => {
                     {userList(stats.stalwarts)}
                 </div>
                 <hr />
-                <h2>
-                    <Document /> LOGS
-                </h2>
+                {logSelector}
                 <hr />
                 <Content
                     value={logs
+                        .filter(
+                            ({ level }) =>
+                                (tab == 0 && level == "INFO") ||
+                                (tab > 0 && level != "INFO"),
+                        )
                         .map(
                             ({ timestamp, level, message }) =>
                                 `\`${shortDate(
@@ -273,10 +299,14 @@ const level2icon = (level: string) => {
     switch (level) {
         case "INFO":
             return "";
-        case "ERROR":
+        case "DEBUG":
+            return "";
+        case "WARN":
             return "⚠️";
+        case "ERROR":
+            return "🔴";
         case "CRITICAL":
-            return "❌";
+            return "💥";
         default:
             return "❓";
     }
