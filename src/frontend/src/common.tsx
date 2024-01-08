@@ -6,7 +6,7 @@ import { loadFile } from "./form";
 import { Post, PostId, Report, User, UserId } from "./types";
 import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
-import { IcrcAccount } from "@dfinity/ledger";
+import { IcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
 
 export const XDR_TO_USD = 1.33;
@@ -405,12 +405,17 @@ export const ICPAccountBalance = ({
     heartbeat?: any;
 }) => {
     const [e8s, setE8s] = React.useState(0 as unknown as BigInt);
-    React.useEffect(() => {
-        (typeof address == "string"
+    const loadData = async () => {
+        const value = await (typeof address == "string"
             ? window.api.icp_account_balance(address)
-            : window.api.account_balance(ICP_LEDGER_ID, address, [])
-        ).then((n) => setE8s(n));
+            : window.api.account_balance(ICP_LEDGER_ID, { owner: address }));
+        setE8s(value);
+    };
+
+    React.useEffect(() => {
+        loadData();
     }, [address, heartbeat]);
+
     return icpCode(e8s, decimals, units);
 };
 
@@ -441,10 +446,9 @@ export const TokenBalance = ({
     symbol: string;
 }) => {
     const [balance, setBalance] = React.useState(BigInt(0));
-    const { owner, subaccount } = account;
     React.useEffect(() => {
         window.api
-            .account_balance(ledgerId, owner, subaccount ? [subaccount] : [])
+            .account_balance(ledgerId, account)
             .then((n) => setBalance(n));
     }, []);
     return `${tokens(Number(balance), decimals)} ${symbol}`;
@@ -914,20 +918,20 @@ export const icrcTransfer = async (
             )
         )
             return 0;
-        let result: any = await window.api.transfer(
+        const response: string | number = await window.api.icrc_transfer(
             token,
             recipient,
-            new Uint8Array(32),
-            BigInt(amount),
+            amount,
         );
-        if ("Err" in result) {
-            console.error(result);
-            alert("Transfer failed");
+        if (typeof response == "string") {
+            alert(
+                "Transfer failed. One reason might be that you voted on a proposal that is still open.",
+            );
             return 0;
         }
-        return amount;
+        return response;
     } catch (e) {
-        alert("Transfer failed");
+        alert("Transfer failed.");
         return 0;
     }
 };

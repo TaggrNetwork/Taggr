@@ -16,7 +16,7 @@ import {
 import * as React from "react";
 import { UserId, Transaction, User, Account } from "./types";
 import { Principal } from "@dfinity/principal";
-import { decodeIcrcAccount, encodeIcrcAccount } from "@dfinity/ledger";
+import { decodeIcrcAccount, encodeIcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
 import { CANISTER_ID } from "./env";
 
