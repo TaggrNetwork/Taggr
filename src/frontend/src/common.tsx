@@ -211,7 +211,7 @@ export const ShareButton = ({
     styleArg?: any;
     text?: boolean;
 }) => {
-    const fullUlr = `https://${window.backendCache.config.domains[0]}/${url}`;
+    const fullUlr = `https://${location.host}/${url}`;
     return (
         <button
             title={`Share link to ${fullUlr}`}
