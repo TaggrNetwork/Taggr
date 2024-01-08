@@ -3,6 +3,7 @@ import { HttpAgent, HttpAgentOptions, Identity, polling } from "@dfinity/agent";
 import { IDL, JsonValue } from "@dfinity/candid";
 import { CANISTER_ID } from "./env";
 import { ICP_DEFAULT_FEE, ICP_LEDGER_ID } from "./common";
+import { IcrcLedgerCanister, IcrcTransferError } from "@dfinity/ledger";
 
 export type Backend = {
     query: <T>(
@@ -74,12 +75,11 @@ export type Backend = {
 
     icp_transfer: (account: string, e8s: number) => Promise<JsonValue>;
 
-    transfer: (
-        tokenId: Principal,
+    icrc_transfer: (
+        token: Principal,
         recipient: Principal,
-        subaccount: Uint8Array,
-        amount: bigint,
-    ) => Promise<JsonValue>;
+        amount: number,
+    ) => Promise<string | number>;
 };
 
 export const ApiGenerator = (
@@ -329,6 +329,27 @@ export const ApiGenerator = (
             ).e8s;
         },
 
+        icrc_transfer: async (
+            token: Principal,
+            recipient: Principal,
+            amount: number,
+        ) => {
+            try {
+                const canister = IcrcLedgerCanister.create({
+                    canisterId: Principal.from(token),
+                    agent,
+                });
+                await canister.transfer({
+                    to: { owner: recipient, subaccount: [] },
+                    amount: BigInt(amount),
+                });
+                return amount;
+            } catch (e) {
+                let err = e as unknown as IcrcTransferError<string>;
+                return err.message;
+            }
+        },
+
         icp_transfer: async (account: string, e8s: number) => {
             const arg = IDL.encode(
                 [
@@ -354,46 +375,6 @@ export const ApiGenerator = (
             }
             return IDL.decode(
                 [IDL.Variant({ Ok: IDL.Nat64, Err: IDL.Unknown })],
-                response,
-            )[0] as any;
-        },
-
-        transfer: async (
-            tokenId: Principal,
-            recipient: Principal,
-            subaccount: Uint8Array,
-            amount: bigint,
-        ) => {
-            let resized = new Uint8Array(32);
-            resized.set(Uint8Array.from(subaccount).subarray(0, 32));
-            const to = {
-                owner: recipient,
-                subaccount: [resized],
-            };
-
-            const arg = IDL.encode(
-                [
-                    IDL.Record({
-                        to: IDL.Record({
-                            owner: IDL.Principal,
-                            subaccount: IDL.Opt(IDL.Vec(IDL.Nat8)),
-                        }),
-                        amount: IDL.Nat,
-                    }),
-                ],
-                [
-                    {
-                        to,
-                        amount,
-                    },
-                ],
-            );
-            const response = await call_raw(tokenId, "icrc1_transfer", arg);
-            if (!response) {
-                return null;
-            }
-            return IDL.decode(
-                [IDL.Variant({ Ok: IDL.Nat, Err: IDL.Unknown })],
                 response,
             )[0] as any;
         },

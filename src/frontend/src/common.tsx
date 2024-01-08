@@ -893,41 +893,35 @@ export const icrcTransfer = async (
     fee: number,
     to?: string,
 ) => {
-    try {
-        const input =
-            to || prompt("Enter the recipient principal")?.trim() || "";
-        if (!input) return;
-        const recipient = Principal.fromText(input);
-        const amount = parseNumber(
-            prompt(
-                `Enter the amount (fee: ${tokens(fee, decimals)} ${symbol})`,
-            )?.trim() || "",
-            decimals,
-        );
-        if (!amount) return 0;
-        if (
-            !confirm(
-                `You are transferring\n\n${tokens(
-                    amount,
-                    decimals,
-                )} ${symbol}\n\nto\n\n${recipient}`,
-            )
+    const input = to || prompt("Enter the recipient principal")?.trim() || "";
+    if (!input) return;
+    const recipient = Principal.fromText(input);
+    const amount = parseNumber(
+        prompt(
+            `Enter the amount (fee: ${tokens(fee, decimals)} ${symbol})`,
+        )?.trim() || "",
+        decimals,
+    );
+    if (!amount) return 0;
+    if (
+        !confirm(
+            `You are transferring\n\n${tokens(
+                amount,
+                decimals,
+            )} ${symbol}\n\nto\n\n${recipient}`,
         )
-            return 0;
-        let result: any = await window.api.transfer(
-            token,
-            recipient,
-            new Uint8Array(32),
-            BigInt(amount),
+    )
+        return 0;
+    const response: string | number = await window.api.icrc_transfer(
+        token,
+        recipient,
+        amount,
+    );
+    if (typeof response == "string") {
+        alert(
+            "Transfer failed. One reason might be that you voted on a proposal that is still open.",
         );
-        if ("Err" in result) {
-            console.error(result);
-            alert("Transfer failed");
-            return 0;
-        }
-        return amount;
-    } catch (e) {
-        alert("Transfer failed");
         return 0;
     }
+    return response;
 };

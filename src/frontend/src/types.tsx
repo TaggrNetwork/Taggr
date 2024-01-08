@@ -198,11 +198,6 @@ export type Report = {
 
 export type Theme = { [name: string]: string };
 
-export type Result = {
-    Error: string;
-    Ok: any;
-};
-
 declare global {
     interface Window {
         authClient: AuthClient;
