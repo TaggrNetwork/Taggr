@@ -123,7 +123,7 @@ test.describe("Reports", () => {
         // Wait because the UI waits for 4s before sending the command
         await page.waitForTimeout(4500);
         exec("dfx canister call taggr weekly_chores");
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(5000);
     });
 
     test("Login and report user", async ({ page }) => {
