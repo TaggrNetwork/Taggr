@@ -34,6 +34,8 @@ test.describe("Regular users flow, part two", () => {
             .fill("I am John");
         await page.getByRole("button", { name: "SAVE" }).click();
         await expect(page).toHaveTitle("TAGGR: HOT");
+        await page.getByTestId("tab-NEW").click();
+        await expect(page).toHaveTitle("TAGGR: NEW");
     });
 
     test("Create a post with poll", async () => {

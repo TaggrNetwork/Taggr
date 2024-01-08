@@ -26,7 +26,7 @@ build:
 test:
 	cargo clippy --tests --benches -- -D clippy::all
 	cargo test
-	make run e2e_test
+	npm run test:e2e
 
 fe:
 	npm run build --quiet
