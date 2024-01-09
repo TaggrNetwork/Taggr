@@ -69,7 +69,6 @@ export const Dashboard = ({}) => {
             .query<[UserId, number][]>("tokens_to_mint")
             .then((rewards) => {
                 if (!rewards) return;
-                console.log(rewards);
                 rewards.sort(
                     ([_id, balance1], [_id2, balance2]) => balance2 - balance1,
                 );
@@ -287,7 +286,7 @@ export const Dashboard = ({}) => {
                     <div className="dynamic_table bottom_spaced">
                         {(showAllRewards ? rewards : rewards.slice(0, 24)).map(
                             ([userId, tokens]) => (
-                                <div className="db_cell">
+                                <div key={userId} className="db_cell">
                                     <UserLink id={userId} />
                                     <code>{token(tokens)}</code>
                                 </div>

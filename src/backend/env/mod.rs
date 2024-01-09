@@ -945,6 +945,8 @@ impl State {
                 .or_insert(tokens);
         }
 
+        tokens_to_mint.retain(|_, balance| *balance > 0);
+
         tokens_to_mint
     }
 

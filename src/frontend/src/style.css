@@ -330,6 +330,7 @@ path {
 .dynamic_table {
     display: grid;
     row-gap: 2em;
+    column-gap: 1em;
     grid-template-columns: auto auto auto auto;
 }
 
