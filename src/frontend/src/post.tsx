@@ -479,7 +479,7 @@ const PostInfo = ({
     const { token_symbol, token_decimals } = window.backendCache.config;
     return (
         <>
-            <div className="row_container top_half_spaced">
+            <div className="row_container top_spaced">
                 <ShareButton
                     text={!window.user}
                     classNameArg="max_width_col"

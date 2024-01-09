@@ -131,7 +131,7 @@ select {
     padding: 0.5em;
     color: $text;
     border-radius: 5px;
-    background: $dark_background;
+    background: $selected_background;
     border: none;
     font-size: large;
 }
@@ -242,7 +242,7 @@ select {
 button {
     cursor: pointer;
     color: $text;
-    background: $dark_background;
+    background: $selected_background;
     font-weight: bold;
     font-size: small;
     border: none;
@@ -252,6 +252,10 @@ button {
     padding-right: 0.6em;
     margin-left: 0.1em;
     margin-right: 0.1em;
+}
+
+button.fat {
+    padding: 0.75em;
 }
 
 .vertically_aligned {
@@ -392,7 +396,7 @@ header {
 
 hr {
     border-style: none none none;
-    border-top: 2px solid $dark_background;
+    border-top: 2px solid $selected_background;
     margin-top: 1em;
     margin-bottom: 1em;
 }
@@ -439,7 +443,7 @@ hr {
 article table,
 article th,
 article td {
-    border: 1px solid $dark_background;
+    border: 1px solid $selected_background;
 }
 
 article,
@@ -454,7 +458,7 @@ article.prime {
 }
 
 th {
-    background: $dark_background;
+    background: $selected_background;
 }
 
 td,
@@ -619,11 +623,11 @@ a.reply_tag {
 }
 
 .top_framed {
-    border-top: 1px solid $dark_background;
+    border-top: 1px solid $selected_background;
 }
 
 .framed {
-    border: 1px solid $dark_background;
+    border: 1px solid $selected_background;
     padding: 0.5em;
     border-radius: 10px;
 }
@@ -632,7 +636,7 @@ a.reply_tag {
     margin: 1em;
     margin-bottom: 1em;
     font-size: medium;
-    border: 1px solid $dark_background;
+    border: 1px solid $selected_background;
     padding: 0.5em;
     border-radius: 10px;
 }
@@ -844,12 +848,12 @@ a.accent,
 }
 
 .nsfw {
-    background: $dark_background;
+    background: $selected_background;
     color: $clickable;
 }
 
 .deleted {
-    background: $dark_background;
+    background: $selected_background;
 }
 
 .post_head {

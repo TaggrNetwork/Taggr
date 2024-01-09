@@ -29,6 +29,7 @@ const themes: { [name: string]: Theme } = {
         code: "White",
         clickable: "#4CB381",
         accent: "Gold",
+        light_factor: 6,
     },
     calm: {
         text: "#e0e0c8",
@@ -69,7 +70,8 @@ const themes: { [name: string]: Theme } = {
 
 const applyTheme = (palette: Theme) => {
     const effPalette: Theme = palette ? palette : themes["dark"];
-    effPalette.light_background = "#" + shade(effPalette.background, 3);
+    effPalette.light_background =
+        "#" + shade(effPalette.background, effPalette.light_factor || 3);
     effPalette.dark_background = "#" + shade(effPalette.background, -5);
     effPalette.visited_clickable = "#" + shade(effPalette.clickable, -20);
     effPalette.selected_background =

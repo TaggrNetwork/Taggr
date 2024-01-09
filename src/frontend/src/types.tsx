@@ -196,7 +196,7 @@ export type Report = {
     closed: boolean;
 };
 
-export type Theme = { [name: string]: string };
+export type Theme = { [name: string]: any };
 
 declare global {
     interface Window {

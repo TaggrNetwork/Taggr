@@ -282,7 +282,7 @@ export const ButtonWithLoading = ({
         <button
             title={title}
             disabled={loading}
-            className={`${
+            className={`fat ${
                 loading ? classNameArg?.replaceAll("active", "") : classNameArg
             }`}
             style={styleArg || null}
