@@ -262,6 +262,9 @@ button.fat {
     vertical-align: middle;
 }
 
+.realm_span:hover,
+.reply_tag:hover,
+.clickable:hover,
 button:hover {
     filter: brightness(130%);
 }
@@ -590,11 +593,6 @@ div.thumbnails {
     padding: 0.5em;
 }
 
-.realm_span:hover,
-.reply_tag:hover {
-    filter: brightness(120%);
-}
-
 .reply_tag,
 .realm_tag {
     cursor: pointer;
@@ -908,6 +906,21 @@ label svg {
     padding-right: 0.5rem;
 }
 
+@keyframes fadeout {
+    0% {
+        opacity: 1;
+    }
+    25% {
+        opacity: 0.75;
+    }
+    75% {
+        opacity: 0.25;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
 @keyframes fadein {
     0% {
         opacity: 0;
@@ -921,6 +934,10 @@ label svg {
     100% {
         opacity: 1;
     }
+}
+
+.fadeout {
+    animation: fadeout 0.1s;
 }
 
 .fadein {

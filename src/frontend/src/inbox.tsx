@@ -9,6 +9,7 @@ export const Inbox = () => {
     const [inbox, setInbox] = React.useState<{ [key: string]: Notification }>(
         window.user.inbox,
     );
+    const [closing, setClosing] = React.useState("");
     const ids = Object.keys(inbox);
     if (ids.length == 0) {
         location.href = "#/";
@@ -65,7 +66,9 @@ export const Inbox = () => {
                     return (
                         <div
                             key={k}
-                            className="stands_out"
+                            className={
+                                "stands_out" + (closing == k ? " fadeout" : "")
+                            }
                             style={{ padding: 0 }}
                         >
                             <div className="row_container">
@@ -76,12 +79,16 @@ export const Inbox = () => {
                                 <button
                                     className="unselected right_half_spaced"
                                     onClick={() => {
-                                        window.api.call("clear_notifications", [
-                                            k,
-                                        ]);
-                                        delete inbox[k];
-                                        delete window.user.inbox[k];
-                                        setInbox({ ...inbox });
+                                        setClosing(k);
+                                        setTimeout(() => {
+                                            window.api.call(
+                                                "clear_notifications",
+                                                [k],
+                                            );
+                                            delete inbox[k];
+                                            delete window.user.inbox[k];
+                                            setInbox({ ...inbox });
+                                        }, 80);
                                     }}
                                 >
                                     <Close classNameArg="action" />
