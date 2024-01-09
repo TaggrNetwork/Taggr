@@ -253,7 +253,8 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             <div className="db_cell">
                 FOLLOWS
                 {placeholder(
-                    profile.followees.length,
+                    // we need to subtract 1 because every user follows themselves by default
+                    profile.followees.length - 1,
                     <>
                         <h2>Follows</h2>
                         {userList(
