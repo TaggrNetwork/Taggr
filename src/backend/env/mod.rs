@@ -318,16 +318,29 @@ impl State {
         Ok(())
     }
 
-    pub fn active_voting_power(&self, time: u64) -> Token {
-        self.balances
-            .iter()
-            .filter_map(|(acc, balance)| {
-                self.principal_to_user(acc.owner).and_then(|user| {
+    pub fn active_voters(&self, time: u64) -> Box<dyn Iterator<Item = (UserId, Token)> + '_> {
+        Box::new(
+            self.users
+                .values()
+                .filter(move |user| {
                     user.active_within_weeks(time, CONFIG.voting_power_activity_weeks)
-                        .then_some(*balance)
                 })
-            })
-            .sum()
+                .map(move |user| {
+                    (
+                        user.id,
+                        user.balance
+                            + user
+                                .cold_wallet
+                                .and_then(|principal| self.balances.get(&account(principal)))
+                                .copied()
+                                .unwrap_or_default(),
+                    )
+                }),
+        )
+    }
+
+    pub fn active_voting_power(&self, time: u64) -> Token {
+        self.active_voters(time).map(|(_, balance)| balance).sum()
     }
 
     fn spend_to_user_rewards<T: ToString>(&mut self, user_id: UserId, amount: Credits, log: T) {
@@ -426,7 +439,15 @@ impl State {
     pub fn load(&mut self) {
         assets::load();
         match token::balances_from_ledger(&self.ledger) {
-            Ok(value) => self.balances = value,
+            Ok(balances) => {
+                for user in self.users.values_mut() {
+                    user.balance = balances
+                        .get(&account(user.principal))
+                        .copied()
+                        .unwrap_or_default();
+                }
+                self.balances = balances;
+            }
             Err(err) => self
                 .logger
                 .critical(format!("the token ledger is inconsistent: {}", err)),
@@ -890,33 +911,14 @@ impl State {
         }
     }
 
-    fn supply_of_active_users(&self, now: u64) -> (Vec<(UserId, Token)>, Token) {
-        let active_user_balances = self
-            .balances
-            .iter()
-            .filter_map(|(acc, balance)| {
-                let user = self.principal_to_user(acc.owner)?;
-                if user.active_within_weeks(now, CONFIG.revenue_share_activity_weeks) {
-                    return Some((user.id, *balance));
-                }
-                None
-            })
-            .collect::<Vec<_>>();
-        let supply_of_active_users: u64 = active_user_balances
-            .iter()
-            .map(|(_, balance)| balance)
-            .sum();
-        (active_user_balances, supply_of_active_users)
-    }
-
     pub fn collect_revenue(&self, now: u64, e8s_for_one_xdr: u64) -> HashMap<UserId, u64> {
         let burned_credits = self.burned_cycles;
         if burned_credits <= 0 {
             return Default::default();
         }
-        let (active_user_balances, supply_of_active_users) = self.supply_of_active_users(now);
+        let active_user_balances = self.active_voters(now);
+        let supply_of_active_users = self.active_voting_power(now);
         active_user_balances
-            .into_iter()
             .map(|(user_id, balance)| {
                 let revenue_share =
                     burned_credits as f64 * balance as f64 / supply_of_active_users as f64;
@@ -1019,6 +1021,7 @@ impl State {
             .collect::<Vec<_>>()
         {
             let acc = account(user.principal);
+            let total_balance = user.total_balance(self);
             let vested = match self.team_tokens.get_mut(&user.id) {
                 Some(balance) if *balance > 0 => {
                     // 1% of circulating supply is vesting.
@@ -1027,9 +1030,7 @@ impl State {
                     let cap = (circulating_supply * 14) / 100;
                     // Vesting is allowed if the total voting power of the team member stays below
                     // 15% of the current supply, or if 2/3 of total supply is minted.
-                    if self.balances.get(&acc).copied().unwrap_or_default() <= cap
-                        || circulating_supply * 3 > CONFIG.maximum_supply * 2
-                    {
+                    if total_balance <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
                         *balance = balance.saturating_sub(vested);
                         Some((vested, *balance))
                     } else {
@@ -1149,7 +1150,7 @@ impl State {
             }
             state.total_rewards_shared += total_rewards;
             state.total_revenue_shared += total_revenue;
-            let (_, supply_of_active_users) = state.supply_of_active_users(time());
+            let supply_of_active_users = state.active_voting_power(time());
             let e8s_revenue_per_1k =
                 total_revenue / (supply_of_active_users / 1000 / token::base()).max(1);
             state.last_revenues.push_back(e8s_revenue_per_1k);
@@ -1834,20 +1835,18 @@ impl State {
     }
 
     pub fn user(&self, handle: &str) -> Option<&User> {
+        let maybe_principal = Principal::from_text(handle).ok();
         handle
             .parse::<u64>()
             .ok()
             .and_then(|id| self.users.get(&id))
-            .or_else(|| {
-                Principal::from_text(handle)
-                    .ok()
-                    .and_then(|principal| self.principal_to_user(principal))
-            })
+            .or_else(|| maybe_principal.and_then(|principal| self.principal_to_user(principal)))
             .or_else(|| {
                 self.users.values().find(|user| {
-                    std::iter::once(&user.name)
-                        .chain(user.previous_names.iter())
-                        .any(|name| name.to_lowercase() == handle.to_lowercase())
+                    user.cold_wallet.is_some() && user.cold_wallet == maybe_principal
+                        || std::iter::once(&user.name)
+                            .chain(user.previous_names.iter())
+                            .any(|name| name.to_lowercase() == handle.to_lowercase())
                 })
             })
     }
@@ -2654,7 +2653,7 @@ pub(crate) mod tests {
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
-            let now = WEEK * CONFIG.revenue_share_activity_weeks;
+            let now = WEEK * CONFIG.voting_power_activity_weeks;
 
             for (i, (balance, total_karma, last_activity)) in vec![
                 // Active user with 100 tokens and no karma
@@ -2674,7 +2673,7 @@ pub(crate) mod tests {
                 user.change_rewards(-user.rewards(), "");
                 user.change_rewards(total_karma, "");
                 user.last_activity = last_activity;
-                state.balances.insert(account(principal), balance);
+                insert_balance(state, principal, balance);
             }
 
             let revenue = state.collect_revenue(now, 1000000);
@@ -2868,7 +2867,7 @@ pub(crate) mod tests {
             for i in 1..3 {
                 let p = pr(i);
                 create_user(state, p);
-                state.balances.insert(account(p), i as u64 * 111 * 100);
+                insert_balance(state, p, i as u64 * 111 * 100);
                 let user = state.principal_to_user_mut(pr(i)).unwrap();
                 user.change_rewards(i as i64 * 111, "test");
             }
@@ -3643,6 +3642,8 @@ pub(crate) mod tests {
             let u1 = create_user_with_params(state, pr(0), "user1", 1000);
             let u2 = create_user_with_params(state, pr(1), "user2", 1000);
             let u3 = create_user_with_params(state, pr(2), "user3", 1000);
+            let cold_wallet = pr(254);
+            state.users.get_mut(&u2).unwrap().cold_wallet = Some(cold_wallet);
 
             assert_eq!(state.user("user1").unwrap().id, u1);
             assert_eq!(state.user("0").unwrap().id, u1);
@@ -3651,6 +3652,8 @@ pub(crate) mod tests {
             assert_eq!(state.user("user3").unwrap().id, u3);
             assert_eq!(state.user("2").unwrap().id, u3);
             assert!(state.user("user22").is_none());
+            assert_eq!(state.user(&pr(2).to_text()).unwrap().id, u3);
+            assert_eq!(state.user(&cold_wallet.to_text()).unwrap().id, u2);
         });
     }
 

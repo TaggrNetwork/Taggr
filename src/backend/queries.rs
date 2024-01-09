@@ -1,3 +1,5 @@
+use crate::env::token::account;
+
 use super::*;
 use candid::Principal;
 use env::{
@@ -31,7 +33,10 @@ fn balances() {
                     (
                         acc,
                         balance,
-                        state.principal_to_user(acc.owner).map(|u| u.id),
+                        state
+                            .principal_to_user(acc.owner)
+                            .or(state.user(&acc.owner.to_string()))
+                            .map(|u| u.id),
                     )
                 })
                 .collect::<Vec<_>>(),
@@ -201,6 +206,10 @@ fn user() {
     let input: Vec<String> = parse(&arg_data_raw());
     let own_profile_fetch = input.is_empty();
     reply(resolve_handle(input.into_iter().next()).map(|mut user| {
+        user.cold_balance = user
+            .cold_wallet
+            .and_then(|principal| read(|state| state.balances.get(&account(principal)).copied()))
+            .unwrap_or_default();
         if own_profile_fetch {
             user.accounting.clear();
         } else {

@@ -39,7 +39,7 @@ Notes:
 -   During positive interactions, users can receive rewards from other users.
 -   Rewards are converted to ICP and distributed to users every Friday.
 -   Earned rewards points are converted to ICP at the ratio `$credits_per_xdr` rewards / `$xdr_in_usd` USD.
--   Additionally, users owning tokens and being active within the last `$revenue_share_activity_weeks` weeks receive a share of $name's revenue proportionate to their token holdings.
+-   Additionally, users owning tokens and being active within the last `$voting_power_activity_weeks` weeks receive a share of $name's revenue proportionate to their token holdings.
 
 ## Stalwarts
 

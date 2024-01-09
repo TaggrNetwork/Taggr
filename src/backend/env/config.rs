@@ -107,7 +107,6 @@ pub struct Config {
 
     pub online_activity_minutes: u64,
 
-    pub revenue_share_activity_weeks: u64,
     pub voting_power_activity_weeks: u64,
 
     pub reactions: &'static [(u16, i64)],
@@ -256,8 +255,7 @@ pub const CONFIG: &Config = &Config {
 
     inactivity_penalty: 45,
     inactivity_duration_weeks: 26,
-    revenue_share_activity_weeks: 2,
-    voting_power_activity_weeks: 8,
+    voting_power_activity_weeks: 2,
 
     stalwart_percentage: 3,
     #[cfg(feature = "staging")]

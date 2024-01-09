@@ -5,7 +5,6 @@ use env::{
     parse_amount,
     post::{Extension, Post, PostId},
     proposals::{Release, Reward},
-    token::account,
     user::{Draft, User, UserId},
     State,
 };
@@ -117,6 +116,31 @@ fn clear_notifications() {
         let ids: Vec<String> = parse(&arg_data_raw());
         state.clear_notifications(caller(), ids);
         reply_raw(&[]);
+    })
+}
+
+#[update]
+fn link_cold_wallet(user_id: UserId) -> Result<(), String> {
+    mutate(|state| {
+        let user = state.users.get_mut(&user_id).ok_or("no user found")?;
+        if user.cold_wallet.is_some() {
+            return Err("this user has already a cold wallet".into());
+        }
+        user.cold_wallet = Some(caller());
+        Ok(())
+    })
+}
+
+#[update]
+fn unlink_cold_wallet() {
+    mutate(|state| {
+        if let Some(user) = state
+            .users
+            .values_mut()
+            .find(|user| user.cold_wallet == Some(caller()))
+        {
+            user.cold_wallet = None;
+        }
     })
 }
 
@@ -569,13 +593,16 @@ async fn set_emergency_release(binary: ByteBuf) {
 fn confirm_emergency_release() {
     mutate(|state| {
         let principal = caller();
-        if let Some(balance) = state.balances.get(&account(principal)) {
+        if let Some(balance) = state
+            .principal_to_user(caller())
+            .map(|user| user.total_balance(state))
+        {
             let hash: String = parse(&arg_data_raw());
             use sha2::{Digest, Sha256};
             let mut hasher = Sha256::new();
             hasher.update(&state.emergency_binary);
             if hash == format!("{:x}", hasher.finalize()) {
-                state.emergency_votes.insert(principal, *balance);
+                state.emergency_votes.insert(principal, balance);
             }
         }
         reply_raw(&[]);

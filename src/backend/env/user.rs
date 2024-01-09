@@ -51,8 +51,8 @@ pub struct User {
     pub account: String,
     #[serde(default)]
     pub settings: BTreeMap<String, String>,
-    #[serde(skip)]
-    pub settings_object: BTreeMap<String, String>,
+    #[serde(default)]
+    pub cold_wallet: Option<Principal>,
     cycles: Credits,
     rewards: i64,
     pub feeds: Vec<BTreeSet<String>>,
@@ -68,6 +68,8 @@ pub struct User {
     pub accounting: VecDeque<(Time, String, i64, String)>,
     pub realms: Vec<String>,
     pub balance: Token,
+    #[serde(default)]
+    pub cold_balance: Token,
     pub active_weeks: u32,
     pub principal: Principal,
     pub report: Option<Report>,
@@ -114,8 +116,17 @@ impl User {
             karma_donations: Default::default(),
             previous_names: Default::default(),
             rewards: 0,
-            settings_object: Default::default(),
+            cold_wallet: None,
+            cold_balance: 0,
         }
+    }
+
+    pub fn total_balance(&self, state: &State) -> Token {
+        self.balance
+            + self
+                .cold_wallet
+                .and_then(|principal| state.balances.get(&account(principal)).copied())
+                .unwrap_or_default()
     }
 
     pub fn posts<'a>(

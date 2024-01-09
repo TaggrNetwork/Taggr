@@ -378,6 +378,17 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                         {tokenBalance(profile.balance)}
                     </a>
                 </div>
+                {profile.cold_balance > 0 && (
+                    <div className="db_cell">
+                        COLD WALLET
+                        <a
+                            className="xx_large_text"
+                            href={`#/transactions/${profile.cold_wallet}`}
+                        >
+                            {tokenBalance(profile.cold_balance)}
+                        </a>
+                    </div>
+                )}
                 <div className="db_cell">
                     REWARDS
                     <code className="accent">
@@ -499,7 +510,7 @@ export const getLabels = (profile: User) => {
     }
     if (
         secondsSince(profile.last_activity) / daySeconds >
-        window.backendCache.config.revenue_share_activity_weeks * 7
+        window.backendCache.config.voting_power_activity_weeks * 7
     ) {
         labels.push(["INACTIVE", "White"]);
     }

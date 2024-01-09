@@ -182,6 +182,8 @@ export type User = {
     cycles: number;
     num_posts: number;
     balance: number;
+    cold_balance: number;
+    cold_wallet: string;
     controllers: string[];
     karma_donations: { [key: UserId]: number };
     filters: Filters;
@@ -281,7 +283,7 @@ declare global {
                 proposal_approval_threshold: number;
                 name: string;
                 proposal_rejection_penalty: number;
-                revenue_share_activity_weeks: number;
+                voting_power_activity_weeks: number;
                 trusted_user_min_karma: number;
                 trusted_user_min_age_weeks: number;
                 min_stalwart_account_age_weeks: number;

@@ -251,7 +251,7 @@ export const Wallet = () => {
             )}
             <div className="stands_out column_container">
                 <div className="row_container bottom_spaced">
-                    <div className="max_width_col">YOUR PRINCIPAL</div>
+                    <div className="max_width_col">Principal</div>
                     <code>
                         <CopyToClipboard
                             value={user.principal}
@@ -262,7 +262,7 @@ export const Wallet = () => {
                     </code>
                 </div>
                 <div className="row_container">
-                    <div className="max_width_col">YOUR ICP ACCOUNT</div>
+                    <div className="max_width_col">ICP Account</div>
                     <code>
                         <CopyToClipboard
                             value={user.account}
@@ -457,11 +457,27 @@ export const Wallet = () => {
                         }}
                     />
                 </div>
-                <div className="vcentered">
-                    <div className="max_width_col"></div>
-                    <code data-testid="token-balance" className="xx_large_text">
-                        {tokenBalance(user.balance)}
-                    </code>
+                <div className="column_container">
+                    <div className="row_container">
+                        <div className="max_width_col"></div>
+                        <code
+                            data-testid="token-balance"
+                            className="xx_large_text"
+                        >
+                            {tokenBalance(user.balance)}
+                        </code>
+                    </div>
+                    {user.cold_wallet && (
+                        <div className="row_container vcentered">
+                            <div className="max_width_col">Cold Wallet</div>
+                            <code
+                                data-testid="token-balance"
+                                className="xx_large_text"
+                            >
+                                {tokenBalance(user.cold_balance)}
+                            </code>
+                        </div>
+                    )}
                 </div>
                 <hr />
                 <h2>Latest Transactions</h2>

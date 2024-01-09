@@ -74,10 +74,10 @@ impl Proposal {
         if self.bulletins.iter().any(|(voter, _, _)| *voter == user.id) {
             return Err("double vote".into());
         }
-        let balance = state
-            .balances
-            .get(&account(principal))
-            .ok_or_else(|| "only token holders can vote".to_string())?;
+        let balance = user.total_balance(state);
+        if balance == 0 {
+            return Err("only token holders can vote".into());
+        }
 
         match &mut self.payload {
             Payload::Release(release) => {
@@ -111,12 +111,12 @@ impl Proposal {
                         max_funding_amount
                     ));
                 }
-                votes.push((*balance, tokens * base))
+                votes.push((balance, tokens * base))
             }
             _ => {}
         }
 
-        self.bulletins.push((user.id, approve, *balance));
+        self.bulletins.push((user.id, approve, balance));
         Ok(())
     }
 
@@ -422,7 +422,7 @@ mod tests {
     use super::*;
     use crate::{
         env::{
-            tests::{create_user, pr},
+            tests::{create_user, insert_balance, pr},
             time,
         },
         STATE,
@@ -552,7 +552,7 @@ mod tests {
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(1000, "test");
-                state.balances.insert(account(p), 1000 * 100);
+                insert_balance(state, p, 1000 * 100);
             }
 
             // make sure the karma accounting was correct
@@ -691,7 +691,7 @@ mod tests {
             for i in 1..=3 {
                 let p = pr(i);
                 let id = create_user(state, p);
-                state.balances.insert(account(p), 100 * 100);
+                insert_balance(state, p, 100 * 100);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(100, "test");
             }
@@ -737,7 +737,7 @@ mod tests {
             for i in 1..=5 {
                 let p = pr(i);
                 let id = create_user(state, p);
-                state.balances.insert(account(p), 100 * 100);
+                insert_balance(state, p, 100 * 100);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(100, "test");
             }
@@ -781,7 +781,7 @@ mod tests {
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(100 * (1 << i), "test");
-                state.balances.insert(account(p), (100 * (1 << i)) * 100);
+                insert_balance(state, p, (100 * (1 << i)) * 100);
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
@@ -834,7 +834,7 @@ mod tests {
             for i in 1..=3 {
                 let p = pr(i);
                 let id = create_user(state, p);
-                state.balances.insert(account(p), (100 * (1 << i)) * 100);
+                insert_balance(state, p, (100 * (1 << i)) * 100);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(100 * (1 << i), "test");
             }
