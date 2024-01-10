@@ -292,7 +292,7 @@ export const Dashboard = ({}) => {
                         {(showAllRewards ? rewards : rewards.slice(0, 24)).map(
                             ([userId, tokens]) => (
                                 <div key={userId} className="db_cell">
-                                    <UserLink id={userId} journal={true} />
+                                    <UserLink id={userId} />
                                     <code>{token(tokens)}</code>
                                 </div>
                             ),

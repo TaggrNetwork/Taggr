@@ -505,14 +505,21 @@ export const isRoot = (post: Post) => post.parent == null;
 
 export const UserLink = ({
     id,
-    journal,
+    classNameArg,
+    profile,
 }: {
     id: UserId;
-    journal?: boolean;
+    classNameArg?: string;
+    profile?: boolean;
 }) => {
     const userName = window.backendCache.users[id];
     return userName ? (
-        <a href={`#/${journal ? "journal" : "user"}/${id}`}>{userName}</a>
+        <a
+            className={classNameArg}
+            href={`#/${profile ? "user" : "journal"}/${id}`}
+        >
+            {userName}
+        </a>
     ) : (
         <span>N/A</span>
     );

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { bigScreen, Loading, NotFound, ShareButton } from "./common";
+import { bigScreen, Loading, NotFound, ShareButton, UserLink } from "./common";
 import { Content } from "./content";
 import { PostFeed } from "./post_feed";
 import { PostId, User } from "./types";
@@ -36,8 +36,8 @@ export const Journal = ({ handle }: { handle: string }) => {
             {profile && (
                 <div className="text_centered">
                     <h1>
-                        <a href={`/#/user/${profile.name}`}>{profile.name}</a>'s
-                        Journal
+                        <UserLink id={profile.id} profile={true} />
+                        's Journal
                     </h1>
                     {
                         <Content
