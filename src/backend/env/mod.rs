@@ -201,7 +201,7 @@ impl Logger {
             message: message.to_string(),
             level,
         });
-        while self.events.len() > 200 {
+        while self.events.len() > 2000 {
             self.events.remove(0);
         }
     }
