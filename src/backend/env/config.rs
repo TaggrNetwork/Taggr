@@ -146,6 +146,8 @@ pub const CONFIG: &Config = &Config {
         "taggr.top",
         "taggr.blog",
         "taggr.wtf",
+        "6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io",
+        "6qfxa-ryaaa-aaaai-qbhsq-cai.ic0.app",
     ],
     logo: include_str!("../../frontend/assets/logo.min.svg"),
     staging: "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io",
