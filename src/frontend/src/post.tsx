@@ -845,13 +845,13 @@ const PostBar = ({
                                 icon={
                                     <>
                                         <Comment
-                                            classNameArg={
+                                            classNameArg={`right_quarter_spaced ${
                                                 newComments
                                                     ? "accent"
                                                     : undefined
-                                            }
+                                            }`}
                                         />
-                                        &nbsp;{`${replies}`}
+                                        {replies}
                                     </>
                                 }
                             />
@@ -938,8 +938,10 @@ export const Reactions = ({
                         onClick={() => react(parseInt(reactId))}
                         data-testid={reactId + "-reaction"}
                     >
-                        {reaction2icon(Number(reactId))}&nbsp;
-                        {`${users.length}`}
+                        <span className="right_quarter_spaced">
+                            {reaction2icon(Number(reactId))}
+                        </span>
+                        {users.length}
                     </button>
                 );
             })}

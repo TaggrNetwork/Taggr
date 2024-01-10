@@ -115,13 +115,17 @@ export const Header = ({
                     {!subtle && (
                         <>
                             {user && !inboxEmpty && (
-                                <span
-                                    className="clickable vcentered"
+                                <ReactionToggleButton
+                                    title="Inbox"
+                                    classNameArg="right_half_spaced medium_text"
                                     onClick={() => (location.href = "#/inbox")}
-                                >
-                                    <Bell classNameArg="accent" />
-                                    <code className="left_half_spaced right_spaced">{`${messages}`}</code>
-                                </span>
+                                    icon={
+                                        <>
+                                            <Bell classNameArg="accent right_half_spaced" />
+                                            {messages}
+                                        </>
+                                    }
+                                />
                             )}
                             {user && inboxEmpty && (
                                 <div className="vcentered">

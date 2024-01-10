@@ -425,13 +425,9 @@ export const ProposalView = ({
     );
     const open = proposal.status == "Open";
     const commit =
-        "Release" in proposal.payload
-            ? chunks(proposal.payload.Release.commit).join(" ")
-            : null;
+        "Release" in proposal.payload ? proposal.payload.Release.commit : null;
     const hash =
-        "Release" in proposal.payload
-            ? chunks(proposal.payload.Release.hash).join(" ")
-            : null;
+        "Release" in proposal.payload ? proposal.payload.Release.hash : null;
     const dailyDrop = proposal.voting_power / 100;
     const t = window.backendCache.config.proposal_approval_threshold;
     const days = Math.ceil(
@@ -515,15 +511,7 @@ export const ProposalView = ({
                 <>
                     <div className="bottom_half_spaced">
                         RECEIVER:{" "}
-                        <a
-                            href={`https://dashboard.internetcomputer.org/account/${hex(
-                                proposal.payload.ICPTransfer[0],
-                            )}`}
-                        >
-                            {chunks(hex(proposal.payload.ICPTransfer[0])).join(
-                                " ",
-                            )}
-                        </a>
+                        <code>{hex(proposal.payload.ICPTransfer[0])}</code>
                     </div>
                     <div className="bottom_spaced">
                         AMOUNT:{" "}
@@ -645,6 +633,3 @@ export const ProposalView = ({
         </div>
     );
 };
-
-const chunks = (s: string): string[] =>
-    s ? [s.slice(0, 8)].concat(chunks(s.slice(8))) : [];

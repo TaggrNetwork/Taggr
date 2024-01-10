@@ -264,7 +264,6 @@ button.fat {
 
 .realm_span:hover,
 .reply_tag:hover,
-.clickable:hover,
 button:hover {
     filter: brightness(130%);
 }
@@ -275,6 +274,7 @@ button:active {
 
 code {
     color: $code;
+    word-break: break-all;
 }
 
 pre {
@@ -339,6 +339,10 @@ path {
     row-gap: 2em;
     column-gap: 1em;
     grid-template-columns: auto auto auto auto;
+}
+
+.dynamic_table.tripple {
+    grid-template-columns: auto auto auto;
 }
 
 .two_columns_grid {
@@ -426,7 +430,7 @@ hr {
     color: $text;
     border-radius: 5px;
     font-weight: normal;
-    padding: 0.5em;
+    padding: 0.4em;
     display: flex;
     align-items: center;
 }
@@ -784,6 +788,10 @@ a.accent,
     margin-right: 0.5rem;
 }
 
+.right_quarter_spaced {
+    margin-right: 0.25rem;
+}
+
 .left_spaced {
     margin-left: 1rem;
 }
@@ -955,6 +963,7 @@ label svg {
     }
 
     .dynamic_table {
+        column-gap: 0;
         display: grid;
         row-gap: 2em;
         grid-template-columns: 50% 50%;

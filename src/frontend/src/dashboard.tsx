@@ -12,6 +12,7 @@ import {
     token,
     UserLink,
     MoreButton,
+    bigScreen,
 } from "./common";
 import { Content } from "./content";
 import {
@@ -283,7 +284,11 @@ export const Dashboard = ({}) => {
                         {token(rewards.reduce((acc, [_, val]) => acc + val, 0))}
                         )
                     </h2>
-                    <div className="dynamic_table bottom_spaced">
+                    <div
+                        className={`dynamic_table ${
+                            bigScreen() ? "" : "tripple"
+                        } bottom_spaced`}
+                    >
                         {(showAllRewards ? rewards : rewards.slice(0, 24)).map(
                             ([userId, tokens]) => (
                                 <div key={userId} className="db_cell">
