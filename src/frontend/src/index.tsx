@@ -208,11 +208,6 @@ const reloadCache = async () => {
         window.api.query<any>("config"),
         window.api.query<[string, string, boolean][]>("realms_data"),
     ]);
-    console.log("users", JSON.stringify(users).length / 1024);
-    console.log("recent_tags", JSON.stringify(recent_tags).length / 1024);
-    console.log("stats", JSON.stringify(stats).length / 1024);
-    console.log("config", JSON.stringify(config).length / 1024);
-    console.log("realms", JSON.stringify(realms).length / 1024);
     window.backendCache = {
         users: (users || []).reduce((acc, [id, name]) => {
             acc[id] = name;
