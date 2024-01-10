@@ -476,7 +476,9 @@ impl State {
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
             .last_posts(caller, realm, offset, false)
-            .filter(|post| post.heat() > 0)
+            .filter(|post| {
+                post.heat() > 0 && !matches!(post.extension, Some(Extension::Proposal(_)))
+            })
             .take(1000)
             .collect::<Vec<_>>();
         hot_posts.sort_unstable_by_key(|post| Reverse(post.heat()));

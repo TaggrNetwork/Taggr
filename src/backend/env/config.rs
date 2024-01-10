@@ -173,7 +173,7 @@ pub const CONFIG: &Config = &Config {
     individual_minting_threshold_percentage: 1,
     minting_threshold_percentage: 5,
 
-    max_age_hot_post_days: 7,
+    max_age_hot_post_days: 2,
 
     max_credits_mint_kilos: 10,
 
