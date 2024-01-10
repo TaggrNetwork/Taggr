@@ -280,7 +280,7 @@ export const Dashboard = ({}) => {
                 <hr />
                 <div>
                     <h2>
-                        UPCOMING MINT (
+                        UPCOMING MINTING (
                         {token(rewards.reduce((acc, [_, val]) => acc + val, 0))}
                         )
                     </h2>
@@ -292,7 +292,7 @@ export const Dashboard = ({}) => {
                         {(showAllRewards ? rewards : rewards.slice(0, 24)).map(
                             ([userId, tokens]) => (
                                 <div key={userId} className="db_cell">
-                                    <UserLink id={userId} />
+                                    <UserLink id={userId} journal={true} />
                                     <code>{token(tokens)}</code>
                                 </div>
                             ),

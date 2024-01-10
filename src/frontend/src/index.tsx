@@ -126,8 +126,9 @@ const App = () => {
         content = auth(<PostSubmissionForm id={id} />);
     } else if (handler == "new") {
         subtle = true;
+        const postId = parseInt(param2);
         content = auth(
-            <PostSubmissionForm repost={parseInt(param2) || undefined} />,
+            <PostSubmissionForm repost={isNaN(postId) ? undefined : postId} />,
         );
     } else if (handler == "realms") {
         if (param == "create") content = auth(<RealmForm />);

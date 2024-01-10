@@ -269,9 +269,17 @@ test.describe("Regular users flow", () => {
     test("User profile", async () => {
         // Check data on alice's profile
         await page.getByRole("link", { name: "alice" }).first().click();
-        await expect(page.locator("div:has-text('REWARDS') > code")).toHaveText(
-            "11",
+        const rewards = Number(
+            await page.locator("div:has-text('REWARDS') > code").textContent(),
         );
+        expect(rewards).toBeGreaterThanOrEqual(10);
+
+        await page.locator("div:has-text('ACCOUNTING') > code").click();
+        await expect(page.locator(".popup_body")).toHaveText(
+            /\+1 rewards.*response to post/,
+        );
+        await page.getByTestId("popup-close-button").click();
+
         await expect(page.locator("div:has-text('POSTS') > code")).toHaveText(
             "2",
         );

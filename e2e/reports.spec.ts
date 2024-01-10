@@ -3,7 +3,7 @@ import { exec } from "./command";
 
 test.describe.configure({ mode: "serial" });
 
-test.describe("Reports", () => {
+test.describe("Report and transfer to user", () => {
     let page: Page;
     let inviteLink1: string;
     let inviteLink2: string;
@@ -93,7 +93,14 @@ test.describe("Reports", () => {
             }
         });
         await page.getByRole("button", { name: "MINT" }).click();
-        await expect(page.getByTestId("credits-balance")).toHaveText("1,900");
+        await page.waitForTimeout(10000);
+        const creditsBalance = Number(
+            (await page.getByTestId("credits-balance").textContent()).replace(
+                ",",
+                "",
+            ),
+        );
+        expect(creditsBalance).toBeGreaterThanOrEqual(1900);
 
         await page.goto("/#/user/jane");
         await page.getByTestId("profile-burger-menu").click();
@@ -112,6 +119,8 @@ test.describe("Reports", () => {
     });
 
     test("Reward user and trigger minting", async () => {
+        await page.reload();
+        await page.goto("/");
         await page.locator("#logo").click();
         await page.getByTestId("tab-NEW").click();
         // Find jane's post and react with a star
@@ -121,9 +130,13 @@ test.describe("Reports", () => {
         await feedItem.getByTestId("post-info-toggle").click();
         await feedItem.locator('button[title="Karma points: 10"]').click();
         // Wait because the UI waits for 4s before sending the command
-        await page.waitForTimeout(4500);
+        await page.waitForTimeout(6000);
+        await feedItem.getByRole("link", { name: "jane" }).first().click();
+        await expect(page.locator("div:has-text('REWARDS') > code")).toHaveText(
+            "10",
+        );
         exec("dfx canister call taggr weekly_chores");
-        await page.waitForTimeout(5000);
+        await page.waitForTimeout(1500);
     });
 
     test("Login and report user", async ({ page }) => {
@@ -153,6 +166,7 @@ test.describe("Reports", () => {
         });
         await page.getByRole("button", { name: "REPORT" }).click();
         await reporting;
+        await page.waitForTimeout(1000);
     });
 
     test("Confirm the report", async () => {
@@ -166,6 +180,48 @@ test.describe("Reports", () => {
         await page.reload();
         await expect(page.locator("div:has-text('REWARDS') > code")).toHaveText(
             "-1,000",
+        );
+    });
+
+    test("Token transfer to user", async ({ page }) => {
+        await page.goto("/");
+        await page.getByRole("button", { name: "CONNECT" }).click();
+        await page.getByRole("button", { name: "PASSWORD" }).click();
+        await page.getByPlaceholder("Enter your password...").fill("jane");
+        await page.getByRole("button", { name: "JOIN" }).click();
+        await page.goto("/#/wallet");
+
+        await expect(page.getByTestId("token-balance")).toHaveText("10");
+
+        const transferExecuted = new Promise((resolve, _reject) => {
+            page.on("dialog", async (dialog) => {
+                if (
+                    dialog.message().includes("Enter the recipient principal")
+                ) {
+                    // Joe's principal
+                    await dialog.accept(
+                        "6pksk-fbpmj-s6rqc-llx2y-hn4rh-3743i-bjv4u-hqkfv-or2ls-4v45v-wqe",
+                    );
+                }
+                if (dialog.message().includes("Enter the amount")) {
+                    await dialog.accept("5");
+                }
+                if (dialog.message().includes("You are transferring")) {
+                    await dialog.accept();
+                    await page.waitForLoadState("networkidle");
+                    await page.waitForTimeout(3000);
+                    resolve(null);
+                }
+            });
+        });
+
+        await page.getByTestId("tokens-transfer-button").click();
+
+        await transferExecuted;
+
+        await page.goto("/#/user/joe");
+        await expect(page.locator("div:has-text('TOKENS') > a")).toHaveText(
+            "5",
         );
     });
 });

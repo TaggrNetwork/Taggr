@@ -503,10 +503,16 @@ export const blobToUrl = (blob: ArrayBuffer) =>
 
 export const isRoot = (post: Post) => post.parent == null;
 
-export const UserLink = ({ id }: { id: UserId }) => {
+export const UserLink = ({
+    id,
+    journal,
+}: {
+    id: UserId;
+    journal?: boolean;
+}) => {
     const userName = window.backendCache.users[id];
     return userName ? (
-        <a href={`#/user/${id}`}>{userName}</a>
+        <a href={`#/${journal ? "journal" : "user"}/${id}`}>{userName}</a>
     ) : (
         <span>N/A</span>
     );
@@ -845,7 +851,11 @@ export const popUp = (content: JSX.Element) => {
     preview.appendChild(root);
     createRoot(root).render(
         <>
-            <div className="row_container bottom_spaced" onClick={closePreview}>
+            <div
+                data-testId="popup-close-button"
+                className="clickable row_container bottom_spaced"
+                onClick={closePreview}
+            >
                 <div style={{ marginLeft: "auto" }}>
                     <Close classNameArg="action" size={18} />
                 </div>
