@@ -1835,20 +1835,23 @@ impl State {
     }
 
     pub fn user(&self, handle: &str) -> Option<&User> {
-        let maybe_principal = Principal::from_text(handle).ok();
-        handle
-            .parse::<u64>()
-            .ok()
-            .and_then(|id| self.users.get(&id))
-            .or_else(|| maybe_principal.and_then(|principal| self.principal_to_user(principal)))
-            .or_else(|| {
-                self.users.values().find(|user| {
-                    user.cold_wallet.is_some() && user.cold_wallet == maybe_principal
-                        || std::iter::once(&user.name)
+        match Principal::from_text(handle) {
+            Ok(principal) => self.principal_to_user(principal).or(self
+                .users
+                .values()
+                .find(|user| user.cold_wallet == Some(principal))),
+            _ => handle
+                .parse::<u64>()
+                .ok()
+                .and_then(|id| self.users.get(&id))
+                .or_else(|| {
+                    self.users.values().find(|user| {
+                        std::iter::once(&user.name)
                             .chain(user.previous_names.iter())
                             .any(|name| name.to_lowercase() == handle.to_lowercase())
-                })
-            })
+                    })
+                }),
+        }
     }
 
     pub async fn change_principal(
