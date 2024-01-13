@@ -56,7 +56,9 @@ export const Dashboard = ({}) => {
     React.useEffect(() => {
         window.api.query<Log[]>("logs").then((logs) => {
             if (!logs) return;
-            logs.reverse();
+            logs.sort(
+                (log1, log2) => Number(log2.timestamp) - Number(log1.timestamp),
+            );
             setLogs(logs);
         });
     }, []);

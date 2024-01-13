@@ -128,7 +128,7 @@ pub struct State {
     pub last_weekly_chores: u64,
     pub last_daily_chores: u64,
     pub last_hourly_chores: u64,
-    logger: Logger,
+    pub logger: Logger,
     pub invites: BTreeMap<String, (UserId, Credits)>,
     pub realms: BTreeMap<RealmId, Realm>,
 
@@ -175,6 +175,8 @@ pub struct State {
 #[derive(Default, Deserialize, Serialize)]
 pub struct Logger {
     pub events: Vec<Event>,
+    #[serde(default)]
+    pub level_events: BTreeMap<String, Vec<Event>>,
 }
 
 impl Logger {
@@ -199,14 +201,20 @@ impl Logger {
     }
 
     pub fn log<T: ToString>(&mut self, message: T, level: String) {
-        self.events.push(Event {
+        let event = Event {
             timestamp: time(),
             message: message.to_string(),
             level,
-        });
-        while self.events.len() > 2000 {
-            self.events.remove(0);
-        }
+        };
+        self.level_events
+            .entry(event.level.clone())
+            .and_modify(|list| {
+                list.push(event.clone());
+                while list.len() > 300 {
+                    list.remove(0);
+                }
+            })
+            .or_insert(vec![event]);
     }
 }
 
@@ -1936,8 +1944,8 @@ impl State {
         id
     }
 
-    pub fn logs(&self) -> &Vec<Event> {
-        &self.logger.events
+    pub fn logs(&self) -> Box<dyn Iterator<Item = &'_ Event> + '_> {
+        Box::new(self.logger.level_events.values().flatten())
     }
 
     pub fn recovery_state(&self) -> (String, Vec<Principal>) {

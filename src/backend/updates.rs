@@ -70,7 +70,21 @@ fn post_upgrade() {
 }
 
 async fn post_upgrade_fixtures() {
+    // use a new data structure for logs
     mutate(|state| {
+        std::mem::take(&mut state.logger.events)
+            .into_iter()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .for_each(|event| {
+                state
+                    .logger
+                    .level_events
+                    .entry(event.level.clone())
+                    .and_modify(|list| list.push(event.clone()))
+                    .or_insert(vec![event]);
+            });
+
         // Refund cycles to user 590 https://taggr.link/#/thread/82803
         let msg = "refund after lost credits due to a bug";
         let amount = 10000;

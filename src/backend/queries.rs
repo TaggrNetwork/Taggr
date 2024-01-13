@@ -372,7 +372,7 @@ fn config() {
 
 #[export_name = "canister_query logs"]
 fn logs() {
-    read(|state| reply(state.logs()));
+    read(|state| reply(state.logs().collect::<Vec<_>>()));
 }
 
 #[export_name = "canister_query recovery_state"]
