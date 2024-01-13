@@ -194,8 +194,18 @@ pub fn transfer(
         ..
     } = args;
 
-    if fee.is_none() && owner != icrc1_minting_account().expect("no minting account").owner {
-        panic!("only minting transactions are allowed without a fee")
+    if owner == icrc1_minting_account().expect("no minting account").owner {
+        if !state.minting_mode {
+            return Err(TransferError::GenericError(GenericError {
+                error_code: 5,
+                message: "minting invariant violation".into(),
+            }));
+        }
+    } else if fee.is_none() {
+        return Err(TransferError::GenericError(GenericError {
+            error_code: 3,
+            message: "only minting transactions are allowed without a fee".into(),
+        }));
     }
 
     if state.voted_on_pending_proposal(owner) {

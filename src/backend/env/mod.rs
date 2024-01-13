@@ -145,6 +145,9 @@ pub struct State {
 
     pub memory: memory::Memory,
 
+    // This runtime flag has to be set in order to mint new tokens.
+    #[serde(skip)]
+    pub minting_mode: bool,
     #[serde(skip)]
     pub module_hash: String,
     #[serde(skip)]
@@ -979,15 +982,6 @@ impl State {
         }
 
         for (user_id, tokens) in tokens_to_mint {
-            if tokens == 0
-                || self
-                    .users
-                    .get(&user_id)
-                    .map(|user| user.rewards() < 0)
-                    .unwrap_or_default()
-            {
-                continue;
-            }
             // This is a circuit breaker to avoid unforeseen side-effects due to hacks or bugs.
             if ratio > 1
                 && tokens * 100 / circulating_supply
@@ -1408,7 +1402,9 @@ impl State {
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
             let (karma, revenues, e8s_for_one_xdr) = mutate(|state| {
+                state.minting_mode = true;
                 state.mint();
+                state.minting_mode = false;
                 (
                     state.collect_new_rewards(),
                     state.collect_revenue(time(), state.e8s_for_one_xdr),
@@ -1628,24 +1624,38 @@ impl State {
     }
 
     pub async fn withdraw_rewards(principal: Principal) -> Result<(), String> {
-        let user = match read(|state| state.principal_to_user(principal).cloned()) {
-            Some(user) => user,
-            None => return Ok(()),
-        };
         let fee = invoices::fee();
-        if Tokens::from_e8s(user.treasury_e8s) > fee {
-            icrc_transfer(
-                MAINNET_LEDGER_CANISTER_ID,
-                Some(USER_ICP_SUBACCOUNT.to_vec()),
-                account(user.principal),
-                user.treasury_e8s as u128,
-            )
-            .await?;
+        let (user_id, principal, rewards) = mutate(|state| {
+            let user = state
+                .principal_to_user_mut(principal)
+                .ok_or("no user found".to_string())?;
+            if Tokens::from_e8s(user.treasury_e8s) < fee {
+                return Err("funds smaller than the fee".to_string());
+            }
+
+            let id = user.id;
+            let principal = user.principal;
+            let rewards = user.treasury_e8s;
+
+            user.treasury_e8s = 0;
+
+            Ok((id, principal, rewards))
+        })?;
+
+        if let Err(err) = icrc_transfer(
+            MAINNET_LEDGER_CANISTER_ID,
+            Some(USER_ICP_SUBACCOUNT.to_vec()),
+            account(principal),
+            rewards as u128,
+        )
+        .await
+        {
             mutate(|state| {
-                if let Some(user) = state.users.get_mut(&user.id) {
-                    user.treasury_e8s = 0
+                if let Some(user) = state.users.get_mut(&user_id) {
+                    user.treasury_e8s += rewards
                 }
             });
+            return Err(err);
         }
         Ok(())
     }
@@ -2485,7 +2495,8 @@ pub(crate) mod tests {
     pub fn insert_balance(state: &mut State, principal: Principal, amount: Token) {
         state.balances.insert(account(principal), amount);
         if let Some(user) = state.principal_to_user_mut(principal) {
-            user.balance = amount
+            user.balance = amount;
+            user.change_rewards((amount / token::base()) as i64, "");
         }
     }
 
@@ -2719,6 +2730,8 @@ pub(crate) mod tests {
                 .balances
                 .insert(minting_acc.clone(), CONFIG.maximum_supply);
 
+            state.minting_mode = true;
+
             // no minting hapened due to max supply
             assert_eq!(state.balances.get(&account(pr(0))).unwrap(), &40000);
             state.mint();
@@ -2809,7 +2822,6 @@ pub(crate) mod tests {
                 // we create the same amount of new and hard karma so that we have both karma and
                 // balances after minting
                 user.change_rewards(i as i64 * 10, "test");
-                assert_eq!(user.rewards(), i as i64 * 10);
             }
 
             // mint tokens

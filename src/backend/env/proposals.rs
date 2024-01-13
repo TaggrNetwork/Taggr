@@ -216,7 +216,9 @@ impl Proposal {
 
 fn mint_tokens(state: &mut State, receiver: &str, mut tokens: Token) -> Result<(), String> {
     let receiver = Principal::from_text(receiver).map_err(|e| e.to_string())?;
+    state.minting_mode = true;
     crate::token::mint(state, account(receiver), tokens);
+    state.minting_mode = false;
     tokens /= token::base();
     state.logger.info(format!(
         "`{}` ${} tokens were minted for `{}` via proposal execution.",
@@ -549,9 +551,7 @@ mod tests {
             // create voters, make each of them earn some karma
             for i in 1..11 {
                 let p = pr(i);
-                let id = create_user(state, p);
-                let user = state.users.get_mut(&id).unwrap();
-                user.change_rewards(1000, "test");
+                create_user(state, p);
                 insert_balance(state, p, 1000 * 100);
             }
 

@@ -440,6 +440,9 @@ impl User {
     }
 
     pub fn mintable_tokens(&self, state: &State) -> Vec<(UserId, Token)> {
+        if self.rewards < 0 {
+            return Default::default();
+        }
         let ratio = state.minting_ratio();
         let boostraping_mode =
             state.balances.values().sum::<Token>() < CONFIG.boostrapping_threshold_tokens;
@@ -475,6 +478,14 @@ impl User {
         let shares = self
             .karma_donations
             .iter()
+            .filter(|(user_id, _)| {
+                state
+                    .users
+                    .get(user_id)
+                    .map(|user| user.rewards)
+                    .unwrap_or_default()
+                    > 0
+            })
             .map(|(user_id, karma_donated)| {
                 (
                     *user_id,
