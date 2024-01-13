@@ -184,7 +184,7 @@ pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: boo
     if calls > 0 && !force {
         CALLS.with(|cell| {
             logger.warn(format!(
-                "Upgrade execution failed due to open canister calls: {:?}",
+                "Upgrade execution postponed due to open canister calls: {:?}",
                 cell.borrow()
                     .iter()
                     .filter(|(_, calls)| **calls > 0)

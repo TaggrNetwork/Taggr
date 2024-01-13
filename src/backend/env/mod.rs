@@ -217,6 +217,32 @@ pub enum Destination {
 }
 
 impl State {
+    pub fn link_cold_wallet(&mut self, caller: Principal, user_id: UserId) -> Result<(), String> {
+        if self
+            .users
+            .values()
+            .any(|user| user.cold_wallet == Some(caller))
+        {
+            return Err("this wallet is linked already".into());
+        }
+        let user = self.users.get_mut(&user_id).ok_or("no user found")?;
+        if user.cold_wallet.is_some() {
+            return Err("this user has already a cold wallet".into());
+        }
+        user.cold_wallet = Some(caller);
+        Ok(())
+    }
+
+    pub fn unlink_cold_wallet(&mut self, caller: Principal) {
+        if let Some(user) = self
+            .users
+            .values_mut()
+            .find(|user| user.cold_wallet == Some(caller))
+        {
+            user.cold_wallet = None;
+        }
+    }
+
     pub fn voted_on_pending_proposal(&self, principal: Principal) -> bool {
         if let Some(user) = self.principal_to_user(principal) {
             self.proposals.iter().any(|proposal| {
@@ -328,17 +354,7 @@ impl State {
                 .filter(move |user| {
                     user.active_within_weeks(time, CONFIG.voting_power_activity_weeks)
                 })
-                .map(move |user| {
-                    (
-                        user.id,
-                        user.balance
-                            + user
-                                .cold_wallet
-                                .and_then(|principal| self.balances.get(&account(principal)))
-                                .copied()
-                                .unwrap_or_default(),
-                    )
-                }),
+                .map(move |user| (user.id, user.total_balance(self))),
         )
     }
 
@@ -945,14 +961,13 @@ impl State {
             .users
             .values()
             .flat_map(|user| user.mintable_tokens(self))
+            .filter(|(_, balance)| *balance > 0)
         {
             tokens_to_mint
                 .entry(user_id)
                 .and_modify(|balance| *balance += tokens)
                 .or_insert(tokens);
         }
-
-        tokens_to_mint.retain(|_, balance| *balance > 0);
 
         tokens_to_mint
     }
@@ -1475,7 +1490,7 @@ impl State {
             }
             let inactive = !user.active_within_weeks(now, CONFIG.inactivity_duration_weeks);
             if inactive || user.is_bot() {
-                user.clear_notifications(Vec::new())
+                user.inbox.clear();
             }
             if inactive && user.rewards() > 0 {
                 user.change_rewards(
@@ -1703,12 +1718,6 @@ impl State {
             }
             Ok(invoice)
         })
-    }
-
-    pub fn clear_notifications(&mut self, principal: Principal, ids: Vec<String>) {
-        if let Some(user) = self.principal_to_user_mut(principal) {
-            user.clear_notifications(ids)
-        }
     }
 
     pub fn validate_username(&self, name: &str) -> Result<(), String> {
@@ -2513,6 +2522,46 @@ pub(crate) mod tests {
         u.change_rewards(25, "");
         u.take_positive_rewards();
         id
+    }
+
+    #[test]
+    fn test_active_voting_power() {
+        STATE.with(|cell| {
+            cell.replace(Default::default());
+            let state = &mut *cell.borrow_mut();
+
+            for i in 0..3 {
+                create_user(state, pr(i));
+                insert_balance(state, pr(i), (((i + 1) as u64) << 2) * 10000);
+            }
+
+            let voters = state.active_voters(0).collect::<BTreeMap<_, _>>();
+            assert_eq!(*voters.get(&0).unwrap(), (1 << 2) * 10000);
+            assert_eq!(*voters.get(&1).unwrap(), (2 << 2) * 10000);
+            assert_eq!(*voters.get(&2).unwrap(), (3 << 2) * 10000);
+
+            // link cold wallet
+            let cold_balance = 1000000;
+            insert_balance(state, pr(200), cold_balance);
+            state.link_cold_wallet(pr(200), 1).unwrap();
+            assert_eq!(
+                state.link_cold_wallet(pr(200), 0),
+                Err("this wallet is linked already".into())
+            );
+            let voters = state.active_voters(0).collect::<BTreeMap<_, _>>();
+            assert_eq!(*voters.get(&1).unwrap(), (2 << 2) * 10000 + cold_balance);
+
+            state.unlink_cold_wallet(pr(200));
+            let voters = state.active_voters(0).collect::<BTreeMap<_, _>>();
+            assert_eq!(*voters.get(&1).unwrap(), (2 << 2) * 10000);
+
+            // check user acitivity
+            let now = 4 * WEEK;
+            state.principal_to_user_mut(pr(1)).unwrap().last_activity = now;
+            let voters = state.active_voters(now).collect::<BTreeMap<_, _>>();
+            assert_eq!(voters.len(), 1);
+            assert_eq!(*voters.get(&1).unwrap(), (2 << 2) * 10000);
+        })
     }
 
     #[test]

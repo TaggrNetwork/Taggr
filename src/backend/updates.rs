@@ -127,34 +127,21 @@ fn vote_on_report() {
 fn clear_notifications() {
     mutate(|state| {
         let ids: Vec<String> = parse(&arg_data_raw());
-        state.clear_notifications(caller(), ids);
+        if let Some(user) = state.principal_to_user_mut(caller()) {
+            user.clear_notifications(ids)
+        }
         reply_raw(&[]);
     })
 }
 
 #[update]
 fn link_cold_wallet(user_id: UserId) -> Result<(), String> {
-    mutate(|state| {
-        let user = state.users.get_mut(&user_id).ok_or("no user found")?;
-        if user.cold_wallet.is_some() {
-            return Err("this user has already a cold wallet".into());
-        }
-        user.cold_wallet = Some(caller());
-        Ok(())
-    })
+    mutate(|state| state.link_cold_wallet(caller(), user_id))
 }
 
 #[update]
 fn unlink_cold_wallet() {
-    mutate(|state| {
-        if let Some(user) = state
-            .users
-            .values_mut()
-            .find(|user| user.cold_wallet == Some(caller()))
-        {
-            user.cold_wallet = None;
-        }
-    })
+    mutate(|state| state.unlink_cold_wallet(caller()))
 }
 
 #[export_name = "canister_update withdraw_rewards"]
@@ -607,7 +594,7 @@ fn confirm_emergency_release() {
     mutate(|state| {
         let principal = caller();
         if let Some(balance) = state
-            .principal_to_user(caller())
+            .principal_to_user(principal)
             .map(|user| user.total_balance(state))
         {
             let hash: String = parse(&arg_data_raw());
