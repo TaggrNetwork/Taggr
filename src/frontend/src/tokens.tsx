@@ -24,6 +24,8 @@ type Balances = [Account, number, UserId][];
 
 export const Tokens = () => {
     const [status, setStatus] = React.useState(0);
+    const [rewards, setRewards] = React.useState<[UserId, number][]>([]);
+    const [showAllRewards, setShowAllRewards] = React.useState(false);
     const [timer, setTimer] = React.useState<any>(null);
     const [searchValue, setSearchValue] = React.useState("");
     const [query, setQuery] = React.useState("");
@@ -32,7 +34,11 @@ export const Tokens = () => {
     const [holder, setHolder] = React.useState(-1);
 
     const loadBalances = async () => {
-        const balances = await window.api.query<Balances>("balances");
+        const [balances, rewards] = await Promise.all([
+            window.api.query<Balances>("balances"),
+            window.api.query<[UserId, number][]>("tokens_to_mint"),
+        ]);
+
         if (!balances || balances.length == 0) {
             setStatus(-1);
             return;
@@ -40,6 +46,11 @@ export const Tokens = () => {
         setStatus(1);
         balances.sort((a, b) => Number(b[1]) - Number(a[1]));
         setBalances(balances);
+        if (!rewards) return;
+        rewards.sort(
+            ([_id, balance1], [_id2, balance2]) => balance2 - balance1,
+        );
+        setRewards(rewards);
     };
 
     React.useEffect(() => {
@@ -213,6 +224,33 @@ export const Tokens = () => {
                     </tbody>
                 </table>
                 <MoreButton callback={async () => setBalPage(balPage + 1)} />
+                <hr />
+                <div>
+                    <h2>
+                        UPCOMING MINTING (
+                        {token(rewards.reduce((acc, [_, val]) => acc + val, 0))}
+                        )
+                    </h2>
+                    <div
+                        className={`dynamic_table ${
+                            bigScreen() ? "" : "tripple"
+                        } bottom_spaced`}
+                    >
+                        {(showAllRewards ? rewards : rewards.slice(0, 24)).map(
+                            ([userId, tokens]) => (
+                                <div key={userId} className="db_cell">
+                                    <UserLink id={userId} />
+                                    <code>{token(tokens)}</code>
+                                </div>
+                            ),
+                        )}
+                    </div>
+                    {!showAllRewards && (
+                        <MoreButton
+                            callback={async () => setShowAllRewards(true)}
+                        />
+                    )}
+                </div>
                 <hr />
                 <h2>Latest transactions</h2>
                 <div className="row_container">

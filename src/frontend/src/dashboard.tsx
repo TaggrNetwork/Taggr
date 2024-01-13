@@ -9,10 +9,6 @@ import {
     icpCode,
     IcpAccountLink,
     XDR_TO_USD,
-    token,
-    UserLink,
-    MoreButton,
-    bigScreen,
 } from "./common";
 import { Content } from "./content";
 import {
@@ -34,7 +30,6 @@ import {
     Treasury,
     User,
 } from "./icons";
-import { UserId } from "./types";
 
 const show = (val: number | BigInt, unit?: string, unit_position?: string) => (
     <code>
@@ -54,8 +49,6 @@ const TAB_KEY = "logs_tab";
 
 export const Dashboard = ({}) => {
     const [logs, setLogs] = React.useState<Log[]>([]);
-    const [rewards, setRewards] = React.useState<[UserId, number][]>([]);
-    const [showAllRewards, setShowAllRewards] = React.useState(false);
     const [tab, setTab] = React.useState(
         Number(localStorage.getItem(TAB_KEY)) || 0,
     );
@@ -66,15 +59,6 @@ export const Dashboard = ({}) => {
             logs.reverse();
             setLogs(logs);
         });
-        window.api
-            .query<[UserId, number][]>("tokens_to_mint")
-            .then((rewards) => {
-                if (!rewards) return;
-                rewards.sort(
-                    ([_id, balance1], [_id2, balance2]) => balance2 - balance1,
-                );
-                setRewards(rewards);
-            });
     }, []);
 
     const logSelector = (
@@ -276,33 +260,6 @@ export const Dashboard = ({}) => {
                 <div>
                     <h2>STALWARTS</h2>
                     {userList(stats.stalwarts)}
-                </div>
-                <hr />
-                <div>
-                    <h2>
-                        UPCOMING MINTING (
-                        {token(rewards.reduce((acc, [_, val]) => acc + val, 0))}
-                        )
-                    </h2>
-                    <div
-                        className={`dynamic_table ${
-                            bigScreen() ? "" : "tripple"
-                        } bottom_spaced`}
-                    >
-                        {(showAllRewards ? rewards : rewards.slice(0, 24)).map(
-                            ([userId, tokens]) => (
-                                <div key={userId} className="db_cell">
-                                    <UserLink id={userId} />
-                                    <code>{token(tokens)}</code>
-                                </div>
-                            ),
-                        )}
-                    </div>
-                    {!showAllRewards && (
-                        <MoreButton
-                            callback={async () => setShowAllRewards(true)}
-                        />
-                    )}
                 </div>
                 <hr />
                 {logSelector}

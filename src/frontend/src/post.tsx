@@ -725,7 +725,7 @@ const PostInfo = ({
                                     <code>
                                         {tokens(Number(tip), token_decimals)}
                                     </code>{" "}
-                                    from {<UserLink id={id} />}
+                                    from {<UserLink id={id} profile={true} />}
                                 </span>
                             )),
                         )}
@@ -742,7 +742,11 @@ const PostInfo = ({
                                     {reaction2icon(Number(reactId))}{" "}
                                     {commaSeparated(
                                         users.map((id) => (
-                                            <UserLink key={id} id={id} />
+                                            <UserLink
+                                                key={id}
+                                                id={id}
+                                                profile={true}
+                                            />
                                         )),
                                     )}
                                 </div>

@@ -272,9 +272,12 @@ button:active {
     filter: brightness(150%);
 }
 
+.breakable {
+    word-break: break-all;
+}
+
 code {
     color: $code;
-    word-break: break-all;
 }
 
 pre {

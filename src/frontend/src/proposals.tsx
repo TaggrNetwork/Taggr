@@ -472,7 +472,7 @@ export const ProposalView = ({
                         <div className="row_container bottom_half_spaced">
                             COMMIT:
                             <a
-                                className="left_half_spaced"
+                                className="left_half_spaced breakable"
                                 href={
                                     open
                                         ? REPO_RELEASE
@@ -486,7 +486,9 @@ export const ProposalView = ({
                     {!open && (
                         <div className="row_container">
                             <span>HASH:</span>
-                            <code className="left_spaced">{hash}</code>
+                            <code className="left_half_spaced breakable">
+                                {hash}
+                            </code>
                         </div>
                     )}
                 </div>
