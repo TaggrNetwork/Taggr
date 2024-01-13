@@ -69,7 +69,20 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    mutate(|state| {
+        // Refund cycles to user 590 https://taggr.link/#/thread/82803
+        let msg = "refund after lost credits due to a bug";
+        let amount = 10000;
+        state.spend(amount, msg);
+        state
+            .users
+            .get_mut(&590)
+            .unwrap()
+            .change_credits(amount, user::CreditsDelta::Plus, msg)
+            .unwrap();
+    })
+}
 
 /*
  * UPDATES
