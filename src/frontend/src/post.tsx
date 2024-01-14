@@ -78,6 +78,7 @@ export const PostView = ({
 }) => {
     const [post, setPost] = React.useState(data);
     const [notFound, setNotFound] = React.useState(false);
+    const [hidden, setHidden] = React.useState(false);
     const [blobs, setBlobs] = React.useState({});
     const [showComments, toggleComments] = React.useState(
         !isFeedItem && !repost,
@@ -286,6 +287,8 @@ export const PostView = ({
 
     const showExtension = !isNSFW && post.extension && !repost;
 
+    if (hidden) return null;
+
     return (
         <div
             ref={(post) => {
@@ -439,6 +442,7 @@ export const PostView = ({
                         versionSpecified={versionSpecified}
                         postCreated={postCreated}
                         callback={async () => await loadData()}
+                        realmMoveOutCallback={() => setHidden(true)}
                     />
                 </div>
             )}
@@ -466,11 +470,13 @@ const PostInfo = ({
     postCreated,
     callback,
     versionSpecified,
+    realmMoveOutCallback,
 }: {
     post: Post;
     version?: number;
     postCreated: BigInt;
     callback: () => Promise<void>;
+    realmMoveOutCallback: () => void;
     versionSpecified?: boolean;
 }) => {
     const postAuthor = window.user?.id == post.userObject.id;
@@ -576,15 +582,13 @@ const PostInfo = ({
                                 onClick={async () => {
                                     const reason = prompt(
                                         "Please specify the reason for moving the post out of its realm.",
+                                        "rules violation",
                                     );
-                                    if (!reason) return;
-                                    await window.api.call(
+                                    realmMoveOutCallback();
+                                    window.api.call(
                                         "realm_clean_up",
                                         post.id,
                                         reason,
-                                    );
-                                    alert(
-                                        "This post was removed from this realm.",
                                     );
                                 }}
                                 label={<Close />}

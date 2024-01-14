@@ -415,10 +415,6 @@ hr {
     opacity: 0.3;
 }
 
-.subtle {
-    opacity: 0.75;
-}
-
 .selected {
     background: $selected_background;
     border-radius: 10px;

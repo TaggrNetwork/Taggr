@@ -502,9 +502,20 @@ impl Post {
                 value => value,
             },
         };
-        if let Some(name) = &realm {
-            if parent.is_none() && !user.realms.contains(name) {
-                return Err(format!("not a member of the realm {}", name));
+        if let Some(realm_id) = &realm {
+            if parent.is_none() && !user.realms.contains(realm_id) {
+                return Err(format!("not a member of the realm {}", realm_id));
+            }
+            if let Some(realm) = state.realms.get(realm_id) {
+                let whitelist = &realm.whitelist;
+                if !whitelist.is_empty() && !whitelist.contains(&user.id)
+                    || whitelist.is_empty() && !user.matches(&realm.filter, time())
+                {
+                    return Err(format!(
+                        "{} realm is gated and you are not allowed to post to this realm",
+                        realm_id
+                    ));
+                }
             }
         }
         let user_id = user.id;

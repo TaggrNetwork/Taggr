@@ -15,7 +15,7 @@ import {
 import { Content } from "./content";
 import { Close } from "./icons";
 import { getTheme, setRealmUI } from "./theme";
-import { Realm, Theme, UserId } from "./types";
+import { Realm, Theme, UserFilter, UserId } from "./types";
 
 export const RealmForm = ({ existingName }: { existingName?: string }) => {
     const editing = !!existingName;
@@ -23,7 +23,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
     const name2Id = Object.keys(users).reduce(
         (acc, idStr) => {
             let id = parseInt(idStr);
-            acc[users[id]] = id;
+            acc[users[id].toLowerCase()] = id;
             return acc;
         },
         {} as { [name: string]: UserId },
@@ -35,10 +35,19 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
     const [labelColor, setLabelColor] = React.useState("");
     const [description, setDescription] = React.useState("");
     const [theme, setTheme] = React.useState<Theme>();
+    const [cleanUpPenalty, setCleanUpPenalty] = React.useState(10);
+    const [userFilter, setUserFilter] = React.useState<UserFilter>({
+        safe: false,
+        age_days: 0,
+        num_posts: 0,
+        balance: 0,
+    });
     const [controllersString, setControllersString] = React.useState(
         users[userId],
     );
     const [controllers, setControllers] = React.useState<UserId[]>([userId]);
+    const [whitelistString, setWhitelistString] = React.useState("");
+    const [whitelist, setWhitelist] = React.useState<UserId[]>([]);
 
     const loadRealm = async () => {
         let result = await window.api.query<any>("realm", existingName);
@@ -50,8 +59,12 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         if (existingName) setName(existingName);
         setDescription(realm.description);
         setControllers(realm.controllers);
+        setCleanUpPenalty(realm.cleanup_penalty);
         if (realm.theme) setTheme(JSON.parse(realm.theme));
         setLabelColor(realm.label_color || "#ffffff");
+        setWhitelistString(realm.whitelist.map((id) => users[id]).join(", "));
+        setWhitelist(realm.whitelist);
+        setUserFilter(realm.filter);
         setControllersString(
             realm.controllers.map((id) => users[id]).join(", "),
         );
@@ -73,14 +86,14 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                     />
                 )}
                 <span className="max_width_col">
-                    {editing ? "EDIT" : "CREATE"} REALM
+                    {editing ? "Edit realm " + name : "Create a realm"}
                 </span>
             </h2>
             <div className="column_container">
                 {editing && (
                     <div className="column_container bottom_spaced">
                         <div className="bottom_half_spaced">
-                            LOGO (
+                            Logo (
                             {`${
                                 window.backendCache.config.max_realm_logo_len /
                                 1024
@@ -153,7 +166,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                     </div>
                 )}
                 <div className="bottom_spaced" style={{ position: "relative" }}>
-                    LABEL COLOR
+                    Label Color
                     <br />
                     <input
                         type="color"
@@ -167,7 +180,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                     />
                 </div>
                 <div className="column_container bottom_spaced">
-                    <div className="bottom_half_spaced">DESCRIPTION</div>
+                    <div className="bottom_half_spaced">Description</div>
                     <textarea
                         data-testid="realm-textarea"
                         rows={10}
@@ -184,7 +197,20 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                 </div>
                 <div className="column_container bottom_spaced">
                     <div className="bottom_half_spaced">
-                        REALM CONTROLLERS (COMMA-SEPARATED)
+                        Realm clean-up penalty (credits)
+                    </div>
+                    <input
+                        type="number"
+                        value={cleanUpPenalty}
+                        onChange={(e) =>
+                            setCleanUpPenalty(Number(e.target.value))
+                        }
+                        id="own_theme"
+                    />
+                </div>
+                <div className="column_container bottom_spaced">
+                    <div className="bottom_half_spaced">
+                        Realm Controllers (comma-separated)
                     </div>
                     <input
                         type="text"
@@ -194,21 +220,138 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             const ids = input
                                 .split(",")
                                 .map(
-                                    (id) => name2Id[id.replace("@", "").trim()],
+                                    (id) =>
+                                        name2Id[
+                                            id
+                                                .replace("@", "")
+                                                .trim()
+                                                .toLowerCase()
+                                        ],
                                 )
                                 .filter((n) => !isNaN(n));
                             setControllersString(input);
                             setControllers(ids);
                         }}
                     />
-                </div>
-                {controllers.length > 0 && (
-                    <div className="column_container bottom_spaced">
-                        <div className="bottom_half_spaced">
-                            VALID CONTROLLERS: {userList(controllers)}
+                    {controllers.length > 0 && (
+                        <div className="column_container bottom_spaced">
+                            <div className="bottom_half_spaced">
+                                Recognized users: {userList(controllers)}
+                            </div>
                         </div>
+                    )}
+                </div>
+                <hr />
+                <h2>Realm contributor settings</h2>
+                <div className="column_container bottom_spaced">
+                    <div className="bottom_half_spaced">
+                        Only white listed users (comma-separated)
                     </div>
+                    <input
+                        type="text"
+                        value={whitelistString}
+                        onChange={(event) => {
+                            const input = event.target.value;
+                            const whitelist = input
+                                .split(",")
+                                .map(
+                                    (id) =>
+                                        name2Id[
+                                            id
+                                                .replace("@", "")
+                                                .trim()
+                                                .toLowerCase()
+                                        ],
+                                )
+                                .filter((n) => !isNaN(n));
+                            setWhitelistString(input);
+                            setWhitelist(whitelist);
+                        }}
+                    />
+                    {whitelist.length > 0 && (
+                        <div className="column_container bottom_spaced">
+                            <div className="bottom_half_spaced">
+                                Recognized users: {userList(whitelist)}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {whitelist.length == 0 && (
+                    <>
+                        <div className="column_container bottom_spaced">
+                            <div className="vcentered">
+                                <input
+                                    type="checkbox"
+                                    checked={userFilter.safe}
+                                    onChange={() => {
+                                        userFilter.safe = !userFilter.safe;
+                                        setUserFilter({ ...userFilter });
+                                    }}
+                                    id="own_theme"
+                                />
+                                <label
+                                    className="left_half_spaced"
+                                    htmlFor="own_theme"
+                                >
+                                    Non-controversial users (without reports and
+                                    many downvotes)
+                                </label>
+                            </div>
+                        </div>
+                        <div className="column_container bottom_spaced">
+                            <div className="bottom_half_spaced">
+                                Minimal{" "}
+                                {window.backendCache.config.token_symbol}{" "}
+                                balance:
+                            </div>
+                            <input
+                                type="number"
+                                value={userFilter.balance}
+                                onChange={(e) => {
+                                    userFilter.balance = Number(e.target.value);
+                                    setUserFilter({ ...userFilter });
+                                }}
+                                id="own_theme"
+                            />
+                        </div>
+                        <div className="column_container bottom_spaced">
+                            <div className="bottom_half_spaced">
+                                Minimal account age (days):
+                            </div>
+                            <input
+                                type="number"
+                                value={userFilter.age_days}
+                                onChange={(e) => {
+                                    userFilter.age_days = Number(
+                                        e.target.value,
+                                    );
+                                    setUserFilter({ ...userFilter });
+                                }}
+                                id="own_theme"
+                            />
+                        </div>
+                        <div className="column_container bottom_spaced">
+                            <div className="bottom_half_spaced">
+                                Minimal number of posts on{" "}
+                                {window.backendCache.config.name}:
+                            </div>
+                            <input
+                                type="number"
+                                value={userFilter.num_posts}
+                                onChange={(e) => {
+                                    userFilter.num_posts = Number(
+                                        e.target.value,
+                                    );
+                                    setUserFilter({ ...userFilter });
+                                }}
+                                id="own_theme"
+                            />
+                        </div>
+                    </>
                 )}
+                <hr />
+
                 <h2>Color Theme</h2>
                 <div className="vcentered">
                     <input
@@ -305,6 +448,9 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             theme ? JSON.stringify(theme) : "",
                             description,
                             controllers,
+                            whitelist,
+                            userFilter,
+                            cleanUpPenalty,
                         );
                         if ("Err" in response) {
                             alert(`Error: ${response.Err}`);
@@ -359,7 +505,10 @@ export const RealmHeader = ({ name }: { name: string }) => {
         <>
             <HeadBar
                 title={
-                    <div className="vcentered max_width_col">
+                    <div
+                        className="vcentered max_width_col clickable"
+                        onClick={() => (location.href = `#/realm/${name}`)}
+                    >
                         {realm && realm.logo && (
                             <img
                                 alt="Logo"
@@ -436,7 +585,8 @@ export const RealmHeader = ({ name }: { name: string }) => {
                                                 `By joining the realm ${name} you confirm that you understand its description ` +
                                                     `and agree with all terms and conditions mentioned there. ` +
                                                     `Any rule violation can lead to a moderation by stalwarts or ` +
-                                                    `moving out of the post with penalty of ${window.backendCache.config.realm_cleanup_penalty} points.`,
+                                                    `to realm controllers moving the post out of the realm which incurs ` +
+                                                    `a penalty of ${realm.cleanup_penalty} credits and reward points.`,
                                             )
                                         )
                                             return;
@@ -564,7 +714,10 @@ export const Realms = () => {
                         return (
                             <div
                                 key={name}
-                                className="stands_out"
+                                onClick={() => {
+                                    location.href = `#/realm/${name}`;
+                                }}
+                                className="stands_out clickable"
                                 style={{ position: "relative" }}
                             >
                                 <RealmSpan
@@ -580,9 +733,7 @@ export const Realms = () => {
                                             src={`data:image/png;base64, ${realm.logo}`}
                                         />
                                     )}
-                                    <span className="max_width_col">
-                                        <a href={`/#/realm/${name}`}>{name}</a>
-                                    </span>
+                                    {name}
                                 </h3>
                                 <Content
                                     value={realm.description.split("\n")[0]}

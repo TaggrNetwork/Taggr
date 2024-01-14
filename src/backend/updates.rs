@@ -1,3 +1,5 @@
+use crate::env::user::UserFilter;
+
 use super::*;
 use env::{
     canisters::get_full_neuron,
@@ -95,6 +97,10 @@ async fn post_upgrade_fixtures() {
             .unwrap()
             .change_credits(amount, user::CreditsDelta::Plus, msg)
             .unwrap();
+
+        for realm in state.realms.values_mut() {
+            realm.cleanup_penalty = 10;
+        }
     })
 }
 
@@ -516,13 +522,26 @@ fn toggle_following_feed() {
 #[export_name = "canister_update edit_realm"]
 fn edit_realm() {
     mutate(|state| {
-        let (id, logo, label_color, theme, description, controllers): (
+        let (
+            id,
+            logo,
+            label_color,
+            theme,
+            description,
+            controllers,
+            whitelist,
+            user_filter,
+            cleanup_penalty,
+        ): (
             RealmId,
             String,
             String,
             String,
             String,
             BTreeSet<UserId>,
+            BTreeSet<UserId>,
+            UserFilter,
+            Credits,
         ) = parse(&arg_data_raw());
         reply(state.edit_realm(
             caller(),
@@ -532,6 +551,9 @@ fn edit_realm() {
             theme,
             description,
             controllers,
+            whitelist,
+            user_filter,
+            cleanup_penalty,
         ))
     })
 }
@@ -547,13 +569,26 @@ fn realm_clean_up() {
 #[export_name = "canister_update create_realm"]
 fn create_realm() {
     mutate(|state| {
-        let (name, logo, label_color, theme, description, controllers): (
+        let (
+            name,
+            logo,
+            label_color,
+            theme,
+            description,
+            controllers,
+            whitelist,
+            user_filter,
+            cleanup_penalty,
+        ): (
             String,
             String,
             String,
             String,
             String,
             BTreeSet<UserId>,
+            BTreeSet<UserId>,
+            UserFilter,
+            Credits,
         ) = parse(&arg_data_raw());
         reply(state.create_realm(
             caller(),
@@ -563,6 +598,9 @@ fn create_realm() {
             theme,
             description,
             controllers,
+            whitelist,
+            user_filter,
+            cleanup_penalty,
         ))
     })
 }

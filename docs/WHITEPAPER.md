@@ -52,7 +52,7 @@ Realms are sub-communities centered around specific topics.
 Each realm can establish its own terms and conditions, breaching which can lead to:
 
 -   Flagging of the user's post to stalwarts.
--   Removal of the post from the realm, incurring a penalty of `$realm_cleanup_penalty` credits.
+-   Moving the post from a realm by the realm controller, incurring penalties.
 
 Upon joining a realm, users implicitly agree to its terms and conditions.
 

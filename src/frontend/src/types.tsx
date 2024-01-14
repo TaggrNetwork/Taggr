@@ -71,6 +71,7 @@ export type Proposal = {
 };
 
 export type Realm = {
+    cleanup_penalty: number;
     description: string;
     controllers: UserId[];
     theme: string;
@@ -79,6 +80,8 @@ export type Realm = {
     num_posts: number;
     num_members: number;
     last_update: number;
+    whitelist: UserId[];
+    filter: UserFilter;
 };
 
 export type Post = {
@@ -153,6 +156,13 @@ export type Notification =
     | {
           ["NewPost"]: [string, PostId];
       };
+
+export type UserFilter = {
+    age_days: number;
+    num_posts: number;
+    safe: boolean;
+    balance: number;
+};
 
 export type User = {
     name: string;
@@ -272,7 +282,6 @@ declare global {
                 max_post_length: number;
                 max_blob_size_bytes: number;
                 name_change_cost: number;
-                realm_cleanup_penalty: number;
                 max_realm_name: number;
                 max_realm_logo_len: number;
                 post_cost: number;

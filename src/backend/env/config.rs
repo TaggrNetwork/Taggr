@@ -50,6 +50,8 @@ pub struct Config {
 
     pub dao_realm: &'static str,
 
+    pub max_realm_cleanup_penalty: Credits,
+
     pub realm_revenue_percentage: u32,
 
     pub min_cycle_balance_main: u64,
@@ -80,8 +82,6 @@ pub struct Config {
 
     pub max_realm_name: usize,
     pub max_realm_logo_len: usize,
-
-    pub realm_cleanup_penalty: Credits,
 
     pub response_reward: Credits,
 
@@ -217,7 +217,7 @@ pub const CONFIG: &Config = &Config {
 
     minimal_tip: 1,
 
-    realm_cleanup_penalty: 10,
+    max_realm_cleanup_penalty: 500,
 
     max_bucket_size: 1024 * 1024 * 1024 * 48, // 48Gb
 
@@ -245,7 +245,7 @@ pub const CONFIG: &Config = &Config {
 
     name_change_cost: 1000,
 
-    max_realm_name: 20,
+    max_realm_name: 25,
     max_realm_logo_len: 16 * 1024,
 
     post_deletion_penalty_factor: 10,

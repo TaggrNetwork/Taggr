@@ -80,11 +80,7 @@ export const Header = ({
                     !
                 </div>
             )}
-            <header
-                className={`spaced top_half_spaced vcentered ${
-                    subtle ? "subtle" : ""
-                }`}
-            >
+            <header className="spaced top_half_spaced vcentered">
                 {!["/", "#/", ""].includes(location.hash) && (
                     <span
                         className="clickable_color clickable right_half_spaced left_half_spaced"

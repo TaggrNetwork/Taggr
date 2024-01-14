@@ -41,6 +41,14 @@ pub struct Draft {
     pub blobs: Vec<(String, Blob)>,
 }
 
+#[derive(Default, Serialize, Deserialize)]
+pub struct UserFilter {
+    age_days: u64,
+    num_posts: u64,
+    safe: bool,
+    balance: Token,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: UserId,
@@ -83,6 +91,19 @@ pub struct User {
 }
 
 impl User {
+    pub fn matches(&self, filter: &UserFilter, time: Time) -> bool {
+        let UserFilter {
+            age_days,
+            num_posts,
+            safe,
+            balance,
+        } = filter;
+        self.timestamp + age_days * DAY <= time
+            && self.num_posts >= *num_posts
+            && (!safe || self.report.is_none() && self.rewards >= 0)
+            && self.balance / token::base() >= *balance
+    }
+
     pub fn new(principal: Principal, id: UserId, timestamp: u64, name: String) -> Self {
         Self {
             id,
@@ -512,6 +533,14 @@ mod tests {
     use super::*;
     use crate::env::tests::pr;
     use crate::tests::{create_user, insert_balance};
+
+    #[test]
+    fn test_user_filters() {
+        let filter = UserFilter::default();
+        let user = User::new(pr(0), 0, 0, "test".into());
+
+        assert!(user.matches(&filter, 1));
+    }
 
     #[test]
     // check that we cannot donate more tokens than rewards / ratio even if the balance would allow

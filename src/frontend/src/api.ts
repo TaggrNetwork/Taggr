@@ -33,6 +33,9 @@ export type Backend = {
         arg3?: unknown,
         arg4?: unknown,
         arg5?: unknown,
+        arg6?: unknown,
+        arg7?: unknown,
+        arg8?: unknown,
     ) => Promise<T | null>;
 
     set_emergency_release: (blob: Uint8Array) => Promise<JsonValue | null>;
@@ -172,8 +175,21 @@ export const ApiGenerator = (
         arg3?: unknown,
         arg4?: unknown,
         arg5?: unknown,
+        arg6?: unknown,
+        arg7?: unknown,
+        arg8?: unknown,
     ): Promise<T | null> => {
-        const effParams = getEffParams([arg0, arg1, arg2, arg3, arg4, arg5]);
+        const effParams = getEffParams([
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+            arg5,
+            arg6,
+            arg7,
+            arg8,
+        ]);
         const responseBytes = await call_raw(
             undefined,
             methodName,

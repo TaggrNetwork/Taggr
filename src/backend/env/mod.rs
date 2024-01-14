@@ -4,7 +4,7 @@ use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
 use self::proposals::{Payload, Status};
 use self::reports::Report;
 use self::token::{account, TransferArgs};
-use self::user::{Filters, Notification, Predicate};
+use self::user::{Filters, Notification, Predicate, UserFilter};
 use crate::assets::export_token_supply;
 use crate::env::invoices::principal_to_subaccount;
 use crate::env::user::CreditsDelta;
@@ -100,6 +100,7 @@ pub struct Stats {
 
 pub type RealmId = String;
 
+// TODO: move out settings into a separate object
 #[derive(Default, Serialize, Deserialize)]
 pub struct Realm {
     logo: String,
@@ -110,8 +111,13 @@ pub struct Realm {
     pub num_posts: u64,
     pub num_members: u64,
     pub last_update: u64,
-    #[serde(default)]
     pub revenue: Credits,
+    #[serde(default)]
+    filter: UserFilter,
+    #[serde(default)]
+    whitelist: BTreeSet<UserId>,
+    #[serde(default)]
+    pub cleanup_penalty: Credits,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -326,30 +332,25 @@ impl State {
         if post.parent.is_some() {
             return Err("only root posts can be moved out of realms".into());
         }
-        let realm = post.realm.as_ref().cloned().ok_or("no realm id found")?;
+        let realm_id = post.realm.as_ref().cloned().ok_or("no realm id found")?;
+        let realm = self.realms.get(&realm_id).ok_or("no realm found")?;
         let post_user = post.user;
-        if !post
-            .realm
-            .as_ref()
-            .and_then(|realm_id| self.realms.get(realm_id))
-            .map(|realm| realm.controllers.contains(&controller))
-            .unwrap_or_default()
-        {
+        if !realm.controllers.contains(&controller) {
             return Err("only realm controller can clean up".into());
         }
         let user = self.users.get_mut(&post_user).ok_or("no user found")?;
         let msg = format!(
             "post {} was moved out of realm /{}: {}",
-            post_id, realm, reason
+            post_id, realm_id, reason
         );
-        user.change_rewards(-(CONFIG.realm_cleanup_penalty as i64), &msg);
+        user.change_rewards(-(realm.cleanup_penalty as i64), &msg);
         let user_id = user.id;
-        let penalty = CONFIG.realm_cleanup_penalty.min(user.credits());
+        let penalty = realm.cleanup_penalty.min(user.credits());
         // if user has no credits left, ignore the error
         let _ = self.charge(user_id, penalty, msg);
         post::change_realm(self, post_id, None);
         self.realms
-            .get_mut(&realm)
+            .get_mut(&realm_id)
             .expect("no realm found")
             .num_posts -= 1;
         Ok(())
@@ -539,27 +540,28 @@ impl State {
     }
 
     pub fn toggle_realm_membership(&mut self, principal: Principal, name: String) -> bool {
-        if !self.realms.contains_key(&name) {
-            return false;
-        }
-        let user = match self.principal_to_user_mut(principal) {
-            Some(user) => user,
+        let user_id = match self.principal_to_user(principal) {
+            Some(user) => user.id,
             _ => return false,
         };
+
+        let Some(user) = self.users.get_mut(&user_id) else {
+            return false;
+        };
+
+        let Some(realm) = self.realms.get_mut(&name) else {
+            return false;
+        };
+
         if user.realms.contains(&name) {
             user.realms.retain(|realm| realm != &name);
-            self.realms
-                .get_mut(&name)
-                .expect("no realm found")
-                .num_members -= 1;
+            realm.num_members -= 1;
             return false;
         }
+
+        realm.num_members += 1;
         user.realms.push(name.clone());
         user.filters.realms.remove(&name);
-        self.realms
-            .get_mut(&name)
-            .expect("no realm found")
-            .num_members += 1;
         true
     }
 
@@ -573,6 +575,9 @@ impl State {
         theme: String,
         description: String,
         controllers: BTreeSet<UserId>,
+        whitelist: BTreeSet<UserId>,
+        user_filter: UserFilter,
+        cleanup_penalty: Credits,
     ) -> Result<(), String> {
         let user_id = self
             .principal_to_user_mut(principal)
@@ -592,6 +597,9 @@ impl State {
         realm.controllers = controllers;
         realm.label_color = label_color;
         realm.theme = theme;
+        realm.whitelist = whitelist;
+        realm.filter = user_filter;
+        realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty);
         Ok(())
     }
 
@@ -605,6 +613,9 @@ impl State {
         theme: String,
         description: String,
         controllers: BTreeSet<UserId>,
+        whitelist: BTreeSet<UserId>,
+        user_filter: UserFilter,
+        cleanup_penalty: Credits,
     ) -> Result<(), String> {
         if controllers.is_empty() {
             return Err("no controllers specified".into());
@@ -653,6 +664,9 @@ impl State {
                 controllers,
                 label_color,
                 theme,
+                whitelist,
+                filter: user_filter,
+                cleanup_penalty: CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty),
                 ..Default::default()
             },
         );
@@ -2501,6 +2515,21 @@ pub(crate) mod tests {
         Principal::from_slice(&v)
     }
 
+    fn create_realm(state: &mut State, user: Principal, name: String) -> Result<(), String> {
+        state.create_realm(
+            user,
+            name,
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            "Test description".into(),
+            vec![0].into_iter().collect(),
+            Default::default(),
+            Default::default(),
+            10,
+        )
+    }
+
     pub fn create_user(state: &mut State, p: Principal) -> UserId {
         create_user_with_params(state, p, &p.to_string().replace('-', ""), 1000)
     }
@@ -3000,6 +3029,54 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn test_realm_whitelist() {
+        STATE.with(|cell| {
+            cell.replace(Default::default());
+            let state = &mut *cell.borrow_mut();
+            create_user(state, pr(0));
+            create_user(state, pr(1));
+            create_user(state, pr(2));
+            let test_realm = Realm {
+                whitelist: vec![1].into_iter().collect(),
+                ..Default::default()
+            };
+            state.realms.insert("TEST".into(), test_realm);
+
+            // Joining of public realms should always work
+            for i in 0..2 {
+                state
+                    .principal_to_user_mut(pr(i))
+                    .unwrap()
+                    .realms
+                    .push("TEST".into());
+            }
+
+            // This should fail, because white list is set
+            for (i, result) in &[
+                (
+                    0,
+                    Err("TEST realm is gated and you are not allowed to post to this realm".into()),
+                ),
+                (1, Ok(0)),
+            ] {
+                assert_eq!(
+                    &Post::create(
+                        state,
+                        "test".to_string(),
+                        &[],
+                        pr(*i),
+                        WEEK,
+                        None,
+                        Some("TEST".into()),
+                        None,
+                    ),
+                    result
+                );
+            }
+        })
+    }
+
+    #[test]
     fn test_realm_revenue() {
         STATE.with(|cell| {
             cell.replace(Default::default());
@@ -3257,28 +3334,12 @@ pub(crate) mod tests {
 
             // simple creation and description change edge cases
             assert_eq!(
-                state.create_realm(
-                    pr(2),
-                    name.clone(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    description.clone(),
-                    controllers.clone()
-                ),
+                create_realm(state, pr(2), name.clone(),),
                 Err("no user found".to_string())
             );
 
             assert_eq!(
-                state.create_realm(
-                    p1,
-                    name.clone(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    description.clone(),
-                    controllers.clone()
-                ),
+                create_realm(state, p1, name.clone(),),
                 Err(
                     "couldn't charge 1000 credits for realm creation: not enough credits"
                         .to_string()
@@ -3286,14 +3347,10 @@ pub(crate) mod tests {
             );
 
             assert_eq!(
-                state.create_realm(
+                create_realm(
+                    state,
                     p0,
-                    "THIS_NAME_IS_TOO_LONG".to_string(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    description.clone(),
-                    controllers.clone()
+                    "THIS_NAME_IS_IMPOSSIBLY_LONG_AND_WILL_NOT_WORK".to_string()
                 ),
                 Err("realm name too long".to_string())
             );
@@ -3305,51 +3362,27 @@ pub(crate) mod tests {
                     Default::default(),
                     Default::default(),
                     Default::default(),
-                    description.clone(),
+                    description,
                     Default::default(),
+                    Default::default(),
+                    Default::default(),
+                    10
                 ),
                 Err("no controllers specified".to_string())
             );
 
             assert_eq!(
-                state.create_realm(
-                    p0,
-                    "TEST NAME".to_string(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    description.clone(),
-                    controllers.clone()
-                ),
+                create_realm(state, p0, "TEST NAME".to_string(),),
                 Err("realm name should be an alpha-numeric string".to_string(),)
             );
 
-            assert_eq!(
-                state.create_realm(
-                    p0,
-                    name.clone(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    description.clone(),
-                    controllers.clone()
-                ),
-                Ok(())
-            );
+            assert_eq!(create_realm(state, p0, name.clone(),), Ok(()));
 
             let user0 = state.users.get_mut(&_u0).unwrap();
             user0.change_credits(1000, CreditsDelta::Plus, "").unwrap();
 
             assert_eq!(
-                state.create_realm(
-                    p0,
-                    name.clone(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    description.clone(),
-                    controllers.clone()
-                ),
+                create_realm(state, p0, name.clone(),),
                 Err("realm name taken".to_string())
             );
 
@@ -3368,7 +3401,10 @@ pub(crate) mod tests {
                     Default::default(),
                     Default::default(),
                     new_description.clone(),
-                    Default::default()
+                    Default::default(),
+                    Default::default(),
+                    Default::default(),
+                    10
                 ),
                 Err("no controllers specified".to_string())
             );
@@ -3381,7 +3417,10 @@ pub(crate) mod tests {
                     Default::default(),
                     Default::default(),
                     new_description.clone(),
-                    controllers.clone()
+                    controllers.clone(),
+                    Default::default(),
+                    Default::default(),
+                    10,
                 ),
                 Err("no user found".to_string())
             );
@@ -3394,7 +3433,10 @@ pub(crate) mod tests {
                     Default::default(),
                     Default::default(),
                     new_description.clone(),
-                    controllers.clone()
+                    controllers.clone(),
+                    Default::default(),
+                    Default::default(),
+                    10
                 ),
                 Err("no realm found".to_string())
             );
@@ -3407,7 +3449,10 @@ pub(crate) mod tests {
                     Default::default(),
                     Default::default(),
                     new_description.clone(),
-                    controllers.clone()
+                    controllers.clone(),
+                    Default::default(),
+                    Default::default(),
+                    10
                 ),
                 Err("not authorized".to_string())
             );
@@ -3420,7 +3465,10 @@ pub(crate) mod tests {
                     Default::default(),
                     Default::default(),
                     new_description.clone(),
-                    controllers.clone()
+                    controllers,
+                    Default::default(),
+                    Default::default(),
+                    10
                 ),
                 Ok(())
             );
@@ -3553,18 +3601,7 @@ pub(crate) mod tests {
             // create a new realm
             let user0 = state.users.get_mut(&_u0).unwrap();
             user0.change_credits(1000, CreditsDelta::Plus, "").unwrap();
-            assert_eq!(
-                state.create_realm(
-                    p0,
-                    realm_name.clone(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    description,
-                    controllers
-                ),
-                Ok(())
-            );
+            assert_eq!(create_realm(state, p0, realm_name.clone(),), Ok(()));
 
             // we still can't post into it, because we didn't join
             assert_eq!(
@@ -3738,17 +3775,7 @@ pub(crate) mod tests {
             let p = pr(0);
             let post_author_id = create_user_with_credits(state, p, 2000);
 
-            assert!(state
-                .create_realm(
-                    p,
-                    "TESTREALM".into(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    vec![post_author_id].into_iter().collect(),
-                )
-                .is_ok());
+            assert!(create_realm(state, p, "TESTREALM".into(),).is_ok());
             state.toggle_realm_membership(p, "TESTREALM".into());
 
             let post_id = Post::create(
