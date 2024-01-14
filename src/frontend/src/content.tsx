@@ -263,14 +263,6 @@ const linkRenderer =
             if (matches) {
                 try {
                     const url = new URL(props.href);
-                    if (child == props.href.replace(/&amp;/g, "&")) {
-                        className = "external";
-                        label = url.hostname.toUpperCase();
-                        props.rel = "nofollow noopener noreferrer";
-                        props.target = "_blank";
-                    } else {
-                        label = child;
-                    }
 
                     // Internal links
                     if (
@@ -280,6 +272,14 @@ const linkRenderer =
                     ) {
                         let link = url.href.replace(url.origin + "/", "");
                         props.href = (link.startsWith("#") ? "" : "#/") + link;
+                        label = props.href.replace("#", "");
+                    } else if (child == props.href.replace(/&amp;/g, "&")) {
+                        className = "external";
+                        label = url.hostname.toUpperCase();
+                        props.rel = "nofollow noopener noreferrer";
+                        props.target = "_blank";
+                    } else {
+                        label = child;
                     }
                 } catch (e) {}
             }

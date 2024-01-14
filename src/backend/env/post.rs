@@ -463,31 +463,38 @@ impl Post {
             return Err("Bots can't create comments currently".into());
         }
 
-        let limit = if parent.is_none() {
-            CONFIG.max_posts_per_hour
-        } else {
-            CONFIG.max_comments_per_hour
-        } as usize;
+        if user
+            .posts(state, 0)
+            .filter(|post| {
+                parent.is_none()
+                    && post.parent.is_none()
+                    && post.timestamp() > timestamp.saturating_sub(DAY)
+            })
+            .count()
+            >= CONFIG.max_posts_per_day as usize
+        {
+            return Err(format!(
+                "not more than {} posts per day are allowed",
+                CONFIG.max_posts_per_day
+            ));
+        }
 
         if user
             .posts(state, 0)
             .filter(|post| {
-                !(parent.is_none() ^ post.parent.is_none())
+                parent.is_some()
+                    && post.parent.is_some()
                     && post.timestamp() > timestamp.saturating_sub(HOUR)
             })
             .count()
-            >= limit
+            >= CONFIG.max_comments_per_hour as usize
         {
             return Err(format!(
-                "not more than {} {} per hour are allowed",
-                limit,
-                if parent.is_none() {
-                    "posts"
-                } else {
-                    "comments"
-                }
+                "not more than {} comments per hour are allowed",
+                CONFIG.max_comments_per_hour,
             ));
         }
+
         let realm = match parent.and_then(|id| Post::get(state, &id)) {
             Some(parent) => parent.realm.clone(),
             None => match picked_realm {

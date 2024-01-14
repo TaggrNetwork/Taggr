@@ -56,7 +56,7 @@ pub struct Config {
 
     pub max_bucket_size: u64,
 
-    pub max_posts_per_hour: u8,
+    pub max_posts_per_day: u8,
     pub max_comments_per_hour: u8,
 
     pub feed_page_size: usize,
@@ -142,7 +142,6 @@ pub const CONFIG: &Config = &Config {
         "taggr.link",
         "taggr.network",
         "taggr.club",
-        "taggr.top",
         "taggr.blog",
         "taggr.wtf",
         "6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io",
@@ -223,10 +222,10 @@ pub const CONFIG: &Config = &Config {
     max_bucket_size: 1024 * 1024 * 1024 * 48, // 48Gb
 
     #[cfg(any(test, feature = "dev"))]
-    max_posts_per_hour: 150,
+    max_posts_per_day: 150,
     #[cfg(not(any(test, feature = "dev")))]
-    max_posts_per_hour: 5,
-    max_comments_per_hour: 30,
+    max_posts_per_day: 5,
+    max_comments_per_hour: 20,
 
     feed_page_size: 30,
 
