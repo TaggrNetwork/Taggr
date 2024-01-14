@@ -1,4 +1,6 @@
-use crate::env::token::account;
+use std::cmp::Reverse;
+
+use crate::env::token::{account, Token};
 
 use super::*;
 use candid::Principal;
@@ -20,6 +22,29 @@ use serde_bytes::ByteBuf;
 fn check_invite() {
     let code: String = parse(&arg_data_raw());
     read(|state| reply(state.invites.contains_key(&code)))
+}
+
+#[export_name = "canister_query donors"]
+fn donors() {
+    read(|state| {
+        let mut donors = state
+            .users
+            .values()
+            .map(|user| {
+                (
+                    user.id,
+                    user.mintable_tokens(state)
+                        .map(|(_, tokens)| tokens)
+                        .sum::<Token>(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        donors.sort_unstable_by_key(move |(_, tokens)| Reverse(*tokens));
+        donors.truncate(100);
+
+        reply(donors);
+    });
 }
 
 #[export_name = "canister_query balances"]

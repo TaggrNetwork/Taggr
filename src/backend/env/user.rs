@@ -439,9 +439,9 @@ impl User {
         })
     }
 
-    pub fn mintable_tokens(&self, state: &State) -> Vec<(UserId, Token)> {
+    pub fn mintable_tokens(&self, state: &State) -> Box<dyn Iterator<Item = (UserId, Token)> + '_> {
         if self.rewards < 0 {
-            return Default::default();
+            return Box::new(std::iter::empty());
         }
         let ratio = state.minting_ratio();
         let boostraping_mode =
@@ -498,15 +498,12 @@ impl User {
 
         let total = shares.iter().map(|(_, share)| share).sum::<u64>();
 
-        shares
-            .iter()
-            .map(|(user_id, share)| {
-                (
-                    *user_id,
-                    (*share as f32 / total as f32 * spendable_tokens as f32) as Token,
-                )
-            })
-            .collect()
+        Box::new(shares.into_iter().map(move |(user_id, share)| {
+            (
+                user_id,
+                (share as f32 / total as f32 * spendable_tokens as f32) as Token,
+            )
+        }))
     }
 }
 
@@ -544,7 +541,6 @@ mod tests {
             .unwrap()
             .clone()
             .mintable_tokens(state)
-            .into_iter()
             .collect::<BTreeMap<_, _>>();
         assert_eq!(mintable_tokens.len(), 4);
 
@@ -586,7 +582,6 @@ mod tests {
             .unwrap()
             .clone()
             .mintable_tokens(state)
-            .into_iter()
             .collect::<BTreeMap<_, _>>();
         assert_eq!(mintable_tokens.len(), 4);
 
