@@ -4,85 +4,9 @@ import { blobToUrl, timeAgo } from "./common";
 import remarkGfm from "remark-gfm";
 import { CarretDown } from "./icons";
 import { BlogTitle } from "./types";
+import { previewImg } from "./image_preview";
 
 export const CUT = "\n\n\n\n";
-
-// We need this becasue the native modulo function doesn't work on negative numbers as expected.
-function mod(n: number, m: number) {
-    return ((n % m) + m) % m;
-}
-
-const fadeInPicture = (pic: HTMLImageElement) => {
-    pic.className = "fadein";
-    setTimeout(() => (pic.className = ""), 150);
-};
-
-const previewImg = (
-    src: string,
-    id: string,
-    gallery: string[],
-    urls: { [id: string]: string },
-) => {
-    const preview = document.getElementById("preview");
-    if (!preview) return;
-    while (preview.hasChildNodes()) {
-        let firstChild = preview.firstChild;
-        if (firstChild) preview.removeChild(firstChild);
-    }
-    preview.style.display = "flex";
-    const pic = document.createElement("img");
-    pic.src = src;
-    pic.isMap = true;
-
-    const notGallery = !gallery || gallery.length == 1;
-
-    let slide = (next: boolean) => {
-        if (notGallery) return;
-        const pos = gallery.indexOf(id);
-        if (pos < 0) return;
-        const newId = gallery[mod(pos + (next ? 1 : -1), gallery.length)];
-        id = newId;
-        fadeInPicture(pic);
-        let src = urls[newId];
-        pic.src = src ? src : id;
-    };
-
-    pic.onclick = (event) => {
-        const next = pic.clientWidth / 2 < event.offsetX;
-        slide(next);
-    };
-    preview.appendChild(pic);
-    fadeInPicture(pic);
-
-    const closePreview = () => (preview.style.display = "none");
-
-    document.onscroll = closePreview;
-    preview.onclick = (event) => {
-        let target: any = event.target;
-        if (target?.id == "preview" || notGallery)
-            preview.style.display = "none";
-    };
-
-    if (notGallery) return;
-
-    const leftArrow = document.createElement("div");
-    leftArrow.className = "button left_arrow";
-    leftArrow.innerHTML = "&#8592;";
-    leftArrow.onclick = () => slide(false);
-    preview.appendChild(leftArrow);
-
-    const rightArrow = document.createElement("div");
-    rightArrow.className = "button right_arrow";
-    rightArrow.innerHTML = "&#8594;";
-    rightArrow.onclick = () => slide(true);
-    preview.appendChild(rightArrow);
-
-    const closeButton = document.createElement("div");
-    closeButton.className = "button close";
-    closeButton.innerHTML = "&#215;";
-    closeButton.onclick = closePreview;
-    preview.appendChild(closeButton);
-};
 
 const splitParagraphsAndPics = (
     elems: JSX.Element[],
