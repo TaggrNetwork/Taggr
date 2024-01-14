@@ -1506,7 +1506,6 @@ impl State {
                 .retain(|(time, _, _, _)| time + 2 * WEEK >= now);
             if user.active_within_weeks(now, 1) {
                 user.active_weeks += 1;
-                user.invites_budget = user.invites_budget.max(CONFIG.invites_budget_credits);
             } else {
                 user.active_weeks = 0;
             }
@@ -4046,7 +4045,6 @@ pub(crate) mod tests {
             let user = state.users.get_mut(&active_id).unwrap();
             assert_eq!(user.credits(), 300);
             assert_eq!(user.rewards(), 25);
-            assert_eq!(user.invites_budget, CONFIG.invites_budget_credits);
 
             // check karma budgets
             for (id, karma) in &[

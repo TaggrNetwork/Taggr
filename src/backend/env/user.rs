@@ -82,6 +82,7 @@ pub struct User {
     pub principal: Principal,
     pub report: Option<Report>,
     pub treasury_e8s: u64,
+    #[serde(skip)]
     pub invites_budget: Credits,
     #[serde(skip)]
     pub draft: Option<Draft>,

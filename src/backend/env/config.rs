@@ -103,7 +103,6 @@ pub struct Config {
     pub max_blob_size_bytes: usize,
 
     pub min_credits_for_inviting: Credits,
-    pub invites_budget_credits: Credits,
 
     pub online_activity_minutes: u64,
 
@@ -233,7 +232,6 @@ pub const CONFIG: &Config = &Config {
     reporting_penalty_misbehaviour: 1000,
 
     min_credits_for_inviting: 50,
-    invites_budget_credits: 100,
 
     post_cost: 2,
     tag_cost: 3,
