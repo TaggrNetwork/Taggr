@@ -111,10 +111,10 @@ pub struct Realm {
     pub num_posts: u64,
     pub num_members: u64,
     pub last_update: u64,
+    #[serde(default)]
+    pub last_setting_update: u64,
     pub revenue: Credits,
-    #[serde(default)]
     filter: UserFilter,
-    #[serde(default)]
     whitelist: BTreeSet<UserId>,
     #[serde(default)]
     pub cleanup_penalty: Credits,
@@ -334,11 +334,20 @@ impl State {
         }
         let realm_id = post.realm.as_ref().cloned().ok_or("no realm id found")?;
         let realm = self.realms.get(&realm_id).ok_or("no realm found")?;
+
+        if post.creation_timestamp() < realm.last_setting_update {
+            return Err(
+                "cannot move out posts created before the latest realm parameter changes".into(),
+            );
+        }
+
         let post_user = post.user;
         if !realm.controllers.contains(&controller) {
             return Err("only realm controller can clean up".into());
         }
         let user = self.users.get_mut(&post_user).ok_or("no user found")?;
+        let user_principal = user.principal;
+        let realm_member = user.realms.contains(&realm_id);
         let msg = format!(
             "post [{0}](#/post/{0}) was moved out of realm /{1}: {2}",
             post_id, realm_id, reason
@@ -353,6 +362,9 @@ impl State {
             .get_mut(&realm_id)
             .expect("no realm found")
             .num_posts -= 1;
+        if realm_member {
+            self.toggle_realm_membership(user_principal, realm_id);
+        }
         Ok(())
     }
 
@@ -577,10 +589,9 @@ impl State {
         user_filter: UserFilter,
         cleanup_penalty: Credits,
     ) -> Result<(), String> {
-        let user_id = self
-            .principal_to_user_mut(principal)
-            .ok_or("no user found")?
-            .id;
+        let user = self.principal_to_user(principal).ok_or("no user found")?;
+        let user_id = user.id;
+        let user_name = user.name.clone();
         let realm = self.realms.get_mut(&name).ok_or("no realm found")?;
         if !realm.controllers.contains(&user_id) {
             return Err("not authorized".into());
@@ -591,13 +602,30 @@ impl State {
         if !logo.is_empty() {
             realm.logo = logo;
         }
+        let description_change = realm.description != description;
         realm.description = description;
+        if realm.controllers != controllers {
+            self.logger.info(format!(
+                "Realm /{} controller list was changed from {:?} to {:?}",
+                name, &realm.controllers, &controllers
+            ));
+        }
         realm.controllers = controllers;
         realm.label_color = label_color;
         realm.theme = theme;
         realm.whitelist = whitelist;
         realm.filter = user_filter;
         realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty);
+        realm.last_setting_update = time();
+        if description_change {
+            self.notify_with_filter(
+                &|user| user.realms.contains(&name),
+                format!(
+                    "@{} changed the description of the realm /{}! ",
+                    user_name, name
+                ) + "Please read the new description to avoid potential penalties for rules violation!",
+            );
+        }
         Ok(())
     }
 
@@ -859,6 +887,13 @@ impl State {
             .values_mut()
             .filter(|u| filter(u))
             .for_each(|u| u.notify_with_params(&message, Some(predicate.clone())));
+    }
+
+    fn notify_with_filter<T: AsRef<str>>(&mut self, filter: &dyn Fn(&User) -> bool, message: T) {
+        self.users
+            .values_mut()
+            .filter(|u| filter(u))
+            .for_each(|u| u.notify_with_params(&message, None))
     }
 
     pub fn denotify_users(&mut self, filter: &dyn Fn(&User) -> bool) {
@@ -4352,7 +4387,7 @@ pub(crate) mod tests {
             assert_eq!(new_balance, prev_balance);
             let invite = state.invites(principal);
             assert_eq!(invite.len(), 1);
-            let (code, credits) = invite.get(0).unwrap().clone();
+            let (code, credits) = invite.first().unwrap().clone();
             assert_eq!(credits, 111);
             (id, code, prev_balance)
         });
@@ -4370,7 +4405,7 @@ pub(crate) mod tests {
             let prev_balance = user.credits();
             assert_eq!(state.create_invite(principal, 222), Ok(()));
             let invite = state.invites(principal);
-            let (code, credits) = invite.get(0).unwrap().clone();
+            let (code, credits) = invite.first().unwrap().clone();
             assert_eq!(credits, 222);
             (id, code, prev_balance)
         });

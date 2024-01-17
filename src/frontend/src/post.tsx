@@ -585,11 +585,13 @@ const PostInfo = ({
                                         "rules violation",
                                     );
                                     realmMoveOutCallback();
-                                    window.api.call(
+                                    const response = await window.api.call<any>(
                                         "realm_clean_up",
                                         post.id,
                                         reason,
                                     );
+                                    if ("Err" in response)
+                                        alert(`Error: ${response.Err}`);
                                 }}
                                 label={<Close />}
                             />

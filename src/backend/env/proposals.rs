@@ -185,6 +185,10 @@ impl Proposal {
                 Payload::AddRealmController(realm_id, user_id) => {
                     if let Some(realm) = state.realms.get_mut(realm_id) {
                         realm.controllers.insert(*user_id);
+                        state.logger.info(format!(
+                            "User `{}` was added via proposal execution to the realm /{}",
+                            user_id, realm_id
+                        ));
                     }
                 }
                 Payload::ICPTransfer(account, amount) => {

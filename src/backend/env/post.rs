@@ -129,6 +129,10 @@ impl Post {
         }
     }
 
+    pub fn creation_timestamp(&self) -> u64 {
+        self.timestamp
+    }
+
     // Return post's original timestamp, either by taking the minimum from the edits or the one
     // assigned to `timestamp`.
     pub fn timestamp(&self) -> u64 {

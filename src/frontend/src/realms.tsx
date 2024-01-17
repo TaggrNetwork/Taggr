@@ -1,15 +1,16 @@
 import * as React from "react";
 import { loadFile } from "./form";
 import {
-    bigScreen,
     BurgerButton,
     ButtonWithLoading,
+    commaSeparated,
     HeadBar,
     Loading,
     realmColors,
     RealmSpan,
     setTitle,
     ToggleButton,
+    UserLink,
     userList,
 } from "./common";
 import { Content } from "./content";
@@ -210,7 +211,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                 </div>
                 <div className="column_container bottom_spaced">
                     <div className="bottom_half_spaced">
-                        Realm Controllers (comma-separated)
+                        Realm controllers (comma-separated)
                     </div>
                     <input
                         type="text"
@@ -546,6 +547,8 @@ export const RealmHeader = ({ name }: { name: string }) => {
             {showInfo && (
                 <div className="stands_out">
                     <Content value={realm.description} />
+                    <hr />
+                    <Restrictions realm={realm} />
                     <code>{realm.num_posts}</code> posts,{" "}
                     <code>{realm.num_members}</code> members, controlled by:{" "}
                     {userList(realm.controllers)}
@@ -623,43 +626,23 @@ export const RealmHeader = ({ name }: { name: string }) => {
     );
 };
 
-const pageSize = 20;
-
 export const Realms = () => {
     const [realms, setRealms] = React.useState<[string, Realm][]>([]);
     const [page, setPage] = React.useState(0);
     const [filter, setFilter] = React.useState("");
-    // 0: popularity, 1: last_update, 2: alphabetically
-    const [order, setOrder] = React.useState(0);
+    const [order, setOrder] = React.useState("popularity");
     const [noMoreData, setNoMoreData] = React.useState(false);
     const loadRealms = async () => {
-        let data = (await window.api.query<any>("realms")) || [];
+        const data = (await window.api.query<any>("realms", order, page)) || [];
         if (data.length == 0) {
             setNoMoreData(true);
         }
-        setRealms(realms.concat(data));
+        setRealms(page == 0 ? data : realms.concat(data));
     };
     React.useEffect(() => {
         loadRealms();
-    }, []);
+    }, [page, order]);
     const user = window.user;
-
-    switch (order) {
-        case 1:
-            realms.sort(
-                ([_name1, r1], [_name2, r2]) => r2.last_update - r1.last_update,
-            );
-            break;
-        case 2:
-            realms.sort(([name1], [name2]) => name1.localeCompare(name2));
-            break;
-        default:
-            realms.sort(
-                ([_name1, r1], [_name2, r2]) =>
-                    r2.num_posts * r2.num_members -
-                    r1.num_posts * r1.num_members,
-            );
-    }
 
     return (
         <>
@@ -690,17 +673,17 @@ export const Realms = () => {
                 <select
                     className="small_text"
                     value={order}
-                    onChange={(e: any) => setOrder(Number(e.target.value))}
+                    onChange={(e: any) => {
+                        setOrder(e.target.value);
+                        setPage(0);
+                    }}
                 >
-                    <option value={0}>POPULARITY</option>
-                    <option value={1}>LAST UPDATE</option>
-                    <option value={2}>NAME</option>
+                    <option value="popularity">POPULARITY</option>
+                    <option value="activity">LAST UPDATE</option>
+                    <option value="name">NAME</option>
                 </select>
             </div>
-            <div
-                className={bigScreen() ? "two_columns_grid" : undefined}
-                style={{ rowGap: 0, columnGap: "1em" }}
-            >
+            <div>
                 {realms
                     .filter(
                         ([name, { description }]) =>
@@ -709,7 +692,6 @@ export const Realms = () => {
                                 name.toLowerCase() + description.toLowerCase()
                             ).includes(filter),
                     )
-                    .slice(0, (page + 1) * pageSize)
                     .map(([name, realm]) => {
                         return (
                             <div
@@ -739,6 +721,8 @@ export const Realms = () => {
                                     value={realm.description.split("\n")[0]}
                                     classNameArg="bottom_spaced"
                                 />
+                                <hr />
+                                <Restrictions realm={realm} />
                                 <>
                                     <code>{realm.num_posts}</code> posts,{" "}
                                     <code>{realm.num_members}</code> members,
@@ -757,6 +741,48 @@ export const Realms = () => {
                     />
                 </div>
             )}
+        </>
+    );
+};
+
+const Restrictions = ({ realm }: { realm: Realm }) => {
+    const restrictions = [];
+    const { age_days, num_posts, safe, balance } = realm.filter;
+    if (safe)
+        restrictions.push(
+            <>Users without reports and positive rewards balance.</>,
+        );
+    if (age_days > 0) restrictions.push(<>Minimal account age: {age_days}</>);
+    if (balance > 0)
+        restrictions.push(
+            <>
+                Minimal {window.backendCache.config.token_symbol} balance:{" "}
+                {balance}
+            </>,
+        );
+    if (num_posts > 0)
+        restrictions.push(<>Minimal posts number: {num_posts}</>);
+    if (realm.whitelist.length > 0)
+        restrictions.push(
+            <>
+                Whitelisted users:{" "}
+                {commaSeparated(
+                    realm.whitelist.map((id) => <UserLink id={id} />),
+                )}
+            </>,
+        );
+    if (restrictions.length == 0) return null;
+    return (
+        <>
+            {" "}
+            <h3>Realm access restrictions</h3>
+            <ul>
+                {restrictions.map((line, i) => (
+                    <li key={i}>{line}</li>
+                ))}
+            </ul>
+            Post eviction penalty: <code>{realm.cleanup_penalty}</code>
+            <hr />
         </>
     );
 };

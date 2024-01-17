@@ -251,6 +251,11 @@ impl User {
                     !post.is_deleted()
                         && post.parent.is_none()
                         && !post.matches_filters(&self.filters)
+                        && post
+                            .realm
+                            .as_ref()
+                            .map(|realm_id| self.realms.contains(realm_id))
+                            .unwrap_or(true)
                 })
                 .filter(move |post| {
                     if self.followees.contains(&post.user) {

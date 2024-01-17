@@ -139,12 +139,18 @@ fn proposals() {
     })
 }
 
-fn sorted_realms(state: &State) -> Vec<(&'_ String, &'_ Realm)> {
+fn sorted_realms(
+    state: &State,
+    order: String,
+) -> Box<dyn Iterator<Item = (&'_ String, &'_ Realm)> + '_> {
     let mut realms = state.realms.iter().collect::<Vec<_>>();
-    realms.sort_unstable_by_key(|(_name, realm)| {
-        std::cmp::Reverse(realm.num_posts * realm.num_members)
-    });
-    realms
+    if order != "name" {
+        realms.sort_unstable_by_key(|(_, realm)| match order.as_str() {
+            "popularity" => Reverse(realm.num_posts * realm.num_members),
+            _ => Reverse(realm.last_update),
+        });
+    }
+    Box::new(realms.into_iter())
 }
 
 #[export_name = "canister_query realms_data"]
@@ -152,8 +158,7 @@ fn realms_data() {
     read(|state| {
         let user_id = state.principal_to_user(caller()).map(|user| user.id);
         reply(
-            sorted_realms(state)
-                .iter()
+            sorted_realms(state, "popularity".into())
                 .map(|(name, realm)| {
                     (
                         name,
@@ -174,8 +179,15 @@ fn realm() {
 
 #[export_name = "canister_query realms"]
 fn realms() {
+    let page_size = 20;
     read(|state| {
-        reply(sorted_realms(state).iter().collect::<Vec<_>>());
+        let (order, page): (String, usize) = parse(&arg_data_raw());
+        reply(
+            sorted_realms(state, order)
+                .skip(page * page_size)
+                .take(page_size)
+                .collect::<Vec<_>>(),
+        );
     })
 }
 
