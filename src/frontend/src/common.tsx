@@ -529,15 +529,18 @@ export const UserLink = ({
     );
 };
 
-export const realmList = (ids: string[] = []) =>
-    ids.map((name) => (
-        <RealmSpan
-            key={name}
-            name={name}
-            onClick={() => (location.href = `/#/realm/${name}`)}
-            classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
-        />
-    ));
+export const realmList = (ids: string[] = []) => (
+    <div className="row_container top_spaced" style={{ alignItems: "center" }}>
+        {ids.map((name) => (
+            <RealmSpan
+                key={name}
+                name={name}
+                onClick={() => (location.href = `/#/realm/${name}`)}
+                classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
+            />
+        ))}
+    </div>
+);
 
 export const userList = (ids: UserId[] = []) =>
     commaSeparated(ids.map((id) => <UserLink key={id} id={id} />));

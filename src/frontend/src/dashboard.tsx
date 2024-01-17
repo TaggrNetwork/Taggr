@@ -267,6 +267,7 @@ export const Dashboard = ({}) => {
                 {logSelector}
                 <hr />
                 <Content
+                    classNameArg="logs"
                     value={logs
                         .filter(
                             ({ level }) =>

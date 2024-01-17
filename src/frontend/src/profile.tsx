@@ -290,15 +290,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                   }),
               )
             : null;
-    const realms =
-        profile.realms.length > 0 ? (
-            <div
-                className="row_container top_spaced"
-                style={{ alignItems: "center" }}
-            >
-                {realmList(profile.realms)}
-            </div>
-        ) : null;
     const inviter = profile.invited_by;
     const filters = profile.filters;
 
@@ -457,11 +448,11 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 )}
             </div>
             <hr />
-            {(feeds || realms) && (
+            {(feeds || profile.realms.length > 0) && (
                 <>
                     <h2>Interests</h2>
                     {feeds}
-                    {realms}
+                    {realmList(profile.realms)}
                     <hr />
                 </>
             )}

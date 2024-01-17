@@ -272,7 +272,8 @@ button:active {
     filter: brightness(150%);
 }
 
-.breakable {
+.breakable,
+.logs code {
     word-break: break-all;
 }
 
