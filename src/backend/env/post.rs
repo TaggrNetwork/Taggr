@@ -408,7 +408,7 @@ impl Post {
             state.charge_in_realm(
                 user_id,
                 costs,
-                post.realm.clone(),
+                post.realm.as_ref(),
                 format!("editing of post [{0}](#/post/{0})", id),
             )?;
             post.patches.push((post.timestamp, patch));
@@ -463,37 +463,21 @@ impl Post {
             return Err("Bots can't create comments currently".into());
         }
 
-        if user
+        let excess_factor = user
             .posts(state, 0)
             .filter(|post| {
-                parent.is_none()
-                    && post.parent.is_none()
-                    && post.timestamp() > timestamp.saturating_sub(DAY)
+                if parent.is_none() {
+                    post.parent.is_none() && post.timestamp() + DAY > timestamp
+                } else {
+                    post.parent.is_some() && post.timestamp() + HOUR > timestamp
+                }
             })
             .count()
-            >= CONFIG.max_posts_per_day as usize
-        {
-            return Err(format!(
-                "not more than {} posts per day are allowed",
+            .saturating_sub(if parent.is_none() {
                 CONFIG.max_posts_per_day
-            ));
-        }
-
-        if user
-            .posts(state, 0)
-            .filter(|post| {
-                parent.is_some()
-                    && post.parent.is_some()
-                    && post.timestamp() > timestamp.saturating_sub(HOUR)
-            })
-            .count()
-            >= CONFIG.max_comments_per_hour as usize
-        {
-            return Err(format!(
-                "not more than {} comments per hour are allowed",
-                CONFIG.max_comments_per_hour,
-            ));
-        }
+            } else {
+                CONFIG.max_comments_per_hour
+            });
 
         let realm = match parent.and_then(|id| Post::get(state, &id)) {
             Some(parent) => parent.realm.clone(),
@@ -534,10 +518,18 @@ impl Post {
         let costs = post.costs(blobs.len());
         post.valid(blobs)?;
         let future_id = state.next_post_id;
+        if excess_factor > 0 {
+            state.charge_in_realm(
+                user_id,
+                CONFIG.excess_penalty * excess_factor as Credits,
+                realm.as_ref(),
+                "excessive posting penalty",
+            )?;
+        }
         state.charge_in_realm(
             user_id,
             costs,
-            realm.clone(),
+            realm.as_ref(),
             format!("new post [{0}](#/post/{0})", future_id),
         )?;
         let user = state.users.get_mut(&user_id).expect("no user found");

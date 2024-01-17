@@ -409,7 +409,7 @@ impl State {
         &mut self,
         id: UserId,
         amount: Credits,
-        realm_id: Option<RealmId>,
+        realm_id: Option<&RealmId>,
         log: T,
     ) -> Result<(), String> {
         if amount < 1 {
@@ -421,7 +421,7 @@ impl State {
             .burned_cycles
             .checked_add(amount as i64)
             .ok_or("wrong amount")?;
-        if let Some(realm) = realm_id.and_then(|id| self.realms.get_mut(&id)) {
+        if let Some(realm) = realm_id.and_then(|id| self.realms.get_mut(id)) {
             realm.revenue = realm.revenue.checked_add(amount).ok_or("wrong amount")?
         }
         Ok(())
@@ -2270,7 +2270,7 @@ impl State {
         self.charge_in_realm(
             post.user,
             CONFIG.post_cost + comments_tree_penalty,
-            post.realm,
+            post.realm.as_ref(),
             format!("deletion of post [{0}](#/post/{0})", post.id),
         )?;
 
@@ -2356,7 +2356,7 @@ impl State {
             self.charge_in_realm(
                 user.id,
                 delta.unsigned_abs().min(user.credits()),
-                post.realm.clone(),
+                post.realm.as_ref(),
                 log.clone(),
             )?;
             self.charge_in_realm(
@@ -2364,7 +2364,7 @@ impl State {
                 delta
                     .unsigned_abs()
                     .min(self.users.get(&post.user).expect("no user found").credits()),
-                post.realm.clone(),
+                post.realm.as_ref(),
                 log,
             )
             .expect("couldn't charge user");

@@ -58,8 +58,9 @@ pub struct Config {
 
     pub max_bucket_size: u64,
 
-    pub max_posts_per_day: u8,
-    pub max_comments_per_hour: u8,
+    pub max_posts_per_day: usize,
+    pub max_comments_per_hour: usize,
+    pub excess_penalty: Credits,
 
     pub feed_page_size: usize,
 
@@ -225,6 +226,7 @@ pub const CONFIG: &Config = &Config {
     #[cfg(not(any(test, feature = "dev")))]
     max_posts_per_day: 5,
     max_comments_per_hour: 20,
+    excess_penalty: 5,
 
     feed_page_size: 30,
 
