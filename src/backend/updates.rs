@@ -71,38 +71,7 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {
-    // use a new data structure for logs
-    mutate(|state| {
-        std::mem::take(&mut state.logger.events)
-            .into_iter()
-            .collect::<Vec<_>>()
-            .into_iter()
-            .for_each(|event| {
-                state
-                    .logger
-                    .level_events
-                    .entry(event.level.clone())
-                    .and_modify(|list| list.push(event.clone()))
-                    .or_insert(vec![event]);
-            });
-
-        // Refund cycles to user 590 https://taggr.link/#/thread/82803
-        let msg = "refund after lost credits due to a bug";
-        let amount = 10000;
-        state.spend(amount, msg);
-        state
-            .users
-            .get_mut(&590)
-            .unwrap()
-            .change_credits(amount, user::CreditsDelta::Plus, msg)
-            .unwrap();
-
-        for realm in state.realms.values_mut() {
-            realm.cleanup_penalty = 10;
-        }
-    })
-}
+async fn post_upgrade_fixtures() {}
 
 /*
  * UPDATES

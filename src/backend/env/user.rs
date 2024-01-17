@@ -57,9 +57,7 @@ pub struct User {
     pub bookmarks: VecDeque<PostId>,
     pub about: String,
     pub account: String,
-    #[serde(default)]
     pub settings: BTreeMap<String, String>,
-    #[serde(default)]
     pub cold_wallet: Option<Principal>,
     cycles: Credits,
     rewards: i64,
@@ -76,14 +74,11 @@ pub struct User {
     pub accounting: VecDeque<(Time, String, i64, String)>,
     pub realms: Vec<String>,
     pub balance: Token,
-    #[serde(default)]
     pub cold_balance: Token,
     pub active_weeks: u32,
     pub principal: Principal,
     pub report: Option<Report>,
     pub treasury_e8s: u64,
-    #[serde(skip)]
-    pub invites_budget: Credits,
     #[serde(skip)]
     pub draft: Option<Draft>,
     pub filters: Filters,
@@ -136,7 +131,6 @@ impl User {
             active_weeks: 0,
             principal,
             treasury_e8s: 0,
-            invites_budget: 0,
             draft: None,
             filters: Default::default(),
             karma_donations: Default::default(),
@@ -332,7 +326,7 @@ impl User {
                     .checked_sub(amount)
                     .ok_or("wrong negative delta amount")?;
             }
-            self.accounting.push_front((
+            self.add_accounting_log(
                 time(),
                 "CRE".to_string(),
                 if delta == CreditsDelta::Plus {
@@ -341,7 +335,7 @@ impl User {
                     -(amount as i64)
                 },
                 log.to_string(),
-            ));
+            );
             return Ok(());
         }
         Err("not enough credits".into())
@@ -349,8 +343,14 @@ impl User {
 
     pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {
         self.rewards = self.rewards.saturating_add(amount);
-        self.accounting
-            .push_front((time(), "RWD".to_string(), amount, log.to_string()));
+        self.add_accounting_log(time(), "RWD".to_string(), amount, log.to_string());
+    }
+
+    fn add_accounting_log(&mut self, time: Time, level: String, amount: i64, log: String) {
+        self.accounting.push_front((time, level, amount, log));
+        while self.accounting.len() > 300 {
+            self.accounting.pop_back();
+        }
     }
 
     pub fn rewards(&self) -> i64 {

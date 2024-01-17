@@ -180,8 +180,8 @@ pub struct State {
 
 #[derive(Default, Deserialize, Serialize)]
 pub struct Logger {
+    #[serde(skip)]
     pub events: Vec<Event>,
-    #[serde(default)]
     pub level_events: BTreeMap<String, Vec<Event>>,
 }
 
@@ -764,11 +764,7 @@ impl State {
             if let Some((inviter_id, credits)) = invite.and_then(|code| state.invites.remove(&code))
             {
                 let inviter = state.users.get_mut(&inviter_id).ok_or("no user found")?;
-                let new_user_id = if inviter.invites_budget > credits {
-                    inviter.invites_budget = inviter.invites_budget.saturating_sub(credits);
-                    state.spend(credits, "user invite");
-                    state.new_user(principal, time(), name.clone(), Some(credits))?
-                } else if inviter.credits() > credits {
+                let new_user_id = if inviter.credits() > credits {
                     let new_user_id = state.new_user(principal, time(), name.clone(), None)?;
                     state
                         .credit_transfer(
@@ -1500,9 +1496,6 @@ impl State {
 
     fn clean_up(&mut self, now: Time) {
         for user in self.users.values_mut() {
-            // clean up all accounting entries older than 2 weeks
-            user.accounting
-                .retain(|(time, _, _, _)| time + 2 * WEEK >= now);
             if user.active_within_weeks(now, 1) {
                 user.active_weeks += 1;
             } else {
@@ -1511,6 +1504,7 @@ impl State {
             let inactive = !user.active_within_weeks(now, CONFIG.inactivity_duration_weeks);
             if inactive || user.is_bot() {
                 user.inbox.clear();
+                user.accounting.clear();
             }
             if inactive && user.rewards() > 0 {
                 user.change_rewards(
@@ -4012,14 +4006,12 @@ pub(crate) mod tests {
             let user = state.users.get_mut(&inactive_id1).unwrap();
             user.change_rewards(25, "");
             assert_eq!(user.rewards(), 25);
-            assert_eq!(user.invites_budget, 0);
             let user = state.users.get_mut(&inactive_id3).unwrap();
             user.change_rewards(25, "");
             assert_eq!(user.rewards(), 25);
             let user = state.users.get_mut(&active_id).unwrap();
             user.change_rewards(25, "");
             assert_eq!(user.rewards(), 25);
-            assert_eq!(user.invites_budget, 0);
 
             let now = WEEK * 27;
             state.users.get_mut(&active_id).unwrap().last_activity = now;
@@ -4033,16 +4025,13 @@ pub(crate) mod tests {
             let user = state.users.get_mut(&inactive_id1).unwrap();
             assert_eq!(user.credits(), 500 - penalty);
             assert_eq!(user.rewards(), 0);
-            assert_eq!(user.invites_budget, 0);
             // not penalized due to low balance, but karma penalized
             let user = state.users.get_mut(&inactive_id2).unwrap();
             assert_eq!(user.credits(), 100);
             assert_eq!(user.rewards(), 0);
-            assert_eq!(user.invites_budget, 0);
             // penalized to the minimum balance
             let user = state.users.get_mut(&inactive_id3).unwrap();
             assert_eq!(user.credits(), penalty * 4);
-            assert_eq!(user.invites_budget, 0);
             // Active user not penalized
             let user = state.users.get_mut(&active_id).unwrap();
             assert_eq!(user.credits(), 300);
@@ -4376,10 +4365,8 @@ pub(crate) mod tests {
         let new_balance = mutate(|state| state.users.get(&id).unwrap().credits());
         assert_eq!(new_balance, prev_balance - 111);
 
-        // Subsidized invite
         let (id, code, prev_balance) = mutate(|state| {
             let user = state.users.get_mut(&id).unwrap();
-            user.invites_budget = 300;
             let prev_balance = user.credits();
             assert_eq!(state.create_invite(principal, 222), Ok(()));
             let invite = state.invites(principal);
@@ -4395,10 +4382,7 @@ pub(crate) mod tests {
             .is_ok());
 
         let user = read(|state| state.users.get(&id).unwrap().clone());
-        // Make sure didn't pay with own credits
-        assert_eq!(user.credits(), prev_balance);
-        // Make sure Taggr payed for the invite
-        assert_eq!(user.invites_budget, 300 - 222);
-        assert_eq!(read(|state| state.burned_cycles), prev_revenue - 222);
+        assert_eq!(user.credits(), prev_balance - 222);
+        assert_eq!(read(|state| state.burned_cycles), prev_revenue);
     }
 }
