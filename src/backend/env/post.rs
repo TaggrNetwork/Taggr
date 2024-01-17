@@ -519,6 +519,7 @@ impl Post {
             }
         }
         let user_id = user.id;
+        let controversial = user.controversial();
         let user_balance = user.balance;
         let mut post = Post::new(
             user_id,
@@ -592,7 +593,9 @@ impl Post {
                 Post::mutate(state, &id, |post| {
                     post.tree_size += 1;
                     post.tree_update = timestamp;
-                    post.make_hot(user_id, user_balance);
+                    if !controversial {
+                        post.make_hot(user_id, user_balance);
+                    }
                     Ok(())
                 })
             })

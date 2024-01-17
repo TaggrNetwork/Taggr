@@ -20,7 +20,7 @@ import {
 import { Content } from "./content";
 import { Journal } from "./icons";
 import { PostFeed } from "./post_feed";
-import { PostId, User } from "./types";
+import { PostId, User, UserId } from "./types";
 import { Principal } from "@dfinity/principal";
 
 export const Profile = ({ handle }: { handle: string }) => {
@@ -257,7 +257,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     profile.followees.length - 1,
                     <>
                         <h2>Follows</h2>
-                        {userList(
+                        {followeeList(
                             profile.followees.filter((id) => id != profile.id),
                         )}
                     </>,
@@ -303,6 +303,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
     const filters = profile.filters;
 
     const donations = Object.entries(profile.karma_donations);
+    donations.sort(([_, donation1], [_2, donation2]) => donation2 - donation1);
     const accountingList = (
         <>
             <h2>Rewards and Credits Accounting</h2>
@@ -339,13 +340,18 @@ export const UserInfo = ({ profile }: { profile: User }) => {
     const givenRewardsList = (
         <>
             <h2>Given Rewards</h2>
-            {commaSeparated(
-                donations.map(([user_id, karma]) => (
-                    <span key={user_id}>
-                        <UserLink id={Number(user_id)} />: {karma}
-                    </span>
-                )),
-            )}
+            <div
+                className={`dynamic_table ${
+                    bigScreen() ? "" : "tripple"
+                } bottom_spaced`}
+            >
+                {donations.map(([userId, rewards]) => (
+                    <div key={userId} className="db_cell">
+                        <UserLink id={Number(userId)} />
+                        <code>{rewards}</code>
+                    </div>
+                ))}
+            </div>
         </>
     );
 
@@ -535,6 +541,27 @@ export const getLabels = (profile: User) => {
         </div>
     );
 };
+
+const followeeList = (ids: UserId[]) => (
+    <>
+        {ids.map((id) => (
+            <div key={id} className="stands_out row_container">
+                <UserLink id={id} classNameArg="max_width_col" />
+                <ToggleButton
+                    offLabel="FOLLOW"
+                    onLabel="UNFOLLOW"
+                    classNameArg="left_half_spaced right_half_spaced"
+                    currState={() => window.user.followees.includes(id)}
+                    toggler={() =>
+                        window.api
+                            .call("toggle_following_user", id)
+                            .then(window.reloadUser)
+                    }
+                />
+            </div>
+        ))}
+    </>
+);
 
 const daySeconds = 24 * 3600;
 

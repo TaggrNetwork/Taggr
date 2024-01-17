@@ -33,9 +33,7 @@ test.describe("Regular users flow, part two", () => {
             .getByPlaceholder("tell us what we should know about you")
             .fill("I am John");
         await page.getByRole("button", { name: "SAVE" }).click();
-        await expect(page).toHaveTitle("TAGGR: HOT");
-        await page.getByTestId("tab-NEW").click();
-        await expect(page).toHaveTitle("TAGGR: NEW");
+        await expect(page).toHaveTitle("TAGGR");
     });
 
     test("Create a post with poll", async () => {
@@ -91,7 +89,6 @@ test.describe("Regular users flow, part two", () => {
 
         // Make sure the post is visible on the front page too
         await page.goto("/");
-        await page.getByTestId("tab-NEW").click();
         await expect(
             page.locator("article", {
                 hasText: /Repost of the poll/,

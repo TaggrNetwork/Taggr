@@ -59,7 +59,6 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.getByPlaceholder("alphanumeric").fill("pete");
         await page.getByRole("button", { name: "SAVE" }).click();
 
-        await page.getByTestId("tab-NEW").click();
         await page
             .locator(".feed_item", { hasText: "Message from Eve" })
             .getByTestId("post-info-toggle")

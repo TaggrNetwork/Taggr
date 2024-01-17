@@ -194,9 +194,11 @@ const linkRenderer =
                             url.hostname.includes(domain),
                         )
                     ) {
+                        const nonMarkdownLink = label == url.href;
                         let link = url.href.replace(url.origin + "/", "");
                         props.href = (link.startsWith("#") ? "" : "#/") + link;
-                        label = props.href.replace("#", "");
+                        if (nonMarkdownLink)
+                            label = props.href.replace("#", "");
                     } else if (child == props.href.replace(/&amp;/g, "&")) {
                         className = "external";
                         label = url.hostname.toUpperCase();

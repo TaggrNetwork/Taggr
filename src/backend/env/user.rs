@@ -92,6 +92,10 @@ pub struct User {
 }
 
 impl User {
+    pub fn controversial(&self) -> bool {
+        self.rewards < 0 || self.report.is_some()
+    }
+
     pub fn matches(&self, filter: &UserFilter, time: Time) -> bool {
         let UserFilter {
             age_days,
@@ -101,7 +105,7 @@ impl User {
         } = filter;
         self.timestamp + age_days * DAY <= time
             && self.num_posts >= *num_posts
-            && (!safe || self.report.is_none() && self.rewards >= 0)
+            && (!safe || !self.controversial())
             && self.balance / token::base() >= *balance
     }
 
@@ -462,7 +466,7 @@ impl User {
     }
 
     pub fn mintable_tokens(&self, state: &State) -> Box<dyn Iterator<Item = (UserId, Token)> + '_> {
-        if self.rewards < 0 {
+        if self.controversial() {
             return Box::new(std::iter::empty());
         }
         let ratio = state.minting_ratio();
@@ -504,9 +508,8 @@ impl User {
                 state
                     .users
                     .get(user_id)
-                    .map(|user| user.rewards)
+                    .map(|user| !user.controversial())
                     .unwrap_or_default()
-                    > 0
             })
             .map(|(user_id, karma_donated)| {
                 (

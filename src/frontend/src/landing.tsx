@@ -1,13 +1,7 @@
 import * as React from "react";
 import { PostFeed } from "./post_feed";
 import { Search } from "./search";
-import {
-    bigScreen,
-    currentRealm,
-    Loading,
-    RealmSpan,
-    setTitle,
-} from "./common";
+import { bigScreen, currentRealm, Loading, RealmSpan } from "./common";
 import { New, User, Fire, Realm } from "./icons";
 import { PostId } from "./types";
 
@@ -19,36 +13,41 @@ export const Landing = () => {
     const [feed, setFeed] = React.useState(
         (user && user.settings[tabKey()]) || (currentRealm() ? "NEW" : "HOT"),
     );
-    const labels: [JSX.Element, string][] = [
+    let labels: [JSX.Element, string][] = [
         [<New />, "NEW"],
         [<Fire />, "HOT"],
     ];
-    if (user && !realm) {
-        labels.push([<User />, "FOLLOWED"]);
-        if (user.realms.length > 0) labels.push([<Realm />, "REALMS"]);
+    if (!realm) {
+        labels = labels.slice(1);
+        if (user) {
+            labels.push([<User />, "FOLLOWED"]);
+            if (user.realms.length > 0) labels.push([<Realm />, "REALMS"]);
+        }
     }
 
     const title = (
         <div className="text_centered vertically_spaced small_text">
-            {labels.map(([icon, id]: [JSX.Element, string]) => (
-                <button
-                    key={id}
-                    data-testid={`tab-${id}`}
-                    onClick={() => {
-                        if (user) {
-                            user.settings[tabKey()] = id;
-                            window.api.call<any>(
-                                "update_user_settings",
-                                user.settings,
-                            );
-                        }
-                        setFeed(id);
-                    }}
-                    className={feed == id ? "active" : "unselected"}
-                >
-                    {icon} {id}
-                </button>
-            ))}
+            {labels.length == 1
+                ? null
+                : labels.map(([icon, id]: [JSX.Element, string]) => (
+                      <button
+                          key={id}
+                          data-testid={`tab-${id}`}
+                          onClick={() => {
+                              if (user) {
+                                  user.settings[tabKey()] = id;
+                                  window.api.call<any>(
+                                      "update_user_settings",
+                                      user.settings,
+                                  );
+                              }
+                              setFeed(id);
+                          }}
+                          className={feed == id ? "active" : "unselected"}
+                      >
+                          {icon} {id}
+                      </button>
+                  ))}
         </div>
     );
 
@@ -85,7 +84,6 @@ export const Landing = () => {
                 refreshRateSecs={10 * 60}
                 title={title}
                 feedLoader={async (page: number, offset: PostId) => {
-                    setTitle(feed);
                     if (feed == "FOLLOWED")
                         return await window.api.query(
                             "personal_feed",

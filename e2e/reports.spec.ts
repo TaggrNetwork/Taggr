@@ -122,7 +122,6 @@ test.describe("Report and transfer to user", () => {
         await page.reload();
         await page.goto("/");
         await page.locator("#logo").click();
-        await page.getByTestId("tab-NEW").click();
         // Find jane's post and react with a star
         const feedItem = page.locator(".feed_item", {
             hasText: /Good stuff/,

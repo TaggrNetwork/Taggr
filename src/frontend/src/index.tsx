@@ -30,7 +30,7 @@ import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
 import { MAINNET_MODE, CANISTER_ID } from "./env";
-import { UserId } from "./types";
+import { PostId, UserId } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Close } from "./icons";
 import { Search } from "./search";
@@ -176,6 +176,24 @@ const App = () => {
         content = <Feed params={params} />;
     } else if (handler == "thread") {
         content = <Thread id={parseInt(param)} />;
+    } else if (handler == "posts") {
+        const title = "NEW POSTS";
+        content = (
+            <PostFeed
+                refreshRateSecs={60}
+                title={<HeadBar title={title} shareLink="posts" />}
+                feedLoader={async (page: number, offset: PostId) => {
+                    setTitle(title);
+                    return await window.api.query(
+                        "last_posts",
+                        "",
+                        page,
+                        offset,
+                        false,
+                    );
+                }}
+            />
+        );
     } else if (handler == "user") {
         setTitle(`profile: @${param}`);
         content = <Profile handle={param} />;

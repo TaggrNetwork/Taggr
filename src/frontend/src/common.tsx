@@ -258,8 +258,12 @@ export const getTokens = (prefix: string, value: string) => {
 };
 
 export const setTitle = (value: string) => {
+    const name = window.backendCache.config.name;
     const titleElement = document.getElementsByTagName("title")[0];
-    if (titleElement) titleElement.innerText = `TAGGR: ${value}`;
+    if (titleElement)
+        titleElement.innerText = (
+            value ? `${name}: ${value}` : name
+        ).toUpperCase();
 };
 
 export const ButtonWithLoading = ({

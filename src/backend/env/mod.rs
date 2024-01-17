@@ -15,7 +15,7 @@ use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{self, canister_balance};
-use ic_ledger_types::{AccountIdentifier, Tokens, MAINNET_LEDGER_CANISTER_ID};
+use ic_ledger_types::{AccountIdentifier, MAINNET_LEDGER_CANISTER_ID};
 use invoices::Invoices;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -340,7 +340,7 @@ impl State {
         }
         let user = self.users.get_mut(&post_user).ok_or("no user found")?;
         let msg = format!(
-            "post {} was moved out of realm /{}: {}",
+            "post [{0}](#/post/{0}) was moved out of realm /{1}: {2}",
             post_id, realm_id, reason
         );
         user.change_rewards(-(realm.cleanup_penalty as i64), &msg);
@@ -525,9 +525,7 @@ impl State {
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
             .last_posts(caller, realm, offset, false)
-            .filter(|post| {
-                post.heat() > 0 && !matches!(post.extension, Some(Extension::Proposal(_)))
-            })
+            .filter(|post| !matches!(post.extension, Some(Extension::Proposal(_))))
             .take(1000)
             .collect::<Vec<_>>();
         hot_posts.sort_unstable_by_key(|post| Reverse(post.heat()));
@@ -1358,9 +1356,10 @@ impl State {
                     }
                     Err(err) => {
                         mutate(|state| {
-                            state
-                                .logger
-                                .warn(format!("couldn't create an NNS proposal post: {:?}", err))
+                            state.logger.warn(format!(
+                                "couldn't create an NNS proposal post for proposal {}: {:?}",
+                                proposal.id, err
+                            ))
                         });
                     }
                 };
@@ -1660,22 +1659,22 @@ impl State {
     }
 
     pub async fn withdraw_rewards(principal: Principal) -> Result<(), String> {
-        let fee = invoices::fee();
+        let fee = invoices::fee().e8s();
         let (user_id, principal, rewards) = mutate(|state| {
             let user = state
                 .principal_to_user_mut(principal)
                 .ok_or("no user found".to_string())?;
-            if Tokens::from_e8s(user.treasury_e8s) < fee {
-                return Err("funds smaller than the fee".to_string());
-            }
 
             let id = user.id;
             let principal = user.principal;
-            let rewards = user.treasury_e8s;
+            let rewards = user
+                .treasury_e8s
+                .checked_sub(fee)
+                .ok_or("funds smaller than the fee".to_string())?;
 
             user.treasury_e8s = 0;
 
-            Ok((id, principal, rewards))
+            Ok::<(u64, candid::Principal, u64), String>((id, principal, rewards))
         })?;
 
         if let Err(err) = icrc_transfer(
@@ -2278,7 +2277,7 @@ impl State {
             post.user,
             CONFIG.post_cost + comments_tree_penalty,
             post.realm,
-            format!("deletion of post {}", post.id),
+            format!("deletion of post [{0}](#/post/{0})", post.id),
         )?;
 
         // subtract all rewards from karma
@@ -2397,9 +2396,12 @@ impl State {
             .expect("no user for principal found")
             .last_activity = time;
         let user_id = user.id;
+        let controversial = user.controversial();
         Post::mutate(self, &post_id, |post| {
             post.reactions.entry(reaction).or_default().insert(user_id);
-            post.make_hot(user.id, user.balance);
+            if !controversial {
+                post.make_hot(user.id, user.balance);
+            }
             Ok(())
         })
     }

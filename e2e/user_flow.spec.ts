@@ -35,9 +35,7 @@ test.describe("Regular users flow", () => {
             .getByPlaceholder("tell us what we should know about you")
             .fill("I am a #Taggr fan");
         await page.getByRole("button", { name: "SAVE" }).click();
-        await expect(page).toHaveTitle("TAGGR: HOT");
-        await page.getByTestId("tab-NEW").click();
-        await expect(page).toHaveTitle("TAGGR: NEW");
+        await expect(page).toHaveTitle("TAGGR");
 
         await page.goto("/#/inbox");
         await expect(
@@ -229,7 +227,6 @@ test.describe("Regular users flow", () => {
     });
 
     test("Interacting with posts", async () => {
-        await page.getByTestId("tab-NEW").click();
         await page
             .locator(".feed_item", { hasText: /Hello world/ })
             .getByTestId("post-info-toggle")
