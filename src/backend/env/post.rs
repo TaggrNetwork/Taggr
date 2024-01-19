@@ -497,7 +497,7 @@ impl Post {
             if let Some(realm) = state.realms.get(realm_id) {
                 let whitelist = &realm.whitelist;
                 if !whitelist.is_empty() && !whitelist.contains(&user.id)
-                    || whitelist.is_empty() && !user.matches(&realm.filter, time())
+                    || whitelist.is_empty() && !user.get_filter().passes(&realm.filter)
                 {
                     return Err(format!(
                         "{} realm is gated and you are not allowed to post to this realm",
@@ -523,9 +523,10 @@ impl Post {
         post.valid(blobs)?;
         let future_id = state.next_post_id;
         if excess_factor > 0 {
+            let excess_penalty = CONFIG.excess_penalty * excess_factor as Credits;
             state.charge_in_realm(
                 user_id,
-                CONFIG.excess_penalty * excess_factor as Credits,
+                excess_penalty + blobs.len() as Credits * excess_penalty,
                 realm.as_ref(),
                 "excessive posting penalty",
             )?;
@@ -722,12 +723,10 @@ pub fn change_realm(state: &mut State, root_post_id: PostId, new_realm: Option<S
 }
 
 fn notify_about(state: &mut State, post: &Post) {
-    let post_user_name = state
-        .users
-        .get(&post.user)
-        .expect("no user found")
-        .name
-        .clone();
+    let post_user = state.users.get(&post.user).expect("no user found");
+    let post_user_name = post_user.name.clone();
+    let user_filter = post_user.get_filter();
+
     let mut notified: HashSet<_> = HashSet::new();
     // Don't notify the author
     notified.insert(post.user);
@@ -738,11 +737,13 @@ fn notify_about(state: &mut State, post: &Post) {
         let parent_author = parent.user;
         if parent_author != post.user {
             if let Some(user) = state.users.get_mut(&parent_author) {
-                user.notify_about_post(
-                    format!("@{} replied to your post", post_user_name,),
-                    post.id,
-                );
-                notified.insert(user.id);
+                if user.accepts_notifications(post.user, &user_filter) {
+                    user.notify_about_post(
+                        format!("@{} replied to your post", post_user_name,),
+                        post.id,
+                    );
+                    notified.insert(user.id);
+                }
             }
         }
     }
@@ -758,11 +759,13 @@ fn notify_about(state: &mut State, post: &Post) {
                 .users
                 .get_mut(&mentioned_user_id)
                 .expect("no user found");
-            user.notify_about_post(
-                format!("@{} mentioned you in a post", post_user_name),
-                post.id,
-            );
-            notified.insert(user.id);
+            if user.accepts_notifications(post.user, &user_filter) {
+                user.notify_about_post(
+                    format!("@{} mentioned you in a post", post_user_name),
+                    post.id,
+                );
+                notified.insert(user.id);
+            }
         });
 
     if let Some(parent_id) = post.parent {
@@ -782,13 +785,15 @@ fn notify_about(state: &mut State, post: &Post) {
                     return;
                 }
                 if let Some(user) = state.users.get_mut(&user_id) {
-                    user.notify_about_watched_post(
-                        post_id,
-                        post.id,
-                        post.parent.expect("no parent found"),
-                    );
+                    if user.accepts_notifications(post.user, &user_filter) {
+                        user.notify_about_watched_post(
+                            post_id,
+                            post.id,
+                            post.parent.expect("no parent found"),
+                        );
+                    }
+                    notified.insert(user_id);
                 }
-                notified.insert(user_id);
             });
     }
 }

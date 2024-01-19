@@ -114,7 +114,7 @@ pub struct Realm {
     #[serde(default)]
     pub last_setting_update: u64,
     pub revenue: Credits,
-    filter: UserFilter,
+    pub filter: UserFilter,
     whitelist: BTreeSet<UserId>,
     #[serde(default)]
     pub cleanup_penalty: Credits,
@@ -693,6 +693,7 @@ impl State {
                 whitelist,
                 filter: user_filter,
                 cleanup_penalty: CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty),
+                last_update: time(),
                 ..Default::default()
             },
         );
@@ -897,36 +898,42 @@ impl State {
     }
 
     pub fn denotify_users(&mut self, filter: &dyn Fn(&User) -> bool) {
-        for (user_id, mut inbox) in self
-            .users
-            .values_mut()
-            .filter(|u| filter(u))
-            .map(|u| (u.id, u.inbox.clone()))
-            .collect::<Vec<_>>()
-            .into_iter()
-        {
-            inbox.retain(|_, n| {
-                if let Notification::Conditional(_, predicate) = n {
-                    return match predicate {
+        let mut notifications = Vec::new();
+        for user in self.users.values().filter(|u| filter(u)) {
+            for (id, (notification, read)) in user.notifications.iter() {
+                if *read {
+                    continue;
+                }
+                if let Notification::Conditional(_, predicate) = notification {
+                    let active = match predicate {
                         Predicate::UserReportOpen(user_id) => self
                             .users
                             .get(user_id)
-                            .and_then(|p| p.report.as_ref().map(|r| !r.closed))
+                            .and_then(|p| p.report.as_ref().map(|r| r.closed))
                             .unwrap_or_default(),
                         Predicate::ReportOpen(post_id) => Post::get(self, post_id)
-                            .and_then(|p| p.report.as_ref().map(|r| !r.closed))
+                            .and_then(|p| p.report.as_ref().map(|r| r.closed))
                             .unwrap_or_default(),
                         Predicate::Proposal(post_id) => self
                             .proposals
                             .iter()
-                            .last()
-                            .map(|p| p.status == Status::Open && p.post_id == *post_id)
+                            .find(|p| p.post_id == *post_id)
+                            .map(|p| p.status != Status::Open)
                             .unwrap_or_default(),
                     };
+                    notifications.push((user.id, *id, active));
                 }
-                true
-            });
-            self.users.get_mut(&user_id).expect("no user found").inbox = inbox;
+            }
+        }
+
+        for (user_id, notification_id, status) in notifications {
+            if let Some((_, flag)) = self
+                .users
+                .get_mut(&user_id)
+                .and_then(|user| user.notifications.get_mut(&notification_id))
+            {
+                *flag = status;
+            }
         }
     }
 
@@ -1468,7 +1475,7 @@ impl State {
 
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
-            let (karma, revenues, e8s_for_one_xdr) = mutate(|state| {
+            let (rewards, revenues, e8s_for_one_xdr) = mutate(|state| {
                 state.minting_mode = true;
                 state.mint();
                 state.minting_mode = false;
@@ -1478,7 +1485,7 @@ impl State {
                     state.e8s_for_one_xdr,
                 )
             });
-            State::distribute_icp(e8s_for_one_xdr, karma, revenues).await;
+            State::distribute_icp(e8s_for_one_xdr, rewards, revenues).await;
         } else {
             mutate(|state| {
                 state
@@ -1538,7 +1545,7 @@ impl State {
             }
             let inactive = !user.active_within_weeks(now, CONFIG.inactivity_duration_weeks);
             if inactive || user.is_bot() {
-                user.inbox.clear();
+                user.notifications.clear();
                 user.accounting.clear();
             }
             if inactive && user.rewards() > 0 {
@@ -1607,7 +1614,8 @@ impl State {
         let mut joined_logs = Vec::new();
 
         for u in users {
-            if u.is_bot()
+            if !u.governance
+                || u.is_bot()
                 || u.report.is_some()
                 || now.saturating_sub(u.timestamp)
                     < WEEK * CONFIG.min_stalwart_account_age_weeks as u64
@@ -2266,12 +2274,12 @@ impl State {
 
         let comments_tree_penalty =
             post.tree_size as Credits * CONFIG.post_deletion_penalty_factor as Credits;
-        let karma = config::reaction_rewards();
+        let rewards = config::reaction_rewards();
         let reaction_costs = post
             .reactions
             .iter()
             .filter_map(|(r_id, users)| {
-                let cost = karma.get(r_id).copied().unwrap_or_default();
+                let cost = rewards.get(r_id).copied().unwrap_or_default();
                 (cost > 0).then_some((users, cost as Credits))
             })
             .collect::<Vec<_>>();
@@ -2286,7 +2294,7 @@ impl State {
             ));
         }
 
-        let mut karma_penalty = post.children.len() as i64 * CONFIG.response_reward as i64;
+        let mut rewards_penalty = post.children.len() as i64 * CONFIG.response_reward as i64;
 
         // refund rewards
         for (users, amount) in reaction_costs {
@@ -2300,7 +2308,7 @@ impl State {
                     format!("rewards refund after deletion of post {}", post.id),
                     None,
                 )?;
-                karma_penalty = karma_penalty.saturating_add(amount as i64);
+                rewards_penalty = rewards_penalty.saturating_add(amount as i64);
             }
         }
 
@@ -2312,12 +2320,12 @@ impl State {
             format!("deletion of post [{0}](#/post/{0})", post.id),
         )?;
 
-        // subtract all rewards from karma
+        // subtract all rewards from rewards
         self.users
             .get_mut(&post.user)
             .expect("no user found")
             .change_rewards(
-                -karma_penalty,
+                -rewards_penalty,
                 format!("deletion of post [{0}](#/post/{0})", post.id),
             );
 
@@ -2379,7 +2387,7 @@ impl State {
 
         let log = format!("reaction to post [{0}](#/post/{0})", post_id);
         // Users initiate a credit transfer for upvotes, but burn their own credits on
-        // downvotes + credits and karma of the author
+        // downvotes + credits and rewards of the author
         if delta < 0 {
             if user.rewards() < 0 {
                 return Err("no downvotes for users with negative rewards balance".into());
@@ -2439,7 +2447,7 @@ impl State {
     }
 
     pub fn toggle_following_user(&mut self, principal: Principal, followee_id: UserId) -> bool {
-        let (added, (id, name, about, num_followers)) = {
+        let (added, (user_id, name, about, num_followers, user_filter)) = {
             let user = match self.principal_to_user_mut(principal) {
                 Some(user) => user,
                 _ => return false,
@@ -2458,19 +2466,22 @@ impl State {
                     user.name.clone(),
                     user.about.clone(),
                     user.followers.len(),
+                    user.get_filter(),
                 ),
             )
         };
         let followee = self.users.get_mut(&followee_id).expect("User not found");
         let about = if about.is_empty() { "no info" } else { &about };
         if added {
-            followee.followers.insert(id);
-            followee.notify(format!(
-                "@{} followed you ({}, `{}` followers)",
-                name, about, num_followers
-            ));
+            followee.followers.insert(user_id);
+            if followee.accepts_notifications(user_id, &user_filter) {
+                followee.notify(format!(
+                    "@{} followed you ({}, `{}` followers)",
+                    name, about, num_followers
+                ));
+            }
         } else {
-            followee.followers.remove(&id);
+            followee.followers.remove(&user_id);
         }
         added
     }
@@ -2735,10 +2746,10 @@ pub(crate) mod tests {
         assert!(user.previous_names.is_empty());
 
         // update with wrong principal
-        assert!(User::update(pr(1), Some("john".into()), Default::default(), vec![],).is_err());
+        assert!(User::update(pr(1), Some("john".into()), Default::default(), vec![]).is_err());
 
         // correct update
-        assert!(User::update(pr(0), Some("john".into()), Default::default(), vec![],).is_ok());
+        assert!(User::update(pr(0), Some("john".into()), Default::default(), vec![]).is_ok());
 
         let user = read(|state| state.users.get(&id).unwrap().clone());
         assert_eq!(user.name, "john".to_string());
@@ -2752,7 +2763,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_new_karma_collection() {
+    fn test_new_rewards_collection() {
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -2763,20 +2774,20 @@ pub(crate) mod tests {
                 user.change_rewards(rewards, "");
             }
 
-            let new_karma = state.collect_new_rewards();
+            let new_rewards = state.collect_new_rewards();
 
             let user = state.principal_to_user(pr(0)).unwrap();
-            assert_eq!(*new_karma.get(&user.id).unwrap(), 125);
+            assert_eq!(*new_rewards.get(&user.id).unwrap(), 125);
             assert_eq!(user.rewards(), 0);
 
             let user = state.principal_to_user(pr(1)).unwrap();
-            // no new karma was collected
-            assert!(!new_karma.contains_key(&user.id));
+            // no new rewards was collected
+            assert!(!new_rewards.contains_key(&user.id));
             assert_eq!(user.rewards(), -11);
 
             let user = state.principal_to_user(pr(2)).unwrap();
-            // no new karma was collected
-            assert!(!new_karma.contains_key(&user.id));
+            // no new rewards was collected
+            assert!(!new_rewards.contains_key(&user.id));
             assert_eq!(user.rewards(), 0);
         });
     }
@@ -2788,12 +2799,12 @@ pub(crate) mod tests {
             let state = &mut *cell.borrow_mut();
             let now = WEEK * CONFIG.voting_power_activity_weeks;
 
-            for (i, (balance, total_karma, last_activity)) in vec![
-                // Active user with 100 tokens and no karma
+            for (i, (balance, total_rewards, last_activity)) in vec![
+                // Active user with 100 tokens and no rewards
                 (10000, 0, now),
-                // Active, with 200 tokens and some karma
+                // Active, with 200 tokens and some rewards
                 (20000, 25, now),
-                // Inactive, with 300 tokens and some karma
+                // Inactive, with 300 tokens and some rewards
                 (30000, 25, 0),
             ]
             .into_iter()
@@ -2802,9 +2813,9 @@ pub(crate) mod tests {
                 let principal = pr(i as u8);
                 let id = create_user(state, principal);
                 let user = state.users.get_mut(&id).unwrap();
-                // remove first whatever karma is there
+                // remove first whatever rewards is there
                 user.change_rewards(-user.rewards(), "");
-                user.change_rewards(total_karma, "");
+                user.change_rewards(total_rewards, "");
                 user.last_activity = last_activity;
                 insert_balance(state, principal, balance);
             }
@@ -2825,13 +2836,13 @@ pub(crate) mod tests {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
-            let karma_insert = |state: &mut State, donor_id, user_id, karma| {
+            let rewards_insert = |state: &mut State, donor_id, user_id, rewards| {
                 state
                     .users
                     .get_mut(&donor_id)
                     .unwrap()
                     .karma_donations
-                    .insert(user_id, karma)
+                    .insert(user_id, rewards)
             };
 
             for i in 0..5 {
@@ -2839,7 +2850,7 @@ pub(crate) mod tests {
                 insert_balance(state, pr(i), (((i + 1) as u64) << 2) * 10000);
                 for j in 0..5 {
                     if i != j {
-                        karma_insert(state, i as u64, j as u64, ((j + 1) * (i + 1)) as u64 * 100);
+                        rewards_insert(state, i as u64, j as u64, ((j + 1) * (i + 1)) as u64 * 100);
                     }
                 }
             }
@@ -2872,8 +2883,8 @@ pub(crate) mod tests {
             assert_eq!(state.minting_ratio(), 2);
 
             // Test circuit breaking
-            karma_insert(state, 4, 3, 301);
-            karma_insert(state, 4, 4, 60_000);
+            rewards_insert(state, 4, 3, 301);
+            rewards_insert(state, 4, 4, 60_000);
 
             // Tokens were not minted to to circuit breaking
             state.mint();
@@ -2938,7 +2949,7 @@ pub(crate) mod tests {
                 let id = create_user(state, p);
                 insert_balance(state, p, (i as u64 * 10) * 100);
                 let user = state.users.get_mut(&id).unwrap();
-                // we create the same amount of new and hard karma so that we have both karma and
+                // we create the same amount of new and hard rewards so that we have both rewards and
                 // balances after minting
                 user.change_rewards(i as i64 * 10, "test");
             }
@@ -2981,7 +2992,7 @@ pub(crate) mod tests {
             if let Some(Extension::Poll(poll)) =
                 Post::get(state, &post_id).unwrap().extension.as_ref()
             {
-                // Here we can see that by karma the difference is way smaller becasue values are
+                // Here we can see that by rewards the difference is way smaller becasue values are
                 // normalized by the square root.
                 assert_eq!(*poll.weighted_by_tokens.get(&0).unwrap(), 9000);
                 assert_eq!(*poll.weighted_by_tokens.get(&1).unwrap(), 18000);
@@ -4063,7 +4074,7 @@ pub(crate) mod tests {
             let user = state.users.get_mut(&inactive_id1).unwrap();
             assert_eq!(user.credits(), 500 - penalty);
             assert_eq!(user.rewards(), 0);
-            // not penalized due to low balance, but karma penalized
+            // not penalized due to low balance, but rewards penalized
             let user = state.users.get_mut(&inactive_id2).unwrap();
             assert_eq!(user.credits(), 100);
             assert_eq!(user.rewards(), 0);
@@ -4075,15 +4086,15 @@ pub(crate) mod tests {
             assert_eq!(user.credits(), 300);
             assert_eq!(user.rewards(), 25);
 
-            // check karma budgets
-            for (id, karma) in &[
+            // check rewards budgets
+            for (id, rewards) in &[
                 (inactive_id1, 100),
                 (inactive_id2, 1000),
                 (inactive_id3, 10000),
                 (active_id, 20000),
             ] {
                 let user = state.users.get_mut(id).unwrap();
-                user.change_rewards(*karma, "");
+                user.change_rewards(*rewards, "");
                 user.take_positive_rewards();
             }
 

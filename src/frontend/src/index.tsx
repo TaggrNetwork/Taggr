@@ -30,7 +30,7 @@ import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
 import { MAINNET_MODE, CANISTER_ID } from "./env";
-import { PostId, UserId } from "./types";
+import { PostId, UserFilter, UserId } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 
@@ -223,7 +223,9 @@ const reloadCache = async () => {
         window.api.query<[string, any][]>("recent_tags", "", 500),
         window.api.query<any>("stats"),
         window.api.query<any>("config"),
-        window.api.query<[string, string, boolean][]>("realms_data"),
+        window.api.query<{ [key: string]: [string, boolean, UserFilter] }>(
+            "realms_data",
+        ),
     ]);
     window.backendCache = {
         users: (users || []).reduce((acc, [id, name]) => {
@@ -235,10 +237,7 @@ const reloadCache = async () => {
             return acc;
         }, {} as any),
         recent_tags: (recent_tags || []).map(([tag, _]) => tag),
-        realms: (realms || []).reduce((acc, [name, color, controller]) => {
-            acc[name] = [color, controller];
-            return acc;
-        }, {} as any),
+        realms_data: realms || {},
         stats,
         config,
     };

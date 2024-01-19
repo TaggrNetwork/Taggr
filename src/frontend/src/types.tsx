@@ -148,7 +148,7 @@ export type Notification =
           ["Generic"]: string;
       }
     | {
-          ["WatchedPostEntries"]: PostId[];
+          ["WatchedPostEntries"]: [PostId, PostId[]];
       }
     | {
           ["Conditional"]: [string, Predicate];
@@ -159,9 +159,9 @@ export type Notification =
 
 export type UserFilter = {
     age_days: number;
-    num_posts: number;
     safe: boolean;
     balance: number;
+    num_followers: number;
 };
 
 export type User = {
@@ -173,6 +173,8 @@ export type User = {
     principal: string;
     bookmarks: number[];
     last_activity: BigInt;
+    governance: boolean;
+    notification_filter: UserFilter;
     settings: {
         [key: string]: string;
     };
@@ -197,7 +199,7 @@ export type User = {
     controllers: string[];
     karma_donations: { [key: UserId]: number };
     filters: Filters;
-    inbox: { [key: string]: Notification };
+    notifications: { [key: number]: [Notification, boolean] };
 };
 
 export type Report = {
@@ -232,7 +234,7 @@ declare global {
             users: { [name: UserId]: string };
             rewards: { [name: UserId]: number };
             recent_tags: string[];
-            realms: { [name: string]: [string, boolean] };
+            realms_data: { [name: string]: [string, boolean, UserFilter] };
             stats: {
                 fees_burned: number;
                 volume_day: number;

@@ -26,6 +26,8 @@ import {
     tokens,
     currentRealm,
     parseNumber,
+    getAccessErrorBanner,
+    getRealmsData,
 } from "./common";
 import { PostFeed } from "./post_feed";
 import {
@@ -256,6 +258,10 @@ export const PostView = ({
         (!isComment || !isCommentView) &&
         post.realm &&
         post.realm != currentRealm();
+    const realmAccessError =
+        user && post.realm
+            ? getAccessErrorBanner(getRealmsData(post.realm)[2], user)
+            : null;
     const isGallery = post.effBody.startsWith("![");
     const postCreated =
         post.patches.length > 0 ? post.patches[0][0] : post.timestamp;
@@ -428,12 +434,17 @@ export const PostView = ({
                                 post={post}
                                 react={react}
                             />
-                            <Form
-                                submitCallback={commentSubmissionCallback}
-                                postId={post.id}
-                                writingCallback={() => setCommentIncoming(true)}
-                                comment={true}
-                            />
+                            {realmAccessError}
+                            {!realmAccessError && (
+                                <Form
+                                    submitCallback={commentSubmissionCallback}
+                                    postId={post.id}
+                                    writingCallback={() =>
+                                        setCommentIncoming(true)
+                                    }
+                                    comment={true}
+                                />
+                            )}
                         </>
                     )}
                     <PostInfo
@@ -480,8 +491,7 @@ const PostInfo = ({
     versionSpecified?: boolean;
 }) => {
     const postAuthor = window.user?.id == post.userObject.id;
-    const realmController =
-        post.realm && window.backendCache.realms[post.realm][1];
+    const realmController = post.realm && getRealmsData(post.realm)[1];
     const { token_symbol, token_decimals } = window.backendCache.config;
     return (
         <>

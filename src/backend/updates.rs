@@ -71,7 +71,13 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    mutate(|state| {
+        state.users.values_mut().for_each(|user| {
+            user.governance = true;
+        })
+    });
+}
 
 /*
  * UPDATES
@@ -115,7 +121,7 @@ fn vote_on_report() {
 #[export_name = "canister_update clear_notifications"]
 fn clear_notifications() {
     mutate(|state| {
-        let ids: Vec<String> = parse(&arg_data_raw());
+        let ids: Vec<u64> = parse(&arg_data_raw());
         if let Some(user) = state.principal_to_user_mut(caller()) {
             user.clear_notifications(ids)
         }
@@ -185,8 +191,17 @@ fn update_user() {
 
 #[export_name = "canister_update update_user_settings"]
 fn update_user_settings() {
-    let settings: std::collections::BTreeMap<String, String> = parse(&arg_data_raw());
-    reply(User::update_settings(caller(), settings))
+    let (settings, filter, governance): (
+        std::collections::BTreeMap<String, String>,
+        UserFilter,
+        bool,
+    ) = parse(&arg_data_raw());
+    reply(User::update_settings(
+        caller(),
+        settings,
+        filter,
+        governance,
+    ))
 }
 
 #[export_name = "canister_update create_user"]

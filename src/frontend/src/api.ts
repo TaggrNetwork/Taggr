@@ -150,21 +150,26 @@ export const ApiGenerator = (
         methodName: string,
         arg: ArrayBuffer,
     ): Promise<ArrayBuffer | null> => {
-        let { response, requestId } = await agent.call(
-            canisterId,
-            { methodName, arg },
-            identity,
-        );
-        if (!response.ok) {
-            console.error(`Call error: ${response.statusText}`);
+        try {
+            let { response, requestId } = await agent.call(
+                canisterId,
+                { methodName, arg },
+                identity,
+            );
+            if (!response.ok) {
+                console.error(`Call error: ${response.statusText}`);
+                return null;
+            }
+            return await polling.pollForResponse(
+                agent,
+                canisterId,
+                requestId,
+                polling.defaultStrategy(),
+            );
+        } catch (error) {
+            console.error(error);
             return null;
         }
-        return await polling.pollForResponse(
-            agent,
-            canisterId,
-            requestId,
-            polling.defaultStrategy(),
-        );
     };
 
     const call = async <T>(

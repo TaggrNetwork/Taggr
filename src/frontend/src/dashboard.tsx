@@ -174,13 +174,13 @@ export const Dashboard = ({}) => {
                     </div>
                     <div className="db_cell">
                         <label>
-                            <CashCoin /> REWARDS SHARED
+                            <CashCoin /> REWARDS PAID
                         </label>
                         {icpCode(stats.total_rewards_shared, 0)}
                     </div>
                     <div className="db_cell">
                         <label>
-                            <Cash /> REVENUE SHARED
+                            <Cash /> REVENUE PAID
                         </label>
                         {icpCode(stats.total_revenue_shared, 0)}
                     </div>

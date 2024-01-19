@@ -283,3 +283,14 @@ fn remove_markdown(md: &str) -> String {
 
     result
 }
+
+pub fn realm_search(state: &State, query: String) -> Vec<(&'_ String, &'_ Realm)> {
+    let query = &query.to_lowercase();
+    state
+        .realms
+        .iter()
+        .filter(|(realm_id, realm)| {
+            realm_id.to_lowercase().contains(query) || realm.description.contains(query)
+        })
+        .collect()
+}

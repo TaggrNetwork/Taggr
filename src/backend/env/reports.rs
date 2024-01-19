@@ -160,7 +160,7 @@ mod tests {
             let user = state.users.get_mut(&u1).unwrap();
             user.change_rewards(100, "");
 
-            assert_eq!(user.inbox.len(), 1);
+            assert_eq!(user.notifications.len(), 1);
             assert_eq!(user.credits(), 1000);
             assert_eq!(user.rewards(), 100);
 

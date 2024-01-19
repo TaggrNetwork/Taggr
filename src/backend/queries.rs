@@ -158,15 +158,21 @@ fn realms_data() {
     read(|state| {
         let user_id = state.principal_to_user(caller()).map(|user| user.id);
         reply(
-            sorted_realms(state, "popularity".into())
+            state
+                .realms
+                .iter()
+                .filter(|(_, realm)| realm.last_update + 2 * WEEK > time())
                 .map(|(name, realm)| {
                     (
                         name,
-                        &realm.label_color,
-                        user_id.map(|id| realm.controllers.contains(&id)),
+                        (
+                            &realm.label_color,
+                            user_id.map(|id| realm.controllers.contains(&id)),
+                            &realm.filter,
+                        ),
                     )
                 })
-                .collect::<Vec<_>>(),
+                .collect::<std::collections::BTreeMap<_, _>>(),
         );
     });
 }
@@ -439,6 +445,12 @@ fn stats() {
 fn search() {
     let query: String = parse(&arg_data_raw());
     read(|state| reply(env::search::search(state, query)));
+}
+
+#[export_name = "canister_query realm_search"]
+fn realm_search() {
+    let query: String = parse(&arg_data_raw());
+    read(|state| reply(env::search::realm_search(state, query)));
 }
 
 #[query]

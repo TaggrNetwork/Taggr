@@ -76,7 +76,7 @@ export const Form = ({
     const form = React.useRef();
     const tags = window.backendCache.recent_tags;
     const users = Object.values(window.backendCache.users);
-    const realms = Object.keys(window.backendCache.realms);
+    const realms = Object.keys(window.backendCache.realms_data);
     const { max_post_length, max_blob_size_bytes } = window.backendCache.config;
 
     const previewAtLeft = bigScreen() && !comment;
@@ -111,6 +111,10 @@ export const Form = ({
         } else {
             let extension;
             if (poll) {
+                // Trim
+                poll.options = poll.options.filter(
+                    (option: string) => !!option,
+                );
                 extension = { Poll: poll };
             } else if (repost != undefined) {
                 extension = { Repost: repost };

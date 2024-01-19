@@ -120,7 +120,7 @@ test.describe("Regular users flow", () => {
         await page.getByTestId("toggle-user-section").click();
 
         // Let's mint cycles
-        await expect(page.getByTestId("credits-balance")).toHaveText("986");
+        await expect(page.getByTestId("credits-balance")).toHaveText("976");
         page.on("dialog", async (dialog) => {
             if (
                 dialog
@@ -131,7 +131,7 @@ test.describe("Regular users flow", () => {
             }
         });
         await page.getByRole("button", { name: "MINT" }).click();
-        await expect(page.getByTestId("credits-balance")).toHaveText("1,986");
+        await expect(page.getByTestId("credits-balance")).toHaveText("1,976");
 
         // Let's transfer some ICP
         const icpBalance = parseFloat(

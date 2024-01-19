@@ -4,6 +4,7 @@ import {
     BurgerButton,
     ButtonWithLoading,
     commaSeparated,
+    getAccessErrorBanner,
     HeadBar,
     Loading,
     realmColors,
@@ -40,8 +41,8 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
     const [userFilter, setUserFilter] = React.useState<UserFilter>({
         safe: false,
         age_days: 0,
-        num_posts: 0,
         balance: 0,
+        num_followers: 0,
     });
     const [controllersString, setControllersString] = React.useState(
         users[userId],
@@ -334,14 +335,13 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         </div>
                         <div className="column_container bottom_spaced">
                             <div className="bottom_half_spaced">
-                                Minimal number of posts on{" "}
-                                {window.backendCache.config.name}:
+                                Minimal number of followers:
                             </div>
                             <input
                                 type="number"
-                                value={userFilter.num_posts}
+                                value={userFilter.num_followers}
                                 onChange={(e) => {
-                                    userFilter.num_posts = Number(
+                                    userFilter.num_followers = Number(
                                         e.target.value,
                                     );
                                     setUserFilter({ ...userFilter });
@@ -547,6 +547,7 @@ export const RealmHeader = ({ name }: { name: string }) => {
             {showInfo && (
                 <div className="stands_out">
                     <Content value={realm.description} />
+                    Post eviction penalty: <code>{realm.cleanup_penalty}</code>
                     <hr />
                     <Restrictions realm={realm} />
                     <code>{realm.num_posts}</code> posts,{" "}
@@ -626,22 +627,37 @@ export const RealmHeader = ({ name }: { name: string }) => {
     );
 };
 
+let timer: any = null;
+
 export const Realms = () => {
     const [realms, setRealms] = React.useState<[string, Realm][]>([]);
     const [page, setPage] = React.useState(0);
     const [filter, setFilter] = React.useState("");
     const [order, setOrder] = React.useState("popularity");
     const [noMoreData, setNoMoreData] = React.useState(false);
+    const [loading, setLoading] = React.useState(false);
     const loadRealms = async () => {
-        const data = (await window.api.query<any>("realms", order, page)) || [];
+        const data =
+            (filter
+                ? await window.api.query<any>("realm_search", filter)
+                : await window.api.query<any>("realms", order, page)) || [];
         if (data.length == 0) {
             setNoMoreData(true);
         }
         setRealms(page == 0 ? data : realms.concat(data));
+        setLoading(false);
     };
+
     React.useEffect(() => {
         loadRealms();
     }, [page, order]);
+
+    React.useEffect(() => {
+        setLoading(true);
+        clearTimeout(timer);
+        setTimeout(() => loadRealms(), 500);
+    }, [filter]);
+
     const user = window.user;
 
     return (
@@ -684,6 +700,7 @@ export const Realms = () => {
                 </select>
             </div>
             <div>
+                {loading && <Loading />}
                 {realms
                     .filter(
                         ([name, { description }]) =>
@@ -721,6 +738,8 @@ export const Realms = () => {
                                     value={realm.description.split("\n")[0]}
                                     classNameArg="bottom_spaced"
                                 />
+                                Post eviction penalty:{" "}
+                                <code>{realm.cleanup_penalty}</code>
                                 <hr />
                                 <Restrictions realm={realm} />
                                 <>
@@ -732,7 +751,7 @@ export const Realms = () => {
                         );
                     })}
             </div>
-            {!noMoreData && (
+            {!noMoreData && !filter && (
                 <div style={{ display: "flex", justifyContent: "center" }}>
                     <ButtonWithLoading
                         classNameArg="active"
@@ -747,11 +766,13 @@ export const Realms = () => {
 
 const Restrictions = ({ realm }: { realm: Realm }) => {
     const restrictions = [];
-    const { age_days, num_posts, safe, balance } = realm.filter;
+    const { age_days, safe, balance, num_followers } = realm.filter;
     if (safe)
         restrictions.push(
             <>Users without reports and positive rewards balance.</>,
         );
+    if (num_followers > 0)
+        restrictions.push(<>Minimal number of followers: {num_followers}</>);
     if (age_days > 0) restrictions.push(<>Minimal account age: {age_days}</>);
     if (balance > 0)
         restrictions.push(
@@ -760,8 +781,6 @@ const Restrictions = ({ realm }: { realm: Realm }) => {
                 {balance}
             </>,
         );
-    if (num_posts > 0)
-        restrictions.push(<>Minimal posts number: {num_posts}</>);
     if (realm.whitelist.length > 0)
         restrictions.push(
             <>
@@ -781,7 +800,7 @@ const Restrictions = ({ realm }: { realm: Realm }) => {
                     <li key={i}>{line}</li>
                 ))}
             </ul>
-            Post eviction penalty: <code>{realm.cleanup_penalty}</code>
+            {getAccessErrorBanner(realm.filter, window.user)}
             <hr />
         </>
     );

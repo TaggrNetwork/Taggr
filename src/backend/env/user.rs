@@ -29,7 +29,7 @@ pub enum Notification {
     NewPost(String, PostId),
     Generic(String),
     Conditional(String, Predicate),
-    WatchedPostEntries(Vec<u64>),
+    WatchedPostEntries(PostId, Vec<PostId>),
 }
 
 // This struct will hold user's new post until it's saved.
@@ -41,12 +41,33 @@ pub struct Draft {
     pub blobs: Vec<(String, Blob)>,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct UserFilter {
     age_days: u64,
+    // TODO: delete
+    #[allow(dead_code)]
+    #[serde(skip)]
     num_posts: u64,
     safe: bool,
     balance: Token,
+    #[serde(default)]
+    num_followers: usize,
+}
+
+impl UserFilter {
+    pub fn passes(&self, filter: &UserFilter) -> bool {
+        let UserFilter {
+            age_days,
+            safe,
+            balance,
+            num_followers,
+            ..
+        } = filter;
+        self.age_days >= *age_days
+            && (self.safe ^ safe)
+            && self.balance >= *balance
+            && self.num_followers >= *num_followers
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -65,6 +86,8 @@ pub struct User {
     pub followees: BTreeSet<UserId>,
     pub followers: BTreeSet<UserId>,
     pub timestamp: u64,
+    // TODO: remove
+    #[serde(skip)]
     pub inbox: HashMap<String, Notification>,
     messages: u64,
     pub last_activity: u64,
@@ -84,24 +107,31 @@ pub struct User {
     pub filters: Filters,
     pub karma_donations: BTreeMap<UserId, Credits>,
     pub previous_names: Vec<String>,
+    #[serde(default)]
+    pub governance: bool,
+    #[serde(default)]
+    pub notification_filter: UserFilter,
+    #[serde(default)]
+    pub notifications: BTreeMap<u64, (Notification, bool)>,
 }
 
 impl User {
-    pub fn controversial(&self) -> bool {
-        self.rewards < 0 || self.report.is_some()
+    pub fn accepts_notifications(&self, user_id: UserId, filter: &UserFilter) -> bool {
+        self.followees.contains(&user_id) || filter.passes(&self.notification_filter)
     }
 
-    pub fn matches(&self, filter: &UserFilter, time: Time) -> bool {
-        let UserFilter {
-            age_days,
-            num_posts,
-            safe,
-            balance,
-        } = filter;
-        self.timestamp + age_days * DAY <= time
-            && self.num_posts >= *num_posts
-            && (!safe || !self.controversial())
-            && self.balance / token::base() >= *balance
+    pub fn get_filter(&self) -> UserFilter {
+        UserFilter {
+            age_days: (time() - self.timestamp) / DAY,
+            num_posts: self.num_posts,
+            safe: self.report.is_none() && self.rewards >= 0,
+            balance: self.balance / token::base(),
+            num_followers: self.followers.len(),
+        }
+    }
+
+    pub fn controversial(&self) -> bool {
+        self.rewards < 0 || self.report.is_some()
     }
 
     pub fn new(principal: Principal, id: UserId, timestamp: u64, name: String) -> Self {
@@ -127,6 +157,7 @@ impl User {
             realms: Default::default(),
             messages: 0,
             inbox: Default::default(),
+            notifications: Default::default(),
             balance: 0,
             active_weeks: 0,
             principal,
@@ -138,6 +169,8 @@ impl User {
             rewards: 0,
             cold_wallet: None,
             cold_balance: 0,
+            governance: true,
+            notification_filter: Default::default(),
         }
     }
 
@@ -215,14 +248,24 @@ impl User {
             < CONFIG.max_user_info_length
     }
 
-    pub fn clear_notifications(&mut self, ids: Vec<String>) {
-        if ids.is_empty() {
-            self.inbox.clear();
-        } else {
-            ids.into_iter().for_each(|id| {
-                self.inbox.remove(&id);
-            });
+    fn insert_notifications(&mut self, notification: Notification) {
+        self.messages += 1;
+        self.notifications
+            .insert(self.messages, (notification, false));
+        while self.notifications.len() > 200 {
+            self.notifications.pop_first();
         }
+    }
+
+    pub fn clear_notifications(&mut self, mut ids: Vec<u64>) {
+        if ids.is_empty() {
+            ids = self.notifications.keys().cloned().collect();
+        }
+        ids.into_iter().for_each(|id| {
+            if let Some((_, read)) = self.notifications.get_mut(&id) {
+                *read = true
+            };
+        });
     }
 
     pub fn toggle_following_feed(&mut self, tags: Vec<String>) -> bool {
@@ -265,18 +308,10 @@ impl User {
     }
 
     pub fn notify_with_params<T: AsRef<str>>(&mut self, message: T, predicate: Option<Predicate>) {
-        self.messages += 1;
-        let id = self.messages;
-        match predicate {
-            None => self.inbox.insert(
-                format!("generic_{id}"),
-                Notification::Generic(message.as_ref().into()),
-            ),
-            Some(p) => self.inbox.insert(
-                format!("conditional_{id}"),
-                Notification::Conditional(message.as_ref().into(), p),
-            ),
-        };
+        self.insert_notifications(match predicate {
+            None => Notification::Generic(message.as_ref().into()),
+            Some(predicate) => Notification::Conditional(message.as_ref().into(), predicate),
+        });
     }
 
     pub fn notify<T: AsRef<str>>(&mut self, message: T) {
@@ -284,24 +319,29 @@ impl User {
     }
 
     pub fn notify_about_post<T: AsRef<str>>(&mut self, message: T, post_id: PostId) {
-        self.messages += 1;
-        let id = self.messages;
-        self.inbox.insert(
-            format!("generic_{id}"),
-            Notification::NewPost(message.as_ref().into(), post_id),
-        );
+        self.insert_notifications(Notification::NewPost(message.as_ref().into(), post_id));
     }
 
     pub fn notify_about_watched_post(&mut self, post_id: PostId, comment: PostId, parent: PostId) {
-        let id = format!("watched_{post_id}");
-        if let Notification::WatchedPostEntries(entries) = self
-            .inbox
-            .entry(id)
-            .or_insert_with(|| Notification::WatchedPostEntries(Default::default()))
-        {
-            entries.retain(|id| *id != parent);
-            entries.push(comment);
-        }
+        let entry = self
+            .notifications
+            .iter()
+            .find(|(_, notification)| {
+                matches!(notification, (Notification::WatchedPostEntries(id, _), false)
+                        if id == &post_id)
+            })
+            .map(|(a, b)| (*a, b.clone()));
+        let notification = entry
+            .map(|(existing_id, mut notification)| {
+                self.notifications.remove(&existing_id);
+                if let Notification::WatchedPostEntries(_, entries) = &mut notification.0 {
+                    entries.retain(|id| *id != parent);
+                    entries.push(comment);
+                }
+                notification.0
+            })
+            .unwrap_or_else(|| Notification::WatchedPostEntries(post_id, vec![comment]));
+        self.insert_notifications(notification);
     }
 
     pub fn is_bot(&self) -> bool {
@@ -405,6 +445,8 @@ impl User {
     pub fn update_settings(
         caller: Principal,
         settings: BTreeMap<String, String>,
+        filter: UserFilter,
+        governance: bool,
     ) -> Result<(), String> {
         mutate(|state| {
             if let Some(user) = state.principal_to_user_mut(caller) {
@@ -412,6 +454,8 @@ impl User {
                     return Err("too long inputs".to_string());
                 }
                 user.settings = settings;
+                user.governance = governance;
+                user.notification_filter = filter;
             }
             Ok(())
         })
@@ -543,7 +587,7 @@ mod tests {
         let filter = UserFilter::default();
         let user = User::new(pr(0), 0, 0, "test".into());
 
-        assert!(user.matches(&filter, 1));
+        assert!(user.get_filter().passes(&filter));
     }
 
     #[test]

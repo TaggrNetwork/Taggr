@@ -47,7 +47,13 @@ export const Header = ({
 
     const inboxEmpty = !user || messages == 0;
     const refreshMessageCounter = () =>
-        setMessages(user ? Object.keys(user.inbox).length : 0);
+        setMessages(
+            user
+                ? Object.values(user.notifications).filter(
+                      ([_, status]) => !status,
+                  ).length
+                : 0,
+        );
     React.useEffect(() => {
         const logo = document.getElementById("logo");
         if (!logo) return;
@@ -79,7 +85,7 @@ export const Header = ({
                 </div>
             )}
             <header className="spaced top_half_spaced vcentered">
-                {!["/", "#/", ""].includes(location.hash) && (
+                {!["/", "#/", "", "#/inbox"].includes(location.hash) && (
                     <span
                         className="clickable_color clickable right_half_spaced left_half_spaced"
                         onClick={() => history.back()}

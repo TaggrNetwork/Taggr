@@ -11,8 +11,7 @@ export const Landing = () => {
     const user = window.user;
     const realm = currentRealm();
     const [feed, setFeed] = React.useState(
-        (user && user.settings[tabKey()]) ||
-            (currentRealm() ? "NEW" : "TRENDING"),
+        (user && user.settings[tabKey()]) || "TRENDING",
     );
     let labels: [JSX.Element, string][] = [
         [<New />, "NEW"],
@@ -43,6 +42,8 @@ export const Landing = () => {
                             window.api.call<any>(
                                 "update_user_settings",
                                 user.settings,
+                                user.notification_filter,
+                                user.governance,
                             );
                         }
                         setFeed(id);

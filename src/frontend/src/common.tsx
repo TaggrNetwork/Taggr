@@ -3,7 +3,7 @@ import * as React from "react";
 import DiffMatchPatch from "diff-match-patch";
 import { Clipboard, ClipboardCheck, Close, Flag, Menu, Share } from "./icons";
 import { loadFile } from "./form";
-import { Post, PostId, Report, User, UserId } from "./types";
+import { Post, PostId, Report, User, UserFilter, UserId } from "./types";
 import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger-icrc";
@@ -54,6 +54,9 @@ export const MoreButton = ({ callback }: { callback: () => Promise<void> }) => (
         />
     </div>
 );
+
+export const getRealmsData = (id: string) =>
+    window.backendCache.realms_data[id] || ["#ffffff", false, {}];
 
 export const FileUploadInput = ({
     classNameArg,
@@ -197,8 +200,7 @@ export const realmColors = (name: string, col?: string) => {
         const brightness = (c_r * 299 + c_g * 587 + c_b * 114) / 1000;
         return brightness > 155;
     };
-    const effCol =
-        col || (window.backendCache.realms[name] || [])[0] || "#ffffff";
+    const effCol = col || getRealmsData(name)[0];
     const color = light(effCol) ? "black" : "white";
     return { background: effCol, color, fill: color };
 };
@@ -395,10 +397,10 @@ export const timeAgo = (
     }
 };
 
+const tokenBase = () => Math.pow(10, window.backendCache.config.token_decimals);
+
 export const tokenBalance = (balance: number) =>
-    (
-        balance / Math.pow(10, window.backendCache.config.token_decimals)
-    ).toLocaleString();
+    (balance / tokenBase()).toLocaleString();
 
 export const icpCode = (e8s: BigInt, decimals?: number, units = true) => (
     <code className="xx_large_text">
@@ -967,4 +969,37 @@ export const icrcTransfer = async (
         alert("Transfer failed.");
         return 0;
     }
+};
+
+const DAY = 24 * 60 * 60 * 1000;
+
+export const getAccessErrorBanner = (filter: UserFilter, user: User) => {
+    const err = checkUserFilterMatch(filter, user);
+    return err ? (
+        <div className="banner vertically_spaced">{`Unfortunately, you cannot post to this realm: ${err}`}</div>
+    ) : null;
+};
+
+const checkUserFilterMatch = (
+    filter: UserFilter,
+    user: User,
+): string | null => {
+    const { age_days, safe, balance, num_followers } = filter;
+    if (
+        (Number(new Date()) - Number(user.timestamp) / 1000000) / DAY <
+        age_days
+    ) {
+        return "account age is too low";
+    }
+    if (!safe && (user.rewards < 0 || user.report)) {
+        return "negative rewards or report is pending";
+    }
+    if (balance * tokenBase() > user.balance) {
+        return "token balance too low";
+    }
+    if (num_followers > user.followers.length) {
+        return "number of followers insufficient";
+    }
+
+    return null;
 };

@@ -237,7 +237,7 @@ pub const CONFIG: &Config = &Config {
 
     post_cost: 2,
     tag_cost: 3,
-    blob_cost: 10,
+    blob_cost: 20,
     poll_cost: 3,
     realm_cost: 1000,
 

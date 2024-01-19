@@ -348,7 +348,7 @@ pub fn propose(
         id,
     });
     state.notify_with_predicate(
-        &|user| user.active_within_weeks(time, 1) && user.balance > 0,
+        &|user| user.governance && user.active_within_weeks(time, 1) && user.balance > 0,
         format!("@{} submitted a new proposal", &proposer_name,),
         Predicate::Proposal(post_id),
     );
