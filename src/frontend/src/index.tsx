@@ -24,7 +24,7 @@ import {
 } from "./common";
 import { Settings } from "./settings";
 import { ApiGenerator } from "./api";
-import { Wallet, WelcomeInvited } from "./wallet";
+import { Welcome, WelcomeInvited } from "./wallet";
 import { Proposals } from "./proposals";
 import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
@@ -32,7 +32,6 @@ import { Recovery } from "./recovery";
 import { MAINNET_MODE, CANISTER_ID } from "./env";
 import { PostId, UserId } from "./types";
 import { setRealmUI, setUI } from "./theme";
-import { Close } from "./icons";
 import { Search } from "./search";
 
 const { hash, pathname } = location;
@@ -115,7 +114,7 @@ const App = () => {
             <WelcomeInvited />
         );
     } else if (handler == "wallet" || (window.principalId && !window.user)) {
-        content = <Wallet />;
+        content = <Welcome />;
     } else if (handler == "post") {
         const id = parseInt(param);
         const version = parseInt(param2);
@@ -327,61 +326,17 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
     },
 );
 
-const Footer = ({}) => {
-    const [domainSelection, setDomainSelection] = React.useState(false);
-    return (
-        <footer className="small_text text_centered vertically_spaced">
-            {domainSelection && (
-                <>
-                    <div className="bottom_spaced vertically_aligned">
-                        ALTERNATIVE DOMAINS
-                        <button
-                            className="unselected left_half_spaced"
-                            style={{
-                                padding: 0,
-                                position: "relative",
-                                bottom: "0.1em",
-                            }}
-                            onClick={() => setDomainSelection(false)}
-                        >
-                            <Close classNameArg="accent clickable" size={12} />
-                        </button>
-                    </div>
-                    <div className="column_container">
-                        {window.backendCache.config.domains.map((domain) => (
-                            <a
-                                key={domain}
-                                className="left_half_spaced right_half_spaced"
-                                href={`https://${domain}`}
-                            >
-                                {domain}
-                            </a>
-                        ))}
-                    </div>
-                </>
-            )}
-            {!domainSelection && (
-                <>
-                    <a href="#/post/0">2021</a>
-                    <span className="left_half_spaced right_half_spaced">
-                        &middot;
-                    </span>
-                    <a href={location.origin}>{location.host.toLowerCase()}</a>
-                    <span
-                        className="accent clickable left_half_spaced"
-                        onClick={() => setDomainSelection(true)}
-                    >
-                        &#9880;
-                    </span>
-                    <span className="left_half_spaced right_half_spaced">
-                        &middot;
-                    </span>
-                    <a href="https://github.com/TaggrNetwork/taggr">GitHub</a>
-                </>
-            )}
-        </footer>
-    );
-};
+const Footer = ({}) => (
+    <footer className="small_text text_centered vertically_spaced">
+        <>
+            <a href="#/post/0">2021</a>
+            <span className="left_half_spaced right_half_spaced">&middot;</span>
+            <a href={location.origin}>{location.host.toLowerCase()}</a>
+            <span className="left_half_spaced right_half_spaced">&middot;</span>
+            <a href="https://github.com/TaggrNetwork/taggr">GitHub</a>
+        </>
+    </footer>
+);
 
 const updateDoc = () => {
     document.getElementById("logo_container")?.remove();

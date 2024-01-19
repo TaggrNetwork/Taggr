@@ -13,9 +13,9 @@ import {
     ReportBanner,
     ShareButton,
     ButtonWithLoading,
-    realmList,
     UserLink,
     popUp,
+    RealmList,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -452,7 +452,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 <>
                     <h2>Interests</h2>
                     {feeds}
-                    {realmList(profile.realms)}
+                    <RealmList classNameArg="top_spaced" ids={profile.realms} />
                     <hr />
                 </>
             )}
@@ -466,7 +466,10 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                         {userList(filters.users)}
                     </div>
                     <div className="bottom_spaced">
-                        {realmList(filters.realms)}
+                        <RealmList
+                            classNameArg="top_spaced"
+                            ids={filters.realms}
+                        />
                     </div>
                     <div className="bottom_spaced">
                         {commaSeparated(

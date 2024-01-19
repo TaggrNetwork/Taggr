@@ -18,6 +18,28 @@ export const percentage = (n: number | BigInt, total: number) => {
     return `${p}%`;
 };
 
+export const RealmList = ({
+    ids = [],
+    classNameArg,
+}: {
+    ids?: string[];
+    classNameArg?: string;
+}) => (
+    <div
+        className={`row_container ${classNameArg || ""}`}
+        style={{ alignItems: "center" }}
+    >
+        {ids.map((name) => (
+            <RealmSpan
+                key={name}
+                name={name}
+                onClick={() => (location.href = `/#/realm/${name}`)}
+                classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
+            />
+        ))}
+    </div>
+);
+
 export const hex = (arr: number[]) =>
     Array.from(arr, (byte) =>
         ("0" + (byte & 0xff).toString(16)).slice(-2),
@@ -529,19 +551,6 @@ export const UserLink = ({
     );
 };
 
-export const realmList = (ids: string[] = []) => (
-    <div className="row_container top_spaced" style={{ alignItems: "center" }}>
-        {ids.map((name) => (
-            <RealmSpan
-                key={name}
-                name={name}
-                onClick={() => (location.href = `/#/realm/${name}`)}
-                classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
-            />
-        ))}
-    </div>
-);
-
 export const userList = (ids: UserId[] = []) =>
     commaSeparated(ids.map((id) => <UserLink key={id} id={id} />));
 
@@ -550,7 +559,7 @@ export const token = (n: number) =>
         n / Math.pow(10, window.backendCache.config.token_decimals),
     ).toLocaleString();
 
-export const ReactionToggleButton = ({
+export const IconToggleButton = ({
     title,
     icon,
     onClick,
@@ -600,7 +609,7 @@ export const BurgerButton = ({
         effStyle.background = color;
     }
     return (
-        <ReactionToggleButton
+        <IconToggleButton
             title="Menu"
             onClick={onClick}
             pressed={pressed}

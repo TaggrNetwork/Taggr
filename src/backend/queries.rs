@@ -304,6 +304,19 @@ fn journal() {
     })
 }
 
+#[export_name = "canister_query hot_realm_posts"]
+fn hot_realm_posts() {
+    let (realm, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
+    read(|state| {
+        reply(
+            state
+                .hot_posts(caller(), optional(realm), page, offset)
+                .filter(|post| post.realm.is_some())
+                .collect::<Vec<_>>(),
+        )
+    });
+}
+
 #[export_name = "canister_query hot_posts"]
 fn hot_posts() {
     let (realm, page, offset): (String, usize, PostId) = parse(&arg_data_raw());

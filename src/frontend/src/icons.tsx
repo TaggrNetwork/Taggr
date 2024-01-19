@@ -23,7 +23,7 @@ export const Infinity = () => (
 export const Rocket = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -34,10 +34,22 @@ export const Rocket = ({ classNameArg }: { classNameArg?: string }) => (
     </svg>
 );
 
+export const Hash = ({ classNameArg }: { classNameArg?: string }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className={`vertically_aligned ${classNameArg}`}
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+    >
+        <path d="M8.39 12.648a1 1 0 0 0-.015.18c0 .305.21.508.5.508.266 0 .492-.172.555-.477l.554-2.703h1.204c.421 0 .617-.234.617-.547 0-.312-.188-.53-.617-.53h-.985l.516-2.524h1.265c.43 0 .618-.227.618-.547 0-.313-.188-.524-.618-.524h-1.046l.476-2.304a1 1 0 0 0 .016-.164.51.51 0 0 0-.516-.516.54.54 0 0 0-.539.43l-.523 2.554H7.617l.477-2.304c.008-.04.015-.118.015-.164a.51.51 0 0 0-.523-.516.54.54 0 0 0-.531.43L6.53 5.484H5.414c-.43 0-.617.22-.617.532s.187.539.617.539h.906l-.515 2.523H4.609c-.421 0-.609.219-.609.531s.188.547.61.547h.976l-.516 2.492c-.008.04-.015.125-.015.18 0 .305.21.508.5.508.265 0 .492-.172.554-.477l.555-2.703h2.242zm-1-6.109h2.266l-.515 2.563H6.859l.532-2.563z" />
+    </svg>
+);
+
 export const Git = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -49,7 +61,7 @@ export const Git = ({ classNameArg }: { classNameArg?: string }) => (
 export const Journal = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -63,7 +75,7 @@ export const Journal = ({ classNameArg }: { classNameArg?: string }) => (
 export const CashCoin = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -81,7 +93,7 @@ export const CashCoin = ({ classNameArg }: { classNameArg?: string }) => (
 export const Incognito = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -96,7 +108,7 @@ export const Incognito = ({ classNameArg }: { classNameArg?: string }) => (
 export const Cash = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -109,7 +121,7 @@ export const Cash = ({ classNameArg }: { classNameArg?: string }) => (
 export const Box = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -126,7 +138,7 @@ export const CommentArrow = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width={14}
         height={14}
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         viewBox="0 0 16 14"
     >
         <path
@@ -139,7 +151,7 @@ export const CommentArrow = ({ classNameArg }: { classNameArg?: string }) => (
 export const Table = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -151,7 +163,7 @@ export const Table = ({ classNameArg }: { classNameArg?: string }) => (
 export const Pic = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -163,7 +175,7 @@ export const Pic = ({ classNameArg }: { classNameArg?: string }) => (
 export const Code = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -175,7 +187,7 @@ export const Code = ({ classNameArg }: { classNameArg?: string }) => (
 export const Link = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -188,7 +200,7 @@ export const Link = ({ classNameArg }: { classNameArg?: string }) => (
 export const Quote = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -200,7 +212,7 @@ export const Quote = ({ classNameArg }: { classNameArg?: string }) => (
 export const ListNumbered = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -216,7 +228,7 @@ export const ListNumbered = ({ classNameArg }: { classNameArg?: string }) => (
 export const List = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -236,7 +248,7 @@ export const List = ({ classNameArg }: { classNameArg?: string }) => (
 export const Comment = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -248,7 +260,7 @@ export const Comment = ({ classNameArg }: { classNameArg?: string }) => (
 export const Post = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -260,7 +272,7 @@ export const Post = ({ classNameArg }: { classNameArg?: string }) => (
 export const Online = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -275,7 +287,7 @@ export const Online = ({ classNameArg }: { classNameArg?: string }) => (
 export const ActiveUser = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -290,7 +302,7 @@ export const ActiveUser = ({ classNameArg }: { classNameArg?: string }) => (
 export const User = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={classNameArg}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -308,7 +320,7 @@ export const New = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L10.863.1z" />
@@ -328,7 +340,7 @@ export const Close = ({
         xmlns="http://www.w3.org/2000/svg"
         width={size ? size.toString() : "16"}
         height={size ? size.toString() : "16"}
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path
@@ -407,7 +419,7 @@ export const Bell = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zm.995-14.901a1 1 0 1 0-1.99 0A5.002 5.002 0 0 0 3 6c0 1.098-.5 6-2 7h14c-1.5-1-2-5.902-2-7 0-2.42-1.72-4.44-4.005-4.901z" />
@@ -419,7 +431,7 @@ export const BellOff = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M5.164 14H15c-1.5-1-2-5.902-2-7 0-.264-.02-.523-.06-.776L5.164 14zm6.288-10.617A4.988 4.988 0 0 0 8.995 2.1a1 1 0 1 0-1.99 0A5.002 5.002 0 0 0 3 7c0 .898-.335 4.342-1.278 6.113l9.73-9.73zM10 15a2 2 0 1 1-4 0h4zm-9.375.625a.53.53 0 0 0 .75.75l14.75-14.75a.53.53 0 0 0-.75-.75L.625 15.625z" />
@@ -503,7 +515,7 @@ export const Paperclip = () => (
 export const Coin = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -533,7 +545,7 @@ export const Repost = () => (
 export const Save = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -545,7 +557,7 @@ export const Save = ({ classNameArg }: { classNameArg?: string }) => (
 export const Unsave = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -609,7 +621,7 @@ export const Menu = ({
 }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={`vertically_aligned ${classNameArg || ""}`}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"
@@ -646,7 +658,7 @@ export const CarretDown = ({ classNameArg }: { classNameArg?: string }) => (
         width="18"
         height="18"
         viewBox="0 0 16 16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
     >
         <path
             fillRule="evenodd"
@@ -664,7 +676,7 @@ export const Globe = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm7.5-6.923c-.67.204-1.335.82-1.887 1.855-.143.268-.276.56-.395.872.705.157 1.472.257 2.282.287V1.077zM4.249 3.539c.142-.384.304-.744.481-1.078a6.7 6.7 0 0 1 .597-.933A7.01 7.01 0 0 0 3.051 3.05c.362.184.763.349 1.198.49zM3.509 7.5c.036-1.07.188-2.087.436-3.008a9.124 9.124 0 0 1-1.565-.667A6.964 6.964 0 0 0 1.018 7.5h2.49zm1.4-2.741a12.344 12.344 0 0 0-.4 2.741H7.5V5.091c-.91-.03-1.783-.145-2.591-.332zM8.5 5.09V7.5h2.99a12.342 12.342 0 0 0-.399-2.741c-.808.187-1.681.301-2.591.332zM4.51 8.5c.035.987.176 1.914.399 2.741A13.612 13.612 0 0 1 7.5 10.91V8.5H4.51zm3.99 0v2.409c.91.03 1.783.145 2.591.332.223-.827.364-1.754.4-2.741H8.5zm-3.282 3.696c.12.312.252.604.395.872.552 1.035 1.218 1.65 1.887 1.855V11.91c-.81.03-1.577.13-2.282.287zm.11 2.276a6.696 6.696 0 0 1-.598-.933 8.853 8.853 0 0 1-.481-1.079 8.38 8.38 0 0 0-1.198.49 7.01 7.01 0 0 0 2.276 1.522zm-1.383-2.964A13.36 13.36 0 0 1 3.508 8.5h-2.49a6.963 6.963 0 0 0 1.362 3.675c.47-.258.995-.482 1.565-.667zm6.728 2.964a7.009 7.009 0 0 0 2.275-1.521 8.376 8.376 0 0 0-1.197-.49 8.853 8.853 0 0 1-.481 1.078 6.688 6.688 0 0 1-.597.933zM8.5 11.909v3.014c.67-.204 1.335-.82 1.887-1.855.143-.268.276-.56.395-.872A12.63 12.63 0 0 0 8.5 11.91zm3.555-.401c.57.185 1.095.409 1.565.667A6.963 6.963 0 0 0 14.982 8.5h-2.49a13.36 13.36 0 0 1-.437 3.008zM14.982 7.5a6.963 6.963 0 0 0-1.362-3.675c-.47.258-.995.482-1.565.667.248.92.4 1.938.437 3.008h2.49zM11.27 2.461c.177.334.339.694.482 1.078a8.368 8.368 0 0 0 1.196-.49 7.01 7.01 0 0 0-2.275-1.52c.218.283.418.597.597.932zm-.488 1.343a7.765 7.765 0 0 0-.395-.872C9.835 1.897 9.17 1.282 8.5 1.077V4.09c.81-.03 1.577-.13 2.282-.287z" />
@@ -676,7 +688,7 @@ export const Binary = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M5.526 10.273c-.542 0-.832.563-.832 1.612 0 .088.003.173.006.252l1.559-1.143c-.126-.474-.375-.72-.733-.72zm-.732 2.508c.126.472.372.718.732.718.54 0 .83-.563.83-1.614 0-.085-.003-.17-.006-.25l-1.556 1.146z" />
@@ -693,7 +705,7 @@ export const StorageCanister = ({
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M0 10a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-1zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm2 0a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zM.91 7.204A2.993 2.993 0 0 1 2 7h12c.384 0 .752.072 1.09.204l-1.867-3.422A1.5 1.5 0 0 0 11.906 3H4.094a1.5 1.5 0 0 0-1.317.782L.91 7.204z" />
@@ -705,7 +717,7 @@ export const Canister = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M2.5 4a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm2-.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0zm1 .5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z" />
@@ -718,7 +730,7 @@ export const Canisters = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M4.5 6a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1ZM6 6a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1Zm2-.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0Z" />
@@ -731,7 +743,7 @@ export const Realm = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M0 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2H2a2 2 0 0 1-2-2V2zm12 2H5a1 1 0 0 0-1 1v7h7a1 1 0 0 0 1-1V4z" />
@@ -743,7 +755,7 @@ export const Document = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm-.5 2.5A.5.5 0 0 1 5 6h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1H5z" />
@@ -756,7 +768,7 @@ export const Ticket = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 20"
     >
         <path d="M4 5.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5Zm0 5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5ZM5 7a1 1 0 0 0 0 2h6a1 1 0 1 0 0-2H5Z" />
@@ -769,7 +781,7 @@ export const Wallet = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M0 3a2 2 0 0 1 2-2h13.5a.5.5 0 0 1 0 1H15v2a1 1 0 0 1 1 1v8.5a1.5 1.5 0 0 1-1.5 1.5h-12A2.5 2.5 0 0 1 0 12.5V3zm1 1.732V12.5A1.5 1.5 0 0 0 2.5 14h12a.5.5 0 0 0 .5-.5V5H2a1.99 1.99 0 0 1-1-.268zM1 3a1 1 0 0 0 1 1h12V2H2a1 1 0 0 0-1 1z" />
@@ -781,7 +793,7 @@ export const Bars = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M1 11a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-3zm5-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7zm5-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V2z" />
@@ -793,7 +805,7 @@ export const Gem = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M3.1.7a.5.5 0 0 1 .4-.2h9a.5.5 0 0 1 .4.2l2.976 3.974c.149.185.156.45.01.644L8.4 15.3a.5.5 0 0 1-.8 0L.1 5.3a.5.5 0 0 1 0-.6l3-4zm11.386 3.785-1.806-2.41-.776 2.413 2.582-.003zm-3.633.004.961-2.989H4.186l.963 2.995 5.704-.006zM5.47 5.495 8 13.366l2.532-7.876-5.062.005zm-1.371-.999-.78-2.422-1.818 2.425 2.598-.003zM1.499 5.5l5.113 6.817-2.192-6.82L1.5 5.5zm7.889 6.817 5.123-6.83-2.928.002-2.195 6.828z" />
@@ -805,7 +817,7 @@ export const HourGlass = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M2.5 15a.5.5 0 1 1 0-1h1v-1a4.5 4.5 0 0 1 2.557-4.06c.29-.139.443-.377.443-.59v-.7c0-.213-.154-.451-.443-.59A4.5 4.5 0 0 1 3.5 3V2h-1a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1h-1v1a4.5 4.5 0 0 1-2.557 4.06c-.29.139-.443.377-.443.59v.7c0 .213.154.451.443.59A4.5 4.5 0 0 1 12.5 13v1h1a.5.5 0 0 1 0 1h-11zm2-13v1c0 .537.12 1.045.337 1.5h6.326c.216-.455.337-.963.337-1.5V2h-7zm3 6.35c0 .701-.478 1.236-1.011 1.492A3.5 3.5 0 0 0 4.5 13s.866-1.299 3-1.48V8.35zm1 0v3.17c2.134.181 3 1.48 3 1.48a3.5 3.5 0 0 0-1.989-3.158C8.978 9.586 8.5 9.052 8.5 8.351z" />
@@ -817,7 +829,7 @@ export const Treasury = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="m8 0 6.61 3h.89a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5H15v7a.5.5 0 0 1 .485.38l.5 2a.498.498 0 0 1-.485.62H.5a.498.498 0 0 1-.485-.62l.5-2A.501.501 0 0 1 1 13V6H.5a.5.5 0 0 1-.5-.5v-2A.5.5 0 0 1 .5 3h.89L8 0ZM3.777 3h8.447L8 1 3.777 3ZM2 6v7h1V6H2Zm2 0v7h2.5V6H4Zm3.5 0v7h1V6h-1Zm2 0v7H12V6H9.5ZM13 6v7h1V6h-1Zm2-1V4H1v1h14Zm-.39 9H1.39l-.25 1h13.72l-.25-1Z" />
@@ -829,7 +841,7 @@ export const Gear = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z" />
@@ -841,7 +853,7 @@ export const Balloon = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path
@@ -856,7 +868,7 @@ export const Logout = ({ classNameArg }: { classNameArg?: string }) => (
         xmlns="http://www.w3.org/2000/svg"
         width="16"
         height="16"
-        className={`${classNameArg || ""} vertically_aligned`}
+        className={`${classNameArg} vertically_aligned`}
         viewBox="0 0 16 16"
     >
         <path

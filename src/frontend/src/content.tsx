@@ -274,7 +274,9 @@ const markdownizer = (
                         return null;
                     }
                     let id: string = props.src;
+                    let internal = false;
                     if (props.src.startsWith("/blob/")) {
+                        internal = true;
                         id = props.src.replace("/blob/", "");
                         if (id in urls) {
                             props.src = urls[id];
@@ -288,13 +290,29 @@ const markdownizer = (
                             props.src = fillerImg;
                         }
                     }
-                    return (
+                    const element = (
                         <img
                             {...props}
                             onClick={() =>
                                 previewImg(props.src, id, props.gallery, urls)
                             }
                         />
+                    );
+                    return internal || props.thumbnail ? (
+                        element
+                    ) : (
+                        <div>
+                            {element}
+                            <div className="external_image_bar">
+                                URL:{" "}
+                                <a
+                                    rel="nofollow noopener noreferrer"
+                                    href={props.src}
+                                >
+                                    {props.src}
+                                </a>
+                            </div>
+                        </div>
                     );
                 },
             }}
@@ -319,7 +337,11 @@ const Gallery = ({ children }: any) => {
                     data-meta="skipClicks"
                     className="thumbnails row_container"
                 >
-                    {pictures}
+                    {pictures.map((picture: JSX.Element) =>
+                        React.cloneElement(picture, {
+                            thumbnail: true,
+                        }),
+                    )}
                 </div>
             )}
             {nonPictures.length > 0 && <p>{nonPictures}</p>}

@@ -1,8 +1,8 @@
 import * as React from "react";
 import { PostFeed } from "./post_feed";
 import { Search } from "./search";
-import { bigScreen, currentRealm, Loading, RealmSpan } from "./common";
-import { New, User, Fire, Realm } from "./icons";
+import { bigScreen, currentRealm, Loading } from "./common";
+import { New, User, Bars, Gem, Balloon, Document, Fire, Realm } from "./icons";
 import { PostId } from "./types";
 
 const tabKey = () => `${currentRealm()}_tab`;
@@ -11,69 +11,62 @@ export const Landing = () => {
     const user = window.user;
     const realm = currentRealm();
     const [feed, setFeed] = React.useState(
-        (user && user.settings[tabKey()]) || (currentRealm() ? "NEW" : "HOT"),
+        (user && user.settings[tabKey()]) ||
+            (currentRealm() ? "NEW" : "TRENDING"),
     );
     let labels: [JSX.Element, string][] = [
         [<New />, "NEW"],
-        [<Fire />, "HOT"],
+        [<Fire />, "TRENDING"],
     ];
     if (!realm) {
         labels = labels.slice(1);
         if (user) {
-            labels.push([<User />, "FOLLOWED"]);
+            labels.push([
+                <User classNameArg="vertically_aligned" />,
+                "PERSONAL",
+            ]);
             if (user.realms.length > 0) labels.push([<Realm />, "REALMS"]);
+        } else {
+            labels.push([<Realm />, "BEST IN REALMS"]);
         }
     }
 
     const title = (
         <div className="text_centered vertically_spaced small_text">
-            {labels.length == 1
-                ? null
-                : labels.map(([icon, id]: [JSX.Element, string]) => (
-                      <button
-                          key={id}
-                          data-testid={`tab-${id}`}
-                          onClick={() => {
-                              if (user) {
-                                  user.settings[tabKey()] = id;
-                                  window.api.call<any>(
-                                      "update_user_settings",
-                                      user.settings,
-                                  );
-                              }
-                              setFeed(id);
-                          }}
-                          className={feed == id ? "active" : "unselected"}
-                      >
-                          {icon} {id}
-                      </button>
-                  ))}
+            {labels.map(([icon, id]: [JSX.Element, string]) => (
+                <button
+                    key={id}
+                    data-testid={`tab-${id}`}
+                    onClick={() => {
+                        if (user) {
+                            user.settings[tabKey()] = id;
+                            window.api.call<any>(
+                                "update_user_settings",
+                                user.settings,
+                            );
+                        }
+                        setFeed(id);
+                    }}
+                    className={feed == id ? "active" : "unselected"}
+                >
+                    {icon} {id}
+                </button>
+            ))}
         </div>
     );
 
     return (
         <>
             {!user && !realm && (
-                <div className="vertically_spaced text_centered">
+                <div className="spaced vertically_spaced text_centered">
                     <h1>WELCOME ABOARD</h1>
                     <span>
                         To the Future of Decentralized Social Networking.
                     </span>
-                    <br />
-                    <br />
-                    <a href="#/whitepaper">WHITE PAPER</a>
-                    &nbsp;&middot;&nbsp;
-                    <a href="#/tokens">TOKENS</a>
-                    &nbsp;&middot;&nbsp;
-                    <a href="#/dashboard">DASHBOARD</a>
                 </div>
             )}
+            {!user && <Links />}
             <Search />
-            {!user && !realm && (
-                <>
-                    <RealmsDashboard />
-                </>
-            )}
             <TagCloud
                 size={bigScreen() ? 60 : 30}
                 heartbeat={feed}
@@ -84,13 +77,20 @@ export const Landing = () => {
                 refreshRateSecs={10 * 60}
                 title={title}
                 feedLoader={async (page: number, offset: PostId) => {
-                    if (feed == "FOLLOWED")
+                    if (feed == "PERSONAL")
                         return await window.api.query(
                             "personal_feed",
                             page,
                             offset,
                         );
-                    if (feed == "HOT")
+                    if (feed == "BEST IN REALMS")
+                        return await window.api.query(
+                            "hot_realm_posts",
+                            realm,
+                            page,
+                            offset,
+                        );
+                    if (feed == "TRENDING")
                         return await window.api.query(
                             "hot_posts",
                             realm,
@@ -114,32 +114,6 @@ export const Landing = () => {
                 }}
             />
         </>
-    );
-};
-
-const RealmsDashboard = () => {
-    const realmNames = Object.keys(window.backendCache.realms);
-    return (
-        <div className="vertically_spaced text_centered">
-            <div
-                className="row_container"
-                style={{ margin: "0.5em", marginBottom: "1em" }}
-            >
-                {realmNames.slice(0, 10).map((name) => (
-                    <RealmSpan
-                        key={name}
-                        col={window.backendCache.realms[name][0]}
-                        name={name}
-                        styleArg={{ padding: "1em" }}
-                        onClick={() => (location.href = `/#/realm/${name}`)}
-                        classNameArg="clickable max_width_col medium_text padded_rounded marginized"
-                    />
-                ))}
-                <a className="vcentered padded_rounded" href="#/realms">
-                    MORE &#x279C;
-                </a>
-            </div>
-        </div>
     );
 };
 
@@ -187,6 +161,31 @@ export const TagCloud = ({
                     {tag}
                 </a>
             ))}
+        </div>
+    );
+};
+
+export const Links = ({}) => {
+    return (
+        <div className="row_container vertically_spaced icon_bar spaced">
+            <a title="NEW POSTS" className="icon_link" href="/#/posts">
+                <New /> NEW POSTS
+            </a>
+            <a title="WHITE PAPER" className="icon_link" href="/#/whitepaper">
+                <Document /> WHITE PAPER
+            </a>
+            <a title="DASHBOARD" className="icon_link" href="/#/dashboard">
+                <Bars /> DASHBOARD
+            </a>
+            <a title="PROPOSALS" className="icon_link" href="/#/proposals">
+                <Balloon /> PROPOSALS
+            </a>
+            <a title="TOKENS" className="icon_link" href="/#/tokens">
+                <Gem /> TOKENS
+            </a>
+            <a title="REALMS" className="icon_link" href={`/#/realms`}>
+                <Realm /> REALMS
+            </a>
         </div>
     );
 };

@@ -6,7 +6,7 @@ import {
     ButtonWithLoading,
     getTokens,
     Loading,
-    ReactionToggleButton,
+    IconToggleButton,
 } from "./common";
 import {
     Bars,
@@ -462,7 +462,7 @@ export const Form = ({
                                     onChange={dropHandler}
                                 />
                                 {postId == null && !isRepost && (
-                                    <ReactionToggleButton
+                                    <IconToggleButton
                                         testId="poll-button"
                                         classNameArg="left_half_spaced"
                                         icon={<Bars />}

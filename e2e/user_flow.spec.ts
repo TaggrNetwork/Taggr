@@ -46,7 +46,7 @@ test.describe("Regular users flow", () => {
         ).toBeVisible();
 
         // Logout
-        await page.getByTestId("burger-button").click();
+        await page.getByTestId("toggle-user-section").click();
         await page.getByRole("link", { name: /.*LOGOUT.*/ }).click();
     });
 
@@ -56,7 +56,7 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
-        await page.getByTestId("burger-button").click();
+        await page.getByTestId("toggle-user-section").click();
         const profileButton = page.getByRole("link", { name: /.*ALICE.*/ });
         await expect(profileButton).toBeVisible();
 
@@ -117,7 +117,7 @@ test.describe("Regular users flow", () => {
 
     test("Wallet", async () => {
         // Test the wallet functionality
-        await page.goto("/#/wallet");
+        await page.getByTestId("toggle-user-section").click();
 
         // Let's mint cycles
         await expect(page.getByTestId("credits-balance")).toHaveText("986");
@@ -208,7 +208,7 @@ test.describe("Regular users flow", () => {
         await page.goto("/#/invites");
         await page.getByRole("button", { name: "CREATE" }).click();
         inviteLink = await page.getByText(/.*#\/welcome.*/).textContent();
-        await page.getByTestId("burger-button").click();
+        await page.getByTestId("toggle-user-section").click();
         await page.getByRole("link", { name: /.*LOGOUT.*/ }).click();
     });
 

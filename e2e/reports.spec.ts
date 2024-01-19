@@ -82,7 +82,8 @@ test.describe("Report and transfer to user", () => {
     });
 
     test("Mint credits and send to user", async () => {
-        await page.goto("/#/wallet");
+        await page.goto("/");
+        await page.getByTestId("toggle-user-section").click();
         page.on("dialog", async (dialog) => {
             if (
                 dialog
@@ -188,7 +189,7 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("jane");
         await page.getByRole("button", { name: "JOIN" }).click();
-        await page.goto("/#/wallet");
+        await page.getByTestId("toggle-user-section").click();
 
         await expect(page.getByTestId("token-balance")).toHaveText("10");
 

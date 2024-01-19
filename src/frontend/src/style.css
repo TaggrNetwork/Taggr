@@ -259,7 +259,7 @@ button.fat {
 }
 
 .vertically_aligned {
-    vertical-align: middle;
+    vertical-align: text-bottom;
 }
 
 .realm_span:hover,
@@ -270,6 +270,21 @@ button:hover {
 
 button:active {
     filter: brightness(150%);
+}
+
+.icon_bar {
+    justify-content: space-around;
+}
+
+.icon_link {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    font-size: small;
+}
+
+.icon_link svg {
+    padding-bottom: 0.5rem;
 }
 
 .breakable,
@@ -553,6 +568,15 @@ article img {
     margin-right: auto;
     display: block;
     object-fit: cover;
+}
+
+.external_image_bar {
+    background: $dark_background;
+    color: $text;
+    padding: 0.6em;
+    text-align: center;
+    font-family: monospace;
+    font-size: xx-small;
 }
 
 .feed_item article img {
@@ -1026,6 +1050,10 @@ label svg {
 
     .mobile_only {
         display: inline;
+    }
+
+    .icon_link {
+        font-size: xx-small;
     }
 
     .desktop_only {

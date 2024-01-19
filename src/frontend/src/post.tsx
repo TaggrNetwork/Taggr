@@ -15,7 +15,7 @@ import {
     Loading,
     reactionCosts,
     loadPosts,
-    ReactionToggleButton,
+    IconToggleButton,
     RealmSpan,
     setTitle,
     ButtonWithLoading,
@@ -842,7 +842,7 @@ const PostBar = ({
                             react={react}
                         />
                         {replies > 0 && !isThreadView && (
-                            <ReactionToggleButton
+                            <IconToggleButton
                                 pressed={showComments}
                                 testId="post-comments-toggle"
                                 onClick={
@@ -912,7 +912,7 @@ export const ReactionsPicker = ({
     return (
         <div className="framed vcentered bottom_spaced top_spaced row_container">
             {window.backendCache.config.reactions.map(([id, cost]) => (
-                <ReactionToggleButton
+                <IconToggleButton
                     title={`Karma points: ${cost}`}
                     key={id}
                     classNameArg="max_width_col centered"

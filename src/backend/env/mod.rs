@@ -1884,6 +1884,9 @@ impl State {
                 break 'OUTER;
             }
         }
+        tags.remove("taggr");
+        tags.remove("Taggr");
+        tags.remove("TAGGR");
         tags.into_iter().filter(|(_, count)| *count > 1).collect()
     }
 

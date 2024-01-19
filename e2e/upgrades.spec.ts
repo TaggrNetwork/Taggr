@@ -76,7 +76,8 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Wallet", async () => {
         // Test the wallet functionality
-        await page.goto("/#/wallet");
+        await page.goto("/");
+        await page.getByTestId("toggle-user-section").click();
 
         await expect(page.getByTestId("token-balance")).toHaveText("10");
 
@@ -104,6 +105,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await transferExecuted;
 
         await expect(page.getByTestId("token-balance")).toHaveText("4.75");
+        await page.getByTestId("token-balance").click();
         await page.getByRole("link", { name: "6qfxa" }).click();
         await expect(
             page.getByRole("heading", { name: "TRANSACTIONS OF 6QFXA" }),
