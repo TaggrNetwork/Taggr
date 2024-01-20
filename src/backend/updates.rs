@@ -69,13 +69,20 @@ fn post_upgrade() {
     set_timer(Duration::from_millis(0), move || {
         spawn(post_upgrade_fixtures())
     });
+
+    // TODO: this has to be synchronous to pass the tests checking the logs
+    mutate(|state| {
+        if state.logger.events.is_empty() {
+            state.logger.events = state.logger.level_events.clone();
+        }
+    })
 }
 
 async fn post_upgrade_fixtures() {
     mutate(|state| {
         state.users.values_mut().for_each(|user| {
             user.governance = true;
-        })
+        });
     });
 }
 

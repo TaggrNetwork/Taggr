@@ -200,7 +200,7 @@ export const realmColors = (name: string, col?: string) => {
         const brightness = (c_r * 299 + c_g * 587 + c_b * 114) / 1000;
         return brightness > 155;
     };
-    const effCol = col || getRealmsData(name)[0];
+    const effCol = col || getRealmsData(name)[0] || "#FFFFFF";
     const color = light(effCol) ? "black" : "white";
     return { background: effCol, color, fill: color };
 };

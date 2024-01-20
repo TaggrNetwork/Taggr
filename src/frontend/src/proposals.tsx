@@ -376,7 +376,10 @@ export const ProposalView = ({
         let data;
         if (adopted) {
             if ("Release" in proposal.payload) {
-                data = prompt("Please enter the build hash:");
+                data = prompt(
+                    "Please enter the build hash from the source code commit mentioned in the proposal " +
+                        "(this proves that the proposer uploaded the binary that can be reproduced from this source code):",
+                );
                 if (!data) return;
             }
             if ("Reward" in proposal.payload) {

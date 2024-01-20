@@ -64,7 +64,7 @@ impl UserFilter {
             ..
         } = filter;
         self.age_days >= *age_days
-            && (self.safe ^ safe)
+            && (self.safe || !*safe)
             && self.balance >= *balance
             && self.num_followers >= *num_followers
     }
@@ -124,7 +124,7 @@ impl User {
         UserFilter {
             age_days: (time() - self.timestamp) / DAY,
             num_posts: self.num_posts,
-            safe: self.report.is_none() && self.rewards >= 0,
+            safe: !self.controversial(),
             balance: self.balance / token::base(),
             num_followers: self.followers.len(),
         }
@@ -584,10 +584,83 @@ mod tests {
 
     #[test]
     fn test_user_filters() {
-        let filter = UserFilter::default();
         let user = User::new(pr(0), 0, 0, "test".into());
+        assert!(user.get_filter().passes(&UserFilter::default()));
 
-        assert!(user.get_filter().passes(&filter));
+        assert!(!UserFilter {
+            age_days: 12,
+            num_posts: 0,
+            safe: false,
+            balance: 333,
+            num_followers: 34
+        }
+        .passes(&UserFilter {
+            age_days: 7,
+            num_posts: 0,
+            safe: true,
+            balance: 1,
+            num_followers: 0
+        }));
+
+        assert!(UserFilter {
+            age_days: 12,
+            num_posts: 0,
+            safe: false,
+            balance: 333,
+            num_followers: 34
+        }
+        .passes(&UserFilter {
+            age_days: 7,
+            num_posts: 0,
+            safe: false,
+            balance: 1,
+            num_followers: 0
+        }));
+
+        assert!(UserFilter {
+            age_days: 12,
+            num_posts: 0,
+            safe: true,
+            balance: 333,
+            num_followers: 34
+        }
+        .passes(&UserFilter {
+            age_days: 7,
+            num_posts: 0,
+            safe: true,
+            balance: 1,
+            num_followers: 0
+        }));
+
+        assert!(!UserFilter {
+            age_days: 12,
+            num_posts: 0,
+            safe: true,
+            balance: 333,
+            num_followers: 34
+        }
+        .passes(&UserFilter {
+            age_days: 7,
+            num_posts: 0,
+            safe: false,
+            balance: 777,
+            num_followers: 0
+        }));
+
+        assert!(UserFilter {
+            age_days: 12,
+            num_posts: 0,
+            safe: true,
+            balance: 333,
+            num_followers: 34
+        }
+        .passes(&UserFilter {
+            age_days: 7,
+            num_posts: 0,
+            safe: false,
+            balance: 1,
+            num_followers: 0
+        }));
     }
 
     #[test]

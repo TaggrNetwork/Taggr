@@ -316,8 +316,13 @@ fn hot_realm_posts() {
     read(|state| {
         reply(
             state
-                .hot_posts(caller(), optional(realm), page, offset)
-                .filter(|post| post.realm.is_some())
+                .hot_posts(
+                    caller(),
+                    optional(realm),
+                    page,
+                    offset,
+                    Some(&|post: &Post| post.realm.is_some()),
+                )
                 .collect::<Vec<_>>(),
         )
     });
@@ -329,7 +334,7 @@ fn hot_posts() {
     read(|state| {
         reply(
             state
-                .hot_posts(caller(), optional(realm), page, offset)
+                .hot_posts(caller(), optional(realm), page, offset, None)
                 .collect::<Vec<_>>(),
         )
     });

@@ -298,7 +298,7 @@ const markdownizer = (
                             }
                         />
                     );
-                    return internal || props.thumbnail ? (
+                    return internal || props.thumbnail == "true" ? (
                         element
                     ) : (
                         <div>
@@ -339,7 +339,7 @@ const Gallery = ({ children }: any) => {
                 >
                     {pictures.map((picture: JSX.Element) =>
                         React.cloneElement(picture, {
-                            thumbnail: true,
+                            thumbnail: "true",
                         }),
                     )}
                 </div>

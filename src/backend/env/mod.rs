@@ -180,8 +180,8 @@ pub struct State {
 
 #[derive(Default, Deserialize, Serialize)]
 pub struct Logger {
-    #[serde(skip)]
-    pub events: Vec<Event>,
+    #[serde(default)]
+    pub events: BTreeMap<String, Vec<Event>>,
     pub level_events: BTreeMap<String, Vec<Event>>,
 }
 
@@ -212,7 +212,7 @@ impl Logger {
             message: message.to_string(),
             level,
         };
-        self.level_events
+        self.events
             .entry(event.level.clone())
             .and_modify(|list| {
                 list.push(event.clone());
@@ -534,10 +534,12 @@ impl State {
         realm: Option<RealmId>,
         page: usize,
         offset: PostId,
+        filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
             .last_posts(caller, realm, offset, false)
             .filter(|post| !matches!(post.extension, Some(Extension::Proposal(_))))
+            .filter(|post| filter.map(|f| f(post)).unwrap_or(true))
             .take(1000)
             .collect::<Vec<_>>();
         hot_posts.sort_unstable_by_key(|post| Reverse(post.heat()));
@@ -900,12 +902,12 @@ impl State {
     pub fn denotify_users(&mut self, filter: &dyn Fn(&User) -> bool) {
         let mut notifications = Vec::new();
         for user in self.users.values().filter(|u| filter(u)) {
-            for (id, (notification, read)) in user.notifications.iter() {
-                if *read {
+            for (id, (notification, read_status)) in user.notifications.iter() {
+                if *read_status {
                     continue;
                 }
                 if let Notification::Conditional(_, predicate) = notification {
-                    let active = match predicate {
+                    let current_status = match predicate {
                         Predicate::UserReportOpen(user_id) => self
                             .users
                             .get(user_id)
@@ -921,18 +923,20 @@ impl State {
                             .map(|p| p.status != Status::Open)
                             .unwrap_or_default(),
                     };
-                    notifications.push((user.id, *id, active));
+                    if current_status != *read_status {
+                        notifications.push((user.id, *id, current_status));
+                    }
                 }
             }
         }
 
-        for (user_id, notification_id, status) in notifications {
-            if let Some((_, flag)) = self
+        for (user_id, notification_id, new_read_status) in notifications {
+            if let Some((_, read_status)) = self
                 .users
                 .get_mut(&user_id)
                 .and_then(|user| user.notifications.get_mut(&notification_id))
             {
-                *flag = status;
+                *read_status = new_read_status;
             }
         }
     }
@@ -1892,6 +1896,7 @@ impl State {
                 break 'OUTER;
             }
         }
+        tags.remove("ICP");
         tags.remove("taggr");
         tags.remove("Taggr");
         tags.remove("TAGGR");
@@ -1997,7 +2002,7 @@ impl State {
     }
 
     pub fn logs(&self) -> Box<dyn Iterator<Item = &'_ Event> + '_> {
-        Box::new(self.logger.level_events.values().flatten())
+        Box::new(self.logger.events.values().flatten())
     }
 
     pub fn recovery_state(&self) -> (String, Vec<Principal>) {
