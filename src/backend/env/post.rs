@@ -74,6 +74,9 @@ pub struct Post {
 
     #[serde(skip)]
     pub archived: bool,
+
+    #[serde(default)]
+    pub reposts: Vec<PostId>,
 }
 
 impl PartialEq for Post {
@@ -119,6 +122,7 @@ impl Post {
             files: Default::default(),
             tips: Default::default(),
             hashes: Default::default(),
+            reposts: Default::default(),
             tree_size: 0,
             tree_update: timestamp,
             report: None,
@@ -318,7 +322,10 @@ impl Post {
             return;
         }
 
-        self.heat += (user_balance as f32).sqrt() as u32;
+        let endorsement1 = (user_balance as f32).sqrt() as u32;
+        let endorsement2 = (endorsement1 as f32).sqrt() as u32;
+
+        self.heat += endorsement1 + self.reposts.len() as u32 * endorsement2;
     }
 
     pub fn heat(&self) -> u64 {
@@ -571,9 +578,18 @@ impl Post {
                 )
             }
         }
-        if matches!(&post.extension, &Some(Extension::Poll(_))) {
-            state.pending_polls.insert(post.id);
-        }
+        match post.extension.as_ref() {
+            Some(Extension::Poll(_)) => {
+                state.pending_polls.insert(post.id);
+            }
+            Some(Extension::Repost(post_id)) => {
+                Post::mutate(state, post_id, |post| {
+                    post.reposts.push(post.id);
+                    Ok(())
+                })?;
+            }
+            _ => (),
+        };
 
         notify_about(state, &post);
 
@@ -737,7 +753,7 @@ fn notify_about(state: &mut State, post: &Post) {
         let parent_author = parent.user;
         if parent_author != post.user {
             if let Some(user) = state.users.get_mut(&parent_author) {
-                if user.accepts_notifications(post.user, &user_filter) {
+                if user.accepts(post.user, &user_filter) {
                     user.notify_about_post(
                         format!("@{} replied to your post", post_user_name,),
                         post.id,
@@ -745,6 +761,25 @@ fn notify_about(state: &mut State, post: &Post) {
                     notified.insert(user.id);
                 }
             }
+        }
+    }
+
+    if let Some(Extension::Repost(post_id)) = post.extension.as_ref() {
+        let Some(user_id) = state
+            .posts
+            .get(post_id)
+            .and_then(|post| state.users.get(&post.user).map(|user| user.id))
+        else {
+            return;
+        };
+        if notified.contains(&user_id) {
+            return;
+        }
+        if let Some(user) = state.users.get_mut(&user_id) {
+            if user.accepts(post.user, &user_filter) {
+                user.notify_about_post(format!("@{} reposted your post", post_user_name), *post_id);
+            }
+            notified.insert(user.id);
         }
     }
 
@@ -759,7 +794,7 @@ fn notify_about(state: &mut State, post: &Post) {
                 .users
                 .get_mut(&mentioned_user_id)
                 .expect("no user found");
-            if user.accepts_notifications(post.user, &user_filter) {
+            if user.accepts(post.user, &user_filter) {
                 user.notify_about_post(
                     format!("@{} mentioned you in a post", post_user_name),
                     post.id,
@@ -785,7 +820,7 @@ fn notify_about(state: &mut State, post: &Post) {
                     return;
                 }
                 if let Some(user) = state.users.get_mut(&user_id) {
-                    if user.accepts_notifications(post.user, &user_filter) {
+                    if user.accepts(post.user, &user_filter) {
                         user.notify_about_watched_post(
                             post_id,
                             post.id,
@@ -916,7 +951,7 @@ mod tests {
             archive_cold_posts(state, 5).unwrap();
             assert_eq!(
                 state.memory.health("B"),
-                "boundary=849B, mem_size=849B, segments=0".to_string()
+                "boundary=894B, mem_size=894B, segments=0".to_string()
             );
 
             // Make sure we have the right numbers in cold and hot memories
@@ -960,7 +995,7 @@ mod tests {
             assert_eq!(state.memory.posts.len(), 3);
             assert_eq!(
                 state.memory.health("B"),
-                "boundary=849B, mem_size=849B, segments=2".to_string()
+                "boundary=894B, mem_size=894B, segments=2".to_string()
             );
 
             // Archive posts again
@@ -971,7 +1006,7 @@ mod tests {
             // old posts
             assert_eq!(
                 state.memory.health("B"),
-                "boundary=1187B, mem_size=1187B, segments=1".to_string()
+                "boundary=1250B, mem_size=1250B, segments=1".to_string()
             );
         });
     }

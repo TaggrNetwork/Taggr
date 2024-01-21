@@ -180,8 +180,9 @@ pub struct State {
 
 #[derive(Default, Deserialize, Serialize)]
 pub struct Logger {
-    #[serde(default)]
     pub events: BTreeMap<String, Vec<Event>>,
+    // TODO: delete
+    #[serde(skip)]
     pub level_events: BTreeMap<String, Vec<Event>>,
 }
 
@@ -2394,8 +2395,10 @@ impl State {
         // Users initiate a credit transfer for upvotes, but burn their own credits on
         // downvotes + credits and rewards of the author
         if delta < 0 {
-            if user.rewards() < 0 {
-                return Err("no downvotes for users with negative rewards balance".into());
+            if user.controversial() {
+                return Err(
+                    "no downvotes for users with pending reports or negative reward balance".into(),
+                );
             }
             if user.balance < token::base() {
                 return Err("no downvotes for users with low token balance".into());
@@ -2420,21 +2423,37 @@ impl State {
             )
             .expect("couldn't charge user");
         } else {
-            self.credit_transfer(
-                user.id,
-                post.user,
-                delta as Credits,
-                CONFIG.reaction_fee,
-                Destination::Rewards,
-                log,
-                None,
-            )?;
-            self.principal_to_user_mut(principal)
-                .expect("no user for principal found")
-                .karma_donations
-                .entry(post.user)
-                .and_modify(|donated| *donated = donated.saturating_add(delta as Credits))
-                .or_insert(delta as Credits);
+            let mut recipients = vec![post.user];
+            if let Some(Extension::Repost(post_id)) = post.extension.as_ref() {
+                let original_author = Post::get(self, post_id)
+                    .expect("no reposted post found")
+                    .user;
+                recipients.push(original_author)
+            }
+            let eff_delta = (delta / recipients.len() as i64) as Credits;
+            // If delta is not divisible by 2, the original post author gets the rest
+            let deltas = vec![
+                eff_delta,
+                eff_delta
+                    + delta.saturating_sub(recipients.len() as i64 * eff_delta as i64) as Credits,
+            ];
+            for (recipient, delta) in recipients.iter().zip(deltas) {
+                self.credit_transfer(
+                    user.id,
+                    *recipient,
+                    delta,
+                    CONFIG.reaction_fee,
+                    Destination::Rewards,
+                    log.clone(),
+                    None,
+                )?;
+                self.principal_to_user_mut(principal)
+                    .expect("no user for principal found")
+                    .karma_donations
+                    .entry(*recipient)
+                    .and_modify(|donated| *donated = donated.saturating_add(delta))
+                    .or_insert(delta);
+            }
         }
 
         self.principal_to_user_mut(principal)
@@ -2479,7 +2498,7 @@ impl State {
         let about = if about.is_empty() { "no info" } else { &about };
         if added {
             followee.followers.insert(user_id);
-            if followee.accepts_notifications(user_id, &user_filter) {
+            if followee.accepts(user_id, &user_filter) {
                 followee.notify(format!(
                     "@{} followed you ({}, `{}` followers)",
                     name, about, num_followers

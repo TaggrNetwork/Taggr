@@ -25,7 +25,7 @@ const themes: { [name: string]: Theme } = {
     black: {
         text: "#d0d0d0",
         background: "#060606",
-        selected_background: "#202020",
+        selected_background: "#303030",
         code: "White",
         clickable: "#4CB381",
         accent: "Gold",

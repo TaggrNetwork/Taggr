@@ -69,21 +69,35 @@ fn post_upgrade() {
     set_timer(Duration::from_millis(0), move || {
         spawn(post_upgrade_fixtures())
     });
-
-    // TODO: this has to be synchronous to pass the tests checking the logs
-    mutate(|state| {
-        if state.logger.events.is_empty() {
-            state.logger.events = state.logger.level_events.clone();
-        }
-    })
 }
 
 async fn post_upgrade_fixtures() {
     mutate(|state| {
-        state.users.values_mut().for_each(|user| {
-            user.governance = true;
-        });
+        for u in state.users.values_mut() {
+            u.filters.noise = u.notification_filter.clone();
+        }
     });
+
+    let reposts = read(|state| {
+        let last_id = state.next_post_id.saturating_sub(1);
+        (0..=last_id)
+            .filter_map(|id| Post::get(state, &id))
+            .filter_map(|post| match post.extension {
+                Some(Extension::Repost(id)) => Some((post.id, id)),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    });
+
+    mutate(|state| {
+        for (post_id, reposted_post_id) in reposts.into_iter() {
+            Post::mutate(state, &reposted_post_id, |post| {
+                post.reposts.push(post_id);
+                Ok(())
+            })
+            .unwrap()
+        }
+    })
 }
 
 /*

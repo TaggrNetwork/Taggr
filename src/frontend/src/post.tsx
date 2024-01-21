@@ -851,6 +851,19 @@ const PostBar = ({
                             reactionsMap={post.reactions}
                             react={react}
                         />
+                        {post.reposts.length > 0 && (
+                            <IconToggleButton
+                                onClick={() =>
+                                    (location.href = `#/reposts/${post.id}`)
+                                }
+                                icon={
+                                    <>
+                                        <Repost classNameArg="right_quarter_spaced" />
+                                        {post.reposts.length}
+                                    </>
+                                }
+                            />
+                        )}
                         {replies > 0 && !isThreadView && (
                             <IconToggleButton
                                 pressed={showComments}

@@ -30,7 +30,7 @@ import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
 import { MAINNET_MODE, CANISTER_ID } from "./env";
-import { PostId, UserFilter, UserId } from "./types";
+import { Post, PostId, UserFilter, UserId } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 
@@ -120,6 +120,28 @@ const App = () => {
         const version = parseInt(param2);
         subtle = true;
         content = <PostView id={id} version={version} prime={true} />;
+    } else if (handler == "reposts") {
+        const id = parseInt(param);
+        content = (
+            <PostFeed
+                title={
+                    <HeadBar
+                        title={
+                            <>
+                                REPOSTS OF <a href={`#/post/${id}`}>#{id}</a>
+                            </>
+                        }
+                        shareLink={`/reposts/${id}`}
+                    />
+                }
+                feedLoader={async () => {
+                    const posts = await api.query<Post[]>("posts", [id]);
+                    if (posts && posts.length > 0)
+                        return await api.query("posts", posts[0].reposts);
+                    return [];
+                }}
+            />
+        );
     } else if (handler == "edit") {
         const id = parseInt(param);
         content = auth(<PostSubmissionForm id={id} />);
@@ -176,7 +198,7 @@ const App = () => {
     } else if (handler == "thread") {
         content = <Thread id={parseInt(param)} />;
     } else if (handler == "posts") {
-        const title = "NEW POSTS";
+        const title = "ALL NEW POSTS";
         content = (
             <PostFeed
                 refreshRateSecs={60}

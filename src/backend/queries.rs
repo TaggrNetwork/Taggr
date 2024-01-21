@@ -257,7 +257,7 @@ fn user() {
             user.accounting.clear();
         } else {
             user.bookmarks.clear();
-            user.inbox.clear();
+            user.notifications.clear();
         }
         user
     }));
@@ -348,12 +348,26 @@ fn realms_posts() {
 
 #[export_name = "canister_query last_posts"]
 fn last_posts() {
-    let (realm, page, offset, with_comments): (String, usize, PostId, bool) =
-        parse(&arg_data_raw());
+    let (realm, page, offset, filtered): (String, usize, PostId, bool) = parse(&arg_data_raw());
     read(|state| {
+        let user = state.principal_to_user(caller());
         reply(
             state
-                .last_posts(caller(), optional(realm), offset, with_comments)
+                .last_posts(
+                    caller(),
+                    optional(realm),
+                    offset,
+                    /* with_comments = */ false,
+                )
+                .filter(|post| {
+                    if !filtered {
+                        return true;
+                    }
+                    match (user, state.users.get(&post.user)) {
+                        (Some(user), Some(author)) => user.accepts(author.id, &author.get_filter()),
+                        _ => true,
+                    }
+                })
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
                 .cloned()

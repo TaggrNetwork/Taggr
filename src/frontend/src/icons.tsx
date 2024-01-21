@@ -526,10 +526,10 @@ export const Coin = ({ classNameArg }: { classNameArg?: string }) => (
     </svg>
 );
 
-export const Repost = () => (
+export const Repost = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className="vertically_aligned"
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"

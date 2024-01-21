@@ -9,6 +9,8 @@ pub struct Filters {
     pub users: BTreeSet<UserId>,
     pub tags: BTreeSet<String>,
     pub realms: BTreeSet<String>,
+    #[serde(default)]
+    pub noise: UserFilter,
 }
 
 #[derive(PartialEq)]
@@ -44,10 +46,6 @@ pub struct Draft {
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct UserFilter {
     age_days: u64,
-    // TODO: delete
-    #[allow(dead_code)]
-    #[serde(skip)]
-    num_posts: u64,
     safe: bool,
     balance: Token,
     #[serde(default)]
@@ -86,9 +84,6 @@ pub struct User {
     pub followees: BTreeSet<UserId>,
     pub followers: BTreeSet<UserId>,
     pub timestamp: u64,
-    // TODO: remove
-    #[serde(skip)]
-    pub inbox: HashMap<String, Notification>,
     messages: u64,
     pub last_activity: u64,
     pub stalwart: bool,
@@ -107,23 +102,21 @@ pub struct User {
     pub filters: Filters,
     pub karma_donations: BTreeMap<UserId, Credits>,
     pub previous_names: Vec<String>,
-    #[serde(default)]
     pub governance: bool,
-    #[serde(default)]
+    // TODO: remove
     pub notification_filter: UserFilter,
-    #[serde(default)]
     pub notifications: BTreeMap<u64, (Notification, bool)>,
 }
 
 impl User {
-    pub fn accepts_notifications(&self, user_id: UserId, filter: &UserFilter) -> bool {
-        self.followees.contains(&user_id) || filter.passes(&self.notification_filter)
+    pub fn accepts(&self, user_id: UserId, filter: &UserFilter) -> bool {
+        !self.filters.users.contains(&user_id)
+            && (self.followees.contains(&user_id) || filter.passes(&self.filters.noise))
     }
 
     pub fn get_filter(&self) -> UserFilter {
         UserFilter {
             age_days: (time() - self.timestamp) / DAY,
-            num_posts: self.num_posts,
             safe: !self.controversial(),
             balance: self.balance / token::base(),
             num_followers: self.followers.len(),
@@ -156,7 +149,6 @@ impl User {
             invited_by: None,
             realms: Default::default(),
             messages: 0,
-            inbox: Default::default(),
             notifications: Default::default(),
             balance: 0,
             active_weeks: 0,
@@ -455,7 +447,7 @@ impl User {
                 }
                 user.settings = settings;
                 user.governance = governance;
-                user.notification_filter = filter;
+                user.filters.noise = filter;
             }
             Ok(())
         })
@@ -589,14 +581,12 @@ mod tests {
 
         assert!(!UserFilter {
             age_days: 12,
-            num_posts: 0,
             safe: false,
             balance: 333,
             num_followers: 34
         }
         .passes(&UserFilter {
             age_days: 7,
-            num_posts: 0,
             safe: true,
             balance: 1,
             num_followers: 0
@@ -604,14 +594,12 @@ mod tests {
 
         assert!(UserFilter {
             age_days: 12,
-            num_posts: 0,
             safe: false,
             balance: 333,
             num_followers: 34
         }
         .passes(&UserFilter {
             age_days: 7,
-            num_posts: 0,
             safe: false,
             balance: 1,
             num_followers: 0
@@ -619,14 +607,12 @@ mod tests {
 
         assert!(UserFilter {
             age_days: 12,
-            num_posts: 0,
             safe: true,
             balance: 333,
             num_followers: 34
         }
         .passes(&UserFilter {
             age_days: 7,
-            num_posts: 0,
             safe: true,
             balance: 1,
             num_followers: 0
@@ -634,14 +620,12 @@ mod tests {
 
         assert!(!UserFilter {
             age_days: 12,
-            num_posts: 0,
             safe: true,
             balance: 333,
             num_followers: 34
         }
         .passes(&UserFilter {
             age_days: 7,
-            num_posts: 0,
             safe: false,
             balance: 777,
             num_followers: 0
@@ -649,14 +633,12 @@ mod tests {
 
         assert!(UserFilter {
             age_days: 12,
-            num_posts: 0,
             safe: true,
             balance: 333,
             num_followers: 34
         }
         .passes(&UserFilter {
             age_days: 7,
-            num_posts: 0,
             safe: false,
             balance: 1,
             num_followers: 0

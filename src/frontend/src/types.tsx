@@ -89,6 +89,7 @@ export type Post = {
     parent?: PostId;
     watchers: UserId[];
     children: PostId[];
+    reposts: PostId[];
     user: UserId;
     userObject: { id: UserId; name: string; rewards: number };
     report?: Report;
@@ -130,6 +131,7 @@ type Filters = {
     users: UserId[];
     tags: string[];
     realms: string[];
+    noise: UserFilter;
 };
 
 export type Predicate =
@@ -174,7 +176,6 @@ export type User = {
     bookmarks: number[];
     last_activity: BigInt;
     governance: boolean;
-    notification_filter: UserFilter;
     settings: {
         [key: string]: string;
     };

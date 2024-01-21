@@ -448,7 +448,7 @@ export const Wallet = () => {
             <div className="row_container vcentered">
                 <div className="max_width_col">Wallet</div>
                 <a
-                    data-testId="token-balance"
+                    data-testid="token-balance"
                     className="xx_large_text"
                     href={`#/transactions/${user.principal}`}
                 >
@@ -458,9 +458,12 @@ export const Wallet = () => {
             {user.cold_wallet && (
                 <div className="row_container vcentered">
                     <div className="max_width_col">Cold Wallet</div>
-                    <code data-testid="token-balance" className="xx_large_text">
+                    <a
+                        className="xx_large_text"
+                        href={`#/transactions/${user.cold_wallet}`}
+                    >
                         {tokenBalance(user.cold_balance)}
-                    </code>
+                    </a>
                 </div>
             )}
         </>

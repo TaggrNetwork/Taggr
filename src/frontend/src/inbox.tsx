@@ -56,6 +56,7 @@ export const Inbox = () => {
                                 setClosing(k);
                                 setTimeout(() => {
                                     window.api.call("clear_notifications", [k]);
+                                    let inbox = window.user.notifications;
                                     inbox[k][1] = true;
                                     setInbox({ ...inbox });
                                 }, 80);
@@ -92,8 +93,9 @@ export const Inbox = () => {
                         onClick={() => {
                             window.api.call(
                                 "clear_notifications",
-                                Object.keys(inbox),
+                                Object.keys(inbox).map((id) => Number(id)),
                             );
+                            window.user.notifications = {};
                             location.href = "#/";
                         }}
                     >
@@ -108,7 +110,7 @@ export const Inbox = () => {
             </>
             {archived.length > 0 && (
                 <div style={{ opacity: 0.65 }}>
-                    <h2>Archive</h2>
+                    <h2 className="spaced">Archive</h2>
                     {archived.map((id) => displayEntry(Number(id), true))}
                 </div>
             )}

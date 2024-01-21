@@ -18,8 +18,11 @@ export const Landing = () => {
         [<Fire />, "TRENDING"],
     ];
     if (!realm) {
-        labels = labels.slice(1);
         if (user) {
+            // If user didn't configure noise filters, hide NEW
+            const { age_days, balance, num_followers } = user.filters.noise;
+            if (age_days == 0 && balance == 0 && num_followers == 0)
+                labels = labels.slice(1);
             labels.push([
                 <User classNameArg="vertically_aligned" />,
                 "PERSONAL",
@@ -42,7 +45,7 @@ export const Landing = () => {
                             window.api.call<any>(
                                 "update_user_settings",
                                 user.settings,
-                                user.notification_filter,
+                                user.filters.noise,
                                 user.governance,
                             );
                         }
@@ -110,7 +113,7 @@ export const Landing = () => {
                             realm,
                             page,
                             offset,
-                            false,
+                            true,
                         );
                 }}
             />
@@ -168,9 +171,13 @@ export const TagCloud = ({
 
 export const Links = ({}) => {
     return (
-        <div className="row_container vertically_spaced icon_bar spaced">
+        <div
+            className={`${
+                bigScreen() ? "row_container icon_bar" : "dynamic_table tripple"
+            } vertically_spaced spaced`}
+        >
             <a title="NEW POSTS" className="icon_link" href="/#/posts">
-                <New /> NEW POSTS
+                <New /> ALL NEW POSTS
             </a>
             <a title="WHITE PAPER" className="icon_link" href="/#/whitepaper">
                 <Document /> WHITE PAPER

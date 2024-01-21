@@ -31,7 +31,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         setControllers(user.controllers.join("\n"));
         setSettings(user.settings);
         setGovernance(user.governance.toString());
-        setUserFilter(user.notification_filter);
+        setUserFilter(user.filters.noise);
     };
 
     React.useEffect(() => updateData(user), [user]);
@@ -211,11 +211,21 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             }
                             rows={4}
                         ></textarea>
-                        <h3>Notification Settings</h3>
-                        <p>
-                            You'll be notified only about actions triggered by
-                            users who match the specified requirements.
-                        </p>
+                        <h3>Noise filter</h3>
+                        <div className="stands_out">
+                            <p>The noise filters define:</p>
+                            <ul>
+                                <li>
+                                    actions of which users can trigger a
+                                    notification in your inbox,
+                                </li>
+                                <li>
+                                    posts of which users will appear in the
+                                    "NEW" tab on your landing page.
+                                </li>
+                            </ul>
+                        </div>
+                        <br />
                         <div className="column_container bottom_spaced">
                             <div className="vcentered">
                                 <input
