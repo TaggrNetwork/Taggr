@@ -48,6 +48,8 @@ pub struct Config {
     // determine the number of minted tokens.
     pub boostrapping_threshold_tokens: u64,
 
+    pub max_spendable_tokens: Token,
+
     pub dao_realm: &'static str,
 
     pub max_realm_cleanup_penalty: Credits,
@@ -165,6 +167,11 @@ pub const CONFIG: &Config = &Config {
     post_heat_token_balance_cap: 5,
 
     boostrapping_threshold_tokens: 100000,
+
+    #[cfg(test)]
+    max_spendable_tokens: 12000000,
+    #[cfg(not(test))]
+    max_spendable_tokens: 120000,
 
     min_treasury_balance_xdrs: 38, // ~$50
 

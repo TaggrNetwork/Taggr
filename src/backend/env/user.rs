@@ -516,7 +516,9 @@ impl User {
             // During the bootstrap period, use karma and not balances
             donated_karma
         } else {
-            self.balance.min(donated_karma)
+            self.balance
+                .min(donated_karma)
+                .min(CONFIG.max_spendable_tokens)
         } / ratio;
 
         let priority_factor = |user_id| {
@@ -683,6 +685,24 @@ mod tests {
         assert_eq!(
             mintable_tokens.values().sum::<u64>(),
             300000 / state.minting_ratio() - 1
+        );
+
+        // test the mintable tokens cap
+        insert_balance(state, pr(0), 22000000);
+        let bob = state.users.get_mut(&donor_id).unwrap();
+
+        bob.karma_donations.clear();
+        bob.karma_donations.insert(u1, 15000000);
+        let mintable_tokens = state
+            .users
+            .get(&donor_id)
+            .unwrap()
+            .clone()
+            .mintable_tokens(state)
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(
+            mintable_tokens.get(&u1).unwrap(),
+            &(12000000 / state.minting_ratio())
         );
     }
 
