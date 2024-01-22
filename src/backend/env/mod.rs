@@ -181,9 +181,6 @@ pub struct State {
 #[derive(Default, Deserialize, Serialize)]
 pub struct Logger {
     pub events: BTreeMap<String, Vec<Event>>,
-    // TODO: delete
-    #[serde(skip)]
-    pub level_events: BTreeMap<String, Vec<Event>>,
 }
 
 impl Logger {
@@ -1306,7 +1303,7 @@ impl State {
     }
 
     fn archive_cold_data(&mut self) -> Result<(), String> {
-        let max_posts_in_heap = 20_000;
+        let max_posts_in_heap = 50_000;
         archive_cold_posts(self, max_posts_in_heap)
     }
 
@@ -2218,6 +2215,7 @@ impl State {
         let report = Some(Report {
             reporter: user.id,
             reason,
+            timestamp: time(),
             ..Default::default()
         });
 

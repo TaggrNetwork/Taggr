@@ -984,6 +984,7 @@ const checkUserFilterMatch = (
     filter: UserFilter,
     user: User,
 ): string | null => {
+    if (!filter || !user) return null;
     const { age_days, safe, balance, num_followers } = filter;
     if (
         (Number(new Date()) - Number(user.timestamp) / 1000000) / DAY <

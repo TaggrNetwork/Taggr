@@ -9,9 +9,18 @@ pub struct Report {
     pub rejected_by: Vec<UserId>,
     pub closed: bool,
     pub reason: String,
+    #[serde(default)]
+    pub timestamp: Time,
 }
 
 impl Report {
+    pub fn pending_or_recently_confirmed(&self) -> bool {
+        !self.closed
+            || self.closed
+                && self.confirmed_by.len() > self.rejected_by.len()
+                && self.timestamp + CONFIG.user_report_validity_days * DAY >= time()
+    }
+
     pub fn vote(
         &mut self,
         stalwarts: usize,

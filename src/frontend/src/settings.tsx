@@ -241,8 +241,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                     className="left_half_spaced"
                                     htmlFor="own_theme"
                                 >
-                                    Non-controversial users (without reports and
-                                    many downvotes)
+                                    Non-controversial users (without pending or
+                                    confirmed reports and many downvotes)
                                 </label>
                             </div>
                         </div>

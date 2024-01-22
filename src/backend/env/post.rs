@@ -70,13 +70,12 @@ pub struct Post {
     pub hashes: Vec<String>,
 
     #[serde(default)]
+    pub reposts: Vec<PostId>,
+    #[serde(default)]
     heat: u32,
 
     #[serde(skip)]
     pub archived: bool,
-
-    #[serde(default)]
-    pub reposts: Vec<PostId>,
 }
 
 impl PartialEq for Post {
@@ -690,7 +689,7 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
     }
 
     // sort from newest to oldest
-    posts.sort_unstable_by_key(|p| std::cmp::Reverse(p.timestamp()));
+    posts.sort_unstable_by_key(|p| std::cmp::Reverse(p.timestamp().max(p.tree_update)));
     let ids = posts.into_iter().map(|post| post.id).collect::<Vec<_>>();
 
     ids.into_iter()
@@ -777,7 +776,7 @@ fn notify_about(state: &mut State, post: &Post) {
         }
         if let Some(user) = state.users.get_mut(&user_id) {
             if user.accepts(post.user, &user_filter) {
-                user.notify_about_post(format!("@{} reposted your post", post_user_name), *post_id);
+                user.notify_about_post(format!("@{} reposted your post", post_user_name), post.id);
             }
             notified.insert(user.id);
         }

@@ -113,7 +113,8 @@ export const Landing = () => {
                             realm,
                             page,
                             offset,
-                            true,
+                            // only enable noise filtering outside of realms
+                            !currentRealm(),
                         );
                 }}
             />

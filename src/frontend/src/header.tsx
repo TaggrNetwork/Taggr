@@ -1,5 +1,6 @@
 import * as React from "react";
 import {
+    BurgerButton,
     currentRealm,
     IconToggleButton,
     RealmList,
@@ -9,7 +10,6 @@ import { LoginMasks, logout } from "./logins";
 import {
     Bell,
     Gear,
-    Hash,
     Journal,
     Logout,
     Realm,
@@ -102,19 +102,6 @@ export const Header = ({
                 <div className="vcentered max_width_col flex_ended">
                     {!subtle && (
                         <>
-                            {user && (
-                                <IconToggleButton
-                                    classNameArg="right_half_spaced"
-                                    pressed={showLinks}
-                                    onClick={() => {
-                                        toggleRealms(false);
-                                        toggleUserSection(false);
-                                        toggleLinks(!showLinks);
-                                    }}
-                                    icon={<Hash />}
-                                    testId="toggle-links"
-                                />
-                            )}
                             {user && user.realms.length > 0 && !subtle && (
                                 <IconToggleButton
                                     classNameArg="right_half_spaced"
@@ -130,7 +117,6 @@ export const Header = ({
                             )}
                             {window.principalId && (
                                 <IconToggleButton
-                                    classNameArg="right_half_spaced"
                                     pressed={showUserSection}
                                     onClick={() => {
                                         toggleUserSection(!showUserSection);
@@ -171,6 +157,17 @@ export const Header = ({
                                     currState={() => showLogins}
                                     onLabel="CLOSE"
                                     offLabel="CONNECT"
+                                />
+                            )}
+                            {user && (
+                                <BurgerButton
+                                    pressed={showLinks}
+                                    onClick={() => {
+                                        toggleRealms(false);
+                                        toggleUserSection(false);
+                                        toggleLinks(!showLinks);
+                                    }}
+                                    testId="toggle-links"
                                 />
                             )}
                         </>

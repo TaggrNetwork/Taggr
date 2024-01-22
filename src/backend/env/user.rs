@@ -104,6 +104,7 @@ pub struct User {
     pub previous_names: Vec<String>,
     pub governance: bool,
     // TODO: remove
+    #[serde(skip)]
     pub notification_filter: UserFilter,
     pub notifications: BTreeMap<u64, (Notification, bool)>,
 }
@@ -124,7 +125,12 @@ impl User {
     }
 
     pub fn controversial(&self) -> bool {
-        self.rewards < 0 || self.report.is_some()
+        self.rewards < 0
+            || self
+                .report
+                .as_ref()
+                .map(|report| report.pending_or_recently_confirmed())
+                .unwrap_or_default()
     }
 
     pub fn new(principal: Principal, id: UserId, timestamp: u64, name: String) -> Self {

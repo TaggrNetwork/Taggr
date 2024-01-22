@@ -34,6 +34,8 @@ pub struct Config {
 
     pub supply_threshold_for_transfer_percentage: u64,
 
+    pub user_report_validity_days: u64,
+
     pub proposal_approval_threshold: u16,
     pub proposal_controversy_threashold: u16,
     pub proposal_rejection_penalty: Credits,
@@ -189,6 +191,8 @@ pub const CONFIG: &Config = &Config {
     #[cfg(feature = "dev")]
     supply_threshold_for_transfer_percentage: 10,
 
+    user_report_validity_days: 90,
+
     #[cfg(not(any(feature = "dev", feature = "staging")))]
     nns_voting_enabled: true,
     #[cfg(any(feature = "dev", feature = "staging"))]
@@ -226,7 +230,7 @@ pub const CONFIG: &Config = &Config {
 
     max_realm_cleanup_penalty: 500,
 
-    max_bucket_size: 1024 * 1024 * 1024 * 48, // 48Gb
+    max_bucket_size: 1024 * 1024 * 1024 * 96, // 96Gb
 
     #[cfg(any(test, feature = "dev"))]
     max_posts_per_day: 150,
