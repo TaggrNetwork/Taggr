@@ -583,7 +583,7 @@ impl Post {
             }
             Some(Extension::Repost(post_id)) => {
                 Post::mutate(state, post_id, |post| {
-                    post.reposts.push(post.id);
+                    post.reposts.push(id);
                     Ok(())
                 })?;
             }
