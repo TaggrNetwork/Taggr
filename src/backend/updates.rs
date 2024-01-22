@@ -71,7 +71,15 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    mutate(|state| {
+        for u in state.users.values_mut() {
+            if let Some(report) = u.report.as_mut() {
+                report.timestamp = time();
+            }
+        }
+    })
+}
 
 /*
  * UPDATES
