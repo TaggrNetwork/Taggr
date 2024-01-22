@@ -690,10 +690,16 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
 
     // sort from newest to oldest
     posts.sort_unstable_by_key(|p| std::cmp::Reverse(p.timestamp().max(p.tree_update)));
-    let ids = posts.into_iter().map(|post| post.id).collect::<Vec<_>>();
+    let ids = posts
+        .into_iter()
+        .skip(max_posts_in_heap)
+        .rev()
+        .take(posts_to_archive)
+        .map(|post| post.id)
+        .collect::<Vec<_>>();
+    let archived_posts = ids.len();
 
     ids.into_iter()
-        .skip(max_posts_in_heap)
         .try_for_each(|post_id| {
             let post = state
                 .posts
@@ -705,7 +711,7 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
 
     state
         .logger
-        .debug(format!("`{}` posts archived.", posts_to_archive));
+        .debug(format!("`{}` posts archived", archived_posts));
     Ok(())
 }
 
