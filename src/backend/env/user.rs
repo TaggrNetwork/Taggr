@@ -104,6 +104,8 @@ pub struct User {
     pub governance: bool,
     #[serde(default)]
     pub downvotes: BTreeSet<UserId>,
+    #[serde(default)]
+    pub downvoted_by_stalwart: bool,
     pub notifications: BTreeMap<u64, (Notification, bool)>,
 }
 
@@ -130,7 +132,8 @@ impl User {
                 .as_ref()
                 .map(|report| report.pending_or_recently_confirmed())
                 .unwrap_or_default()
-            || self.downvotes.len() >= CONFIG.num_downvotes_controversial
+            || (self.downvotes.len() >= CONFIG.num_downvotes_controversial
+                && self.downvoted_by_stalwart)
     }
 
     pub fn new(principal: Principal, id: UserId, timestamp: u64, name: String) -> Self {
@@ -169,6 +172,7 @@ impl User {
             cold_balance: 0,
             governance: true,
             downvotes: Default::default(),
+            downvoted_by_stalwart: false,
         }
     }
 
