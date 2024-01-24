@@ -92,6 +92,32 @@ async fn post_upgrade_fixtures() {
             })
             .unwrap()
         }
+    });
+
+    let downvotes = read(|state| {
+        let last_id = state.next_post_id.saturating_sub(1);
+        (0..=last_id)
+            .filter_map(|id| Post::get(state, &id))
+            .filter_map(|post| {
+                if post.timestamp() + WEEK < time() {
+                    return None;
+                }
+                post.reactions
+                    .get(&1)
+                    .map(|users| (post.user, users.clone()))
+            })
+            .collect::<Vec<_>>()
+    });
+
+    mutate(|state| {
+        for (user_id, users) in downvotes {
+            if users.is_empty() {
+                continue;
+            }
+            let user = state.users.get_mut(&user_id).unwrap();
+            ic_cdk::println!("user {} got {} downvotes", user.name, users.len());
+            user.downvotes.extend(users.into_iter());
+        }
     })
 }
 

@@ -1043,6 +1043,13 @@ impl State {
                 .or_insert(tokens);
         }
 
+        tokens_to_mint.retain(|user_id, _| {
+            self.users
+                .get(user_id)
+                .map(|user| !user.controversial())
+                .unwrap_or_default()
+        });
+
         tokens_to_mint
     }
 
@@ -1580,6 +1587,7 @@ impl State {
                 );
             }
             user.karma_donations.clear();
+            user.downvotes.clear();
         }
         self.accounting.clean_up();
     }
@@ -2423,10 +2431,9 @@ impl State {
             if user.balance < token::base() {
                 return Err("no downvotes for users with low token balance".into());
             }
-            self.users
-                .get_mut(&post.user)
-                .expect("user not found")
-                .change_rewards(delta, log.clone());
+            let post_author = self.users.get_mut(&post.user).expect("user not found");
+            post_author.change_rewards(delta, log.clone());
+            post_author.downvotes.insert(user_id);
             self.charge_in_realm(
                 user_id,
                 delta.unsigned_abs().min(user_credits),

@@ -42,6 +42,8 @@ pub struct Config {
     pub proposal_controversy_threashold: u16,
     pub proposal_rejection_penalty: Credits,
 
+    pub num_downvotes_controversial: usize,
+
     pub max_report_length: usize,
 
     pub post_heat_token_balance_cap: Token,
@@ -187,6 +189,8 @@ pub const CONFIG: &Config = &Config {
     max_age_hot_post_days: 2,
 
     max_credits_mint_kilos: 10,
+
+    num_downvotes_controversial: 7,
 
     #[cfg(not(any(feature = "dev", feature = "staging")))]
     supply_threshold_for_transfer_percentage: 20,

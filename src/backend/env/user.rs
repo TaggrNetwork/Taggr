@@ -102,9 +102,8 @@ pub struct User {
     pub karma_donations: BTreeMap<UserId, Credits>,
     pub previous_names: Vec<String>,
     pub governance: bool,
-    // TODO: remove
-    #[serde(skip)]
-    pub notification_filter: UserFilter,
+    #[serde(default)]
+    pub downvotes: BTreeSet<UserId>,
     pub notifications: BTreeMap<u64, (Notification, bool)>,
 }
 
@@ -119,7 +118,8 @@ impl User {
             age_days: (time() - self.timestamp) / DAY,
             safe: !self.controversial(),
             balance: self.balance / token::base(),
-            num_followers: self.followers.len(),
+            // subtract from followers yourself
+            num_followers: self.followers.len().saturating_sub(1),
         }
     }
 
@@ -130,6 +130,7 @@ impl User {
                 .as_ref()
                 .map(|report| report.pending_or_recently_confirmed())
                 .unwrap_or_default()
+            || self.downvotes.len() >= CONFIG.num_downvotes_controversial
     }
 
     pub fn new(principal: Principal, id: UserId, timestamp: u64, name: String) -> Self {
@@ -167,7 +168,7 @@ impl User {
             cold_wallet: None,
             cold_balance: 0,
             governance: true,
-            notification_filter: Default::default(),
+            downvotes: Default::default(),
         }
     }
 
@@ -552,13 +553,6 @@ impl User {
         let shares = self
             .karma_donations
             .iter()
-            .filter(|(user_id, _)| {
-                state
-                    .users
-                    .get(user_id)
-                    .map(|user| !user.controversial())
-                    .unwrap_or_default()
-            })
             .map(|(user_id, karma_donated)| {
                 (
                     *user_id,
