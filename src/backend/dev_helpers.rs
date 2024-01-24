@@ -26,7 +26,13 @@ async fn chores() {
 
 #[update]
 async fn weekly_chores() {
-    State::weekly_chores(time()).await;
+    if canisters::check_for_pending_upgrade().is_ok() {
+        State::weekly_chores(time()).await;
+    } else {
+        set_timer(Duration::from_millis(500), || {
+            spawn(weekly_chores());
+        });
+    }
 }
 
 #[query]

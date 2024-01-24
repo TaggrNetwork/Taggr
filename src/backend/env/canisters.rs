@@ -34,17 +34,18 @@ thread_local! {
 // Panics if an upgrade was initiated within the last 5 minutes. If something goes wrong
 // and the canister was not upgraded (and hence the timer was not reset), after 5 minutes
 // we start ignoring the timestamp.
-fn check_for_pending_upgrade() {
+pub fn check_for_pending_upgrade() -> Result<(), String> {
     UPGRADE_TIMESTAMP.with(|cell| {
         let upgrading_attempt = cell.borrow();
         if *upgrading_attempt + 5 * MINUTE > time() {
-            panic!("canister upgrading");
+            return Err("canister upgrading".into());
         }
-    });
+        Ok(())
+    })
 }
 
 pub fn open_call(id: &str) {
-    check_for_pending_upgrade();
+    check_for_pending_upgrade().expect("no upgrades");
     CALLS.with(|cell| {
         let map = &mut *cell.borrow_mut();
         map.entry(id.into()).and_modify(|c| *c += 1).or_insert(1);
@@ -178,7 +179,7 @@ pub async fn install(
 }
 
 pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: bool) {
-    check_for_pending_upgrade();
+    check_for_pending_upgrade().expect("no upgrades");
     logger.debug("Executing the canister upgrade...");
     let calls = calls_open();
     if calls > 0 && !force {
