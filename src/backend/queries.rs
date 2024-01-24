@@ -33,7 +33,7 @@ fn donors() {
             .map(|user| {
                 (
                     user.id,
-                    user.mintable_tokens(state)
+                    user.mintable_tokens(state, 1)
                         .map(|(_, tokens)| tokens)
                         .sum::<Token>(),
                 )

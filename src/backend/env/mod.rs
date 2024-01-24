@@ -1015,12 +1015,22 @@ impl State {
     }
 
     pub fn tokens_to_mint(&self) -> BTreeMap<UserId, Token> {
+        let num_active_users = self
+            .users
+            .values()
+            .filter(|user| user.active_within_weeks(time(), 1))
+            .count();
+        let user_shares = 1.max(
+            (num_active_users as f32
+                * (CONFIG.active_user_share_for_minting_promille as f32 / 1000.0))
+                as u64,
+        );
         let mut tokens_to_mint: BTreeMap<UserId, Token> = Default::default();
 
         for (user_id, tokens) in self
             .users
             .values()
-            .flat_map(|user| user.mintable_tokens(self))
+            .flat_map(|user| user.mintable_tokens(self, user_shares))
             .filter(|(_, balance)| *balance > 0)
         {
             tokens_to_mint

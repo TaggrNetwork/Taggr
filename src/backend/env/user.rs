@@ -507,7 +507,11 @@ impl User {
         })
     }
 
-    pub fn mintable_tokens(&self, state: &State) -> Box<dyn Iterator<Item = (UserId, Token)> + '_> {
+    pub fn mintable_tokens(
+        &self,
+        state: &State,
+        user_shares: u64,
+    ) -> Box<dyn Iterator<Item = (UserId, Token)> + '_> {
         if self.controversial() {
             return Box::new(std::iter::empty());
         }
@@ -526,6 +530,7 @@ impl User {
                 .min(donated_karma)
                 .min(CONFIG.max_spendable_tokens)
         } / ratio;
+        let spendable_tokens_per_user = spendable_tokens / user_shares;
 
         let priority_factor = |user_id| {
             let balance = state
@@ -570,7 +575,8 @@ impl User {
         Box::new(shares.into_iter().map(move |(user_id, share)| {
             (
                 user_id,
-                (share as f32 / total as f32 * spendable_tokens as f32) as Token,
+                spendable_tokens_per_user
+                    .min((share as f32 / total as f32 * spendable_tokens as f32) as Token),
             )
         }))
     }
@@ -680,7 +686,7 @@ mod tests {
             .get(&donor_id)
             .unwrap()
             .clone()
-            .mintable_tokens(state)
+            .mintable_tokens(state, 1)
             .collect::<BTreeMap<_, _>>();
         assert_eq!(mintable_tokens.len(), 4);
 
@@ -704,7 +710,7 @@ mod tests {
             .get(&donor_id)
             .unwrap()
             .clone()
-            .mintable_tokens(state)
+            .mintable_tokens(state, 1)
             .collect::<BTreeMap<_, _>>();
         assert_eq!(
             mintable_tokens.get(&u1).unwrap(),
@@ -739,7 +745,7 @@ mod tests {
             .get(&donor_id)
             .unwrap()
             .clone()
-            .mintable_tokens(state)
+            .mintable_tokens(state, 1)
             .collect::<BTreeMap<_, _>>();
         assert_eq!(mintable_tokens.len(), 4);
 
@@ -752,6 +758,42 @@ mod tests {
             mintable_tokens.values().sum::<u64>(),
             60000 / state.minting_ratio() - 1
         );
+    }
+
+    #[test]
+    fn test_mintable_tokens_with_user_share() {
+        let state = &mut State::default();
+        let donor_id = create_user(state, pr(0));
+        let u1 = create_user(state, pr(1));
+        let u2 = create_user(state, pr(2));
+        let u3 = create_user(state, pr(3));
+        let u4 = create_user(state, pr(4));
+        insert_balance(state, pr(255), 20000000);
+        insert_balance(state, pr(0), 600000); // spendable tokens
+        insert_balance(state, pr(1), 9900);
+        insert_balance(state, pr(2), 24900);
+        insert_balance(state, pr(3), 49900);
+        insert_balance(state, pr(4), 100000);
+        assert_eq!(state.minting_ratio(), 4);
+        let bob = state.users.get_mut(&donor_id).unwrap();
+
+        bob.karma_donations.insert(u1, 330);
+        bob.karma_donations.insert(u2, 660);
+        bob.karma_donations.insert(u3, 990);
+        bob.karma_donations.insert(u4, 1020);
+        let mintable_tokens = state
+            .users
+            .get(&donor_id)
+            .unwrap()
+            .clone()
+            .mintable_tokens(state, 10)
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(mintable_tokens.len(), 4);
+
+        assert_eq!(mintable_tokens.get(&u1).unwrap(), &7500);
+        assert_eq!(mintable_tokens.get(&u2).unwrap(), &7500);
+        assert_eq!(mintable_tokens.get(&u3).unwrap(), &7500);
+        assert_eq!(mintable_tokens.get(&u4).unwrap(), &7500);
     }
 
     #[test]

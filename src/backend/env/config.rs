@@ -30,6 +30,8 @@ pub struct Config {
     pub individual_minting_threshold_percentage: u64,
     pub minting_threshold_percentage: u64,
 
+    pub active_user_share_for_minting_promille: u32,
+
     pub min_treasury_balance_xdrs: u64,
 
     pub supply_threshold_for_transfer_percentage: u64,
@@ -179,6 +181,8 @@ pub const CONFIG: &Config = &Config {
 
     individual_minting_threshold_percentage: 1,
     minting_threshold_percentage: 5,
+
+    active_user_share_for_minting_promille: 10,
 
     max_age_hot_post_days: 2,
 

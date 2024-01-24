@@ -128,8 +128,9 @@ This will make the supply to keep an equilibrium around the maximal supply.
 Currently, all users who earn rewards become eligible for receiving newly minted `$token_symbol` tokens.
 The amount of minted tokens is computed weekly according to the following algorithm:
 
-1. For every user `U` who rewarded others, $name will mint new tokens limited by `U`'s  `$token_symbol`  balance divided by the minting ratio  `R` (see below).
-2. Assign the newly minted tokens to users (rewarded by `U`) weighted by their share of received rewards and an additional factor `F` which depends on receiver's `$token_symbol` balance:
+1. For every user `U` who rewarded others, determine the maximal amount of donatable tokens capped by `U`'s `$token_symbol` balance divided by the minting ratio `R` (see below).
+2. Compute the maximum amount of tokens assignable from `U` to a single rewarded user by dividing `U`'s mintable tokens by `$active_user_share_for_minting_promille%` of all active users of the last week.
+3. Mint new tokens to users (rewarded by `U`) capped by the amount computed in the previous step and weighted by their share of received rewards and an additional factor `F` which depends on receiver's `$token_symbol` balance:
 
 | Receiver's $token_symbol balance | `F`    |
 | -------------------------------- | ------ |
