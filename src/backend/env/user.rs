@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 pub type UserId = u64;
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Filters {
     pub users: BTreeSet<UserId>,
     pub tags: BTreeSet<String>,
@@ -35,7 +35,6 @@ pub enum Notification {
 }
 
 // This struct will hold user's new post until it's saved.
-#[derive(Clone)]
 pub struct Draft {
     pub body: String,
     pub realm: Option<String>,
@@ -43,7 +42,7 @@ pub struct Draft {
     pub blobs: Vec<(String, Blob)>,
 }
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct UserFilter {
     age_days: u64,
     safe: bool,
@@ -68,7 +67,7 @@ impl UserFilter {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct User {
     pub id: UserId,
     pub name: String,
@@ -685,7 +684,6 @@ mod tests {
             .users
             .get(&donor_id)
             .unwrap()
-            .clone()
             .mintable_tokens(state, 1)
             .collect::<BTreeMap<_, _>>();
         assert_eq!(mintable_tokens.len(), 4);
@@ -709,7 +707,6 @@ mod tests {
             .users
             .get(&donor_id)
             .unwrap()
-            .clone()
             .mintable_tokens(state, 1)
             .collect::<BTreeMap<_, _>>();
         assert_eq!(
@@ -744,7 +741,6 @@ mod tests {
             .users
             .get(&donor_id)
             .unwrap()
-            .clone()
             .mintable_tokens(state, 1)
             .collect::<BTreeMap<_, _>>();
         assert_eq!(mintable_tokens.len(), 4);

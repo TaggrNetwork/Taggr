@@ -957,6 +957,7 @@ export const icrcTransfer = async (
             token,
             recipient,
             amount,
+            fee,
         );
         if (typeof response == "string") {
             alert(

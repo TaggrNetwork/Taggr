@@ -505,25 +505,30 @@ impl State {
         self.last_hourly_chores = time();
     }
 
-    pub fn realms_posts(&self, caller: Principal, page: usize, offset: PostId) -> Vec<Post> {
+    pub fn realms_posts(
+        &self,
+        caller: Principal,
+        page: usize,
+        offset: PostId,
+    ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let realm_ids = match self
             .principal_to_user(caller)
             .map(|user| user.realms.as_slice())
         {
-            None | Some(&[]) => return Default::default(),
+            None | Some(&[]) => return Box::new(std::iter::empty()),
             Some(ids) => ids.iter().collect::<BTreeSet<_>>(),
         };
-        self.last_posts(caller, None, offset, false)
-            .filter(|post| {
-                post.realm
-                    .as_ref()
-                    .map(|id| realm_ids.contains(&id))
-                    .unwrap_or_default()
-            })
-            .skip(page * CONFIG.feed_page_size)
-            .take(CONFIG.feed_page_size)
-            .cloned()
-            .collect()
+        Box::new(
+            self.last_posts(caller, None, offset, false)
+                .filter(move |post| {
+                    post.realm
+                        .as_ref()
+                        .map(|id| realm_ids.contains(&id))
+                        .unwrap_or_default()
+                })
+                .skip(page * CONFIG.feed_page_size)
+                .take(CONFIG.feed_page_size),
+        )
     }
 
     pub fn hot_posts(
@@ -669,12 +674,11 @@ impl State {
             return Err("realm name taken".into());
         }
 
-        let user = self
-            .principal_to_user(principal)
-            .ok_or("no user found")?
-            .clone();
+        let user = self.principal_to_user(principal).ok_or("no user found")?;
+        let user_id = user.id;
+        let user_name = user.name.clone();
 
-        self.charge(user.id, CONFIG.realm_cost, format!("new realm /{}", name))
+        self.charge(user_id, CONFIG.realm_cost, format!("new realm /{}", name))
             .map_err(|err| {
                 format!(
                     "couldn't charge {} credits for realm creation: {}",
@@ -700,7 +704,7 @@ impl State {
 
         self.logger.info(format!(
             "@{} created realm [{1}](/#/realm/{1}) 🎭",
-            user.name, name
+            user_name, name
         ));
 
         Ok(())
@@ -712,10 +716,10 @@ impl State {
             let tipper_id = tipper.id;
             let tipper_name = tipper.name.clone();
             let author_id = Post::get(state, &post_id).ok_or("post not found")?.user;
-            let author = state.users.get(&author_id).ok_or("no user found")?.clone();
-            Ok((tipper_name, tipper_id, author))
+            let author = state.users.get(&author_id).ok_or("no user found")?;
+            Ok((tipper_name, tipper_id, author.id, author.principal))
         });
-        let (tipper_name, tipper_id, author) = result?;
+        let (tipper_name, tipper_id, author_id, author_principal) = result?;
         mutate(|state| {
             token::transfer(
                 state,
@@ -723,7 +727,7 @@ impl State {
                 principal,
                 TransferArgs {
                     from_subaccount: None,
-                    to: account(author.principal),
+                    to: account(author_principal),
                     fee: Some(1), // special tipping fee
                     amount: amount as u128,
                     memo: None,
@@ -738,7 +742,7 @@ impl State {
             })?;
             state
                 .users
-                .get_mut(&author.id)
+                .get_mut(&author_id)
                 .expect("user not found")
                 .notify_about_post(
                     format!(
@@ -1094,14 +1098,23 @@ impl State {
         }
 
         // Mint team tokens
-        for user in [0, 305]
+        for (user_id, user_name, user_principal, user_balance) in [0, 305]
             .iter()
-            .filter_map(|id| self.users.get(id).cloned())
+            .filter_map(|id| {
+                self.users.get(id).map(|user| {
+                    (
+                        user.id,
+                        user.name.clone(),
+                        user.principal,
+                        user.total_balance(self),
+                    )
+                })
+            })
             .collect::<Vec<_>>()
         {
-            let acc = account(user.principal);
-            let total_balance = user.total_balance(self);
-            let vested = match self.team_tokens.get_mut(&user.id) {
+            let acc = account(user_principal);
+            let total_balance = user_balance;
+            let vested = match self.team_tokens.get_mut(&user_id) {
                 Some(balance) if *balance > 0 => {
                     // 1% of circulating supply is vesting.
                     let vested = (circulating_supply / 100).min(*balance);
@@ -1123,7 +1136,7 @@ impl State {
                 self.logger.info(format!(
                     "Minted `{}` team tokens for @{} (still vesting: `{}`).",
                     vested / 100,
-                    user.name,
+                    user_name,
                     remaining_balance / 100
                 ));
             }
@@ -1833,22 +1846,22 @@ impl State {
         users: Vec<UserId>,
         page: usize,
         offset: PostId,
-    ) -> Vec<Post> {
+    ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let query: HashSet<_> = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
-        self.last_posts(caller, realm, offset, true)
-            .filter(|post| {
-                (users.is_empty() || users.contains(&post.user))
-                    && post
-                        .tags
-                        .iter()
-                        .map(|tag| tag.to_lowercase())
-                        .collect::<HashSet<_>>()
-                        .is_superset(&query)
-            })
-            .skip(page * CONFIG.feed_page_size)
-            .take(CONFIG.feed_page_size)
-            .cloned()
-            .collect()
+        Box::new(
+            self.last_posts(caller, realm, offset, true)
+                .filter(move |post| {
+                    (users.is_empty() || users.contains(&post.user))
+                        && post
+                            .tags
+                            .iter()
+                            .map(|tag| tag.to_lowercase())
+                            .collect::<HashSet<_>>()
+                            .is_superset(&query)
+                })
+                .skip(page * CONFIG.feed_page_size)
+                .take(CONFIG.feed_page_size),
+        )
     }
 
     pub fn last_posts<'a>(
@@ -1905,9 +1918,7 @@ impl State {
             }
         }
         tags.remove("ICP");
-        tags.remove("taggr");
-        tags.remove("Taggr");
-        tags.remove("TAGGR");
+        tags.retain(|tag, _| !tag.to_lowercase().contains("tagg"));
         tags.into_iter().filter(|(_, count)| *count > 1).collect()
     }
 
@@ -2121,10 +2132,8 @@ impl State {
         id: u64,
         vote: bool,
     ) -> Result<(), String> {
-        let user = self
-            .principal_to_user(principal)
-            .ok_or("no user found")?
-            .clone();
+        let user = self.principal_to_user(principal).ok_or("no user found")?;
+        let user_id = user.id;
         if !user.stalwart {
             return Err("only stalwarts can vote on reports".into());
         }
@@ -2134,7 +2143,7 @@ impl State {
                 self,
                 &id,
                 |post| -> Result<(UserId, Report, Credits, String), String> {
-                    post.vote_on_report(stalwarts, user.id, vote)?;
+                    post.vote_on_report(stalwarts, user_id, vote)?;
                     let post_user = post.user;
                     let post_report = post.report.clone().ok_or("no report")?;
                     Ok((
@@ -2146,7 +2155,7 @@ impl State {
                 },
             )?,
             "misbehaviour" => {
-                if user.id == id {
+                if user_id == id {
                     return Err("votes on own reports are not accepted".into());
                 }
                 let report = self
@@ -2154,7 +2163,7 @@ impl State {
                     .get_mut(&id)
                     .and_then(|u| u.report.as_mut())
                     .expect("no user found");
-                report.vote(stalwarts, user.id, vote)?;
+                report.vote(stalwarts, user_id, vote)?;
                 (
                     id,
                     report.clone(),
@@ -2200,7 +2209,7 @@ impl State {
         } else {
             CONFIG.reporting_penalty_misbehaviour
         } / 2;
-        let user = match self.principal_to_user(principal) {
+        let user_id = match self.principal_to_user(principal) {
             Some(user)
                 if self
                     .balances
@@ -2214,7 +2223,7 @@ impl State {
             Some(user) if user.rewards() < 0 => {
                 return Err("no reports with negative reward balance possible".into())
             }
-            Some(user) if user.credits() >= credits_required => user.clone(),
+            Some(user) if user.credits() >= credits_required => user.id,
             _ => {
                 return Err(format!(
                     "at least {} credits needed for this report",
@@ -2223,7 +2232,7 @@ impl State {
             }
         };
         let report = Some(Report {
-            reporter: user.id,
+            reporter: user_id,
             reason,
             timestamp: time(),
             ..Default::default()
@@ -2239,7 +2248,7 @@ impl State {
                     Ok(post.user)
                 })?;
                 self.notify_with_predicate(
-                    &|u| u.stalwart && u.id != user.id,
+                    &|u| u.stalwart && u.id != user_id,
                     "This post was reported. Please review the report!",
                     Predicate::ReportOpen(id),
                 );
@@ -2381,8 +2390,11 @@ impl State {
         };
         let user = self
             .principal_to_user(principal)
-            .ok_or("no user for principal found")?
-            .clone();
+            .ok_or("no user for principal found")?;
+        let user_id = user.id;
+        let user_credits = user.credits();
+        let user_balance = user.total_balance(self);
+        let user_controversial = user.controversial();
         let post = Post::get(self, &post_id).ok_or("post not found")?.clone();
         if post.is_deleted() {
             return Err("post deleted".into());
@@ -2403,7 +2415,7 @@ impl State {
         // Users initiate a credit transfer for upvotes, but burn their own credits on
         // downvotes + credits and rewards of the author
         if delta < 0 {
-            if user.controversial() {
+            if user_controversial {
                 return Err(
                     "no downvotes for users with pending reports or negative reward balance".into(),
                 );
@@ -2416,8 +2428,8 @@ impl State {
                 .expect("user not found")
                 .change_rewards(delta, log.clone());
             self.charge_in_realm(
-                user.id,
-                delta.unsigned_abs().min(user.credits()),
+                user_id,
+                delta.unsigned_abs().min(user_credits),
                 post.realm.as_ref(),
                 log.clone(),
             )?;
@@ -2447,7 +2459,7 @@ impl State {
             ];
             for (recipient, delta) in recipients.iter().zip(deltas) {
                 self.credit_transfer(
-                    user.id,
+                    user_id,
                     *recipient,
                     delta,
                     CONFIG.reaction_fee,
@@ -2467,12 +2479,10 @@ impl State {
         self.principal_to_user_mut(principal)
             .expect("no user for principal found")
             .last_activity = time;
-        let user_id = user.id;
-        let controversial = user.controversial();
         Post::mutate(self, &post_id, |post| {
             post.reactions.entry(reaction).or_default().insert(user_id);
-            if !controversial {
-                post.make_hot(user.id, user.balance);
+            if !user_controversial {
+                post.make_hot(user_id, user_balance);
             }
             Ok(())
         })
@@ -2773,9 +2783,11 @@ pub(crate) mod tests {
             create_user_with_params(state, pr(0), "peter", 10000)
         });
 
-        let user = read(|state| state.users.get(&id).unwrap().clone());
-        assert_eq!(user.name, "peter".to_string());
-        assert!(user.previous_names.is_empty());
+        read(|state| {
+            let user = state.users.get(&id).unwrap();
+            assert_eq!(user.name, "peter".to_string());
+            assert!(user.previous_names.is_empty());
+        });
 
         // update with wrong principal
         assert!(User::update(pr(1), Some("john".into()), Default::default(), vec![]).is_err());
@@ -2783,9 +2795,11 @@ pub(crate) mod tests {
         // correct update
         assert!(User::update(pr(0), Some("john".into()), Default::default(), vec![]).is_ok());
 
-        let user = read(|state| state.users.get(&id).unwrap().clone());
-        assert_eq!(user.name, "john".to_string());
-        assert_eq!(user.previous_names.as_slice(), &["peter"]);
+        read(|state| {
+            let user = state.users.get(&id).unwrap();
+            assert_eq!(user.name, "john".to_string());
+            assert_eq!(user.previous_names.as_slice(), &["peter"]);
+        });
 
         // The old name is reserved now
         assert_eq!(
@@ -4462,8 +4476,10 @@ pub(crate) mod tests {
             .await
             .is_ok());
 
-        let user = read(|state| state.users.get(&id).unwrap().clone());
-        assert_eq!(user.credits(), prev_balance - 222);
-        assert_eq!(read(|state| state.burned_cycles), prev_revenue);
+        read(|state| {
+            let user = state.users.get(&id).unwrap();
+            assert_eq!(user.credits(), prev_balance - 222);
+            assert_eq!(read(|state| state.burned_cycles), prev_revenue);
+        });
     }
 }

@@ -246,7 +246,7 @@ pub async fn top_up(canister_id: Principal, min_cycle_balance: u64) -> Result<bo
     Ok(false)
 }
 
-#[derive(CandidType, Clone, Debug, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Serialize, Deserialize)]
 pub struct NeuronId {
     pub id: u64,
 }
@@ -257,7 +257,7 @@ pub async fn fetch_proposals() -> Result<Vec<NNSProposal>, String> {
         pub id: u64,
     }
 
-    #[derive(CandidType, Clone, Serialize, Deserialize)]
+    #[derive(CandidType, Serialize, Deserialize)]
     pub struct ListProposalInfo {
         pub limit: u32,
         pub before_proposal: Option<ProposalId>,
@@ -266,18 +266,18 @@ pub async fn fetch_proposals() -> Result<Vec<NNSProposal>, String> {
         pub include_status: Vec<i32>,
     }
 
-    #[derive(CandidType, Clone, Serialize, Deserialize)]
+    #[derive(CandidType, Serialize, Deserialize)]
     pub struct ListProposalInfoResponse {
         pub proposal_info: Vec<ProposalInfo>,
     }
 
-    #[derive(CandidType, Clone, Serialize, Deserialize)]
+    #[derive(CandidType, Serialize, Deserialize)]
     pub struct ProposalStruct {
         pub title: Option<String>,
         pub summary: String,
     }
 
-    #[derive(CandidType, Clone, Serialize, Deserialize)]
+    #[derive(CandidType, Serialize, Deserialize)]
     pub struct ProposalInfo {
         pub id: Option<ProposalId>,
         pub proposer: Option<NeuronId>,
@@ -300,13 +300,14 @@ pub async fn fetch_proposals() -> Result<Vec<NNSProposal>, String> {
     Ok(response
         .proposal_info
         .into_iter()
-        .filter_map(|info| info.proposal.clone().map(|p| (info, p)))
-        .map(|(i, p)| NNSProposal {
-            id: i.id.unwrap_or_default().id,
-            title: p.title.unwrap_or_default(),
-            summary: p.summary,
-            topic: i.topic,
-            proposer: i.proposer.as_ref().expect("no neuron found").id,
+        .filter_map(|i| {
+            i.proposal.as_ref().map(|p| NNSProposal {
+                id: i.id.clone().unwrap_or_default().id,
+                title: p.title.clone().unwrap_or_default(),
+                summary: p.summary.clone(),
+                topic: i.topic,
+                proposer: i.proposer.as_ref().expect("no neuron found").id,
+            })
         })
         .collect())
 }

@@ -201,7 +201,7 @@ fn realms() {
 fn user_posts() {
     let (handle, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     read(|state| {
-        resolve_handle(Some(handle)).map(|user| {
+        resolve_handle(state, Some(&handle)).map(|user| {
             reply(
                 user.posts(state, offset)
                     .skip(CONFIG.feed_page_size * page)
@@ -216,7 +216,7 @@ fn user_posts() {
 fn rewarded_posts() {
     let (handle, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     read(|state| {
-        resolve_handle(Some(handle)).map(|user| {
+        resolve_handle(state, Some(&handle)).map(|user| {
             reply(
                 user.posts(state, offset)
                     .filter(|post| !post.reactions.is_empty())
@@ -248,19 +248,27 @@ fn user_tags() {
 fn user() {
     let input: Vec<String> = parse(&arg_data_raw());
     let own_profile_fetch = input.is_empty();
-    reply(resolve_handle(input.into_iter().next()).map(|mut user| {
-        user.cold_balance = user
+    mutate(|state| {
+        let handle = input.into_iter().next();
+        let user = match resolve_handle(state, handle.as_ref()) {
+            Some(value) => value,
+            _ => return reply(None as Option<User>),
+        };
+        let user_id = user.id;
+        let user_cold_balance = user
             .cold_wallet
-            .and_then(|principal| read(|state| state.balances.get(&account(principal)).copied()))
+            .and_then(|principal| state.balances.get(&account(principal)).copied())
             .unwrap_or_default();
+        let user = state.users.get_mut(&user_id).expect("user not found");
+        user.cold_balance = user_cold_balance;
         if own_profile_fetch {
             user.accounting.clear();
         } else {
             user.bookmarks.clear();
             user.notifications.clear();
         }
-        user
-    }));
+        reply(user);
+    });
 }
 
 #[export_name = "canister_query invites"]
@@ -302,8 +310,7 @@ fn journal() {
                         })
                         .skip(page * CONFIG.feed_page_size)
                         .take(CONFIG.feed_page_size)
-                        .cloned()
-                        .collect::<Vec<Post>>()
+                        .collect::<Vec<_>>()
                 })
                 .unwrap_or_default(),
         );
@@ -343,7 +350,13 @@ fn hot_posts() {
 #[export_name = "canister_query realms_posts"]
 fn realms_posts() {
     let (page, offset): (usize, PostId) = parse(&arg_data_raw());
-    read(|state| reply(state.realms_posts(caller(), page, offset)));
+    read(|state| {
+        reply(
+            state
+                .realms_posts(caller(), page, offset)
+                .collect::<Vec<_>>(),
+        )
+    });
 }
 
 #[export_name = "canister_query last_posts"]
@@ -370,8 +383,7 @@ fn last_posts() {
                 })
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
-                .cloned()
-                .collect::<Vec<Post>>(),
+                .collect::<Vec<_>>(),
         )
     });
 }
@@ -384,8 +396,7 @@ fn posts_by_tags() {
         reply(
             state
                 .posts_by_tags(caller(), optional(realm), tags, users, page, offset)
-                .into_iter()
-                .collect::<Vec<Post>>(),
+                .collect::<Vec<_>>(),
         )
     });
 }
@@ -409,8 +420,7 @@ fn thread() {
             state
                 .thread(id)
                 .filter_map(|id| Post::get(state, &id))
-                .cloned()
-                .collect::<Vec<Post>>(),
+                .collect::<Vec<_>>(),
         )
     })
 }
@@ -488,4 +498,11 @@ fn stable_mem_read(page: u64) -> Vec<(u64, Blob)> {
     }
     api::stable::stable64_read(offset, &mut buf);
     vec![(page, ByteBuf::from(buf))]
+}
+
+fn resolve_handle<'a>(state: &'a State, handle: Option<&'a String>) -> Option<&'a User> {
+    match handle {
+        Some(handle) => state.user(handle),
+        None => Some(state.principal_to_user(caller())?),
+    }
 }

@@ -337,14 +337,19 @@ impl Post {
     /// Checks if the poll has ended. If not, returns `Ok(false)`. If the poll ended,
     /// returns `Ok(true)` and assings the result weighted by the token voting power.
     pub fn conclude_poll(state: &mut State, post_id: &PostId, now: u64) -> Result<bool, String> {
-        let users = Post::get(state, post_id)
+        let user_balances = Post::get(state, post_id)
             .and_then(|post| {
                 if let Some(Extension::Poll(poll)) = post.extension.as_ref() {
                     let user_ids = poll.votes.values().flatten().cloned();
-                    let users = user_ids
-                        .filter_map(|id| state.users.get(&id).map(|user| (id, user.clone())))
+                    let balances = user_ids
+                        .filter_map(|id| {
+                            state
+                                .users
+                                .get(&id)
+                                .map(|user| (id, user.total_balance(state)))
+                        })
                         .collect::<BTreeMap<_, _>>();
-                    Some(users)
+                    Some(balances)
                 } else {
                     None
                 }
@@ -360,15 +365,7 @@ impl Post {
                 poll.weighted_by_tokens = poll
                     .votes
                     .iter()
-                    .map(|(k, ids)| {
-                        (
-                            *k,
-                            ids.iter()
-                                .filter_map(|id| users.get(id))
-                                .map(|user| user.balance)
-                                .sum(),
-                        )
-                    })
+                    .map(|(k, ids)| (*k, ids.iter().filter_map(|id| user_balances.get(id)).sum()))
                     .collect();
 
                 return Ok(true);
@@ -388,10 +385,7 @@ impl Post {
         timestamp: u64,
     ) -> Result<(), String> {
         mutate(|state| {
-            let user = state
-                .principal_to_user(principal)
-                .ok_or("no user found")?
-                .clone();
+            let user = state.principal_to_user(principal).ok_or("no user found")?;
             let mut post = Post::get(state, &id).ok_or("no post found")?.clone();
             if post.user != user.id {
                 return Err("unauthorized".to_string());
@@ -719,9 +713,11 @@ pub fn change_realm(state: &mut State, root_post_id: PostId, new_realm: Option<S
     let mut post_ids = vec![root_post_id];
 
     while let Some(post_id) = post_ids.pop() {
-        let Post {
-            children, realm, ..
-        } = Post::get(state, &post_id).expect("no post found").clone();
+        let Some((children, realm)) =
+            Post::get(state, &post_id).map(|post| (post.children.clone(), post.realm.clone()))
+        else {
+            continue;
+        };
         post_ids.extend_from_slice(&children);
 
         if let Some(id) = realm {

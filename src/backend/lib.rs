@@ -46,13 +46,6 @@ fn stable_to_heap_core() {
     mutate(|state| state.load());
 }
 
-fn resolve_handle(handle: Option<String>) -> Option<User> {
-    read(|state| match handle {
-        Some(handle) => state.user(&handle).cloned(),
-        None => Some(state.principal_to_user(caller())?.clone()),
-    })
-}
-
 fn optional(s: String) -> Option<String> {
     if s.is_empty() {
         None

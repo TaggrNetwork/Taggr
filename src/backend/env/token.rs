@@ -39,9 +39,11 @@ pub struct Transaction {
     pub memo: Option<Memo>,
 }
 
-// pub struct BadFee {
-//     expected_fee: u64,
-// }
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(CandidType, Debug, Serialize, Deserialize)]
+pub struct BadFee {
+    expected_fee: u128,
+}
 
 // pub struct BadBurn {
 //     min_burn_amount: u64,
@@ -51,25 +53,29 @@ pub struct Transaction {
 //     duplicate_of: u64,
 // }
 
-#[derive(CandidType, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(CandidType, Debug, Serialize, Deserialize)]
 pub struct InsufficientFunds {
     balance: u128,
 }
 
-#[derive(CandidType, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(CandidType, Debug, Serialize, Deserialize)]
 pub struct CreatedInFuture {
     ledger_time: Timestamp,
 }
 
-#[derive(CandidType, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(CandidType, Debug, Serialize, Deserialize)]
 pub struct GenericError {
     error_code: u128,
     message: String,
 }
 
-#[derive(CandidType, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(CandidType, Debug, Serialize, Deserialize)]
 pub enum TransferError {
-    // BadFee(BadFee),
+    BadFee(BadFee),
     // BadBurn(BadBurn),
     // Duplicate(Duplicate),
     // TemporarilyUnavailable,
@@ -166,7 +172,7 @@ fn icrc1_supported_standards() -> Vec<Standard> {
 }
 
 #[update]
-fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
+fn icrc1_transfer(args: TransferArgs) -> Result<u128, TransferError> {
     let owner = caller();
     if owner == Principal::anonymous() {
         return Err(TransferError::GenericError(GenericError {
@@ -174,7 +180,11 @@ fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
             message: "No transfers from the minting account possible.".into(),
         }));
     }
-    args.fee = Some(icrc1_fee());
+    if args.fee != Some(icrc1_fee()) {
+        return Err(TransferError::BadFee(BadFee {
+            expected_fee: icrc1_fee(),
+        }));
+    }
     mutate(|state| transfer(state, time(), owner, args))
 }
 

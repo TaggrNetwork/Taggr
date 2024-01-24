@@ -254,6 +254,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             </div>
                             <input
                                 type="number"
+                                min="0"
                                 value={userFilter.balance}
                                 onChange={(e) => {
                                     userFilter.balance = Number(e.target.value);
@@ -268,6 +269,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             </div>
                             <input
                                 type="number"
+                                min="0"
                                 value={userFilter.age_days}
                                 onChange={(e) => {
                                     userFilter.age_days = Number(
@@ -284,6 +286,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             </div>
                             <input
                                 type="number"
+                                min="0"
                                 value={userFilter.num_followers}
                                 onChange={(e) => {
                                     userFilter.num_followers = Number(

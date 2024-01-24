@@ -85,6 +85,7 @@ export type Backend = {
         token: Principal,
         recipient: Principal,
         amount: number,
+        fee: number,
     ) => Promise<string | number>;
 };
 
@@ -357,6 +358,7 @@ export const ApiGenerator = (
             token: Principal,
             recipient: Principal,
             amount: number,
+            fee: number,
         ) => {
             try {
                 const canister = IcrcLedgerCanister.create({
@@ -366,6 +368,7 @@ export const ApiGenerator = (
                 await canister.transfer({
                     to: { owner: recipient, subaccount: [] },
                     amount: BigInt(amount),
+                    fee: BigInt(fee),
                 });
                 return amount;
             } catch (e) {
