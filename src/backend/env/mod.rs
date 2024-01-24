@@ -1043,13 +1043,6 @@ impl State {
                 .or_insert(tokens);
         }
 
-        tokens_to_mint.retain(|user_id, _| {
-            self.users
-                .get(user_id)
-                .map(|user| !user.controversial())
-                .unwrap_or_default()
-        });
-
         tokens_to_mint
     }
 
@@ -1587,8 +1580,6 @@ impl State {
                 );
             }
             user.karma_donations.clear();
-            user.downvotes.clear();
-            user.downvoted_by_stalwart = false;
         }
         self.accounting.clean_up();
     }
@@ -2401,7 +2392,6 @@ impl State {
             .principal_to_user(principal)
             .ok_or("no user for principal found")?;
         let user_id = user.id;
-        let user_stalwart = user.stalwart;
         let user_credits = user.credits();
         let user_balance = user.total_balance(self);
         let user_controversial = user.controversial();
@@ -2433,10 +2423,10 @@ impl State {
             if user.balance < token::base() {
                 return Err("no downvotes for users with low token balance".into());
             }
-            let post_author = self.users.get_mut(&post.user).expect("user not found");
-            post_author.change_rewards(delta, log.clone());
-            post_author.downvotes.insert(user_id);
-            post_author.downvoted_by_stalwart = post_author.downvoted_by_stalwart || user_stalwart;
+            self.users
+                .get_mut(&post.user)
+                .expect("user not found")
+                .change_rewards(delta, log.clone());
             self.charge_in_realm(
                 user_id,
                 delta.unsigned_abs().min(user_credits),
