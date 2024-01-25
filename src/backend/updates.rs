@@ -72,27 +72,11 @@ fn post_upgrade() {
 }
 
 async fn post_upgrade_fixtures() {
-    let reposts = read(|state| {
-        let last_id = state.next_post_id.saturating_sub(1);
-        (0..=last_id)
-            .filter_map(|id| Post::get(state, &id))
-            .filter_map(|post| match post.extension {
-                Some(Extension::Repost(id)) => Some((post.id, id)),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-    });
-
-    mutate(|state| {
-        for (post_id, reposted_post_id) in reposts.into_iter() {
-            Post::mutate(state, &reposted_post_id, |post| {
-                post.reposts.clear();
-                post.reposts.push(post_id);
-                Ok(())
-            })
-            .unwrap()
-        }
-    })
+    #[cfg(not(feature = "dev"))]
+    {
+        storage::upgrade_buckets().await;
+        State::hourly_chores(time()).await;
+    }
 }
 
 /*

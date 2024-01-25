@@ -234,7 +234,7 @@ test.describe("Upgrades & token transfer flow", () => {
     });
 
     test("Verify regular upgrade", async () => {
-        await page.waitForTimeout(6000);
+        await page.waitForTimeout(10000);
         await page.goto("/#/dashboard");
         await page.waitForURL(/dashboard/);
         await page.waitForLoadState("networkidle");

@@ -21,7 +21,7 @@ fn assert_controller() {
 #[export_name = "canister_init"]
 fn init() {
     let initial_offset: u64 = 8;
-    grow_to_fit(initial_offset);
+    grow_to_fit(initial_offset, 0);
     api::stable::stable64_write(0, &initial_offset.to_be_bytes());
     set_controller();
 }
@@ -76,7 +76,7 @@ fn write_at_offset() {
 }
 
 fn write_at(offset: u64, blob: &[u8], update_pointer: bool) {
-    grow_to_fit(offset + blob.len() as u64);
+    grow_to_fit(offset, blob.len() as u64);
     stable64_write(offset, blob);
     if update_pointer {
         let new_offset = offset + blob.len() as u64;
@@ -85,8 +85,13 @@ fn write_at(offset: u64, blob: &[u8], update_pointer: bool) {
     reply_raw(&offset.to_be_bytes());
 }
 
-fn grow_to_fit(len: u64) {
-    if len > (stable64_size() << 16) && stable64_grow((len >> 16) + 1).is_err() {
+fn grow_to_fit(offset: u64, len: u64) {
+    if offset + len < (stable64_size() << 16) {
+        return;
+    }
+    // amount of extra 64kb pages to reserve
+    let extra_wasm_pages = 200;
+    if stable64_grow((len >> 16) + extra_wasm_pages).is_err() {
         panic!("couldn't grow stable memory");
     }
 }

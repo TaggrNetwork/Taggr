@@ -777,7 +777,6 @@ mod tests {
             .users
             .get(&donor_id)
             .unwrap()
-            .clone()
             .mintable_tokens(state, 10)
             .collect::<BTreeMap<_, _>>();
         assert_eq!(mintable_tokens.len(), 4);

@@ -948,8 +948,8 @@ impl State {
 
         // top up the main canister
         let balance = canister_balance();
-        let target_balance =
-            CONFIG.min_cycle_balance_main + children.len() as u64 * ICP_CYCLES_PER_XDR;
+        let target_balance = CONFIG.main_canister_min_cycle_balance
+            + children.len() as u64 * CONFIG.child_canister_min_cycle_balance;
         if balance < target_balance {
             let xdrs = target_balance / ICP_CYCLES_PER_XDR;
             // subtract weekly burned credits to reduce the revenue
@@ -975,7 +975,9 @@ impl State {
         // top up all children canisters
         let mut topped_up = Vec::new();
         for canister_id in children {
-            match crate::canisters::top_up(canister_id, 2 * ICP_CYCLES_PER_XDR).await {
+            match crate::canisters::top_up(canister_id, CONFIG.child_canister_min_cycle_balance)
+                .await
+            {
                 Ok(true) => topped_up.push(canister_id),
                 Err(err) => mutate(|state| state.critical(err)),
                 _ => {}
@@ -1446,7 +1448,7 @@ impl State {
         }
     }
 
-    async fn hourly_chores(now: u64) {
+    pub async fn hourly_chores(now: u64) {
         mutate(|state| {
             // Automatically dump the heap to the stable memory. This should be the first
             // opearation to avoid blocking of the backup by a panic in other parts of the routine.

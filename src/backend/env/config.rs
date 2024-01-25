@@ -60,7 +60,9 @@ pub struct Config {
 
     pub realm_revenue_percentage: u32,
 
-    pub min_cycle_balance_main: u64,
+    pub main_canister_min_cycle_balance: u64,
+
+    pub child_canister_min_cycle_balance: u64,
 
     pub max_bucket_size: u64,
 
@@ -219,7 +221,8 @@ pub const CONFIG: &Config = &Config {
 
     maximum_supply: 100_000_000,
 
-    min_cycle_balance_main: 2 * ICP_CYCLES_PER_XDR,
+    main_canister_min_cycle_balance: 10 * ICP_CYCLES_PER_XDR,
+    child_canister_min_cycle_balance: 10 * ICP_CYCLES_PER_XDR,
 
     num_hot_posts: 10000,
 
