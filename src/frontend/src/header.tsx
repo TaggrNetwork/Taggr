@@ -130,7 +130,8 @@ export const Header = ({
                             {user && !inboxEmpty && (
                                 <IconToggleButton
                                     title="Inbox"
-                                    classNameArg="right_half_spaced medium_text"
+                                    pressed={location.href.includes("inbox")}
+                                    classNameArg="right_half_spaced"
                                     onClick={() => (location.href = "#/inbox")}
                                     icon={
                                         <>

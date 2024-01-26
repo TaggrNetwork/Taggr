@@ -16,6 +16,7 @@ import {
     UserLink,
     popUp,
     RealmList,
+    noiseControlBanner,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -356,7 +357,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     )}
                 </div>
             )}
-            {getLabels(profile)}
             {profile.about ? (
                 <>
                     <Content classNameArg="larger_text" value={profile.about} />
@@ -365,7 +365,9 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             ) : (
                 <br />
             )}
-            <div className="dynamic_table">
+            {getLabels(profile)}
+            {noiseControlBanner("user", profile.filters.noise, window.user)}
+            <div className="top_spaced dynamic_table">
                 <div className="db_cell">
                     TOKENS
                     <a

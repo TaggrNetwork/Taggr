@@ -97,7 +97,6 @@ const pinchZoom = (imageElement: HTMLImageElement) => {
     });
 
     imageElement.addEventListener("touchmove", (event: any) => {
-        // console.log('touchmove', event);
         if (event.touches.length === 2) {
             event.preventDefault(); // Prevent page scroll
 

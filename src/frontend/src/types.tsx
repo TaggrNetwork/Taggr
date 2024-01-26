@@ -72,16 +72,18 @@ export type Proposal = {
 
 export type Realm = {
     cleanup_penalty: number;
-    description: string;
     controllers: UserId[];
-    theme: string;
+    description: string;
+    filter: UserFilter;
     label_color: string;
     logo: string;
-    num_posts: number;
     num_members: number;
-    last_update: number;
+    num_posts: number;
+    theme: string;
     whitelist: UserId[];
-    filter: UserFilter;
+    last_update: number;
+    last_setting_update: number;
+    revenue: number;
 };
 
 export type Post = {
@@ -164,6 +166,7 @@ export type UserFilter = {
     safe: boolean;
     balance: number;
     num_followers: number;
+    downvotes: number;
 };
 
 export type User = {
@@ -171,6 +174,7 @@ export type User = {
     id: UserId;
     account: string;
     invites_budget: number;
+    show_posts_in_realms: boolean;
     treasury_e8s: BigInt;
     principal: string;
     bookmarks: number[];
@@ -199,6 +203,7 @@ export type User = {
     cold_wallet: string;
     controllers: string[];
     karma_donations: { [key: UserId]: number };
+    downvotes: { [key: UserId]: number };
     filters: Filters;
     notifications: { [key: number]: [Notification, boolean] };
 };
@@ -209,12 +214,14 @@ export type Report = {
     confirmed_by: UserId[];
     rejected_by: UserId[];
     closed: boolean;
+    timestamp: bigint;
 };
 
 export type Theme = { [name: string]: any };
 
 declare global {
     interface Window {
+        ic: any;
         authClient: AuthClient;
         stackRoot: Root;
         resetUI: () => void;
@@ -271,6 +278,8 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                user_report_validity_days: number;
+                downvote_counting_period_days: number;
                 max_report_length: number;
                 credits_per_xdr: number;
                 max_funding_amount: number;

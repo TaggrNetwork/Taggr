@@ -45,7 +45,7 @@ export const hex = (arr: number[]) =>
         ("0" + (byte & 0xff).toString(16)).slice(-2),
     ).join("");
 
-export const MoreButton = ({ callback }: { callback: () => Promise<void> }) => (
+export const MoreButton = ({ callback }: { callback: () => Promise<any> }) => (
     <div style={{ display: "flex", justifyContent: "center" }}>
         <ButtonWithLoading
             classNameArg="top_spaced"
@@ -877,7 +877,7 @@ export const popUp = (content: JSX.Element) => {
     createRoot(root).render(
         <>
             <div
-                data-testId="popup-close-button"
+                data-testid="popup-close-button"
                 className="clickable row_container bottom_spaced"
                 onClick={closePreview}
             >
@@ -974,33 +974,56 @@ export const icrcTransfer = async (
 
 const DAY = 24 * 60 * 60 * 1000;
 
-export const getAccessErrorBanner = (filter: UserFilter, user: User) => {
+export const noiseControlBanner = (
+    domain: "realm" | "user",
+    filter: UserFilter,
+    user: User,
+) => {
     const err = checkUserFilterMatch(filter, user);
+    const prefix =
+        domain == "realm"
+            ? "You cannot post to this realm"
+            : "This user can't see notifications from you";
     return err ? (
-        <div className="banner vertically_spaced">{`Unfortunately, you cannot post to this realm: ${err}`}</div>
+        <div className="banner vertically_spaced">{`${prefix}: ${err}`}</div>
     ) : null;
 };
+
+const controversialUser = (profile: User) =>
+    profile.rewards < 0 ||
+    (profile.report &&
+        profile.report.closed &&
+        profile.report.confirmed_by.length >
+            profile.report.rejected_by.length &&
+        (Number(new Date()) - Number(profile.report.timestamp) / 1000000) /
+            DAY <
+            window.backendCache.config.user_report_validity_days);
 
 const checkUserFilterMatch = (
     filter: UserFilter,
     user: User,
 ): string | null => {
     if (!filter || !user) return null;
-    const { age_days, safe, balance, num_followers } = filter;
+    const { age_days, safe, balance, num_followers, downvotes } = filter;
+    const { downvote_counting_period_days, user_report_validity_days } =
+        window.backendCache.config;
     if (
         (Number(new Date()) - Number(user.timestamp) / 1000000) / DAY <
         age_days
     ) {
         return "account age is too low";
     }
-    if (!safe && (user.rewards < 0 || user.report)) {
-        return "negative rewards or report is pending";
+    if (safe && controversialUser(user)) {
+        return `negative rewards or a report is pending or was confirmed in the last ${user_report_validity_days} days`;
     }
     if (balance * tokenBase() > user.balance) {
         return "token balance too low";
     }
     if (num_followers > user.followers.length) {
         return "number of followers insufficient";
+    }
+    if (downvotes > 0 && Object.entries(user.downvotes).length > downvotes) {
+        return `number of downvotes on your posts in the last ${downvote_counting_period_days} days`;
     }
 
     return null;

@@ -26,7 +26,7 @@ import {
     tokens,
     currentRealm,
     parseNumber,
-    getAccessErrorBanner,
+    noiseControlBanner,
     getRealmsData,
 } from "./common";
 import { PostFeed } from "./post_feed";
@@ -260,7 +260,7 @@ export const PostView = ({
         post.realm != currentRealm();
     const realmAccessError =
         user && post.realm
-            ? getAccessErrorBanner(getRealmsData(post.realm)[2], user)
+            ? noiseControlBanner("realm", getRealmsData(post.realm)[2], user)
             : null;
     const isGallery = post.effBody.startsWith("![");
     const postCreated =
@@ -269,6 +269,7 @@ export const PostView = ({
         post.effBody.toLowerCase().includes("#nsfw") &&
         isFeedItem &&
         !safeToOpen;
+    const isControversial = isInactive && isFeedItem && !safeToOpen;
     const versionSpecified = version != undefined && !isNaN(version);
     version =
         !versionSpecified && post.patches.length > 0
@@ -286,12 +287,13 @@ export const PostView = ({
     if (prime) setTitle(`Post #${post.id} by @${post.userObject.name}`);
 
     let cls = "";
-    if (!deleted && !isNSFW && !showReport) {
+    if (!deleted && !isNSFW && !showReport && !isControversial) {
         if (realmPost || commentAsPost) cls = "top_padded_post";
         cls += isGallery ? " gallery_post" : " text_post";
     }
 
-    const showExtension = !isNSFW && post.extension && !repost;
+    const showExtension =
+        !isNSFW && !isControversial && post.extension && !repost;
 
     if (hidden) return null;
 
@@ -318,6 +320,16 @@ export const PostView = ({
                 }`}
                 style={{ position: "relative" }}
             >
+                {isControversial && (
+                    <div
+                        className={`${
+                            isCommentView ? "" : "post_head"
+                        } controversial x_large_text`}
+                        onClick={() => setSafeToOpen(true)}
+                    >
+                        CONTROVERSIAL
+                    </div>
+                )}
                 {isNSFW && (
                     <div
                         className={`${
@@ -354,7 +366,7 @@ export const PostView = ({
                         <CommentArrow classNameArg="action" />
                     </span>
                 )}
-                {!isNSFW && (
+                {!isNSFW && !isControversial && (
                     <article
                         ref={refArticle as unknown as any}
                         onClick={(e) => goInside(e)}
@@ -838,15 +850,15 @@ const PostBar = ({
                         {newPost && (
                             <New classNameArg="left_half_spaced accent" />
                         )}
-                        {post.tips.length > 0 && (
-                            <Coin classNameArg="accent left_half_spaced" />
-                        )}
                     </div>
                 </div>
             )}
             <div className="vcentered max_width_col flex_ended">
                 {!repost && (
                     <>
+                        {post.tips.length > 0 && (
+                            <Coin classNameArg="accent right_quarter_spaced" />
+                        )}
                         <Reactions
                             reactionsMap={post.reactions}
                             react={react}

@@ -47,6 +47,7 @@ export const Landing = () => {
                                 user.settings,
                                 user.filters.noise,
                                 user.governance,
+                                user.show_posts_in_realms,
                             );
                         }
                         setFeed(id);
@@ -140,13 +141,8 @@ export const TagCloud = ({
                 size,
             )) || [];
         const occurences = tags.map(([_, N]) => Number(N));
-        const min = Math.min(...occurences);
         const max = Math.max(...occurences);
-        const bucket = (max - min) / 10;
-        tags = tags.map(([tag, N]) => [
-            tag,
-            Math.ceil((Number(N) - min) / bucket),
-        ]);
+        tags = tags.map(([tag, N]) => [tag, Math.ceil((N / max) * 10)]);
         tags.sort((a, b) => (a[0] > b[0] ? 1 : -1));
         setTags(tags);
     };

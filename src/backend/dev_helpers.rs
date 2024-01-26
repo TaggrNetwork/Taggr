@@ -37,16 +37,24 @@ async fn weekly_chores() {
 
 #[query]
 async fn check() {
-    let (sum, last_id): (u64, u64) = read(|state| {
-        let last_id = state.next_post_id.saturating_sub(1);
-        (
-            (0..=last_id)
-                .filter_map(|id| Post::get(&state, &id))
-                .map(|post| post.id)
-                .sum(),
-            last_id,
-        )
-    });
+    let last_id = read(|state| state.next_post_id.saturating_sub(1));
+    let ids = (0..=last_id).into_iter().collect::<Vec<_>>();
+    let id_chunks = ids.chunks(10000);
+    let mut parts: Vec<u64> = Vec::new();
+    for chunk in id_chunks {
+        let result = async {
+            read(|state| {
+                chunk
+                    .iter()
+                    .filter_map(|id| Post::get(&state, &id))
+                    .map(|post| post.id)
+                    .sum()
+            })
+        }
+        .await;
+        parts.push(result);
+    }
+    let sum: u64 = parts.into_iter().sum();
     assert_eq!(sum, (last_id.pow(2) + last_id) / 2);
 }
 

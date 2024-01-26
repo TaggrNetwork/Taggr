@@ -17,11 +17,13 @@ export const Settings = ({ invite }: { invite?: string }) => {
     const [timer, setTimer] = React.useState<any>();
     const [uiRefresh, setUIRefresh] = React.useState(false);
     const [governance, setGovernance] = React.useState("true");
+    const [showPostsInRealms, setShowPostsInRealms] = React.useState("true");
     const [userFilter, setUserFilter] = React.useState<UserFilter>({
         safe: false,
         age_days: 0,
         balance: 0,
         num_followers: 0,
+        downvotes: 0,
     });
 
     const updateData = (user: User) => {
@@ -31,6 +33,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         setControllers(user.controllers.join("\n"));
         setSettings(user.settings);
         setGovernance(user.governance.toString());
+        setShowPostsInRealms(user.show_posts_in_realms.toString());
         setUserFilter(user.filters.noise);
     };
 
@@ -103,6 +106,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 settings,
                 userFilter,
                 governance == "true",
+                showPostsInRealms == "true",
             ),
         ]);
         for (let i in responses) {
@@ -119,6 +123,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
             window.setUI();
             updateData(window.user);
         }
+        await window.reloadUser();
     };
 
     return (
@@ -147,7 +152,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 {user && (
                     <>
                         <div className="bottom_half_spaced">
-                            Do you want to participate in governance?
+                            Participate in governance
                         </div>
                         <select
                             value={governance}
@@ -189,6 +194,19 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 </select>
                 {user && (
                     <>
+                        <div className="bottom_half_spaced">
+                            Override realm color themes
+                        </div>
+                        <select
+                            value={settings.overrideRealmColors || "false"}
+                            className="bottom_spaced"
+                            onChange={(event) =>
+                                setSetting("overrideRealmColors", event)
+                            }
+                        >
+                            <option value="true">YES</option>
+                            <option value="false">NO</option>
+                        </select>
                         <div className="bottom_half_spaced">
                             Multi-column layout on landing page
                         </div>
@@ -297,6 +315,42 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                 id="own_theme"
                             />
                         </div>
+                        <div className="column_container bottom_spaced">
+                            <div className="bottom_half_spaced">
+                                Maximal number of downvotes in the last{" "}
+                                {
+                                    window.backendCache.config
+                                        .downvote_counting_period_days
+                                }{" "}
+                                days:
+                            </div>
+                            <input
+                                type="number"
+                                min="0"
+                                value={userFilter.downvotes}
+                                onChange={(e) => {
+                                    userFilter.downvotes = Number(
+                                        e.target.value,
+                                    );
+                                    setUserFilter({ ...userFilter });
+                                }}
+                                id="own_theme"
+                            />
+                        </div>
+                        <div className="bottom_half_spaced">
+                            Show posts from followed people posted in realms you
+                            are not a member of:
+                        </div>
+                        <select
+                            value={showPostsInRealms}
+                            className="bottom_spaced"
+                            onChange={(event) =>
+                                setShowPostsInRealms(event.target.value)
+                            }
+                        >
+                            <option value="true">YES</option>
+                            <option value="false">NO</option>
+                        </select>
                     </>
                 )}
                 <ButtonWithLoading

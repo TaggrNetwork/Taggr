@@ -1,6 +1,10 @@
 use std::cmp::Reverse;
+use std::collections::BTreeMap;
 
-use crate::env::token::{account, Token};
+use crate::env::{
+    token::{account, Token},
+    user::UserFilter,
+};
 
 use super::*;
 use candid::Principal;
@@ -143,10 +147,37 @@ fn sorted_realms(
     state: &State,
     order: String,
 ) -> Box<dyn Iterator<Item = (&'_ String, &'_ Realm)> + '_> {
+    let realm_vp = read(|state| {
+        state
+            .users
+            .values()
+            .fold(BTreeMap::default(), |mut acc, user| {
+                let vp = (user.total_balance(state) as f32).sqrt() as u64;
+                user.realms.iter().for_each(|realm_id| {
+                    acc.entry(realm_id.clone())
+                        .and_modify(|realm_vp| *realm_vp += vp)
+                        .or_insert(vp);
+                });
+                acc
+            })
+    });
     let mut realms = state.realms.iter().collect::<Vec<_>>();
     if order != "name" {
-        realms.sort_unstable_by_key(|(_, realm)| match order.as_str() {
-            "popularity" => Reverse(realm.num_posts * realm.num_members),
+        realms.sort_unstable_by_key(|(realm_id, realm)| match order.as_str() {
+            "popularity" => {
+                let realm_vp = realm_vp.get(realm_id.as_str()).copied().unwrap_or(1);
+                let whitelisted = if realm.whitelist.is_empty() {
+                    1
+                } else {
+                    realm_vp
+                };
+                let moderation = if realm.filter == UserFilter::default() {
+                    1
+                } else {
+                    realm_vp
+                };
+                Reverse(realm.num_posts * realm.num_members * whitelisted * moderation)
+            }
             _ => Reverse(realm.last_update),
         });
     }
@@ -172,7 +203,7 @@ fn realms_data() {
                         ),
                     )
                 })
-                .collect::<std::collections::BTreeMap<_, _>>(),
+                .collect::<BTreeMap<_, _>>(),
         );
     });
 }

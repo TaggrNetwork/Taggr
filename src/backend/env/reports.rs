@@ -93,6 +93,10 @@ pub fn finalize_report(
             )
             .map_err(|err| format!("couldn't reward reporter: {}", err))?;
         confirmed_user_report = domain == "misbehaviour";
+        state.logger.info(format!(
+            "Report of {} was confirmed by `{}%` of stalwarts: {}",
+            subject, CONFIG.report_confirmation_percentage, &report.reason
+        ));
         (user_id, unit)
     } else {
         // penalty for reporter

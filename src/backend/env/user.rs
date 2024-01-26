@@ -42,13 +42,14 @@ pub struct Draft {
     pub blobs: Vec<(String, Blob)>,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, PartialEq, Serialize, Deserialize)]
 pub struct UserFilter {
     age_days: u64,
     safe: bool,
     balance: Token,
-    #[serde(default)]
     num_followers: usize,
+    #[serde(default)]
+    downvotes: usize,
 }
 
 impl UserFilter {
@@ -58,9 +59,10 @@ impl UserFilter {
             safe,
             balance,
             num_followers,
-            ..
+            downvotes,
         } = filter;
-        self.age_days >= *age_days
+        (*downvotes == 0 || self.downvotes <= *downvotes)
+            && self.age_days >= *age_days
             && (self.safe || !*safe)
             && self.balance >= *balance
             && self.num_followers >= *num_followers
@@ -103,6 +105,10 @@ pub struct User {
     pub previous_names: Vec<String>,
     pub governance: bool,
     pub notifications: BTreeMap<u64, (Notification, bool)>,
+    #[serde(default)]
+    pub downvotes: BTreeMap<UserId, Time>,
+    #[serde(default)]
+    pub show_posts_in_realms: bool,
 }
 
 impl User {
@@ -117,6 +123,7 @@ impl User {
             safe: !self.controversial(),
             balance: self.balance / token::base(),
             num_followers: self.followers.len(),
+            downvotes: self.downvotes.len(),
         }
     }
 
@@ -164,6 +171,8 @@ impl User {
             cold_wallet: None,
             cold_balance: 0,
             governance: true,
+            downvotes: Default::default(),
+            show_posts_in_realms: true,
         }
     }
 
@@ -242,6 +251,9 @@ impl User {
     }
 
     fn insert_notifications(&mut self, notification: Notification) {
+        if self.is_bot() {
+            return;
+        }
         self.messages += 1;
         self.notifications
             .insert(self.messages, (notification, false));
@@ -287,6 +299,13 @@ impl User {
                     !post.is_deleted()
                         && post.parent.is_none()
                         && !post.matches_filters(&self.filters)
+                        && post
+                            .realm
+                            .as_ref()
+                            .map(|realm_id| {
+                                self.show_posts_in_realms || self.realms.contains(realm_id)
+                            })
+                            .unwrap_or(true)
                 })
                 .filter(move |post| {
                     if self.followees.contains(&post.user) {
@@ -440,6 +459,7 @@ impl User {
         settings: BTreeMap<String, String>,
         filter: UserFilter,
         governance: bool,
+        show_posts_in_realms: bool,
     ) -> Result<(), String> {
         mutate(|state| {
             if let Some(user) = state.principal_to_user_mut(caller) {
@@ -449,6 +469,7 @@ impl User {
                 user.settings = settings;
                 user.governance = governance;
                 user.filters.noise = filter;
+                user.show_posts_in_realms = show_posts_in_realms;
             }
             Ok(())
         })
@@ -592,10 +613,12 @@ mod tests {
             age_days: 12,
             safe: false,
             balance: 333,
-            num_followers: 34
+            num_followers: 34,
+            downvotes: 0,
         }
         .passes(&UserFilter {
             age_days: 7,
+            downvotes: 0,
             safe: true,
             balance: 1,
             num_followers: 0
@@ -603,6 +626,7 @@ mod tests {
 
         assert!(UserFilter {
             age_days: 12,
+            downvotes: 0,
             safe: false,
             balance: 333,
             num_followers: 34
@@ -610,12 +634,14 @@ mod tests {
         .passes(&UserFilter {
             age_days: 7,
             safe: false,
+            downvotes: 0,
             balance: 1,
             num_followers: 0
         }));
 
         assert!(UserFilter {
             age_days: 12,
+            downvotes: 0,
             safe: true,
             balance: 333,
             num_followers: 34
@@ -623,6 +649,7 @@ mod tests {
         .passes(&UserFilter {
             age_days: 7,
             safe: true,
+            downvotes: 0,
             balance: 1,
             num_followers: 0
         }));
@@ -630,12 +657,14 @@ mod tests {
         assert!(!UserFilter {
             age_days: 12,
             safe: true,
+            downvotes: 0,
             balance: 333,
             num_followers: 34
         }
         .passes(&UserFilter {
             age_days: 7,
             safe: false,
+            downvotes: 0,
             balance: 777,
             num_followers: 0
         }));
@@ -643,12 +672,29 @@ mod tests {
         assert!(UserFilter {
             age_days: 12,
             safe: true,
+            downvotes: 0,
             balance: 333,
             num_followers: 34
         }
         .passes(&UserFilter {
             age_days: 7,
             safe: false,
+            downvotes: 0,
+            balance: 1,
+            num_followers: 0
+        }));
+
+        assert!(!UserFilter {
+            age_days: 12,
+            safe: true,
+            downvotes: 7,
+            balance: 333,
+            num_followers: 34
+        }
+        .passes(&UserFilter {
+            age_days: 7,
+            safe: false,
+            downvotes: 5,
             balance: 1,
             num_followers: 0
         }));

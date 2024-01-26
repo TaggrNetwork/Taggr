@@ -495,16 +495,16 @@ table {
 
 .size1,
 .size0 {
-    font-size: 0.8em;
+    font-size: 0.6em;
 }
 .size2 {
-    font-size: 1.1em;
+    font-size: 1em;
 }
 .size3 {
-    font-size: 1.4em;
+    font-size: 1.3em;
 }
 .size4 {
-    font-size: 1.8em;
+    font-size: 1.7em;
 }
 .size5 {
     font-size: 2em;
@@ -859,24 +859,28 @@ a.accent,
 }
 
 .banner,
+.controversial,
 .nsfw {
     text-align: center;
 }
 
 .comment .banner,
 .comment .nsfw,
+.comment .controversial,
 .comment .deleted {
     margin: 1rem;
 }
 
 .banner,
 .nsfw,
+.controversial,
 .deleted {
     padding: 1em;
     border-radius: 10px;
 }
 
-.nsfw {
+.nsfw,
+.controversial {
     background: $selected_background;
     color: $clickable;
 }

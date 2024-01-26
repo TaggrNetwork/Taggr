@@ -100,24 +100,21 @@ pub struct Stats {
 
 pub type RealmId = String;
 
-// TODO: move out settings into a separate object
 #[derive(Default, Serialize, Deserialize)]
 pub struct Realm {
-    logo: String,
-    pub description: String,
-    pub controllers: BTreeSet<UserId>,
-    pub label_color: String,
-    theme: String,
-    pub num_posts: u64,
-    pub num_members: u64,
-    pub last_update: u64,
-    #[serde(default)]
-    pub last_setting_update: u64,
-    pub revenue: Credits,
-    pub filter: UserFilter,
-    whitelist: BTreeSet<UserId>,
-    #[serde(default)]
     pub cleanup_penalty: Credits,
+    pub controllers: BTreeSet<UserId>,
+    pub description: String,
+    pub filter: UserFilter,
+    pub label_color: String,
+    pub last_setting_update: u64,
+    pub last_update: u64,
+    logo: String,
+    pub num_members: u64,
+    pub num_posts: u64,
+    pub revenue: Credits,
+    theme: String,
+    pub whitelist: BTreeSet<UserId>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -230,11 +227,7 @@ pub enum Destination {
 
 impl State {
     pub fn link_cold_wallet(&mut self, caller: Principal, user_id: UserId) -> Result<(), String> {
-        if self
-            .users
-            .values()
-            .any(|user| user.cold_wallet == Some(caller))
-        {
+        if self.principal_to_user(caller).is_some() {
             return Err("this wallet is linked already".into());
         }
         let user = self.users.get_mut(&user_id).ok_or("no user found")?;
@@ -246,11 +239,7 @@ impl State {
     }
 
     pub fn unlink_cold_wallet(&mut self, caller: Principal) {
-        if let Some(user) = self
-            .users
-            .values_mut()
-            .find(|user| user.cold_wallet == Some(caller))
-        {
+        if let Some(user) = self.principal_to_user_mut(caller) {
             user.cold_wallet = None;
         }
     }
@@ -585,15 +574,19 @@ impl State {
         &mut self,
         principal: Principal,
         name: String,
-        logo: String,
-        label_color: String,
-        theme: String,
-        description: String,
-        controllers: BTreeSet<UserId>,
-        whitelist: BTreeSet<UserId>,
-        user_filter: UserFilter,
-        cleanup_penalty: Credits,
+        realm: Realm,
     ) -> Result<(), String> {
+        let Realm {
+            logo,
+            label_color,
+            theme,
+            description,
+            controllers,
+            whitelist,
+            filter,
+            cleanup_penalty,
+            ..
+        } = realm;
         let user = self.principal_to_user(principal).ok_or("no user found")?;
         let user_id = user.id;
         let user_name = user.name.clone();
@@ -619,7 +612,7 @@ impl State {
         realm.label_color = label_color;
         realm.theme = theme;
         realm.whitelist = whitelist;
-        realm.filter = user_filter;
+        realm.filter = filter;
         realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty);
         realm.last_setting_update = time();
         if description_change {
@@ -639,15 +632,13 @@ impl State {
         &mut self,
         principal: Principal,
         name: String,
-        logo: String,
-        label_color: String,
-        theme: String,
-        description: String,
-        controllers: BTreeSet<UserId>,
-        whitelist: BTreeSet<UserId>,
-        user_filter: UserFilter,
-        cleanup_penalty: Credits,
+        mut realm: Realm,
     ) -> Result<(), String> {
+        let Realm {
+            controllers,
+            cleanup_penalty,
+            ..
+        } = &realm;
         if controllers.is_empty() {
             return Err("no controllers specified".into());
         }
@@ -686,21 +677,10 @@ impl State {
                 )
             })?;
 
-        self.realms.insert(
-            name.clone(),
-            Realm {
-                logo,
-                description,
-                controllers,
-                label_color,
-                theme,
-                whitelist,
-                filter: user_filter,
-                cleanup_penalty: CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty),
-                last_update: time(),
-                ..Default::default()
-            },
-        );
+        realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(*cleanup_penalty);
+        realm.last_update = time();
+
+        self.realms.insert(name.clone(), realm);
 
         self.logger.info(format!(
             "@{} created realm [{1}](/#/realm/{1}) 🎭",
@@ -1322,6 +1302,12 @@ impl State {
             }
 
             state.recompute_stalwarts(now);
+
+            for user in state.users.values_mut() {
+                user.downvotes.retain(|_, timestamp| {
+                    *timestamp + CONFIG.downvote_counting_period_days * DAY >= now
+                });
+            }
         });
 
         export_token_supply(token::icrc1_total_supply());
@@ -1791,13 +1777,7 @@ impl State {
                         CreditsDelta::Plus,
                         "top up with ICP".to_string(),
                     )?;
-                    let user_name = user.name.clone();
                     state.accounting.close(&principal);
-                    state.logger.info(format!(
-                        "@{} minted credits for `{}` ICP ⚡️",
-                        user_name,
-                        display_tokens(invoice.paid_e8s, 8)
-                    ));
                 }
             }
             Ok(invoice)
@@ -1919,8 +1899,6 @@ impl State {
                 break 'OUTER;
             }
         }
-        tags.remove("ICP");
-        tags.retain(|tag, _| !tag.to_lowercase().contains("tagg"));
         tags.into_iter().filter(|(_, count)| *count > 1).collect()
     }
 
@@ -1941,10 +1919,7 @@ impl State {
 
     pub fn user(&self, handle: &str) -> Option<&User> {
         match Principal::from_text(handle) {
-            Ok(principal) => self.principal_to_user(principal).or(self
-                .users
-                .values()
-                .find(|user| user.cold_wallet == Some(principal))),
+            Ok(principal) => self.principal_to_user(principal),
             _ => handle
                 .parse::<u64>()
                 .ok()
@@ -2003,11 +1978,20 @@ impl State {
         self.principals
             .get(&principal)
             .and_then(|id| self.users.get(id))
+            .or(self
+                .users
+                .values()
+                .find(|user| user.cold_wallet == Some(principal)))
     }
 
     pub fn principal_to_user_mut(&mut self, principal: Principal) -> Option<&mut User> {
-        let id = self.principals.get(&principal)?;
-        self.users.get_mut(id)
+        if let Some(id) = self.principals.get(&principal) {
+            self.users.get_mut(id)
+        } else {
+            self.users
+                .values_mut()
+                .find(|user| user.cold_wallet == Some(principal))
+        }
     }
 
     fn new_user_id(&mut self) -> UserId {
@@ -2152,7 +2136,7 @@ impl State {
                         post_user,
                         post_report,
                         CONFIG.reporting_penalty_post,
-                        format!("post {}", id),
+                        format!("post [{0}](#/post/{0})", id),
                     ))
                 },
             )?,
@@ -2170,7 +2154,7 @@ impl State {
                     id,
                     report.clone(),
                     CONFIG.reporting_penalty_misbehaviour,
-                    format!("user {}", id),
+                    format!("user [{0}](#/user/{0})", id),
                 )
             }
             _ => return Err("unknown report type".into()),
@@ -2425,10 +2409,9 @@ impl State {
             if user.balance < token::base() {
                 return Err("no downvotes for users with low token balance".into());
             }
-            self.users
-                .get_mut(&post.user)
-                .expect("user not found")
-                .change_rewards(delta, log.clone());
+            let user = self.users.get_mut(&post.user).expect("user not found");
+            user.change_rewards(delta, log.clone());
+            user.downvotes.insert(user_id, time);
             self.charge_in_realm(
                 user_id,
                 delta.unsigned_abs().min(user_credits),
@@ -2450,7 +2433,9 @@ impl State {
                 let original_author = Post::get(self, post_id)
                     .expect("no reposted post found")
                     .user;
-                recipients.push(original_author)
+                if original_author != user_id {
+                    recipients.push(original_author)
+                }
             }
             let eff_delta = (delta / recipients.len() as i64) as Credits;
             // If delta is not divisible by 2, the original post author gets the rest
@@ -2604,18 +2589,12 @@ pub(crate) mod tests {
     }
 
     fn create_realm(state: &mut State, user: Principal, name: String) -> Result<(), String> {
-        state.create_realm(
-            user,
-            name,
-            Default::default(),
-            Default::default(),
-            Default::default(),
-            "Test description".into(),
-            vec![0].into_iter().collect(),
-            Default::default(),
-            Default::default(),
-            10,
-        )
+        let realm = Realm {
+            description: "Test description".into(),
+            controllers: vec![0].into_iter().collect(),
+            ..Default::default()
+        };
+        state.create_realm(user, name, realm)
     }
 
     pub fn create_user(state: &mut State, p: Principal) -> UserId {
@@ -2668,7 +2647,11 @@ pub(crate) mod tests {
             // link cold wallet
             let cold_balance = 1000000;
             insert_balance(state, pr(200), cold_balance);
+            let user = state.users.get(&1).unwrap();
+            assert_eq!(user.total_balance(state), 80000);
             state.link_cold_wallet(pr(200), 1).unwrap();
+            let user = state.users.get(&1).unwrap();
+            assert_eq!(user.total_balance(state), 80000 + cold_balance);
             assert_eq!(
                 state.link_cold_wallet(pr(200), 0),
                 Err("this wallet is linked already".into())
@@ -3421,7 +3404,6 @@ pub(crate) mod tests {
             assert_eq!(user1.credits(), 500);
 
             let name = "TAGGRDAO".to_string();
-            let description = "Test description".to_string();
             let controllers: BTreeSet<_> = vec![_u0].into_iter().collect();
 
             // simple creation and description change edge cases
@@ -3448,18 +3430,7 @@ pub(crate) mod tests {
             );
 
             assert_eq!(
-                state.create_realm(
-                    p0,
-                    name.clone(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    description,
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    10
-                ),
+                state.create_realm(p0, name.clone(), Realm::default()),
                 Err("no controllers specified".to_string())
             );
 
@@ -3486,84 +3457,31 @@ pub(crate) mod tests {
             let new_description = "New test description".to_string();
 
             assert_eq!(
-                state.edit_realm(
-                    p0,
-                    name.clone(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    new_description.clone(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    10
-                ),
+                state.edit_realm(p0, name.clone(), Realm::default()),
                 Err("no controllers specified".to_string())
             );
 
             assert_eq!(
-                state.edit_realm(
-                    pr(2),
-                    name.clone(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    new_description.clone(),
-                    controllers.clone(),
-                    Default::default(),
-                    Default::default(),
-                    10,
-                ),
+                state.edit_realm(pr(2), name.clone(), Realm::default()),
                 Err("no user found".to_string())
             );
 
             assert_eq!(
-                state.edit_realm(
-                    p0,
-                    "WRONGNAME".to_string(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    new_description.clone(),
-                    controllers.clone(),
-                    Default::default(),
-                    Default::default(),
-                    10
-                ),
+                state.edit_realm(p0, "WRONGNAME".to_string(), Realm::default()),
                 Err("no realm found".to_string())
             );
 
             assert_eq!(
-                state.edit_realm(
-                    p1,
-                    name.clone(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    new_description.clone(),
-                    controllers.clone(),
-                    Default::default(),
-                    Default::default(),
-                    10
-                ),
+                state.edit_realm(p1, name.clone(), Realm::default()),
                 Err("not authorized".to_string())
             );
 
-            assert_eq!(
-                state.edit_realm(
-                    p0,
-                    name.clone(),
-                    Default::default(),
-                    Default::default(),
-                    Default::default(),
-                    new_description.clone(),
-                    controllers,
-                    Default::default(),
-                    Default::default(),
-                    10
-                ),
-                Ok(())
-            );
+            let realm = Realm {
+                controllers,
+                description: "New test description".into(),
+                ..Default::default()
+            };
+            assert_eq!(state.edit_realm(p0, name.clone(), realm), Ok(()));
 
             assert_eq!(
                 state.realms.get(&name).unwrap().description,
@@ -3844,7 +3762,7 @@ pub(crate) mod tests {
             let u2 = create_user_with_params(state, pr(1), "user2", 1000);
             let u3 = create_user_with_params(state, pr(2), "user3", 1000);
             let cold_wallet = pr(254);
-            state.users.get_mut(&u2).unwrap().cold_wallet = Some(cold_wallet);
+            state.link_cold_wallet(pr(254), u2).unwrap();
 
             assert_eq!(state.user("user1").unwrap().id, u1);
             assert_eq!(state.user("0").unwrap().id, u1);

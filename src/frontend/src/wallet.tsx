@@ -19,9 +19,11 @@ import * as React from "react";
 import { LoginMasks, logout, SeedPhraseForm } from "./logins";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { Principal } from "@dfinity/principal";
-import { CANISTER_ID } from "./env";
+import { CANISTER_ID, MAINNET_MODE } from "./env";
 
 type Invoice = { paid: boolean; e8s: BigInt; account: number[] };
+
+const coldWalletFunctionalityAvailable = window.ic && window.ic.plug;
 
 export const Welcome = () => {
     const [invoice, setInvoice] = React.useState<Invoice>();
@@ -430,6 +432,35 @@ export const Wallet = () => {
             <hr />
             <div className="vcentered">
                 <h2 className="max_width_col">{token_symbol}</h2>
+                {!user.cold_wallet && coldWalletFunctionalityAvailable && (
+                    <ButtonWithLoading
+                        classNameArg="fat"
+                        onClick={async () => {
+                            const actor = await getActor();
+                            const response = await actor.link_cold_wallet(
+                                window.user.id,
+                            );
+                            if (response && "Err" in response) {
+                                alert(`Error: ${response.Err}`);
+                                return;
+                            }
+                            await window.reloadUser();
+                            setUser(window.user);
+                        }}
+                        label="LINK COLD WALLET"
+                    />
+                )}
+                {user.cold_wallet && (
+                    <ButtonWithLoading
+                        classNameArg="fat"
+                        onClick={async () => {
+                            await window.api.unlink_cold_wallet();
+                            await window.reloadUser();
+                            setUser(window.user);
+                        }}
+                        label="UNLINK COLD WALLET"
+                    />
+                )}
                 <ButtonWithLoading
                     label="SEND"
                     testId="tokens-transfer-button"
@@ -446,7 +477,7 @@ export const Wallet = () => {
                 />
             </div>
             <div className="row_container vcentered">
-                <div className="max_width_col">Wallet</div>
+                <div className="max_width_col">Wallet </div>
                 <a
                     data-testid="token-balance"
                     className="xx_large_text"
@@ -482,3 +513,22 @@ export const WelcomeInvited = ({}) => (
         <LoginMasks confirmationRequired={true} />
     </div>
 );
+
+const getActor = async () => {
+    await window.ic.plug.requestConnect({
+        host: MAINNET_MODE
+            ? `https://${CANISTER_ID}.ic0.app`
+            : window.location.origin,
+    });
+    return await window.ic.plug.createActor({
+        canisterId: CANISTER_ID,
+        interfaceFactory: ({ IDL }: any) =>
+            IDL.Service({
+                link_cold_wallet: IDL.Func(
+                    [IDL.Nat64],
+                    [IDL.Variant({ Ok: IDL.Null, Err: IDL.Null })],
+                    [],
+                ),
+            }),
+    });
+};

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HeadBar } from "./common";
+import { HeadBar, MoreButton } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
 import { PostView } from "./post";
@@ -10,6 +10,7 @@ export const Inbox = () => {
         [key: string]: [Notification, boolean];
     }>(window.user.notifications);
     const [closing, setClosing] = React.useState(0);
+    const [showArchive, setShowArchive] = React.useState(false);
     const ids = Object.keys(inbox);
     ids.reverse();
     if (ids.length == 0) {
@@ -44,12 +45,12 @@ export const Inbox = () => {
                 className={"stands_out" + (closing == k ? " fadeout" : "")}
                 style={{ padding: 0 }}
             >
-                {!archive && (
-                    <div className="row_container">
-                        <Content
-                            value={msg}
-                            classNameArg="medium_text left_spaced right_spaced max_width_col"
-                        />
+                <div className="row_container">
+                    <Content
+                        value={msg}
+                        classNameArg="medium_text left_spaced right_spaced max_width_col"
+                    />
+                    {!archive && (
                         <button
                             className="unselected right_half_spaced"
                             onClick={() => {
@@ -64,9 +65,9 @@ export const Inbox = () => {
                         >
                             <Close classNameArg="action" />
                         </button>
-                    </div>
-                )}
-                {id && (
+                    )}
+                </div>
+                {id != undefined && (
                     <PostView
                         id={id}
                         classNameArg="collapsable top_framed"
@@ -108,7 +109,10 @@ export const Inbox = () => {
                     .filter((id) => !inbox[id][1])
                     .map((id) => displayEntry(Number(id)))}
             </>
-            {archived.length > 0 && (
+            {!showArchive && (
+                <MoreButton callback={async () => setShowArchive(true)} />
+            )}
+            {showArchive && archived.length > 0 && (
                 <div style={{ opacity: 0.65 }}>
                     <h2 className="spaced">Archive</h2>
                     {archived.map((id) => displayEntry(Number(id), true))}

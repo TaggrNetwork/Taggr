@@ -97,6 +97,8 @@ export const setUI = (force?: boolean) => {
 
 export const setRealmUI = (realm: string) => {
     window.realm = realm;
+    if (window.user && window.user.settings.overrideRealmColors == "true")
+        return;
     window.api.query("realm", realm).then((result: any) => {
         let realmTheme = result.Ok?.theme;
         if (realmTheme) applyTheme(JSON.parse(realmTheme));

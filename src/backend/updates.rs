@@ -21,7 +21,6 @@ use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use ic_ledger_types::{AccountIdentifier, Tokens};
 use serde_bytes::ByteBuf;
-use std::collections::BTreeSet;
 use std::time::Duration;
 
 #[init]
@@ -72,11 +71,14 @@ fn post_upgrade() {
 }
 
 async fn post_upgrade_fixtures() {
-    #[cfg(not(feature = "dev"))]
-    {
-        storage::upgrade_buckets().await;
-        State::hourly_chores(time()).await;
-    }
+    mutate(|state| {
+        for u in state.users.values_mut() {
+            if u.is_bot() {
+                u.notifications.clear();
+            }
+            u.show_posts_in_realms = true;
+        }
+    })
 }
 
 /*
@@ -191,9 +193,10 @@ fn update_user() {
 
 #[export_name = "canister_update update_user_settings"]
 fn update_user_settings() {
-    let (settings, filter, governance): (
+    let (settings, filter, governance, show_posts_in_realms): (
         std::collections::BTreeMap<String, String>,
         UserFilter,
+        bool,
         bool,
     ) = parse(&arg_data_raw());
     reply(User::update_settings(
@@ -201,6 +204,7 @@ fn update_user_settings() {
         settings,
         filter,
         governance,
+        show_posts_in_realms,
     ))
 }
 
@@ -506,39 +510,8 @@ fn toggle_following_feed() {
 #[export_name = "canister_update edit_realm"]
 fn edit_realm() {
     mutate(|state| {
-        let (
-            id,
-            logo,
-            label_color,
-            theme,
-            description,
-            controllers,
-            whitelist,
-            user_filter,
-            cleanup_penalty,
-        ): (
-            RealmId,
-            String,
-            String,
-            String,
-            String,
-            BTreeSet<UserId>,
-            BTreeSet<UserId>,
-            UserFilter,
-            Credits,
-        ) = parse(&arg_data_raw());
-        reply(state.edit_realm(
-            caller(),
-            id,
-            logo,
-            label_color,
-            theme,
-            description,
-            controllers,
-            whitelist,
-            user_filter,
-            cleanup_penalty,
-        ))
+        let (name, realm): (String, Realm) = parse(&arg_data_raw());
+        reply(state.edit_realm(caller(), name, realm))
     })
 }
 
@@ -553,39 +526,8 @@ fn realm_clean_up() {
 #[export_name = "canister_update create_realm"]
 fn create_realm() {
     mutate(|state| {
-        let (
-            name,
-            logo,
-            label_color,
-            theme,
-            description,
-            controllers,
-            whitelist,
-            user_filter,
-            cleanup_penalty,
-        ): (
-            String,
-            String,
-            String,
-            String,
-            String,
-            BTreeSet<UserId>,
-            BTreeSet<UserId>,
-            UserFilter,
-            Credits,
-        ) = parse(&arg_data_raw());
-        reply(state.create_realm(
-            caller(),
-            name,
-            logo,
-            label_color,
-            theme,
-            description,
-            controllers,
-            whitelist,
-            user_filter,
-            cleanup_penalty,
-        ))
+        let (name, realm): (String, Realm) = parse(&arg_data_raw());
+        reply(state.create_realm(caller(), name, realm))
     })
 }
 
