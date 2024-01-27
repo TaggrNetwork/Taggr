@@ -27,6 +27,8 @@ import { PollView } from "./poll";
 const MAX_IMG_SIZE = 16777216;
 const MAX_SUGGESTED_TAGS = 5;
 
+let timer: any = null;
+
 export const Form = ({
     postId,
     comment,
@@ -58,6 +60,7 @@ export const Form = ({
     const [realm, setRealm] = React.useState(realmArg);
     const [submitting, setSubmitting] = React.useState(false);
     const [lines, setLines] = React.useState(3);
+    const [totalCosts, setTotalCosts] = React.useState(0);
     const [dragAndDropping, setDragAndDropping] = React.useState(false);
     const [tmpBlobs, setTmpBlobs] = React.useState<{
         [name: string]: Uint8Array;
@@ -246,6 +249,12 @@ export const Form = ({
     const id = `form_${postId}_${lines}`;
 
     React.useEffect(() => {
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+            setTotalCosts(await costs(value, !!poll));
+        }, 1000);
+    }, [value, poll]);
+    React.useEffect(() => {
         if (blobs) setTmpBlobs(blobs);
     }, [blobs]);
     React.useEffect(() => setRealm(realmArg), [realmArg]);
@@ -326,7 +335,6 @@ export const Form = ({
         </button>
     );
     const user = window.user;
-    const totalCosts = costs(value, !!poll);
     const tooExpensive = user.cycles < totalCosts;
 
     return (
@@ -585,17 +593,12 @@ const insertNewPicture = (
     };
 };
 
-const costs = (value: string, poll: boolean) => {
-    const tags = getTokens("#$", value).length;
+const costs = async (value: string, poll: boolean) => {
+    const tags = getTokens("#$", value);
+    const tags_cost: number = (await window.api.query("tags_cost", tags)) || 0;
     const images = (value.match(/\(\/blob\/.+\)/g) || []).length;
-    const paid_tags = Math.max(0, tags);
-    const { post_cost, tag_cost, blob_cost, poll_cost } =
-        window.backendCache.config;
-    return (
-        Math.max(post_cost, paid_tags * tag_cost) +
-        images * blob_cost +
-        (poll ? poll_cost : 0)
-    );
+    const { post_cost, blob_cost, poll_cost } = window.backendCache.config;
+    return post_cost + tags_cost + images * blob_cost + (poll ? poll_cost : 0);
 };
 
 export const loadFile = (file: any): Promise<ArrayBuffer> => {

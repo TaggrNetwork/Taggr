@@ -176,12 +176,8 @@ impl User {
         }
     }
 
-    pub fn total_balance(&self, state: &State) -> Token {
-        self.balance
-            + self
-                .cold_wallet
-                .and_then(|principal| state.balances.get(&account(principal)).copied())
-                .unwrap_or_default()
+    pub fn total_balance(&self) -> Token {
+        self.balance + self.cold_balance
     }
 
     pub fn posts<'a>(

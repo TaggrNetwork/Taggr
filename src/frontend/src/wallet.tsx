@@ -454,7 +454,12 @@ export const Wallet = () => {
                     <ButtonWithLoading
                         classNameArg="fat"
                         onClick={async () => {
-                            await window.api.unlink_cold_wallet();
+                            const response: any =
+                                await window.api.unlink_cold_wallet();
+                            if (response && "Err" in response) {
+                                alert(`Error: ${response.Err}`);
+                                return;
+                            }
                             await window.reloadUser();
                             setUser(window.user);
                         }}

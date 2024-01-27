@@ -74,7 +74,7 @@ impl Proposal {
         if self.bulletins.iter().any(|(voter, _, _)| *voter == user.id) {
             return Err("double vote".into());
         }
-        let balance = user.total_balance(state);
+        let balance = user.total_balance();
         if balance == 0 {
             return Err("only token holders can vote".into());
         }

@@ -40,7 +40,7 @@ export type Backend = {
 
     set_emergency_release: (blob: Uint8Array) => Promise<JsonValue | null>;
 
-    unlink_cold_wallet: () => Promise<void>;
+    unlink_cold_wallet: () => Promise<JsonValue | null>;
 
     propose_release: (
         text: string,
@@ -229,9 +229,16 @@ export const ApiGenerator = (
             return IDL.decode([], response)[0];
         },
 
-        unlink_cold_wallet: async (): Promise<void> => {
+        unlink_cold_wallet: async (): Promise<JsonValue | null> => {
             const arg = IDL.encode([], []);
-            await call_raw(undefined, "unlink_cold_wallet", arg);
+            let response = await call_raw(undefined, "unlink_cold_wallet", arg);
+            if (!response) {
+                return null;
+            }
+            return IDL.decode(
+                [IDL.Variant({ Ok: IDL.Null, Err: IDL.Text })],
+                response,
+            )[0];
         },
 
         propose_release: async (

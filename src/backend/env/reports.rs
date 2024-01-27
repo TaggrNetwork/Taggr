@@ -208,9 +208,11 @@ mod tests {
                 state.report(reporter, "post".into(), post_id, String::new()),
                 Err("no reports with low token balance".into())
             );
-            state
-                .balances
-                .insert(account(reporter), CONFIG.transaction_fee * 1000);
+            state.minting_mode = true;
+            token::mint(state, account(reporter), CONFIG.transaction_fee * 1000);
+            state.minting_mode = false;
+            let reporter_user = state.principal_to_user_mut(reporter).unwrap();
+            assert_eq!(reporter_user.balance, CONFIG.transaction_fee * 1000);
 
             // report should work becasue the user needs 500 credits
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
@@ -241,9 +243,9 @@ mod tests {
             assert!(report.reporter == state.principal_to_user(reporter).unwrap().id);
 
             // Another user cannot overwrite the report
-            state
-                .balances
-                .insert(account(pr(8)), CONFIG.transaction_fee * 1000);
+            state.minting_mode = true;
+            token::mint(state, account(pr(8)), CONFIG.transaction_fee * 1000);
+            state.minting_mode = false;
             assert_eq!(
                 state.report(pr(8), "post".into(), post_id, String::new()),
                 Err("this post is already reported".into())

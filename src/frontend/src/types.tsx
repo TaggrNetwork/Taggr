@@ -288,7 +288,6 @@ declare global {
                 max_credits_mint_kilos: number;
                 logo: string;
                 poll_revote_deadline_hours: number;
-                tag_cost: number;
                 blob_cost: number;
                 poll_cost: number;
                 max_post_length: number;

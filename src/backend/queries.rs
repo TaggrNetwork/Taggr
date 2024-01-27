@@ -1,10 +1,7 @@
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
-use crate::env::{
-    token::{account, Token},
-    user::UserFilter,
-};
+use crate::env::{token::Token, user::UserFilter};
 
 use super::*;
 use candid::Principal;
@@ -152,7 +149,7 @@ fn sorted_realms(
             .users
             .values()
             .fold(BTreeMap::default(), |mut acc, user| {
-                let vp = (user.total_balance(state) as f32).sqrt() as u64;
+                let vp = (user.total_balance() as f32).sqrt() as u64;
                 user.realms.iter().for_each(|realm_id| {
                     acc.entry(realm_id.clone())
                         .and_modify(|realm_vp| *realm_vp += vp)
@@ -281,17 +278,11 @@ fn user() {
     let own_profile_fetch = input.is_empty();
     mutate(|state| {
         let handle = input.into_iter().next();
-        let user = match resolve_handle(state, handle.as_ref()) {
-            Some(value) => value,
+        let user_id = match resolve_handle(state, handle.as_ref()) {
+            Some(value) => value.id,
             _ => return reply(None as Option<User>),
         };
-        let user_id = user.id;
-        let user_cold_balance = user
-            .cold_wallet
-            .and_then(|principal| state.balances.get(&account(principal)).copied())
-            .unwrap_or_default();
         let user = state.users.get_mut(&user_id).expect("user not found");
-        user.cold_balance = user_cold_balance;
         if own_profile_fetch {
             user.accounting.clear();
         } else {
@@ -300,6 +291,12 @@ fn user() {
         }
         reply(user);
     });
+}
+
+#[export_name = "canister_query tags_cost"]
+fn tags_cost() {
+    let tags: Vec<String> = parse(&arg_data_raw());
+    read(|state| reply(state.tags_cost(Box::new(tags.iter()))))
 }
 
 #[export_name = "canister_query invites"]

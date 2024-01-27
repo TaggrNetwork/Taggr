@@ -73,11 +73,14 @@ fn post_upgrade() {
 async fn post_upgrade_fixtures() {
     mutate(|state| {
         for u in state.users.values_mut() {
-            if u.is_bot() {
-                u.notifications.clear();
+            if let Some(p) = u.cold_wallet {
+                if let Some(old_id) = state.principals.insert(p, u.id) {
+                    ic_cdk::println!("cold wallet of user {} was linked", old_id);
+                }
             }
-            u.show_posts_in_realms = true;
         }
+
+        state.compute_tag_subscribers(time());
     })
 }
 
@@ -137,7 +140,7 @@ fn link_cold_wallet(user_id: UserId) -> Result<(), String> {
 }
 
 #[update]
-fn unlink_cold_wallet() {
+fn unlink_cold_wallet() -> Result<(), String> {
     mutate(|state| state.unlink_cold_wallet(caller()))
 }
 
@@ -573,7 +576,7 @@ fn confirm_emergency_release() {
         let principal = caller();
         if let Some(balance) = state
             .principal_to_user(principal)
-            .map(|user| user.total_balance(state))
+            .map(|user| user.total_balance())
         {
             let hash: String = parse(&arg_data_raw());
             use sha2::{Digest, Sha256};

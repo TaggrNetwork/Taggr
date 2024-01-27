@@ -82,7 +82,6 @@ pub struct Config {
     pub num_hot_posts: usize,
 
     pub post_cost: Credits,
-    pub tag_cost: Credits,
     pub blob_cost: Credits,
     pub poll_cost: Credits,
     pub realm_cost: Credits,
@@ -258,7 +257,6 @@ pub const CONFIG: &Config = &Config {
     min_credits_for_inviting: 50,
 
     post_cost: 2,
-    tag_cost: 3,
     blob_cost: 20,
     poll_cost: 3,
     realm_cost: 1000,

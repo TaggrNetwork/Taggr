@@ -284,17 +284,13 @@ pub fn transfer(
         } else {
             state.balances.insert(from.clone(), resulting_balance);
         }
-        if let Some(user) = state.principal_to_user_mut(from.owner) {
-            user.balance = resulting_balance
-        }
+        update_user_balance(state, from.owner, resulting_balance as Token);
     }
     if to.owner != Principal::anonymous() {
         let recipient_balance = state.balances.remove(&to).unwrap_or_default();
         let updated_balance = recipient_balance.saturating_add(amount as Token);
         state.balances.insert(to.clone(), updated_balance);
-        if let Some(user) = state.principal_to_user_mut(to.owner) {
-            user.balance = updated_balance
-        }
+        update_user_balance(state, to.owner, updated_balance as Token);
     }
 
     state.ledger.push(Transaction {
@@ -306,6 +302,16 @@ pub fn transfer(
         memo,
     });
     Ok(state.ledger.len().saturating_sub(1) as u128)
+}
+
+fn update_user_balance(state: &mut State, principal: Principal, balance: Token) {
+    if let Some(user) = state.principal_to_user_mut(principal) {
+        if user.principal == principal {
+            user.balance = balance
+        } else if user.cold_wallet == Some(principal) {
+            user.cold_balance = balance
+        }
+    }
 }
 
 pub fn account(owner: Principal) -> Account {

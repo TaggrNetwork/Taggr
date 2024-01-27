@@ -287,9 +287,9 @@ impl Post {
         }
     }
 
-    pub fn costs(&self, blobs: usize) -> Credits {
-        let tags = self.tags.len() as Credits;
-        CONFIG.post_cost.max(tags as Credits * CONFIG.tag_cost)
+    pub fn costs(&self, state: &State, blobs: usize) -> Credits {
+        CONFIG.post_cost
+            + state.tags_cost(Box::new(self.tags.iter()))
             + blobs as Credits * CONFIG.blob_cost
             + if matches!(self.extension, Some(Extension::Poll(_))) {
                 CONFIG.poll_cost
@@ -343,10 +343,7 @@ impl Post {
                     let user_ids = poll.votes.values().flatten().cloned();
                     let balances = user_ids
                         .filter_map(|id| {
-                            state
-                                .users
-                                .get(&id)
-                                .map(|user| (id, user.total_balance(state)))
+                            state.users.get(&id).map(|user| (id, user.total_balance()))
                         })
                         .collect::<BTreeMap<_, _>>();
                     Some(balances)
@@ -408,7 +405,7 @@ impl Post {
                 .iter()
                 .filter(|(id, _)| !old_blob_ids.contains(id.as_str()))
                 .count();
-            let costs = post.costs(new_blobs);
+            let costs = post.costs(state, new_blobs);
             state.charge_in_realm(
                 user_id,
                 costs,
@@ -519,7 +516,7 @@ impl Post {
             realm.clone(),
             (user_balance / token::base()).min(CONFIG.post_heat_token_balance_cap) as u32,
         );
-        let costs = post.costs(blobs.len());
+        let costs = post.costs(state, blobs.len());
         post.valid(blobs)?;
         let future_id = state.next_post_id;
         if excess_factor > 0 {
@@ -1040,21 +1037,33 @@ mod tests {
 
     #[test]
     fn test_costs() {
+        let mut state = State::default();
         let mut p = Post::default();
-        // empty post
-        assert_eq!(p.costs(Default::default()), CONFIG.post_cost);
 
-        // one tag
+        // empty post
+        assert_eq!(p.costs(&state, Default::default()), CONFIG.post_cost);
+
+        // tag without subscribers
         p.tags = ["world"].iter().map(|x| x.to_string()).collect();
-        assert_eq!(p.costs(0), CONFIG.tag_cost);
+        assert_eq!(p.costs(&state, 0), CONFIG.post_cost);
+
+        state.tag_subscribers.insert("world".into(), 3);
+        // tag with subscribers
+        p.tags = ["world"].iter().map(|x| x.to_string()).collect();
+        assert_eq!(p.costs(&state, 0), CONFIG.post_cost + 3);
+
+        state.tag_subscribers.insert("hello".into(), 10);
 
         // two tags
         p.tags = ["hello", "world"].iter().map(|x| x.to_string()).collect();
-        assert_eq!(p.costs(0), 2 * CONFIG.tag_cost);
+        assert_eq!(p.costs(&state, 0), CONFIG.post_cost + 3 + 10);
 
         // two tags and a blob
         p.tags = ["hello", "world"].iter().map(|x| x.to_string()).collect();
-        assert_eq!(p.costs(1), 2 * CONFIG.tag_cost + CONFIG.blob_cost);
+        assert_eq!(
+            p.costs(&state, 1),
+            CONFIG.post_cost + 3 + 10 + CONFIG.blob_cost
+        );
     }
 
     #[test]

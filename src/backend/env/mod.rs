@@ -171,8 +171,10 @@ pub struct State {
 
     e8s_for_one_xdr: u64,
 
-    #[serde(default)]
     last_revenues: VecDeque<u64>,
+
+    #[serde(default)]
+    pub tag_subscribers: HashMap<String, usize>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -226,6 +228,16 @@ pub enum Destination {
 }
 
 impl State {
+    pub fn tags_cost(&self, tags: Box<dyn Iterator<Item = &'_ String> + '_>) -> Credits {
+        tags.fold(0, |acc, tag| {
+            acc + self
+                .tag_subscribers
+                .get(tag.to_lowercase().as_str())
+                .copied()
+                .unwrap_or_default()
+        }) as Credits
+    }
+
     pub fn link_cold_wallet(&mut self, caller: Principal, user_id: UserId) -> Result<(), String> {
         if self.principal_to_user(caller).is_some() {
             return Err("this wallet is linked already".into());
@@ -235,13 +247,27 @@ impl State {
             return Err("this user has already a cold wallet".into());
         }
         user.cold_wallet = Some(caller);
+        user.cold_balance = self
+            .balances
+            .get(&account(caller))
+            .copied()
+            .unwrap_or_default();
+        self.principals.insert(caller, user.id);
         Ok(())
     }
 
-    pub fn unlink_cold_wallet(&mut self, caller: Principal) {
-        if let Some(user) = self.principal_to_user_mut(caller) {
-            user.cold_wallet = None;
+    pub fn unlink_cold_wallet(&mut self, caller: Principal) -> Result<(), String> {
+        if self.voted_on_pending_proposal(caller) {
+            return Err("a vote on a pending proposal detected".into());
         }
+        if let Some(user) = self.principal_to_user_mut(caller) {
+            let principal = user.cold_wallet.take();
+            user.cold_balance = 0;
+            if let Some(principal) = principal {
+                self.principals.remove(&principal);
+            }
+        }
+        Ok(())
     }
 
     pub fn voted_on_pending_proposal(&self, principal: Principal) -> bool {
@@ -362,7 +388,7 @@ impl State {
                 .filter(move |user| {
                     user.active_within_weeks(time, CONFIG.voting_power_activity_weeks)
                 })
-                .map(move |user| (user.id, user.total_balance(self))),
+                .map(move |user| (user.id, user.total_balance())),
         )
     }
 
@@ -471,6 +497,10 @@ impl State {
                     user.balance = balances
                         .get(&account(user.principal))
                         .copied()
+                        .unwrap_or_default();
+                    user.cold_balance = user
+                        .cold_wallet
+                        .and_then(|principal| balances.get(&account(principal)).copied())
                         .unwrap_or_default();
                 }
                 self.balances = balances;
@@ -1088,7 +1118,7 @@ impl State {
                         user.id,
                         user.name.clone(),
                         user.principal,
-                        user.total_balance(self),
+                        user.total_balance(),
                     )
                 })
             })
@@ -1272,7 +1302,23 @@ impl State {
         }
     }
 
-    async fn daily_chores(now: u64) {
+    pub fn compute_tag_subscribers(&mut self, now: Time) {
+        self.tag_subscribers.clear();
+        for user in self
+            .users
+            .values_mut()
+            .filter(|user| user.active_within_weeks(now, 1))
+        {
+            for tag in user.feeds.iter().flatten() {
+                self.tag_subscribers
+                    .entry(tag.clone())
+                    .and_modify(|subscribers| *subscribers += 1)
+                    .or_insert(1);
+            }
+        }
+    }
+
+    async fn daily_chores(now: Time) {
         mutate(|state| {
             for proposal_id in state
                 .proposals
@@ -1308,6 +1354,8 @@ impl State {
                     *timestamp + CONFIG.downvote_counting_period_days * DAY >= now
                 });
             }
+
+            state.compute_tag_subscribers(now);
         });
 
         export_token_supply(token::icrc1_total_supply());
@@ -1605,12 +1653,9 @@ impl State {
 
     fn recompute_stalwarts(&mut self, now: u64) {
         let mut balances = self
-            .balances
-            .iter()
-            .filter_map(|(acc, balance)| {
-                self.principal_to_user(acc.owner)
-                    .map(|user| (user.id, *balance))
-            })
+            .users
+            .values()
+            .map(|user| (user.id, user.total_balance()))
             .collect::<Vec<_>>();
         balances.sort_unstable_by_key(|(_, balance)| Reverse(*balance));
 
@@ -1978,20 +2023,11 @@ impl State {
         self.principals
             .get(&principal)
             .and_then(|id| self.users.get(id))
-            .or(self
-                .users
-                .values()
-                .find(|user| user.cold_wallet == Some(principal)))
     }
 
     pub fn principal_to_user_mut(&mut self, principal: Principal) -> Option<&mut User> {
-        if let Some(id) = self.principals.get(&principal) {
-            self.users.get_mut(id)
-        } else {
-            self.users
-                .values_mut()
-                .find(|user| user.cold_wallet == Some(principal))
-        }
+        let id = self.principals.get(&principal)?;
+        self.users.get_mut(id)
     }
 
     fn new_user_id(&mut self) -> UserId {
@@ -2196,14 +2232,7 @@ impl State {
             CONFIG.reporting_penalty_misbehaviour
         } / 2;
         let user_id = match self.principal_to_user(principal) {
-            Some(user)
-                if self
-                    .balances
-                    .get(&account(user.principal))
-                    .copied()
-                    .unwrap_or_default()
-                    < 10 * CONFIG.transaction_fee =>
-            {
+            Some(user) if user.total_balance() < 10 * CONFIG.transaction_fee => {
                 return Err("no reports with low token balance".into())
             }
             Some(user) if user.rewards() < 0 => {
@@ -2379,7 +2408,7 @@ impl State {
             .ok_or("no user for principal found")?;
         let user_id = user.id;
         let user_credits = user.credits();
-        let user_balance = user.total_balance(self);
+        let user_balance = user.total_balance();
         let user_controversial = user.controversial();
         let post = Post::get(self, &post_id).ok_or("post not found")?.clone();
         if post.is_deleted() {
@@ -2606,7 +2635,9 @@ pub(crate) mod tests {
     }
 
     pub fn insert_balance(state: &mut State, principal: Principal, amount: Token) {
-        state.balances.insert(account(principal), amount);
+        state.minting_mode = true;
+        token::mint(state, account(principal), amount);
+        state.minting_mode = false;
         if let Some(user) = state.principal_to_user_mut(principal) {
             user.balance = amount;
             user.change_rewards((amount / token::base()) as i64, "");
@@ -2648,10 +2679,13 @@ pub(crate) mod tests {
             let cold_balance = 1000000;
             insert_balance(state, pr(200), cold_balance);
             let user = state.users.get(&1).unwrap();
-            assert_eq!(user.total_balance(state), 80000);
+            assert_eq!(user.total_balance(), 80000);
+            assert_eq!(state.principals.len(), 3);
             state.link_cold_wallet(pr(200), 1).unwrap();
+            assert_eq!(state.principals.len(), 4);
+            assert_eq!(state.principal_to_user(pr(200)).unwrap().id, 1);
             let user = state.users.get(&1).unwrap();
-            assert_eq!(user.total_balance(state), 80000 + cold_balance);
+            assert_eq!(user.total_balance(), 80000 + cold_balance);
             assert_eq!(
                 state.link_cold_wallet(pr(200), 0),
                 Err("this wallet is linked already".into())
@@ -2659,7 +2693,28 @@ pub(crate) mod tests {
             let voters = state.active_voters(0).collect::<BTreeMap<_, _>>();
             assert_eq!(*voters.get(&1).unwrap(), (2 << 2) * 10000 + cold_balance);
 
-            state.unlink_cold_wallet(pr(200));
+            state.proposals.push(Proposal {
+                id: 0,
+                proposer: 0,
+                timestamp: 0,
+                post_id: 0,
+                status: Status::Open,
+                payload: Payload::Noop,
+                bulletins: vec![(1, false, 1000)],
+                voting_power: 1000000,
+            });
+            assert_eq!(
+                state.unlink_cold_wallet(pr(200)),
+                Err("a vote on a pending proposal detected".into())
+            );
+
+            state.proposals[0].status = Status::Executed;
+            assert!(state.unlink_cold_wallet(pr(200)).is_ok(),);
+            let user = state.principal_to_user(pr(1)).unwrap();
+            assert_eq!(user.id, 1);
+            assert!(user.cold_wallet.is_none());
+            assert_eq!(state.principals.len(), 3);
+
             let voters = state.active_voters(0).collect::<BTreeMap<_, _>>();
             assert_eq!(*voters.get(&1).unwrap(), (2 << 2) * 10000);
 
@@ -2891,14 +2946,14 @@ pub(crate) mod tests {
                 .balances
                 .insert(minting_acc.clone(), CONFIG.maximum_supply);
 
-            state.minting_mode = true;
-
             // no minting hapened due to max supply
             assert_eq!(state.balances.get(&account(pr(0))).unwrap(), &40000);
+            state.minting_mode = true;
             state.mint();
             assert_eq!(state.balances.get(&account(pr(0))).unwrap(), &40000);
 
             state.balances.remove(&minting_acc);
+            state.minting_mode = true;
             state.mint();
 
             assert_eq!(state.balances.len(), 5);
@@ -2918,22 +2973,14 @@ pub(crate) mod tests {
             rewards_insert(state, 4, 4, 60_000);
 
             // Tokens were not minted to to circuit breaking
+            state.minting_mode = true;
             state.mint();
             assert_eq!(*state.balances.get(&account(pr(2))).unwrap(), 249761);
             assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 314877);
 
-            // Imitate a healthy minting grow by increasing the supply
-            state.balances.insert(minting_acc.clone(), 20000000);
-            state.mint();
-
-            // Tokens were minted for user 3
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 335426);
-            // Tokens were not minted for user 4
-            assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 10000000);
-
             // increase minting ratio to 512:1
             state.balances.insert(account(pr(7)), 60000000);
-            assert_eq!(state.minting_ratio(), 512);
+            assert_eq!(state.minting_ratio(), 128);
         })
     }
 
@@ -4330,7 +4377,7 @@ pub(crate) mod tests {
                 .is_empty());
 
             for i in 0..200 {
-                state.balances.insert(account(pr(i as u8)), i * 100);
+                insert_balance(state, pr(i as u8), i * 100);
             }
 
             state.recompute_stalwarts(now + WEEK * 3);

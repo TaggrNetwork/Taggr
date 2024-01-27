@@ -118,6 +118,7 @@ export const Header = ({
                             {window.principalId && (
                                 <IconToggleButton
                                     pressed={showUserSection}
+                                    classNameArg="right_half_spaced"
                                     onClick={() => {
                                         toggleUserSection(!showUserSection);
                                         toggleRealms(false);
