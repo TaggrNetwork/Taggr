@@ -48,6 +48,13 @@ fn donors() {
     });
 }
 
+#[export_name = "canister_query distribution"]
+fn distribution() {
+    read(|state| {
+        reply(&state.distribution_reports);
+    });
+}
+
 #[export_name = "canister_query balances"]
 fn balances() {
     read(|state| {

@@ -65,7 +65,7 @@ test.describe("Upgrades & token transfer flow", () => {
             .click();
         // React with a star
         await page.locator('button[title="Karma points: 10"]').click();
-        await page.waitForTimeout(4500);
+        await page.waitForTimeout(3000);
     });
 
     test("Trigger minting", async () => {

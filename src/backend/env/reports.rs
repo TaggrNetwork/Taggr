@@ -13,6 +13,12 @@ pub struct Report {
     pub timestamp: Time,
 }
 
+pub enum ReportState {
+    Open,
+    Confirmed,
+    Rejected,
+}
+
 impl Report {
     pub fn pending_or_recently_confirmed(&self) -> bool {
         !self.closed
@@ -25,7 +31,10 @@ impl Report {
         stalwarts: usize,
         stalwart: UserId,
         confirmed: bool,
-    ) -> Result<(), String> {
+    ) -> Result<ReportState, String> {
+        if self.closed {
+            return Err("report is already closed".into());
+        }
         if stalwart == self.reporter
             || self.confirmed_by.contains(&stalwart)
             || self.rejected_by.contains(&stalwart)
@@ -40,10 +49,18 @@ impl Report {
             self.rejected_by.push(stalwart);
         }
         let votes = self.confirmed_by.len().max(self.rejected_by.len()) as u16;
-        if votes * 100 >= CONFIG.report_confirmation_percentage * stalwarts as u16 {
-            self.closed = true;
-        }
-        Ok(())
+        Ok(
+            if votes * 100 >= CONFIG.report_confirmation_percentage * stalwarts as u16 {
+                self.closed = true;
+                if self.confirmed_by.len() > self.rejected_by.len() {
+                    ReportState::Confirmed
+                } else {
+                    ReportState::Rejected
+                }
+            } else {
+                ReportState::Open
+            },
+        )
     }
 }
 
@@ -55,9 +72,6 @@ pub fn finalize_report(
     user_id: UserId,
     subject: String,
 ) -> Result<(), String> {
-    if !report.closed {
-        return Ok(());
-    }
     let mut confirmed_user_report = false;
     let (sponsor_id, unit) = if report.confirmed_by.len() > report.rejected_by.len() {
         // penalty for the user

@@ -105,10 +105,10 @@ pub struct User {
     pub previous_names: Vec<String>,
     pub governance: bool,
     pub notifications: BTreeMap<u64, (Notification, bool)>,
-    #[serde(default)]
     pub downvotes: BTreeMap<UserId, Time>,
-    #[serde(default)]
     pub show_posts_in_realms: bool,
+    #[serde(default)]
+    pub last_post: PostId,
 }
 
 impl User {
@@ -142,6 +142,7 @@ impl User {
             name,
             about: Default::default(),
             report: None,
+            last_post: 0,
             account: AccountIdentifier::new(&principal, &DEFAULT_SUBACCOUNT).to_string(),
             settings: Default::default(),
             cycles: 0,
@@ -185,10 +186,18 @@ impl User {
         state: &'a State,
         offset: PostId,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+        if self.num_posts == 0 {
+            return Box::new(std::iter::empty());
+        }
         let id = self.id;
         Box::new(
             state
-                .last_posts(Principal::anonymous(), None, offset, true)
+                .last_posts(
+                    Principal::anonymous(),
+                    None,
+                    if offset == 0 { self.last_post } else { offset },
+                    true,
+                )
                 .filter(move |post| post.user == id),
         )
     }
@@ -453,9 +462,6 @@ impl User {
     pub fn update_settings(
         caller: Principal,
         settings: BTreeMap<String, String>,
-        filter: UserFilter,
-        governance: bool,
-        show_posts_in_realms: bool,
     ) -> Result<(), String> {
         mutate(|state| {
             if let Some(user) = state.principal_to_user_mut(caller) {
@@ -463,9 +469,6 @@ impl User {
                     return Err("too long inputs".to_string());
                 }
                 user.settings = settings;
-                user.governance = governance;
-                user.filters.noise = filter;
-                user.show_posts_in_realms = show_posts_in_realms;
             }
             Ok(())
         })
@@ -476,6 +479,9 @@ impl User {
         new_name: Option<String>,
         about: String,
         principals: Vec<String>,
+        filter: UserFilter,
+        governance: bool,
+        show_posts_in_realms: bool,
     ) -> Result<(), String> {
         if read(|state| {
             state
@@ -508,6 +514,9 @@ impl User {
             if let Some(user) = state.principal_to_user_mut(caller) {
                 user.about = about;
                 user.controllers = principals;
+                user.governance = governance;
+                user.filters.noise = filter;
+                user.show_posts_in_realms = show_posts_in_realms;
                 if let Some(name) = new_name {
                     user.previous_names.push(user.name.clone());
                     user.name = name;

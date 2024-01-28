@@ -33,6 +33,7 @@ import { MAINNET_MODE, CANISTER_ID } from "./env";
 import { Post, PostId, UserFilter, UserId } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
+import { Distribution } from "./distribution";
 
 const { hash, pathname } = location;
 
@@ -179,6 +180,8 @@ const App = () => {
         content = <Dashboard />;
     } else if (handler == "search") {
         content = <Search initQuery={param} />;
+    } else if (handler == "distribution") {
+        content = <Distribution />;
     } else if (handler == "bookmarks") {
         content = auth(
             <PostFeed

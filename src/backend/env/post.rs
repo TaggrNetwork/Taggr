@@ -1,5 +1,6 @@
 use std::cmp::{Ordering, PartialOrd};
 
+use super::reports::ReportState;
 use super::*;
 use super::{storage::Storage, user::UserId};
 use crate::mutate;
@@ -256,9 +257,7 @@ impl Post {
             return Err("no voting on own posts".into());
         }
         let report = self.report.as_mut().ok_or("no report found".to_string())?;
-        report.vote(stalwarts, stalwart, confirmed)?;
-        let approved = report.closed && report.confirmed_by.len() > report.rejected_by.len();
-        if approved {
+        if let ReportState::Confirmed = report.vote(stalwarts, stalwart, confirmed)? {
             self.delete(vec![self.body.clone()]);
         }
         Ok(())
@@ -536,6 +535,7 @@ impl Post {
         )?;
         let user = state.users.get_mut(&user_id).expect("no user found");
         user.num_posts += 1;
+        user.last_post = future_id;
         // reorder realms
         if let Some(name) = &realm {
             if user.realms.contains(name) {

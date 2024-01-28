@@ -257,7 +257,8 @@ test.describe("Regular users flow", () => {
         await expect(
             page
                 .locator(".post_box", { hasText: /Hello world/ })
-                .getByTestId("100-reaction"),
+                .getByTestId("100-reaction")
+                .first(),
         ).toHaveText("1");
         await page.locator("#logo").click();
         await page.waitForTimeout(2000);

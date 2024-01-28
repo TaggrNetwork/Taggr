@@ -100,14 +100,11 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 nameChange ? name : "",
                 about,
                 principal_ids,
-            ),
-            window.api.call<any>(
-                "update_user_settings",
-                settings,
                 userFilter,
                 governance == "true",
                 showPostsInRealms == "true",
             ),
+            window.api.call<any>("update_user_settings", settings),
         ]);
         for (let i in responses) {
             const response = responses[i];

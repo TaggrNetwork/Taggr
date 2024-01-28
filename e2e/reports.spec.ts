@@ -129,8 +129,7 @@ test.describe("Report and transfer to user", () => {
         });
         await feedItem.getByTestId("post-info-toggle").click();
         await feedItem.locator('button[title="Karma points: 10"]').click();
-        // Wait because the UI waits for 4s before sending the command
-        await page.waitForTimeout(6000);
+        await page.waitForTimeout(3000);
         await feedItem.getByRole("link", { name: "jane" }).first().click();
         await expect(page.locator("div:has-text('REWARDS') > code")).toHaveText(
             "10",

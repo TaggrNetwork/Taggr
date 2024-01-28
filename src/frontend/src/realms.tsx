@@ -54,6 +54,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         last_setting_update: 0,
         last_update: 0,
         revenue: 0,
+        last_root_post: 0,
     });
     const [controllersString, setControllersString] = React.useState(
         users[userId],
@@ -784,9 +785,9 @@ export const Realms = () => {
                                             <span
                                                 className="padded_rounded vcentered small_text left_half_spaced"
                                                 style={{
-                                                    background: "#55ff55",
-                                                    color: "green",
-                                                    border: "1px solid green",
+                                                    background: "green",
+                                                    color: "#55ff55",
+                                                    border: "1px solid #55ff55",
                                                 }}
                                             >
                                                 JOINED
@@ -802,7 +803,7 @@ export const Realms = () => {
                                                     border: "1px solid orange",
                                                 }}
                                             >
-                                                UNMODERATED
+                                                UNRESTRICTED
                                             </span>
                                         )}
                                     </div>

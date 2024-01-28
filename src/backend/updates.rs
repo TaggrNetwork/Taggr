@@ -71,17 +71,68 @@ fn post_upgrade() {
 }
 
 async fn post_upgrade_fixtures() {
-    mutate(|state| {
-        for u in state.users.values_mut() {
-            if let Some(p) = u.cold_wallet {
-                if let Some(old_id) = state.principals.insert(p, u.id) {
-                    ic_cdk::println!("cold wallet of user {} was linked", old_id);
-                }
-            }
+    let last_id = read(|state| state.next_post_id.saturating_sub(1));
+    let ids = (0..=last_id).collect::<Vec<_>>();
+    let id_chunks = ids.chunks(10000);
+    let mut realms = read(|state| {
+        state
+            .realms
+            .keys()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>()
+    });
+    for chunk in id_chunks {
+        if realms.is_empty() {
+            break;
         }
+        async {
+            mutate(|state| {
+                chunk
+                    .iter()
+                    .filter_map(|id| Post::get(state, id))
+                    .map(|post| (post.id, post.realm.clone()))
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .for_each(|(post_id, realm)| {
+                        if let Some(realm_id) = realm.as_ref() {
+                            state.realms.get_mut(realm_id).unwrap().last_root_post = post_id;
+                            realms.remove(realm_id);
+                        }
+                    })
+            });
+        }
+        .await;
+    }
 
-        state.compute_tag_subscribers(time());
-    })
+    let ids = (0..=last_id).collect::<Vec<_>>();
+    let id_chunks = ids.chunks(10000);
+    let mut users = read(|state| {
+        state
+            .users
+            .keys()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>()
+    });
+    for chunk in id_chunks {
+        if users.is_empty() {
+            break;
+        }
+        async {
+            mutate(|state| {
+                chunk
+                    .iter()
+                    .filter_map(|id| Post::get(state, id))
+                    .map(|post| (post.id, post.user))
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .for_each(|(post_id, user_id)| {
+                        state.users.get_mut(&user_id).unwrap().last_post = post_id;
+                        users.remove(&user_id);
+                    })
+            });
+        }
+        .await;
+    }
 }
 
 /*
@@ -161,8 +212,14 @@ fn tip() {
 
 #[export_name = "canister_update react"]
 fn react() {
-    let (post_id, reaction): (PostId, u16) = parse(&arg_data_raw());
-    mutate(|state| reply(state.react(caller(), post_id, reaction, api::time())));
+    let (post_id, reaction, cancel): (PostId, u16, bool) = parse(&arg_data_raw());
+    mutate(|state| {
+        reply(if cancel {
+            state.unreact(caller(), post_id, reaction)
+        } else {
+            state.react(caller(), post_id, reaction, api::time())
+        })
+    });
 }
 
 #[export_name = "canister_update update_last_activity"]
@@ -185,30 +242,29 @@ fn change_principal() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (new_name, about, principals): (String, String, Vec<String>) = parse(&arg_data_raw());
+    let (new_name, about, principals, filter, governance, show_posts_in_realms): (
+        String,
+        String,
+        Vec<String>,
+        UserFilter,
+        bool,
+        bool,
+    ) = parse(&arg_data_raw());
     reply(User::update(
         caller(),
         optional(new_name),
         about,
         principals,
+        filter,
+        governance,
+        show_posts_in_realms,
     ))
 }
 
 #[export_name = "canister_update update_user_settings"]
 fn update_user_settings() {
-    let (settings, filter, governance, show_posts_in_realms): (
-        std::collections::BTreeMap<String, String>,
-        UserFilter,
-        bool,
-        bool,
-    ) = parse(&arg_data_raw());
-    reply(User::update_settings(
-        caller(),
-        settings,
-        filter,
-        governance,
-        show_posts_in_realms,
-    ))
+    let settings: std::collections::BTreeMap<String, String> = parse(&arg_data_raw());
+    reply(User::update_settings(caller(), settings))
 }
 
 #[export_name = "canister_update create_user"]

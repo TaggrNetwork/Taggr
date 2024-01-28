@@ -1,9 +1,9 @@
 import * as React from "react";
 import { HeadBar, MoreButton } from "./common";
 import { Content } from "./content";
-import { Close } from "./icons";
+import { BellOff, Close } from "./icons";
 import { PostView } from "./post";
-import { Notification } from "./types";
+import { Notification, PostId } from "./types";
 
 export const Inbox = () => {
     const [inbox, setInbox] = React.useState<{
@@ -17,10 +17,21 @@ export const Inbox = () => {
         location.href = "#/";
     }
 
+    const closeNotifications = (k: number, callback?: () => void) => {
+        setClosing(k);
+        setTimeout(() => {
+            window.api.call("clear_notifications", [k]);
+            if (callback) callback();
+            let inbox = window.user.notifications;
+            inbox[k][1] = true;
+            setInbox({ ...inbox });
+        }, 80);
+    };
+
     const displayEntry = (k: number, archive?: boolean) => {
         const message = inbox[k][0];
         let msg = "";
-        let id = null;
+        let id: PostId | null = null;
         if ("Generic" in message) {
             msg = message.Generic;
         } else if ("NewPost" in message) {
@@ -51,20 +62,29 @@ export const Inbox = () => {
                         classNameArg="medium_text left_spaced right_spaced max_width_col"
                     />
                     {!archive && (
-                        <button
-                            className="unselected right_half_spaced"
-                            onClick={() => {
-                                setClosing(k);
-                                setTimeout(() => {
-                                    window.api.call("clear_notifications", [k]);
-                                    let inbox = window.user.notifications;
-                                    inbox[k][1] = true;
-                                    setInbox({ ...inbox });
-                                }, 80);
-                            }}
-                        >
-                            <Close classNameArg="action" />
-                        </button>
+                        <>
+                            {"WatchedPostEntries" in message && (
+                                <button
+                                    className="unselected"
+                                    onClick={() =>
+                                        closeNotifications(k, () =>
+                                            window.api.call(
+                                                "toggle_following_post",
+                                                id,
+                                            ),
+                                        )
+                                    }
+                                >
+                                    <BellOff classNameArg="accent" />
+                                </button>
+                            )}
+                            <button
+                                className="unselected right_half_spaced"
+                                onClick={() => closeNotifications(k)}
+                            >
+                                <Close classNameArg="action" />
+                            </button>
+                        </>
                     )}
                 </div>
                 {id != undefined && (

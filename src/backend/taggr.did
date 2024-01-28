@@ -1,4 +1,5 @@
 type Account = record { owner : principal; subaccount : opt vec nat8 };
+type BadFee = record { expected_fee : nat };
 type CreatedInFuture = record { ledger_time : nat64 };
 type GenericError = record { message : text; error_code : nat };
 type HttpRequest = record { url : text; headers : vec record { text; text } };
@@ -25,6 +26,7 @@ type TransferArgs = record {
 };
 type TransferError = variant {
   GenericError : GenericError;
+  BadFee : BadFee;
   CreatedInFuture : CreatedInFuture;
   TooOld;
   InsufficientFunds : InsufficientFunds;
@@ -58,8 +60,10 @@ service : () -> {
   icrc1_symbol : () -> (text) query;
   icrc1_total_supply : () -> (nat) query;
   icrc1_transfer : (TransferArgs) -> (Result_3);
+  link_cold_wallet : (nat64) -> (Result_1);
   prod_release : () -> (bool);
   propose_release : (text, text, vec nat8) -> (Result_4);
   set_emergency_release : (vec nat8) -> ();
   stable_mem_read : (nat64) -> (vec record { nat64; vec nat8 }) query;
+  unlink_cold_wallet : () -> (Result_1);
 }

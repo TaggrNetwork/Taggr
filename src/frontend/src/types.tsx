@@ -19,6 +19,12 @@ export type Poll = {
     weighted_by_tokens: { [key: number]: number };
 };
 
+export type Summary = {
+    title: string;
+    description: string;
+    items: string[];
+};
+
 export type Extension =
     | {
           ["Poll"]: Poll;
@@ -71,6 +77,7 @@ export type Proposal = {
 };
 
 export type Realm = {
+    last_root_post: number;
     cleanup_penalty: number;
     controllers: UserId[];
     description: string;

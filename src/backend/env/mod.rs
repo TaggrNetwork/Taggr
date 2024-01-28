@@ -115,6 +115,15 @@ pub struct Realm {
     pub revenue: Credits,
     theme: String,
     pub whitelist: BTreeSet<UserId>,
+    #[serde(default)]
+    pub last_root_post: PostId,
+}
+
+#[derive(Default, Serialize, Deserialize)]
+pub struct Summary {
+    title: String,
+    description: String,
+    items: Vec<String>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -175,6 +184,9 @@ pub struct State {
 
     #[serde(default)]
     pub tag_subscribers: HashMap<String, usize>,
+
+    #[serde(default)]
+    pub distribution_reports: Vec<Summary>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -398,15 +410,7 @@ impl State {
 
     fn spend_to_user_rewards<T: ToString>(&mut self, user_id: UserId, amount: Credits, log: T) {
         let user = self.users.get_mut(&user_id).expect("no user found");
-        user.change_rewards(amount as i64, log.to_string());
-        if amount > CONFIG.response_reward {
-            self.logger.info(format!(
-                "Spent `{}` credits on @{}'s rewards for {}.",
-                amount,
-                user.name,
-                log.to_string()
-            ));
-        }
+        user.change_rewards(amount as i64, log);
         self.burned_cycles = self.burned_cycles.saturating_sub(amount as i64);
     }
 
@@ -746,7 +750,6 @@ impl State {
             )
             .map_err(|err| format!("tip transfer failed: {:?}", err))?;
             Post::mutate(state, &post_id, |post| {
-                post.watchers.insert(tipper_id);
                 post.tips.push((tipper_id, amount));
                 Ok(())
             })?;
@@ -1067,8 +1070,12 @@ impl State {
         let tokens_to_mint = self.tokens_to_mint();
 
         let mut minted_tokens = 0;
-        let mut minters = Vec::new();
         let ratio = self.minting_ratio();
+        let mut summary = Summary {
+            title: "Token minting report".into(),
+            description: Default::default(),
+            items: Vec::default(),
+        };
 
         let total_tokens_to_mint: u64 = tokens_to_mint.values().sum();
 
@@ -1082,6 +1089,7 @@ impl State {
             return;
         }
 
+        let mut items = Vec::default();
         for (user_id, tokens) in tokens_to_mint {
             // This is a circuit breaker to avoid unforeseen side-effects due to hacks or bugs.
             if ratio > 1
@@ -1102,11 +1110,16 @@ impl State {
                     "{} tokens `{}` ${} tokens for you! 💎",
                     CONFIG.name, minted_fractional, CONFIG.token_symbol,
                 ));
-                minters.push(format!("`{}` to @{}", minted_fractional, user.name));
+                items.push((tokens, minted_fractional, user.name.clone()));
                 let acc = account(user.principal);
                 crate::token::mint(self, acc, tokens);
                 minted_tokens += tokens / base;
             }
+        }
+
+        items.sort_unstable_by_key(|(minted, _, _)| Reverse(*minted));
+        for (_, minted, name) in &items {
+            summary.items.push(format!("`{}` to @{}", minted, name));
         }
 
         // Mint team tokens
@@ -1154,17 +1167,14 @@ impl State {
             }
         }
 
-        if minters.is_empty() {
+        if summary.items.is_empty() {
             self.logger.info("no tokens were minted".to_string());
         } else {
-            self.logger.info(format!(
-                "{} minted `{}` ${} tokens 💎 from the earned reward at the ratio `{}:1` as follows: {}",
-                CONFIG.name,
-                minted_tokens,
-                CONFIG.token_symbol,
-                ratio,
-                minters.join(", ")
-            ));
+            summary.description = format!(
+                "{} minted `{}` ${} tokens 💎 from the earned reward at the ratio `{}:1`",
+                CONFIG.name, minted_tokens, CONFIG.token_symbol, ratio
+            );
+            self.distribution_reports.push(summary);
         }
     }
 
@@ -1224,9 +1234,14 @@ impl State {
                     .info("Treasury balance is too low; skipping the payouts...");
                 return 0;
             }
-            let mut payments = Vec::default();
             let mut total_rewards = 0;
             let mut total_revenue = 0;
+            let mut summary = Summary {
+                title: "ICP payouts report".into(),
+                description: Default::default(),
+                items: Vec::default(),
+            };
+            let mut items = Vec::default();
             for user in state.users.values_mut() {
                 let mut user_revenue = revenue.get(&user.id).copied().unwrap_or_default();
                 let _ = user.top_up_credits_from_revenue(&mut user_revenue, e8s_for_one_xdr);
@@ -1241,7 +1256,7 @@ impl State {
                 };
                 total_rewards += user_reward;
                 total_revenue += user_revenue;
-                payments.push(format!("`{}` to @{}", display_tokens(e8s, 8), &user.name));
+                items.push((e8s, user.name.clone()));
                 user.notify(format!(
                     "You received `{}` ICP as rewards and `{}` ICP as revenue! 💸",
                     display_tokens(user_reward, 8),
@@ -1261,12 +1276,20 @@ impl State {
             while state.last_revenues.len() > 12 {
                 state.last_revenues.pop_front();
             }
-            state.logger.info(format!(
-                "Paid out `{}` ICP as rewards and `{}` ICP as revenue as follows: {}",
+
+            items.sort_by_cached_key(|(e8s, _)| Reverse(*e8s));
+            for (e8s, name) in &items {
+                summary
+                    .items
+                    .push(format!("`{}` to @{}", display_tokens(*e8s, 8), name));
+            }
+
+            summary.description = format!(
+                "Weekly pay out to users: `{}` ICP as rewards and `{}` ICP as revenue.",
                 display_tokens(total_rewards, 8),
-                display_tokens(total_revenue, 8),
-                payments.join(", ")
-            ));
+                display_tokens(total_revenue, 8)
+            );
+            state.distribution_reports.push(summary);
             total_rewards + total_revenue
         });
 
@@ -1532,7 +1555,10 @@ impl State {
     }
 
     pub async fn weekly_chores(now: Time) {
-        mutate(|state| state.distribute_realm_revenue(now));
+        mutate(|state| {
+            state.distribution_reports.clear();
+            state.distribute_realm_revenue(now);
+        });
 
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
@@ -1547,6 +1573,14 @@ impl State {
                 )
             });
             State::distribute_icp(e8s_for_one_xdr, rewards, revenues).await;
+            mutate(|state| {
+                for summary in &state.distribution_reports {
+                    state.logger.info(format!(
+                        "{}: {} [[details](#/distribution)]",
+                        summary.title, summary.description
+                    ));
+                }
+            });
         } else {
             mutate(|state| {
                 state
@@ -1562,6 +1596,13 @@ impl State {
     }
 
     fn distribute_realm_revenue(&mut self, now: Time) {
+        let mut summary = Summary {
+            title: "Realm revenue report".into(),
+            description: Default::default(),
+            items: Vec::default(),
+        };
+        let mut total_revenue = 0;
+        let mut items = Vec::default();
         for (realm_id, revenue, controllers) in self
             .realms
             .iter_mut()
@@ -1575,26 +1616,38 @@ impl State {
             })
             .collect::<Vec<_>>()
         {
+            total_revenue += revenue;
             let controllers = controllers
                 .into_iter()
-                .filter(|user_id| {
-                    self.users
-                        .get(user_id)
-                        .map(|user| user.active_within_weeks(now, 1))
-                        .unwrap_or_default()
-                })
+                .filter_map(|user_id| self.users.get(&user_id))
+                .filter(|user| user.active_within_weeks(now, 1))
+                .map(|user| (user.id, user.name.clone()))
                 .collect::<Vec<_>>();
             let controller_revenue = revenue * CONFIG.realm_revenue_percentage as u64
                 / 100
                 / controllers.len().max(1) as u64;
-            for id in controllers.iter() {
+            for (id, name) in &controllers {
                 self.spend_to_user_rewards(
                     *id,
                     controller_revenue,
-                    format!("revenue from realm /{}", realm_id),
+                    format!("revenue from realm /{}", &realm_id),
                 );
+                items.push((controller_revenue, realm_id.clone(), name.clone()));
             }
         }
+
+        items.sort_unstable_by_key(|(revenue, _, _)| Reverse(*revenue));
+        for (controller_revenue, realm_id, name) in &items {
+            summary.items.push(format!(
+                "/{}: `{}` credits to @{}",
+                realm_id, controller_revenue, name
+            ));
+        }
+        summary.description = format!(
+            "`{}` credits of realm revenue paid to active realm controllers",
+            total_revenue
+        );
+        self.distribution_reports.push(summary);
     }
 
     fn clean_up(&mut self, now: Time) {
@@ -1894,22 +1947,36 @@ impl State {
     pub fn last_posts<'a>(
         &'a self,
         caller: Principal,
-        realm: Option<RealmId>,
-        offset: PostId,
+        realm_id: Option<RealmId>,
+        mut offset: PostId,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         let inverse_filters = self.principal_to_user(caller).map(|user| &user.filters);
+        let realm = realm_id
+            .as_ref()
+            .and_then(|realm_id| self.realms.get(realm_id));
+        if let Some(realm) = realm {
+            if realm.num_posts == 0 {
+                return Box::new(std::iter::empty());
+            }
+            if offset == 0 {
+                offset = realm.last_root_post;
+            }
+        }
         Box::new(
             {
-                let last_id = self.next_post_id.saturating_sub(1);
+                let last_id = if offset > 0 {
+                    offset
+                } else {
+                    self.next_post_id.saturating_sub(1)
+                };
                 Box::new((0..=last_id).rev())
             }
-            .skip_while(move |id| offset > 0 && id > &offset)
             .filter_map(move |i| Post::get(self, &i))
             .filter(move |post| {
                 !post.is_deleted()
                     && (with_comments || post.parent.is_none())
-                    && (realm.is_none() || post.realm == realm)
+                    && (realm.is_none() || post.realm == realm_id)
                     && inverse_filters
                         .map(|filters| !post.matches_filters(filters))
                         .unwrap_or(true)
@@ -2184,7 +2251,7 @@ impl State {
                     .users
                     .get_mut(&id)
                     .and_then(|u| u.report.as_mut())
-                    .expect("no user found");
+                    .ok_or("no user found")?;
                 report.vote(stalwarts, user_id, vote)?;
                 (
                     id,
@@ -2195,7 +2262,11 @@ impl State {
             }
             _ => return Err("unknown report type".into()),
         };
-        reports::finalize_report(self, &report, &domain, penalty, user_id, subject)
+        if report.closed {
+            reports::finalize_report(self, &report, &domain, penalty, user_id, subject)
+        } else {
+            Ok(())
+        }
     }
 
     pub fn vote_on_poll(
@@ -2211,7 +2282,6 @@ impl State {
             .ok_or_else(|| "no user found".to_string())?;
         let (user_id, user_realms) = (user.id, user.realms.clone());
         Post::mutate(self, &post_id, |post| {
-            post.watchers.insert(user_id);
             post.vote_on_poll(user_id, user_realms.clone(), time, vote, anonymously)
         })
     }
@@ -2504,6 +2574,59 @@ impl State {
         })
     }
 
+    pub fn unreact(
+        &mut self,
+        principal: Principal,
+        post_id: PostId,
+        reaction: u16,
+    ) -> Result<(), String> {
+        let delta: i64 = match CONFIG.reactions.iter().find(|(id, _)| id == &reaction) {
+            Some((_, delta)) => *delta,
+            _ => return Err("unknown reaction".into()),
+        };
+        let user_id = self
+            .principal_to_user(principal)
+            .ok_or("no user for principal found")?
+            .id;
+        let post = Post::get(self, &post_id).ok_or("post not found")?.clone();
+        if !post
+            .reactions
+            .get(&reaction)
+            .map(|list| list.contains(&user_id))
+            .unwrap_or_default()
+        {
+            return Err("no reactions to revert".into());
+        }
+
+        if delta < 0 {
+            let user = self.users.get_mut(&post.user).expect("user not found");
+            user.downvotes.remove(&user_id);
+        } else {
+            let mut recipients = vec![post.user];
+            if let Some(Extension::Repost(post_id)) = post.extension.as_ref() {
+                let original_author = Post::get(self, post_id)
+                    .expect("no reposted post found")
+                    .user;
+                recipients.push(original_author)
+            }
+            for recipient in recipients {
+                if let Some(donation) = self
+                    .principal_to_user_mut(principal)
+                    .expect("no user for principal found")
+                    .karma_donations
+                    .get_mut(&recipient)
+                {
+                    *donation = donation.saturating_sub(delta as Credits)
+                }
+            }
+        }
+
+        Post::mutate(self, &post_id, |post| {
+            post.reactions.entry(reaction).or_default().remove(&user_id);
+            Ok(())
+        })
+    }
+
     pub fn toggle_following_user(&mut self, principal: Principal, followee_id: UserId) -> bool {
         let (added, (user_id, name, about, num_followers, user_filter)) = {
             let user = match self.principal_to_user_mut(principal) {
@@ -2747,6 +2870,47 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn test_unreact() {
+        STATE.with(|cell| {
+            cell.replace(Default::default());
+            let state = &mut *cell.borrow_mut();
+            let user_0 = create_user_with_params(state, pr(0), "alice", 1000);
+            let user_1 = create_user_with_params(state, pr(1), "bob", 100);
+            let user_2 = create_user_with_params(state, pr(2), "eve", 50);
+            let post_0 =
+                Post::create(state, "A".to_string(), &[], pr(1), 0, None, None, None).unwrap();
+            let post_1 =
+                Post::create(state, "A".to_string(), &[], pr(2), 0, None, None, None).unwrap();
+            assert!(state.react(pr(0), post_0, 100, WEEK).is_ok());
+            assert_eq!(
+                state.react(pr(0), post_1, 1, WEEK),
+                Err("no downvotes for users with low token balance".into())
+            );
+            insert_balance(state, pr(0), 10 * token::base());
+            assert!(state.react(pr(0), post_1, 1, WEEK).is_ok());
+
+            let user = state.users.get(&user_0).unwrap();
+            assert_eq!(user.karma_donations.len(), 1);
+            assert_eq!(user.karma_donations.get(&user_1).unwrap(), &10);
+            let user = state.users.get(&user_2).unwrap();
+            assert_eq!(user.downvotes.len(), 1);
+
+            assert!(state.unreact(pr(0), post_0, 100).is_ok());
+            assert_eq!(
+                state.unreact(pr(0), post_1, 100),
+                Err("no reactions to revert".into())
+            );
+            assert!(state.unreact(pr(0), post_1, 1).is_ok());
+
+            let user = state.users.get(&user_0).unwrap();
+            assert_eq!(user.karma_donations.len(), 1);
+            assert_eq!(user.karma_donations.get(&user_1).unwrap(), &0);
+            let user = state.users.get(&user_2).unwrap();
+            assert_eq!(user.downvotes.len(), 0);
+        })
+    }
+
+    #[test]
     fn test_donated_rewards() {
         STATE.with(|cell| {
             cell.replace(Default::default());
@@ -2830,10 +2994,28 @@ pub(crate) mod tests {
         });
 
         // update with wrong principal
-        assert!(User::update(pr(1), Some("john".into()), Default::default(), vec![]).is_err());
+        assert!(User::update(
+            pr(1),
+            Some("john".into()),
+            Default::default(),
+            vec![],
+            Default::default(),
+            false,
+            false
+        )
+        .is_err());
 
         // correct update
-        assert!(User::update(pr(0), Some("john".into()), Default::default(), vec![]).is_ok());
+        assert!(User::update(
+            pr(0),
+            Some("john".into()),
+            Default::default(),
+            vec![],
+            Default::default(),
+            false,
+            false
+        )
+        .is_ok());
 
         read(|state| {
             let user = state.users.get(&id).unwrap();

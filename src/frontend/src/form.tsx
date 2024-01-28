@@ -27,8 +27,6 @@ import { PollView } from "./poll";
 const MAX_IMG_SIZE = 16777216;
 const MAX_SUGGESTED_TAGS = 5;
 
-let timer: any = null;
-
 export const Form = ({
     postId,
     comment,
@@ -251,7 +249,7 @@ export const Form = ({
     React.useEffect(() => {
         clearTimeout(timer);
         timer = setTimeout(async () => {
-            setTotalCosts(await costs(value, !!poll));
+            setTotalCosts((await costs(value, !!poll)) || totalCosts);
         }, 1000);
     }, [value, poll]);
     React.useEffect(() => {
@@ -434,7 +432,10 @@ export const Form = ({
                         <Loading classNameArg="top_spaced" spaced={false} />
                     )}
                     {!busy && completionList.length > 0 && (
-                        <div className="small_text top_spaced">
+                        <div
+                            className="top_spaced "
+                            style={{ textAlign: "right" }}
+                        >
                             {completionList.map((token, i) => (
                                 <button
                                     key={token}
@@ -593,8 +594,13 @@ const insertNewPicture = (
     };
 };
 
+let timer: any = null;
+let tagCache: any[] = [];
+
 const costs = async (value: string, poll: boolean) => {
     const tags = getTokens("#$", value);
+    if (tags.toString() == tagCache.toString()) return null;
+    tagCache = tags;
     const tags_cost: number = (await window.api.query("tags_cost", tags)) || 0;
     const images = (value.match(/\(\/blob\/.+\)/g) || []).length;
     const { post_cost, blob_cost, poll_cost } = window.backendCache.config;

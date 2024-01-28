@@ -5,7 +5,7 @@ export default defineConfig({
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: 0,
-    workers: 4,
+    workers: 1,
     reporter: [
         ["list", { printSteps: true }],
         ["html", { open: "never" }],

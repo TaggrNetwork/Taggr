@@ -881,7 +881,6 @@ a.accent,
 
 .nsfw,
 .controversial {
-    background: $selected_background;
     color: $clickable;
 }
 
@@ -1053,6 +1052,10 @@ label svg {
 
     .mobile_only {
         display: inline;
+    }
+
+    #tag_cloud {
+        font-size: 80%;
     }
 
     .icon_link {
