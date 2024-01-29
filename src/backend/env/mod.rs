@@ -2564,59 +2564,6 @@ impl State {
         })
     }
 
-    pub fn unreact(
-        &mut self,
-        principal: Principal,
-        post_id: PostId,
-        reaction: u16,
-    ) -> Result<(), String> {
-        let delta: i64 = match CONFIG.reactions.iter().find(|(id, _)| id == &reaction) {
-            Some((_, delta)) => *delta,
-            _ => return Err("unknown reaction".into()),
-        };
-        let user_id = self
-            .principal_to_user(principal)
-            .ok_or("no user for principal found")?
-            .id;
-        let post = Post::get(self, &post_id).ok_or("post not found")?.clone();
-        if !post
-            .reactions
-            .get(&reaction)
-            .map(|list| list.contains(&user_id))
-            .unwrap_or_default()
-        {
-            return Err("no reactions to revert".into());
-        }
-
-        if delta < 0 {
-            let user = self.users.get_mut(&post.user).expect("user not found");
-            user.downvotes.remove(&user_id);
-        } else {
-            let mut recipients = vec![post.user];
-            if let Some(Extension::Repost(post_id)) = post.extension.as_ref() {
-                let original_author = Post::get(self, post_id)
-                    .expect("no reposted post found")
-                    .user;
-                recipients.push(original_author)
-            }
-            for recipient in recipients {
-                if let Some(donation) = self
-                    .principal_to_user_mut(principal)
-                    .expect("no user for principal found")
-                    .karma_donations
-                    .get_mut(&recipient)
-                {
-                    *donation = donation.saturating_sub(delta as Credits)
-                }
-            }
-        }
-
-        Post::mutate(self, &post_id, |post| {
-            post.reactions.entry(reaction).or_default().remove(&user_id);
-            Ok(())
-        })
-    }
-
     pub fn toggle_following_user(&mut self, principal: Principal, followee_id: UserId) -> bool {
         let (added, (user_id, name, about, num_followers, user_filter)) = {
             let user = match self.principal_to_user_mut(principal) {
@@ -2857,47 +2804,6 @@ pub(crate) mod tests {
         assert_eq!(parse_amount("777", 2), Ok(77700));
         assert_eq!(parse_amount("0777", 2), Ok(77700));
         assert!(parse_amount("34,56", 2).is_err());
-    }
-
-    #[test]
-    fn test_unreact() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-            let user_0 = create_user_with_params(state, pr(0), "alice", 1000);
-            let user_1 = create_user_with_params(state, pr(1), "bob", 100);
-            let user_2 = create_user_with_params(state, pr(2), "eve", 50);
-            let post_0 =
-                Post::create(state, "A".to_string(), &[], pr(1), 0, None, None, None).unwrap();
-            let post_1 =
-                Post::create(state, "A".to_string(), &[], pr(2), 0, None, None, None).unwrap();
-            assert!(state.react(pr(0), post_0, 100, WEEK).is_ok());
-            assert_eq!(
-                state.react(pr(0), post_1, 1, WEEK),
-                Err("no downvotes for users with low token balance".into())
-            );
-            insert_balance(state, pr(0), 10 * token::base());
-            assert!(state.react(pr(0), post_1, 1, WEEK).is_ok());
-
-            let user = state.users.get(&user_0).unwrap();
-            assert_eq!(user.karma_donations.len(), 1);
-            assert_eq!(user.karma_donations.get(&user_1).unwrap(), &10);
-            let user = state.users.get(&user_2).unwrap();
-            assert_eq!(user.downvotes.len(), 1);
-
-            assert!(state.unreact(pr(0), post_0, 100).is_ok());
-            assert_eq!(
-                state.unreact(pr(0), post_1, 100),
-                Err("no reactions to revert".into())
-            );
-            assert!(state.unreact(pr(0), post_1, 1).is_ok());
-
-            let user = state.users.get(&user_0).unwrap();
-            assert_eq!(user.karma_donations.len(), 1);
-            assert_eq!(user.karma_donations.get(&user_1).unwrap(), &0);
-            let user = state.users.get(&user_2).unwrap();
-            assert_eq!(user.downvotes.len(), 0);
-        })
     }
 
     #[test]

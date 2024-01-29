@@ -212,14 +212,8 @@ fn tip() {
 
 #[export_name = "canister_update react"]
 fn react() {
-    let (post_id, reaction, cancel): (PostId, u16, bool) = parse(&arg_data_raw());
-    mutate(|state| {
-        reply(if cancel {
-            state.unreact(caller(), post_id, reaction)
-        } else {
-            state.react(caller(), post_id, reaction, api::time())
-        })
-    });
+    let (post_id, reaction): (PostId, u16) = parse(&arg_data_raw());
+    mutate(|state| reply(state.react(caller(), post_id, reaction, api::time())));
 }
 
 #[export_name = "canister_update update_last_activity"]

@@ -89,6 +89,7 @@ export const PostView = ({
     const [safeToOpen, setSafeToOpen] = React.useState(false);
     const [forceCollapsing, setForceCollapsing] = React.useState(false);
     const [commentIncoming, setCommentIncoming] = React.useState(false);
+    const [reactionTimer, setReactionTimer] = React.useState(null);
 
     const refPost = React.useRef();
     const refArticle = React.useRef();
@@ -206,25 +207,35 @@ export const PostView = ({
 
     const react = (id: number) => {
         if (!window.user) return;
-        const userId = window.user?.id;
+        let userId = window.user?.id;
         if (post.user == userId) return;
         if (!(id in post.reactions)) {
             post.reactions[id] = [];
         }
         let users = post.reactions[id];
-        let cancel = users.includes(userId);
-        window.api.call<any>("react", post.id, id, cancel).then((response) => {
-            window.reloadUser();
-            if (response && "Err" in response) alert(`Error: ${response.Err}`);
-        });
-        if (cancel) {
-            const index = users.indexOf(userId);
-            if (index > -1) {
-                users.splice(index, 1);
+        if (
+            Object.values(post.reactions)
+                .reduce((acc, users) => acc.concat(users), [])
+                .includes(userId)
+        ) {
+            if (reactionTimer) {
+                clearTimeout(reactionTimer);
+                post.reactions[id] = users.filter((id) => id != userId);
+                setPost({ ...post });
             }
-        } else {
-            users.push(userId);
+            return;
         }
+        clearTimeout(reactionTimer as any);
+        const timer = setTimeout(
+            () =>
+                window.api.call<any>("react", post.id, id).then((response) => {
+                    if ("Err" in response) alert(`Error: ${response.Err}`);
+                    window.reloadUser();
+                }),
+            4000,
+        );
+        setReactionTimer(timer as any);
+        users.push(userId);
         setPost({ ...post });
         toggleInfo(commentIncoming);
     };
