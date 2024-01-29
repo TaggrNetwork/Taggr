@@ -548,6 +548,9 @@ impl Post {
         post.id = id;
         if let Some(realm) = realm.and_then(|name| state.realms.get_mut(&name)) {
             realm.num_posts += 1;
+            if parent.is_none() {
+                realm.last_root_post = id;
+            }
             realm.last_update = timestamp;
         }
         if let Some(parent_id) = post.parent {

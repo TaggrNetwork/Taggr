@@ -70,70 +70,7 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {
-    let last_id = read(|state| state.next_post_id.saturating_sub(1));
-    let ids = (0..=last_id).collect::<Vec<_>>();
-    let id_chunks = ids.chunks(10000);
-    let mut realms = read(|state| {
-        state
-            .realms
-            .keys()
-            .cloned()
-            .collect::<std::collections::BTreeSet<_>>()
-    });
-    for chunk in id_chunks {
-        if realms.is_empty() {
-            break;
-        }
-        async {
-            mutate(|state| {
-                chunk
-                    .iter()
-                    .filter_map(|id| Post::get(state, id))
-                    .map(|post| (post.id, post.realm.clone()))
-                    .collect::<Vec<_>>()
-                    .into_iter()
-                    .for_each(|(post_id, realm)| {
-                        if let Some(realm_id) = realm.as_ref() {
-                            state.realms.get_mut(realm_id).unwrap().last_root_post = post_id;
-                            realms.remove(realm_id);
-                        }
-                    })
-            });
-        }
-        .await;
-    }
-
-    let ids = (0..=last_id).collect::<Vec<_>>();
-    let id_chunks = ids.chunks(10000);
-    let mut users = read(|state| {
-        state
-            .users
-            .keys()
-            .cloned()
-            .collect::<std::collections::BTreeSet<_>>()
-    });
-    for chunk in id_chunks {
-        if users.is_empty() {
-            break;
-        }
-        async {
-            mutate(|state| {
-                chunk
-                    .iter()
-                    .filter_map(|id| Post::get(state, id))
-                    .map(|post| (post.id, post.user))
-                    .collect::<Vec<_>>()
-                    .into_iter()
-                    .for_each(|(post_id, user_id)| {
-                        state.users.get_mut(&user_id).unwrap().last_post = post_id;
-                        users.remove(&user_id);
-                    })
-            });
-        }
-        .await;
-    }
-}
+async fn post_upgrade_fixtures() {}
 
 /*
  * UPDATES
