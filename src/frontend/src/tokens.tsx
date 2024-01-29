@@ -35,7 +35,7 @@ export const Tokens = () => {
     const [balPage, setBalPage] = React.useState(0);
     const [holder, setHolder] = React.useState(-1);
 
-    const loadBalances = async () => {
+    const loadData = async () => {
         const [balances, rewards, donors] = await Promise.all([
             window.api.query<Balances>("balances"),
             window.api.query<[UserId, number][]>("tokens_to_mint"),
@@ -58,7 +58,7 @@ export const Tokens = () => {
     };
 
     React.useEffect(() => {
-        loadBalances();
+        loadData();
     }, []);
 
     const mintedSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
@@ -68,9 +68,17 @@ export const Tokens = () => {
     );
     const { maximum_supply, proposal_approval_threshold, transaction_fee } =
         window.backendCache.config;
-    const balanceAmounts = balances
-        .filter(([_0, _1, userId]) => !isNaN(userId))
-        .map(([_, balance]) => balance);
+    const uniqueUsers = balances.reduce(
+        (acc, [_, balance, userId]) => {
+            if (userId != null && !isNaN(userId))
+                acc[userId] = (acc[userId] || 0) + balance;
+            return acc;
+        },
+        {} as { [id: UserId]: number },
+    );
+    const balanceAmounts = Object.entries(uniqueUsers).map(([_, balance]) =>
+        Number(balance),
+    );
     balanceAmounts.sort((a, b) => b - a);
     const balancesTotal = balanceAmounts.length;
     let vp = 0;

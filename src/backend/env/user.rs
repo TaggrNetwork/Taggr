@@ -9,7 +9,6 @@ pub struct Filters {
     pub users: BTreeSet<UserId>,
     pub tags: BTreeSet<String>,
     pub realms: BTreeSet<String>,
-    #[serde(default)]
     pub noise: UserFilter,
 }
 
@@ -193,7 +192,6 @@ impl User {
         Box::new(
             state
                 .last_posts(
-                    Principal::anonymous(),
                     None,
                     if offset == 0 { self.last_post } else { offset },
                     true,
@@ -299,7 +297,7 @@ impl User {
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         Box::new(
             state
-                .last_posts(self.principal, None, offset, false)
+                .last_posts(None, offset, false)
                 .filter(move |post| {
                     !post.is_deleted()
                         && post.parent.is_none()

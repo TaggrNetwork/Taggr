@@ -630,16 +630,19 @@ async fn set_emergency_release(binary: ByteBuf) {
 fn confirm_emergency_release() {
     mutate(|state| {
         let principal = caller();
-        if let Some(balance) = state
-            .principal_to_user(principal)
-            .map(|user| user.total_balance())
-        {
+        if let Some(user) = state.principal_to_user(principal) {
+            let user_balance = user.balance;
+            let user_cold_balance = user.cold_balance;
+            let user_cold_wallet = user.cold_wallet;
             let hash: String = parse(&arg_data_raw());
             use sha2::{Digest, Sha256};
             let mut hasher = Sha256::new();
             hasher.update(&state.emergency_binary);
             if hash == format!("{:x}", hasher.finalize()) {
-                state.emergency_votes.insert(principal, balance);
+                state.emergency_votes.insert(principal, user_balance);
+                if let Some(principal) = user_cold_wallet {
+                    state.emergency_votes.insert(principal, user_cold_balance);
+                }
             }
         }
         reply_raw(&[]);

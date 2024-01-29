@@ -270,7 +270,7 @@ fn user_tags() {
     read(|state| {
         reply(
             state
-                .last_posts(caller(), None, offset, true)
+                .last_posts(None, offset, true)
                 .filter(|post| post.body.contains(&tag))
                 .skip(CONFIG.feed_page_size * page)
                 .take(CONFIG.feed_page_size)
@@ -359,7 +359,6 @@ fn hot_realm_posts() {
         reply(
             state
                 .hot_posts(
-                    caller(),
                     optional(realm),
                     page,
                     offset,
@@ -376,7 +375,7 @@ fn hot_posts() {
     read(|state| {
         reply(
             state
-                .hot_posts(caller(), optional(realm), page, offset, None)
+                .hot_posts(optional(realm), page, offset, None)
                 .collect::<Vec<_>>(),
         )
     });
@@ -386,9 +385,15 @@ fn hot_posts() {
 fn realms_posts() {
     let (page, offset): (usize, PostId) = parse(&arg_data_raw());
     read(|state| {
+        let inverse_filters = state.principal_to_user(caller()).map(|user| &user.filters);
         reply(
             state
                 .realms_posts(caller(), page, offset)
+                .filter(|post| {
+                    inverse_filters
+                        .map(|filters| !post.matches_filters(filters))
+                        .unwrap_or(true)
+                })
                 .collect::<Vec<_>>(),
         )
     });
@@ -399,16 +404,16 @@ fn last_posts() {
     let (realm, page, offset, filtered): (String, usize, PostId, bool) = parse(&arg_data_raw());
     read(|state| {
         let user = state.principal_to_user(caller());
+        let inverse_filters = user.map(|user| &user.filters);
         reply(
             state
-                .last_posts(
-                    caller(),
-                    optional(realm),
-                    offset,
-                    /* with_comments = */ false,
-                )
+                .last_posts(optional(realm), offset, /* with_comments = */ false)
                 .filter(|post| {
-                    if !filtered {
+                    if !filtered
+                        || inverse_filters
+                            .map(|filters| !post.matches_filters(filters))
+                            .unwrap_or(true)
+                    {
                         return true;
                     }
                     match (user, state.users.get(&post.user)) {
@@ -430,7 +435,7 @@ fn posts_by_tags() {
     read(|state| {
         reply(
             state
-                .posts_by_tags(caller(), optional(realm), tags, users, page, offset)
+                .posts_by_tags(optional(realm), tags, users, page, offset)
                 .collect::<Vec<_>>(),
         )
     });
@@ -469,7 +474,7 @@ fn validate_username() {
 #[export_name = "canister_query recent_tags"]
 fn recent_tags() {
     let (realm, n): (String, u64) = parse(&arg_data_raw());
-    read(|state| reply(state.recent_tags(caller(), optional(realm), n)));
+    read(|state| reply(state.recent_tags(optional(realm), n)));
 }
 
 #[export_name = "canister_query users"]

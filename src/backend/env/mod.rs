@@ -283,17 +283,19 @@ impl State {
     }
 
     pub fn voted_on_pending_proposal(&self, principal: Principal) -> bool {
-        if let Some(user) = self.principal_to_user(principal) {
-            self.proposals.iter().any(|proposal| {
-                proposal.status == Status::Open
-                    && proposal
-                        .bulletins
-                        .iter()
-                        .any(|(user_id, _, _)| &user.id == user_id)
-            })
-        } else {
-            false
-        }
+        self.emergency_votes.contains_key(&principal)
+            || self
+                .principal_to_user(principal)
+                .map(|user| {
+                    self.proposals.iter().any(|proposal| {
+                        proposal.status == Status::Open
+                            && proposal
+                                .bulletins
+                                .iter()
+                                .any(|(user_id, _, _)| &user.id == user_id)
+                    })
+                })
+                .unwrap_or_default()
     }
 
     pub async fn finalize_upgrade() {
@@ -542,7 +544,7 @@ impl State {
             Some(ids) => ids.iter().collect::<BTreeSet<_>>(),
         };
         Box::new(
-            self.last_posts(caller, None, offset, false)
+            self.last_posts(None, offset, false)
                 .filter(move |post| {
                     post.realm
                         .as_ref()
@@ -556,14 +558,13 @@ impl State {
 
     pub fn hot_posts(
         &self,
-        caller: Principal,
         realm: Option<RealmId>,
         page: usize,
         offset: PostId,
         filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
-            .last_posts(caller, realm, offset, false)
+            .last_posts(realm, offset, false)
             .filter(|post| !matches!(post.extension, Some(Extension::Proposal(_))))
             .filter(|post| filter.map(|f| f(post)).unwrap_or(true))
             .take(1000)
@@ -1920,7 +1921,6 @@ impl State {
 
     pub fn posts_by_tags(
         &self,
-        caller: Principal,
         realm: Option<RealmId>,
         tags: Vec<String>,
         users: Vec<UserId>,
@@ -1929,7 +1929,7 @@ impl State {
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let query: HashSet<_> = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
         Box::new(
-            self.last_posts(caller, realm, offset, true)
+            self.last_posts(realm, offset, true)
                 .filter(move |post| {
                     (users.is_empty() || users.contains(&post.user))
                         && post
@@ -1946,12 +1946,10 @@ impl State {
 
     pub fn last_posts<'a>(
         &'a self,
-        caller: Principal,
         realm_id: Option<RealmId>,
         mut offset: PostId,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let inverse_filters = self.principal_to_user(caller).map(|user| &user.filters);
         let realm = realm_id
             .as_ref()
             .and_then(|realm_id| self.realms.get(realm_id));
@@ -1977,23 +1975,15 @@ impl State {
                 !post.is_deleted()
                     && (with_comments || post.parent.is_none())
                     && (realm.is_none() || post.realm == realm_id)
-                    && inverse_filters
-                        .map(|filters| !post.matches_filters(filters))
-                        .unwrap_or(true)
             }),
         )
     }
 
-    pub fn recent_tags(
-        &self,
-        caller: Principal,
-        realm: Option<RealmId>,
-        n: u64,
-    ) -> Vec<(String, u64)> {
+    pub fn recent_tags(&self, realm: Option<RealmId>, n: u64) -> Vec<(String, u64)> {
         let mut tags: HashMap<String, u64> = Default::default();
         let mut tags_found = 0;
         'OUTER: for post in self
-            .last_posts(caller, realm, 0, true)
+            .last_posts(realm, 0, true)
             .take_while(|post| !post.archived)
         {
             for tag in &post.tags {
@@ -3500,7 +3490,7 @@ pub(crate) mod tests {
 
     fn realm_posts(state: &State, name: &str) -> Vec<PostId> {
         state
-            .last_posts(Principal::anonymous(), None, 0, true)
+            .last_posts(None, 0, true)
             .filter(|post| post.realm.as_ref() == Some(&name.to_string()))
             .map(|post| post.id)
             .collect::<Vec<_>>()
@@ -4016,6 +4006,8 @@ pub(crate) mod tests {
 
             assert!(create_realm(state, p, "TESTREALM".into(),).is_ok());
             state.toggle_realm_membership(p, "TESTREALM".into());
+            let caller = pr(1);
+            let _ = create_user(state, caller);
 
             let post_id = Post::create(
                 state,
@@ -4029,13 +4021,16 @@ pub(crate) mod tests {
             )
             .unwrap();
 
-            let caller = pr(1);
-            let _ = create_user(state, caller);
-
             // without filters we see the new post
             let post_visible = |state: &State| {
+                let inverse_filters = state.principal_to_user(caller).map(|user| &user.filters);
                 state
-                    .last_posts(caller, None, 0, true)
+                    .last_posts(None, 0, true)
+                    .filter(|post| {
+                        inverse_filters
+                            .map(|filters| !post.matches_filters(filters))
+                            .unwrap_or(true)
+                    })
                     .any(|post| post.id == post_id)
             };
             assert!(post_visible(state));
