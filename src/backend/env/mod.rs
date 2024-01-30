@@ -3226,7 +3226,7 @@ pub(crate) mod tests {
             assert_eq!(user.principal, principal);
             assert_eq!(
                 user.account,
-                AccountIdentifier::new(&id(), &principal_to_subaccount(&principal)).to_string()
+                AccountIdentifier::new(&user.principal, &DEFAULT_SUBACCOUNT).to_string()
             );
         })
     }

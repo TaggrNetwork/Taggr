@@ -79,6 +79,7 @@ async fn post_upgrade_fixtures() {
                 u.account = expected_acc;
                 ic_cdk::println!("fixed account of {}", u.name);
             }
+            u.karma_donations.remove(&u.id);
         }
         let posts = state
             .users
