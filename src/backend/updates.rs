@@ -81,15 +81,16 @@ async fn post_upgrade_fixtures() {
             }
             u.karma_donations.remove(&u.id);
         }
+        let now = time();
         let posts = state
-            .users
-            .values()
-            .filter_map(|u| {
-                u.posts(state, 0).find_map(|post| {
-                    post.report
-                        .as_ref()
-                        .map(|report| (u.id, post.creation_timestamp(), report.clone()))
-                })
+            .last_posts(None, 0, true)
+            .take_while(|post| {
+                post.creation_timestamp() + CONFIG.user_report_validity_days * DAY >= now
+            })
+            .filter_map(|post| {
+                post.report
+                    .as_ref()
+                    .map(|report| (post.user, post.creation_timestamp(), report.clone()))
             })
             .collect::<Vec<_>>();
 
