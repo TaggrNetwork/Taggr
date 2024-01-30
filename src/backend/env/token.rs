@@ -370,10 +370,13 @@ pub fn balances_from_ledger(ledger: &[Transaction]) -> Result<HashMap<Account, T
     let mut balances = HashMap::new();
     let minting_account = icrc1_minting_account().ok_or("no minting account found")?;
     for transaction in ledger {
-        balances
-            .entry(transaction.to.clone())
-            .and_modify(|balance: &mut u64| *balance = balance.saturating_add(transaction.amount))
-            .or_insert(transaction.amount);
+        if transaction.to != minting_account {
+            if !balances.contains_key(&transaction.to) {
+                balances.insert(transaction.to.clone(), transaction.amount);
+            } else if let Some(balance) = balances.get_mut(&transaction.to) {
+                *balance = (*balance).saturating_add(transaction.amount)
+            }
+        }
         if transaction.from != minting_account {
             let from = balances
                 .get_mut(&transaction.from)

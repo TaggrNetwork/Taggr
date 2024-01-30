@@ -96,6 +96,8 @@ pub struct User {
     pub active_weeks: u32,
     pub principal: Principal,
     pub report: Option<Report>,
+    #[serde(default)]
+    pub last_post_report: Option<Report>,
     pub treasury_e8s: u64,
     #[serde(skip)]
     pub draft: Option<Draft>,
@@ -106,7 +108,6 @@ pub struct User {
     pub notifications: BTreeMap<u64, (Notification, bool)>,
     pub downvotes: BTreeMap<UserId, Time>,
     pub show_posts_in_realms: bool,
-    #[serde(default)]
     pub last_post: PostId,
 }
 
@@ -129,6 +130,11 @@ impl User {
     pub fn controversial(&self) -> bool {
         self.rewards < 0
             || self
+                .last_post_report
+                .as_ref()
+                .map(|report| report.pending_or_recently_confirmed())
+                .unwrap_or_default()
+            || self
                 .report
                 .as_ref()
                 .map(|report| report.pending_or_recently_confirmed())
@@ -141,6 +147,7 @@ impl User {
             name,
             about: Default::default(),
             report: None,
+            last_post_report: None,
             last_post: 0,
             account: AccountIdentifier::new(&principal, &DEFAULT_SUBACCOUNT).to_string(),
             settings: Default::default(),

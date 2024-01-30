@@ -6,7 +6,6 @@ use self::reports::Report;
 use self::token::{account, TransferArgs};
 use self::user::{Filters, Notification, Predicate, UserFilter};
 use crate::assets::export_token_supply;
-use crate::env::invoices::principal_to_subaccount;
 use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
 use crate::token::{Account, Token, Transaction};
@@ -15,7 +14,7 @@ use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{self, canister_balance};
-use ic_ledger_types::{AccountIdentifier, MAINNET_LEDGER_CANISTER_ID};
+use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
 use invoices::Invoices;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -115,7 +114,6 @@ pub struct Realm {
     pub revenue: Credits,
     theme: String,
     pub whitelist: BTreeSet<UserId>,
-    #[serde(default)]
     pub last_root_post: PostId,
 }
 
@@ -2059,8 +2057,7 @@ impl State {
             state.principals.insert(new_principal, user_id);
             let user = state.users.get_mut(&user_id).expect("no user found");
             user.principal = new_principal;
-            let account_identifier =
-                AccountIdentifier::new(&id(), &principal_to_subaccount(&new_principal));
+            let account_identifier = AccountIdentifier::new(&new_principal, &DEFAULT_SUBACCOUNT);
             user.account = account_identifier.to_string();
             let accounts = state
                 .balances
@@ -2211,9 +2208,9 @@ impl State {
         id: u64,
         vote: bool,
     ) -> Result<(), String> {
-        let user = self.principal_to_user(principal).ok_or("no user found")?;
-        let user_id = user.id;
-        if !user.stalwart {
+        let reporter = self.principal_to_user(principal).ok_or("no user found")?;
+        let reporter_id = reporter.id;
+        if !reporter.stalwart {
             return Err("only stalwarts can vote on reports".into());
         }
         let stalwarts = self.users.values().filter(|u| u.stalwart).count();
@@ -2222,7 +2219,7 @@ impl State {
                 self,
                 &id,
                 |post| -> Result<(UserId, Report, Credits, String), String> {
-                    post.vote_on_report(stalwarts, user_id, vote)?;
+                    post.vote_on_report(stalwarts, reporter_id, vote)?;
                     let post_user = post.user;
                     let post_report = post.report.clone().ok_or("no report")?;
                     Ok((
@@ -2234,7 +2231,7 @@ impl State {
                 },
             )?,
             "misbehaviour" => {
-                if user_id == id {
+                if reporter_id == id {
                     return Err("votes on own reports are not accepted".into());
                 }
                 let report = self
@@ -2242,7 +2239,7 @@ impl State {
                     .get_mut(&id)
                     .and_then(|u| u.report.as_mut())
                     .ok_or("no user found")?;
-                report.vote(stalwarts, user_id, vote)?;
+                report.vote(stalwarts, reporter_id, vote)?;
                 (
                     id,
                     report.clone(),
@@ -2253,6 +2250,12 @@ impl State {
             _ => return Err("unknown report type".into()),
         };
         if report.closed {
+            if domain == "post" {
+                self.users
+                    .get_mut(&user_id)
+                    .expect("no user found")
+                    .last_post_report = Some(report.clone())
+            }
             reports::finalize_report(self, &report, &domain, penalty, user_id, subject)
         } else {
             Ok(())

@@ -989,15 +989,17 @@ export const noiseControlBanner = (
     ) : null;
 };
 
+const reportConfirmed = (report: Report | undefined) =>
+    report &&
+    report.closed &&
+    report.confirmed_by.length > report.rejected_by.length &&
+    (Number(new Date()) - Number(report.timestamp) / 1000000) / DAY <
+        window.backendCache.config.user_report_validity_days;
+
 const controversialUser = (profile: User) =>
     profile.rewards < 0 ||
-    (profile.report &&
-        profile.report.closed &&
-        profile.report.confirmed_by.length >
-            profile.report.rejected_by.length &&
-        (Number(new Date()) - Number(profile.report.timestamp) / 1000000) /
-            DAY <
-            window.backendCache.config.user_report_validity_days);
+    reportConfirmed(profile.report) ||
+    reportConfirmed(profile.last_post_report);
 
 const checkUserFilterMatch = (
     filter: UserFilter,

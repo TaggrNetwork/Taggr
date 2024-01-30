@@ -56,10 +56,13 @@ export const Dashboard = ({}) => {
     React.useEffect(() => {
         window.api.query<Log[]>("logs").then((logs) => {
             if (!logs) return;
-            logs.sort(
-                (log1, log2) => Number(log2.timestamp) - Number(log1.timestamp),
-            );
-            setLogs(logs);
+            let tmp: [Log, number][] = logs.map((entry, i) => [entry, i]);
+            tmp.sort(([log1, pos1], [log2, pos2]) => {
+                const result = Number(log2.timestamp) - Number(log1.timestamp);
+                if (result == 0) return pos2 - pos1;
+                return result;
+            });
+            setLogs(tmp.map(([value]) => value));
         });
     }, []);
 

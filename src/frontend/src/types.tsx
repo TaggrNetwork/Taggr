@@ -193,6 +193,7 @@ export type User = {
     realms: string[];
     previous_names: string[];
     report?: Report;
+    last_post_report?: Report;
     stalwart: boolean;
     followees: UserId[];
     followers: UserId[];

@@ -596,15 +596,17 @@ const insertNewPicture = (
 
 let timer: any = null;
 let tagCache: any[] = [];
+let tagCosts: number = 0;
 
 const costs = async (value: string, poll: boolean) => {
     const tags = getTokens("#$", value);
-    if (tags.toString() == tagCache.toString()) return null;
-    tagCache = tags;
-    const tags_cost: number = (await window.api.query("tags_cost", tags)) || 0;
+    if (tags.toString() != tagCache.toString()) {
+        tagCosts = (await window.api.query("tags_cost", tags)) || 0;
+        tagCache = tags;
+    }
     const images = (value.match(/\(\/blob\/.+\)/g) || []).length;
     const { post_cost, blob_cost, poll_cost } = window.backendCache.config;
-    return post_cost + tags_cost + images * blob_cost + (poll ? poll_cost : 0);
+    return post_cost + tagCosts + images * blob_cost + (poll ? poll_cost : 0);
 };
 
 export const loadFile = (file: any): Promise<ArrayBuffer> => {

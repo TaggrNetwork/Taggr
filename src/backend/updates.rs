@@ -19,7 +19,7 @@ use ic_cdk::{
 };
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
-use ic_ledger_types::{AccountIdentifier, Tokens};
+use ic_ledger_types::{AccountIdentifier, Tokens, DEFAULT_SUBACCOUNT};
 use serde_bytes::ByteBuf;
 use std::time::Duration;
 
@@ -70,7 +70,34 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    mutate(|state| {
+        for u in state.users.values_mut() {
+            let expected_acc =
+                AccountIdentifier::new(&u.principal, &DEFAULT_SUBACCOUNT).to_string();
+            if u.account != expected_acc {
+                u.account = expected_acc;
+                ic_cdk::println!("fixed account of {}", u.name);
+            }
+        }
+        let posts = state
+            .users
+            .values()
+            .filter_map(|u| {
+                u.posts(state, 0).find_map(|post| {
+                    post.report
+                        .as_ref()
+                        .map(|report| (u.id, post.creation_timestamp(), report.clone()))
+                })
+            })
+            .collect::<Vec<_>>();
+
+        for (u_id, timestamp, mut report) in posts.into_iter() {
+            report.timestamp = timestamp;
+            state.users.get_mut(&u_id).unwrap().last_post_report = Some(report);
+        }
+    })
+}
 
 /*
  * UPDATES
