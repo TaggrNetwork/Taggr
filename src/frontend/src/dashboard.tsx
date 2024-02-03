@@ -8,7 +8,7 @@ import {
     userList,
     icpCode,
     IcpAccountLink,
-    XDR_TO_USD,
+    USD_PER_XDR,
 } from "./common";
 import { Content } from "./content";
 import {
@@ -168,9 +168,9 @@ export const Dashboard = ({}) => {
                             <Fire /> WEEK'S REVENUE
                         </label>
                         {show(
-                            Number(stats.burned_credits) /
-                                config.credits_per_xdr /
-                                XDR_TO_USD,
+                            (Number(stats.burned_credits) /
+                                config.credits_per_xdr) *
+                                USD_PER_XDR,
                             "$",
                             "prefix",
                         )}

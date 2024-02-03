@@ -171,9 +171,9 @@ fn sorted_realms(
             "popularity" => {
                 let realm_vp = realm_vp.get(realm_id.as_str()).copied().unwrap_or(1);
                 let whitelisted = if realm.whitelist.is_empty() {
-                    1
-                } else {
                     realm_vp
+                } else {
+                    1
                 };
                 let moderation = if realm.filter == UserFilter::default() {
                     1
@@ -404,22 +404,20 @@ fn last_posts() {
     let (realm, page, offset, filtered): (String, usize, PostId, bool) = parse(&arg_data_raw());
     read(|state| {
         let user = state.principal_to_user(caller());
-        let inverse_filters = user.map(|user| &user.filters);
+        let inverse_filters = filtered.then_some(user.map(|user| &user.filters)).flatten();
         reply(
             state
                 .last_posts(optional(realm), offset, /* with_comments = */ false)
                 .filter(|post| {
-                    if !filtered
-                        || inverse_filters
-                            .map(|filters| !post.matches_filters(filters))
-                            .unwrap_or(true)
-                    {
-                        return true;
-                    }
-                    match (user, state.users.get(&post.user)) {
-                        (Some(user), Some(author)) => user.accepts(author.id, &author.get_filter()),
-                        _ => true,
-                    }
+                    inverse_filters
+                        .map(|filters| !post.matches_filters(filters))
+                        .unwrap_or(true)
+                        && match (user, state.users.get(&post.user)) {
+                            (Some(user), Some(author)) => {
+                                user.accepts(author.id, &author.get_filter())
+                            }
+                            _ => true,
+                        }
                 })
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)

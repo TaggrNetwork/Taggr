@@ -124,6 +124,22 @@ export const Profile = ({ handle }: { handle: string }) => {
                                     text={true}
                                 />
                                 <ToggleButton
+                                    offLabel="BLOCK"
+                                    onLabel="UNBLOCK"
+                                    classNameArg="max_width_col"
+                                    currState={() =>
+                                        user.blacklist.includes(profile.id)
+                                    }
+                                    toggler={() =>
+                                        window.api
+                                            .call(
+                                                "toggle_blacklist",
+                                                profile.id,
+                                            )
+                                            .then(window.reloadUser)
+                                    }
+                                />
+                                <ToggleButton
                                     offLabel="MUTE"
                                     onLabel="UNMUTE"
                                     classNameArg="max_width_col"
@@ -292,7 +308,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
               )
             : null;
     const inviter = profile.invited_by;
-    const filters = profile.filters;
 
     const donations = Object.entries(profile.karma_donations);
     donations.sort(([_, donation1], [_2, donation2]) => donation2 - donation1);
@@ -367,6 +382,11 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             )}
             {getLabels(profile)}
             {noiseControlBanner("user", profile.filters.noise, window.user)}
+            {window.user && profile.blacklist.includes(window.user.id) && (
+                <div className="banner vertically_spaced">
+                    This user has blocked you
+                </div>
+            )}
             <div className="top_spaced dynamic_table">
                 <div className="db_cell">
                     TOKENS
@@ -458,33 +478,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     <hr />
                 </>
             )}
-            {filters.users.length +
-                filters.tags.length +
-                filters.realms.length >
-                0 && (
-                <>
-                    <h2>Muted</h2>
-                    <div className="bottom_spaced">
-                        {userList(filters.users)}
-                    </div>
-                    <div className="bottom_spaced">
-                        <RealmList
-                            classNameArg="top_spaced"
-                            ids={filters.realms}
-                        />
-                    </div>
-                    <div className="bottom_spaced">
-                        {commaSeparated(
-                            filters.tags.map((tag) => (
-                                <a key={tag} href={`#/feed/${tag}`}>
-                                    {tag}
-                                </a>
-                            )),
-                        )}
-                    </div>
-                    <hr />
-                </>
-            )}
         </div>
     );
 };
@@ -543,17 +536,19 @@ const followeeList = (ids: UserId[]) => (
         {ids.map((id) => (
             <div key={id} className="stands_out row_container">
                 <UserLink id={id} classNameArg="max_width_col" />
-                <ToggleButton
-                    offLabel="FOLLOW"
-                    onLabel="UNFOLLOW"
-                    classNameArg="left_half_spaced right_half_spaced"
-                    currState={() => window.user.followees.includes(id)}
-                    toggler={() =>
-                        window.api
-                            .call("toggle_following_user", id)
-                            .then(window.reloadUser)
-                    }
-                />
+                {window.user && window.user.id != id && (
+                    <ToggleButton
+                        offLabel="FOLLOW"
+                        onLabel="UNFOLLOW"
+                        classNameArg="left_half_spaced right_half_spaced"
+                        currState={() => window.user.followees.includes(id)}
+                        toggler={() =>
+                            window.api
+                                .call("toggle_following_user", id)
+                                .then(window.reloadUser)
+                        }
+                    />
+                )}
             </div>
         ))}
     </>

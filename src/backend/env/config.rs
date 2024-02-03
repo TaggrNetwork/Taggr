@@ -224,8 +224,15 @@ pub const CONFIG: &Config = &Config {
 
     maximum_supply: 100_000_000,
 
+    #[cfg(not(feature = "staging"))]
     main_canister_min_cycle_balance: 10 * ICP_CYCLES_PER_XDR,
+    #[cfg(not(feature = "staging"))]
     child_canister_min_cycle_balance: 10 * ICP_CYCLES_PER_XDR,
+
+    #[cfg(feature = "staging")]
+    main_canister_min_cycle_balance: 2 * ICP_CYCLES_PER_XDR,
+    #[cfg(feature = "staging")]
+    child_canister_min_cycle_balance: 2 * ICP_CYCLES_PER_XDR,
 
     num_hot_posts: 10000,
 

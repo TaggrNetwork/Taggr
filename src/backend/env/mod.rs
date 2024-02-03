@@ -119,7 +119,7 @@ pub struct Realm {
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Summary {
-    title: String,
+    pub title: String,
     description: String,
     items: Vec<String>,
 }
@@ -1236,7 +1236,7 @@ impl State {
             let mut total_rewards = 0;
             let mut total_revenue = 0;
             let mut summary = Summary {
-                title: "ICP payouts report".into(),
+                title: "Rewards report".into(),
                 description: Default::default(),
                 items: Vec::default(),
             };
@@ -1605,11 +1605,11 @@ impl State {
         for (realm_id, revenue, controllers) in self
             .realms
             .iter_mut()
-            .filter(|(id, _)| id.as_str() != CONFIG.dao_realm)
+            .filter(|(id, realm)| id.as_str() != CONFIG.dao_realm && realm.revenue > 0)
             .map(|(id, realm)| {
                 (
                     id.clone(),
-                    std::mem::replace(&mut realm.revenue, 0),
+                    std::mem::take(&mut realm.revenue),
                     realm.controllers.clone(),
                 )
             })
@@ -1668,6 +1668,8 @@ impl State {
                 );
             }
             user.karma_donations.clear();
+            user.post_reports
+                .retain(|_, timestamp| *timestamp + CONFIG.user_report_validity_days * DAY >= now);
         }
         self.accounting.clean_up();
     }
@@ -1726,7 +1728,7 @@ impl State {
         for u in users {
             if !u.governance
                 || u.is_bot()
-                || u.report.is_some()
+                || u.controversial()
                 || now.saturating_sub(u.timestamp)
                     < WEEK * CONFIG.min_stalwart_account_age_weeks as u64
             {
@@ -2250,11 +2252,12 @@ impl State {
             _ => return Err("unknown report type".into()),
         };
         if report.closed {
-            if domain == "post" {
+            if domain == "post" && report.rejected() {
                 self.users
                     .get_mut(&user_id)
                     .expect("no user found")
-                    .last_post_report = Some(report.clone())
+                    .post_reports
+                    .remove(&id);
             }
             reports::finalize_report(self, &report, &domain, penalty, user_id, subject)
         } else {
@@ -2331,6 +2334,7 @@ impl State {
                     Predicate::ReportOpen(id),
                 );
                 let post_author = self.users.get_mut(&post_user).expect("no user found");
+                post_author.post_reports.insert(id, time());
                 post_author.notify(format!(
                     "Your [post](#/post/{}) was reported. Consider deleting it to avoid rewards and credit penalties.",
                     id
@@ -2422,13 +2426,12 @@ impl State {
         )?;
 
         // subtract all rewards from rewards
-        self.users
-            .get_mut(&post.user)
-            .expect("no user found")
-            .change_rewards(
-                -rewards_penalty,
-                format!("deletion of post [{0}](#/post/{0})", post.id),
-            );
+        let user = self.users.get_mut(&post.user).expect("no user found");
+        user.change_rewards(
+            -rewards_penalty,
+            format!("deletion of post [{0}](#/post/{0})", post.id),
+        );
+        user.post_reports.remove(&post.id);
 
         match &post.extension {
             Some(Extension::Proposal(proposal_id)) => {
@@ -2501,6 +2504,15 @@ impl State {
             if user.balance < token::base() {
                 return Err("no downvotes for users with low token balance".into());
             }
+            if self
+                .users
+                .get(&post.user)
+                .map(|user| user.blacklist.contains(&user_id))
+                .unwrap_or_default()
+            {
+                return Err("you cannot react on posts of users who blocked you".into());
+            }
+
             let user = self.users.get_mut(&post.user).expect("user not found");
             user.change_rewards(delta, log.clone());
             user.downvotes.insert(user_id, time);
@@ -2573,6 +2585,9 @@ impl State {
                 Some(user) => user,
                 _ => return false,
             };
+            if user.id == followee_id {
+                return false;
+            }
             (
                 if user.followees.contains(&followee_id) {
                     user.followees.remove(&followee_id);

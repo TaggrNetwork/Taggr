@@ -9,7 +9,7 @@ import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
 
-export const XDR_TO_USD = 1.33;
+export const USD_PER_XDR = 1.33;
 
 export const MAX_POST_SIZE_BYTES = Math.ceil(1024 * 1024 * 1.9);
 
@@ -943,8 +943,8 @@ export const icrcTransfer = async (
             )?.trim() || "",
             decimals,
         );
-        if (!amount) return 0;
         if (
+            !amount ||
             !confirm(
                 `You are transferring\n\n${tokens(
                     amount,
@@ -952,23 +952,10 @@ export const icrcTransfer = async (
                 )} ${symbol}\n\nto\n\n${recipient}`,
             )
         )
-            return 0;
-        const response: string | number = await window.api.icrc_transfer(
-            token,
-            recipient,
-            amount,
-            fee,
-        );
-        if (typeof response == "string") {
-            alert(
-                "Transfer failed. One reason might be that you voted on a proposal that is still open.",
-            );
-            return 0;
-        }
-        return response;
+            return;
+        return await window.api.icrc_transfer(token, recipient, amount, fee);
     } catch (e) {
-        alert("Transfer failed.");
-        return 0;
+        return "Transfer failed";
     }
 };
 
@@ -989,17 +976,27 @@ export const noiseControlBanner = (
     ) : null;
 };
 
-const reportConfirmed = (report: Report | undefined) =>
+const daysOld = (timestamp: bigint, days: number) =>
+    (Number(new Date()) - Number(timestamp) / 1000000) / DAY < days;
+
+const pending_or_recently_confirmed = (report: Report | undefined) =>
     report &&
-    report.closed &&
-    report.confirmed_by.length > report.rejected_by.length &&
-    (Number(new Date()) - Number(report.timestamp) / 1000000) / DAY <
-        window.backendCache.config.user_report_validity_days;
+    (!report.closed ||
+        (report.confirmed_by.length > report.rejected_by.length &&
+            daysOld(
+                report.timestamp,
+                window.backendCache.config.user_report_validity_days,
+            )));
 
 const controversialUser = (profile: User) =>
     profile.rewards < 0 ||
-    reportConfirmed(profile.report) ||
-    reportConfirmed(profile.last_post_report);
+    pending_or_recently_confirmed(profile.report) ||
+    Object.values(profile.post_reports).some((timestamp) =>
+        daysOld(
+            timestamp,
+            window.backendCache.config.user_report_validity_days,
+        ),
+    );
 
 const checkUserFilterMatch = (
     filter: UserFilter,
@@ -1009,10 +1006,7 @@ const checkUserFilterMatch = (
     const { age_days, safe, balance, num_followers, downvotes } = filter;
     const { downvote_counting_period_days, user_report_validity_days } =
         window.backendCache.config;
-    if (
-        (Number(new Date()) - Number(user.timestamp) / 1000000) / DAY <
-        age_days
-    ) {
+    if (daysOld(user.timestamp, age_days)) {
         return "account age is too low";
     }
     if (safe && controversialUser(user)) {

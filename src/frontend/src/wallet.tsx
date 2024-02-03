@@ -8,7 +8,7 @@ import {
     icpCode,
     ButtonWithLoading,
     bigScreen,
-    XDR_TO_USD,
+    USD_PER_XDR,
     ICP_LEDGER_ID,
     icrcTransfer,
     parseNumber,
@@ -115,7 +115,7 @@ export const Welcome = () => {
                                     by the {window.backendCache.config.name}{" "}
                                     canister. You get <code>1000</code> credits
                                     for as little as{" "}
-                                    <code>~{XDR_TO_USD} USD</code> (corresponds
+                                    <code>~{USD_PER_XDR} USD</code> (corresponds
                                     to 1{" "}
                                     <a href="https://en.wikipedia.org/wiki/Special_drawing_rights">
                                         XDR
@@ -326,13 +326,15 @@ export const Wallet = () => {
                                 setUser(window.user);
                                 return;
                             }
-                            await icrcTransfer(
+                            const response = await icrcTransfer(
                                 ICP_LEDGER_ID,
                                 "ICP",
                                 8,
                                 ICP_DEFAULT_FEE,
                                 recipient,
                             );
+                            if (typeof response == "string")
+                                alert(`Transfer failed: ${response}`);
                             await window.reloadUser();
                             setUser(window.user);
                         } catch (e) {
@@ -454,6 +456,14 @@ export const Wallet = () => {
                     <ButtonWithLoading
                         classNameArg="fat"
                         onClick={async () => {
+                            if (
+                                !confirm(
+                                    "Unlinking of the cold wallet leads to the reduction of your voting power. " +
+                                        "\n\n" +
+                                        "Please confirm the unlinking.",
+                                )
+                            )
+                                return;
                             const response: any =
                                 await window.api.unlink_cold_wallet();
                             if (response && "Err" in response) {
@@ -470,12 +480,16 @@ export const Wallet = () => {
                     label="SEND"
                     testId="tokens-transfer-button"
                     onClick={async () => {
-                        await icrcTransfer(
+                        const response = await icrcTransfer(
                             Principal.fromText(CANISTER_ID),
                             token_symbol,
                             token_decimals,
                             transaction_fee,
                         );
+                        if (typeof response == "string")
+                            alert(
+                                `Transfer failed. One reason might be that you voted on a proposal that is still open.`,
+                            );
                         await window.reloadUser();
                         setUser(window.user);
                     }}
@@ -522,7 +536,7 @@ export const WelcomeInvited = ({}) => (
 const getActor = async () => {
     await window.ic.plug.requestConnect({
         host: MAINNET_MODE
-            ? `https://${CANISTER_ID}.ic0.app`
+            ? `https://${location.origin}`
             : window.location.origin,
     });
     return await window.ic.plug.createActor({

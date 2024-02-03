@@ -11,7 +11,7 @@ import {
     TokenBalance,
     tokenBalance,
     UserLink,
-    XDR_TO_USD,
+    USD_PER_XDR,
 } from "./common";
 import * as React from "react";
 import { UserId, Transaction, User, Account } from "./types";
@@ -136,7 +136,7 @@ export const Tokens = () => {
                             {(
                                 ((Number(e8s_revenue_per_1k) * 10) /
                                     Number(e8s_for_one_xdr)) *
-                                XDR_TO_USD
+                                USD_PER_XDR
                             ).toLocaleString()}
                         </code>
                     </div>

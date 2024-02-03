@@ -125,6 +125,36 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
                 .take(MAX_RESULTS)
                 .collect()
         }
+        // search for the user only
+        [user_name] if user_name.starts_with('@') => {
+            let query = user_name[1..].to_lowercase();
+            state
+                .users
+                .values()
+                .filter(|user| user.name.to_lowercase().starts_with(&query))
+                .map(|user| SearchResult {
+                    id: user.id,
+                    relevant: user.about.clone(),
+                    result: "user".to_string(),
+                    ..Default::default()
+                })
+                .collect()
+        }
+        // search for realm only
+        [realm] if realm.starts_with('/') => {
+            let query = &realm[1..].to_uppercase();
+            state
+                .realms
+                .iter()
+                .filter(|(realm_id, _)| realm_id.starts_with(query))
+                .map(|(realm_id, realm)| SearchResult {
+                    generic_id: realm_id.clone(),
+                    relevant: snippet(realm.description.as_str(), 0),
+                    result: "realm".to_string(),
+                    ..Default::default()
+                })
+                .collect()
+        }
         // fall back to search through everything
         _ => wildcard_search(state, &query),
     }

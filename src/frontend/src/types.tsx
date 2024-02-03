@@ -193,13 +193,13 @@ export type User = {
     realms: string[];
     previous_names: string[];
     report?: Report;
-    last_post_report?: Report;
+    post_reports: { [id: PostId]: bigint };
     stalwart: boolean;
     followees: UserId[];
     followers: UserId[];
     feeds: string[][];
     accounting: [number, string, number, string][];
-    timestamp: BigInt;
+    timestamp: bigint;
     active_weeks: number;
     invited_by?: UserId;
     about: string;
@@ -213,6 +213,7 @@ export type User = {
     karma_donations: { [key: UserId]: number };
     downvotes: { [key: UserId]: number };
     filters: Filters;
+    blacklist: UserId[];
     notifications: { [key: number]: [Notification, boolean] };
 };
 

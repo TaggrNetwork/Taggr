@@ -20,10 +20,13 @@ pub enum ReportState {
 }
 
 impl Report {
+    pub fn rejected(&self) -> bool {
+        self.confirmed_by.len() < self.rejected_by.len()
+    }
+
     pub fn pending_or_recently_confirmed(&self) -> bool {
         !self.closed
-            || self.confirmed_by.len() > self.rejected_by.len()
-                && self.timestamp + CONFIG.user_report_validity_days * DAY >= time()
+            || !self.rejected() && self.timestamp + CONFIG.user_report_validity_days * DAY >= time()
     }
 
     pub fn vote(
@@ -52,10 +55,10 @@ impl Report {
         Ok(
             if votes * 100 >= CONFIG.report_confirmation_percentage * stalwarts as u16 {
                 self.closed = true;
-                if self.confirmed_by.len() > self.rejected_by.len() {
-                    ReportState::Confirmed
-                } else {
+                if self.rejected() {
                     ReportState::Rejected
+                } else {
+                    ReportState::Confirmed
                 }
             } else {
                 ReportState::Open
@@ -222,6 +225,7 @@ mod tests {
                 state.report(reporter, "post".into(), post_id, String::new()),
                 Err("no reports with low token balance".into())
             );
+
             state.minting_mode = true;
             token::mint(state, account(reporter), CONFIG.transaction_fee * 1000);
             state.minting_mode = false;
@@ -250,6 +254,9 @@ mod tests {
             state
                 .report(reporter, "post".into(), post_id, String::new())
                 .unwrap();
+
+            let post_author = state.principal_to_user_mut(pr(0)).unwrap();
+            assert!(post_author.post_reports.contains_key(&post_id));
 
             // make sure the reporter is correct
             let p = Post::get(state, &post_id).unwrap();
@@ -320,6 +327,9 @@ mod tests {
             // make sure the report is closed and post deleted
             assert!(report.closed);
             assert_eq!(&p.body, "");
+            let post_author = state.principal_to_user_mut(pr(0)).unwrap();
+            // The report is still pending
+            assert!(post_author.post_reports.contains_key(&post_id));
 
             let user = state.users.get(&u1).unwrap();
             assert_eq!(
@@ -387,6 +397,10 @@ mod tests {
             state
                 .vote_on_report(pr(9), "post".into(), post_id, false)
                 .unwrap();
+
+            let post_author = state.principal_to_user_mut(pr(100)).unwrap();
+            assert!(post_author.post_reports.contains_key(&post_id));
+
             let p = Post::get(state, &post_id).unwrap();
             let report = &p.report.clone().unwrap();
             assert_eq!(report.confirmed_by.len(), 0);
@@ -395,11 +409,16 @@ mod tests {
             state
                 .vote_on_report(pr(10), "post".into(), post_id, false)
                 .unwrap();
+
             let p = Post::get(state, &post_id).unwrap();
             let report = &p.report.clone().unwrap();
             assert_eq!(report.confirmed_by.len(), 0);
             assert_eq!(report.rejected_by.len(), 3);
             assert!(report.closed);
+
+            // report removed from the post
+            let post_author = state.principal_to_user_mut(pr(100)).unwrap();
+            assert!(!post_author.post_reports.contains_key(&post_id));
 
             // karma and credits stay untouched
             let user = state.users.get(&u).unwrap();

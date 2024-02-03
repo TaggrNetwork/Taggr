@@ -19,7 +19,7 @@ use ic_cdk::{
 };
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
-use ic_ledger_types::{AccountIdentifier, Tokens, DEFAULT_SUBACCOUNT};
+use ic_ledger_types::{AccountIdentifier, Tokens};
 use serde_bytes::ByteBuf;
 use std::time::Duration;
 
@@ -72,31 +72,33 @@ fn post_upgrade() {
 
 async fn post_upgrade_fixtures() {
     mutate(|state| {
-        for u in state.users.values_mut() {
-            let expected_acc =
-                AccountIdentifier::new(&u.principal, &DEFAULT_SUBACCOUNT).to_string();
-            if u.account != expected_acc {
-                u.account = expected_acc;
-                ic_cdk::println!("fixed account of {}", u.name);
+        // Rename the ICP reward report
+        state.distribution_reports.iter_mut().for_each(|summary| {
+            if summary.title.contains("ICP") {
+                summary.title = "Rewards report".to_string();
             }
-            u.karma_donations.remove(&u.id);
-        }
-        let now = time();
-        let posts = state
-            .last_posts(None, 0, true)
+        });
+
+        // Add all recent reports of each user to the corresponding list
+        let reports = (0..state.next_post_id.saturating_sub(1))
+            .rev()
+            .filter_map(|id| Post::get(state, &id))
             .take_while(|post| {
-                post.creation_timestamp() + CONFIG.user_report_validity_days * DAY >= now
+                post.creation_timestamp() + CONFIG.user_report_validity_days * DAY > time()
             })
             .filter_map(|post| {
                 post.report
                     .as_ref()
-                    .map(|report| (post.user, post.creation_timestamp(), report.clone()))
+                    .map(|report| (post.user, post.id, report.timestamp))
             })
             .collect::<Vec<_>>();
-
-        for (u_id, timestamp, mut report) in posts.into_iter() {
-            report.timestamp = timestamp;
-            state.users.get_mut(&u_id).unwrap().last_post_report = Some(report);
+        for (user_id, post_id, timestamp) in reports.into_iter() {
+            state
+                .users
+                .get_mut(&user_id)
+                .unwrap()
+                .post_reports
+                .insert(post_id, timestamp);
         }
     })
 }
@@ -556,6 +558,17 @@ fn toggle_realm_membership() {
         let name: String = parse(&arg_data_raw());
         reply(state.toggle_realm_membership(caller(), name))
     })
+}
+
+#[export_name = "canister_update toggle_blacklist"]
+fn toggle_blacklist() {
+    mutate(|state| {
+        let user_id: UserId = parse(&arg_data_raw());
+        if let Some(user) = state.principal_to_user_mut(caller()) {
+            user.toggle_blacklist(user_id);
+        }
+    });
+    reply_raw(&[])
 }
 
 #[export_name = "canister_update toggle_filter"]

@@ -96,8 +96,12 @@ pub struct User {
     pub active_weeks: u32,
     pub principal: Principal,
     pub report: Option<Report>,
-    #[serde(default)]
+    // TODO: delete
     pub last_post_report: Option<Report>,
+    #[serde(default)]
+    pub post_reports: BTreeMap<PostId, Time>,
+    #[serde(default)]
+    pub blacklist: BTreeSet<UserId>,
     pub treasury_e8s: u64,
     #[serde(skip)]
     pub draft: Option<Draft>,
@@ -113,7 +117,8 @@ pub struct User {
 
 impl User {
     pub fn accepts(&self, user_id: UserId, filter: &UserFilter) -> bool {
-        !self.filters.users.contains(&user_id)
+        !self.blacklist.contains(&user_id)
+            && !self.filters.users.contains(&user_id)
             && (self.followees.contains(&user_id) || filter.passes(&self.filters.noise))
     }
 
@@ -130,10 +135,9 @@ impl User {
     pub fn controversial(&self) -> bool {
         self.rewards < 0
             || self
-                .last_post_report
-                .as_ref()
-                .map(|report| report.pending_or_recently_confirmed())
-                .unwrap_or_default()
+                .post_reports
+                .values()
+                .any(|timestamp| timestamp + CONFIG.user_report_validity_days * DAY >= time())
             || self
                 .report
                 .as_ref()
@@ -148,6 +152,8 @@ impl User {
             about: Default::default(),
             report: None,
             last_post_report: None,
+            post_reports: Default::default(),
+            blacklist: Default::default(),
             last_post: 0,
             account: AccountIdentifier::new(&principal, &DEFAULT_SUBACCOUNT).to_string(),
             settings: Default::default(),
@@ -215,6 +221,14 @@ impl User {
         self.bookmarks.push_front(post_id);
         self.notify_about_post("Added to your bookmarks", post_id);
         true
+    }
+
+    pub fn toggle_blacklist(&mut self, user_id: UserId) {
+        if self.blacklist.contains(&user_id) {
+            self.blacklist.remove(&user_id);
+        } else {
+            self.blacklist.insert(user_id);
+        }
     }
 
     pub fn toggle_filter(&mut self, filter: String, value: String) -> Result<(), String> {
