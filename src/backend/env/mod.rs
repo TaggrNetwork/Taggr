@@ -189,7 +189,7 @@ pub struct State {
     pub distribution_reports: Vec<Summary>,
 
     #[serde(default)]
-    migrations: u32,
+    migrations: BTreeSet<UserId>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -2668,6 +2668,10 @@ impl State {
             .principals
             .remove(&principal)
             .ok_or("no principal found")?;
+        if self.migrations.contains(&user_id) {
+            return Err("this user has migrated".into());
+        }
+
         self.principals.insert(new_principal, user_id);
 
         let user = self.users.get_mut(&user_id).expect("no user found");
@@ -2707,7 +2711,7 @@ impl State {
                 .unwrap_or_default()
         );
         assert_eq!(all_balances, self.balances.values().sum::<Token>());
-        self.migrations += 1;
+        self.migrations.insert(user_id);
         Ok(())
     }
 }
