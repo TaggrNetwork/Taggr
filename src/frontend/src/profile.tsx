@@ -116,47 +116,49 @@ export const Profile = ({ handle }: { handle: string }) => {
                             classNameArg="max_width_col"
                             text={true}
                         />
-                        {user && (
-                            <>
-                                <FlagButton
-                                    id={profile.id}
-                                    domain="misbehaviour"
-                                    text={true}
-                                />
-                                <ToggleButton
-                                    offLabel="BLOCK"
-                                    onLabel="UNBLOCK"
-                                    classNameArg="max_width_col"
-                                    currState={() =>
-                                        user.blacklist.includes(profile.id)
-                                    }
-                                    toggler={() =>
-                                        window.api
-                                            .call(
-                                                "toggle_blacklist",
+                        <>
+                            {user && user.id != profile.id && (
+                                <>
+                                    <FlagButton
+                                        id={profile.id}
+                                        domain="misbehaviour"
+                                        text={true}
+                                    />
+                                    <ToggleButton
+                                        offLabel="BLOCK"
+                                        onLabel="UNBLOCK"
+                                        classNameArg="max_width_col"
+                                        currState={() =>
+                                            user.blacklist.includes(profile.id)
+                                        }
+                                        toggler={() =>
+                                            window.api
+                                                .call(
+                                                    "toggle_blacklist",
+                                                    profile.id,
+                                                )
+                                                .then(window.reloadUser)
+                                        }
+                                    />
+                                    <ToggleButton
+                                        offLabel="MUTE"
+                                        onLabel="UNMUTE"
+                                        classNameArg="max_width_col"
+                                        currState={() =>
+                                            user.filters.users.includes(
                                                 profile.id,
                                             )
-                                            .then(window.reloadUser)
-                                    }
-                                />
-                                <ToggleButton
-                                    offLabel="MUTE"
-                                    onLabel="UNMUTE"
-                                    classNameArg="max_width_col"
-                                    currState={() =>
-                                        user.filters.users.includes(profile.id)
-                                    }
-                                    toggler={() =>
-                                        window.api
-                                            .call(
-                                                "toggle_filter",
-                                                "user",
-                                                profile.id.toString(),
-                                            )
-                                            .then(window.reloadUser)
-                                    }
-                                />
-                                {user.id != profile.id && (
+                                        }
+                                        toggler={() =>
+                                            window.api
+                                                .call(
+                                                    "toggle_filter",
+                                                    "user",
+                                                    profile.id.toString(),
+                                                )
+                                                .then(window.reloadUser)
+                                        }
+                                    />
                                     <ButtonWithLoading
                                         label="SEND CREDITS"
                                         classNameArg="max_width_col"
@@ -187,29 +189,28 @@ export const Profile = ({ handle }: { handle: string }) => {
                                             await updateState();
                                         }}
                                     />
-                                )}
-                                {profile.settings.open_chat && (
-                                    <ButtonWithLoading
-                                        label="OPEN CHAT"
-                                        classNameArg="max_width_col"
-                                        onClick={async () => {
-                                            try {
-                                                // Make sure it parses as cansiter id;
-                                                let canister_id =
-                                                    Principal.fromText(
-                                                        profile.settings
-                                                            .open_chat,
-                                                    );
-                                                const url = `https://oc.app/user/${canister_id.toString()}`;
-                                                window.open(url, "_blank");
-                                            } catch (e) {
-                                                console.error(e);
-                                            }
-                                        }}
-                                    />
-                                )}
-                            </>
-                        )}
+                                </>
+                            )}
+                            {profile.settings.open_chat && (
+                                <ButtonWithLoading
+                                    label="OPEN CHAT"
+                                    classNameArg="max_width_col"
+                                    onClick={async () => {
+                                        try {
+                                            // Make sure it parses as cansiter id;
+                                            let canister_id =
+                                                Principal.fromText(
+                                                    profile.settings.open_chat,
+                                                );
+                                            const url = `https://oc.app/user/${canister_id.toString()}`;
+                                            window.open(url, "_blank");
+                                        } catch (e) {
+                                            console.error(e);
+                                        }
+                                    }}
+                                />
+                            )}
+                        </>
                     </div>
                 }
             />

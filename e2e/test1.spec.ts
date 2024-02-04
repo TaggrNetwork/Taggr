@@ -64,7 +64,7 @@ test.describe("Upgrades & token transfer flow", () => {
             .getByTestId("post-info-toggle")
             .click();
         // React with a star
-        await page.locator('button[title="Karma points: 10"]').click();
+        await page.locator('button[title="Karma points: 20"]').click();
         await page.waitForTimeout(4500);
     });
 
@@ -79,7 +79,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.goto("/");
         await page.getByTestId("toggle-user-section").click();
 
-        await expect(page.getByTestId("token-balance")).toHaveText("10");
+        await expect(page.getByTestId("token-balance")).toHaveText("20");
 
         const transferExecuted = new Promise((resolve, _reject) => {
             page.on("dialog", async (dialog) => {
@@ -104,7 +104,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
         await transferExecuted;
 
-        await expect(page.getByTestId("token-balance")).toHaveText("4.75");
+        await expect(page.getByTestId("token-balance")).toHaveText("14.75");
         await page.getByTestId("token-balance").click();
         await page.getByRole("link", { name: "6qfxa" }).click();
         await expect(

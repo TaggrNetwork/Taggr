@@ -72,33 +72,34 @@ fn post_upgrade() {
 
 async fn post_upgrade_fixtures() {
     mutate(|state| {
-        // Rename the ICP reward report
-        state.distribution_reports.iter_mut().for_each(|summary| {
-            if summary.title.contains("ICP") {
-                summary.title = "Rewards report".to_string();
-            }
-        });
-
-        // Add all recent reports of each user to the corresponding list
-        let reports = (0..state.next_post_id.saturating_sub(1))
-            .rev()
-            .filter_map(|id| Post::get(state, &id))
-            .take_while(|post| {
-                post.creation_timestamp() + CONFIG.user_report_validity_days * DAY > time()
+        let invalid_reports = state
+            .users
+            .values()
+            .flat_map(|u| {
+                u.post_reports
+                    .clone()
+                    .into_keys()
+                    .map(move |post_id| (u.id, post_id))
             })
-            .filter_map(|post| {
-                post.report
-                    .as_ref()
-                    .map(|report| (post.user, post.id, report.timestamp))
+            .filter_map(|(user_id, post_id)| {
+                let report = Post::get(state, &post_id).unwrap().report.as_ref().unwrap();
+                if report.closed && report.confirmed_by.len() < 7 {
+                    Some((user_id, post_id))
+                } else {
+                    None
+                }
             })
             .collect::<Vec<_>>();
-        for (user_id, post_id, timestamp) in reports.into_iter() {
+
+        ic_cdk::println!("invalid reports = {}", invalid_reports.len());
+
+        for (user_id, post_id) in invalid_reports.into_iter() {
             state
                 .users
                 .get_mut(&user_id)
                 .unwrap()
                 .post_reports
-                .insert(post_id, timestamp);
+                .remove(&post_id);
         }
     })
 }

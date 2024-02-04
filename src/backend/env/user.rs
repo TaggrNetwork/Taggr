@@ -97,10 +97,9 @@ pub struct User {
     pub principal: Principal,
     pub report: Option<Report>,
     // TODO: delete
+    #[serde(skip)]
     pub last_post_report: Option<Report>,
-    #[serde(default)]
     pub post_reports: BTreeMap<PostId, Time>,
-    #[serde(default)]
     pub blacklist: BTreeSet<UserId>,
     pub treasury_e8s: u64,
     #[serde(skip)]
@@ -151,7 +150,6 @@ impl User {
             name,
             about: Default::default(),
             report: None,
-            last_post_report: None,
             post_reports: Default::default(),
             blacklist: Default::default(),
             last_post: 0,
@@ -186,6 +184,7 @@ impl User {
             governance: true,
             downvotes: Default::default(),
             show_posts_in_realms: true,
+            last_post_report: Default::default(),
         }
     }
 

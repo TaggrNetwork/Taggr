@@ -122,7 +122,7 @@ pub struct Config {
 
     pub min_positive_reaction_id: u16,
 
-    pub reaction_fee: Credits,
+    pub reaction_fee: &'static [(u16, Credits)],
 
     pub max_funding_amount: u64,
 
@@ -303,11 +303,11 @@ pub const CONFIG: &Config = &Config {
 
     online_activity_minutes: 10 * 60000000000_u64,
 
-    reactions: &[(1, -3), (100, 10), (50, 5), (51, 5), (10, 1)],
+    reactions: &[(1, -3), (100, 20), (50, 10), (51, 10), (10, 2)],
 
     min_positive_reaction_id: 10,
 
-    reaction_fee: 1,
+    reaction_fee: &[(100, 3), (50, 2), (51, 2), (10, 1)],
 
     max_funding_amount: 1_000_000, // at ratio 1:1
 
@@ -322,4 +322,12 @@ pub fn reaction_rewards() -> BTreeMap<u16, i64> {
             acc.insert(*id, *rewards);
             acc
         })
+}
+
+pub fn reaction_fee(reaction: u16) -> Credits {
+    CONFIG
+        .reaction_fee
+        .iter()
+        .find_map(|(id, fee)| (id == &reaction).then_some(*fee))
+        .expect("unexpected reaction")
 }

@@ -128,12 +128,12 @@ test.describe("Report and transfer to user", () => {
             hasText: /Good stuff/,
         });
         await feedItem.getByTestId("post-info-toggle").click();
-        await feedItem.locator('button[title="Karma points: 10"]').click();
+        await feedItem.locator('button[title="Karma points: 20"]').click();
         // Wait because the UI waits for 4s before sending the command
         await page.waitForTimeout(6000);
         await feedItem.getByRole("link", { name: "jane" }).first().click();
         await expect(page.locator("div:has-text('REWARDS') > code")).toHaveText(
-            "10",
+            "20",
         );
         exec("dfx canister call taggr weekly_chores");
         await page.waitForTimeout(1500);
@@ -191,7 +191,7 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.getByTestId("toggle-user-section").click();
 
-        await expect(page.getByTestId("token-balance")).toHaveText("10");
+        await expect(page.getByTestId("token-balance")).toHaveText("20");
 
         const transferExecuted = new Promise((resolve, _reject) => {
             page.on("dialog", async (dialog) => {

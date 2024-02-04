@@ -234,7 +234,7 @@ test.describe("Regular users flow", () => {
         // React with a star
         await page
             .locator(".feed_item", { hasText: /Hello world/ })
-            .locator('button[title="Karma points: 10"]')
+            .locator('button[title="Karma points: 20"]')
             .click();
         // comment on the first post
         await page
