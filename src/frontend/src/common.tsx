@@ -8,6 +8,7 @@ import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
+import { MAINNET_MODE } from "./env";
 
 export const USD_PER_XDR = 1.33;
 
@@ -290,7 +291,10 @@ export const setTitle = (value: string) => {
         ).toUpperCase();
 };
 
+export const HASH_ITERATIONS = MAINNET_MODE ? 15000 : 2;
+
 export const ButtonWithLoading = ({
+    id,
     label,
     title,
     onClick,
@@ -298,6 +302,7 @@ export const ButtonWithLoading = ({
     styleArg,
     testId,
 }: {
+    id?: string;
     label: any;
     title?: string;
     onClick: () => Promise<any>;
@@ -308,6 +313,7 @@ export const ButtonWithLoading = ({
     let [loading, setLoading] = React.useState(false);
     return (
         <button
+            id={id}
             title={title}
             disabled={loading}
             className={`fat ${
@@ -855,9 +861,9 @@ export const ReportBanner = ({
     );
 };
 
-export const popUp = (content: JSX.Element) => {
+export function popUp<T>(content: JSX.Element): null | Promise<T> {
     const preview = document.getElementById("preview");
-    if (!preview) return;
+    if (!preview) return null;
     while (preview.hasChildNodes()) {
         let firstChild = preview.firstChild;
         if (firstChild) preview.removeChild(firstChild);
@@ -874,21 +880,31 @@ export const popUp = (content: JSX.Element) => {
     const root = document.createElement("div");
     root.className = "popup_body";
     preview.appendChild(root);
-    createRoot(root).render(
-        <>
-            <div
-                data-testid="popup-close-button"
-                className="clickable row_container bottom_spaced"
-                onClick={closePreview}
-            >
-                <div style={{ marginLeft: "auto" }}>
-                    <Close classNameArg="action" size={18} />
+
+    const promise = new Promise((resolve: (arg: T) => void) => {
+        createRoot(root).render(
+            <>
+                <div
+                    data-testid="popup-close-button"
+                    className="clickable row_container bottom_spaced"
+                    onClick={closePreview}
+                >
+                    <div style={{ marginLeft: "auto" }}>
+                        <Close classNameArg="action" size={18} />
+                    </div>
                 </div>
-            </div>
-            {content}
-        </>,
-    );
-};
+                {React.cloneElement(content, {
+                    popUpCallback: (arg: T) => {
+                        closePreview();
+                        resolve(arg);
+                    },
+                })}
+            </>,
+        );
+    });
+
+    return promise;
+}
 
 export function parseNumber(
     amount: string,
@@ -1023,4 +1039,11 @@ const checkUserFilterMatch = (
     }
 
     return null;
+};
+
+export const hash = async (value: string, iterations: number) => {
+    let hash = new TextEncoder().encode(value);
+    for (let i = 0; i < iterations; i++)
+        hash = new Uint8Array(await crypto.subtle.digest("SHA-256", hash));
+    return hash;
 };

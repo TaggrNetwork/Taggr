@@ -19,10 +19,11 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("joe");
         await page.getByRole("button", { name: "JOIN" }).click();
+        await page.waitForTimeout(500);
         await page.getByPlaceholder("Enter your password...").fill("joe");
         await page.getByRole("button", { name: "JOIN" }).click();
         exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 96ee0e335b0c22203a5bf20f7a5feb2c400da29527c8687e3d927f7a590cf80e",
+            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 174648966d582e0a970e45fb64ac69a5984ee442f880c080504ad257094a4d88",
         );
         await page.getByRole("button", { name: "MINT CREDITS" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
@@ -200,7 +201,7 @@ test.describe("Report and transfer to user", () => {
                 ) {
                     // Joe's principal
                     await dialog.accept(
-                        "6pksk-fbpmj-s6rqc-llx2y-hn4rh-3743i-bjv4u-hqkfv-or2ls-4v45v-wqe",
+                        "3odhj-6nm2t-xn2rd-lhqyz-krwm6-uj2vm-n6tii-nuwdz-3hdfj-72trk-5ae",
                     );
                 }
                 if (dialog.message().includes("Enter the amount")) {

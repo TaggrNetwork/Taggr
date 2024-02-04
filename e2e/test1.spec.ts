@@ -21,13 +21,14 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("eve");
         await page.getByRole("button", { name: "JOIN" }).click();
+        await page.waitForTimeout(500);
         await page.getByPlaceholder("Enter your password...").fill("eve");
         await page.getByRole("button", { name: "JOIN" }).click();
         const stalwartPrincipal =
-            "aejik-62r47-das75-ez2go-j7pbi-52m44-x2mz4-5dp4w-2wm5t-t2qli-7ae";
+            "jw3jl-dovpp-warwe-miogk-yikfj-w4ofp-w2rlz-ztjyp-jdcsn-bjnwf-3ae";
         await expect(page.getByText(stalwartPrincipal)).toBeVisible();
         exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 f6df83b56c342c161d6c10696e766f3d8d562fb1851f4fd12667aa1d94e39291",
+            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 7ababb5fdc088a71a474be8e3010922ac790d904138a8f073b49228b5757bacd",
         );
         await page.getByRole("button", { name: "MINT CREDITS" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();

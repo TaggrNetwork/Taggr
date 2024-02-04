@@ -136,7 +136,7 @@ fn icrc1_decimals() -> u8 {
 }
 
 #[query]
-fn icrc1_fee() -> u128 {
+pub fn icrc1_fee() -> u128 {
     CONFIG.transaction_fee as u128
 }
 
@@ -341,29 +341,6 @@ pub fn mint(state: &mut State, account: Account, tokens: Token) {
             created_at_time: Some(now),
         },
     );
-}
-
-pub fn move_funds(state: &mut State, from: &Account, to: Account) -> Result<u128, TransferError> {
-    let balance = state.balances.get(from).copied().unwrap_or_default();
-    let mut n = 0;
-    if balance > 0 {
-        let fee = icrc1_fee();
-        n = transfer(
-            state,
-            time(),
-            from.owner,
-            TransferArgs {
-                from_subaccount: from.subaccount.clone(),
-                to,
-                amount: balance.saturating_sub(fee as Token) as u128,
-                fee: Some(fee),
-                memo: Default::default(),
-                created_at_time: None,
-            },
-        )?;
-    }
-    state.balances.remove(from);
-    Ok(n)
 }
 
 pub fn balances_from_ledger(ledger: &[Transaction]) -> Result<HashMap<Account, Token>, String> {

@@ -374,12 +374,11 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                 principal in the text field below.
                             </li>
                             <li>Change the principal.</li>
+                            <li>
+                                Login with the new authentication method and
+                                confirm the principal change.
+                            </li>
                         </ol>
-                        <div className="vertically_spaced banner">
-                            Please note that changing your principal will lead
-                            to the account loss{" "}
-                            <b>if you do not control the new principal</b>!
-                        </div>
                         <div className="bottom_half_spaced">New principal</div>
                         <input
                             placeholder="Your principal"
@@ -409,18 +408,14 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                         );
                                     if (accountBalance > 0) {
                                         alert(
-                                            "Your ICP balance is not empty. Please open your wallet and withdraw all funds before changing the principal.",
+                                            "Your ICP balance is not empty. Please withdraw all funds before changing the principal.",
                                         );
                                         return;
                                     }
-                                    const response = await window.api.call<any>(
-                                        "change_principal",
+                                    await window.api.call<any>(
+                                        "request_principal_change",
                                         principal.trim(),
                                     );
-                                    if ("Err" in response) {
-                                        alert(`Error: ${response.Err}`);
-                                        return;
-                                    }
                                     localStorage.clear();
                                     location.href = "/";
                                 }}

@@ -48,6 +48,13 @@ fn donors() {
     });
 }
 
+#[export_name = "canister_query migration_pending"]
+fn migration_pending() {
+    read(|state| {
+        reply(state.principal_change_requests.contains_key(&caller()));
+    });
+}
+
 #[export_name = "canister_query distribution"]
 fn distribution() {
     read(|state| {

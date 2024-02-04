@@ -20,13 +20,14 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
+        await page.waitForTimeout(500);
         await page.getByPlaceholder("Enter your password...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
         const alicePrincipal =
-            "nxu2q-em5br-fw5za-34owr-pxlfb-p6g73-6fe6i-sgggr-vtt27-hnxqk-gqe";
+            "ubz3w-3wumt-ycdn6-wcbvs-tl67m-o5ydn-6z22w-mfied-acevt-ale4f-7qe";
         await expect(page.getByText(alicePrincipal)).toBeVisible();
         exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 bc06aa9368ad008cdbbe14e4a2af46d39c6d231e1b39874887ea969b2403b5b7",
+            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 0896df86b913832a85d9d8571b430a33b48d6e500797c43859a9c5bb6e6553bf",
         );
         await page.getByRole("button", { name: "MINT CREDITS" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();

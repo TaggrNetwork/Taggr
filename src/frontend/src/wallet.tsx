@@ -14,6 +14,8 @@ import {
     parseNumber,
     tokens,
     ICP_DEFAULT_FEE,
+    HASH_ITERATIONS,
+    hash,
 } from "./common";
 import * as React from "react";
 import { LoginMasks, logout, SeedPhraseForm } from "./logins";
@@ -60,15 +62,13 @@ export const Welcome = () => {
                         <SeedPhraseForm
                             classNameArg=""
                             confirmationRequired={false}
-                            callback={async (seed: string) => {
-                                const hash = new Uint8Array(
-                                    await crypto.subtle.digest(
-                                        "SHA-256",
-                                        new TextEncoder().encode(seed),
-                                    ),
+                            callback={async (password: string) => {
+                                const seed = await hash(
+                                    password,
+                                    HASH_ITERATIONS,
                                 );
                                 let identity =
-                                    Ed25519KeyIdentity.generate(hash);
+                                    Ed25519KeyIdentity.generate(seed);
                                 if (
                                     identity.getPrincipal().toString() !=
                                     window.principalId

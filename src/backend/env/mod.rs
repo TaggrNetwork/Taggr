@@ -145,6 +145,10 @@ pub struct State {
     #[serde(skip)]
     pub balances: HashMap<Account, Token>,
 
+    #[serde(skip)]
+    // new principal -> old principal
+    pub principal_change_requests: BTreeMap<Principal, Principal>,
+
     total_revenue_shared: u64,
     total_rewards_shared: u64,
 
@@ -180,11 +184,12 @@ pub struct State {
 
     last_revenues: VecDeque<u64>,
 
-    #[serde(default)]
     pub tag_subscribers: HashMap<String, usize>,
 
-    #[serde(default)]
     pub distribution_reports: Vec<Summary>,
+
+    #[serde(default)]
+    migrations: u32,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -2036,43 +2041,50 @@ impl State {
         }
     }
 
-    pub async fn change_principal(
-        principal: Principal,
-        new_principal_str: String,
-    ) -> Result<(), String> {
-        if read(|state| state.voted_on_pending_proposal(principal)) {
+    pub fn change_principal(&mut self, new_principal: Principal) -> Result<bool, String> {
+        let old_principal = match self.principal_change_requests.remove(&new_principal) {
+            Some(value) => value,
+            None => return Ok(false),
+        };
+        if self.voted_on_pending_proposal(old_principal) {
             return Err("pending proposal with the current principal as voter exists".into());
         }
-        let new_principal = Principal::from_text(new_principal_str).map_err(|e| e.to_string())?;
         if new_principal == Principal::anonymous() {
             return Err("wrong principal".into());
         }
-        #[allow(unused_variables)]
-        mutate(|state| {
-            if state.principals.contains_key(&new_principal) {
-                return Err("principal already assigned to a user".to_string());
-            }
-            let user_id = state
-                .principals
-                .remove(&principal)
-                .ok_or("no principal found")?;
-            state.principals.insert(new_principal, user_id);
-            let user = state.users.get_mut(&user_id).expect("no user found");
-            user.principal = new_principal;
-            let account_identifier = AccountIdentifier::new(&new_principal, &DEFAULT_SUBACCOUNT);
-            user.account = account_identifier.to_string();
-            let accounts = state
-                .balances
-                .keys()
-                .filter(|acc| acc.owner == principal)
-                .cloned()
-                .collect::<Vec<_>>();
-            for acc in accounts {
-                crate::token::move_funds(state, &acc, account(new_principal))
-                    .expect("couldn't transfer token funds");
-            }
-            Ok(())
-        })
+        if self.principals.contains_key(&new_principal) {
+            return Err("principal already assigned to a user".to_string());
+        }
+        let old_account = account(old_principal);
+        let balance = self.balances.get(&old_account).copied().unwrap_or_default();
+        let fee = token::icrc1_fee();
+        if 0 < balance && balance <= fee as Token {
+            return Err("token balance is lower than the fee".to_string());
+        }
+        let user_id = self
+            .principals
+            .remove(&old_principal)
+            .ok_or("no principal found")?;
+        self.principals.insert(new_principal, user_id);
+        let user = self.users.get_mut(&user_id).expect("no user found");
+        assert_eq!(user.principal, old_principal);
+        user.principal = new_principal;
+        user.account = AccountIdentifier::new(&new_principal, &DEFAULT_SUBACCOUNT).to_string();
+        token::transfer(
+            self,
+            time(),
+            old_account.owner,
+            TransferArgs {
+                from_subaccount: old_account.subaccount.clone(),
+                to: account(new_principal),
+                amount: balance.saturating_sub(fee as Token) as u128,
+                fee: Some(fee),
+                memo: Default::default(),
+                created_at_time: None,
+            },
+        )
+        .expect("transfer failed");
+        Ok(true)
     }
 
     pub fn principal_to_user(&self, principal: Principal) -> Option<&User> {
@@ -2620,6 +2632,83 @@ impl State {
             followee.followers.remove(&user_id);
         }
         added
+    }
+
+    pub fn migrate(
+        &mut self,
+        principal: Principal,
+        new_principal_str: String,
+    ) -> Result<(), String> {
+        if self.voted_on_pending_proposal(principal) {
+            return Err("pending proposal with the current principal as voter exists".into());
+        }
+        let new_principal = Principal::from_text(new_principal_str).map_err(|e| e.to_string())?;
+        if new_principal == Principal::anonymous() {
+            return Err("wrong principal".into());
+        }
+        if self.principal_to_user(new_principal).is_some() {
+            return Err("principal already assigned to a user".into());
+        }
+        if self
+            .ledger
+            .iter()
+            .any(|tx| tx.to.owner == new_principal || tx.from.owner == new_principal)
+        {
+            return Err("this principal cannot be used".into());
+        }
+
+        let old_balance = self
+            .balances
+            .get(&account(principal))
+            .copied()
+            .unwrap_or_default();
+        let all_balances = self.balances.values().sum::<Token>();
+
+        let user_id = self
+            .principals
+            .remove(&principal)
+            .ok_or("no principal found")?;
+        self.principals.insert(new_principal, user_id);
+
+        let user = self.users.get_mut(&user_id).expect("no user found");
+        assert_eq!(user.principal, principal, "unexpected old principal");
+
+        user.principal = new_principal;
+        user.account = AccountIdentifier::new(&new_principal, &DEFAULT_SUBACCOUNT).to_string();
+        for tx in &mut self.ledger {
+            if tx.to.owner == principal {
+                tx.to.owner = new_principal;
+            }
+            if tx.from.owner == principal {
+                tx.from.owner = new_principal;
+            }
+        }
+        match token::balances_from_ledger(&self.ledger) {
+            Ok(balances) => {
+                let user = self.users.get_mut(&user_id).expect("no user found");
+                user.balance = balances
+                    .get(&account(user.principal))
+                    .copied()
+                    .unwrap_or_default();
+                user.cold_balance = user
+                    .cold_wallet
+                    .and_then(|principal| balances.get(&account(principal)).copied())
+                    .unwrap_or_default();
+                self.balances = balances;
+            }
+            Err(err) => panic!("can't migrate: {:?}", err),
+        }
+
+        assert_eq!(
+            old_balance,
+            self.balances
+                .get(&account(new_principal))
+                .copied()
+                .unwrap_or_default()
+        );
+        assert_eq!(all_balances, self.balances.values().sum::<Token>());
+        self.migrations += 1;
+        Ok(())
     }
 }
 
@@ -3177,9 +3266,9 @@ pub(crate) mod tests {
         });
     }
 
-    #[actix_rt::test]
-    async fn test_principal_change() {
-        let u_id = STATE.with(|cell| {
+    #[test]
+    fn test_principal_change() {
+        STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
@@ -3211,39 +3300,41 @@ pub(crate) mod tests {
             )
             .expect("couldn't propose");
             proposals::vote_on_proposal(state, 0, pr(1), proposal_id, false, "1").unwrap();
-            user_id
-        });
 
-        let new_principal_str: String =
-            "yh4uw-lqajx-4dxcu-rwe6s-kgfyk-6dicz-yisbt-pjg7v-to2u5-morox-hae".into();
+            let new_principal_str: String =
+                "yh4uw-lqajx-4dxcu-rwe6s-kgfyk-6dicz-yisbt-pjg7v-to2u5-morox-hae".into();
+            let new_principal = Principal::from_text(new_principal_str).unwrap();
+            assert_eq!(state.change_principal(new_principal), Ok(false));
+            state.principal_change_requests.insert(new_principal, pr(1));
 
-        match State::change_principal(pr(1), new_principal_str.clone()).await {
-            Err(err)
-                if err.contains("pending proposal with the current principal as voter exist") => {}
-            val => panic!("unexpected outcome: {:?}", val),
-        };
+            match state.change_principal(new_principal) {
+                Err(err)
+                    if err
+                        .contains("pending proposal with the current principal as voter exist") => {
+                }
+                val => panic!("unexpected outcome: {:?}", val),
+            };
 
-        mutate(|state| state.proposals.get_mut(0).unwrap().status = Status::Executed);
+            state.proposals.get_mut(0).unwrap().status = Status::Executed;
+            state.principal_change_requests.insert(new_principal, pr(1));
 
-        assert!(State::change_principal(pr(1), new_principal_str.clone())
-            .await
-            .is_ok());
+            assert_eq!(state.principals.len(), 2);
+            assert_eq!(state.change_principal(new_principal), Ok(true));
+            assert_eq!(state.principals.len(), 2);
 
-        mutate(|state| {
-            let principal = Principal::from_text(new_principal_str).unwrap();
-            assert_eq!(state.principal_to_user(principal).unwrap().id, u_id);
+            assert_eq!(state.principal_to_user(new_principal).unwrap().id, user_id);
             assert!(state.balances.get(&account(pr(1))).is_none());
             assert_eq!(
-                *state.balances.get(&account(principal)).unwrap(),
+                *state.balances.get(&account(new_principal)).unwrap(),
                 11100 - CONFIG.transaction_fee
             );
-            let user = state.users.get(&u_id).unwrap();
-            assert_eq!(user.principal, principal);
+            let user = state.users.get(&user_id).unwrap();
+            assert_eq!(user.principal, new_principal);
             assert_eq!(
                 user.account,
                 AccountIdentifier::new(&user.principal, &DEFAULT_SUBACCOUNT).to_string()
             );
-        })
+        });
     }
 
     #[test]

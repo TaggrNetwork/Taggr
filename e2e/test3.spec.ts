@@ -19,12 +19,13 @@ test.describe("Regular users flow, part two", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("john");
         await page.getByRole("button", { name: "JOIN" }).click();
+        await page.waitForTimeout(500);
         await page.getByPlaceholder("Enter your password...").fill("john");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.getByRole("button", { name: "MINT CREDITS" }).click();
         const value = await page.getByTestId("invoice-amount").textContent();
         exec(
-            `dfx --identity local-minter ledger transfer --amount ${value} --memo 0 8f3bff512417de2d91aa3dfec425f1bc2c6ccdafb019bb3dca42d6ab328dd4a9`,
+            `dfx --identity local-minter ledger transfer --amount ${value} --memo 0 851031d69bdff12e9624b78dd1d5a5dfe22a7373ed5613ca74fd5383721d7964`,
         );
         await page.getByRole("button", { name: "CHECK BALANCE" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();

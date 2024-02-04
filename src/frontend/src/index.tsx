@@ -337,6 +337,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                 await window.reloadUser();
                 await reloadCache();
             }, REFRESH_RATE_SECS * 1000);
+            await confirmPrincipalChange();
             await window.reloadUser();
         }
         updateDoc();
@@ -349,6 +350,18 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
         );
     },
 );
+
+const confirmPrincipalChange = async () => {
+    if (
+        !window.principalId ||
+        !(await window.api.query<boolean>("migration_pending"))
+    )
+        return;
+    const response = await window.api.call<any>("confirm_principal_change");
+    if (response && "Err" in response) {
+        alert(`Error: ${response.Err}`);
+    }
+};
 
 const Footer = ({}) => (
     <footer className="small_text text_centered vertically_spaced">

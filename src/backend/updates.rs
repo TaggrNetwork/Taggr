@@ -195,12 +195,35 @@ fn update_last_activity() {
     reply_raw(&[]);
 }
 
-#[export_name = "canister_update change_principal"]
-fn change_principal() {
-    spawn(async {
-        let principal: String = parse(&arg_data_raw());
-        reply(State::change_principal(caller(), principal).await);
+// migration method from the password login to many iterations login
+#[export_name = "canister_update migrate"]
+fn migrate() {
+    let principal: String = parse(&arg_data_raw());
+    reply(mutate(|state| state.migrate(caller(), principal)));
+}
+
+#[export_name = "canister_update request_principal_change"]
+fn request_principal_change() {
+    let principal: String = parse(&arg_data_raw());
+    mutate(|state| {
+        let principal = Principal::from_text(principal).expect("can't parse principal");
+        if principal == Principal::anonymous() || state.principals.contains_key(&principal) {
+            return;
+        }
+        let caller = caller();
+        state
+            .principal_change_requests
+            .retain(|_, principal| principal != &caller);
+        if state.principal_change_requests.len() <= 500 {
+            state.principal_change_requests.insert(principal, caller);
+        }
     });
+    reply_raw(&[]);
+}
+
+#[export_name = "canister_update confirm_principal_change"]
+fn confirm_principal_change() {
+    reply(mutate(|state| state.change_principal(caller())));
 }
 
 #[export_name = "canister_update update_user"]
