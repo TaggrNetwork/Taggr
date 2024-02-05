@@ -611,7 +611,11 @@ export const ProposalView = ({
                 <>
                     <div className="row_container">
                         <ButtonWithLoading
-                            onClick={() => vote(proposal, false)}
+                            onClick={async () =>
+                                confirm(
+                                    "You're rejecting the proposal. Please confirm.",
+                                ) && (await vote(proposal, false))
+                            }
                             classNameArg="max_width_col large_text"
                             label="REJECT"
                         />
@@ -626,7 +630,11 @@ export const ProposalView = ({
             {window.user && window.user.id == proposal.proposer && open && (
                 <ButtonWithLoading
                     onClick={async () => {
-                        if (!confirm("Do you want to cancel your proposal?"))
+                        if (
+                            !confirm(
+                                "You're canceling the proposal. Please confirm.",
+                            )
+                        )
                             return;
                         await window.api.call("cancel_proposal", proposal.id);
                         location.reload();

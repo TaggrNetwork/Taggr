@@ -71,37 +71,74 @@ fn post_upgrade() {
 }
 
 async fn post_upgrade_fixtures() {
-    mutate(|state| {
-        let invalid_reports = state
-            .users
-            .values()
-            .flat_map(|u| {
-                u.post_reports
-                    .clone()
-                    .into_keys()
-                    .map(move |post_id| (u.id, post_id))
-            })
-            .filter_map(|(user_id, post_id)| {
-                let report = Post::get(state, &post_id).unwrap().report.as_ref().unwrap();
-                if report.closed && report.confirmed_by.len() < 7 {
-                    Some((user_id, post_id))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
+    // set created timestamp for all realms to their first post
+    {
+        let last_id = read(|state| state.next_post_id.saturating_sub(1));
+        let ids = (0..=last_id).collect::<Vec<_>>();
+        let id_chunks = ids.chunks(10000);
+        let mut realms = read(|state| {
+            state
+                .realms
+                .keys()
+                .cloned()
+                .collect::<std::collections::BTreeSet<_>>()
+        });
+        for chunk in id_chunks {
+            ic_cdk::println!("chunk start={:?}", chunk.first());
+            if realms.is_empty() {
+                break;
+            }
+            async {
+                mutate(|state| {
+                    chunk
+                        .iter()
+                        .filter_map(|id| Post::get(state, id))
+                        .map(|post| (post.creation_timestamp(), post.realm.clone()))
+                        .collect::<Vec<_>>()
+                        .into_iter()
+                        .for_each(|(timestamp, realm)| {
+                            if let Some(realm_id) = realm.as_ref() {
+                                if realms.contains(realm_id) {
+                                    state.realms.get_mut(realm_id).unwrap().created = timestamp;
+                                    realms.remove(realm_id);
+                                }
+                            }
+                        })
+                });
+            }
+            .await;
+        }
 
-        ic_cdk::println!("invalid reports = {}", invalid_reports.len());
-
-        for (user_id, post_id) in invalid_reports.into_iter() {
+        let ids = (0..=last_id).collect::<Vec<_>>();
+        let id_chunks = ids.chunks(10000);
+        let mut users = read(|state| {
             state
                 .users
-                .get_mut(&user_id)
-                .unwrap()
-                .post_reports
-                .remove(&post_id);
+                .keys()
+                .cloned()
+                .collect::<std::collections::BTreeSet<_>>()
+        });
+        for chunk in id_chunks {
+            if users.is_empty() {
+                break;
+            }
+            async {
+                mutate(|state| {
+                    chunk
+                        .iter()
+                        .filter_map(|id| Post::get(state, id))
+                        .map(|post| (post.id, post.user))
+                        .collect::<Vec<_>>()
+                        .into_iter()
+                        .for_each(|(post_id, user_id)| {
+                            state.users.get_mut(&user_id).unwrap().last_post = post_id;
+                            users.remove(&user_id);
+                        })
+                });
+            }
+            .await;
         }
-    })
+    }
 }
 
 /*

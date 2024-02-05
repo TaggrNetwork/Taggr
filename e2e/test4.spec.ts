@@ -23,7 +23,7 @@ test.describe("Report and transfer to user", () => {
         await page.getByPlaceholder("Enter your password...").fill("joe");
         await page.getByRole("button", { name: "JOIN" }).click();
         exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 174648966d582e0a970e45fb64ac69a5984ee442f880c080504ad257094a4d88",
+            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 a8caaf21598f17df5a17ce655b3a39298559b76f23ea1b2afddd312d0abb04e8",
         );
         await page.getByRole("button", { name: "MINT CREDITS" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
@@ -128,8 +128,8 @@ test.describe("Report and transfer to user", () => {
         const feedItem = page.locator(".feed_item", {
             hasText: /Good stuff/,
         });
-        await feedItem.getByTestId("post-info-toggle").click();
-        await feedItem.locator('button[title="Karma points: 20"]').click();
+        await feedItem.getByTestId("reaction-picker").click();
+        await feedItem.locator('button[title="Reward points: 20"]').click();
         // Wait because the UI waits for 4s before sending the command
         await page.waitForTimeout(6000);
         await feedItem.getByRole("link", { name: "jane" }).first().click();
@@ -146,6 +146,7 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("jane");
         await page.getByRole("button", { name: "JOIN" }).click();
+        await page.waitForTimeout(500);
 
         await page.goto("/#/user/kyle");
         await page.getByTestId("profile-burger-menu").click();
@@ -190,6 +191,7 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("jane");
         await page.getByRole("button", { name: "JOIN" }).click();
+        await page.waitForTimeout(500);
         await page.getByTestId("toggle-user-section").click();
 
         await expect(page.getByTestId("token-balance")).toHaveText("20");
@@ -201,7 +203,7 @@ test.describe("Report and transfer to user", () => {
                 ) {
                     // Joe's principal
                     await dialog.accept(
-                        "3odhj-6nm2t-xn2rd-lhqyz-krwm6-uj2vm-n6tii-nuwdz-3hdfj-72trk-5ae",
+                        "62pp3-suqb6-5endn-psc4d-2ytvb-xatk2-5pp6u-qwhpd-u3ko3-npsin-qae",
                     );
                 }
                 if (dialog.message().includes("Enter the amount")) {

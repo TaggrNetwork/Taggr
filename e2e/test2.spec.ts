@@ -24,10 +24,10 @@ test.describe("Regular users flow", () => {
         await page.getByPlaceholder("Enter your password...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
         const alicePrincipal =
-            "ubz3w-3wumt-ycdn6-wcbvs-tl67m-o5ydn-6z22w-mfied-acevt-ale4f-7qe";
+            "afqmt-iuwxe-fcmq2-gidf2-tqzx2-beg3a-jq7tp-he6c6-xr67k-rtnl7-aqe";
         await expect(page.getByText(alicePrincipal)).toBeVisible();
         exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 0896df86b913832a85d9d8571b430a33b48d6e500797c43859a9c5bb6e6553bf",
+            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 ce8d1d9b278bf41f444a8e1686559f33029602274363e8f13a43e06461f312ab",
         );
         await page.getByRole("button", { name: "MINT CREDITS" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
@@ -230,12 +230,12 @@ test.describe("Regular users flow", () => {
     test("Interacting with posts", async () => {
         await page
             .locator(".feed_item", { hasText: /Hello world/ })
-            .getByTestId("post-info-toggle")
+            .getByTestId("reaction-picker")
             .click();
         // React with a star
         await page
             .locator(".feed_item", { hasText: /Hello world/ })
-            .locator('button[title="Karma points: 20"]')
+            .locator('button[title="Reward points: 20"]')
             .click();
         // comment on the first post
         await page
@@ -260,7 +260,7 @@ test.describe("Regular users flow", () => {
                 .locator(".post_box", { hasText: /Hello world/ })
                 .getByTestId("100-reaction")
                 .first(),
-        ).toHaveText("1");
+        ).toHaveText("⭐️1");
         await page.locator("#logo").click();
         await page.waitForTimeout(2000);
     });

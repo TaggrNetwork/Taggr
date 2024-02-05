@@ -25,11 +25,12 @@ const themes: { [name: string]: Theme } = {
     black: {
         text: "#d0d0d0",
         background: "#060606",
-        selected_background: "#303030",
+        selected_background: "#232323",
         code: "White",
         clickable: "#4CB381",
         accent: "Gold",
-        light_factor: 6,
+        light_factor: 5,
+        dark_factor: 5,
     },
     calm: {
         text: "#e0e0c8",
@@ -55,6 +56,7 @@ const themes: { [name: string]: Theme } = {
     light: {
         text: "#101010",
         background: "#EAEAEA",
+        selected_background: "#dadada",
         code: "black",
         clickable: "#0066EE",
         accent: "MediumSeaGreen",
@@ -72,10 +74,12 @@ const applyTheme = (palette: Theme) => {
     const effPalette: Theme = palette ? palette : themes["dark"];
     effPalette.light_background =
         "#" + shade(effPalette.background, effPalette.light_factor || 3);
-    effPalette.dark_background = "#" + shade(effPalette.background, -5);
+    effPalette.dark_background =
+        "#" + shade(effPalette.background, effPalette.dark_factor || -5);
+    effPalette.darker_background = "#" + shade(effPalette.background, -1);
     effPalette.visited_clickable = "#" + shade(effPalette.clickable, -20);
     effPalette.selected_background =
-        effPalette.selected_background || effPalette.dark_background;
+        effPalette.selected_background || effPalette.darker_background;
     const styleNode = document.getElementById("style");
     if (!styleNode) return;
     styleNode.innerText = Object.keys(effPalette).reduce(

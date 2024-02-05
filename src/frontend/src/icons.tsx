@@ -121,21 +121,6 @@ export const Box = ({ classNameArg }: { classNameArg?: string }) => (
     </svg>
 );
 
-export const CommentArrow = ({ classNameArg }: { classNameArg?: string }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width={14}
-        height={14}
-        className={`vertically_aligned ${classNameArg}`}
-        viewBox="0 0 16 14"
-    >
-        <path
-            fillRule="evenodd"
-            d="M4.854 1.146a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L4 2.707V12.5A2.5 2.5 0 0 0 6.5 15h8a.5.5 0 0 0 0-1h-8A1.5 1.5 0 0 1 5 12.5V2.707l3.146 3.147a.5.5 0 1 0 .708-.708l-4-4z"
-        />
-    </svg>
-);
-
 export const Table = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -338,7 +323,7 @@ export const Close = ({
     </svg>
 );
 
-export const Laughing = () => (
+export const More = () => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
         className="vertically_aligned"
@@ -346,8 +331,8 @@ export const Laughing = () => (
         height="16"
         viewBox="0 0 16 16"
     >
-        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
-        <path d="M12.331 9.5a1 1 0 0 1 0 1A4.998 4.998 0 0 1 8 13a4.998 4.998 0 0 1-4.33-2.5A1 1 0 0 1 4.535 9h6.93a1 1 0 0 1 .866.5zM7 6.5c0 .828-.448 0-1 0s-1 .828-1 0S5.448 5 6 5s1 .672 1 1.5zm4 0c0 .828-.448 0-1 0s-1 .828-1 0S9.448 5 10 5s1 .672 1 1.5z" />
+        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
+        <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4" />
     </svg>
 );
 
@@ -363,18 +348,6 @@ export const Fire = () => (
     </svg>
 );
 
-export const ThumbsDown = () => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="vertically_aligned"
-        width="16"
-        height="16"
-        viewBox="0 0 16 16"
-    >
-        <path d="M6.956 14.534c.065.936.952 1.659 1.908 1.42l.261-.065a1.378 1.378 0 0 0 1.012-.965c.22-.816.533-2.512.062-4.51.136.02.285.037.443.051.713.065 1.669.071 2.516-.211.518-.173.994-.68 1.2-1.272a1.896 1.896 0 0 0-.234-1.734c.058-.118.103-.242.138-.362.077-.27.113-.568.113-.856 0-.29-.036-.586-.113-.857a2.094 2.094 0 0 0-.16-.403c.169-.387.107-.82-.003-1.149a3.162 3.162 0 0 0-.488-.9c.054-.153.076-.313.076-.465a1.86 1.86 0 0 0-.253-.912C13.1.757 12.437.28 11.5.28H8c-.605 0-1.07.08-1.466.217a4.823 4.823 0 0 0-.97.485l-.048.029c-.504.308-.999.61-2.068.723C2.682 1.815 2 2.434 2 3.279v4c0 .851.685 1.433 1.357 1.616.849.232 1.574.787 2.132 1.41.56.626.914 1.28 1.039 1.638.199.575.356 1.54.428 2.591z" />
-    </svg>
-);
-
 export const Credits = () => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -384,21 +357,6 @@ export const Credits = () => (
         viewBox="0 0 16 16"
     >
         <path d="M11.251.068a.5.5 0 0 1 .227.58L9.677 6.5H13a.5.5 0 0 1 .364.843l-8 8.5a.5.5 0 0 1-.842-.49L6.323 9.5H3a.5.5 0 0 1-.364-.843l8-8.5a.5.5 0 0 1 .615-.09z" />
-    </svg>
-);
-
-export const Heart = () => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="vertically_aligned"
-        width="16"
-        height="16"
-        viewBox="0 0 16 16"
-    >
-        <path
-            fillRule="evenodd"
-            d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"
-        />
     </svg>
 );
 
@@ -423,18 +381,6 @@ export const BellOff = ({ classNameArg }: { classNameArg?: string }) => (
         viewBox="0 0 16 16"
     >
         <path d="M5.164 14H15c-1.5-1-2-5.902-2-7 0-.264-.02-.523-.06-.776L5.164 14zm6.288-10.617A4.988 4.988 0 0 0 8.995 2.1a1 1 0 1 0-1.99 0A5.002 5.002 0 0 0 3 7c0 .898-.335 4.342-1.278 6.113l9.73-9.73zM10 15a2 2 0 1 1-4 0h4zm-9.375.625a.53.53 0 0 0 .75.75l14.75-14.75a.53.53 0 0 0-.75-.75L.625 15.625z" />
-    </svg>
-);
-
-export const Star = () => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="vertically_aligned"
-        width="16"
-        height="16"
-        viewBox="0 0 16 16"
-    >
-        <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z" />
     </svg>
 );
 
@@ -873,15 +819,23 @@ export const Logout = ({ classNameArg }: { classNameArg?: string }) => (
 export const reaction2icon = (id: number) => {
     switch (id) {
         case 1:
-            return <ThumbsDown />;
+            return <>👎</>;
         case 50:
-            return <Fire />;
+            return <>🔥</>;
         case 51:
-            return <Laughing />;
+            return <>😂</>;
+        case 52:
+            return <>💯</>;
+        case 53:
+            return <>🚀</>;
         case 100:
-            return <Star />;
+            return <>⭐️</>;
         case 10:
-            return <Heart />;
+            return <>❤️</>;
+        case 11:
+            return <>👍</>;
+        case 12:
+            return <>😢</>;
     }
-    return <QuestionMark />;
+    return null;
 };

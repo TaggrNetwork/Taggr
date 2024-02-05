@@ -303,11 +303,34 @@ pub const CONFIG: &Config = &Config {
 
     online_activity_minutes: 10 * 60000000000_u64,
 
-    reactions: &[(1, -3), (100, 20), (50, 10), (51, 10), (10, 2)],
+    reactions: &[
+        // thumb down
+        (1, -3),
+        // star
+        (100, 20),
+        // rocket, 100, joy, flame,
+        (53, 10),
+        (52, 10),
+        (51, 10),
+        (50, 10),
+        // sad, thumb up, heart
+        (12, 2),
+        (11, 2),
+        (10, 2),
+    ],
 
     min_positive_reaction_id: 10,
 
-    reaction_fee: &[(100, 3), (50, 2), (51, 2), (10, 1)],
+    reaction_fee: &[
+        (100, 3),
+        (50, 2),
+        (51, 2),
+        (52, 2),
+        (53, 2),
+        (10, 1),
+        (11, 1),
+        (12, 1),
+    ],
 
     max_funding_amount: 1_000_000, // at ratio 1:1
 

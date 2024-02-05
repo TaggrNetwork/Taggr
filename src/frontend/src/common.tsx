@@ -8,7 +8,6 @@ import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
-import { MAINNET_MODE } from "./env";
 
 export const USD_PER_XDR = 1.33;
 
@@ -153,10 +152,7 @@ export const HeadBar = ({
     const effStyle = { ...styleArg } || {};
     effStyle.flex = 0;
     return (
-        <div
-            className="column_container stands_out bottom_spaced"
-            style={styleArg}
-        >
+        <div className="column_container stands_out" style={styleArg}>
             <div className="vcentered">
                 <h1
                     className={`max_width_col ${
@@ -291,7 +287,7 @@ export const setTitle = (value: string) => {
         ).toUpperCase();
 };
 
-export const HASH_ITERATIONS = MAINNET_MODE ? 15000 : 2;
+export const HASH_ITERATIONS = 15000;
 
 export const ButtonWithLoading = ({
     id,
@@ -549,7 +545,7 @@ export const UserLink = ({
     const userName = window.backendCache.users[id];
     return userName ? (
         <a
-            className={classNameArg}
+            className={`${classNameArg} user_link`}
             href={`#/${profile ? "user" : "journal"}/${id}`}
         >
             {userName}
@@ -818,7 +814,7 @@ export const ReportBanner = ({
         ["✅ AGREE", true],
     ];
     return (
-        <div className="post_head banner">
+        <div className="banner">
             <strong>
                 This {domain == "post" ? "post" : "user"} was REPORTED. Please
                 confirm the deletion or reject the report.

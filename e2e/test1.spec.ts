@@ -25,10 +25,10 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.getByPlaceholder("Enter your password...").fill("eve");
         await page.getByRole("button", { name: "JOIN" }).click();
         const stalwartPrincipal =
-            "jw3jl-dovpp-warwe-miogk-yikfj-w4ofp-w2rlz-ztjyp-jdcsn-bjnwf-3ae";
+            "qjuij-xy6vt-yssaf-dar36-pqa7n-5plk4-3dfy3-ppec7-exsio-qy6xh-7qe";
         await expect(page.getByText(stalwartPrincipal)).toBeVisible();
         exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 7ababb5fdc088a71a474be8e3010922ac790d904138a8f073b49228b5757bacd",
+            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 2e670a6cf5ec1a1387dc8e02da3279f8e9221c2191b6f7532f449bb439538f20",
         );
         await page.getByRole("button", { name: "MINT CREDITS" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
@@ -62,10 +62,10 @@ test.describe("Upgrades & token transfer flow", () => {
 
         await page
             .locator(".feed_item", { hasText: "Message from Eve" })
-            .getByTestId("post-info-toggle")
+            .getByTestId("reaction-picker")
             .click();
         // React with a star
-        await page.locator('button[title="Karma points: 20"]').click();
+        await page.locator('button[title="Reward points: 20"]').click();
         await page.waitForTimeout(4500);
     });
 

@@ -9,10 +9,8 @@ export const PostFeed = ({
     feedLoader,
     heartbeat,
     title,
-    comments,
     thread,
     includeComments,
-    level,
     highlighted,
     useList,
     journal,
@@ -27,10 +25,8 @@ export const PostFeed = ({
     ) => Promise<Post[] | null>;
     heartbeat?: any;
     title?: JSX.Element;
-    comments?: boolean;
     thread?: boolean;
     includeComments?: boolean;
-    level?: number;
     highlighted?: PostId[];
     useList?: boolean;
     journal?: boolean;
@@ -41,7 +37,7 @@ export const PostFeed = ({
     const [posts, setPosts] = React.useState<Post[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [displayPageFlipper, setPageVlipperVisibility] = React.useState(
-        !comments && !thread,
+        !thread,
     );
     const [refreshBeat, setRefreshBeat] = React.useState(0);
 
@@ -89,14 +85,13 @@ export const PostFeed = ({
             id={post.id}
             key={post.id}
             data={post}
-            level={level}
             highlighted={highlighted}
             isFeedItem={true}
             isJournalView={journal}
             classNameArg={
                 `${thread ? "" : "collapsable"} ` +
                 `${
-                    !isRoot(post) && (comments || thread)
+                    !isRoot(post) && thread
                         ? "comment"
                         : firstItem && thread
                         ? "prime"
@@ -104,7 +99,7 @@ export const PostFeed = ({
                 }`
             }
             focused={post.id == focusedPost}
-            isCommentView={comments || thread}
+            isCommentView={thread}
             isThreadView={thread && !lastItem}
         />
     );
@@ -123,7 +118,7 @@ export const PostFeed = ({
         <div className={classNameArg}>
             {title && title}
             {(!loading || page > 0) &&
-                (useGrid && !comments ? renderGrid() : renderColumns())}
+                (useGrid ? renderGrid() : renderColumns())}
             {loading && <Loading />}
             {displayPageFlipper && !loading && posts.length > 0 && (
                 <div style={{ display: "flex", justifyContent: "center" }}>

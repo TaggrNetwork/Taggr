@@ -115,6 +115,8 @@ pub struct Realm {
     theme: String,
     pub whitelist: BTreeSet<UserId>,
     pub last_root_post: PostId,
+    #[serde(default)]
+    pub created: Time,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -717,6 +719,7 @@ impl State {
 
         realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(*cleanup_penalty);
         realm.last_update = time();
+        realm.created = time();
 
         self.realms.insert(name.clone(), realm);
 
@@ -1955,6 +1958,7 @@ impl State {
         mut offset: PostId,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+        let mut genesis = 0;
         let realm = realm_id
             .as_ref()
             .and_then(|realm_id| self.realms.get(realm_id));
@@ -1962,6 +1966,7 @@ impl State {
             if realm.num_posts == 0 {
                 return Box::new(std::iter::empty());
             }
+            genesis = realm.created;
             if offset == 0 {
                 offset = realm.last_root_post;
             }
@@ -1976,6 +1981,7 @@ impl State {
                 Box::new((0..=last_id).rev())
             }
             .filter_map(move |i| Post::get(self, &i))
+            .take_while(move |post| post.creation_timestamp() >= genesis)
             .filter(move |post| {
                 !post.is_deleted()
                     && (with_comments || post.parent.is_none())

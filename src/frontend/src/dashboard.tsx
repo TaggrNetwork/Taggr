@@ -89,7 +89,7 @@ export const Dashboard = ({}) => {
     return (
         <>
             <HeadBar title="DASHBOARD" shareLink="dashboard" />
-            <div className="text_centered">
+            <div className="text_centered vertically_spaced">
                 <div className="dynamic_table">
                     <div className="db_cell">
                         <label>

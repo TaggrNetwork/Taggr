@@ -53,8 +53,9 @@ export const Inbox = () => {
         return (
             <div
                 key={k}
-                className={"stands_out" + (closing == k ? " fadeout" : "")}
-                style={{ padding: 0 }}
+                className={
+                    "inbox feed_item " + (closing == k ? " fadeout" : undefined)
+                }
             >
                 <div className="row_container">
                     <Content
@@ -90,7 +91,7 @@ export const Inbox = () => {
                 {id != undefined && (
                     <PostView
                         id={id}
-                        classNameArg="collapsable top_framed"
+                        classNameArg="collapsable"
                         isFeedItem={true}
                         highlighted={
                             "WatchedPostEntries" in message
@@ -103,6 +104,7 @@ export const Inbox = () => {
         );
     };
 
+    const fresh = ids.filter((id) => !inbox[id][1]);
     const archived = ids.filter((id) => inbox[id][1]);
 
     return (
@@ -124,11 +126,12 @@ export const Inbox = () => {
                     </button>
                 }
             />
-            <>
-                {ids
-                    .filter((id) => !inbox[id][1])
-                    .map((id) => displayEntry(Number(id)))}
-            </>
+            {fresh.length == 0 && (
+                <h1 className="text_centered vertically_spaced">
+                    Inbox Zero Achieved! 🚀
+                </h1>
+            )}
+            {fresh.map((id) => displayEntry(Number(id)))}
             {!showArchive && (
                 <MoreButton callback={async () => setShowArchive(true)} />
             )}

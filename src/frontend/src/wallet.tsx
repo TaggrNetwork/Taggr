@@ -312,7 +312,16 @@ export const Wallet = () => {
                                     )?.trim() || "",
                                     8,
                                 );
-                                if (!amount) return;
+                                if (
+                                    !amount ||
+                                    !confirm(
+                                        `You are transferring\n\n${tokens(
+                                            amount,
+                                            8,
+                                        )} ICP\n\nto\n\n${recipient}`,
+                                    )
+                                )
+                                    return;
                                 let response: any =
                                     await window.api.icp_transfer(
                                         recipient,
