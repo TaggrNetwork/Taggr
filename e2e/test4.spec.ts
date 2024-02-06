@@ -19,7 +19,7 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("joe");
         await page.getByRole("button", { name: "JOIN" }).click();
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(1000);
         await page.getByPlaceholder("Enter your password...").fill("joe");
         await page.getByRole("button", { name: "JOIN" }).click();
         exec(
@@ -146,7 +146,7 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("jane");
         await page.getByRole("button", { name: "JOIN" }).click();
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(1000);
 
         await page.goto("/#/user/kyle");
         await page.getByTestId("profile-burger-menu").click();
@@ -191,7 +191,7 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("jane");
         await page.getByRole("button", { name: "JOIN" }).click();
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(1000);
         await page.getByTestId("toggle-user-section").click();
 
         await expect(page.getByTestId("token-balance")).toHaveText("20");

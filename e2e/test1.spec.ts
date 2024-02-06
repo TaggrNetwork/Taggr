@@ -21,7 +21,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("eve");
         await page.getByRole("button", { name: "JOIN" }).click();
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(1000);
         await page.getByPlaceholder("Enter your password...").fill("eve");
         await page.getByRole("button", { name: "JOIN" }).click();
         const stalwartPrincipal =

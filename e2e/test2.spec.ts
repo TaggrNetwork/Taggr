@@ -20,7 +20,7 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(1000);
         await page.getByPlaceholder("Enter your password...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
         const alicePrincipal =
