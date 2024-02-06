@@ -157,12 +157,13 @@ ul.comments {
     padding-left: 0.1rem;
     margin-left: 0.5rem;
     list-style-type: none;
-    border-left: 1px solid $selected_background;
+    border-left: 1px solid $frame;
+    border-top-left-radius: 10px;
 }
 
 .comments li .post_head:before {
     content: "—";
-    color: $selected_background;
+    color: $frame;
     text-indent: -0.7rem;
 }
 
@@ -177,7 +178,7 @@ ul.comments {
 }
 
 .comments .post_head .user_link {
-    background: $selected_background;
+    background: $frame;
     padding: 0.5em;
     border-radius: 10px;
 }
@@ -206,15 +207,14 @@ ul.comments {
     max-height: 100vh;
 }
 
-.repost,
 .feed_item {
-    background: $light_background;
     margin-bottom: 1em;
-    border-radius: 10px;
 }
 
+.post_extension,
 .feed_item {
-    border-bottom: 1px solid $selected_background;
+    border-radius: 10px;
+    border: 1px solid $frame;
 }
 
 .active_element {
@@ -228,8 +228,6 @@ ul.comments {
     padding: 0;
     padding-top: 0.8rem;
     padding-bottom: 0.8rem;
-    background-color: $selected_background;
-    border-top: 1px solid $light_background;
 }
 
 .prime .post_head {
@@ -281,7 +279,7 @@ ul.comments {
 button {
     cursor: pointer;
     color: $text;
-    background: $selected_background;
+    background: $frame;
     font-weight: bold;
     border: none;
     border-radius: 5px;
@@ -451,7 +449,7 @@ header {
 
 hr {
     border-style: none none none;
-    border-top: 2px solid $selected_background;
+    border-top: 2px solid $frame;
     margin-top: 1em;
     margin-bottom: 1em;
 }
@@ -461,7 +459,7 @@ hr {
 }
 
 .selected {
-    background: $selected_background;
+    background: $frame;
     border-radius: 10px;
 }
 
@@ -484,7 +482,7 @@ hr {
 }
 
 .reaction_button:hover {
-    background: $selected_background;
+    background: $frame;
 }
 
 .reaction_button path {
@@ -498,7 +496,7 @@ hr {
 article table,
 article th,
 article td {
-    border: 1px solid $selected_background;
+    border: 1px solid $frame;
 }
 
 article,
@@ -512,7 +510,7 @@ article,
 }
 
 th {
-    background: $selected_background;
+    background: $frame;
 }
 
 td,
@@ -679,20 +677,20 @@ a.reply_tag {
 }
 
 .top_framed {
-    border-top: 1px solid $selected_background;
+    border-top: 1px solid $frame;
 }
 
 .framed {
-    border: 1px solid $selected_background;
+    border: 1px solid $frame;
     padding: 0.5em;
     border-radius: 10px;
 }
 
 .post_extension {
+    background: $light_background;
     margin: 1em;
     margin-bottom: 1em;
     font-size: medium;
-    border: 1px solid $selected_background;
     padding: 0.5em;
     border-radius: 10px;
 }
@@ -773,8 +771,8 @@ a.reply_tag {
 }
 
 .post_bar {
+    min-height: 50px;
     padding: 0.5em;
-    border-top: 1px solid $darker_background;
     justify-content: flex-end;
 }
 
@@ -927,7 +925,7 @@ a.accent,
 }
 
 .deleted {
-    background: $selected_background;
+    background: $frame;
 }
 
 .active {
@@ -1049,6 +1047,12 @@ label svg {
     .stands_out,
     .feed_item {
         border-radius: 0;
+    }
+
+    .feed_item {
+        border: none;
+        border-top: 1px solid $frame;
+        padding-top: 1em;
         margin-bottom: 0.5em;
     }
 

@@ -549,7 +549,11 @@ impl Post {
             user_id,
             costs,
             realm.as_ref(),
-            format!("new post [{0}](#/post/{0})", future_id),
+            format!(
+                "new {0} [{1}](#/post/{1})",
+                if parent.is_some() { "comment" } else { "post" },
+                future_id
+            ),
         )?;
         let user = state.users.get_mut(&user_id).expect("no user found");
         user.num_posts += 1;

@@ -177,7 +177,7 @@ fn sorted_realms(
         realms.sort_unstable_by_key(|(realm_id, realm)| match order.as_str() {
             "popularity" => {
                 let realm_vp = realm_vp.get(realm_id.as_str()).copied().unwrap_or(1);
-                let whitelisted = if realm.whitelist.is_empty() {
+                let vp = if realm.whitelist.is_empty() {
                     realm_vp
                 } else {
                     1
@@ -187,7 +187,11 @@ fn sorted_realms(
                 } else {
                     realm_vp
                 };
-                Reverse(realm.num_posts * realm.num_members * whitelisted * moderation)
+                Reverse(
+                    vp * moderation
+                        + (realm.num_members as f32).sqrt() as u64
+                        + (realm.num_posts as f32).sqrt() as u64,
+                )
             }
             _ => Reverse(realm.last_update),
         });

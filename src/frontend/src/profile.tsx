@@ -90,23 +90,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                         <Journal />
                     </button>
                 }
-                button2={
-                    user && user.id != profile.id ? (
-                        <ToggleButton
-                            offLabel="FOLLOW"
-                            onLabel="UNFOLLOW"
-                            classNameArg="left_half_spaced right_half_spaced"
-                            currState={() =>
-                                user.followees.includes(profile.id)
-                            }
-                            toggler={() =>
-                                window.api
-                                    .call("toggle_following_user", profile.id)
-                                    .then(window.reloadUser)
-                            }
-                        />
-                    ) : undefined
-                }
+                button2={<FollowButton id={profile.id} />}
                 menu={true}
                 burgerTestId="profile-burger-menu"
                 content={
@@ -562,3 +546,20 @@ const secondsSince = (val: BigInt) =>
 
 const isBot = (profile: User) =>
     profile.controllers.find((p) => p.length == 27);
+
+export const FollowButton = ({ id }: { id: UserId }) => {
+    const user = window.user;
+    return !user || user.id == id ? null : (
+        <ToggleButton
+            offLabel="FOLLOW"
+            onLabel="UNFOLLOW"
+            classNameArg="left_half_spaced right_half_spaced"
+            currState={() => user.followees.includes(id)}
+            toggler={() =>
+                window.api
+                    .call("toggle_following_user", id)
+                    .then(window.reloadUser)
+            }
+        />
+    );
+};

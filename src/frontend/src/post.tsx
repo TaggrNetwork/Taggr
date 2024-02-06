@@ -266,7 +266,6 @@ export const PostView = ({
         post.effBody.toLowerCase().includes("#nsfw") &&
         isFeedItem &&
         !safeToOpen;
-    const isControversial = isInactive && isFeedItem && !safeToOpen;
     const versionSpecified = version != undefined && !isNaN(version);
     version =
         !versionSpecified && post.patches.length > 0
@@ -283,6 +282,7 @@ export const PostView = ({
         prime && post.effBody.length > 750 && post.effBody.startsWith("# ")
             ? {
                   author: post.userObject.name,
+                  realm: post.realm,
                   created: postCreated,
                   length: post.effBody.length,
               }
@@ -290,8 +290,7 @@ export const PostView = ({
 
     if (prime) setTitle(`Post #${post.id} by @${post.userObject.name}`);
 
-    const showExtension =
-        !isNSFW && !isControversial && post.extension && !repost;
+    const showExtension = !isNSFW && post.extension && !repost;
 
     if (hidden) return null;
 
@@ -344,19 +343,8 @@ export const PostView = ({
                             <RealmSpan
                                 name={post.realm}
                                 classNameArg="realm_tag"
-                                onClick={() =>
-                                    (location.href = `/#/realm/${post.realm}`)
-                                }
                             />
                         )}
-                    </div>
-                )}
-                {isControversial && (
-                    <div
-                        className="controversial x_large_text"
-                        onClick={() => setSafeToOpen(true)}
-                    >
-                        CONTROVERSIAL
                     </div>
                 )}
                 {isNSFW && (
@@ -381,7 +369,7 @@ export const PostView = ({
                         </ol>
                     </div>
                 )}
-                {!isNSFW && !isControversial && (
+                {!isNSFW && (
                     <article
                         ref={refArticle as unknown as any}
                         onClick={(e) => goInside(e)}
@@ -435,7 +423,7 @@ export const PostView = ({
                 )}
             </div>
             {showInfo && (
-                <div className="top_framed left_half_spaced right_half_spaced top_spaced">
+                <div className="left_half_spaced right_half_spaced top_spaced">
                     {user && (
                         <>
                             {realmAccessError}
@@ -980,13 +968,13 @@ export const Reactions = ({
                         data-meta="skipClicks"
                         key={reactId}
                         className={
-                            "right_quarter_spaced reaction_button " +
+                            "reaction_button " +
                             (reacted ? "selected" : "unselected")
                         }
                         onClick={() => react(parseInt(reactId))}
                         data-testid={reactId + "-reaction"}
                     >
-                        <span className="right_half_spaced medium_text">
+                        <span className="right_quarter_spaced medium_text">
                             {reaction2icon(Number(reactId))}
                         </span>
                         {users.length}

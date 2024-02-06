@@ -3,6 +3,7 @@ import { bigScreen, Loading, NotFound, ShareButton, UserLink } from "./common";
 import { Content } from "./content";
 import { PostFeed } from "./post_feed";
 import { PostId, User } from "./types";
+import { FollowButton } from "./profile";
 
 export const Journal = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
@@ -49,6 +50,7 @@ export const Journal = ({ handle }: { handle: string }) => {
                         className="row_container vertically_spaced"
                         style={{ justifyContent: "center" }}
                     >
+                        <FollowButton id={profile.id} />
                         <ShareButton
                             url={`journal/${handle}`}
                             title={`${handle}'s journal on ${name}`}

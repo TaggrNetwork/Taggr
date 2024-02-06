@@ -1,6 +1,6 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { blobToUrl, timeAgo } from "./common";
+import { RealmSpan, blobToUrl, timeAgo } from "./common";
 import remarkGfm from "remark-gfm";
 import { CarretDown } from "./icons";
 import { BlogTitle } from "./types";
@@ -238,7 +238,7 @@ const markdownizer = (
             components={{
                 h1: ({ node, children, ...props }) => {
                     if (!blogTitle) return <h1 {...props}>{children}</h1>;
-                    let { author, created, length } = blogTitle;
+                    let { author, created, length, realm } = blogTitle;
                     return (
                         <>
                             <h1>{children}</h1>
@@ -246,6 +246,16 @@ const markdownizer = (
                                 By <a href={`#/journal/${author}`}>{author}</a>
                                 &nbsp;&nbsp;&middot;&nbsp;&nbsp;
                                 <b>{timeAgo(created, true, "long")}</b>
+                                {realm && (
+                                    <>
+                                        &nbsp;&nbsp;&middot;&nbsp;&nbsp;
+                                        <RealmSpan
+                                            name={realm}
+                                            classNameArg="realm_tag"
+                                            styleArg={{ borderRadius: "5px" }}
+                                        />
+                                    </>
+                                )}
                                 &nbsp;&nbsp;&middot;&nbsp;&nbsp;
                                 {Math.ceil(length / 400)} minutes read
                             </p>

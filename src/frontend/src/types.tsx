@@ -118,6 +118,7 @@ export type Post = {
 
 export type BlogTitle = {
     author: string;
+    realm?: string;
     created: BigInt;
     length: number;
 };

@@ -33,7 +33,6 @@ export const RealmList = ({
             <RealmSpan
                 key={name}
                 name={name}
-                onClick={() => (location.href = `/#/realm/${name}`)}
                 classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
             />
         ))}
@@ -206,13 +205,11 @@ export const RealmSpan = ({
     col,
     name,
     classNameArg,
-    onClick,
     styleArg,
 }: {
     col?: string;
     name: string;
     classNameArg?: string;
-    onClick?: () => void;
     styleArg?: any;
 }) => {
     if (!name) return null;
@@ -220,7 +217,7 @@ export const RealmSpan = ({
     return (
         <span
             className={`realm_span ${classNameArg}`}
-            onClick={onClick}
+            onClick={() => (location.href = `/#/realm/${name}`)}
             style={{ background, color, whiteSpace: "nowrap", ...styleArg }}
         >
             {name}
