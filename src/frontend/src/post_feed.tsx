@@ -88,16 +88,13 @@ export const PostFeed = ({
             highlighted={highlighted}
             isFeedItem={true}
             isJournalView={journal}
-            classNameArg={
-                `${thread ? "" : "collapsable"} ` +
-                `${
-                    !isRoot(post) && thread
-                        ? "comment"
-                        : firstItem && thread
-                        ? "prime"
-                        : "feed_item"
-                }`
-            }
+            classNameArg={`${
+                !isRoot(post) && thread
+                    ? "comment"
+                    : firstItem && thread
+                    ? "prime"
+                    : "feed_item"
+            }`}
             focused={post.id == focusedPost}
             isCommentView={thread}
             isThreadView={thread && !lastItem}

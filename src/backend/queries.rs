@@ -223,14 +223,21 @@ fn realms_data() {
     });
 }
 
-#[export_name = "canister_query realm"]
-fn realm() {
-    let name: String = parse(&arg_data_raw());
-    read(|state| reply(state.realms.get(&name).ok_or("no realm found")));
-}
-
 #[export_name = "canister_query realms"]
 fn realms() {
+    let realm_ids: Vec<String> = parse(&arg_data_raw());
+    read(|state| {
+        reply(
+            realm_ids
+                .into_iter()
+                .filter_map(|realm_id| state.realms.get(&realm_id))
+                .collect::<Vec<_>>(),
+        )
+    })
+}
+
+#[export_name = "canister_query all_realms"]
+fn all_realms() {
     let page_size = 20;
     read(|state| {
         let (order, page): (String, usize) = parse(&arg_data_raw());

@@ -29,6 +29,7 @@ import {
     noiseControlBanner,
     getRealmsData,
     expandUser,
+    ArrowDown,
 } from "./common";
 import {
     reaction2icon,
@@ -85,9 +86,8 @@ export const PostView = ({
     const [showComments, toggleComments] = React.useState(!!prime);
     const [showInfo, toggleInfo] = React.useState(false);
     const [safeToOpen, setSafeToOpen] = React.useState(false);
-    const [forceCollapsing, setForceCollapsing] = React.useState(false);
+    const [showExpandButton, setShowExpandButton] = React.useState(false);
     const [commentIncoming, setCommentIncoming] = React.useState(false);
-    const [reactionTimer, setReactionTimer] = React.useState(null);
 
     const refPost = React.useRef();
     const refArticle = React.useRef();
@@ -120,8 +120,10 @@ export const PostView = ({
 
     React.useEffect(() => {
         const article: any = refArticle.current;
-        if (article && article.scrollHeight > article.clientHeight)
-            setForceCollapsing(true);
+        if (!prime && article && article.scrollHeight > article.clientHeight) {
+            article.classList.add("overflowing");
+            setShowExpandButton(true);
+        }
     }, [post, blobs]);
 
     const registerObserver = () => {
@@ -138,7 +140,7 @@ export const PostView = ({
             },
             {
                 root: null,
-                rootMargin: "0px",
+                rootMargin: "750px",
                 threshold: 0,
             },
         );
@@ -216,23 +218,12 @@ export const PostView = ({
                 .reduce((acc, users) => acc.concat(users), [])
                 .includes(userId)
         ) {
-            if (reactionTimer) {
-                clearTimeout(reactionTimer);
-                post.reactions[id] = users.filter((id) => id != userId);
-                setPost({ ...post });
-            }
             return;
         }
-        clearTimeout(reactionTimer as any);
-        const timer = setTimeout(
-            () =>
-                window.api.call<any>("react", post.id, id).then((response) => {
-                    if ("Err" in response) alert(`Error: ${response.Err}`);
-                    window.reloadUser();
-                }),
-            4000,
-        );
-        setReactionTimer(timer as any);
+        window.api.call<any>("react", post.id, id).then((response) => {
+            if ("Err" in response) alert(`Error: ${response.Err}`);
+            window.reloadUser();
+        });
         users.push(userId);
         setPost({ ...post });
         toggleInfo(commentIncoming);
@@ -384,9 +375,13 @@ export const PostView = ({
                             blobs={blobs}
                             collapse={!expanded}
                             primeMode={isRoot(post) && !repost}
-                            forceCollapsing={forceCollapsing}
                         />
                     </article>
+                )}
+                {showExpandButton && (
+                    <ArrowDown
+                        onClick={() => (location.href = `#/post/${post.id}`)}
+                    />
                 )}
                 {showExtension && "Poll" in post.extension && (
                     <PollView
@@ -489,7 +484,10 @@ const Comments = ({
     if (loading) return <Loading />;
 
     return (
-        <ul className="comments top_framed">
+        <ul
+            style={{ marginLeft: level == 1 ? "0.5em" : undefined }}
+            className="comments top_framed"
+        >
             {posts.map((post) => (
                 <li key={post.id}>
                     <PostView
@@ -806,6 +804,10 @@ const PostInfo = ({
     );
 };
 
+let reactionIndicatorWidth = 0;
+let progressInterval: any = null;
+let timeStart: any = null;
+
 const PostBar = ({
     post,
     react,
@@ -828,40 +830,87 @@ const PostBar = ({
     showCarret: boolean;
 }) => {
     const [showEmojis, setShowEmojis] = React.useState(false);
+    const [showHint, setShowHint] = React.useState(false);
     const replies = post.tree_size;
     // @ts-ignore
     const users: UserId[] = [].concat(...Object.values(post.reactions));
-    const reacted = users.includes(window.user?.id);
+    let user_id = window.user?.id;
+    const cantReact = users.includes(user_id) || post.user == user_id;
     const updatedRecently =
         Number(new Date()) - Number(post.tree_update) / 1000000 <
         30 * 60 * 1000;
     const newComments =
         window.user && (post.tree_update > window.lastVisit || updatedRecently);
+    const ref = React.useRef(null);
+
+    const unreact = () => {
+        if (Number(new Date()) - timeStart < 300) {
+            setShowHint(true);
+            setTimeout(() => setShowHint(false), 1000);
+        }
+        clearInterval(progressInterval);
+        reactionIndicatorWidth = 0;
+        // @ts-ignore
+        ref.current?.style.width = 0;
+        setShowEmojis(false);
+    };
+
+    const delayedReact = (id: number) => {
+        if (cantReact) return;
+        timeStart = new Date();
+        progressInterval = setInterval(() => {
+            reactionIndicatorWidth += 6;
+            // @ts-ignore
+            ref.current?.style.width = reactionIndicatorWidth + "%";
+            if (reactionIndicatorWidth >= 100) {
+                react(id);
+                unreact();
+            }
+        }, 50);
+    };
+
     return (
-        <div
-            onClick={(e) => goInside(e)}
-            className="post_bar vcentered smaller_text"
-        >
-            {showEmojis && (
-                <ReactionPicker
-                    callback={() => setShowEmojis(false)}
-                    react={react}
-                />
-            )}
-            {!showEmojis && (
+        <>
+            <div
+                ref={ref}
+                className="active"
+                style={{ height: "1px", width: 0 }}
+            ></div>
+            <div className="post_bar vcentered smaller_text">
+                {showHint && (
+                    <div
+                        className="max_width_col"
+                        style={{ textAlign: "left", opacity: 0.7 }}
+                    >
+                        TAP AND HOLD!
+                    </div>
+                )}
+                {showEmojis && !showHint && (
+                    <ReactionPicker react={delayedReact} unreact={unreact} />
+                )}
+                {!showEmojis && !showHint && (
+                    <>
+                        <Reactions
+                            reactionsMap={post.reactions}
+                            react={delayedReact}
+                            unreact={unreact}
+                        />
+                        {!cantReact && (
+                            <button
+                                className="reaction_button unselected"
+                                onClick={() => setShowEmojis(true)}
+                                data-testid="reaction-picker"
+                            >
+                                <More />
+                            </button>
+                        )}
+                        <div
+                            className="max_width_col"
+                            onClick={(e) => goInside(e)}
+                        ></div>
+                    </>
+                )}
                 <>
-                    <Reactions reactionsMap={post.reactions} react={react} />
-                    {window.user && window.user.id != post.user && !reacted && (
-                        <button
-                            data-meta="skipClicks"
-                            className="reaction_button unselected"
-                            onClick={() => setShowEmojis(true)}
-                            data-testid="reaction-picker"
-                        >
-                            <More />
-                        </button>
-                    )}
-                    <div className="max_width_col"></div>
                     {post.tips.length > 0 && (
                         <Coin classNameArg="accent right_quarter_spaced" />
                     )}
@@ -921,29 +970,33 @@ const PostBar = ({
                         </button>
                     )}
                 </>
-            )}
-        </div>
+            </div>
+        </>
     );
 };
 
 export const ReactionPicker = ({
     react,
-    callback,
+    unreact,
 }: {
-    callback: () => void;
     react: (id: number) => void;
+    unreact: () => void;
 }) => (
-    <div className="row_container max_width_col">
+    <div
+        className={`max_width_col ${
+            bigScreen() ? "row_container" : "emoji_table"
+        }`}
+        style={{ justifyContent: "flex-start" }}
+    >
         {window.backendCache.config.reactions.map(([reactId, rewards]) => (
             <button
                 key={reactId}
                 title={`Reward points: ${rewards}`}
-                data-meta="skipClicks"
-                className="max_width_col reaction_button unselected text_centered medium_text centered"
-                onClick={() => {
-                    react(reactId);
-                    callback();
-                }}
+                className="reaction_button unselected text_centered medium_text centered"
+                onMouseDown={() => react(reactId)}
+                onMouseUp={unreact}
+                onTouchStart={() => react(reactId)}
+                onTouchEnd={unreact}
                 data-testid="reaction-picker"
             >
                 {reaction2icon(Number(reactId))}
@@ -955,9 +1008,11 @@ export const ReactionPicker = ({
 export const Reactions = ({
     reactionsMap,
     react,
+    unreact,
 }: {
     reactionsMap: { [id: number]: UserId[] };
     react: (id: number) => void;
+    unreact: () => void;
 }) => {
     return (
         <>
@@ -965,13 +1020,15 @@ export const Reactions = ({
                 const reacted = users.includes(window.user?.id);
                 return (
                     <button
-                        data-meta="skipClicks"
                         key={reactId}
                         className={
-                            "reaction_button " +
+                            "reaction_button right_quarter_spaced " +
                             (reacted ? "selected" : "unselected")
                         }
-                        onClick={() => react(parseInt(reactId))}
+                        onMouseDown={() => react(parseInt(reactId))}
+                        onMouseUp={unreact}
+                        onTouchStart={() => react(parseInt(reactId))}
+                        onTouchEnd={unreact}
                         data-testid={reactId + "-reaction"}
                     >
                         <span className="right_quarter_spaced medium_text">

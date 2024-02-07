@@ -58,7 +58,7 @@ test.describe("Regular users flow", () => {
         await page.getByPlaceholder("Enter your password...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.getByTestId("toggle-user-section").click();
-        const profileButton = page.getByRole("link", { name: /.*ALICE.*/ });
+        const profileButton = page.getByRole("link", { name: /.*alice.*/ });
         await expect(profileButton).toBeVisible();
 
         // Open our own profile and make sure it works
@@ -199,9 +199,9 @@ test.describe("Regular users flow", () => {
         await expect(
             page.locator("article", { hasText: "Hello from Alice!" }),
         ).toBeVisible();
-        await expect(page.locator('[class="realm_span realm_tag"]')).toHaveText(
-            "WONDERLAND",
-        );
+        await expect(
+            page.locator('[class="realm_span realm_tag"]').first(),
+        ).toHaveText("WONDERLAND");
     });
 
     test("Invites", async () => {
@@ -236,7 +236,8 @@ test.describe("Regular users flow", () => {
         await page
             .locator(".feed_item", { hasText: /Hello world/ })
             .locator('button[title="Reward points: 20"]')
-            .click();
+            .first()
+            .click({ delay: 3000 });
         // comment on the first post
         await page
             .locator(".feed_item", { hasText: /Hello world/ })
@@ -284,9 +285,11 @@ test.describe("Regular users flow", () => {
         );
         await page.getByRole("heading", { name: "Interests" }).click();
         await expect(
-            page.locator(
-                '[class="realm_span clickable padded_rounded right_half_spaced top_half_spaced"]',
-            ),
+            page
+                .locator(
+                    '[class="realm_span clickable padded_rounded right_half_spaced top_half_spaced"]',
+                )
+                .first(),
         ).toHaveText("WONDERLAND");
     });
 });

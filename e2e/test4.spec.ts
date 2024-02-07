@@ -129,7 +129,10 @@ test.describe("Report and transfer to user", () => {
             hasText: /Good stuff/,
         });
         await feedItem.getByTestId("reaction-picker").click();
-        await feedItem.locator('button[title="Reward points: 20"]').click();
+        await feedItem
+            .locator('button[title="Reward points: 20"]')
+            .first()
+            .click({ delay: 3000 });
         // Wait because the UI waits for 4s before sending the command
         await page.waitForTimeout(6000);
         await feedItem.getByRole("link", { name: "jane" }).first().click();

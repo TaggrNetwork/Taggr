@@ -1,8 +1,7 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { RealmSpan, blobToUrl, timeAgo } from "./common";
+import { ArrowDown, RealmSpan, blobToUrl, timeAgo } from "./common";
 import remarkGfm from "remark-gfm";
-import { CarretDown } from "./icons";
 import { BlogTitle } from "./types";
 import { previewImg } from "./image_preview";
 
@@ -73,7 +72,6 @@ export const Content = ({
     preview,
     primeMode,
     classNameArg,
-    forceCollapsing,
 }: {
     post?: boolean;
     blogTitle?: BlogTitle;
@@ -83,7 +81,6 @@ export const Content = ({
     preview?: boolean;
     primeMode?: boolean;
     classNameArg?: string;
-    forceCollapsing?: boolean;
 }) => {
     const [urls, setUrls] = React.useState({});
 
@@ -102,16 +99,6 @@ export const Content = ({
                 className={classNameArg}
             />
         );
-
-    if (forceCollapsing) {
-        const lines = value.split("\n");
-        value =
-            (lines[0].length < 256
-                ? lines[0]
-                : lines[0].slice(0, 256) + " ...") +
-            CUT +
-            lines.slice(1).join("\n");
-    }
 
     let cutPos = value.indexOf(CUT);
     let shortened = cutPos >= 0;
@@ -278,8 +265,10 @@ const markdownizer = (
                     return <p {...props}>{children}</p>;
                 },
                 img: ({ node, ...props }: any) => {
+                    let srcUrl;
                     try {
-                        if (!props.src.startsWith("/blob/")) new URL(props.src);
+                        if (!props.src.startsWith("/blob/"))
+                            srcUrl = new URL(props.src);
                     } catch (_) {
                         return null;
                     }
@@ -311,17 +300,17 @@ const markdownizer = (
                     return internal || props.thumbnail == "true" ? (
                         element
                     ) : (
-                        <div>
+                        <div className="text_centered">
                             {element}
-                            <div className="external_image_bar">
+                            <span className="external_image_bar">
                                 URL:{" "}
                                 <a
                                     rel="nofollow noopener noreferrer"
                                     href={props.src}
                                 >
-                                    {props.src}
+                                    {srcUrl?.host}
                                 </a>
-                            </div>
+                            </span>
                         </div>
                     );
                 },
@@ -383,12 +372,6 @@ const YouTube = ({ id, preview }: { id: string; preview?: boolean }) => {
         </span>
     );
 };
-
-const ArrowDown = () => (
-    <div className="text_centered bottom_spaced top_spaced">
-        <CarretDown classNameArg="action" />
-    </div>
-);
 
 const setDimensions = (props: any) => {
     const maxHeight = Math.ceil(window.innerHeight / 3);

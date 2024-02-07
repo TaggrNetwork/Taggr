@@ -147,17 +147,19 @@ select {
     top: 1.25em;
 }
 
-.thread > .comment {
-    border-top: 1px solid $dark_background;
+.thread > .comment:before {
+    content: "↑";
+    font-size: x-large;
+    margin-left: 46%;
 }
 
 ul.comments {
     margin: 0;
+    margin-bottom: 0.5em;
     padding: 0;
-    padding-left: 0.1rem;
-    margin-left: 0.5rem;
     list-style-type: none;
     border-left: 1px solid $frame;
+    border-bottom: 1px solid $frame;
     border-top-left-radius: 10px;
 }
 
@@ -170,7 +172,6 @@ ul.comments {
 .comments li {
     margin: 0;
     padding: 0;
-    padding-left: 0.55rem;
 }
 
 .comments .post_head .user_link {
@@ -197,14 +198,35 @@ ul.comments {
 
 .comment {
     font-size: medium;
+    padding-left: 0.6rem;
 }
 
 .repost {
     cursor: pointer;
 }
 
-.collapsable article {
-    max-height: 100vh;
+.feed_item article {
+    max-height: 80vh;
+    overflow: hidden;
+    position: relative;
+}
+
+.post_extension article {
+    max-height: 20vh;
+}
+
+.post_extension article.overflowing::after {
+    background: linear-gradient(to top, $light_background, transparent);
+}
+
+article.overflowing::after {
+    content: "";
+    height: 50px;
+    width: 100%;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(to top, $background, transparent);
 }
 
 .feed_item {
@@ -231,8 +253,9 @@ ul.comments {
 }
 
 .prime .post_head {
-    border-radius: 10px;
+    border-radius: 0px;
     margin-bottom: 2em;
+    border-bottom: 1px solid $dark_background;
 }
 
 .video-container {
@@ -387,6 +410,12 @@ path {
     grid-template-columns: auto auto auto auto;
 }
 
+.emoji_table {
+    column-gap: 0;
+    display: grid;
+    grid-template-columns: 20% 20% 20% 20% 20%;
+}
+
 .dynamic_table.tripple {
     grid-template-columns: auto auto auto;
 }
@@ -465,10 +494,6 @@ hr {
 
 .unselected {
     background: none;
-}
-
-.emoji {
-    font-size: medium;
 }
 
 .reaction_button {
@@ -603,10 +628,11 @@ article img {
 .external_image_bar {
     background: $dark_background;
     color: $text;
-    padding: 0.6em;
+    padding: 0.8em;
     text-align: center;
     font-family: monospace;
     font-size: xx-small;
+    border-radius: 5px;
 }
 
 .feed_item article img {
@@ -771,6 +797,8 @@ a.reply_tag {
 }
 
 .post_bar {
+    user-select: none;
+    -webkit-user-select: none;
     min-height: 50px;
     padding: 0.5em;
     justify-content: flex-end;

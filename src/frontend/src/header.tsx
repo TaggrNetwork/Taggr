@@ -5,6 +5,7 @@ import {
     IconToggleButton,
     RealmList,
     ToggleButton,
+    UserLink,
 } from "./common";
 import { LoginMasks, logout } from "./logins";
 import {
@@ -195,15 +196,13 @@ const UserSection = ({ user }: { user: UserType }) => {
         <div className="bottom_spaced stands_out">
             <div className="column_container centered">
                 {user && (
-                    <a
-                        className="x_large_text bottom_spaced"
-                        href={`/#/user/${user.name}`}
-                    >
-                        <User /> {user.name.toUpperCase()}
-                    </a>
+                    <span className="xx_large_text bottom_spaced">
+                        <User classNameArg="right_half_spaced" />{" "}
+                        <UserLink profile={true} id={user.id} />
+                    </span>
                 )}
 
-                <div className="row_container icon_bar">
+                <div className="row_container icon_bar top_half_spaced">
                     {user && (
                         <>
                             <a

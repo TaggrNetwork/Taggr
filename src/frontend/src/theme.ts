@@ -46,7 +46,7 @@ const themes: { [name: string]: Theme } = {
         accent: "#FFc700",
     },
     dark: {
-        text: "#d0d0b8",
+        text: "#e0e0cf",
         background: "#1e1e23",
         code: "White",
         clickable: "#30d5c8",
@@ -74,7 +74,7 @@ const applyTheme = (palette: Theme) => {
         "#" + shade(effPalette.background, effPalette.light_factor || 3);
     effPalette.dark_background =
         "#" + shade(effPalette.background, effPalette.dark_factor || -5);
-    effPalette.frame = "#" + shade(effPalette.background, 15);
+    effPalette.frame = "#" + shade(effPalette.background, 10);
     effPalette.visited_clickable = "#" + shade(effPalette.clickable, -20);
     effPalette.frame = effPalette.frame || effPalette.dark_background;
     const styleNode = document.getElementById("style");
@@ -100,8 +100,9 @@ export const setRealmUI = (realm: string) => {
     window.realm = realm;
     if (window.user && window.user.settings.overrideRealmColors == "true")
         return;
-    window.api.query("realm", realm).then((result: any) => {
-        let realmTheme = result.Ok?.theme;
+    window.api.query("realms", [realm]).then((result: any) => {
+        let realm = result[0];
+        let realmTheme = realm.theme;
         if (realmTheme) applyTheme(JSON.parse(realmTheme));
         else setUI(true);
     });

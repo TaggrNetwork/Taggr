@@ -65,7 +65,10 @@ test.describe("Upgrades & token transfer flow", () => {
             .getByTestId("reaction-picker")
             .click();
         // React with a star
-        await page.locator('button[title="Reward points: 20"]').click();
+        await page
+            .locator('button[title="Reward points: 20"]')
+            .first()
+            .click({ delay: 3000 });
         await page.waitForTimeout(4500);
     });
 

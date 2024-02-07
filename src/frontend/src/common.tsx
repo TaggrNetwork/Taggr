@@ -1,7 +1,15 @@
 import * as React from "react";
 // @ts-ignore
 import DiffMatchPatch from "diff-match-patch";
-import { Clipboard, ClipboardCheck, Close, Flag, Menu, Share } from "./icons";
+import {
+    CarretDown,
+    Clipboard,
+    ClipboardCheck,
+    Close,
+    Flag,
+    Menu,
+    Share,
+} from "./icons";
 import { loadFile } from "./form";
 import { Post, PostId, Report, User, UserFilter, UserId } from "./types";
 import { createRoot } from "react-dom/client";
@@ -1040,3 +1048,9 @@ export const hash = async (value: string, iterations: number) => {
         hash = new Uint8Array(await crypto.subtle.digest("SHA-256", hash));
     return hash;
 };
+
+export const ArrowDown = ({ onClick }: { onClick?: () => void }) => (
+    <div onClick={onClick} className="text_centered bottom_spaced top_spaced">
+        <CarretDown classNameArg="action" />
+    </div>
+);

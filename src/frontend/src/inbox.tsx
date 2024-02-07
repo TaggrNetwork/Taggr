@@ -91,7 +91,6 @@ export const Inbox = () => {
                 {id != undefined && (
                     <PostView
                         id={id}
-                        classNameArg="collapsable"
                         isFeedItem={true}
                         highlighted={
                             "WatchedPostEntries" in message

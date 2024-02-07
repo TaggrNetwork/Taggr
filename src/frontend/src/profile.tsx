@@ -21,12 +21,13 @@ import {
 import { Content } from "./content";
 import { Journal } from "./icons";
 import { PostFeed } from "./post_feed";
-import { PostId, User, UserId } from "./types";
+import { PostId, Realm, User, UserId } from "./types";
 import { Principal } from "@dfinity/principal";
 
 export const Profile = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
     const [profile, setProfile] = React.useState({} as User);
+    const [controlledRealms, setControlledRealms] = React.useState<string[]>();
     const [tab, setTab] = React.useState("LAST");
 
     const updateState = async () => {
@@ -37,6 +38,14 @@ export const Profile = ({ handle }: { handle: string }) => {
         }
         setStatus(1);
         setProfile(profile);
+        const realms = (
+            (await window.api.query<Realm[]>("realms", profile.realms)) || []
+        ).map((realm, i): [string, Realm] => [profile.realms[i], realm]);
+        setControlledRealms(
+            realms
+                .filter(([_, realm]) => realm.controllers.includes(profile.id))
+                .map(([realm_id, _]: [string, Realm]) => realm_id),
+        );
     };
 
     React.useEffect(() => {
@@ -205,7 +214,10 @@ export const Profile = ({ handle }: { handle: string }) => {
                     domain="misbehaviour"
                 />
             )}
-            <UserInfo profile={profile} />
+            <UserInfo
+                profile={profile}
+                controlledRealms={controlledRealms || []}
+            />
             <PostFeed
                 title={title}
                 useList={true}
@@ -238,7 +250,13 @@ export const Profile = ({ handle }: { handle: string }) => {
     );
 };
 
-export const UserInfo = ({ profile }: { profile: User }) => {
+export const UserInfo = ({
+    profile,
+    controlledRealms,
+}: {
+    profile: User;
+    controlledRealms: string[];
+}) => {
     const placeholder = (label: number, content: any) =>
         status ? (
             <div className="small_text">{content}</div>
@@ -460,6 +478,16 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     <h2>Interests</h2>
                     {feeds}
                     <RealmList classNameArg="top_spaced" ids={profile.realms} />
+                    <hr />
+                </>
+            )}
+            {controlledRealms.length > 0 && (
+                <>
+                    <h2>Controls realms</h2>
+                    <RealmList
+                        classNameArg="top_spaced"
+                        ids={controlledRealms}
+                    />
                     <hr />
                 </>
             )}

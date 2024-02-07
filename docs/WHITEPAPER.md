@@ -24,7 +24,7 @@ Below is a breakdown of costs.
 | Poll                         |       `$poll_cost` | For adding a poll to a post or comment                                                                     |
 | Reacting with ❤️ , 👍, 😢    |                `3` | Gives `2` reward points, burns the rest as fee.                                                            |
 | Reacting with 🔥, 😂, 🚀, 💯 |               `12` | Gives `10` rewards points, burns the rest as fee.                                                          |
-| Reacting with ⭐️            |               `23` | Gives `20` reward points, burns the rest as fee.                                                           |
+| Reacting with ⭐️, 🏴‍☠️        |               `23` | Gives `20` reward points, burns the rest as fee.                                                           |
 | Reacting with 👎             |                `3` | Burns `3` credits and rewards of post's author and burns 3 credits of the user.                            |
 | New realm creation           |      `$realm_cost` | Burns `$realm_cost` credits                                                                                |
 

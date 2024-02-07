@@ -62,12 +62,9 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
     const [whitelistString, setWhitelistString] = React.useState("");
 
     const loadRealm = async () => {
-        let result = await window.api.query<any>("realm", existingName);
-        if ("Err" in result) {
-            alert(`Error: ${result.Err}`);
-            return;
-        }
-        const realm: Realm = result.Ok;
+        let result =
+            (await window.api.query<Realm[]>("realms", [existingName])) || [];
+        const realm: Realm = result[0];
         if (existingName) setName(existingName);
         setRealm(realm);
         if (realm.theme) setTheme(JSON.parse(realm.theme));
@@ -528,11 +525,8 @@ export const RealmHeader = ({ name }: { name: string }) => {
     const [showInfo, toggleInfo] = React.useState(false);
 
     const loadRealm = async () => {
-        let result = await window.api.query<any>("realm", name);
-        if ("Err" in result) {
-            return;
-        }
-        setRealm(result.Ok);
+        let result = (await window.api.query<Realm[]>("realms", [name])) || [];
+        setRealm(result[0]);
     };
 
     React.useEffect(() => {
@@ -684,7 +678,7 @@ export const Realms = () => {
         const data =
             (filter
                 ? await window.api.query<any>("realm_search", filter)
-                : await window.api.query<any>("realms", order, page)) || [];
+                : await window.api.query<any>("all_realms", order, page)) || [];
         if (data.length == 0) {
             setNoMoreData(true);
         }

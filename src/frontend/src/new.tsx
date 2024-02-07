@@ -114,7 +114,7 @@ export const PostSubmissionForm = ({
                 repost={repost}
                 realmArg={post?.realm || currentRealm()}
             />
-            <h3>Tipps</h3>
+            <h3>Tips</h3>
             <ul>
                 <li>
                     Use{" "}
@@ -128,7 +128,8 @@ export const PostSubmissionForm = ({
                     in the corresponding tag-feed.
                 </li>
                 <li>
-                    Use three empty lines to create a cut line for long posts.
+                    For long posts, use three empty lines to separate the upper
+                    part of the post from the long body.
                 </li>
                 <li>You can drag and drop images into the text area.</li>
                 <li>
