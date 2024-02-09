@@ -798,8 +798,6 @@ impl State {
                 .expect("couldn't add credits when creating a new user");
         }
         self.principals.insert(principal, user.id);
-        self.logger
-            .info(format!("@{} joined {} 🚀", &user.name, CONFIG.name));
         self.users.insert(user.id, user);
         Ok(id)
     }
@@ -1051,12 +1049,14 @@ impl State {
                 * (CONFIG.active_user_share_for_minting_promille as f32 / 1000.0))
                 as u64,
         );
+        let boostraping_mode =
+            self.balances.values().sum::<Token>() < CONFIG.boostrapping_threshold_tokens;
         let mut tokens_to_mint: BTreeMap<UserId, Token> = Default::default();
 
         for (user_id, tokens) in self
             .users
             .values()
-            .flat_map(|user| user.mintable_tokens(self, user_shares))
+            .flat_map(|user| user.mintable_tokens(self, user_shares, boostraping_mode))
             .filter(|(_, balance)| *balance > 0)
         {
             tokens_to_mint
@@ -1188,13 +1188,8 @@ impl State {
     pub fn collect_new_rewards(&mut self) -> HashMap<UserId, u64> {
         self.users
             .values_mut()
-            .filter(|u| u.rewards() > 0)
-            .filter_map(|user| {
-                user.top_up_credits_from_rewards().ok().map(|credits| {
-                    let rewards = user.rewards();
-                    user.take_positive_rewards();
-                    (user.id, rewards as Credits - credits)
-                })
+            .filter_map(|u| {
+                (u.rewards() > 0).then_some((u.id, u.take_positive_rewards() as Credits))
             })
             .collect()
     }
@@ -1861,19 +1856,7 @@ impl State {
         }
 
         let e8s_for_one_xdr = read(|state| state.e8s_for_one_xdr);
-        let invoice = match Invoices::outstanding(&principal, kilo_credits, e8s_for_one_xdr).await {
-            Ok(val) => val,
-            Err(err) => {
-                if kilo_credits == 0 {
-                    mutate(|state| {
-                        state
-                            .logger
-                            .warn(&format!("couldn't generate invoice: {:?}", err))
-                    });
-                }
-                return Err(err);
-            }
-        };
+        let invoice = Invoices::outstanding(&principal, kilo_credits, e8s_for_one_xdr).await?;
 
         mutate(|state| {
             if invoice.paid {
@@ -2827,13 +2810,9 @@ pub(crate) mod tests {
         name: &str,
         credits: Credits,
     ) -> UserId {
-        let id = state
+        state
             .new_user(p, 0, name.to_string(), Some(credits))
-            .unwrap();
-        let u = state.users.get_mut(&id).unwrap();
-        u.change_rewards(25, "");
-        u.take_positive_rewards();
-        id
+            .unwrap()
     }
 
     #[test]
@@ -3528,7 +3507,7 @@ pub(crate) mod tests {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
-            let id = create_user(state, pr(0));
+            let id = create_user_with_credits(state, pr(0), 2000);
             let user = state.users.get_mut(&id).unwrap();
             assert_eq!(user.rewards(), 0);
             let upvoter_id = create_user(state, pr(1));
@@ -4263,15 +4242,12 @@ pub(crate) mod tests {
     fn test_clean_up() {
         STATE.with(|cell| cell.replace(Default::default()));
         mutate(|state| {
-            let inactive_id1 = create_user_with_credits(state, pr(1), 500);
-            let inactive_id2 = create_user_with_credits(state, pr(2), 100);
-            let inactive_id3 = create_user_with_credits(state, pr(3), 200);
-            let active_id = create_user_with_credits(state, pr(4), 300);
+            let inactive_id1 = create_user_with_credits(state, pr(1), 1500);
+            let inactive_id2 = create_user_with_credits(state, pr(2), 1100);
+            let inactive_id3 = create_user_with_credits(state, pr(3), 180);
+            let active_id = create_user_with_credits(state, pr(4), 1300);
 
             let user = state.users.get_mut(&inactive_id1).unwrap();
-            user.change_rewards(25, "");
-            assert_eq!(user.rewards(), 25);
-            let user = state.users.get_mut(&inactive_id3).unwrap();
             user.change_rewards(25, "");
             assert_eq!(user.rewards(), 25);
             let user = state.users.get_mut(&active_id).unwrap();
@@ -4288,18 +4264,18 @@ pub(crate) mod tests {
 
             // penalized
             let user = state.users.get_mut(&inactive_id1).unwrap();
-            assert_eq!(user.credits(), 500 - penalty);
+            assert_eq!(user.credits(), 1500 - penalty);
             assert_eq!(user.rewards(), 0);
             // not penalized due to low balance, but rewards penalized
             let user = state.users.get_mut(&inactive_id2).unwrap();
-            assert_eq!(user.credits(), 100);
+            assert_eq!(user.credits(), 1055);
             assert_eq!(user.rewards(), 0);
             // penalized to the minimum balance
             let user = state.users.get_mut(&inactive_id3).unwrap();
             assert_eq!(user.credits(), penalty * 4);
             // Active user not penalized
             let user = state.users.get_mut(&active_id).unwrap();
-            assert_eq!(user.credits(), 300);
+            assert_eq!(user.credits(), 1300);
             assert_eq!(user.rewards(), 25);
 
             // check rewards budgets
@@ -4347,7 +4323,7 @@ pub(crate) mod tests {
         STATE.with(|cell| cell.replace(Default::default()));
         mutate(|state| {
             let p0 = pr(0);
-            let post_author_id = create_user(state, p0);
+            let post_author_id = create_user_with_credits(state, p0, 2000);
             let post_id =
                 Post::create(state, "test".to_string(), &[], p0, 0, None, None, None).unwrap();
             let p = pr(1);
@@ -4360,34 +4336,17 @@ pub(crate) mod tests {
             insert_balance(state, p3, 10 * token::base());
             let c = CONFIG;
             assert_eq!(state.burned_cycles as Credits, c.post_cost);
-            state
-                .users
-                .get_mut(&lurker_id)
-                .unwrap()
-                .change_rewards(10, "");
-            state
-                .users
-                .get_mut(&lurker_id)
-                .unwrap()
-                .take_positive_rewards();
             // make author to a new user
-            state
-                .users
-                .get_mut(&post_author_id)
-                .unwrap()
-                .change_rewards(-25, "");
             let author = state.users.get(&post_author_id).unwrap();
             let lurker = state.users.get(&lurker_id).unwrap();
-            assert_eq!(author.credits(), c.credits_per_xdr - c.post_cost);
+            assert_eq!(author.credits(), 2 * c.credits_per_xdr - c.post_cost);
             assert_eq!(lurker.credits(), c.credits_per_xdr);
-
-            assert_eq!(author.rewards(), -25);
 
             // react on the new post
             assert!(state.react(pr(111), post_id, 1, 0).is_err());
             assert_eq!(
                 state.users.get(&post_author_id).unwrap().credits(),
-                c.credits_per_xdr - c.post_cost
+                2 * c.credits_per_xdr - c.post_cost
             );
             assert!(state.react(p, post_id, 50, 0).is_ok());
             assert!(state.react(p, post_id, 100, 0).is_err());
@@ -4400,8 +4359,8 @@ pub(crate) mod tests {
             assert!(state.react(p0, post_id, 100, 0).is_err());
 
             let author = state.users.get(&post_author_id).unwrap();
-            assert_eq!(author.credits(), c.credits_per_xdr - c.post_cost);
-            assert_eq!(author.rewards(), -25 + rewards_from_reactions);
+            assert_eq!(author.credits(), 2 * c.credits_per_xdr - c.post_cost);
+            assert_eq!(author.rewards(), rewards_from_reactions);
             assert_eq!(
                 state.burned_cycles as Credits,
                 c.post_cost + burned_credits_by_reactions
@@ -4418,9 +4377,9 @@ pub(crate) mod tests {
             let lurker_3 = state.principal_to_user(p3).unwrap();
             assert_eq!(
                 author.credits(),
-                c.credits_per_xdr - c.post_cost - reaction_penalty
+                2 * c.credits_per_xdr - c.post_cost - reaction_penalty
             );
-            assert_eq!(author.rewards(), -25 + rewards_from_reactions);
+            assert_eq!(author.rewards(), rewards_from_reactions);
             assert_eq!(lurker_3.credits(), c.credits_per_xdr - 3);
             assert_eq!(
                 state.burned_cycles,
@@ -4437,7 +4396,7 @@ pub(crate) mod tests {
             let author = state.users.get(&post_author_id).unwrap();
             assert_eq!(
                 author.credits(),
-                c.credits_per_xdr - c.post_cost - c.post_cost - reaction_penalty
+                2 * c.credits_per_xdr - c.post_cost - c.post_cost - reaction_penalty
             );
 
             let author = state.users.get_mut(&post_author_id).unwrap();
@@ -4462,7 +4421,7 @@ pub(crate) mod tests {
             );
 
             // Create a new user and a new post
-            let user_id111 = create_user_with_params(state, pr(55), "user111", 1000);
+            let user_id111 = create_user_with_params(state, pr(55), "user111", 2000);
             let id =
                 Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
 

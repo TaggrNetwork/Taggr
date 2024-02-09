@@ -28,13 +28,15 @@ fn check_invite() {
 #[export_name = "canister_query donors"]
 fn donors() {
     read(|state| {
+        let boostraping_mode =
+            state.balances.values().sum::<Token>() < CONFIG.boostrapping_threshold_tokens;
         let mut donors = state
             .users
             .values()
             .map(|user| {
                 (
                     user.id,
-                    user.mintable_tokens(state, 1)
+                    user.mintable_tokens(state, 1, boostraping_mode)
                         .map(|(_, tokens)| tokens)
                         .sum::<Token>(),
                 )

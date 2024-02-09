@@ -199,6 +199,10 @@ mod tests {
                 user.stalwart = true;
             }
 
+            let reporter = pr(7);
+            let user = state.principal_to_user_mut(reporter).unwrap();
+            user.change_credits(1000, CreditsDelta::Plus, "").unwrap();
+
             let post_id =
                 Post::create(state, "bad post".to_string(), &[], p, 0, None, None, None).unwrap();
 
@@ -208,7 +212,7 @@ mod tests {
             let p = Post::get(state, &post_id).unwrap();
             assert!(p.report.is_none());
 
-            let reporter = pr(7);
+            assert_eq!(user.credits(), 1000 - CONFIG.post_cost);
             // The reporter can only be a user with at least one post.
             let _ = Post::create(
                 state,
@@ -234,9 +238,9 @@ mod tests {
 
             // report should work becasue the user needs 500 credits
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
-            assert_eq!(reporter_user.credits(), 998);
+            assert_eq!(reporter_user.credits(), 1998);
             reporter_user
-                .change_credits(998, CreditsDelta::Minus, "")
+                .change_credits(1998, CreditsDelta::Minus, "")
                 .unwrap();
             assert_eq!(reporter_user.credits(), 0);
             assert_eq!(
@@ -248,9 +252,9 @@ mod tests {
 
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
             reporter_user
-                .change_credits(500, CreditsDelta::Plus, "")
+                .change_credits(1000, CreditsDelta::Plus, "")
                 .unwrap();
-            assert_eq!(reporter_user.credits(), 500);
+            assert_eq!(reporter_user.credits(), 1000);
             state
                 .report(reporter, "post".into(), post_id, String::new())
                 .unwrap();
@@ -271,7 +275,7 @@ mod tests {
                 state.report(pr(8), "post".into(), post_id, String::new()),
                 Err("this post is already reported".into())
             );
-            // the reporter is stil lthe same
+            // the reporter is still the same
             assert!(report.reporter == state.principal_to_user(reporter).unwrap().id);
 
             // stalwart 3 confirmed the report
@@ -376,12 +380,12 @@ mod tests {
             state
                 .report(reporter, "post".into(), post_id, String::new())
                 .unwrap();
-            // set credits to 777
+            // set credits to 1777
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
             reporter_user
-                .change_credits(777 - reporter_user.credits(), CreditsDelta::Plus, "")
+                .change_credits(1777 - reporter_user.credits(), CreditsDelta::Plus, "")
                 .unwrap();
-            assert_eq!(reporter_user.credits(), 777);
+            assert_eq!(reporter_user.credits(), 1777);
             assert_eq!(reporter_user.rewards(), 100);
 
             state
@@ -428,7 +432,7 @@ mod tests {
             // reported got penalized
             let reporter = state.principal_to_user(reporter).unwrap();
             let unit = CONFIG.reporting_penalty_post / 2;
-            assert_eq!(reporter.credits(), 777 - 2 * unit);
+            assert_eq!(reporter.credits(), 1777 - 2 * unit);
 
             assert_eq!(
                 state.principal_to_user(pr(9)).unwrap().rewards() as Credits,

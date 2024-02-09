@@ -96,7 +96,7 @@ export const Content = ({
                 }
                 children={value}
                 remarkPlugins={[remarkGfm]}
-                className={classNameArg}
+                className={`selectable ${classNameArg}`}
             />
         );
 
@@ -221,7 +221,7 @@ const markdownizer = (
         <ReactMarkdown
             children={value}
             remarkPlugins={[remarkGfm]}
-            className={className}
+            className={`selectable ${className}`}
             components={{
                 h1: ({ node, children, ...props }) => {
                     if (!blogTitle) return <h1 {...props}>{children}</h1>;

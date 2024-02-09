@@ -29,6 +29,7 @@ export const Landing = () => {
             ]);
             if (user.realms.length > 0) labels.push([<Realm />, "REALMS"]);
         } else {
+            labels = labels.slice(1);
             labels.push([<Realm />, "BEST IN REALMS"]);
         }
     }

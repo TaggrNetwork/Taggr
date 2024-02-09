@@ -413,6 +413,16 @@ impl User {
     }
 
     pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {
+        let credits_needed = CONFIG.credits_per_xdr.saturating_sub(self.credits());
+        if credits_needed > 0 && amount > 0 {
+            self.change_credits(
+                amount as Credits,
+                CreditsDelta::Plus,
+                "credits top-up from rewards",
+            )
+            .expect("couldn't top up credits");
+            return;
+        }
         self.rewards = self.rewards.saturating_add(amount);
         self.add_accounting_log(time(), "RWD".to_string(), amount, log.to_string());
     }
@@ -428,28 +438,16 @@ impl User {
         self.rewards
     }
 
-    pub fn take_positive_rewards(&mut self) {
+    pub fn take_positive_rewards(&mut self) -> i64 {
         if self.rewards > 0 {
-            self.rewards = 0;
+            std::mem::take(&mut self.rewards)
+        } else {
+            0
         }
     }
 
     pub fn credits(&self) -> Credits {
         self.cycles
-    }
-
-    pub fn top_up_credits_from_rewards(&mut self) -> Result<Credits, String> {
-        let credits_needed = CONFIG.credits_per_xdr.saturating_sub(self.credits());
-        let top_up = if self.rewards < 0 {
-            self.rewards.unsigned_abs() + credits_needed
-        } else {
-            credits_needed.min(self.rewards as Credits) as Credits
-        };
-        if top_up == 0 {
-            return Ok(0);
-        }
-        self.change_credits(top_up, CreditsDelta::Plus, "credits top-up from rewards")
-            .map(|_| top_up)
     }
 
     pub fn top_up_credits_from_revenue(
@@ -546,13 +544,12 @@ impl User {
         &self,
         state: &State,
         user_shares: u64,
+        boostraping_mode: bool,
     ) -> Box<dyn Iterator<Item = (UserId, Token)> + '_> {
         if self.controversial() {
             return Box::new(std::iter::empty());
         }
         let ratio = state.minting_ratio();
-        let boostraping_mode =
-            state.balances.values().sum::<Token>() < CONFIG.boostrapping_threshold_tokens;
         let base = token::base();
         let karma_donated_total: Credits = self.karma_donations.values().sum();
         // we can donate only min(balance/ratio, donated_karma/ratio);
@@ -561,7 +558,7 @@ impl User {
             // During the bootstrap period, use karma and not balances
             donated_karma
         } else {
-            self.balance
+            self.total_balance()
                 .min(donated_karma)
                 .min(CONFIG.max_spendable_tokens)
         } / ratio;
@@ -571,7 +568,7 @@ impl User {
             let balance = state
                 .users
                 .get(&user_id)
-                .map(|user| user.balance)
+                .map(|user| user.total_balance())
                 .unwrap_or_default()
                 / base;
             if balance <= 100 {
@@ -745,7 +742,7 @@ mod tests {
             .users
             .get(&donor_id)
             .unwrap()
-            .mintable_tokens(state, 1)
+            .mintable_tokens(state, 1, false)
             .collect::<BTreeMap<_, _>>();
         assert_eq!(mintable_tokens.len(), 4);
 
@@ -768,7 +765,7 @@ mod tests {
             .users
             .get(&donor_id)
             .unwrap()
-            .mintable_tokens(state, 1)
+            .mintable_tokens(state, 1, false)
             .collect::<BTreeMap<_, _>>();
         assert_eq!(
             mintable_tokens.get(&u1).unwrap(),
@@ -802,7 +799,7 @@ mod tests {
             .users
             .get(&donor_id)
             .unwrap()
-            .mintable_tokens(state, 1)
+            .mintable_tokens(state, 1, false)
             .collect::<BTreeMap<_, _>>();
         assert_eq!(mintable_tokens.len(), 4);
 
@@ -842,7 +839,7 @@ mod tests {
             .users
             .get(&donor_id)
             .unwrap()
-            .mintable_tokens(state, 10)
+            .mintable_tokens(state, 10, false)
             .collect::<BTreeMap<_, _>>();
         assert_eq!(mintable_tokens.len(), 4);
 
@@ -860,8 +857,8 @@ mod tests {
         // no top up triggered
         user.cycles = 1000;
         user.rewards = 30;
-        user.top_up_credits_from_rewards().unwrap();
-        assert_eq!(user.rewards, 30);
+        user.change_rewards(30, "");
+        assert_eq!(user.rewards, 60);
         let mut revenue = 2000_0000;
         user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
@@ -871,46 +868,31 @@ mod tests {
         // rewards are enough
         user.cycles = 980;
         user.rewards = 30;
-        let credits = user.top_up_credits_from_rewards().unwrap();
-        assert_eq!(credits, 20);
+        user.change_rewards(30, "");
         let mut revenue = 2000_0000;
         user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
         assert_eq!(revenue, 2000_0000);
-        assert_eq!(user.credits(), 1000);
+        assert_eq!(user.credits(), 1010);
 
         // rewards are still enough
         user.cycles = 0;
         user.rewards = 3000;
-        let credits = user.top_up_credits_from_rewards().unwrap();
-        assert_eq!(credits, 1000);
+        user.change_rewards(1010, "");
         let mut revenue = 2000_0000;
         user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
         assert_eq!(revenue, 2000_0000);
-        assert_eq!(user.credits(), 1000);
+        assert_eq!(user.credits(), 1010);
 
         // rewards are not enough
         user.cycles = 0;
         user.rewards = 500;
-        let credits = user.top_up_credits_from_rewards().unwrap();
-        assert_eq!(credits, 500);
         let mut revenue = 2000_0000;
         user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
-        assert_eq!(revenue, 452_5000);
-        assert_eq!(user.credits(), 1000);
-
-        // rewards and revenue not enough
-        user.cycles = 0;
-        user.rewards = 500;
-        let credits = user.top_up_credits_from_rewards().unwrap();
-        assert_eq!(credits, 500);
-        let mut revenue = 1000_0000;
-        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
-            .unwrap();
         assert_eq!(revenue, 0);
-        assert_eq!(user.credits(), 823);
+        assert_eq!(user.credits(), 646);
     }
 
     #[test]

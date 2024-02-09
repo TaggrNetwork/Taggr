@@ -128,11 +128,11 @@ test.describe("Regular users flow", () => {
                     .message()
                     .includes("Enter the number of 1000s of credits to mint")
             ) {
-                await dialog.accept("1");
+                await dialog.accept("2");
             }
         });
         await page.getByRole("button", { name: "MINT" }).click();
-        await expect(page.getByTestId("credits-balance")).toHaveText("1,976");
+        await expect(page.getByTestId("credits-balance")).toHaveText("2,976");
 
         // Let's transfer some ICP
         const icpBalance = parseFloat(
@@ -272,7 +272,7 @@ test.describe("Regular users flow", () => {
         const rewards = Number(
             await page.locator("div:has-text('REWARDS') > code").textContent(),
         );
-        expect(rewards).toBeGreaterThanOrEqual(10);
+        expect(rewards).toBeGreaterThanOrEqual(20);
 
         await page.locator("div:has-text('ACCOUNTING') > code").click();
         await expect(page.locator(".popup_body")).toHaveText(

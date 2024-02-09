@@ -80,6 +80,10 @@ export const PostView = ({
     level?: number;
 }) => {
     const [post, setPost] = React.useState(data);
+    const [reactions, setReactions] = React.useState<{
+        [id: number]: UserId[];
+    }>({});
+    const [children, setChildren] = React.useState<PostId[]>([]);
     const [notFound, setNotFound] = React.useState(false);
     const [hidden, setHidden] = React.useState(false);
     const [blobs, setBlobs] = React.useState({});
@@ -98,19 +102,12 @@ export const PostView = ({
             setNotFound(true);
             return;
         }
-        if (post) {
-            // since reactions are updated optimistically and we might have new ones in-flight, we need to merge this data
-            for (const reactionId in post.reactions) {
-                const newIDs = data.reactions[reactionId] || [];
-                data.reactions[reactionId] = [
-                    ...new Set(newIDs.concat(post.reactions[reactionId])),
-                ];
-            }
-        }
         // if the post is in prime mode, load pics right away
         if (prime || repost) {
             loadPostBlobs(data.files).then(setBlobs);
         }
+        setReactions(data.reactions);
+        setChildren(data.children);
         setPost(data);
     };
 
@@ -184,7 +181,9 @@ export const PostView = ({
             alert(`Error: ${result.Err}`);
             return false;
         }
-        await loadData();
+        const commentId = result.Ok;
+        children.push(Number(commentId));
+        setChildren([...children]);
         toggleInfo(false);
         toggleComments(true);
         return true;
@@ -209,12 +208,12 @@ export const PostView = ({
         if (!window.user) return;
         let userId = window.user?.id;
         if (post.user == userId) return;
-        if (!(id in post.reactions)) {
-            post.reactions[id] = [];
+        if (!(id in reactions)) {
+            reactions[id] = [];
         }
-        let users = post.reactions[id];
+        let users = reactions[id];
         if (
-            Object.values(post.reactions)
+            Object.values(reactions)
                 .reduce((acc, users) => acc.concat(users), [])
                 .includes(userId)
         ) {
@@ -225,7 +224,7 @@ export const PostView = ({
             window.reloadUser();
         });
         users.push(userId);
-        setPost({ ...post });
+        setReactions({ ...reactions });
         toggleInfo(commentIncoming);
     };
 
@@ -233,7 +232,7 @@ export const PostView = ({
     const costTable = reactionCosts();
     const isInactive =
         objectReduce(
-            post.reactions,
+            reactions,
             (acc, id, users) => acc + costTable[id as any] * users.length,
             0,
         ) < 0 || post.userObject.rewards < 0;
@@ -436,6 +435,7 @@ export const PostView = ({
                     )}
                     <PostInfo
                         post={post}
+                        reactions={reactions}
                         version={version}
                         versionSpecified={versionSpecified}
                         postCreated={postCreated}
@@ -444,14 +444,14 @@ export const PostView = ({
                     />
                 </div>
             )}
-            {(showComments || prime) && post.children.length > 0 && (
+            {(showComments || prime) && children.length > 0 && (
                 <Comments
                     heartbeat={`${post.id}_${
-                        Object.keys(post.children).length
+                        Object.keys(children).length
                     }_${showComments}`}
                     level={level + 1}
                     loader={async () =>
-                        await window.api.query("posts", post.children)
+                        await window.api.query("posts", children)
                     }
                 />
             )}
@@ -505,6 +505,7 @@ const Comments = ({
 
 const PostInfo = ({
     post,
+    reactions,
     version,
     postCreated,
     callback,
@@ -512,6 +513,7 @@ const PostInfo = ({
     realmMoveOutCallback,
 }: {
     post: Post;
+    reactions: { [id: number]: UserId[] };
     version?: number;
     postCreated: BigInt;
     callback: () => Promise<void>;
@@ -650,7 +652,7 @@ const PostInfo = ({
                                             } = window.backendCache.config;
                                             const cost =
                                                 objectReduce(
-                                                    post.reactions,
+                                                    reactions,
                                                     (
                                                         acc: number,
                                                         id: string,
@@ -776,27 +778,22 @@ const PostInfo = ({
                         )}
                     </div>
                 )}
-                {Object.keys(post.reactions).length > 0 && (
+                {Object.keys(reactions).length > 0 && (
                     <div className="top_spaced">
-                        {Object.entries(post.reactions).map(
-                            ([reactId, users]) => (
-                                <div
-                                    key={reactId}
-                                    className="bottom_half_spaced"
-                                >
-                                    {reaction2icon(Number(reactId))}{" "}
-                                    {commaSeparated(
-                                        users.map((id) => (
-                                            <UserLink
-                                                key={id}
-                                                id={id}
-                                                profile={true}
-                                            />
-                                        )),
-                                    )}
-                                </div>
-                            ),
-                        )}
+                        {Object.entries(reactions).map(([reactId, users]) => (
+                            <div key={reactId} className="bottom_half_spaced">
+                                {reaction2icon(Number(reactId))}{" "}
+                                {commaSeparated(
+                                    users.map((id) => (
+                                        <UserLink
+                                            key={id}
+                                            id={id}
+                                            profile={true}
+                                        />
+                                    )),
+                                )}
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
@@ -889,28 +886,21 @@ const PostBar = ({
                     <ReactionPicker react={delayedReact} unreact={unreact} />
                 )}
                 {!showEmojis && !showHint && (
-                    <>
-                        <Reactions
-                            reactionsMap={post.reactions}
-                            react={delayedReact}
-                            unreact={unreact}
-                        />
-                        {!cantReact && (
-                            <button
-                                className="reaction_button unselected"
-                                onClick={() => setShowEmojis(true)}
-                                data-testid="reaction-picker"
-                            >
-                                <More />
-                            </button>
-                        )}
-                        <div
-                            className="max_width_col"
-                            onClick={(e) => goInside(e)}
-                        ></div>
-                    </>
+                    <Reactions
+                        reactionsMap={post.reactions}
+                        react={delayedReact}
+                        unreact={unreact}
+                    />
                 )}
                 <>
+                    {!cantReact && (
+                        <IconToggleButton
+                            pressed={showEmojis}
+                            onClick={() => setShowEmojis(!showEmojis)}
+                            testId="reaction-picker"
+                            icon={<More />}
+                        />
+                    )}
                     {post.tips.length > 0 && (
                         <Coin classNameArg="accent right_quarter_spaced" />
                     )}
@@ -992,12 +982,13 @@ export const ReactionPicker = ({
             <button
                 key={reactId}
                 title={`Reward points: ${rewards}`}
-                className="reaction_button unselected text_centered medium_text centered"
+                className="medium_text reaction_button unselected text_centered centered"
                 onMouseDown={() => react(reactId)}
                 onMouseUp={unreact}
                 onTouchStart={() => react(reactId)}
                 onTouchEnd={unreact}
                 data-testid="reaction-picker"
+                style={{ padding: 0 }}
             >
                 {reaction2icon(Number(reactId))}
             </button>
@@ -1014,15 +1005,23 @@ export const Reactions = ({
     react: (id: number) => void;
     unreact: () => void;
 }) => {
+    const entries = Object.entries(reactionsMap);
     return (
-        <>
-            {Object.entries(reactionsMap).map(([reactId, users]) => {
+        <div
+            className={`max_width_col ${
+                !bigScreen() && entries.length > 5
+                    ? "emoji_table"
+                    : "row_container"
+            }`}
+            style={{ justifyContent: "flex-start" }}
+        >
+            {entries.map(([reactId, users]) => {
                 const reacted = users.includes(window.user?.id);
                 return (
                     <button
                         key={reactId}
                         className={
-                            "reaction_button right_quarter_spaced " +
+                            "reaction_button " +
                             (reacted ? "selected" : "unselected")
                         }
                         onMouseDown={() => react(parseInt(reactId))}
@@ -1031,14 +1030,14 @@ export const Reactions = ({
                         onTouchEnd={unreact}
                         data-testid={reactId + "-reaction"}
                     >
-                        <span className="right_quarter_spaced medium_text">
+                        <span className="medium_text right_quarter_spaced">
                             {reaction2icon(Number(reactId))}
                         </span>
                         {users.length}
                     </button>
                 );
             })}
-        </>
+        </div>
     );
 };
 

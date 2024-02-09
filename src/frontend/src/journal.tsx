@@ -43,7 +43,7 @@ export const Journal = ({ handle }: { handle: string }) => {
                     {
                         <Content
                             value={profile.about}
-                            classNameArg="text_centered vertically_spaced"
+                            classNameArg="spaced text_centered vertically_spaced"
                         />
                     }
                     <div

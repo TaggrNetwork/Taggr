@@ -1,4 +1,5 @@
 body {
+    user-select: none;
     margin-top: 0.5em;
     min-height: 100vh;
     display: flex;
@@ -36,6 +37,10 @@ code {
 input[type="color"] {
     height: 3em;
     width: 4em;
+}
+
+.selectable {
+    user-select: text;
 }
 
 .popup_body {
@@ -205,9 +210,12 @@ ul.comments {
     cursor: pointer;
 }
 
-.feed_item article {
-    max-height: 80vh;
+article {
     overflow: hidden;
+}
+
+.feed_item article {
+    max-height: 100vh;
     position: relative;
 }
 
@@ -254,8 +262,7 @@ article.overflowing::after {
 
 .prime .post_head {
     border-radius: 0px;
-    margin-bottom: 2em;
-    border-bottom: 1px solid $dark_background;
+    border-bottom: 1px solid $frame;
 }
 
 .video-container {
@@ -389,7 +396,6 @@ ul {
     display: flex;
     align-items: center;
     justify-content: center;
-    user-select: none;
     color: $text;
     height: 23px;
 }
@@ -412,6 +418,7 @@ path {
 
 .emoji_table {
     column-gap: 0;
+    row-gap: 0.4em;
     display: grid;
     grid-template-columns: 20% 20% 20% 20% 20%;
 }
@@ -799,7 +806,7 @@ a.reply_tag {
 .post_bar {
     user-select: none;
     -webkit-user-select: none;
-    min-height: 50px;
+    min-height: 60px;
     padding: 0.5em;
     justify-content: flex-end;
 }

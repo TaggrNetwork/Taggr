@@ -763,7 +763,6 @@ pub fn change_realm(state: &mut State, root_post_id: PostId, new_realm: Option<S
 
 fn notify_about(state: &mut State, post: &Post) {
     let post_user = state.users.get(&post.user).expect("no user found");
-    let post_user_name = post_user.name.clone();
     let user_filter = post_user.get_filter();
 
     let mut notified: HashSet<_> = HashSet::new();
@@ -777,10 +776,7 @@ fn notify_about(state: &mut State, post: &Post) {
         if parent_author != post.user {
             if let Some(user) = state.users.get_mut(&parent_author) {
                 if user.accepts(post.user, &user_filter) {
-                    user.notify_about_post(
-                        format!("@{} replied to your post", post_user_name,),
-                        post.id,
-                    );
+                    user.notify_about_post("A new reply to your post", post.id);
                     notified.insert(user.id);
                 }
             }
@@ -800,7 +796,7 @@ fn notify_about(state: &mut State, post: &Post) {
         }
         if let Some(user) = state.users.get_mut(&user_id) {
             if user.accepts(post.user, &user_filter) {
-                user.notify_about_post(format!("@{} reposted your post", post_user_name), post.id);
+                user.notify_about_post("A new repost of your post", post.id);
             }
             notified.insert(user.id);
         }
@@ -818,10 +814,7 @@ fn notify_about(state: &mut State, post: &Post) {
                 .get_mut(&mentioned_user_id)
                 .expect("no user found");
             if user.accepts(post.user, &user_filter) {
-                user.notify_about_post(
-                    format!("@{} mentioned you in a post", post_user_name),
-                    post.id,
-                );
+                user.notify_about_post("You were mentioned in a post", post.id);
                 notified.insert(user.id);
             }
         });
