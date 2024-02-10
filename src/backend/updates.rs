@@ -70,7 +70,16 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    // clean up settings
+    mutate(|state| {
+        for u in state.users.values_mut() {
+            u.settings.retain(|key, _| !key.ends_with("_tab"));
+            u.settings.remove("distrikt");
+            u.settings.insert("tap_and_hold".into(), "750".into());
+        }
+    })
+}
 
 /*
  * UPDATES

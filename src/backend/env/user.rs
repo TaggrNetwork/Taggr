@@ -478,7 +478,7 @@ impl User {
         mutate(|state| {
             if let Some(user) = state.principal_to_user_mut(caller) {
                 if !User::valid_info(&user.about, &settings) {
-                    return Err("too long inputs".to_string());
+                    return Err("inputs too long".to_string());
                 }
                 user.settings = settings;
             }
@@ -512,7 +512,7 @@ impl User {
         mutate(|state| {
             let user = state.principal_to_user(caller).ok_or("user not found")?;
             if !User::valid_info(&about, &user.settings) {
-                return Err("too long inputs".to_string());
+                return Err("inputs too long".to_string());
             }
             let user_id = user.id;
             let old_name = user.name.clone();

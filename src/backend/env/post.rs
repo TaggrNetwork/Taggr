@@ -463,22 +463,17 @@ impl Post {
             return Err("bots can't create comments".into());
         }
 
-        if parent
-            .and_then(|post_id| {
-                state.thread(post_id).next().and_then(|post_id| {
-                    Post::get(state, &post_id).and_then(|post| {
-                        state
-                            .users
-                            .get(&post.user)
-                            .map(|post_author| post_author.blacklist.contains(&user.id))
-                    })
-                })
+        if let Some(discussion_owner) = parent.and_then(|post_id| {
+            state.thread(post_id).next().and_then(|post_id| {
+                Post::get(state, &post_id).and_then(|post| state.users.get(&post.user))
             })
-            .unwrap_or_default()
-        {
-            return Err(
-                "you cannot participate in discussions started by users who blocked you".into(),
-            );
+        }) {
+            if !discussion_owner.accepts(user.id, &user.get_filter()) {
+                return Err(format!(
+                    "you cannot participate in discussions started by {}",
+                    discussion_owner.name
+                ));
+            }
         }
 
         let excess_factor = user

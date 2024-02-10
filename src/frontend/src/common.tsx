@@ -987,7 +987,7 @@ export const noiseControlBanner = (
     const prefix =
         domain == "realm"
             ? "You cannot post to this realm"
-            : "This user can't see notifications from you";
+            : "You cannot interact with this user";
     return err ? (
         <div className="banner vertically_spaced">{`${prefix}: ${err}`}</div>
     ) : null;

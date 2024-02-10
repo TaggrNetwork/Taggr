@@ -831,7 +831,9 @@ const PostBar = ({
     const replies = post.tree_size;
     // @ts-ignore
     const users: UserId[] = [].concat(...Object.values(post.reactions));
-    let user_id = window.user?.id;
+    let user = window.user;
+    if (!user) return;
+    let user_id = user.id;
     const cantReact = users.includes(user_id) || post.user == user_id;
     const updatedRecently =
         Number(new Date()) - Number(post.tree_update) / 1000000 <
@@ -854,9 +856,18 @@ const PostBar = ({
 
     const delayedReact = (id: number) => {
         if (cantReact) return;
+        const delay =
+            "tap_and_hold" in user.settings
+                ? Number(user.settings.tap_and_hold)
+                : 750;
+        if (delay <= 50) {
+            react(id);
+            unreact();
+            return;
+        }
         timeStart = new Date();
         progressInterval = setInterval(() => {
-            reactionIndicatorWidth += 6;
+            reactionIndicatorWidth += 100 / (delay / 50);
             // @ts-ignore
             ref.current?.style.width = reactionIndicatorWidth + "%";
             if (reactionIndicatorWidth >= 100) {
@@ -892,74 +903,78 @@ const PostBar = ({
                         unreact={unreact}
                     />
                 )}
-                <>
-                    {!cantReact && (
-                        <IconToggleButton
-                            pressed={showEmojis}
-                            onClick={() => setShowEmojis(!showEmojis)}
-                            testId="reaction-picker"
-                            icon={<More />}
-                        />
-                    )}
-                    {post.tips.length > 0 && (
-                        <Coin classNameArg="accent right_quarter_spaced" />
-                    )}
-                    {post.reposts.length > 0 && (
-                        <IconToggleButton
-                            onClick={() =>
-                                (location.href = `#/reposts/${post.id}`)
-                            }
-                            icon={
-                                <>
-                                    <Repost classNameArg="right_quarter_spaced" />
-                                    {post.reposts.length}
-                                </>
-                            }
-                        />
-                    )}
-                    {replies > 0 && !isThreadView && (
-                        <IconToggleButton
-                            pressed={showComments}
-                            testId="post-comments-toggle"
-                            onClick={
-                                showCarret
-                                    ? (event) => goInside(event, true)
-                                    : () => {
-                                          toggleInfo(false);
-                                          toggleComments(!showComments);
-                                      }
-                            }
-                            icon={
-                                <>
-                                    <Comment
-                                        classNameArg={`right_quarter_spaced ${
-                                            newComments ? "accent" : undefined
-                                        }`}
-                                    />
-                                    {replies}
-                                </>
-                            }
-                        />
-                    )}
-                    {!isThreadView && !showCarret && (
-                        <BurgerButton
-                            onClick={() => {
-                                toggleInfo(!showInfo);
-                                toggleComments(false);
-                            }}
-                            pressed={showInfo}
-                            testId="post-info-toggle"
-                        />
-                    )}
-                    {(isThreadView || showCarret) && (
-                        <button
-                            className="reaction_button unselected"
-                            onClick={(e) => goInside(e)}
-                        >
-                            <CarretRight />
-                        </button>
-                    )}
-                </>
+                {!cantReact && (
+                    <IconToggleButton
+                        pressed={showEmojis}
+                        onClick={() => setShowEmojis(!showEmojis)}
+                        testId="reaction-picker"
+                        icon={<More />}
+                    />
+                )}
+                {!showEmojis && (
+                    <>
+                        {post.tips.length > 0 && (
+                            <Coin classNameArg="accent right_quarter_spaced" />
+                        )}
+                        {post.reposts.length > 0 && (
+                            <IconToggleButton
+                                onClick={() =>
+                                    (location.href = `#/reposts/${post.id}`)
+                                }
+                                icon={
+                                    <>
+                                        <Repost classNameArg="right_quarter_spaced" />
+                                        {post.reposts.length}
+                                    </>
+                                }
+                            />
+                        )}
+                        {replies > 0 && !isThreadView && (
+                            <IconToggleButton
+                                pressed={showComments}
+                                testId="post-comments-toggle"
+                                onClick={
+                                    showCarret
+                                        ? (event) => goInside(event, true)
+                                        : () => {
+                                              toggleInfo(false);
+                                              toggleComments(!showComments);
+                                          }
+                                }
+                                icon={
+                                    <>
+                                        <Comment
+                                            classNameArg={`right_quarter_spaced ${
+                                                newComments
+                                                    ? "accent"
+                                                    : undefined
+                                            }`}
+                                        />
+                                        {replies}
+                                    </>
+                                }
+                            />
+                        )}
+                        {!isThreadView && !showCarret && (
+                            <BurgerButton
+                                onClick={() => {
+                                    toggleInfo(!showInfo);
+                                    toggleComments(false);
+                                }}
+                                pressed={showInfo}
+                                testId="post-info-toggle"
+                            />
+                        )}
+                        {(isThreadView || showCarret) && (
+                            <button
+                                className="reaction_button unselected"
+                                onClick={(e) => goInside(e)}
+                            >
+                                <CarretRight />
+                            </button>
+                        )}
+                    </>
+                )}
             </div>
         </>
     );
@@ -976,19 +991,21 @@ export const ReactionPicker = ({
         className={`max_width_col ${
             bigScreen() ? "row_container" : "emoji_table"
         }`}
-        style={{ justifyContent: "flex-start" }}
+        style={{
+            justifyContent: "flex-start",
+            padding: "0.5em",
+        }}
     >
         {window.backendCache.config.reactions.map(([reactId, rewards]) => (
             <button
                 key={reactId}
                 title={`Reward points: ${rewards}`}
-                className="medium_text reaction_button unselected text_centered centered"
+                className="medium_text reaction_button unselected centered"
                 onMouseDown={() => react(reactId)}
                 onMouseUp={unreact}
                 onTouchStart={() => react(reactId)}
                 onTouchEnd={unreact}
                 data-testid="reaction-picker"
-                style={{ padding: 0 }}
             >
                 {reaction2icon(Number(reactId))}
             </button>
@@ -1008,11 +1025,7 @@ export const Reactions = ({
     const entries = Object.entries(reactionsMap);
     return (
         <div
-            className={`max_width_col ${
-                !bigScreen() && entries.length > 5
-                    ? "emoji_table"
-                    : "row_container"
-            }`}
+            className="max_width_col row_container"
             style={{ justifyContent: "flex-start" }}
         >
             {entries.map(([reactId, users]) => {

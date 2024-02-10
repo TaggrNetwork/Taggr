@@ -105,7 +105,6 @@ export const Header = ({
                         <>
                             {user && user.realms.length > 0 && !subtle && (
                                 <IconToggleButton
-                                    classNameArg="right_half_spaced"
                                     pressed={showRealms}
                                     onClick={() => {
                                         toggleRealms(!showRealms);
@@ -119,7 +118,6 @@ export const Header = ({
                             {window.principalId && (
                                 <IconToggleButton
                                     pressed={showUserSection}
-                                    classNameArg="right_half_spaced"
                                     onClick={() => {
                                         toggleUserSection(!showUserSection);
                                         toggleRealms(false);
@@ -137,7 +135,7 @@ export const Header = ({
                                     onClick={() => (location.href = "#/inbox")}
                                     icon={
                                         <>
-                                            <Bell classNameArg="accent right_half_spaced" />
+                                            <Bell classNameArg="accent" />
                                             {messages}
                                         </>
                                     }
@@ -145,7 +143,7 @@ export const Header = ({
                             )}
                             {user && (
                                 <button
-                                    className={"right_half_spaced active"}
+                                    className={"active"}
                                     onClick={() => (location.href = "#/new")}
                                 >
                                     POST
