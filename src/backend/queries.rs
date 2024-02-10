@@ -424,20 +424,21 @@ fn last_posts() {
     let (realm, page, offset, filtered): (String, usize, PostId, bool) = parse(&arg_data_raw());
     read(|state| {
         let user = state.principal_to_user(caller());
-        let inverse_filters = filtered.then_some(user.map(|user| &user.filters)).flatten();
         reply(
             state
                 .last_posts(optional(realm), offset, /* with_comments = */ false)
                 .filter(|post| {
-                    inverse_filters
-                        .map(|filters| !post.matches_filters(filters))
-                        .unwrap_or(true)
-                        && match (user, state.users.get(&post.user)) {
-                            (Some(user), Some(author)) => {
-                                user.accepts(author.id, &author.get_filter())
-                            }
-                            _ => true,
-                        }
+                    !filtered
+                        || user
+                            .map(|user| {
+                                !post.matches_filters(&user.filters)
+                                    && state
+                                        .users
+                                        .get(&post.user)
+                                        .map(|author| user.accepts(author.id, &author.get_filter()))
+                                        .unwrap_or(true)
+                            })
+                            .unwrap_or(true)
                 })
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
