@@ -24,16 +24,16 @@ import {
 } from "./common";
 import { Settings } from "./settings";
 import { ApiGenerator } from "./api";
-import { Wallet, WelcomeInvited } from "./wallet";
+import { Welcome, WelcomeInvited } from "./wallet";
 import { Proposals } from "./proposals";
 import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
 import { MAINNET_MODE, CANISTER_ID } from "./env";
-import { UserId } from "./types";
+import { Post, PostId, UserFilter, UserId } from "./types";
 import { setRealmUI, setUI } from "./theme";
-import { Close } from "./icons";
 import { Search } from "./search";
+import { Distribution } from "./distribution";
 
 const { hash, pathname } = location;
 
@@ -91,7 +91,7 @@ const App = () => {
     // If we're in a realm, but navigate outside of realm routes, reset the UI.
     if (
         currentRealm() &&
-        ["#/realm", "#/feed", "#/post", "#/new"].every(
+        ["#/realm/", "#/feed", "#/post/", "#/thread", "#/new"].every(
             (prefix: string) => !location.hash.startsWith(prefix),
         )
     ) {
@@ -115,19 +115,42 @@ const App = () => {
             <WelcomeInvited />
         );
     } else if (handler == "wallet" || (window.principalId && !window.user)) {
-        content = <Wallet />;
+        content = <Welcome />;
     } else if (handler == "post") {
         const id = parseInt(param);
         const version = parseInt(param2);
         subtle = true;
         content = <PostView id={id} version={version} prime={true} />;
+    } else if (handler == "reposts") {
+        const id = parseInt(param);
+        content = (
+            <PostFeed
+                title={
+                    <HeadBar
+                        title={
+                            <>
+                                REPOSTS OF <a href={`#/post/${id}`}>#{id}</a>
+                            </>
+                        }
+                        shareLink={`/reposts/${id}`}
+                    />
+                }
+                feedLoader={async () => {
+                    const posts = await api.query<Post[]>("posts", [id]);
+                    if (posts && posts.length > 0)
+                        return await api.query("posts", posts[0].reposts);
+                    return [];
+                }}
+            />
+        );
     } else if (handler == "edit") {
         const id = parseInt(param);
         content = auth(<PostSubmissionForm id={id} />);
     } else if (handler == "new") {
         subtle = true;
+        const postId = parseInt(param2);
         content = auth(
-            <PostSubmissionForm repost={parseInt(param2) || undefined} />,
+            <PostSubmissionForm repost={isNaN(postId) ? undefined : postId} />,
         );
     } else if (handler == "realms") {
         if (param == "create") content = auth(<RealmForm />);
@@ -157,6 +180,8 @@ const App = () => {
         content = <Dashboard />;
     } else if (handler == "search") {
         content = <Search initQuery={param} />;
+    } else if (handler == "distribution") {
+        content = <Distribution />;
     } else if (handler == "bookmarks") {
         content = auth(
             <PostFeed
@@ -175,6 +200,24 @@ const App = () => {
         content = <Feed params={params} />;
     } else if (handler == "thread") {
         content = <Thread id={parseInt(param)} />;
+    } else if (handler == "posts") {
+        const title = "ALL NEW POSTS";
+        content = (
+            <PostFeed
+                refreshRateSecs={60}
+                title={<HeadBar title={title} shareLink="posts" />}
+                feedLoader={async (page: number, offset: PostId) => {
+                    setTitle(title);
+                    return await window.api.query(
+                        "last_posts",
+                        "",
+                        page,
+                        offset,
+                        false,
+                    );
+                }}
+            />
+        );
     } else if (handler == "user") {
         setTitle(`profile: @${param}`);
         content = <Profile handle={param} />;
@@ -205,13 +248,10 @@ const reloadCache = async () => {
         window.api.query<[string, any][]>("recent_tags", "", 500),
         window.api.query<any>("stats"),
         window.api.query<any>("config"),
-        window.api.query<[string, string, boolean][]>("realms_data"),
+        window.api.query<{ [key: string]: [string, boolean, UserFilter] }>(
+            "realms_data",
+        ),
     ]);
-    console.log("users", JSON.stringify(users).length / 1024);
-    console.log("recent_tags", JSON.stringify(recent_tags).length / 1024);
-    console.log("stats", JSON.stringify(stats).length / 1024);
-    console.log("config", JSON.stringify(config).length / 1024);
-    console.log("realms", JSON.stringify(realms).length / 1024);
     window.backendCache = {
         users: (users || []).reduce((acc, [id, name]) => {
             acc[id] = name;
@@ -222,10 +262,7 @@ const reloadCache = async () => {
             return acc;
         }, {} as any),
         recent_tags: (recent_tags || []).map(([tag, _]) => tag),
-        realms: (realms || []).reduce((acc, [name, color, controller]) => {
-            acc[name] = [color, controller];
-            return acc;
-        }, {} as any),
+        realms_data: realms || {},
         stats,
         config,
     };
@@ -300,6 +337,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                 await window.reloadUser();
                 await reloadCache();
             }, REFRESH_RATE_SECS * 1000);
+            await confirmPrincipalChange();
             await window.reloadUser();
         }
         updateDoc();
@@ -313,61 +351,29 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
     },
 );
 
-const Footer = ({}) => {
-    const [domainSelection, setDomainSelection] = React.useState(false);
-    return (
-        <footer className="small_text text_centered vertically_spaced">
-            {domainSelection && (
-                <>
-                    <div className="bottom_spaced vertically_aligned">
-                        ALTERNATIVE DOMAINS
-                        <button
-                            className="unselected left_half_spaced"
-                            style={{
-                                padding: 0,
-                                position: "relative",
-                                bottom: "0.1em",
-                            }}
-                            onClick={() => setDomainSelection(false)}
-                        >
-                            <Close classNameArg="accent clickable" size={12} />
-                        </button>
-                    </div>
-                    <div className="column_container">
-                        {window.backendCache.config.domains.map((domain) => (
-                            <a
-                                key={domain}
-                                className="left_half_spaced right_half_spaced"
-                                href={`https://${domain}`}
-                            >
-                                {domain}
-                            </a>
-                        ))}
-                    </div>
-                </>
-            )}
-            {!domainSelection && (
-                <>
-                    <a href="#/post/0">2021</a>
-                    <span className="left_half_spaced right_half_spaced">
-                        &middot;
-                    </span>
-                    <a href={location.origin}>{location.host.toLowerCase()}</a>
-                    <span
-                        className="accent clickable left_half_spaced"
-                        onClick={() => setDomainSelection(true)}
-                    >
-                        &#9880;
-                    </span>
-                    <span className="left_half_spaced right_half_spaced">
-                        &middot;
-                    </span>
-                    <a href="https://github.com/TaggrNetwork/taggr">GitHub</a>
-                </>
-            )}
-        </footer>
-    );
+const confirmPrincipalChange = async () => {
+    if (
+        !window.principalId ||
+        !(await window.api.query<boolean>("migration_pending"))
+    )
+        return;
+    const response = await window.api.call<any>("confirm_principal_change");
+    if (response && "Err" in response) {
+        alert(`Error: ${response.Err}`);
+    }
 };
+
+const Footer = ({}) => (
+    <footer className="small_text text_centered vertically_spaced">
+        <>
+            &#10045; <a href="#/post/0">2021</a>
+            <span className="left_half_spaced right_half_spaced">&middot;</span>
+            <a href={location.origin}>{location.host.toLowerCase()}</a>
+            <span className="left_half_spaced right_half_spaced">&middot;</span>
+            <a href="https://github.com/TaggrNetwork/taggr">GitHub</a>
+        </>
+    </footer>
+);
 
 const updateDoc = () => {
     document.getElementById("logo_container")?.remove();

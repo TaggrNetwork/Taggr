@@ -1,4 +1,4 @@
-import { HeadBar, XDR_TO_USD, tokenBalance } from "./common";
+import { HeadBar, USD_PER_XDR, tokenBalance } from "./common";
 import { Content } from "./content";
 // @ts-ignore
 import template from "../../../docs/WHITEPAPER.md";
@@ -17,11 +17,13 @@ export const Whitepaper = () => {
                     value /
                     Math.pow(10, window.backendCache.config.token_decimals)
                 ).toLocaleString();
-            else if (key == "xdr_in_usd") value = XDR_TO_USD;
+            else if (key == "usd_per_xdr") value = USD_PER_XDR;
             else if (key == "vesting_tokens_x")
                 value = tokenBalance(team_tokens[0]);
             else if (key == "vesting_tokens_m")
                 value = tokenBalance(team_tokens[305]);
+            else if (key == "active_user_share_for_minting_promille")
+                value = value / 10;
             else if (key == "fee")
                 value = tokenBalance(
                     window.backendCache.config.transaction_fee,

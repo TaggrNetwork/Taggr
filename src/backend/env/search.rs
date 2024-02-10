@@ -41,7 +41,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
             let realm = &realm[1..].to_uppercase();
             let ids = user_ids(user_name);
             state
-                .last_posts(Principal::anonymous(), Some(realm.to_string()), 0, true)
+                .last_posts(Some(realm.to_string()), 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     if ids.contains(user) {
                         let search_body = body.to_lowercase();
@@ -65,7 +65,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
             let realm = &realm[1..].to_uppercase();
             let ids = user_ids(user_name);
             state
-                .last_posts(Principal::anonymous(), Some(realm.to_string()), 0, true)
+                .last_posts(Some(realm.to_string()), 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     if ids.contains(user) {
                         return Some(SearchResult {
@@ -85,7 +85,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         [user_name, word] if user_name.starts_with('@') => {
             let ids = user_ids(user_name);
             state
-                .last_posts(Principal::anonymous(), None, 0, true)
+                .last_posts(None, 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     if ids.contains(user) {
                         let search_body = body.to_lowercase();
@@ -108,7 +108,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         [realm, word] if realm.starts_with('/') => {
             let realm = &realm[1..].to_uppercase();
             state
-                .last_posts(Principal::anonymous(), Some(realm.to_string()), 0, true)
+                .last_posts(Some(realm.to_string()), 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     let search_body = body.to_lowercase();
                     if let Some(i) = search_body.find(word) {
@@ -123,6 +123,36 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
                     None
                 })
                 .take(MAX_RESULTS)
+                .collect()
+        }
+        // search for the user only
+        [user_name] if user_name.starts_with('@') => {
+            let query = user_name[1..].to_lowercase();
+            state
+                .users
+                .values()
+                .filter(|user| user.name.to_lowercase().starts_with(&query))
+                .map(|user| SearchResult {
+                    id: user.id,
+                    relevant: user.about.clone(),
+                    result: "user".to_string(),
+                    ..Default::default()
+                })
+                .collect()
+        }
+        // search for realm only
+        [realm] if realm.starts_with('/') => {
+            let query = &realm[1..].to_uppercase();
+            state
+                .realms
+                .iter()
+                .filter(|(realm_id, _)| realm_id.starts_with(query))
+                .map(|(realm_id, realm)| SearchResult {
+                    generic_id: realm_id.clone(),
+                    relevant: snippet(realm.description.as_str(), 0),
+                    result: "realm".to_string(),
+                    ..Default::default()
+                })
                 .collect()
         }
         // fall back to search through everything
@@ -179,7 +209,7 @@ fn wildcard_search(state: &State, term: &str) -> Vec<SearchResult> {
         }))
         .chain(
             state
-                .recent_tags(Principal::anonymous(), None, 500)
+                .recent_tags(None, 500)
                 .into_iter()
                 .filter_map(|(tag, _)| {
                     if format!("#{} {0}", tag).to_lowercase().contains(term) {
@@ -194,7 +224,7 @@ fn wildcard_search(state: &State, term: &str) -> Vec<SearchResult> {
         )
         .chain(
             state
-                .last_posts(Principal::anonymous(), None, 0, true)
+                .last_posts(None, 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     if id.to_string() == term {
                         return Some(SearchResult {
@@ -282,4 +312,15 @@ fn remove_markdown(md: &str) -> String {
     }
 
     result
+}
+
+pub fn realm_search(state: &State, query: String) -> Vec<(&'_ String, &'_ Realm)> {
+    let query = &query.to_lowercase();
+    state
+        .realms
+        .iter()
+        .filter(|(realm_id, realm)| {
+            realm_id.to_lowercase().contains(query) || realm.description.contains(query)
+        })
+        .collect()
 }

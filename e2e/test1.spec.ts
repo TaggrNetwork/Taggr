@@ -21,13 +21,14 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("eve");
         await page.getByRole("button", { name: "JOIN" }).click();
+        await page.waitForTimeout(1000);
         await page.getByPlaceholder("Enter your password...").fill("eve");
         await page.getByRole("button", { name: "JOIN" }).click();
         const stalwartPrincipal =
-            "aejik-62r47-das75-ez2go-j7pbi-52m44-x2mz4-5dp4w-2wm5t-t2qli-7ae";
+            "qjuij-xy6vt-yssaf-dar36-pqa7n-5plk4-3dfy3-ppec7-exsio-qy6xh-7qe";
         await expect(page.getByText(stalwartPrincipal)).toBeVisible();
         exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 f6df83b56c342c161d6c10696e766f3d8d562fb1851f4fd12667aa1d94e39291",
+            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 2e670a6cf5ec1a1387dc8e02da3279f8e9221c2191b6f7532f449bb439538f20",
         );
         await page.getByRole("button", { name: "MINT CREDITS" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
@@ -59,13 +60,15 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.getByPlaceholder("alphanumeric").fill("pete");
         await page.getByRole("button", { name: "SAVE" }).click();
 
-        await page.getByTestId("tab-NEW").click();
         await page
             .locator(".feed_item", { hasText: "Message from Eve" })
-            .getByTestId("post-info-toggle")
+            .getByTestId("reaction-picker")
             .click();
         // React with a star
-        await page.locator('button[title="Karma points: 10"]').click();
+        await page
+            .locator('button[title="Reward points: 20"]')
+            .first()
+            .click({ delay: 3000 });
         await page.waitForTimeout(4500);
     });
 
@@ -77,9 +80,10 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Wallet", async () => {
         // Test the wallet functionality
-        await page.goto("/#/wallet");
+        await page.goto("/");
+        await page.getByTestId("toggle-user-section").click();
 
-        await expect(page.getByTestId("token-balance")).toHaveText("10");
+        await expect(page.getByTestId("token-balance")).toHaveText("20");
 
         const transferExecuted = new Promise((resolve, _reject) => {
             page.on("dialog", async (dialog) => {
@@ -104,7 +108,8 @@ test.describe("Upgrades & token transfer flow", () => {
 
         await transferExecuted;
 
-        await expect(page.getByTestId("token-balance")).toHaveText("4.75");
+        await expect(page.getByTestId("token-balance")).toHaveText("14.75");
+        await page.getByTestId("token-balance").click();
         await page.getByRole("link", { name: "6qfxa" }).click();
         await expect(
             page.getByRole("heading", { name: "TRANSACTIONS OF 6QFXA" }),
@@ -233,7 +238,7 @@ test.describe("Upgrades & token transfer flow", () => {
     });
 
     test("Verify regular upgrade", async () => {
-        await page.waitForTimeout(6000);
+        await page.waitForTimeout(10000);
         await page.goto("/#/dashboard");
         await page.waitForURL(/dashboard/);
         await page.waitForLoadState("networkidle");

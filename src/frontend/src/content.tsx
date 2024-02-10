@@ -1,88 +1,11 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { blobToUrl, timeAgo } from "./common";
+import { ArrowDown, RealmSpan, blobToUrl, timeAgo } from "./common";
 import remarkGfm from "remark-gfm";
-import { CarretDown } from "./icons";
 import { BlogTitle } from "./types";
+import { previewImg } from "./image_preview";
 
 export const CUT = "\n\n\n\n";
-
-// We need this becasue the native modulo function doesn't work on negative numbers as expected.
-function mod(n: number, m: number) {
-    return ((n % m) + m) % m;
-}
-
-const fadeInPicture = (pic: HTMLImageElement) => {
-    pic.className = "fadein";
-    setTimeout(() => (pic.className = ""), 150);
-};
-
-const previewImg = (
-    src: string,
-    id: string,
-    gallery: string[],
-    urls: { [id: string]: string },
-) => {
-    const preview = document.getElementById("preview");
-    if (!preview) return;
-    while (preview.hasChildNodes()) {
-        let firstChild = preview.firstChild;
-        if (firstChild) preview.removeChild(firstChild);
-    }
-    preview.style.display = "flex";
-    const pic = document.createElement("img");
-    pic.src = src;
-    pic.isMap = true;
-
-    const notGallery = !gallery || gallery.length == 1;
-
-    let slide = (next: boolean) => {
-        if (notGallery) return;
-        const pos = gallery.indexOf(id);
-        if (pos < 0) return;
-        const newId = gallery[mod(pos + (next ? 1 : -1), gallery.length)];
-        id = newId;
-        fadeInPicture(pic);
-        let src = urls[newId];
-        pic.src = src ? src : id;
-    };
-
-    pic.onclick = (event) => {
-        const next = pic.clientWidth / 2 < event.offsetX;
-        slide(next);
-    };
-    preview.appendChild(pic);
-    fadeInPicture(pic);
-
-    const closePreview = () => (preview.style.display = "none");
-
-    document.onscroll = closePreview;
-    preview.onclick = (event) => {
-        let target: any = event.target;
-        if (target?.id == "preview" || notGallery)
-            preview.style.display = "none";
-    };
-
-    if (notGallery) return;
-
-    const leftArrow = document.createElement("div");
-    leftArrow.className = "button left_arrow";
-    leftArrow.innerHTML = "&#8592;";
-    leftArrow.onclick = () => slide(false);
-    preview.appendChild(leftArrow);
-
-    const rightArrow = document.createElement("div");
-    rightArrow.className = "button right_arrow";
-    rightArrow.innerHTML = "&#8594;";
-    rightArrow.onclick = () => slide(true);
-    preview.appendChild(rightArrow);
-
-    const closeButton = document.createElement("div");
-    closeButton.className = "button close";
-    closeButton.innerHTML = "&#215;";
-    closeButton.onclick = closePreview;
-    preview.appendChild(closeButton);
-};
 
 const splitParagraphsAndPics = (
     elems: JSX.Element[],
@@ -149,7 +72,6 @@ export const Content = ({
     preview,
     primeMode,
     classNameArg,
-    forceCollapsing,
 }: {
     post?: boolean;
     blogTitle?: BlogTitle;
@@ -159,7 +81,6 @@ export const Content = ({
     preview?: boolean;
     primeMode?: boolean;
     classNameArg?: string;
-    forceCollapsing?: boolean;
 }) => {
     const [urls, setUrls] = React.useState({});
 
@@ -175,19 +96,9 @@ export const Content = ({
                 }
                 children={value}
                 remarkPlugins={[remarkGfm]}
-                className={classNameArg}
+                className={`selectable ${classNameArg}`}
             />
         );
-
-    if (forceCollapsing) {
-        const lines = value.split("\n");
-        value =
-            (lines[0].length < 256
-                ? lines[0]
-                : lines[0].slice(0, 256) + " ...") +
-            CUT +
-            lines.slice(1).join("\n");
-    }
 
     let cutPos = value.indexOf(CUT);
     let shortened = cutPos >= 0;
@@ -263,14 +174,6 @@ const linkRenderer =
             if (matches) {
                 try {
                     const url = new URL(props.href);
-                    if (child == props.href.replace(/&amp;/g, "&")) {
-                        className = "external";
-                        label = url.hostname.toUpperCase();
-                        props.rel = "nofollow noopener noreferrer";
-                        props.target = "_blank";
-                    } else {
-                        label = child;
-                    }
 
                     // Internal links
                     if (
@@ -278,8 +181,18 @@ const linkRenderer =
                             url.hostname.includes(domain),
                         )
                     ) {
+                        const nonMarkdownLink = label == url.href;
                         let link = url.href.replace(url.origin + "/", "");
                         props.href = (link.startsWith("#") ? "" : "#/") + link;
+                        if (nonMarkdownLink)
+                            label = props.href.replace("#", "");
+                    } else if (child == props.href.replace(/&amp;/g, "&")) {
+                        className = "external";
+                        label = url.hostname.toUpperCase();
+                        props.rel = "nofollow noopener noreferrer";
+                        props.target = "_blank";
+                    } else {
+                        label = child;
                     }
                 } catch (e) {}
             }
@@ -308,11 +221,11 @@ const markdownizer = (
         <ReactMarkdown
             children={value}
             remarkPlugins={[remarkGfm]}
-            className={className}
+            className={`selectable ${className}`}
             components={{
                 h1: ({ node, children, ...props }) => {
                     if (!blogTitle) return <h1 {...props}>{children}</h1>;
-                    let { author, created, length } = blogTitle;
+                    let { author, created, length, realm } = blogTitle;
                     return (
                         <>
                             <h1>{children}</h1>
@@ -320,6 +233,16 @@ const markdownizer = (
                                 By <a href={`#/journal/${author}`}>{author}</a>
                                 &nbsp;&nbsp;&middot;&nbsp;&nbsp;
                                 <b>{timeAgo(created, true, "long")}</b>
+                                {realm && (
+                                    <>
+                                        &nbsp;&nbsp;&middot;&nbsp;&nbsp;
+                                        <RealmSpan
+                                            name={realm}
+                                            classNameArg="realm_tag"
+                                            styleArg={{ borderRadius: "5px" }}
+                                        />
+                                    </>
+                                )}
                                 &nbsp;&nbsp;&middot;&nbsp;&nbsp;
                                 {Math.ceil(length / 400)} minutes read
                             </p>
@@ -342,13 +265,17 @@ const markdownizer = (
                     return <p {...props}>{children}</p>;
                 },
                 img: ({ node, ...props }: any) => {
+                    let srcUrl;
                     try {
-                        if (!props.src.startsWith("/blob/")) new URL(props.src);
+                        if (!props.src.startsWith("/blob/"))
+                            srcUrl = new URL(props.src);
                     } catch (_) {
                         return null;
                     }
                     let id: string = props.src;
+                    let internal = false;
                     if (props.src.startsWith("/blob/")) {
+                        internal = true;
                         id = props.src.replace("/blob/", "");
                         if (id in urls) {
                             props.src = urls[id];
@@ -362,13 +289,29 @@ const markdownizer = (
                             props.src = fillerImg;
                         }
                     }
-                    return (
+                    const element = (
                         <img
                             {...props}
                             onClick={() =>
                                 previewImg(props.src, id, props.gallery, urls)
                             }
                         />
+                    );
+                    return internal || props.thumbnail == "true" ? (
+                        element
+                    ) : (
+                        <div className="text_centered">
+                            {element}
+                            <span className="external_image_bar">
+                                URL:{" "}
+                                <a
+                                    rel="nofollow noopener noreferrer"
+                                    href={props.src}
+                                >
+                                    {srcUrl?.host}
+                                </a>
+                            </span>
+                        </div>
                     );
                 },
             }}
@@ -393,7 +336,11 @@ const Gallery = ({ children }: any) => {
                     data-meta="skipClicks"
                     className="thumbnails row_container"
                 >
-                    {pictures}
+                    {pictures.map((picture: JSX.Element) =>
+                        React.cloneElement(picture, {
+                            thumbnail: "true",
+                        }),
+                    )}
                 </div>
             )}
             {nonPictures.length > 0 && <p>{nonPictures}</p>}
@@ -425,12 +372,6 @@ const YouTube = ({ id, preview }: { id: string; preview?: boolean }) => {
         </span>
     );
 };
-
-const ArrowDown = () => (
-    <div className="text_centered bottom_spaced top_spaced">
-        <CarretDown classNameArg="action" />
-    </div>
-);
 
 const setDimensions = (props: any) => {
     const maxHeight = Math.ceil(window.innerHeight / 3);

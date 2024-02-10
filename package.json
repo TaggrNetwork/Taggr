@@ -17,15 +17,6 @@
         "format:check": "prettier --check ."
     },
     "devDependencies": {
-        "@dfinity/cmc": "2.0.0",
-        "@dfinity/ic-management": "1.0.0",
-        "@dfinity/ledger-icp": "1.0.0",
-        "@dfinity/agent": "0.19.2",
-        "@dfinity/auth-client": "0.19.2",
-        "@dfinity/identity": "0.19.2",
-        "@dfinity/principal": "0.19.2",
-        "@dfinity/candid": "0.19.2",
-        "@dfinity/nns": "2.0.0",
         "@playwright/test": "1.39.0",
         "@types/isomorphic-fetch": "0.0.39",
         "@types/react-dom": "18.2.15",
@@ -51,9 +42,9 @@
     "dependencies": {
         "@dfinity/agent": "0.20.2",
         "@dfinity/auth-client": "0.20.2",
-        "@dfinity/identity": "0.20.2",
         "@dfinity/candid": "0.20.2",
-        "@dfinity/ledger": "^1.0.0",
+        "@dfinity/identity": "0.20.2",
+        "@dfinity/ledger-icrc": "^2.1.0",
         "@dfinity/principal": "0.20.2",
         "assert": "2.1.0",
         "diff-match-patch": "1.0.5",

@@ -39,12 +39,6 @@ export const Invites = () => {
                         credits: you will be charged once the invite is used.
                     </li>
                     <li>
-                        Active users have a budget of free credits for invites.
-                        This budget is topped up weekly. Your current credits
-                        budget is <code>{window.user.invites_budget}</code>{" "}
-                        credits.
-                    </li>
-                    <li>
                         The invite will not work if your invite budget or credit
                         balance drops below the amount attached to the invite.
                     </li>

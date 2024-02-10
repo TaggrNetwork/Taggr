@@ -20,13 +20,14 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
+        await page.waitForTimeout(1000);
         await page.getByPlaceholder("Enter your password...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
         const alicePrincipal =
-            "nxu2q-em5br-fw5za-34owr-pxlfb-p6g73-6fe6i-sgggr-vtt27-hnxqk-gqe";
+            "afqmt-iuwxe-fcmq2-gidf2-tqzx2-beg3a-jq7tp-he6c6-xr67k-rtnl7-aqe";
         await expect(page.getByText(alicePrincipal)).toBeVisible();
         exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 bc06aa9368ad008cdbbe14e4a2af46d39c6d231e1b39874887ea969b2403b5b7",
+            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 ce8d1d9b278bf41f444a8e1686559f33029602274363e8f13a43e06461f312ab",
         );
         await page.getByRole("button", { name: "MINT CREDITS" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
@@ -35,9 +36,7 @@ test.describe("Regular users flow", () => {
             .getByPlaceholder("tell us what we should know about you")
             .fill("I am a #Taggr fan");
         await page.getByRole("button", { name: "SAVE" }).click();
-        await expect(page).toHaveTitle("TAGGR: HOT");
-        await page.getByTestId("tab-NEW").click();
-        await expect(page).toHaveTitle("TAGGR: NEW");
+        await expect(page).toHaveTitle("TAGGR");
 
         await page.goto("/#/inbox");
         await expect(
@@ -48,7 +47,7 @@ test.describe("Regular users flow", () => {
         ).toBeVisible();
 
         // Logout
-        await page.getByTestId("burger-button").click();
+        await page.getByTestId("toggle-user-section").click();
         await page.getByRole("link", { name: /.*LOGOUT.*/ }).click();
     });
 
@@ -58,8 +57,8 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
-        await page.getByTestId("burger-button").click();
-        const profileButton = page.getByRole("link", { name: /.*ALICE.*/ });
+        await page.getByTestId("toggle-user-section").click();
+        const profileButton = page.getByRole("link", { name: /.*alice.*/ });
         await expect(profileButton).toBeVisible();
 
         // Open our own profile and make sure it works
@@ -119,21 +118,21 @@ test.describe("Regular users flow", () => {
 
     test("Wallet", async () => {
         // Test the wallet functionality
-        await page.goto("/#/wallet");
+        await page.getByTestId("toggle-user-section").click();
 
         // Let's mint cycles
-        await expect(page.getByTestId("credits-balance")).toHaveText("986");
+        await expect(page.getByTestId("credits-balance")).toHaveText("976");
         page.on("dialog", async (dialog) => {
             if (
                 dialog
                     .message()
                     .includes("Enter the number of 1000s of credits to mint")
             ) {
-                await dialog.accept("1");
+                await dialog.accept("2");
             }
         });
         await page.getByRole("button", { name: "MINT" }).click();
-        await expect(page.getByTestId("credits-balance")).toHaveText("1,986");
+        await expect(page.getByTestId("credits-balance")).toHaveText("2,976");
 
         // Let's transfer some ICP
         const icpBalance = parseFloat(
@@ -200,9 +199,9 @@ test.describe("Regular users flow", () => {
         await expect(
             page.locator("article", { hasText: "Hello from Alice!" }),
         ).toBeVisible();
-        await expect(page.locator('[class="realm_span realm_tag"]')).toHaveText(
-            "WONDERLAND",
-        );
+        await expect(
+            page.locator('[class="realm_span realm_tag"]').first(),
+        ).toHaveText("WONDERLAND");
     });
 
     test("Invites", async () => {
@@ -210,7 +209,7 @@ test.describe("Regular users flow", () => {
         await page.goto("/#/invites");
         await page.getByRole("button", { name: "CREATE" }).click();
         inviteLink = await page.getByText(/.*#\/welcome.*/).textContent();
-        await page.getByTestId("burger-button").click();
+        await page.getByTestId("toggle-user-section").click();
         await page.getByRole("link", { name: /.*LOGOUT.*/ }).click();
     });
 
@@ -229,16 +228,16 @@ test.describe("Regular users flow", () => {
     });
 
     test("Interacting with posts", async () => {
-        await page.getByTestId("tab-NEW").click();
         await page
             .locator(".feed_item", { hasText: /Hello world/ })
-            .getByTestId("post-info-toggle")
+            .getByTestId("reaction-picker")
             .click();
         // React with a star
         await page
             .locator(".feed_item", { hasText: /Hello world/ })
-            .locator('button[title="Karma points: 10"]')
-            .click();
+            .locator('button[title="Reward points: 20"]')
+            .first()
+            .click({ delay: 3000 });
         // comment on the first post
         await page
             .locator(".feed_item", { hasText: /Hello world/ })
@@ -260,8 +259,9 @@ test.describe("Regular users flow", () => {
         await expect(
             page
                 .locator(".post_box", { hasText: /Hello world/ })
-                .getByTestId("100-reaction"),
-        ).toHaveText("1");
+                .getByTestId("100-reaction")
+                .first(),
+        ).toHaveText("⭐️1");
         await page.locator("#logo").click();
         await page.waitForTimeout(2000);
     });
@@ -269,17 +269,27 @@ test.describe("Regular users flow", () => {
     test("User profile", async () => {
         // Check data on alice's profile
         await page.getByRole("link", { name: "alice" }).first().click();
-        await expect(page.locator("div:has-text('REWARDS') > code")).toHaveText(
-            "11",
+        const rewards = Number(
+            await page.locator("div:has-text('REWARDS') > code").textContent(),
         );
+        expect(rewards).toBeGreaterThanOrEqual(20);
+
+        await page.locator("div:has-text('ACCOUNTING') > code").click();
+        await expect(page.locator(".popup_body")).toHaveText(
+            /\+1 rewards.*response to post/,
+        );
+        await page.getByTestId("popup-close-button").click();
+
         await expect(page.locator("div:has-text('POSTS') > code")).toHaveText(
             "2",
         );
         await page.getByRole("heading", { name: "Interests" }).click();
         await expect(
-            page.locator(
-                '[class="realm_span clickable padded_rounded right_half_spaced top_half_spaced"]',
-            ),
+            page
+                .locator(
+                    '[class="realm_span clickable padded_rounded right_half_spaced top_half_spaced"]',
+                )
+                .first(),
         ).toHaveText("WONDERLAND");
     });
 });

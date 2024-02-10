@@ -1,15 +1,23 @@
 import * as React from "react";
 // @ts-ignore
 import DiffMatchPatch from "diff-match-patch";
-import { Clipboard, ClipboardCheck, Close, Flag, Menu, Share } from "./icons";
+import {
+    CarretDown,
+    Clipboard,
+    ClipboardCheck,
+    Close,
+    Flag,
+    Menu,
+    Share,
+} from "./icons";
 import { loadFile } from "./form";
-import { Post, PostId, Report, User, UserId } from "./types";
+import { Post, PostId, Report, User, UserFilter, UserId } from "./types";
 import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
-import { IcrcAccount } from "@dfinity/ledger";
+import { IcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
 
-export const XDR_TO_USD = 1.33;
+export const USD_PER_XDR = 1.33;
 
 export const MAX_POST_SIZE_BYTES = Math.ceil(1024 * 1024 * 1.9);
 
@@ -18,12 +26,33 @@ export const percentage = (n: number | BigInt, total: number) => {
     return `${p}%`;
 };
 
+export const RealmList = ({
+    ids = [],
+    classNameArg,
+}: {
+    ids?: string[];
+    classNameArg?: string;
+}) => (
+    <div
+        className={`row_container ${classNameArg || ""}`}
+        style={{ alignItems: "center" }}
+    >
+        {ids.map((name) => (
+            <RealmSpan
+                key={name}
+                name={name}
+                classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
+            />
+        ))}
+    </div>
+);
+
 export const hex = (arr: number[]) =>
     Array.from(arr, (byte) =>
         ("0" + (byte & 0xff).toString(16)).slice(-2),
     ).join("");
 
-export const MoreButton = ({ callback }: { callback: () => Promise<void> }) => (
+export const MoreButton = ({ callback }: { callback: () => Promise<any> }) => (
     <div style={{ display: "flex", justifyContent: "center" }}>
         <ButtonWithLoading
             classNameArg="top_spaced"
@@ -32,6 +61,9 @@ export const MoreButton = ({ callback }: { callback: () => Promise<void> }) => (
         />
     </div>
 );
+
+export const getRealmsData = (id: string) =>
+    window.backendCache.realms_data[id] || ["#ffffff", false, {}];
 
 export const FileUploadInput = ({
     classNameArg,
@@ -127,10 +159,7 @@ export const HeadBar = ({
     const effStyle = { ...styleArg } || {};
     effStyle.flex = 0;
     return (
-        <div
-            className="column_container stands_out bottom_spaced"
-            style={styleArg}
-        >
+        <div className="column_container stands_out" style={styleArg}>
             <div className="vcentered">
                 <h1
                     className={`max_width_col ${
@@ -175,8 +204,7 @@ export const realmColors = (name: string, col?: string) => {
         const brightness = (c_r * 299 + c_g * 587 + c_b * 114) / 1000;
         return brightness > 155;
     };
-    const effCol =
-        col || (window.backendCache.realms[name] || [])[0] || "#ffffff";
+    const effCol = col || getRealmsData(name)[0] || "#FFFFFF";
     const color = light(effCol) ? "black" : "white";
     return { background: effCol, color, fill: color };
 };
@@ -185,13 +213,11 @@ export const RealmSpan = ({
     col,
     name,
     classNameArg,
-    onClick,
     styleArg,
 }: {
     col?: string;
     name: string;
     classNameArg?: string;
-    onClick?: () => void;
     styleArg?: any;
 }) => {
     if (!name) return null;
@@ -199,7 +225,7 @@ export const RealmSpan = ({
     return (
         <span
             className={`realm_span ${classNameArg}`}
-            onClick={onClick}
+            onClick={() => (location.href = `/#/realm/${name}`)}
             style={{ background, color, whiteSpace: "nowrap", ...styleArg }}
         >
             {name}
@@ -258,11 +284,18 @@ export const getTokens = (prefix: string, value: string) => {
 };
 
 export const setTitle = (value: string) => {
+    const name = window.backendCache.config.name;
     const titleElement = document.getElementsByTagName("title")[0];
-    if (titleElement) titleElement.innerText = `TAGGR: ${value}`;
+    if (titleElement)
+        titleElement.innerText = (
+            value ? `${name}: ${value}` : name
+        ).toUpperCase();
 };
 
+export const HASH_ITERATIONS = 15000;
+
 export const ButtonWithLoading = ({
+    id,
     label,
     title,
     onClick,
@@ -270,6 +303,7 @@ export const ButtonWithLoading = ({
     styleArg,
     testId,
 }: {
+    id?: string;
     label: any;
     title?: string;
     onClick: () => Promise<any>;
@@ -280,9 +314,10 @@ export const ButtonWithLoading = ({
     let [loading, setLoading] = React.useState(false);
     return (
         <button
+            id={id}
             title={title}
             disabled={loading}
-            className={`${
+            className={`fat ${
                 loading ? classNameArg?.replaceAll("active", "") : classNameArg
             }`}
             style={styleArg || null}
@@ -369,10 +404,10 @@ export const timeAgo = (
     }
 };
 
+const tokenBase = () => Math.pow(10, window.backendCache.config.token_decimals);
+
 export const tokenBalance = (balance: number) =>
-    (
-        balance / Math.pow(10, window.backendCache.config.token_decimals)
-    ).toLocaleString();
+    (balance / tokenBase()).toLocaleString();
 
 export const icpCode = (e8s: BigInt, decimals?: number, units = true) => (
     <code className="xx_large_text">
@@ -405,12 +440,17 @@ export const ICPAccountBalance = ({
     heartbeat?: any;
 }) => {
     const [e8s, setE8s] = React.useState(0 as unknown as BigInt);
-    React.useEffect(() => {
-        (typeof address == "string"
+    const loadData = async () => {
+        const value = await (typeof address == "string"
             ? window.api.icp_account_balance(address)
-            : window.api.account_balance(ICP_LEDGER_ID, address, [])
-        ).then((n) => setE8s(n));
+            : window.api.account_balance(ICP_LEDGER_ID, { owner: address }));
+        setE8s(value);
+    };
+
+    React.useEffect(() => {
+        loadData();
     }, [address, heartbeat]);
+
     return icpCode(e8s, decimals, units);
 };
 
@@ -441,10 +481,9 @@ export const TokenBalance = ({
     symbol: string;
 }) => {
     const [balance, setBalance] = React.useState(BigInt(0));
-    const { owner, subaccount } = account;
     React.useEffect(() => {
         window.api
-            .account_balance(ledgerId, owner, subaccount ? [subaccount] : [])
+            .account_balance(ledgerId, account)
             .then((n) => setBalance(n));
     }, []);
     return `${tokens(Number(balance), decimals)} ${symbol}`;
@@ -499,24 +538,27 @@ export const blobToUrl = (blob: ArrayBuffer) =>
 
 export const isRoot = (post: Post) => post.parent == null;
 
-export const UserLink = ({ id }: { id: UserId }) => {
+export const UserLink = ({
+    id,
+    classNameArg,
+    profile,
+}: {
+    id: UserId;
+    classNameArg?: string;
+    profile?: boolean;
+}) => {
     const userName = window.backendCache.users[id];
     return userName ? (
-        <a href={`#/user/${id}`}>{userName}</a>
+        <a
+            className={`${classNameArg} user_link`}
+            href={`#/${profile ? "user" : "journal"}/${id}`}
+        >
+            {userName}
+        </a>
     ) : (
         <span>N/A</span>
     );
 };
-
-export const realmList = (ids: string[] = []) =>
-    ids.map((name) => (
-        <RealmSpan
-            key={name}
-            name={name}
-            onClick={() => (location.href = `/#/realm/${name}`)}
-            classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
-        />
-    ));
 
 export const userList = (ids: UserId[] = []) =>
     commaSeparated(ids.map((id) => <UserLink key={id} id={id} />));
@@ -526,7 +568,7 @@ export const token = (n: number) =>
         n / Math.pow(10, window.backendCache.config.token_decimals),
     ).toLocaleString();
 
-export const ReactionToggleButton = ({
+export const IconToggleButton = ({
     title,
     icon,
     onClick,
@@ -576,7 +618,7 @@ export const BurgerButton = ({
         effStyle.background = color;
     }
     return (
-        <ReactionToggleButton
+        <IconToggleButton
             title="Menu"
             onClick={onClick}
             pressed={pressed}
@@ -777,7 +819,7 @@ export const ReportBanner = ({
         ["✅ AGREE", true],
     ];
     return (
-        <div className="post_head banner">
+        <div className="banner">
             <strong>
                 This {domain == "post" ? "post" : "user"} was REPORTED. Please
                 confirm the deletion or reject the report.
@@ -820,9 +862,9 @@ export const ReportBanner = ({
     );
 };
 
-export const popUp = (content: JSX.Element) => {
+export function popUp<T>(content: JSX.Element): null | Promise<T> {
     const preview = document.getElementById("preview");
-    if (!preview) return;
+    if (!preview) return null;
     while (preview.hasChildNodes()) {
         let firstChild = preview.firstChild;
         if (firstChild) preview.removeChild(firstChild);
@@ -839,17 +881,31 @@ export const popUp = (content: JSX.Element) => {
     const root = document.createElement("div");
     root.className = "popup_body";
     preview.appendChild(root);
-    createRoot(root).render(
-        <>
-            <div className="row_container bottom_spaced" onClick={closePreview}>
-                <div style={{ marginLeft: "auto" }}>
-                    <Close classNameArg="action" size={18} />
+
+    const promise = new Promise((resolve: (arg: T) => void) => {
+        createRoot(root).render(
+            <>
+                <div
+                    data-testid="popup-close-button"
+                    className="clickable row_container bottom_spaced"
+                    onClick={closePreview}
+                >
+                    <div style={{ marginLeft: "auto" }}>
+                        <Close classNameArg="action" size={18} />
+                    </div>
                 </div>
-            </div>
-            {content}
-        </>,
-    );
-};
+                {React.cloneElement(content, {
+                    popUpCallback: (arg: T) => {
+                        closePreview();
+                        resolve(arg);
+                    },
+                })}
+            </>,
+        );
+    });
+
+    return promise;
+}
 
 export function parseNumber(
     amount: string,
@@ -893,35 +949,109 @@ export const icrcTransfer = async (
     fee: number,
     to?: string,
 ) => {
-    const input = to || prompt("Enter the recipient principal")?.trim() || "";
-    if (!input) return;
-    const recipient = Principal.fromText(input);
-    const amount = parseNumber(
-        prompt(
-            `Enter the amount (fee: ${tokens(fee, decimals)} ${symbol})`,
-        )?.trim() || "",
-        decimals,
-    );
-    if (!amount) return 0;
-    if (
-        !confirm(
-            `You are transferring\n\n${tokens(
-                amount,
-                decimals,
-            )} ${symbol}\n\nto\n\n${recipient}`,
-        )
-    )
-        return 0;
-    const response: string | number = await window.api.icrc_transfer(
-        token,
-        recipient,
-        amount,
-    );
-    if (typeof response == "string") {
-        alert(
-            "Transfer failed. One reason might be that you voted on a proposal that is still open.",
+    try {
+        const input =
+            to || prompt("Enter the recipient principal")?.trim() || "";
+        if (!input) return;
+        const recipient = Principal.fromText(input);
+        const amount = parseNumber(
+            prompt(
+                `Enter the amount (fee: ${tokens(fee, decimals)} ${symbol})`,
+            )?.trim() || "",
+            decimals,
         );
-        return 0;
+        if (
+            !amount ||
+            !confirm(
+                `You are transferring\n\n${tokens(
+                    amount,
+                    decimals,
+                )} ${symbol}\n\nto\n\n${recipient}`,
+            )
+        )
+            return;
+        return await window.api.icrc_transfer(token, recipient, amount, fee);
+    } catch (e) {
+        return "Transfer failed";
     }
     return response;
 };
+
+const DAY = 24 * 60 * 60 * 1000;
+
+export const noiseControlBanner = (
+    domain: "realm" | "user",
+    filter: UserFilter,
+    user: User,
+) => {
+    const err = checkUserFilterMatch(filter, user);
+    const prefix =
+        domain == "realm"
+            ? "You cannot post to this realm"
+            : "This user can't see notifications from you";
+    return err ? (
+        <div className="banner vertically_spaced">{`${prefix}: ${err}`}</div>
+    ) : null;
+};
+
+const daysOld = (timestamp: bigint, days: number) =>
+    (Number(new Date()) - Number(timestamp) / 1000000) / DAY < days;
+
+const pending_or_recently_confirmed = (report: Report | undefined) =>
+    report &&
+    (!report.closed ||
+        (report.confirmed_by.length > report.rejected_by.length &&
+            daysOld(
+                report.timestamp,
+                window.backendCache.config.user_report_validity_days,
+            )));
+
+const controversialUser = (profile: User) =>
+    profile.rewards < 0 ||
+    pending_or_recently_confirmed(profile.report) ||
+    Object.values(profile.post_reports).some((timestamp) =>
+        daysOld(
+            timestamp,
+            window.backendCache.config.user_report_validity_days,
+        ),
+    );
+
+const checkUserFilterMatch = (
+    filter: UserFilter,
+    user: User,
+): string | null => {
+    if (!filter || !user) return null;
+    const { age_days, safe, balance, num_followers, downvotes } = filter;
+    const { downvote_counting_period_days, user_report_validity_days } =
+        window.backendCache.config;
+    if (daysOld(user.timestamp, age_days)) {
+        return "account age is too low";
+    }
+    if (safe && controversialUser(user)) {
+        return `negative rewards or a report is pending or was confirmed in the last ${user_report_validity_days} days`;
+    }
+    if (balance * tokenBase() > user.balance) {
+        return "token balance too low";
+    }
+    if (num_followers > user.followers.length) {
+        return "number of followers insufficient";
+    }
+    if (downvotes > 0 && Object.entries(user.downvotes).length > downvotes) {
+        return `number of downvotes on your posts in the last ${downvote_counting_period_days} days`;
+    }
+
+    return null;
+};
+
+export const hash = async (value: string, iterations: number) => {
+    let hash = new TextEncoder().encode(value);
+    for (let i = 0; i < iterations; i++)
+        hash = new Uint8Array(await crypto.subtle.digest("SHA-256", hash));
+    return hash;
+};
+
+export const ArrowDown = ({ onClick }: { onClick?: () => void }) => (
+    <div onClick={onClick} className="text_centered bottom_spaced top_spaced">
+        <CarretDown classNameArg="action" />
+    </div>
+);

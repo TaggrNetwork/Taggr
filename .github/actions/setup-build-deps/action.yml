@@ -9,7 +9,7 @@ runs:
       run: echo "ic_wasm_version=$(cat .ic-wasm-version | xargs)" >> "$GITHUB_ENV"
 
     - name: Cache IC WASM
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: /usr/local/bin/ic-wasm
         key: ic-wasm-cache-${{ env.ic_wasm_version }}

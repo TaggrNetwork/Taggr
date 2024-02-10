@@ -39,9 +39,11 @@ pub struct Transaction {
     pub memo: Option<Memo>,
 }
 
-// pub struct BadFee {
-//     expected_fee: u64,
-// }
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(CandidType, Debug, Serialize, Deserialize)]
+pub struct BadFee {
+    expected_fee: u128,
+}
 
 // pub struct BadBurn {
 //     min_burn_amount: u64,
@@ -51,25 +53,29 @@ pub struct Transaction {
 //     duplicate_of: u64,
 // }
 
-#[derive(CandidType, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(CandidType, Debug, Serialize, Deserialize)]
 pub struct InsufficientFunds {
     balance: u128,
 }
 
-#[derive(CandidType, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(CandidType, Debug, Serialize, Deserialize)]
 pub struct CreatedInFuture {
     ledger_time: Timestamp,
 }
 
-#[derive(CandidType, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(CandidType, Debug, Serialize, Deserialize)]
 pub struct GenericError {
     error_code: u128,
     message: String,
 }
 
-#[derive(CandidType, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(CandidType, Debug, Serialize, Deserialize)]
 pub enum TransferError {
-    // BadFee(BadFee),
+    BadFee(BadFee),
     // BadBurn(BadBurn),
     // Duplicate(Duplicate),
     // TemporarilyUnavailable,
@@ -130,7 +136,7 @@ fn icrc1_decimals() -> u8 {
 }
 
 #[query]
-fn icrc1_fee() -> u128 {
+pub fn icrc1_fee() -> u128 {
     CONFIG.transaction_fee as u128
 }
 
@@ -166,7 +172,7 @@ fn icrc1_supported_standards() -> Vec<Standard> {
 }
 
 #[update]
-fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
+fn icrc1_transfer(args: TransferArgs) -> Result<u128, TransferError> {
     let owner = caller();
     if owner == Principal::anonymous() {
         return Err(TransferError::GenericError(GenericError {
@@ -174,7 +180,11 @@ fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
             message: "No transfers from the minting account possible.".into(),
         }));
     }
-    args.fee = Some(icrc1_fee());
+    if args.fee != Some(icrc1_fee()) {
+        return Err(TransferError::BadFee(BadFee {
+            expected_fee: icrc1_fee(),
+        }));
+    }
     mutate(|state| transfer(state, time(), owner, args))
 }
 
@@ -194,8 +204,18 @@ pub fn transfer(
         ..
     } = args;
 
-    if fee.is_none() && owner != icrc1_minting_account().expect("no minting account").owner {
-        panic!("only minting transactions are allowed without a fee")
+    if owner == icrc1_minting_account().expect("no minting account").owner {
+        if !state.minting_mode {
+            return Err(TransferError::GenericError(GenericError {
+                error_code: 5,
+                message: "minting invariant violation".into(),
+            }));
+        }
+    } else if fee.is_none() {
+        return Err(TransferError::GenericError(GenericError {
+            error_code: 3,
+            message: "only minting transactions are allowed without a fee".into(),
+        }));
     }
 
     if state.voted_on_pending_proposal(owner) {
@@ -264,17 +284,13 @@ pub fn transfer(
         } else {
             state.balances.insert(from.clone(), resulting_balance);
         }
-        if let Some(user) = state.principal_to_user_mut(from.owner) {
-            user.balance = resulting_balance
-        }
+        update_user_balance(state, from.owner, resulting_balance as Token);
     }
     if to.owner != Principal::anonymous() {
         let recipient_balance = state.balances.remove(&to).unwrap_or_default();
         let updated_balance = recipient_balance.saturating_add(amount as Token);
         state.balances.insert(to.clone(), updated_balance);
-        if let Some(user) = state.principal_to_user_mut(to.owner) {
-            user.balance = updated_balance
-        }
+        update_user_balance(state, to.owner, updated_balance as Token);
     }
 
     state.ledger.push(Transaction {
@@ -286,6 +302,16 @@ pub fn transfer(
         memo,
     });
     Ok(state.ledger.len().saturating_sub(1) as u128)
+}
+
+fn update_user_balance(state: &mut State, principal: Principal, balance: Token) {
+    if let Some(user) = state.principal_to_user_mut(principal) {
+        if user.principal == principal {
+            user.balance = balance
+        } else if user.cold_wallet == Some(principal) {
+            user.cold_balance = balance
+        }
+    }
 }
 
 pub fn account(owner: Principal) -> Account {
@@ -317,27 +343,40 @@ pub fn mint(state: &mut State, account: Account, tokens: Token) {
     );
 }
 
-pub fn move_funds(state: &mut State, from: &Account, to: Account) -> Result<u128, TransferError> {
-    let balance = state.balances.get(from).copied().unwrap_or_default();
-    let mut n = 0;
-    if balance > 0 {
-        let fee = icrc1_fee();
-        n = transfer(
-            state,
-            time(),
-            from.owner,
-            TransferArgs {
-                from_subaccount: from.subaccount.clone(),
-                to,
-                amount: balance.saturating_sub(fee as Token) as u128,
-                fee: Some(fee),
-                memo: Default::default(),
-                created_at_time: None,
-            },
-        )?;
+pub fn balances_from_ledger(ledger: &[Transaction]) -> Result<HashMap<Account, Token>, String> {
+    let mut balances = HashMap::new();
+    let minting_account = icrc1_minting_account().ok_or("no minting account found")?;
+    for transaction in ledger {
+        if transaction.to != minting_account {
+            if !balances.contains_key(&transaction.to) {
+                balances.insert(transaction.to.clone(), transaction.amount);
+            } else if let Some(balance) = balances.get_mut(&transaction.to) {
+                *balance = (*balance).saturating_add(transaction.amount)
+            }
+        }
+        if transaction.from != minting_account {
+            let from = balances
+                .get_mut(&transaction.from)
+                .ok_or("paying account not found")?;
+            if transaction
+                .amount
+                .checked_add(transaction.fee)
+                .ok_or("invalid transaction")?
+                > *from
+            {
+                return Err("account has not enough funds".into());
+            }
+            *from = from
+                .checked_sub(
+                    transaction
+                        .amount
+                        .checked_add(transaction.fee)
+                        .ok_or("wrong amount")?,
+                )
+                .ok_or("wrong amount")?;
+        }
     }
-    state.balances.remove(from);
-    Ok(n)
+    Ok(balances)
 }
 
 #[cfg(test)]
@@ -356,8 +395,7 @@ mod tests {
         let mut state = State::default();
         env::tests::create_user(&mut state, pr(0));
 
-        let mut memo = Vec::new();
-        memo.resize(33, 0);
+        let memo = vec![0; 33];
 
         assert_eq!(
             transfer(
@@ -526,37 +564,4 @@ mod tests {
             }))
         );
     }
-}
-
-pub fn balances_from_ledger(ledger: &[Transaction]) -> Result<HashMap<Account, Token>, String> {
-    let mut balances = HashMap::new();
-    let minting_account = icrc1_minting_account().ok_or("no minting account found")?;
-    for transaction in ledger {
-        balances
-            .entry(transaction.to.clone())
-            .and_modify(|balance: &mut u64| *balance = balance.saturating_add(transaction.amount))
-            .or_insert(transaction.amount);
-        if transaction.from != minting_account {
-            let from = balances
-                .get_mut(&transaction.from)
-                .ok_or("paying account not found")?;
-            if transaction
-                .amount
-                .checked_add(transaction.fee)
-                .ok_or("invalid transaction")?
-                > *from
-            {
-                return Err("account has not enough funds".into());
-            }
-            *from = from
-                .checked_sub(
-                    transaction
-                        .amount
-                        .checked_add(transaction.fee)
-                        .ok_or("wrong amount")?,
-                )
-                .ok_or("wrong amount")?;
-        }
-    }
-    Ok(balances)
 }

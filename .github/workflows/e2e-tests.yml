@@ -10,7 +10,7 @@ jobs:
   e2e_tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-nodejs
       - uses: ./.github/actions/setup-dfx
       - uses: ./.github/actions/setup-build-deps
@@ -20,7 +20,7 @@ jobs:
         run: echo "playwright_version=$(cat package-lock.json | jq -r '.dependencies."@playwright/test".version')" >> $GITHUB_ENV
 
       - name: Cache Playwright dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright

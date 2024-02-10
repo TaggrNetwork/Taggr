@@ -9,15 +9,35 @@ pub struct Report {
     pub rejected_by: Vec<UserId>,
     pub closed: bool,
     pub reason: String,
+    #[serde(default)]
+    pub timestamp: Time,
+}
+
+pub enum ReportState {
+    Open,
+    Confirmed,
+    Rejected,
 }
 
 impl Report {
+    pub fn rejected(&self) -> bool {
+        self.confirmed_by.len() < self.rejected_by.len()
+    }
+
+    pub fn pending_or_recently_confirmed(&self) -> bool {
+        !self.closed
+            || !self.rejected() && self.timestamp + CONFIG.user_report_validity_days * DAY >= time()
+    }
+
     pub fn vote(
         &mut self,
         stalwarts: usize,
         stalwart: UserId,
         confirmed: bool,
-    ) -> Result<(), String> {
+    ) -> Result<ReportState, String> {
+        if self.closed {
+            return Err("report is already closed".into());
+        }
         if stalwart == self.reporter
             || self.confirmed_by.contains(&stalwart)
             || self.rejected_by.contains(&stalwart)
@@ -32,10 +52,18 @@ impl Report {
             self.rejected_by.push(stalwart);
         }
         let votes = self.confirmed_by.len().max(self.rejected_by.len()) as u16;
-        if votes * 100 >= CONFIG.report_confirmation_percentage * stalwarts as u16 {
-            self.closed = true;
-        }
-        Ok(())
+        Ok(
+            if votes * 100 >= CONFIG.report_confirmation_percentage * stalwarts as u16 {
+                self.closed = true;
+                if self.rejected() {
+                    ReportState::Rejected
+                } else {
+                    ReportState::Confirmed
+                }
+            } else {
+                ReportState::Open
+            },
+        )
     }
 }
 
@@ -47,9 +75,6 @@ pub fn finalize_report(
     user_id: UserId,
     subject: String,
 ) -> Result<(), String> {
-    if !report.closed {
-        return Ok(());
-    }
     let mut confirmed_user_report = false;
     let (sponsor_id, unit) = if report.confirmed_by.len() > report.rejected_by.len() {
         // penalty for the user
@@ -85,6 +110,10 @@ pub fn finalize_report(
             )
             .map_err(|err| format!("couldn't reward reporter: {}", err))?;
         confirmed_user_report = domain == "misbehaviour";
+        state.logger.info(format!(
+            "Report of {} was confirmed by `{}%` of stalwarts: {}",
+            subject, CONFIG.report_confirmation_percentage, &report.reason
+        ));
         (user_id, unit)
     } else {
         // penalty for reporter
@@ -160,7 +189,7 @@ mod tests {
             let user = state.users.get_mut(&u1).unwrap();
             user.change_rewards(100, "");
 
-            assert_eq!(user.inbox.len(), 1);
+            assert_eq!(user.notifications.len(), 1);
             assert_eq!(user.credits(), 1000);
             assert_eq!(user.rewards(), 100);
 
@@ -169,6 +198,10 @@ mod tests {
                 let user = state.users.get_mut(&id).unwrap();
                 user.stalwart = true;
             }
+
+            let reporter = pr(7);
+            let user = state.principal_to_user_mut(reporter).unwrap();
+            user.change_credits(1000, CreditsDelta::Plus, "").unwrap();
 
             let post_id =
                 Post::create(state, "bad post".to_string(), &[], p, 0, None, None, None).unwrap();
@@ -179,7 +212,7 @@ mod tests {
             let p = Post::get(state, &post_id).unwrap();
             assert!(p.report.is_none());
 
-            let reporter = pr(7);
+            assert_eq!(user.credits(), 1000 - CONFIG.post_cost);
             // The reporter can only be a user with at least one post.
             let _ = Post::create(
                 state,
@@ -196,15 +229,18 @@ mod tests {
                 state.report(reporter, "post".into(), post_id, String::new()),
                 Err("no reports with low token balance".into())
             );
-            state
-                .balances
-                .insert(account(reporter), CONFIG.transaction_fee * 1000);
+
+            state.minting_mode = true;
+            token::mint(state, account(reporter), CONFIG.transaction_fee * 1000);
+            state.minting_mode = false;
+            let reporter_user = state.principal_to_user_mut(reporter).unwrap();
+            assert_eq!(reporter_user.balance, CONFIG.transaction_fee * 1000);
 
             // report should work becasue the user needs 500 credits
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
-            assert_eq!(reporter_user.credits(), 998);
+            assert_eq!(reporter_user.credits(), 1998);
             reporter_user
-                .change_credits(998, CreditsDelta::Minus, "")
+                .change_credits(1998, CreditsDelta::Minus, "")
                 .unwrap();
             assert_eq!(reporter_user.credits(), 0);
             assert_eq!(
@@ -216,12 +252,15 @@ mod tests {
 
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
             reporter_user
-                .change_credits(500, CreditsDelta::Plus, "")
+                .change_credits(1000, CreditsDelta::Plus, "")
                 .unwrap();
-            assert_eq!(reporter_user.credits(), 500);
+            assert_eq!(reporter_user.credits(), 1000);
             state
                 .report(reporter, "post".into(), post_id, String::new())
                 .unwrap();
+
+            let post_author = state.principal_to_user_mut(pr(0)).unwrap();
+            assert!(post_author.post_reports.contains_key(&post_id));
 
             // make sure the reporter is correct
             let p = Post::get(state, &post_id).unwrap();
@@ -229,14 +268,14 @@ mod tests {
             assert!(report.reporter == state.principal_to_user(reporter).unwrap().id);
 
             // Another user cannot overwrite the report
-            state
-                .balances
-                .insert(account(pr(8)), CONFIG.transaction_fee * 1000);
+            state.minting_mode = true;
+            token::mint(state, account(pr(8)), CONFIG.transaction_fee * 1000);
+            state.minting_mode = false;
             assert_eq!(
                 state.report(pr(8), "post".into(), post_id, String::new()),
                 Err("this post is already reported".into())
             );
-            // the reporter is stil lthe same
+            // the reporter is still the same
             assert!(report.reporter == state.principal_to_user(reporter).unwrap().id);
 
             // stalwart 3 confirmed the report
@@ -292,6 +331,9 @@ mod tests {
             // make sure the report is closed and post deleted
             assert!(report.closed);
             assert_eq!(&p.body, "");
+            let post_author = state.principal_to_user_mut(pr(0)).unwrap();
+            // The report is still pending
+            assert!(post_author.post_reports.contains_key(&post_id));
 
             let user = state.users.get(&u1).unwrap();
             assert_eq!(
@@ -338,12 +380,12 @@ mod tests {
             state
                 .report(reporter, "post".into(), post_id, String::new())
                 .unwrap();
-            // set credits to 777
+            // set credits to 1777
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
             reporter_user
-                .change_credits(777 - reporter_user.credits(), CreditsDelta::Plus, "")
+                .change_credits(1777 - reporter_user.credits(), CreditsDelta::Plus, "")
                 .unwrap();
-            assert_eq!(reporter_user.credits(), 777);
+            assert_eq!(reporter_user.credits(), 1777);
             assert_eq!(reporter_user.rewards(), 100);
 
             state
@@ -359,6 +401,10 @@ mod tests {
             state
                 .vote_on_report(pr(9), "post".into(), post_id, false)
                 .unwrap();
+
+            let post_author = state.principal_to_user_mut(pr(100)).unwrap();
+            assert!(post_author.post_reports.contains_key(&post_id));
+
             let p = Post::get(state, &post_id).unwrap();
             let report = &p.report.clone().unwrap();
             assert_eq!(report.confirmed_by.len(), 0);
@@ -367,11 +413,16 @@ mod tests {
             state
                 .vote_on_report(pr(10), "post".into(), post_id, false)
                 .unwrap();
+
             let p = Post::get(state, &post_id).unwrap();
             let report = &p.report.clone().unwrap();
             assert_eq!(report.confirmed_by.len(), 0);
             assert_eq!(report.rejected_by.len(), 3);
             assert!(report.closed);
+
+            // report removed from the post
+            let post_author = state.principal_to_user_mut(pr(100)).unwrap();
+            assert!(!post_author.post_reports.contains_key(&post_id));
 
             // karma and credits stay untouched
             let user = state.users.get(&u).unwrap();
@@ -381,7 +432,7 @@ mod tests {
             // reported got penalized
             let reporter = state.principal_to_user(reporter).unwrap();
             let unit = CONFIG.reporting_penalty_post / 2;
-            assert_eq!(reporter.credits(), 777 - 2 * unit);
+            assert_eq!(reporter.credits(), 1777 - 2 * unit);
 
             assert_eq!(
                 state.principal_to_user(pr(9)).unwrap().rewards() as Credits,

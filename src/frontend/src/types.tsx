@@ -19,6 +19,12 @@ export type Poll = {
     weighted_by_tokens: { [key: number]: number };
 };
 
+export type Summary = {
+    title: string;
+    description: string;
+    items: string[];
+};
+
 export type Extension =
     | {
           ["Poll"]: Poll;
@@ -71,14 +77,20 @@ export type Proposal = {
 };
 
 export type Realm = {
-    description: string;
+    last_root_post: number;
+    cleanup_penalty: number;
     controllers: UserId[];
-    theme: string;
+    description: string;
+    filter: UserFilter;
     label_color: string;
     logo: string;
-    num_posts: number;
     num_members: number;
+    num_posts: number;
+    theme: string;
+    whitelist: UserId[];
     last_update: number;
+    last_setting_update: number;
+    revenue: number;
 };
 
 export type Post = {
@@ -86,6 +98,7 @@ export type Post = {
     parent?: PostId;
     watchers: UserId[];
     children: PostId[];
+    reposts: PostId[];
     user: UserId;
     userObject: { id: UserId; name: string; rewards: number };
     report?: Report;
@@ -105,6 +118,7 @@ export type Post = {
 
 export type BlogTitle = {
     author: string;
+    realm?: string;
     created: BigInt;
     length: number;
 };
@@ -127,6 +141,7 @@ type Filters = {
     users: UserId[];
     tags: string[];
     realms: string[];
+    noise: UserFilter;
 };
 
 export type Predicate =
@@ -145,7 +160,7 @@ export type Notification =
           ["Generic"]: string;
       }
     | {
-          ["WatchedPostEntries"]: PostId[];
+          ["WatchedPostEntries"]: [PostId, PostId[]];
       }
     | {
           ["Conditional"]: [string, Predicate];
@@ -154,27 +169,38 @@ export type Notification =
           ["NewPost"]: [string, PostId];
       };
 
+export type UserFilter = {
+    age_days: number;
+    safe: boolean;
+    balance: number;
+    num_followers: number;
+    downvotes: number;
+};
+
 export type User = {
     name: string;
     id: UserId;
     account: string;
     invites_budget: number;
+    show_posts_in_realms: boolean;
     treasury_e8s: BigInt;
     principal: string;
     bookmarks: number[];
     last_activity: BigInt;
+    governance: boolean;
     settings: {
         [key: string]: string;
     };
     realms: string[];
     previous_names: string[];
     report?: Report;
+    post_reports: { [id: PostId]: bigint };
     stalwart: boolean;
     followees: UserId[];
     followers: UserId[];
     feeds: string[][];
     accounting: [number, string, number, string][];
-    timestamp: BigInt;
+    timestamp: bigint;
     active_weeks: number;
     invited_by?: UserId;
     about: string;
@@ -182,10 +208,14 @@ export type User = {
     cycles: number;
     num_posts: number;
     balance: number;
+    cold_balance: number;
+    cold_wallet: string;
     controllers: string[];
     karma_donations: { [key: UserId]: number };
+    downvotes: { [key: UserId]: number };
     filters: Filters;
-    inbox: { [key: string]: Notification };
+    blacklist: UserId[];
+    notifications: { [key: number]: [Notification, boolean] };
 };
 
 export type Report = {
@@ -194,12 +224,14 @@ export type Report = {
     confirmed_by: UserId[];
     rejected_by: UserId[];
     closed: boolean;
+    timestamp: bigint;
 };
 
-export type Theme = { [name: string]: string };
+export type Theme = { [name: string]: any };
 
 declare global {
     interface Window {
+        ic: any;
         authClient: AuthClient;
         stackRoot: Root;
         resetUI: () => void;
@@ -220,7 +252,7 @@ declare global {
             users: { [name: UserId]: string };
             rewards: { [name: UserId]: number };
             recent_tags: string[];
-            realms: { [name: string]: [string, boolean] };
+            realms_data: { [name: string]: [string, boolean, UserFilter] };
             stats: {
                 fees_burned: number;
                 volume_day: number;
@@ -256,6 +288,8 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                user_report_validity_days: number;
+                downvote_counting_period_days: number;
                 max_report_length: number;
                 credits_per_xdr: number;
                 max_funding_amount: number;
@@ -264,13 +298,11 @@ declare global {
                 max_credits_mint_kilos: number;
                 logo: string;
                 poll_revote_deadline_hours: number;
-                tag_cost: number;
                 blob_cost: number;
                 poll_cost: number;
                 max_post_length: number;
                 max_blob_size_bytes: number;
                 name_change_cost: number;
-                realm_cleanup_penalty: number;
                 max_realm_name: number;
                 max_realm_logo_len: number;
                 post_cost: number;
@@ -281,7 +313,7 @@ declare global {
                 proposal_approval_threshold: number;
                 name: string;
                 proposal_rejection_penalty: number;
-                revenue_share_activity_weeks: number;
+                voting_power_activity_weeks: number;
                 trusted_user_min_karma: number;
                 trusted_user_min_age_weeks: number;
                 min_stalwart_account_age_weeks: number;

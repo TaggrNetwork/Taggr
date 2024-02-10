@@ -16,30 +16,32 @@ Each interaction with other users on $name consumes credits.
 All payments are directed to [$name's Treasury](https://dashboard.internetcomputer.org/account/dee15d98a70029163c79ace6ec9cf33b21917355f1766f44f87b4cb9f4d3b393) which holds the revenue.
 Below is a breakdown of costs.
 
-| Function             |       credits 🔥 | Comments                                         |
-| :------------------- | ---------------: | :----------------------------------------------- |
-| New post or comment  |     `$post_cost` | Excluding hashtags                               |
-| Hashtags             |  `T * $tag_cost` | For `T` unique hashtags in a post or comment     |
-| On-chain pictures    | `B * $blob_cost` | For `B` pictures in a post or comment            |
-| Poll                 |     `$poll_cost` | For adding a poll to a post or comment           |
-| Reacting with ❤️     |              `2` | Burns `$reaction_fee` credits, adds `1` reward   |
-| Reacting with 🔥, 😆 |              `6` | Burns `$reaction_fee` credits, adds `5` rewards  |
-| Reacting with ⭐️    |             `11` | Burns `$reaction_fee` credits, adds `10` rewards |
-| Reacting with 👎     |              `3` | Burns `3` credits and rewards of post's author   |
-| New realm creation   |    `$realm_cost` | Burns `$realm_cost` credits                      |
+| Function                     |         credits 🔥 | Comments                                                                                                   |
+| :--------------------------- | -----------------: | :--------------------------------------------------------------------------------------------------------- |
+| New post or comment          |       `$post_cost` |                                                                                                            |
+| Hashtags                     | `T * followers(T)` | Each unique hashtag `T` is charged with the number of credits corresponding to the number of its followers |
+| On-chain pictures            |   `B * $blob_cost` | For `B` pictures in a post or comment                                                                      |
+| Poll                         |       `$poll_cost` | For adding a poll to a post or comment                                                                     |
+| Reacting with ❤️ , 👍, 😢    |                `3` | Gives `2` reward points, burns the rest as fee.                                                            |
+| Reacting with 🔥, 😂, 🚀, 💯 |               `12` | Gives `10` rewards points, burns the rest as fee.                                                          |
+| Reacting with ⭐️, 🏴‍☠️        |               `23` | Gives `20` reward points, burns the rest as fee.                                                           |
+| Reacting with 👎             |                `3` | Burns `3` credits and rewards of post's author and burns 3 credits of the user.                            |
+| New realm creation           |      `$realm_cost` | Burns `$realm_cost` credits                                                                                |
 
 Notes:
 
 1. Each response to a post increases the author's rewards by `$response_reward`.
 2. Inactive users' credits decrease by `$inactivity_penalty` per week after `$inactivity_duration_weeks` weeks of inactivity.
 3. Users with negative rewards balance don't participate in reward distributions or minting.
+4. To curb the inorganic behaviour, $name automatically charges excess fees for all posts above `$max_posts_per_day`  per rolling 24h interval and for all comments above  `$max_comments_per_hour` per hour.
+The fee is computed by multiplying `$excess_penalty` with the number of excessive items. If the excessive items contain images, the computed excess fee is additionally charged per image.
 
 ## Rewards and Revenue Distribution
 
 -   During positive interactions, users can receive rewards from other users.
 -   Rewards are converted to ICP and distributed to users every Friday.
--   Earned rewards points are converted to ICP at the ratio `$credits_per_xdr` rewards / `$xdr_in_usd` USD.
--   Additionally, users owning tokens and being active within the last `$revenue_share_activity_weeks` weeks receive a share of $name's revenue proportionate to their token holdings.
+-   Earned rewards points are converted to ICP at the ratio `$credits_per_xdr` rewards / `$usd_per_xdr` USD.
+-   Additionally, users owning tokens and being active within the last `$voting_power_activity_weeks` weeks receive a share of $name's revenue proportionate to their token holdings.
 
 ## Stalwarts
 
@@ -52,7 +54,7 @@ Realms are sub-communities centered around specific topics.
 Each realm can establish its own terms and conditions, breaching which can lead to:
 
 -   Flagging of the user's post to stalwarts.
--   Removal of the post from the realm, incurring a penalty of `$realm_cleanup_penalty` credits.
+-   Moving the post from a realm by the realm controller, incurring penalties.
 
 Upon joining a realm, users implicitly agree to its terms and conditions.
 
@@ -123,11 +125,13 @@ This will make the supply to keep an equilibrium around the maximal supply.
 
 ### Distribution of minted tokens
 
-Currently, all users who earn rewards become eligible for receiving newly minted `$token_symbol` tokens.
-The amount of minted tokens is computed weekly according to the following algorithm:
+All eligible users receive newly minted `$token_symbol` tokens on a weekly basis.
+Eligible are users without pending reports or reports closed within the last `$user_report_validity_days` and a positive reward balance.
+The amount of minted tokens is computed according to the following algorithm:
 
-1. For every user `U` who rewarded others, $name will mint new tokens limited by `U`'s  `$token_symbol`  balance divided by the minting ratio  `R` (see below).
-2. Assign the newly minted tokens to users (rewarded by `U`) weighted by their share of received rewards and an additional factor `F` which depends on receiver's `$token_symbol` balance:
+1. For every user `U` who rewarded others, determine the maximal amount of donatable tokens capped by `U`'s `$token_symbol` balance divided by the minting ratio `R` (see below).
+2. Compute the maximum amount of tokens assignable from `U` to a single rewarded user by dividing `U`'s mintable tokens by `$active_user_share_for_minting_promille%` of all active users of the last week.
+3. Mint new tokens to users (rewarded by `U`) capped by the amount computed in the previous step and weighted by their share of received rewards and an additional factor `F` which depends on receiver's `$token_symbol` balance:
 
 | Receiver's $token_symbol balance | `F`    |
 | -------------------------------- | ------ |

@@ -1,8 +1,9 @@
 import * as React from "react";
-import { bigScreen, Loading, NotFound, ShareButton } from "./common";
+import { bigScreen, Loading, NotFound, ShareButton, UserLink } from "./common";
 import { Content } from "./content";
 import { PostFeed } from "./post_feed";
 import { PostId, User } from "./types";
+import { FollowButton } from "./profile";
 
 export const Journal = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
@@ -36,19 +37,20 @@ export const Journal = ({ handle }: { handle: string }) => {
             {profile && (
                 <div className="text_centered">
                     <h1>
-                        <a href={`/#/user/${profile.name}`}>{profile.name}</a>'s
-                        Journal
+                        <UserLink id={profile.id} profile={true} />
+                        's Journal
                     </h1>
                     {
                         <Content
                             value={profile.about}
-                            classNameArg="text_centered vertically_spaced"
+                            classNameArg="spaced text_centered vertically_spaced"
                         />
                     }
                     <div
                         className="row_container vertically_spaced"
                         style={{ justifyContent: "center" }}
                     >
+                        <FollowButton id={profile.id} />
                         <ShareButton
                             url={`journal/${handle}`}
                             title={`${handle}'s journal on ${name}`}

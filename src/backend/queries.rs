@@ -1,3 +1,8 @@
+use std::cmp::Reverse;
+use std::collections::BTreeMap;
+
+use crate::env::{token::Token, user::UserFilter};
+
 use super::*;
 use candid::Principal;
 use env::{
@@ -20,6 +25,45 @@ fn check_invite() {
     read(|state| reply(state.invites.contains_key(&code)))
 }
 
+#[export_name = "canister_query donors"]
+fn donors() {
+    read(|state| {
+        let boostraping_mode =
+            state.balances.values().sum::<Token>() < CONFIG.boostrapping_threshold_tokens;
+        let mut donors = state
+            .users
+            .values()
+            .map(|user| {
+                (
+                    user.id,
+                    user.mintable_tokens(state, 1, boostraping_mode)
+                        .map(|(_, tokens)| tokens)
+                        .sum::<Token>(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        donors.sort_unstable_by_key(move |(_, tokens)| Reverse(*tokens));
+        donors.truncate(100);
+
+        reply(donors);
+    });
+}
+
+#[export_name = "canister_query migration_pending"]
+fn migration_pending() {
+    read(|state| {
+        reply(state.principal_change_requests.contains_key(&caller()));
+    });
+}
+
+#[export_name = "canister_query distribution"]
+fn distribution() {
+    read(|state| {
+        reply(&state.distribution_reports);
+    });
+}
+
 #[export_name = "canister_query balances"]
 fn balances() {
     read(|state| {
@@ -31,7 +75,10 @@ fn balances() {
                     (
                         acc,
                         balance,
-                        state.principal_to_user(acc.owner).map(|u| u.id),
+                        state
+                            .principal_to_user(acc.owner)
+                            .or(state.user(&acc.owner.to_string()))
+                            .map(|u| u.id),
                     )
                 })
                 .collect::<Vec<_>>(),
@@ -109,12 +156,49 @@ fn proposals() {
     })
 }
 
-fn sorted_realms(state: &State) -> Vec<(&'_ String, &'_ Realm)> {
-    let mut realms = state.realms.iter().collect::<Vec<_>>();
-    realms.sort_unstable_by_key(|(_name, realm)| {
-        std::cmp::Reverse(realm.num_posts * realm.num_members)
+fn sorted_realms(
+    state: &State,
+    order: String,
+) -> Box<dyn Iterator<Item = (&'_ String, &'_ Realm)> + '_> {
+    let realm_vp = read(|state| {
+        state
+            .users
+            .values()
+            .fold(BTreeMap::default(), |mut acc, user| {
+                let vp = (user.total_balance() as f32).sqrt() as u64;
+                user.realms.iter().for_each(|realm_id| {
+                    acc.entry(realm_id.clone())
+                        .and_modify(|realm_vp| *realm_vp += vp)
+                        .or_insert(vp);
+                });
+                acc
+            })
     });
-    realms
+    let mut realms = state.realms.iter().collect::<Vec<_>>();
+    if order != "name" {
+        realms.sort_unstable_by_key(|(realm_id, realm)| match order.as_str() {
+            "popularity" => {
+                let realm_vp = realm_vp.get(realm_id.as_str()).copied().unwrap_or(1);
+                let vp = if realm.whitelist.is_empty() {
+                    realm_vp
+                } else {
+                    1
+                };
+                let moderation = if realm.filter == UserFilter::default() {
+                    1
+                } else {
+                    realm_vp
+                };
+                Reverse(
+                    vp * moderation
+                        + (realm.num_members as f32).sqrt() as u64
+                        + (realm.num_posts as f32).sqrt() as u64,
+                )
+            }
+            _ => Reverse(realm.last_update),
+        });
+    }
+    Box::new(realms.into_iter())
 }
 
 #[export_name = "canister_query realms_data"]
@@ -122,30 +206,49 @@ fn realms_data() {
     read(|state| {
         let user_id = state.principal_to_user(caller()).map(|user| user.id);
         reply(
-            sorted_realms(state)
+            state
+                .realms
                 .iter()
+                .filter(|(_, realm)| realm.last_update + 2 * WEEK > time())
                 .map(|(name, realm)| {
                     (
                         name,
-                        &realm.label_color,
-                        user_id.map(|id| realm.controllers.contains(&id)),
+                        (
+                            &realm.label_color,
+                            user_id.map(|id| realm.controllers.contains(&id)),
+                            &realm.filter,
+                        ),
                     )
                 })
-                .collect::<Vec<_>>(),
+                .collect::<BTreeMap<_, _>>(),
         );
     });
 }
 
-#[export_name = "canister_query realm"]
-fn realm() {
-    let name: String = parse(&arg_data_raw());
-    read(|state| reply(state.realms.get(&name).ok_or("no realm found")));
-}
-
 #[export_name = "canister_query realms"]
 fn realms() {
+    let realm_ids: Vec<String> = parse(&arg_data_raw());
     read(|state| {
-        reply(sorted_realms(state).iter().collect::<Vec<_>>());
+        reply(
+            realm_ids
+                .into_iter()
+                .filter_map(|realm_id| state.realms.get(&realm_id))
+                .collect::<Vec<_>>(),
+        )
+    })
+}
+
+#[export_name = "canister_query all_realms"]
+fn all_realms() {
+    let page_size = 20;
+    read(|state| {
+        let (order, page): (String, usize) = parse(&arg_data_raw());
+        reply(
+            sorted_realms(state, order)
+                .skip(page * page_size)
+                .take(page_size)
+                .collect::<Vec<_>>(),
+        );
     })
 }
 
@@ -153,7 +256,7 @@ fn realms() {
 fn user_posts() {
     let (handle, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     read(|state| {
-        resolve_handle(Some(handle)).map(|user| {
+        resolve_handle(state, Some(&handle)).map(|user| {
             reply(
                 user.posts(state, offset)
                     .skip(CONFIG.feed_page_size * page)
@@ -168,7 +271,7 @@ fn user_posts() {
 fn rewarded_posts() {
     let (handle, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     read(|state| {
-        resolve_handle(Some(handle)).map(|user| {
+        resolve_handle(state, Some(&handle)).map(|user| {
             reply(
                 user.posts(state, offset)
                     .filter(|post| !post.reactions.is_empty())
@@ -187,7 +290,7 @@ fn user_tags() {
     read(|state| {
         reply(
             state
-                .last_posts(caller(), None, offset, true)
+                .last_posts(None, offset, true)
                 .filter(|post| post.body.contains(&tag))
                 .skip(CONFIG.feed_page_size * page)
                 .take(CONFIG.feed_page_size)
@@ -200,15 +303,27 @@ fn user_tags() {
 fn user() {
     let input: Vec<String> = parse(&arg_data_raw());
     let own_profile_fetch = input.is_empty();
-    reply(resolve_handle(input.into_iter().next()).map(|mut user| {
+    mutate(|state| {
+        let handle = input.into_iter().next();
+        let user_id = match resolve_handle(state, handle.as_ref()) {
+            Some(value) => value.id,
+            _ => return reply(None as Option<User>),
+        };
+        let user = state.users.get_mut(&user_id).expect("user not found");
         if own_profile_fetch {
             user.accounting.clear();
         } else {
             user.bookmarks.clear();
-            user.inbox.clear();
+            user.notifications.clear();
         }
-        user
-    }));
+        reply(user);
+    });
+}
+
+#[export_name = "canister_query tags_cost"]
+fn tags_cost() {
+    let tags: Vec<String> = parse(&arg_data_raw());
+    read(|state| reply(state.tags_cost(Box::new(tags.iter()))))
 }
 
 #[export_name = "canister_query invites"]
@@ -250,12 +365,28 @@ fn journal() {
                         })
                         .skip(page * CONFIG.feed_page_size)
                         .take(CONFIG.feed_page_size)
-                        .cloned()
-                        .collect::<Vec<Post>>()
+                        .collect::<Vec<_>>()
                 })
                 .unwrap_or_default(),
         );
     })
+}
+
+#[export_name = "canister_query hot_realm_posts"]
+fn hot_realm_posts() {
+    let (realm, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
+    read(|state| {
+        reply(
+            state
+                .hot_posts(
+                    optional(realm),
+                    page,
+                    offset,
+                    Some(&|post: &Post| post.realm.is_some()),
+                )
+                .collect::<Vec<_>>(),
+        )
+    });
 }
 
 #[export_name = "canister_query hot_posts"]
@@ -264,7 +395,7 @@ fn hot_posts() {
     read(|state| {
         reply(
             state
-                .hot_posts(caller(), optional(realm), page, offset)
+                .hot_posts(optional(realm), page, offset, None)
                 .collect::<Vec<_>>(),
         )
     });
@@ -273,21 +404,44 @@ fn hot_posts() {
 #[export_name = "canister_query realms_posts"]
 fn realms_posts() {
     let (page, offset): (usize, PostId) = parse(&arg_data_raw());
-    read(|state| reply(state.realms_posts(caller(), page, offset)));
+    read(|state| {
+        let inverse_filters = state.principal_to_user(caller()).map(|user| &user.filters);
+        reply(
+            state
+                .realms_posts(caller(), page, offset)
+                .filter(|post| {
+                    inverse_filters
+                        .map(|filters| !post.matches_filters(filters))
+                        .unwrap_or(true)
+                })
+                .collect::<Vec<_>>(),
+        )
+    });
 }
 
 #[export_name = "canister_query last_posts"]
 fn last_posts() {
-    let (realm, page, offset, with_comments): (String, usize, PostId, bool) =
-        parse(&arg_data_raw());
+    let (realm, page, offset, filtered): (String, usize, PostId, bool) = parse(&arg_data_raw());
     read(|state| {
+        let user = state.principal_to_user(caller());
+        let inverse_filters = filtered.then_some(user.map(|user| &user.filters)).flatten();
         reply(
             state
-                .last_posts(caller(), optional(realm), offset, with_comments)
+                .last_posts(optional(realm), offset, /* with_comments = */ false)
+                .filter(|post| {
+                    inverse_filters
+                        .map(|filters| !post.matches_filters(filters))
+                        .unwrap_or(true)
+                        && match (user, state.users.get(&post.user)) {
+                            (Some(user), Some(author)) => {
+                                user.accepts(author.id, &author.get_filter())
+                            }
+                            _ => true,
+                        }
+                })
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
-                .cloned()
-                .collect::<Vec<Post>>(),
+                .collect::<Vec<_>>(),
         )
     });
 }
@@ -299,9 +453,8 @@ fn posts_by_tags() {
     read(|state| {
         reply(
             state
-                .posts_by_tags(caller(), optional(realm), tags, users, page, offset)
-                .into_iter()
-                .collect::<Vec<Post>>(),
+                .posts_by_tags(optional(realm), tags, users, page, offset)
+                .collect::<Vec<_>>(),
         )
     });
 }
@@ -325,8 +478,7 @@ fn thread() {
             state
                 .thread(id)
                 .filter_map(|id| Post::get(state, &id))
-                .cloned()
-                .collect::<Vec<Post>>(),
+                .collect::<Vec<_>>(),
         )
     })
 }
@@ -340,7 +492,7 @@ fn validate_username() {
 #[export_name = "canister_query recent_tags"]
 fn recent_tags() {
     let (realm, n): (String, u64) = parse(&arg_data_raw());
-    read(|state| reply(state.recent_tags(caller(), optional(realm), n)));
+    read(|state| reply(state.recent_tags(optional(realm), n)));
 }
 
 #[export_name = "canister_query users"]
@@ -363,7 +515,7 @@ fn config() {
 
 #[export_name = "canister_query logs"]
 fn logs() {
-    read(|state| reply(state.logs()));
+    read(|state| reply(state.logs().collect::<Vec<_>>()));
 }
 
 #[export_name = "canister_query recovery_state"]
@@ -382,6 +534,12 @@ fn search() {
     read(|state| reply(env::search::search(state, query)));
 }
 
+#[export_name = "canister_query realm_search"]
+fn realm_search() {
+    let query: String = parse(&arg_data_raw());
+    read(|state| reply(env::search::realm_search(state, query)));
+}
+
 #[query]
 fn stable_mem_read(page: u64) -> Vec<(u64, Blob)> {
     let offset = page * BACKUP_PAGE_SIZE as u64;
@@ -398,4 +556,11 @@ fn stable_mem_read(page: u64) -> Vec<(u64, Blob)> {
     }
     api::stable::stable64_read(offset, &mut buf);
     vec![(page, ByteBuf::from(buf))]
+}
+
+fn resolve_handle<'a>(state: &'a State, handle: Option<&'a String>) -> Option<&'a User> {
+    match handle {
+        Some(handle) => state.user(handle),
+        None => Some(state.principal_to_user(caller())?),
+    }
 }

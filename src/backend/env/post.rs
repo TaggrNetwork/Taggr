@@ -1,5 +1,6 @@
 use std::cmp::{Ordering, PartialOrd};
 
+use super::reports::ReportState;
 use super::*;
 use super::{storage::Storage, user::UserId};
 use crate::mutate;
@@ -70,6 +71,8 @@ pub struct Post {
     pub hashes: Vec<String>,
 
     #[serde(default)]
+    pub reposts: Vec<PostId>,
+    #[serde(default)]
     heat: u32,
 
     #[serde(skip)]
@@ -119,6 +122,7 @@ impl Post {
             files: Default::default(),
             tips: Default::default(),
             hashes: Default::default(),
+            reposts: Default::default(),
             tree_size: 0,
             tree_update: timestamp,
             report: None,
@@ -127,6 +131,10 @@ impl Post {
             realm,
             heat,
         }
+    }
+
+    pub fn creation_timestamp(&self) -> u64 {
+        self.timestamp
     }
 
     // Return post's original timestamp, either by taking the minimum from the edits or the one
@@ -249,9 +257,7 @@ impl Post {
             return Err("no voting on own posts".into());
         }
         let report = self.report.as_mut().ok_or("no report found".to_string())?;
-        report.vote(stalwarts, stalwart, confirmed)?;
-        let approved = report.closed && report.confirmed_by.len() > report.rejected_by.len();
-        if approved {
+        if let ReportState::Confirmed = report.vote(stalwarts, stalwart, confirmed)? {
             self.delete(vec![self.body.clone()]);
         }
         Ok(())
@@ -280,9 +286,9 @@ impl Post {
         }
     }
 
-    pub fn costs(&self, blobs: usize) -> Credits {
-        let tags = self.tags.len() as Credits;
-        CONFIG.post_cost.max(tags as Credits * CONFIG.tag_cost)
+    pub fn costs(&self, state: &State, blobs: usize) -> Credits {
+        CONFIG.post_cost
+            + state.tags_cost(Box::new(self.tags.iter()))
             + blobs as Credits * CONFIG.blob_cost
             + if matches!(self.extension, Some(Extension::Poll(_))) {
                 CONFIG.poll_cost
@@ -314,7 +320,10 @@ impl Post {
             return;
         }
 
-        self.heat += (user_balance as f32).sqrt() as u32;
+        let endorsement1 = (user_balance as f32).sqrt() as u32;
+        let endorsement2 = (endorsement1 as f32).sqrt() as u32;
+
+        self.heat += endorsement1 + self.reposts.len() as u32 * endorsement2;
     }
 
     pub fn heat(&self) -> u64 {
@@ -327,14 +336,16 @@ impl Post {
     /// Checks if the poll has ended. If not, returns `Ok(false)`. If the poll ended,
     /// returns `Ok(true)` and assings the result weighted by the token voting power.
     pub fn conclude_poll(state: &mut State, post_id: &PostId, now: u64) -> Result<bool, String> {
-        let users = Post::get(state, post_id)
+        let user_balances = Post::get(state, post_id)
             .and_then(|post| {
                 if let Some(Extension::Poll(poll)) = post.extension.as_ref() {
                     let user_ids = poll.votes.values().flatten().cloned();
-                    let users = user_ids
-                        .filter_map(|id| state.users.get(&id).map(|user| (id, user.clone())))
+                    let balances = user_ids
+                        .filter_map(|id| {
+                            state.users.get(&id).map(|user| (id, user.total_balance()))
+                        })
                         .collect::<BTreeMap<_, _>>();
-                    Some(users)
+                    Some(balances)
                 } else {
                     None
                 }
@@ -350,15 +361,7 @@ impl Post {
                 poll.weighted_by_tokens = poll
                     .votes
                     .iter()
-                    .map(|(k, ids)| {
-                        (
-                            *k,
-                            ids.iter()
-                                .filter_map(|id| users.get(id))
-                                .map(|user| user.balance)
-                                .sum(),
-                        )
-                    })
+                    .map(|(k, ids)| (*k, ids.iter().filter_map(|id| user_balances.get(id)).sum()))
                     .collect();
 
                 return Ok(true);
@@ -378,10 +381,7 @@ impl Post {
         timestamp: u64,
     ) -> Result<(), String> {
         mutate(|state| {
-            let user = state
-                .principal_to_user(principal)
-                .ok_or("no user found")?
-                .clone();
+            let user = state.principal_to_user(principal).ok_or("no user found")?;
             let mut post = Post::get(state, &id).ok_or("no post found")?.clone();
             if post.user != user.id {
                 return Err("unauthorized".to_string());
@@ -404,11 +404,11 @@ impl Post {
                 .iter()
                 .filter(|(id, _)| !old_blob_ids.contains(id.as_str()))
                 .count();
-            let costs = post.costs(new_blobs);
+            let costs = post.costs(state, new_blobs);
             state.charge_in_realm(
                 user_id,
                 costs,
-                post.realm.clone(),
+                post.realm.as_ref(),
                 format!("editing of post [{0}](#/post/{0})", id),
             )?;
             post.patches.push((post.timestamp, patch));
@@ -460,34 +460,43 @@ impl Post {
         };
 
         if user.is_bot() && parent.is_some() {
-            return Err("Bots can't create comments currently".into());
+            return Err("bots can't create comments".into());
         }
 
-        let limit = if parent.is_none() {
-            CONFIG.max_posts_per_hour
-        } else {
-            CONFIG.max_comments_per_hour
-        } as usize;
+        if parent
+            .and_then(|post_id| {
+                state.thread(post_id).next().and_then(|post_id| {
+                    Post::get(state, &post_id).and_then(|post| {
+                        state
+                            .users
+                            .get(&post.user)
+                            .map(|post_author| post_author.blacklist.contains(&user.id))
+                    })
+                })
+            })
+            .unwrap_or_default()
+        {
+            return Err(
+                "you cannot participate in discussions started by users who blocked you".into(),
+            );
+        }
 
-        if user
+        let excess_factor = user
             .posts(state, 0)
             .filter(|post| {
-                !(parent.is_none() ^ post.parent.is_none())
-                    && post.timestamp() > timestamp.saturating_sub(HOUR)
+                if parent.is_none() {
+                    post.parent.is_none() && post.timestamp() + DAY > timestamp
+                } else {
+                    post.parent.is_some() && post.timestamp() + HOUR > timestamp
+                }
             })
             .count()
-            >= limit
-        {
-            return Err(format!(
-                "not more than {} {} per hour are allowed",
-                limit,
-                if parent.is_none() {
-                    "posts"
-                } else {
-                    "comments"
-                }
-            ));
-        }
+            .saturating_sub(if parent.is_none() {
+                CONFIG.max_posts_per_day
+            } else {
+                CONFIG.max_comments_per_hour
+            });
+
         let realm = match parent.and_then(|id| Post::get(state, &id)) {
             Some(parent) => parent.realm.clone(),
             None => match picked_realm {
@@ -495,12 +504,24 @@ impl Post {
                 value => value,
             },
         };
-        if let Some(name) = &realm {
-            if parent.is_none() && !user.realms.contains(name) {
-                return Err(format!("not a member of the realm {}", name));
+        if let Some(realm_id) = &realm {
+            if parent.is_none() && !user.realms.contains(realm_id) {
+                return Err(format!("not a member of the realm {}", realm_id));
+            }
+            if let Some(realm) = state.realms.get(realm_id) {
+                let whitelist = &realm.whitelist;
+                if !whitelist.is_empty() && !whitelist.contains(&user.id)
+                    || whitelist.is_empty() && !user.get_filter().passes(&realm.filter)
+                {
+                    return Err(format!(
+                        "{} realm is gated and you are not allowed to post to this realm",
+                        realm_id
+                    ));
+                }
             }
         }
         let user_id = user.id;
+        let controversial = user.controversial();
         let user_balance = user.balance;
         let mut post = Post::new(
             user_id,
@@ -512,17 +533,31 @@ impl Post {
             realm.clone(),
             (user_balance / token::base()).min(CONFIG.post_heat_token_balance_cap) as u32,
         );
-        let costs = post.costs(blobs.len());
+        let costs = post.costs(state, blobs.len());
         post.valid(blobs)?;
         let future_id = state.next_post_id;
+        if excess_factor > 0 {
+            let excess_penalty = CONFIG.excess_penalty * excess_factor as Credits;
+            state.charge_in_realm(
+                user_id,
+                excess_penalty + blobs.len() as Credits * excess_penalty,
+                realm.as_ref(),
+                "excessive posting penalty",
+            )?;
+        }
         state.charge_in_realm(
             user_id,
             costs,
-            realm.clone(),
-            format!("new post [{0}](#/post/{0})", future_id),
+            realm.as_ref(),
+            format!(
+                "new {0} [{1}](#/post/{1})",
+                if parent.is_some() { "comment" } else { "post" },
+                future_id
+            ),
         )?;
         let user = state.users.get_mut(&user_id).expect("no user found");
         user.num_posts += 1;
+        user.last_post = future_id;
         // reorder realms
         if let Some(name) = &realm {
             if user.realms.contains(name) {
@@ -535,6 +570,9 @@ impl Post {
         post.id = id;
         if let Some(realm) = realm.and_then(|name| state.realms.get_mut(&name)) {
             realm.num_posts += 1;
+            if parent.is_none() {
+                realm.last_root_post = id;
+            }
             realm.last_update = timestamp;
         }
         if let Some(parent_id) = post.parent {
@@ -555,9 +593,18 @@ impl Post {
                 )
             }
         }
-        if matches!(&post.extension, &Some(Extension::Poll(_))) {
-            state.pending_polls.insert(post.id);
-        }
+        match post.extension.as_ref() {
+            Some(Extension::Poll(_)) => {
+                state.pending_polls.insert(post.id);
+            }
+            Some(Extension::Repost(post_id)) => {
+                Post::mutate(state, post_id, |post| {
+                    post.reposts.push(id);
+                    Ok(())
+                })?;
+            }
+            _ => (),
+        };
 
         notify_about(state, &post);
 
@@ -574,7 +621,9 @@ impl Post {
                 Post::mutate(state, &id, |post| {
                     post.tree_size += 1;
                     post.tree_update = timestamp;
-                    post.make_hot(user_id, user_balance);
+                    if !controversial {
+                        post.make_hot(user_id, user_balance);
+                    }
                     Ok(())
                 })
             })
@@ -656,11 +705,17 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
     }
 
     // sort from newest to oldest
-    posts.sort_unstable_by_key(|p| std::cmp::Reverse(p.timestamp()));
-    let ids = posts.into_iter().map(|post| post.id).collect::<Vec<_>>();
+    posts.sort_unstable_by_key(|p| std::cmp::Reverse(p.timestamp().max(p.tree_update)));
+    let ids = posts
+        .into_iter()
+        .skip(max_posts_in_heap)
+        .rev()
+        .take(posts_to_archive)
+        .map(|post| post.id)
+        .collect::<Vec<_>>();
+    let archived_posts = ids.len();
 
     ids.into_iter()
-        .skip(max_posts_in_heap)
         .try_for_each(|post_id| {
             let post = state
                 .posts
@@ -672,7 +727,7 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
 
     state
         .logger
-        .debug(format!("`{}` posts archived.", posts_to_archive));
+        .debug(format!("`{}` posts archived", archived_posts));
     Ok(())
 }
 
@@ -680,9 +735,11 @@ pub fn change_realm(state: &mut State, root_post_id: PostId, new_realm: Option<S
     let mut post_ids = vec![root_post_id];
 
     while let Some(post_id) = post_ids.pop() {
-        let Post {
-            children, realm, ..
-        } = Post::get(state, &post_id).expect("no post found").clone();
+        let Some((children, realm)) =
+            Post::get(state, &post_id).map(|post| (post.children.clone(), post.realm.clone()))
+        else {
+            continue;
+        };
         post_ids.extend_from_slice(&children);
 
         if let Some(id) = realm {
@@ -705,12 +762,9 @@ pub fn change_realm(state: &mut State, root_post_id: PostId, new_realm: Option<S
 }
 
 fn notify_about(state: &mut State, post: &Post) {
-    let post_user_name = state
-        .users
-        .get(&post.user)
-        .expect("no user found")
-        .name
-        .clone();
+    let post_user = state.users.get(&post.user).expect("no user found");
+    let user_filter = post_user.get_filter();
+
     let mut notified: HashSet<_> = HashSet::new();
     // Don't notify the author
     notified.insert(post.user);
@@ -721,12 +775,30 @@ fn notify_about(state: &mut State, post: &Post) {
         let parent_author = parent.user;
         if parent_author != post.user {
             if let Some(user) = state.users.get_mut(&parent_author) {
-                user.notify_about_post(
-                    format!("@{} replied to your post", post_user_name,),
-                    post.id,
-                );
-                notified.insert(user.id);
+                if user.accepts(post.user, &user_filter) {
+                    user.notify_about_post("A new reply to your post", post.id);
+                    notified.insert(user.id);
+                }
             }
+        }
+    }
+
+    if let Some(Extension::Repost(post_id)) = post.extension.as_ref() {
+        let Some(user_id) = state
+            .posts
+            .get(post_id)
+            .and_then(|post| state.users.get(&post.user).map(|user| user.id))
+        else {
+            return;
+        };
+        if notified.contains(&user_id) {
+            return;
+        }
+        if let Some(user) = state.users.get_mut(&user_id) {
+            if user.accepts(post.user, &user_filter) {
+                user.notify_about_post("A new repost of your post", post.id);
+            }
+            notified.insert(user.id);
         }
     }
 
@@ -741,11 +813,10 @@ fn notify_about(state: &mut State, post: &Post) {
                 .users
                 .get_mut(&mentioned_user_id)
                 .expect("no user found");
-            user.notify_about_post(
-                format!("@{} mentioned you in a post", post_user_name),
-                post.id,
-            );
-            notified.insert(user.id);
+            if user.accepts(post.user, &user_filter) {
+                user.notify_about_post("You were mentioned in a post", post.id);
+                notified.insert(user.id);
+            }
         });
 
     if let Some(parent_id) = post.parent {
@@ -765,13 +836,15 @@ fn notify_about(state: &mut State, post: &Post) {
                     return;
                 }
                 if let Some(user) = state.users.get_mut(&user_id) {
-                    user.notify_about_watched_post(
-                        post_id,
-                        post.id,
-                        post.parent.expect("no parent found"),
-                    );
+                    if user.accepts(post.user, &user_filter) {
+                        user.notify_about_watched_post(
+                            post_id,
+                            post.id,
+                            post.parent.expect("no parent found"),
+                        );
+                    }
+                    notified.insert(user_id);
                 }
-                notified.insert(user_id);
             });
     }
 }
@@ -894,7 +967,7 @@ mod tests {
             archive_cold_posts(state, 5).unwrap();
             assert_eq!(
                 state.memory.health("B"),
-                "boundary=849B, mem_size=849B, segments=0".to_string()
+                "boundary=894B, mem_size=894B, segments=0".to_string()
             );
 
             // Make sure we have the right numbers in cold and hot memories
@@ -938,7 +1011,7 @@ mod tests {
             assert_eq!(state.memory.posts.len(), 3);
             assert_eq!(
                 state.memory.health("B"),
-                "boundary=849B, mem_size=849B, segments=2".to_string()
+                "boundary=894B, mem_size=894B, segments=2".to_string()
             );
 
             // Archive posts again
@@ -949,7 +1022,7 @@ mod tests {
             // old posts
             assert_eq!(
                 state.memory.health("B"),
-                "boundary=1187B, mem_size=1187B, segments=1".to_string()
+                "boundary=1250B, mem_size=1250B, segments=1".to_string()
             );
         });
     }
@@ -982,21 +1055,33 @@ mod tests {
 
     #[test]
     fn test_costs() {
+        let mut state = State::default();
         let mut p = Post::default();
-        // empty post
-        assert_eq!(p.costs(Default::default()), CONFIG.post_cost);
 
-        // one tag
+        // empty post
+        assert_eq!(p.costs(&state, Default::default()), CONFIG.post_cost);
+
+        // tag without subscribers
         p.tags = ["world"].iter().map(|x| x.to_string()).collect();
-        assert_eq!(p.costs(0), CONFIG.tag_cost);
+        assert_eq!(p.costs(&state, 0), CONFIG.post_cost);
+
+        state.tag_subscribers.insert("world".into(), 3);
+        // tag with subscribers
+        p.tags = ["world"].iter().map(|x| x.to_string()).collect();
+        assert_eq!(p.costs(&state, 0), CONFIG.post_cost + 3);
+
+        state.tag_subscribers.insert("hello".into(), 10);
 
         // two tags
         p.tags = ["hello", "world"].iter().map(|x| x.to_string()).collect();
-        assert_eq!(p.costs(0), 2 * CONFIG.tag_cost);
+        assert_eq!(p.costs(&state, 0), CONFIG.post_cost + 3 + 10);
 
         // two tags and a blob
         p.tags = ["hello", "world"].iter().map(|x| x.to_string()).collect();
-        assert_eq!(p.costs(1), 2 * CONFIG.tag_cost + CONFIG.blob_cost);
+        assert_eq!(
+            p.costs(&state, 1),
+            CONFIG.post_cost + 3 + 10 + CONFIG.blob_cost
+        );
     }
 
     #[test]

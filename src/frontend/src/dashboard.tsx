@@ -8,10 +8,7 @@ import {
     userList,
     icpCode,
     IcpAccountLink,
-    XDR_TO_USD,
-    token,
-    UserLink,
-    MoreButton,
+    USD_PER_XDR,
 } from "./common";
 import { Content } from "./content";
 import {
@@ -33,7 +30,6 @@ import {
     Treasury,
     User,
 } from "./icons";
-import { UserId } from "./types";
 
 const show = (val: number | BigInt, unit?: string, unit_position?: string) => (
     <code>
@@ -53,8 +49,6 @@ const TAB_KEY = "logs_tab";
 
 export const Dashboard = ({}) => {
     const [logs, setLogs] = React.useState<Log[]>([]);
-    const [rewards, setRewards] = React.useState<[UserId, number][]>([]);
-    const [showAllRewards, setShowAllRewards] = React.useState(false);
     const [tab, setTab] = React.useState(
         Number(localStorage.getItem(TAB_KEY)) || 0,
     );
@@ -62,19 +56,14 @@ export const Dashboard = ({}) => {
     React.useEffect(() => {
         window.api.query<Log[]>("logs").then((logs) => {
             if (!logs) return;
-            logs.reverse();
-            setLogs(logs);
-        });
-        window.api
-            .query<[UserId, number][]>("tokens_to_mint")
-            .then((rewards) => {
-                if (!rewards) return;
-                console.log(rewards);
-                rewards.sort(
-                    ([_id, balance1], [_id2, balance2]) => balance2 - balance1,
-                );
-                setRewards(rewards);
+            let tmp: [Log, number][] = logs.map((entry, i) => [entry, i]);
+            tmp.sort(([log1, pos1], [log2, pos2]) => {
+                const result = Number(log2.timestamp) - Number(log1.timestamp);
+                if (result == 0) return pos2 - pos1;
+                return result;
             });
+            setLogs(tmp.map(([value]) => value));
+        });
     }, []);
 
     const logSelector = (
@@ -100,7 +89,7 @@ export const Dashboard = ({}) => {
     return (
         <>
             <HeadBar title="DASHBOARD" shareLink="dashboard" />
-            <div className="text_centered">
+            <div className="text_centered vertically_spaced">
                 <div className="dynamic_table">
                     <div className="db_cell">
                         <label>
@@ -179,22 +168,22 @@ export const Dashboard = ({}) => {
                             <Fire /> WEEK'S REVENUE
                         </label>
                         {show(
-                            Number(stats.burned_credits) /
-                                config.credits_per_xdr /
-                                XDR_TO_USD,
+                            (Number(stats.burned_credits) /
+                                config.credits_per_xdr) *
+                                USD_PER_XDR,
                             "$",
                             "prefix",
                         )}
                     </div>
                     <div className="db_cell">
                         <label>
-                            <CashCoin /> REWARDS SHARED
+                            <CashCoin /> REWARDS PAID
                         </label>
                         {icpCode(stats.total_rewards_shared, 0)}
                     </div>
                     <div className="db_cell">
                         <label>
-                            <Cash /> REVENUE SHARED
+                            <Cash /> REVENUE PAID
                         </label>
                         {icpCode(stats.total_revenue_shared, 0)}
                     </div>
@@ -278,32 +267,10 @@ export const Dashboard = ({}) => {
                     {userList(stats.stalwarts)}
                 </div>
                 <hr />
-                <div>
-                    <h2>
-                        UPCOMING MINT (
-                        {token(rewards.reduce((acc, [_, val]) => acc + val, 0))}
-                        )
-                    </h2>
-                    <div className="dynamic_table bottom_spaced">
-                        {(showAllRewards ? rewards : rewards.slice(0, 24)).map(
-                            ([userId, tokens]) => (
-                                <div className="db_cell">
-                                    <UserLink id={userId} />
-                                    <code>{token(tokens)}</code>
-                                </div>
-                            ),
-                        )}
-                    </div>
-                    {!showAllRewards && (
-                        <MoreButton
-                            callback={async () => setShowAllRewards(true)}
-                        />
-                    )}
-                </div>
-                <hr />
                 {logSelector}
                 <hr />
                 <Content
+                    classNameArg="logs"
                     value={logs
                         .filter(
                             ({ level }) =>

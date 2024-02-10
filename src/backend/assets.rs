@@ -96,11 +96,7 @@ pub fn load() {
         include_bytes!("../../dist/frontend/font-bold.woff2").to_vec(),
     );
 
-    let mut domains = Vec::from(CONFIG.domains);
-    let can_domain = format!("{}.ic0.app", super::id());
-    domains.push(&can_domain);
-    let can_domain2 = format!("{}.icp0.io", super::id());
-    domains.push(&can_domain2);
+    let domains = Vec::from(CONFIG.domains);
     add_asset(
         &["/.well-known/ii-alternative-origins"],
         vec![

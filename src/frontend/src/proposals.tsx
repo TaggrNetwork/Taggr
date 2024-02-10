@@ -376,7 +376,10 @@ export const ProposalView = ({
         let data;
         if (adopted) {
             if ("Release" in proposal.payload) {
-                data = prompt("Please enter the build hash:");
+                data = prompt(
+                    "Please enter the build hash from the source code commit mentioned in the proposal " +
+                        "(this proves that the proposer uploaded the binary that can be reproduced from this source code):",
+                );
                 if (!data) return;
             }
             if ("Reward" in proposal.payload) {
@@ -425,13 +428,9 @@ export const ProposalView = ({
     );
     const open = proposal.status == "Open";
     const commit =
-        "Release" in proposal.payload
-            ? chunks(proposal.payload.Release.commit).join(" ")
-            : null;
+        "Release" in proposal.payload ? proposal.payload.Release.commit : null;
     const hash =
-        "Release" in proposal.payload
-            ? chunks(proposal.payload.Release.hash).join(" ")
-            : null;
+        "Release" in proposal.payload ? proposal.payload.Release.hash : null;
     const dailyDrop = proposal.voting_power / 100;
     const t = window.backendCache.config.proposal_approval_threshold;
     const days = Math.ceil(
@@ -476,7 +475,7 @@ export const ProposalView = ({
                         <div className="row_container bottom_half_spaced">
                             COMMIT:
                             <a
-                                className="left_half_spaced"
+                                className="left_half_spaced breakable"
                                 href={
                                     open
                                         ? REPO_RELEASE
@@ -490,7 +489,9 @@ export const ProposalView = ({
                     {!open && (
                         <div className="row_container">
                             <span>HASH:</span>
-                            <code className="left_spaced">{hash}</code>
+                            <code className="left_half_spaced breakable">
+                                {hash}
+                            </code>
                         </div>
                     )}
                 </div>
@@ -515,15 +516,7 @@ export const ProposalView = ({
                 <>
                     <div className="bottom_half_spaced">
                         RECEIVER:{" "}
-                        <a
-                            href={`https://dashboard.internetcomputer.org/account/${hex(
-                                proposal.payload.ICPTransfer[0],
-                            )}`}
-                        >
-                            {chunks(hex(proposal.payload.ICPTransfer[0])).join(
-                                " ",
-                            )}
-                        </a>
+                        <code>{hex(proposal.payload.ICPTransfer[0])}</code>
                     </div>
                     <div className="bottom_spaced">
                         AMOUNT:{" "}
@@ -618,7 +611,11 @@ export const ProposalView = ({
                 <>
                     <div className="row_container">
                         <ButtonWithLoading
-                            onClick={() => vote(proposal, false)}
+                            onClick={async () =>
+                                confirm(
+                                    "You're rejecting the proposal. Please confirm.",
+                                ) && (await vote(proposal, false))
+                            }
                             classNameArg="max_width_col large_text"
                             label="REJECT"
                         />
@@ -633,7 +630,11 @@ export const ProposalView = ({
             {window.user && window.user.id == proposal.proposer && open && (
                 <ButtonWithLoading
                     onClick={async () => {
-                        if (!confirm("Do you want to cancel your proposal?"))
+                        if (
+                            !confirm(
+                                "You're canceling the proposal. Please confirm.",
+                            )
+                        )
                             return;
                         await window.api.call("cancel_proposal", proposal.id);
                         location.reload();
@@ -645,6 +646,3 @@ export const ProposalView = ({
         </div>
     );
 };
-
-const chunks = (s: string): string[] =>
-    s ? [s.slice(0, 8)].concat(chunks(s.slice(8))) : [];

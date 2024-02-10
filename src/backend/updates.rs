@@ -1,3 +1,5 @@
+use crate::env::user::UserFilter;
+
 use super::*;
 use env::{
     canisters::get_full_neuron,
@@ -5,7 +7,6 @@ use env::{
     parse_amount,
     post::{Extension, Post, PostId},
     proposals::{Release, Reward},
-    token::account,
     user::{Draft, User, UserId},
     State,
 };
@@ -20,7 +21,6 @@ use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use ic_ledger_types::{AccountIdentifier, Tokens};
 use serde_bytes::ByteBuf;
-use std::collections::BTreeSet;
 use std::time::Duration;
 
 #[init]
@@ -70,13 +70,7 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {
-    mutate(|state| {
-        for u in state.users.values_mut() {
-            u.followees.insert(u.id);
-        }
-    })
-}
+async fn post_upgrade_fixtures() {}
 
 /*
  * UPDATES
@@ -120,10 +114,22 @@ fn vote_on_report() {
 #[export_name = "canister_update clear_notifications"]
 fn clear_notifications() {
     mutate(|state| {
-        let ids: Vec<String> = parse(&arg_data_raw());
-        state.clear_notifications(caller(), ids);
+        let ids: Vec<u64> = parse(&arg_data_raw());
+        if let Some(user) = state.principal_to_user_mut(caller()) {
+            user.clear_notifications(ids)
+        }
         reply_raw(&[]);
     })
+}
+
+#[update]
+fn link_cold_wallet(user_id: UserId) -> Result<(), String> {
+    mutate(|state| state.link_cold_wallet(caller(), user_id))
+}
+
+#[update]
+fn unlink_cold_wallet() -> Result<(), String> {
+    mutate(|state| state.unlink_cold_wallet(caller()))
 }
 
 #[export_name = "canister_update withdraw_rewards"]
@@ -157,22 +163,55 @@ fn update_last_activity() {
     reply_raw(&[]);
 }
 
-#[export_name = "canister_update change_principal"]
-fn change_principal() {
-    spawn(async {
-        let principal: String = parse(&arg_data_raw());
-        reply(State::change_principal(caller(), principal).await);
+// migration method from the password login to many iterations login
+#[export_name = "canister_update migrate"]
+fn migrate() {
+    let principal: String = parse(&arg_data_raw());
+    reply(mutate(|state| state.migrate(caller(), principal)));
+}
+
+#[export_name = "canister_update request_principal_change"]
+fn request_principal_change() {
+    let principal: String = parse(&arg_data_raw());
+    mutate(|state| {
+        let principal = Principal::from_text(principal).expect("can't parse principal");
+        if principal == Principal::anonymous() || state.principals.contains_key(&principal) {
+            return;
+        }
+        let caller = caller();
+        state
+            .principal_change_requests
+            .retain(|_, principal| principal != &caller);
+        if state.principal_change_requests.len() <= 500 {
+            state.principal_change_requests.insert(principal, caller);
+        }
     });
+    reply_raw(&[]);
+}
+
+#[export_name = "canister_update confirm_principal_change"]
+fn confirm_principal_change() {
+    reply(mutate(|state| state.change_principal(caller())));
 }
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (new_name, about, principals): (String, String, Vec<String>) = parse(&arg_data_raw());
+    let (new_name, about, principals, filter, governance, show_posts_in_realms): (
+        String,
+        String,
+        Vec<String>,
+        UserFilter,
+        bool,
+        bool,
+    ) = parse(&arg_data_raw());
     reply(User::update(
         caller(),
         optional(new_name),
         about,
         principals,
+        filter,
+        governance,
+        show_posts_in_realms,
     ))
 }
 
@@ -484,23 +523,8 @@ fn toggle_following_feed() {
 #[export_name = "canister_update edit_realm"]
 fn edit_realm() {
     mutate(|state| {
-        let (id, logo, label_color, theme, description, controllers): (
-            RealmId,
-            String,
-            String,
-            String,
-            String,
-            BTreeSet<UserId>,
-        ) = parse(&arg_data_raw());
-        reply(state.edit_realm(
-            caller(),
-            id,
-            logo,
-            label_color,
-            theme,
-            description,
-            controllers,
-        ))
+        let (name, realm): (String, Realm) = parse(&arg_data_raw());
+        reply(state.edit_realm(caller(), name, realm))
     })
 }
 
@@ -515,23 +539,8 @@ fn realm_clean_up() {
 #[export_name = "canister_update create_realm"]
 fn create_realm() {
     mutate(|state| {
-        let (name, logo, label_color, theme, description, controllers): (
-            String,
-            String,
-            String,
-            String,
-            String,
-            BTreeSet<UserId>,
-        ) = parse(&arg_data_raw());
-        reply(state.create_realm(
-            caller(),
-            name,
-            logo,
-            label_color,
-            theme,
-            description,
-            controllers,
-        ))
+        let (name, realm): (String, Realm) = parse(&arg_data_raw());
+        reply(state.create_realm(caller(), name, realm))
     })
 }
 
@@ -541,6 +550,17 @@ fn toggle_realm_membership() {
         let name: String = parse(&arg_data_raw());
         reply(state.toggle_realm_membership(caller(), name))
     })
+}
+
+#[export_name = "canister_update toggle_blacklist"]
+fn toggle_blacklist() {
+    mutate(|state| {
+        let user_id: UserId = parse(&arg_data_raw());
+        if let Some(user) = state.principal_to_user_mut(caller()) {
+            user.toggle_blacklist(user_id);
+        }
+    });
+    reply_raw(&[])
 }
 
 #[export_name = "canister_update toggle_filter"]
@@ -575,13 +595,19 @@ async fn set_emergency_release(binary: ByteBuf) {
 fn confirm_emergency_release() {
     mutate(|state| {
         let principal = caller();
-        if let Some(balance) = state.balances.get(&account(principal)) {
+        if let Some(user) = state.principal_to_user(principal) {
+            let user_balance = user.balance;
+            let user_cold_balance = user.cold_balance;
+            let user_cold_wallet = user.cold_wallet;
             let hash: String = parse(&arg_data_raw());
             use sha2::{Digest, Sha256};
             let mut hasher = Sha256::new();
             hasher.update(&state.emergency_binary);
             if hash == format!("{:x}", hasher.finalize()) {
-                state.emergency_votes.insert(principal, *balance);
+                state.emergency_votes.insert(principal, user_balance);
+                if let Some(principal) = user_cold_wallet {
+                    state.emergency_votes.insert(principal, user_cold_balance);
+                }
             }
         }
         reply_raw(&[]);

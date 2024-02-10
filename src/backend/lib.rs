@@ -3,6 +3,7 @@ use std::{cell::RefCell, collections::HashMap};
 use candid::Principal;
 use env::{config::CONFIG, user::User, State, *};
 use ic_cdk::{api::call::reply_raw, caller};
+use ic_cdk_macros::export_candid;
 
 mod assets;
 #[cfg(feature = "dev")]
@@ -46,13 +47,6 @@ fn stable_to_heap_core() {
     mutate(|state| state.load());
 }
 
-fn resolve_handle(handle: Option<String>) -> Option<User> {
-    read(|state| match handle {
-        Some(handle) => state.user(&handle).cloned(),
-        None => Some(state.principal_to_user(caller())?.clone()),
-    })
-}
-
 fn optional(s: String) -> Option<String> {
     if s.is_empty() {
         None
@@ -60,3 +54,10 @@ fn optional(s: String) -> Option<String> {
         Some(s)
     }
 }
+
+use crate::http::*;
+use crate::post::PostId;
+use crate::token::*;
+use crate::user::UserId;
+use serde_bytes::ByteBuf;
+export_candid!();

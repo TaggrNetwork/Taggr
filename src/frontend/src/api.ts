@@ -3,7 +3,11 @@ import { HttpAgent, HttpAgentOptions, Identity, polling } from "@dfinity/agent";
 import { IDL, JsonValue } from "@dfinity/candid";
 import { CANISTER_ID } from "./env";
 import { ICP_DEFAULT_FEE, ICP_LEDGER_ID } from "./common";
-import { IcrcLedgerCanister, IcrcTransferError } from "@dfinity/ledger";
+import {
+    IcrcLedgerCanister,
+    IcrcTransferError,
+    IcrcAccount,
+} from "@dfinity/ledger-icrc";
 
 export type Backend = {
     query: <T>(
@@ -29,9 +33,14 @@ export type Backend = {
         arg3?: unknown,
         arg4?: unknown,
         arg5?: unknown,
+        arg6?: unknown,
+        arg7?: unknown,
+        arg8?: unknown,
     ) => Promise<T | null>;
 
     set_emergency_release: (blob: Uint8Array) => Promise<JsonValue | null>;
+
+    unlink_cold_wallet: () => Promise<JsonValue | null>;
 
     propose_release: (
         text: string,
@@ -69,8 +78,7 @@ export type Backend = {
 
     account_balance: (
         token: Principal,
-        owner: Principal,
-        subaccount: Uint8Array[],
+        account: IcrcAccount,
     ) => Promise<bigint>;
 
     icp_transfer: (account: string, e8s: number) => Promise<JsonValue>;
@@ -79,6 +87,7 @@ export type Backend = {
         token: Principal,
         recipient: Principal,
         amount: number,
+        fee: number,
     ) => Promise<string | number>;
 };
 
@@ -144,21 +153,26 @@ export const ApiGenerator = (
         methodName: string,
         arg: ArrayBuffer,
     ): Promise<ArrayBuffer | null> => {
-        let { response, requestId } = await agent.call(
-            canisterId,
-            { methodName, arg },
-            identity,
-        );
-        if (!response.ok) {
-            console.error(`Call error: ${response.statusText}`);
+        try {
+            let { response, requestId } = await agent.call(
+                canisterId,
+                { methodName, arg },
+                identity,
+            );
+            if (!response.ok) {
+                console.error(`Call error: ${response.statusText}`);
+                return null;
+            }
+            return await polling.pollForResponse(
+                agent,
+                canisterId,
+                requestId,
+                polling.defaultStrategy(),
+            );
+        } catch (error) {
+            console.error(error);
             return null;
         }
-        return await polling.pollForResponse(
-            agent,
-            canisterId,
-            requestId,
-            polling.defaultStrategy(),
-        );
     };
 
     const call = async <T>(
@@ -169,8 +183,21 @@ export const ApiGenerator = (
         arg3?: unknown,
         arg4?: unknown,
         arg5?: unknown,
+        arg6?: unknown,
+        arg7?: unknown,
+        arg8?: unknown,
     ): Promise<T | null> => {
-        const effParams = getEffParams([arg0, arg1, arg2, arg3, arg4, arg5]);
+        const effParams = getEffParams([
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+            arg5,
+            arg6,
+            arg7,
+            arg8,
+        ]);
         const responseBytes = await call_raw(
             undefined,
             methodName,
@@ -186,6 +213,7 @@ export const ApiGenerator = (
         query,
         query_raw,
         call,
+
         set_emergency_release: async (
             blob: Uint8Array,
         ): Promise<JsonValue | null> => {
@@ -200,6 +228,19 @@ export const ApiGenerator = (
             }
             return IDL.decode([], response)[0];
         },
+
+        unlink_cold_wallet: async (): Promise<JsonValue | null> => {
+            const arg = IDL.encode([], []);
+            let response = await call_raw(undefined, "unlink_cold_wallet", arg);
+            if (!response) {
+                return null;
+            }
+            return IDL.decode(
+                [IDL.Variant({ Ok: IDL.Null, Err: IDL.Text })],
+                response,
+            )[0];
+        },
+
         propose_release: async (
             text: string,
             commit: string,
@@ -218,6 +259,7 @@ export const ApiGenerator = (
                 response,
             )[0];
         },
+
         add_post: async (
             text: string,
             blobs: [string, Uint8Array][],
@@ -333,6 +375,7 @@ export const ApiGenerator = (
             token: Principal,
             recipient: Principal,
             amount: number,
+            fee: number,
         ) => {
             try {
                 const canister = IcrcLedgerCanister.create({
@@ -342,6 +385,7 @@ export const ApiGenerator = (
                 await canister.transfer({
                     to: { owner: recipient, subaccount: [] },
                     amount: BigInt(amount),
+                    fee: BigInt(fee),
                 });
                 return amount;
             } catch (e) {
@@ -380,26 +424,18 @@ export const ApiGenerator = (
         },
 
         account_balance: async (
-            tokenId: Principal,
-            owner: Principal,
-            subaccount: Uint8Array[],
+            token: Principal,
+            account: IcrcAccount,
         ): Promise<bigint> => {
-            const arg = IDL.encode(
-                [
-                    IDL.Record({
-                        owner: IDL.Principal,
-                        subaccount: IDL.Opt(IDL.Vec(IDL.Nat8)),
-                    }),
-                ],
-                [{ owner, subaccount }],
-            );
-            const response: any = await query_raw(
-                tokenId.toString(),
-                "icrc1_balance_of",
-                arg,
-            );
-            if (!response) return BigInt(0);
-            return IDL.decode([IDL.Nat], response)[0] as unknown as bigint;
+            const canister = IcrcLedgerCanister.create({
+                canisterId: Principal.from(token),
+                agent,
+            });
+            return await canister.balance({
+                certified: false,
+                owner: account.owner,
+                subaccount: account.subaccount,
+            });
         },
     };
 };

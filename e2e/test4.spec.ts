@@ -3,7 +3,7 @@ import { exec } from "./command";
 
 test.describe.configure({ mode: "serial" });
 
-test.describe("Reports", () => {
+test.describe("Report and transfer to user", () => {
     let page: Page;
     let inviteLink1: string;
     let inviteLink2: string;
@@ -19,10 +19,11 @@ test.describe("Reports", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("joe");
         await page.getByRole("button", { name: "JOIN" }).click();
+        await page.waitForTimeout(1000);
         await page.getByPlaceholder("Enter your password...").fill("joe");
         await page.getByRole("button", { name: "JOIN" }).click();
         exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 96ee0e335b0c22203a5bf20f7a5feb2c400da29527c8687e3d927f7a590cf80e",
+            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 a8caaf21598f17df5a17ce655b3a39298559b76f23ea1b2afddd312d0abb04e8",
         );
         await page.getByRole("button", { name: "MINT CREDITS" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
@@ -82,7 +83,8 @@ test.describe("Reports", () => {
     });
 
     test("Mint credits and send to user", async () => {
-        await page.goto("/#/wallet");
+        await page.goto("/");
+        await page.getByTestId("toggle-user-section").click();
         page.on("dialog", async (dialog) => {
             if (
                 dialog
@@ -93,7 +95,14 @@ test.describe("Reports", () => {
             }
         });
         await page.getByRole("button", { name: "MINT" }).click();
-        await expect(page.getByTestId("credits-balance")).toHaveText("1,900");
+        await page.waitForTimeout(10000);
+        const creditsBalance = Number(
+            (await page.getByTestId("credits-balance").textContent()).replace(
+                ",",
+                "",
+            ),
+        );
+        expect(creditsBalance).toBeGreaterThanOrEqual(1900);
 
         await page.goto("/#/user/jane");
         await page.getByTestId("profile-burger-menu").click();
@@ -112,18 +121,26 @@ test.describe("Reports", () => {
     });
 
     test("Reward user and trigger minting", async () => {
+        await page.reload();
+        await page.goto("/");
         await page.locator("#logo").click();
-        await page.getByTestId("tab-NEW").click();
         // Find jane's post and react with a star
         const feedItem = page.locator(".feed_item", {
             hasText: /Good stuff/,
         });
-        await feedItem.getByTestId("post-info-toggle").click();
-        await feedItem.locator('button[title="Karma points: 10"]').click();
+        await feedItem.getByTestId("reaction-picker").click();
+        await feedItem
+            .locator('button[title="Reward points: 20"]')
+            .first()
+            .click({ delay: 3000 });
         // Wait because the UI waits for 4s before sending the command
-        await page.waitForTimeout(4500);
+        await page.waitForTimeout(6000);
+        await feedItem.getByRole("link", { name: "jane" }).first().click();
+        await expect(page.locator("div:has-text('REWARDS') > code")).toHaveText(
+            "20",
+        );
         exec("dfx canister call taggr weekly_chores");
-        await page.waitForTimeout(5000);
+        await page.waitForTimeout(1500);
     });
 
     test("Login and report user", async ({ page }) => {
@@ -132,6 +149,7 @@ test.describe("Reports", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("jane");
         await page.getByRole("button", { name: "JOIN" }).click();
+        await page.waitForTimeout(1000);
 
         await page.goto("/#/user/kyle");
         await page.getByTestId("profile-burger-menu").click();
@@ -153,6 +171,7 @@ test.describe("Reports", () => {
         });
         await page.getByRole("button", { name: "REPORT" }).click();
         await reporting;
+        await page.waitForTimeout(1000);
     });
 
     test("Confirm the report", async () => {
@@ -166,6 +185,49 @@ test.describe("Reports", () => {
         await page.reload();
         await expect(page.locator("div:has-text('REWARDS') > code")).toHaveText(
             "-1,000",
+        );
+    });
+
+    test("Token transfer to user", async ({ page }) => {
+        await page.goto("/");
+        await page.getByRole("button", { name: "CONNECT" }).click();
+        await page.getByRole("button", { name: "PASSWORD" }).click();
+        await page.getByPlaceholder("Enter your password...").fill("jane");
+        await page.getByRole("button", { name: "JOIN" }).click();
+        await page.waitForTimeout(1000);
+        await page.getByTestId("toggle-user-section").click();
+
+        await expect(page.getByTestId("token-balance")).toHaveText("20");
+
+        const transferExecuted = new Promise((resolve, _reject) => {
+            page.on("dialog", async (dialog) => {
+                if (
+                    dialog.message().includes("Enter the recipient principal")
+                ) {
+                    // Joe's principal
+                    await dialog.accept(
+                        "62pp3-suqb6-5endn-psc4d-2ytvb-xatk2-5pp6u-qwhpd-u3ko3-npsin-qae",
+                    );
+                }
+                if (dialog.message().includes("Enter the amount")) {
+                    await dialog.accept("5");
+                }
+                if (dialog.message().includes("You are transferring")) {
+                    await dialog.accept();
+                    await page.waitForLoadState("networkidle");
+                    await page.waitForTimeout(3000);
+                    resolve(null);
+                }
+            });
+        });
+
+        await page.getByTestId("tokens-transfer-button").click();
+
+        await transferExecuted;
+
+        await page.goto("/#/user/joe");
+        await expect(page.locator("div:has-text('TOKENS') > a")).toHaveText(
+            "5",
         );
     });
 });

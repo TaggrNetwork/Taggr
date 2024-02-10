@@ -11,12 +11,12 @@ import {
     TokenBalance,
     tokenBalance,
     UserLink,
-    XDR_TO_USD,
+    USD_PER_XDR,
 } from "./common";
 import * as React from "react";
 import { UserId, Transaction, User, Account } from "./types";
 import { Principal } from "@dfinity/principal";
-import { decodeIcrcAccount, encodeIcrcAccount } from "@dfinity/ledger";
+import { decodeIcrcAccount, encodeIcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
 import { CANISTER_ID } from "./env";
 
@@ -24,6 +24,10 @@ type Balances = [Account, number, UserId][];
 
 export const Tokens = () => {
     const [status, setStatus] = React.useState(0);
+    const [rewards, setRewards] = React.useState<[UserId, number][]>([]);
+    const [donors, setDonors] = React.useState<[UserId, number][]>([]);
+    const [showAllRewards, setShowAllRewards] = React.useState(false);
+    const [showAllDonors, setShowAllDonors] = React.useState(false);
     const [timer, setTimer] = React.useState<any>(null);
     const [searchValue, setSearchValue] = React.useState("");
     const [query, setQuery] = React.useState("");
@@ -31,8 +35,13 @@ export const Tokens = () => {
     const [balPage, setBalPage] = React.useState(0);
     const [holder, setHolder] = React.useState(-1);
 
-    const loadBalances = async () => {
-        const balances = await window.api.query<Balances>("balances");
+    const loadData = async () => {
+        const [balances, rewards, donors] = await Promise.all([
+            window.api.query<Balances>("balances"),
+            window.api.query<[UserId, number][]>("tokens_to_mint"),
+            window.api.query<[UserId, number][]>("donors"),
+        ]);
+
         if (!balances || balances.length == 0) {
             setStatus(-1);
             return;
@@ -40,10 +49,16 @@ export const Tokens = () => {
         setStatus(1);
         balances.sort((a, b) => Number(b[1]) - Number(a[1]));
         setBalances(balances);
+        if (donors) setDonors(donors);
+        if (!rewards) return;
+        rewards.sort(
+            ([_id, balance1], [_id2, balance2]) => balance2 - balance1,
+        );
+        setRewards(rewards);
     };
 
     React.useEffect(() => {
-        loadBalances();
+        loadData();
     }, []);
 
     const mintedSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
@@ -53,9 +68,17 @@ export const Tokens = () => {
     );
     const { maximum_supply, proposal_approval_threshold, transaction_fee } =
         window.backendCache.config;
-    const balanceAmounts = balances
-        .filter(([_0, _1, userId]) => !isNaN(userId))
-        .map(([_, balance]) => balance);
+    const uniqueUsers = balances.reduce(
+        (acc, [_, balance, userId]) => {
+            if (userId != null && !isNaN(userId))
+                acc[userId] = (acc[userId] || 0) + balance;
+            return acc;
+        },
+        {} as { [id: UserId]: number },
+    );
+    const balanceAmounts = Object.entries(uniqueUsers).map(([_, balance]) =>
+        Number(balance),
+    );
     balanceAmounts.sort((a, b) => b - a);
     const balancesTotal = balanceAmounts.length;
     let vp = 0;
@@ -113,7 +136,7 @@ export const Tokens = () => {
                             {(
                                 ((Number(e8s_revenue_per_1k) * 10) /
                                     Number(e8s_for_one_xdr)) *
-                                XDR_TO_USD
+                                USD_PER_XDR
                             ).toLocaleString()}
                         </code>
                     </div>
@@ -214,28 +237,68 @@ export const Tokens = () => {
                 </table>
                 <MoreButton callback={async () => setBalPage(balPage + 1)} />
                 <hr />
-                <h2>Latest transactions</h2>
-                <div className="row_container">
-                    <input
-                        id="search_field"
-                        className="max_width_col"
-                        type="search"
-                        placeholder="Search for user name or principal..."
-                        value={searchValue}
-                        onChange={(event) => {
-                            clearTimeout(timer as unknown as any);
-                            setSearchValue(event.target.value);
-                            setTimer(
-                                setTimeout(
-                                    () => setQuery(event.target.value),
-                                    300,
-                                ),
-                            );
-                        }}
-                    />
+                <h2>
+                    UPCOMING MINTING (
+                    {token(rewards.reduce((acc, [_, val]) => acc + val, 0))})
+                </h2>
+                <div
+                    className={`dynamic_table ${
+                        bigScreen() ? "" : "tripple"
+                    } bottom_spaced`}
+                >
+                    {(showAllRewards ? rewards : rewards.slice(0, 24)).map(
+                        ([userId, tokens]) => (
+                            <div key={userId} className="db_cell">
+                                <UserLink id={userId} />
+                                <code>{token(tokens)}</code>
+                            </div>
+                        ),
+                    )}
                 </div>
-                <TransactionsView icrcAccount={searchedPrincipal} />
+                {!showAllRewards && (
+                    <MoreButton
+                        callback={async () => setShowAllRewards(true)}
+                    />
+                )}
+                <hr />
+                <h2>LARGEST TOKEN DONORS</h2>
+                <div
+                    className={`dynamic_table ${
+                        bigScreen() ? "" : "tripple"
+                    } bottom_spaced`}
+                >
+                    {(showAllDonors ? donors : donors.slice(0, 24)).map(
+                        ([userId, tokens]) => (
+                            <div key={userId} className="db_cell">
+                                <UserLink id={userId} />
+                                <code>{token(tokens)}</code>
+                            </div>
+                        ),
+                    )}
+                </div>
+                {!showAllDonors && (
+                    <MoreButton callback={async () => setShowAllDonors(true)} />
+                )}
             </div>
+            <hr />
+            <h2>Latest transactions</h2>
+            <div className="row_container">
+                <input
+                    id="search_field"
+                    className="max_width_col"
+                    type="search"
+                    placeholder="Search for user name or principal..."
+                    value={searchValue}
+                    onChange={(event) => {
+                        clearTimeout(timer as unknown as any);
+                        setSearchValue(event.target.value);
+                        setTimer(
+                            setTimeout(() => setQuery(event.target.value), 300),
+                        );
+                    }}
+                />
+            </div>
+            <TransactionsView icrcAccount={searchedPrincipal} />
         </>
     );
 };

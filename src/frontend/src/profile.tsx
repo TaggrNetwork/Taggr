@@ -13,19 +13,21 @@ import {
     ReportBanner,
     ShareButton,
     ButtonWithLoading,
-    realmList,
     UserLink,
     popUp,
+    RealmList,
+    noiseControlBanner,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
 import { PostFeed } from "./post_feed";
-import { PostId, User } from "./types";
+import { PostId, Realm, User, UserId } from "./types";
 import { Principal } from "@dfinity/principal";
 
 export const Profile = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
     const [profile, setProfile] = React.useState({} as User);
+    const [controlledRealms, setControlledRealms] = React.useState<string[]>();
     const [tab, setTab] = React.useState("LAST");
 
     const updateState = async () => {
@@ -36,6 +38,14 @@ export const Profile = ({ handle }: { handle: string }) => {
         }
         setStatus(1);
         setProfile(profile);
+        const realms = (
+            (await window.api.query<Realm[]>("realms", profile.realms)) || []
+        ).map((realm, i): [string, Realm] => [profile.realms[i], realm]);
+        setControlledRealms(
+            realms
+                .filter(([_, realm]) => realm.controllers.includes(profile.id))
+                .map(([realm_id, _]: [string, Realm]) => realm_id),
+        );
     };
 
     React.useEffect(() => {
@@ -89,23 +99,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                         <Journal />
                     </button>
                 }
-                button2={
-                    user && user.id != profile.id ? (
-                        <ToggleButton
-                            offLabel="FOLLOW"
-                            onLabel="UNFOLLOW"
-                            classNameArg="left_half_spaced right_half_spaced"
-                            currState={() =>
-                                user.followees.includes(profile.id)
-                            }
-                            toggler={() =>
-                                window.api
-                                    .call("toggle_following_user", profile.id)
-                                    .then(window.reloadUser)
-                            }
-                        />
-                    ) : undefined
-                }
+                button2={<FollowButton id={profile.id} />}
                 menu={true}
                 burgerTestId="profile-burger-menu"
                 content={
@@ -115,31 +109,49 @@ export const Profile = ({ handle }: { handle: string }) => {
                             classNameArg="max_width_col"
                             text={true}
                         />
-                        {user && (
-                            <>
-                                <FlagButton
-                                    id={profile.id}
-                                    domain="misbehaviour"
-                                    text={true}
-                                />
-                                <ToggleButton
-                                    offLabel="MUTE"
-                                    onLabel="UNMUTE"
-                                    classNameArg="max_width_col"
-                                    currState={() =>
-                                        user.filters.users.includes(profile.id)
-                                    }
-                                    toggler={() =>
-                                        window.api
-                                            .call(
-                                                "toggle_filter",
-                                                "user",
-                                                profile.id.toString(),
+                        <>
+                            {user && user.id != profile.id && (
+                                <>
+                                    <FlagButton
+                                        id={profile.id}
+                                        domain="misbehaviour"
+                                        text={true}
+                                    />
+                                    <ToggleButton
+                                        offLabel="BLOCK"
+                                        onLabel="UNBLOCK"
+                                        classNameArg="max_width_col"
+                                        currState={() =>
+                                            user.blacklist.includes(profile.id)
+                                        }
+                                        toggler={() =>
+                                            window.api
+                                                .call(
+                                                    "toggle_blacklist",
+                                                    profile.id,
+                                                )
+                                                .then(window.reloadUser)
+                                        }
+                                    />
+                                    <ToggleButton
+                                        offLabel="MUTE"
+                                        onLabel="UNMUTE"
+                                        classNameArg="max_width_col"
+                                        currState={() =>
+                                            user.filters.users.includes(
+                                                profile.id,
                                             )
-                                            .then(window.reloadUser)
-                                    }
-                                />
-                                {user.id != profile.id && (
+                                        }
+                                        toggler={() =>
+                                            window.api
+                                                .call(
+                                                    "toggle_filter",
+                                                    "user",
+                                                    profile.id.toString(),
+                                                )
+                                                .then(window.reloadUser)
+                                        }
+                                    />
                                     <ButtonWithLoading
                                         label="SEND CREDITS"
                                         classNameArg="max_width_col"
@@ -170,29 +182,28 @@ export const Profile = ({ handle }: { handle: string }) => {
                                             await updateState();
                                         }}
                                     />
-                                )}
-                                {profile.settings.open_chat && (
-                                    <ButtonWithLoading
-                                        label="OPEN CHAT"
-                                        classNameArg="max_width_col"
-                                        onClick={async () => {
-                                            try {
-                                                // Make sure it parses as cansiter id;
-                                                let canister_id =
-                                                    Principal.fromText(
-                                                        profile.settings
-                                                            .open_chat,
-                                                    );
-                                                const url = `https://oc.app/user/${canister_id.toString()}`;
-                                                window.open(url, "_blank");
-                                            } catch (e) {
-                                                console.error(e);
-                                            }
-                                        }}
-                                    />
-                                )}
-                            </>
-                        )}
+                                </>
+                            )}
+                            {profile.settings.open_chat && (
+                                <ButtonWithLoading
+                                    label="OPEN CHAT"
+                                    classNameArg="max_width_col"
+                                    onClick={async () => {
+                                        try {
+                                            // Make sure it parses as cansiter id;
+                                            let canister_id =
+                                                Principal.fromText(
+                                                    profile.settings.open_chat,
+                                                );
+                                            const url = `https://oc.app/user/${canister_id.toString()}`;
+                                            window.open(url, "_blank");
+                                        } catch (e) {
+                                            console.error(e);
+                                        }
+                                    }}
+                                />
+                            )}
+                        </>
                     </div>
                 }
             />
@@ -203,7 +214,10 @@ export const Profile = ({ handle }: { handle: string }) => {
                     domain="misbehaviour"
                 />
             )}
-            <UserInfo profile={profile} />
+            <UserInfo
+                profile={profile}
+                controlledRealms={controlledRealms || []}
+            />
             <PostFeed
                 title={title}
                 useList={true}
@@ -236,7 +250,13 @@ export const Profile = ({ handle }: { handle: string }) => {
     );
 };
 
-export const UserInfo = ({ profile }: { profile: User }) => {
+export const UserInfo = ({
+    profile,
+    controlledRealms,
+}: {
+    profile: User;
+    controlledRealms: string[];
+}) => {
     const placeholder = (label: number, content: any) =>
         status ? (
             <div className="small_text">{content}</div>
@@ -253,10 +273,11 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             <div className="db_cell">
                 FOLLOWS
                 {placeholder(
-                    profile.followees.length,
+                    // we need to subtract 1 because every user follows themselves by default
+                    profile.followees.length - 1,
                     <>
                         <h2>Follows</h2>
-                        {userList(
+                        {followeeList(
                             profile.followees.filter((id) => id != profile.id),
                         )}
                     </>,
@@ -289,19 +310,10 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                   }),
               )
             : null;
-    const realms =
-        profile.realms.length > 0 ? (
-            <div
-                className="row_container top_spaced"
-                style={{ alignItems: "center" }}
-            >
-                {realmList(profile.realms)}
-            </div>
-        ) : null;
     const inviter = profile.invited_by;
-    const filters = profile.filters;
 
     const donations = Object.entries(profile.karma_donations);
+    donations.sort(([_, donation1], [_2, donation2]) => donation2 - donation1);
     const accountingList = (
         <>
             <h2>Rewards and Credits Accounting</h2>
@@ -338,13 +350,18 @@ export const UserInfo = ({ profile }: { profile: User }) => {
     const givenRewardsList = (
         <>
             <h2>Given Rewards</h2>
-            {commaSeparated(
-                donations.map(([user_id, karma]) => (
-                    <span key={user_id}>
-                        <UserLink id={Number(user_id)} />: {karma}
-                    </span>
-                )),
-            )}
+            <div
+                className={`dynamic_table ${
+                    bigScreen() ? "" : "tripple"
+                } bottom_spaced`}
+            >
+                {donations.map(([userId, rewards]) => (
+                    <div key={userId} className="db_cell">
+                        <UserLink id={Number(userId)} />
+                        <code>{rewards}</code>
+                    </div>
+                ))}
+            </div>
         </>
     );
 
@@ -358,7 +375,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     )}
                 </div>
             )}
-            {getLabels(profile)}
             {profile.about ? (
                 <>
                     <Content classNameArg="larger_text" value={profile.about} />
@@ -367,7 +383,14 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             ) : (
                 <br />
             )}
-            <div className="dynamic_table">
+            {getLabels(profile)}
+            {noiseControlBanner("user", profile.filters.noise, window.user)}
+            {window.user && profile.blacklist.includes(window.user.id) && (
+                <div className="banner vertically_spaced">
+                    This user has blocked you
+                </div>
+            )}
+            <div className="top_spaced dynamic_table">
                 <div className="db_cell">
                     TOKENS
                     <a
@@ -377,6 +400,17 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                         {tokenBalance(profile.balance)}
                     </a>
                 </div>
+                {profile.cold_balance > 0 && (
+                    <div className="db_cell">
+                        COLD WALLET
+                        <a
+                            className="xx_large_text"
+                            href={`#/transactions/${profile.cold_wallet}`}
+                        >
+                            {tokenBalance(profile.cold_balance)}
+                        </a>
+                    </div>
+                )}
                 <div className="db_cell">
                     REWARDS
                     <code className="accent">
@@ -439,35 +473,21 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 )}
             </div>
             <hr />
-            {(feeds || realms) && (
+            {(feeds || profile.realms.length > 0) && (
                 <>
                     <h2>Interests</h2>
                     {feeds}
-                    {realms}
+                    <RealmList classNameArg="top_spaced" ids={profile.realms} />
                     <hr />
                 </>
             )}
-            {filters.users.length +
-                filters.tags.length +
-                filters.realms.length >
-                0 && (
+            {controlledRealms.length > 0 && (
                 <>
-                    <h2>Muted</h2>
-                    <div className="bottom_spaced">
-                        {userList(filters.users)}
-                    </div>
-                    <div className="bottom_spaced">
-                        {realmList(filters.realms)}
-                    </div>
-                    <div className="bottom_spaced">
-                        {commaSeparated(
-                            filters.tags.map((tag) => (
-                                <a key={tag} href={`#/feed/${tag}`}>
-                                    {tag}
-                                </a>
-                            )),
-                        )}
-                    </div>
+                    <h2>Controls realms</h2>
+                    <RealmList
+                        classNameArg="top_spaced"
+                        ids={controlledRealms}
+                    />
                     <hr />
                 </>
             )}
@@ -498,7 +518,7 @@ export const getLabels = (profile: User) => {
     }
     if (
         secondsSince(profile.last_activity) / daySeconds >
-        window.backendCache.config.revenue_share_activity_weeks * 7
+        window.backendCache.config.voting_power_activity_weeks * 7
     ) {
         labels.push(["INACTIVE", "White"]);
     }
@@ -524,6 +544,29 @@ export const getLabels = (profile: User) => {
     );
 };
 
+const followeeList = (ids: UserId[]) => (
+    <>
+        {ids.map((id) => (
+            <div key={id} className="stands_out row_container">
+                <UserLink id={id} classNameArg="max_width_col" />
+                {window.user && window.user.id != id && (
+                    <ToggleButton
+                        offLabel="FOLLOW"
+                        onLabel="UNFOLLOW"
+                        classNameArg="left_half_spaced right_half_spaced"
+                        currState={() => window.user.followees.includes(id)}
+                        toggler={() =>
+                            window.api
+                                .call("toggle_following_user", id)
+                                .then(window.reloadUser)
+                        }
+                    />
+                )}
+            </div>
+        ))}
+    </>
+);
+
 const daySeconds = 24 * 3600;
 
 const secondsSince = (val: BigInt) =>
@@ -531,3 +574,20 @@ const secondsSince = (val: BigInt) =>
 
 const isBot = (profile: User) =>
     profile.controllers.find((p) => p.length == 27);
+
+export const FollowButton = ({ id }: { id: UserId }) => {
+    const user = window.user;
+    return !user || user.id == id ? null : (
+        <ToggleButton
+            offLabel="FOLLOW"
+            onLabel="UNFOLLOW"
+            classNameArg="left_half_spaced right_half_spaced"
+            currState={() => user.followees.includes(id)}
+            toggler={() =>
+                window.api
+                    .call("toggle_following_user", id)
+                    .then(window.reloadUser)
+            }
+        />
+    );
+};

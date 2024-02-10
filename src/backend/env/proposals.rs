@@ -22,7 +22,7 @@ pub enum Status {
     Cancelled,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Release {
     pub commit: String,
     pub hash: String,
@@ -39,7 +39,7 @@ pub struct Reward {
     pub minted: Token,
 }
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub enum Payload {
     #[default]
     Noop,
@@ -50,7 +50,7 @@ pub enum Payload {
     AddRealmController(String, UserId),
 }
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Proposal {
     pub id: u32,
     pub proposer: UserId,
@@ -74,10 +74,10 @@ impl Proposal {
         if self.bulletins.iter().any(|(voter, _, _)| *voter == user.id) {
             return Err("double vote".into());
         }
-        let balance = state
-            .balances
-            .get(&account(principal))
-            .ok_or_else(|| "only token holders can vote".to_string())?;
+        let balance = user.total_balance();
+        if balance == 0 {
+            return Err("only token holders can vote".into());
+        }
 
         match &mut self.payload {
             Payload::Release(release) => {
@@ -111,12 +111,12 @@ impl Proposal {
                         max_funding_amount
                     ));
                 }
-                votes.push((*balance, tokens * base))
+                votes.push((balance, tokens * base))
             }
             _ => {}
         }
 
-        self.bulletins.push((user.id, approve, *balance));
+        self.bulletins.push((user.id, approve, balance));
         Ok(())
     }
 
@@ -185,6 +185,10 @@ impl Proposal {
                 Payload::AddRealmController(realm_id, user_id) => {
                     if let Some(realm) = state.realms.get_mut(realm_id) {
                         realm.controllers.insert(*user_id);
+                        state.logger.info(format!(
+                            "User `{}` was added via proposal execution to the realm /{}",
+                            user_id, realm_id
+                        ));
                     }
                 }
                 Payload::ICPTransfer(account, amount) => {
@@ -216,7 +220,9 @@ impl Proposal {
 
 fn mint_tokens(state: &mut State, receiver: &str, mut tokens: Token) -> Result<(), String> {
     let receiver = Principal::from_text(receiver).map_err(|e| e.to_string())?;
+    state.minting_mode = true;
     crate::token::mint(state, account(receiver), tokens);
+    state.minting_mode = false;
     tokens /= token::base();
     state.logger.info(format!(
         "`{}` ${} tokens were minted for `{}` via proposal execution.",
@@ -342,7 +348,9 @@ pub fn propose(
         id,
     });
     state.notify_with_predicate(
-        &|user| user.active_within_weeks(time, 1) && user.balance > 0,
+        &|user| {
+            user.governance && user.active_within_weeks(time, 1) && user.balance > token::base()
+        },
         format!("@{} submitted a new proposal", &proposer_name,),
         Predicate::Proposal(post_id),
     );
@@ -422,7 +430,7 @@ mod tests {
     use super::*;
     use crate::{
         env::{
-            tests::{create_user, pr},
+            tests::{create_user, insert_balance, pr},
             time,
         },
         STATE,
@@ -549,10 +557,8 @@ mod tests {
             // create voters, make each of them earn some karma
             for i in 1..11 {
                 let p = pr(i);
-                let id = create_user(state, p);
-                let user = state.users.get_mut(&id).unwrap();
-                user.change_rewards(1000, "test");
-                state.balances.insert(account(p), 1000 * 100);
+                create_user(state, p);
+                insert_balance(state, p, 1000 * 100);
             }
 
             // make sure the karma accounting was correct
@@ -691,7 +697,7 @@ mod tests {
             for i in 1..=3 {
                 let p = pr(i);
                 let id = create_user(state, p);
-                state.balances.insert(account(p), 100 * 100);
+                insert_balance(state, p, 100 * 100);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(100, "test");
             }
@@ -737,7 +743,7 @@ mod tests {
             for i in 1..=5 {
                 let p = pr(i);
                 let id = create_user(state, p);
-                state.balances.insert(account(p), 100 * 100);
+                insert_balance(state, p, 100 * 100);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(100, "test");
             }
@@ -781,7 +787,7 @@ mod tests {
                 let id = create_user(state, p);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(100 * (1 << i), "test");
-                state.balances.insert(account(p), (100 * (1 << i)) * 100);
+                insert_balance(state, p, (100 * (1 << i)) * 100);
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
@@ -834,7 +840,7 @@ mod tests {
             for i in 1..=3 {
                 let p = pr(i);
                 let id = create_user(state, p);
-                state.balances.insert(account(p), (100 * (1 << i)) * 100);
+                insert_balance(state, p, (100 * (1 << i)) * 100);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(100 * (1 << i), "test");
             }

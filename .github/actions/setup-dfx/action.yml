@@ -9,7 +9,7 @@ runs:
       run: echo "dfx_version=$(cat dfx.json | jq -r .dfx)" >> "$GITHUB_ENV"
 
     - name: Cache DFX
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: /usr/local/bin/dfx
         key: dfx-cache-${{ env.dfx_version }}

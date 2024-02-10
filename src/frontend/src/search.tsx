@@ -11,6 +11,7 @@ type SearchResult = {
 };
 
 export const Search = ({ initQuery }: { initQuery?: string }) => {
+    const [hint, setHint] = React.useState(false);
     const [query, setTerm] = React.useState(
         decodeURIComponent(initQuery || ""),
     );
@@ -19,6 +20,7 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
     const [searching, setSearching] = React.useState(false);
 
     const search = async (query: string) => {
+        setHint(false);
         if (query.length < 2) {
             setResults([]);
             return;
@@ -41,6 +43,7 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
                     type="search"
                     placeholder={`Search #${window.backendCache.config.name}`}
                     value={query}
+                    onFocus={() => setHint(true)}
                     onChange={(event) => {
                         clearTimeout(timer as unknown as any);
                         const query = event.target.value;
@@ -63,6 +66,36 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
                         </li>
                     ))}
                 </ul>
+            )}
+            {hint && (
+                <div className="stands_out top_spaced medium_text">
+                    <p>Search query examples:</p>
+                    <ul>
+                        <li>
+                            <code>@XZY</code>: will show all users with names
+                            starting with "XZY". matching the prefix.
+                        </li>
+                        <li>
+                            <code>/ABC</code>: will show all realms with names
+                            starting with "ABC". matching the prefix.
+                        </li>
+                        <li>
+                            <code>@XYZ WORD</code>: will show all posts from
+                            users matching the name "XZY" and containing the
+                            word "WORD".
+                        </li>
+                        <li>
+                            <code>/ABC WORD</code>: will show all posts from the
+                            realm starting with "ABC" and containing the word
+                            "WORD".
+                        </li>
+                        <li>
+                            <code>@XYZ /ABC WORD</code>: will show all posts
+                            from users matching the name "XZY" from the realm
+                            starting with "ABC" and containing the word "WORD".
+                        </li>
+                    </ul>
+                </div>
             )}
             {searching && <Loading />}
         </div>

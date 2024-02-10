@@ -6,7 +6,7 @@ import {
     ButtonWithLoading,
     getTokens,
     Loading,
-    ReactionToggleButton,
+    IconToggleButton,
 } from "./common";
 import {
     Bars,
@@ -58,6 +58,7 @@ export const Form = ({
     const [realm, setRealm] = React.useState(realmArg);
     const [submitting, setSubmitting] = React.useState(false);
     const [lines, setLines] = React.useState(3);
+    const [totalCosts, setTotalCosts] = React.useState(0);
     const [dragAndDropping, setDragAndDropping] = React.useState(false);
     const [tmpBlobs, setTmpBlobs] = React.useState<{
         [name: string]: Uint8Array;
@@ -76,7 +77,7 @@ export const Form = ({
     const form = React.useRef();
     const tags = window.backendCache.recent_tags;
     const users = Object.values(window.backendCache.users);
-    const realms = Object.keys(window.backendCache.realms);
+    const realms = Object.keys(window.backendCache.realms_data);
     const { max_post_length, max_blob_size_bytes } = window.backendCache.config;
 
     const previewAtLeft = bigScreen() && !comment;
@@ -111,6 +112,10 @@ export const Form = ({
         } else {
             let extension;
             if (poll) {
+                // Trim
+                poll.options = poll.options.filter(
+                    (option: string) => !!option,
+                );
                 extension = { Poll: poll };
             } else if (repost != undefined) {
                 extension = { Repost: repost };
@@ -242,6 +247,12 @@ export const Form = ({
     const id = `form_${postId}_${lines}`;
 
     React.useEffect(() => {
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+            setTotalCosts((await costs(value, !!poll)) || totalCosts);
+        }, 1000);
+    }, [value, poll]);
+    React.useEffect(() => {
         if (blobs) setTmpBlobs(blobs);
     }, [blobs]);
     React.useEffect(() => setRealm(realmArg), [realmArg]);
@@ -322,7 +333,6 @@ export const Form = ({
         </button>
     );
     const user = window.user;
-    const totalCosts = costs(value, !!poll);
     const tooExpensive = user.cycles < totalCosts;
 
     return (
@@ -422,7 +432,10 @@ export const Form = ({
                         <Loading classNameArg="top_spaced" spaced={false} />
                     )}
                     {!busy && completionList.length > 0 && (
-                        <div className="small_text top_spaced">
+                        <div
+                            className="top_spaced "
+                            style={{ textAlign: "right" }}
+                        >
                             {completionList.map((token, i) => (
                                 <button
                                     key={token}
@@ -462,7 +475,7 @@ export const Form = ({
                                     onChange={dropHandler}
                                 />
                                 {postId == null && !isRepost && (
-                                    <ReactionToggleButton
+                                    <IconToggleButton
                                         testId="poll-button"
                                         classNameArg="left_half_spaced"
                                         icon={<Bars />}
@@ -581,17 +594,19 @@ const insertNewPicture = (
     };
 };
 
-const costs = (value: string, poll: boolean) => {
-    const tags = getTokens("#$", value).length;
+let timer: any = null;
+let tagCache: any[] = [];
+let tagCosts: number = 0;
+
+const costs = async (value: string, poll: boolean) => {
+    const tags = getTokens("#$", value);
+    if (tags.toString() != tagCache.toString()) {
+        tagCosts = (await window.api.query("tags_cost", tags)) || 0;
+        tagCache = tags;
+    }
     const images = (value.match(/\(\/blob\/.+\)/g) || []).length;
-    const paid_tags = Math.max(0, tags);
-    const { post_cost, tag_cost, blob_cost, poll_cost } =
-        window.backendCache.config;
-    return (
-        Math.max(post_cost, paid_tags * tag_cost) +
-        images * blob_cost +
-        (poll ? poll_cost : 0)
-    );
+    const { post_cost, blob_cost, poll_cost } = window.backendCache.config;
+    return post_cost + tagCosts + images * blob_cost + (poll ? poll_cost : 0);
 };
 
 export const loadFile = (file: any): Promise<ArrayBuffer> => {

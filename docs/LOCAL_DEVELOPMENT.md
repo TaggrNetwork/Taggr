@@ -12,15 +12,16 @@ Make sure to follow the steps outlined in the rest of this file before using the
 | Build the frontend                | npm run build                                 |                                                         |
 | Production frontend               | make fe                                       |                                                         |
 | Production frontend local network | NODE_ENV=production DFX_NETWORK=local make fe |                                                         |
-| Deploy the canister locally       | make deploy_local                             |                                                         |
+| Deploy the canister locally       | make local_deploy                             |                                                         |
+| Build the canister locally        | make dev_build                                |                                                         |
 | Set up and run e2e tests          | make e2e_test                                 | If you're using Ubuntu, it must be an LTS version.      |
 | Run e2e tests                     | npm run test:e2e                              | Assumes e2e setup is already done (see `make e2e_test`) |
 
 ## System Dependencies
 
--   Install [DFX](https://internetcomputer.org/docs/current/developer-docs/setup/install/).
 -   Install [NodeJS](https://nodejs.org/).
--   Install [Rust](https://www.rust-lang.org/).
+-   Install [Rust & Cargo](https://www.rust-lang.org/).
+-   Install [ic-wasm](https://github.com/dfinity/ic-wasm).
 -   Install [Docker](https://www.docker.com/).
 -   Install [Git](https://git-scm.com/).
 
@@ -36,6 +37,12 @@ Change your directory to the newly cloned Taggr repo:
 
 ```shell
 cd taggr
+```
+
+Install DFX
+
+```shell
+DFX_VERSION=$(cat dfx.json | jq -r .dfx) sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
 ```
 
 The remaining steps are only necessary for deploying NNS canisters locally. This makes it easier to test new account creation with Internet Identity, to make ICP transfers to those accounts or to run Taggr e2e tests without a Docker container. Alternatively, you can [create a backup](#creating-and-restoring-backups) and then refer to the [command reference](#command-reference) to build and deploy.
@@ -69,7 +76,10 @@ dfx start --clean --background
 Install Taggr canister:
 
 ```shell
-make deploy_local
+npm ci
+make local_deploy
+make dev_build
+make local_reinstall
 ```
 
 Install NNS canisters (see the [DFX docs](https://github.com/dfinity/sdk/blob/master/docs/cli-reference/dfx-nns.md)):

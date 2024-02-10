@@ -15,7 +15,7 @@ import {
     Loading,
     reactionCosts,
     loadPosts,
-    ReactionToggleButton,
+    IconToggleButton,
     RealmSpan,
     setTitle,
     ButtonWithLoading,
@@ -26,8 +26,11 @@ import {
     tokens,
     currentRealm,
     parseNumber,
+    noiseControlBanner,
+    getRealmsData,
+    expandUser,
+    ArrowDown,
 } from "./common";
-import { PostFeed } from "./post_feed";
 import {
     reaction2icon,
     Edit,
@@ -36,16 +39,16 @@ import {
     Repost,
     Coin,
     New,
-    CommentArrow,
     CarretRight,
     Trash,
     Comment,
     Close,
     Bell,
     BellOff,
+    More,
 } from "./icons";
 import { ProposalView } from "./proposals";
-import { BlogTitle, Post, PostId, User, UserId } from "./types";
+import { Post, PostId, UserId } from "./types";
 
 export const PostView = ({
     id,
@@ -77,16 +80,18 @@ export const PostView = ({
     level?: number;
 }) => {
     const [post, setPost] = React.useState(data);
+    const [reactions, setReactions] = React.useState<{
+        [id: number]: UserId[];
+    }>({});
+    const [children, setChildren] = React.useState<PostId[]>([]);
     const [notFound, setNotFound] = React.useState(false);
+    const [hidden, setHidden] = React.useState(false);
     const [blobs, setBlobs] = React.useState({});
-    const [showComments, toggleComments] = React.useState(
-        !isFeedItem && !repost,
-    );
+    const [showComments, toggleComments] = React.useState(!!prime);
     const [showInfo, toggleInfo] = React.useState(false);
     const [safeToOpen, setSafeToOpen] = React.useState(false);
-    const [forceCollapsing, setForceCollapsing] = React.useState(false);
+    const [showExpandButton, setShowExpandButton] = React.useState(false);
     const [commentIncoming, setCommentIncoming] = React.useState(false);
-    const [reactionTimer, setReactionTimer] = React.useState(null);
 
     const refPost = React.useRef();
     const refArticle = React.useRef();
@@ -97,19 +102,12 @@ export const PostView = ({
             setNotFound(true);
             return;
         }
-        if (post) {
-            // since reactions are updated optimistically and we might have new ones in-flight, we need to merge this data
-            for (const reactionId in post.reactions) {
-                const newIDs = data.reactions[reactionId] || [];
-                data.reactions[reactionId] = [
-                    ...new Set(newIDs.concat(post.reactions[reactionId])),
-                ];
-            }
-        }
         // if the post is in prime mode, load pics right away
         if (prime || repost) {
             loadPostBlobs(data.files).then(setBlobs);
         }
+        setReactions(data.reactions);
+        setChildren(data.children);
         setPost(data);
     };
 
@@ -119,8 +117,10 @@ export const PostView = ({
 
     React.useEffect(() => {
         const article: any = refArticle.current;
-        if (article && article.scrollHeight > article.clientHeight)
-            setForceCollapsing(true);
+        if (!prime && article && article.scrollHeight > article.clientHeight) {
+            article.classList.add("overflowing");
+            setShowExpandButton(true);
+        }
     }, [post, blobs]);
 
     const registerObserver = () => {
@@ -137,7 +137,7 @@ export const PostView = ({
             },
             {
                 root: null,
-                rootMargin: "0px",
+                rootMargin: "750px",
                 threshold: 0,
             },
         );
@@ -181,14 +181,16 @@ export const PostView = ({
             alert(`Error: ${result.Err}`);
             return false;
         }
-        await loadData();
+        const commentId = result.Ok;
+        children.push(Number(commentId));
+        setChildren([...children]);
         toggleInfo(false);
         toggleComments(true);
         return true;
     };
 
     const showCarret =
-        level > ((refPost.current as any)?.clientWidth > 900 ? 13 : 3);
+        level > ((refPost.current as any)?.clientWidth > 900 ? 13 : 5);
     const goInside = (e: any, force?: boolean) => {
         if (
             !force &&
@@ -206,34 +208,23 @@ export const PostView = ({
         if (!window.user) return;
         let userId = window.user?.id;
         if (post.user == userId) return;
-        if (!(id in post.reactions)) {
-            post.reactions[id] = [];
+        if (!(id in reactions)) {
+            reactions[id] = [];
         }
-        let users = post.reactions[id];
+        let users = reactions[id];
         if (
-            Object.values(post.reactions)
+            Object.values(reactions)
                 .reduce((acc, users) => acc.concat(users), [])
                 .includes(userId)
         ) {
-            if (reactionTimer) {
-                clearTimeout(reactionTimer);
-                post.reactions[id] = users.filter((id) => id != userId);
-                setPost({ ...post });
-            }
             return;
         }
-        clearTimeout(reactionTimer as any);
-        const timer = setTimeout(
-            () =>
-                window.api.call<any>("react", post.id, id).then((response) => {
-                    if ("Err" in response) alert(`Error: ${response.Err}`);
-                    window.reloadUser();
-                }),
-            4000,
-        );
-        setReactionTimer(timer as any);
+        window.api.call<any>("react", post.id, id).then((response) => {
+            if ("Err" in response) alert(`Error: ${response.Err}`);
+            window.reloadUser();
+        });
         users.push(userId);
-        setPost({ ...post });
+        setReactions({ ...reactions });
         toggleInfo(commentIncoming);
     };
 
@@ -241,7 +232,7 @@ export const PostView = ({
     const costTable = reactionCosts();
     const isInactive =
         objectReduce(
-            post.reactions,
+            reactions,
             (acc, id, users) => acc + costTable[id as any] * users.length,
             0,
         ) < 0 || post.userObject.rewards < 0;
@@ -255,7 +246,10 @@ export const PostView = ({
         (!isComment || !isCommentView) &&
         post.realm &&
         post.realm != currentRealm();
-    const isGallery = post.effBody.startsWith("![");
+    const realmAccessError =
+        user && post.realm
+            ? noiseControlBanner("realm", getRealmsData(post.realm)[2], user)
+            : null;
     const postCreated =
         post.patches.length > 0 ? post.patches[0][0] : post.timestamp;
     const isNSFW =
@@ -267,10 +261,18 @@ export const PostView = ({
         !versionSpecified && post.patches.length > 0
             ? post.patches.length
             : version;
+    const time = timeAgo(postCreated, false, isJournalView ? "long" : "short");
+    const createdRecently =
+        Number(new Date()) - Number(postCreated) / 1000000 < 30 * 60 * 1000;
+    const newPost =
+        (window.user && highlighted.includes(post.id)) ||
+        postCreated > window.lastVisit ||
+        createdRecently;
     const blogTitle =
         prime && post.effBody.length > 750 && post.effBody.startsWith("# ")
             ? {
                   author: post.userObject.name,
+                  realm: post.realm,
                   created: postCreated,
                   length: post.effBody.length,
               }
@@ -278,13 +280,9 @@ export const PostView = ({
 
     if (prime) setTitle(`Post #${post.id} by @${post.userObject.name}`);
 
-    let cls = "";
-    if (!deleted && !isNSFW && !showReport) {
-        if (realmPost || commentAsPost) cls = "top_padded_post";
-        cls += isGallery ? " gallery_post" : " text_post";
-    }
-
     const showExtension = !isNSFW && post.extension && !repost;
+
+    if (hidden) return null;
 
     return (
         <div
@@ -304,27 +302,51 @@ export const PostView = ({
             )}
             <div
                 ref={refPost as any}
-                className={`post_box ${isInactive ? "inactive" : ""} ${cls} ${
-                    prime ? "" : "clickable"
+                className={`post_box ${isInactive ? "inactive" : ""} ${
+                    prime ? "prime" : "clickable"
                 }`}
-                style={{ position: "relative" }}
             >
+                {!blogTitle && (
+                    <div className="post_head row_container vcentered">
+                        {commentAsPost && (
+                            <a
+                                className="reply_tag"
+                                href={`#/thread/${post.id}`}
+                            >
+                                &#9664; REPLY
+                            </a>
+                        )}
+                        <UserLink
+                            classNameArg="left_well_spaced right_half_spaced"
+                            id={post.user}
+                            profile={true}
+                        />
+                        <span className="right_half_spaced">&middot;</span>
+                        <div className="no_wrap vcentered">
+                            {time}
+                            {newPost && (
+                                <New classNameArg="left_half_spaced accent" />
+                            )}
+                        </div>
+                        <div className="max_width_col"></div>
+                        {realmPost && post.realm && (
+                            <RealmSpan
+                                name={post.realm}
+                                classNameArg="realm_tag"
+                            />
+                        )}
+                    </div>
+                )}
                 {isNSFW && (
                     <div
-                        className={`${
-                            isCommentView ? "" : "post_head"
-                        } nsfw x_large_text`}
+                        className="nsfw x_large_text"
                         onClick={() => setSafeToOpen(true)}
                     >
                         NSFW
                     </div>
                 )}
                 {deleted && (
-                    <div
-                        className={`${
-                            isCommentView ? "" : "post_head"
-                        } deleted small_text`}
-                    >
+                    <div className="deleted small_text">
                         <h3>Post deleted</h3>
                         <ol>
                             {post.hashes.map((hash) => (
@@ -337,19 +359,10 @@ export const PostView = ({
                         </ol>
                     </div>
                 )}
-                {isComment && !commentAsPost && (
-                    <span
-                        className="thread_button clickable"
-                        onClick={() => (location.href = `#/thread/${post.id}`)}
-                    >
-                        <CommentArrow classNameArg="action" />
-                    </span>
-                )}
                 {!isNSFW && (
                     <article
                         ref={refArticle as unknown as any}
                         onClick={(e) => goInside(e)}
-                        className={prime ? "prime" : undefined}
                     >
                         {/* The key is needed to render different content for different versions to avoid running into diffrrent
                  number of memorized pieces inside content */}
@@ -361,22 +374,12 @@ export const PostView = ({
                             blobs={blobs}
                             collapse={!expanded}
                             primeMode={isRoot(post) && !repost}
-                            forceCollapsing={forceCollapsing}
                         />
                     </article>
                 )}
-                {commentAsPost && !deleted && (
-                    <a className="reply_tag" href={`#/thread/${post.id}`}>
-                        &#9664; REPLY
-                    </a>
-                )}
-                {realmPost && post.realm && (
-                    <RealmSpan
-                        name={post.realm}
-                        classNameArg="realm_tag"
-                        onClick={() =>
-                            (location.href = `/#/realm/${post.realm}`)
-                        }
+                {showExpandButton && (
+                    <ArrowDown
+                        onClick={() => (location.href = `#/post/${post.id}`)}
                     />
                 )}
                 {showExtension && "Poll" in post.extension && (
@@ -399,87 +402,130 @@ export const PostView = ({
                         id={post.extension.Proposal}
                     />
                 )}
-                <PostBar
-                    post={post}
-                    blogTitle={blogTitle}
-                    react={react}
-                    repost={repost}
-                    highlighted={highlighted}
-                    showComments={showComments}
-                    toggleComments={toggleComments}
-                    postCreated={postCreated}
-                    showCarret={showCarret}
-                    showInfo={showInfo}
-                    toggleInfo={toggleInfo}
-                    isThreadView={isThreadView}
-                    isJournalView={isJournalView}
-                    goInside={goInside}
-                />
+                {!repost && (
+                    <PostBar
+                        post={post}
+                        react={react}
+                        showComments={showComments}
+                        toggleComments={toggleComments}
+                        showCarret={showCarret}
+                        showInfo={showInfo}
+                        toggleInfo={toggleInfo}
+                        isThreadView={isThreadView}
+                        goInside={goInside}
+                    />
+                )}
             </div>
             {showInfo && (
-                <div className="left_half_spaced right_half_spaced top_half_spaced">
+                <div className="left_half_spaced right_half_spaced top_spaced">
                     {user && (
                         <>
-                            <ReactionsPicker
-                                user={user}
-                                post={post}
-                                react={react}
-                            />
-                            <Form
-                                submitCallback={commentSubmissionCallback}
-                                postId={post.id}
-                                writingCallback={() => setCommentIncoming(true)}
-                                comment={true}
-                            />
+                            {realmAccessError}
+                            {!realmAccessError && (
+                                <Form
+                                    submitCallback={commentSubmissionCallback}
+                                    postId={post.id}
+                                    writingCallback={() =>
+                                        setCommentIncoming(true)
+                                    }
+                                    comment={true}
+                                />
+                            )}
                         </>
                     )}
                     <PostInfo
                         post={post}
+                        reactions={reactions}
                         version={version}
                         versionSpecified={versionSpecified}
                         postCreated={postCreated}
                         callback={async () => await loadData()}
+                        realmMoveOutCallback={() => setHidden(true)}
                     />
                 </div>
             )}
-            {(showComments || prime) && post.children.length > 0 && (
-                <PostFeed
+            {(showComments || prime) && children.length > 0 && (
+                <Comments
                     heartbeat={`${post.id}_${
-                        Object.keys(post.children).length
+                        Object.keys(children).length
                     }_${showComments}`}
-                    comments={true}
                     level={level + 1}
-                    feedLoader={async () =>
-                        await window.api.query("posts", post.children)
+                    loader={async () =>
+                        await window.api.query("posts", children)
                     }
-                    highlighted={highlighted}
-                    classNameArg="left_spaced"
                 />
             )}
         </div>
     );
 };
 
+const Comments = ({
+    heartbeat,
+    level,
+    loader,
+}: {
+    heartbeat: any;
+    level: number;
+    loader: () => Promise<Post[] | null>;
+}) => {
+    const [posts, setPosts] = React.useState<Post[]>([]);
+    const [loading, setLoading] = React.useState(false);
+    const loadPosts = async () => {
+        setLoading(true);
+        const comments = await loader();
+        setPosts((comments || []).map(expandUser));
+        setLoading(false);
+    };
+
+    React.useEffect(() => {
+        loadPosts();
+    }, [heartbeat]);
+
+    if (loading) return <Loading />;
+
+    return (
+        <ul
+            style={{ marginLeft: level == 1 ? "0.5em" : undefined }}
+            className="comments top_framed"
+        >
+            {posts.map((post) => (
+                <li key={post.id}>
+                    <PostView
+                        id={post.id}
+                        level={level + 1}
+                        data={post}
+                        classNameArg="comment"
+                        isCommentView={true}
+                    />
+                </li>
+            ))}
+        </ul>
+    );
+};
+
 const PostInfo = ({
     post,
+    reactions,
     version,
     postCreated,
     callback,
     versionSpecified,
+    realmMoveOutCallback,
 }: {
     post: Post;
+    reactions: { [id: number]: UserId[] };
     version?: number;
     postCreated: BigInt;
     callback: () => Promise<void>;
+    realmMoveOutCallback: () => void;
     versionSpecified?: boolean;
 }) => {
     const postAuthor = window.user?.id == post.userObject.id;
-    const realmController =
-        post.realm && window.backendCache.realms[post.realm][1];
+    const realmController = post.realm && getRealmsData(post.realm)[1];
     const { token_symbol, token_decimals } = window.backendCache.config;
     return (
         <>
-            <div className="row_container top_half_spaced">
+            <div className="row_container top_spaced">
                 <ShareButton
                     text={!window.user}
                     classNameArg="max_width_col"
@@ -576,16 +622,16 @@ const PostInfo = ({
                                 onClick={async () => {
                                     const reason = prompt(
                                         "Please specify the reason for moving the post out of its realm.",
+                                        "rules violation",
                                     );
-                                    if (!reason) return;
-                                    await window.api.call(
+                                    realmMoveOutCallback();
+                                    const response = await window.api.call<any>(
                                         "realm_clean_up",
                                         post.id,
                                         reason,
                                     );
-                                    alert(
-                                        "This post was removed from this realm.",
-                                    );
+                                    if ("Err" in response)
+                                        alert(`Error: ${response.Err}`);
                                 }}
                                 label={<Close />}
                             />
@@ -606,7 +652,7 @@ const PostInfo = ({
                                             } = window.backendCache.config;
                                             const cost =
                                                 objectReduce(
-                                                    post.reactions,
+                                                    reactions,
                                                     (
                                                         acc: number,
                                                         id: string,
@@ -680,11 +726,12 @@ const PostInfo = ({
                     </>
                 )}
             </div>
-            <div className="small_text top_spaced bottom_spaced">
-                <div>
-                    <b>CREATED</b>:{" "}
-                    {new Date(Number(postCreated) / 1000000).toLocaleString()}
-                </div>
+            <div
+                style={{ paddingBottom: "1em" }}
+                className="small_text top_spaced bottom_spaced"
+            >
+                <b>CREATED</b>:{" "}
+                {new Date(Number(postCreated) / 1000000).toLocaleString()}
                 {post.patches.length > 0 && (
                     <div>
                         <b>VERSIONS</b>:{" "}
@@ -725,29 +772,28 @@ const PostInfo = ({
                                     <code>
                                         {tokens(Number(tip), token_decimals)}
                                     </code>{" "}
-                                    from {<UserLink id={id} />}
+                                    from {<UserLink id={id} profile={true} />}
                                 </span>
                             )),
                         )}
                     </div>
                 )}
-                {Object.keys(post.reactions).length > 0 && (
+                {Object.keys(reactions).length > 0 && (
                     <div className="top_spaced">
-                        {Object.entries(post.reactions).map(
-                            ([reactId, users]) => (
-                                <div
-                                    key={reactId}
-                                    className="bottom_half_spaced"
-                                >
-                                    {reaction2icon(Number(reactId))}{" "}
-                                    {commaSeparated(
-                                        users.map((id) => (
-                                            <UserLink key={id} id={id} />
-                                        )),
-                                    )}
-                                </div>
-                            ),
-                        )}
+                        {Object.entries(reactions).map(([reactId, users]) => (
+                            <div key={reactId} className="bottom_half_spaced">
+                                {reaction2icon(Number(reactId))}{" "}
+                                {commaSeparated(
+                                    users.map((id) => (
+                                        <UserLink
+                                            key={id}
+                                            id={id}
+                                            profile={true}
+                                        />
+                                    )),
+                                )}
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
@@ -755,191 +801,239 @@ const PostInfo = ({
     );
 };
 
+let reactionIndicatorWidth = 0;
+let progressInterval: any = null;
+let timeStart: any = null;
+
 const PostBar = ({
     post,
-    blogTitle,
     react,
-    highlighted = [],
-    repost,
     showInfo,
     toggleInfo,
     showComments,
     toggleComments,
-    postCreated,
     isThreadView,
     goInside,
     showCarret,
-    isJournalView,
 }: {
     post: Post;
-    blogTitle?: BlogTitle;
     react: (id: number) => void;
-    highlighted?: PostId[];
-    repost?: boolean;
     showInfo: boolean;
     toggleInfo: (flag: boolean) => void;
     showComments: boolean;
     toggleComments: (flag: boolean) => void;
-    postCreated: BigInt;
     isThreadView?: boolean;
     goInside: (arg: any, flag?: boolean) => void;
     showCarret: boolean;
-    isJournalView?: boolean;
 }) => {
-    const time = timeAgo(postCreated, false, isJournalView ? "long" : "short");
+    const [showEmojis, setShowEmojis] = React.useState(false);
+    const [showHint, setShowHint] = React.useState(false);
     const replies = post.tree_size;
-    const createdRecently =
-        Number(new Date()) - Number(postCreated) / 1000000 < 30 * 60 * 1000;
+    // @ts-ignore
+    const users: UserId[] = [].concat(...Object.values(post.reactions));
+    let user_id = window.user?.id;
+    const cantReact = users.includes(user_id) || post.user == user_id;
     const updatedRecently =
         Number(new Date()) - Number(post.tree_update) / 1000000 <
         30 * 60 * 1000;
-    const newPost =
-        (window.user && highlighted.includes(post.id)) ||
-        postCreated > window.lastVisit ||
-        createdRecently;
     const newComments =
         window.user && (post.tree_update > window.lastVisit || updatedRecently);
+    const ref = React.useRef(null);
+
+    const unreact = () => {
+        if (Number(new Date()) - timeStart < 300) {
+            setShowHint(true);
+            setTimeout(() => setShowHint(false), 1000);
+        }
+        clearInterval(progressInterval);
+        reactionIndicatorWidth = 0;
+        // @ts-ignore
+        ref.current?.style.width = 0;
+        setShowEmojis(false);
+    };
+
+    const delayedReact = (id: number) => {
+        if (cantReact) return;
+        timeStart = new Date();
+        progressInterval = setInterval(() => {
+            reactionIndicatorWidth += 6;
+            // @ts-ignore
+            ref.current?.style.width = reactionIndicatorWidth + "%";
+            if (reactionIndicatorWidth >= 100) {
+                react(id);
+                unreact();
+            }
+        }, 50);
+    };
+
     return (
-        <div
-            onClick={(e) => goInside(e)}
-            className="post_bar vcentered smaller_text flex_ended"
-        >
-            {!blogTitle && (
-                <div className="row_container" style={{ alignItems: "center" }}>
-                    {!isJournalView && (
-                        <a
-                            className="right_half_spaced"
-                            href={`#/user/${post.userObject.id}`}
-                        >{`${post.userObject.name}`}</a>
-                    )}
-                    <div className="no_wrap vcentered">
-                        {time}
-                        {newPost && (
-                            <New classNameArg="left_half_spaced accent" />
-                        )}
-                        {post.tips.length > 0 && (
-                            <Coin classNameArg="accent left_half_spaced" />
-                        )}
+        <>
+            <div
+                ref={ref}
+                className="active"
+                style={{ height: "1px", width: 0 }}
+            ></div>
+            <div className="post_bar vcentered smaller_text">
+                {showHint && (
+                    <div
+                        className="max_width_col"
+                        style={{ textAlign: "left", opacity: 0.7 }}
+                    >
+                        TAP AND HOLD!
                     </div>
-                </div>
-            )}
-            <div className="vcentered max_width_col flex_ended">
-                {!repost && (
-                    <>
-                        <Reactions
-                            reactionsMap={post.reactions}
-                            react={react}
-                        />
-                        {replies > 0 && !isThreadView && (
-                            <ReactionToggleButton
-                                pressed={showComments}
-                                testId="post-comments-toggle"
-                                onClick={
-                                    showCarret
-                                        ? (event) => goInside(event, true)
-                                        : () => {
-                                              toggleInfo(false);
-                                              toggleComments(!showComments);
-                                          }
-                                }
-                                icon={
-                                    <>
-                                        <Comment
-                                            classNameArg={
-                                                newComments
-                                                    ? "accent"
-                                                    : undefined
-                                            }
-                                        />
-                                        &nbsp;{`${replies}`}
-                                    </>
-                                }
-                            />
-                        )}
-                        {!isThreadView && !showCarret && (
-                            <BurgerButton
-                                onClick={() => {
-                                    toggleInfo(!showInfo);
-                                    toggleComments(false);
-                                }}
-                                pressed={showInfo}
-                                testId="post-info-toggle"
-                            />
-                        )}
-                        {(isThreadView || showCarret) && (
-                            <button
-                                className="reaction_button unselected"
-                                onClick={(e) => goInside(e)}
-                            >
-                                <CarretRight />
-                            </button>
-                        )}
-                    </>
                 )}
+                {showEmojis && !showHint && (
+                    <ReactionPicker react={delayedReact} unreact={unreact} />
+                )}
+                {!showEmojis && !showHint && (
+                    <Reactions
+                        reactionsMap={post.reactions}
+                        react={delayedReact}
+                        unreact={unreact}
+                    />
+                )}
+                <>
+                    {!cantReact && (
+                        <IconToggleButton
+                            pressed={showEmojis}
+                            onClick={() => setShowEmojis(!showEmojis)}
+                            testId="reaction-picker"
+                            icon={<More />}
+                        />
+                    )}
+                    {post.tips.length > 0 && (
+                        <Coin classNameArg="accent right_quarter_spaced" />
+                    )}
+                    {post.reposts.length > 0 && (
+                        <IconToggleButton
+                            onClick={() =>
+                                (location.href = `#/reposts/${post.id}`)
+                            }
+                            icon={
+                                <>
+                                    <Repost classNameArg="right_quarter_spaced" />
+                                    {post.reposts.length}
+                                </>
+                            }
+                        />
+                    )}
+                    {replies > 0 && !isThreadView && (
+                        <IconToggleButton
+                            pressed={showComments}
+                            testId="post-comments-toggle"
+                            onClick={
+                                showCarret
+                                    ? (event) => goInside(event, true)
+                                    : () => {
+                                          toggleInfo(false);
+                                          toggleComments(!showComments);
+                                      }
+                            }
+                            icon={
+                                <>
+                                    <Comment
+                                        classNameArg={`right_quarter_spaced ${
+                                            newComments ? "accent" : undefined
+                                        }`}
+                                    />
+                                    {replies}
+                                </>
+                            }
+                        />
+                    )}
+                    {!isThreadView && !showCarret && (
+                        <BurgerButton
+                            onClick={() => {
+                                toggleInfo(!showInfo);
+                                toggleComments(false);
+                            }}
+                            pressed={showInfo}
+                            testId="post-info-toggle"
+                        />
+                    )}
+                    {(isThreadView || showCarret) && (
+                        <button
+                            className="reaction_button unselected"
+                            onClick={(e) => goInside(e)}
+                        >
+                            <CarretRight />
+                        </button>
+                    )}
+                </>
             </div>
-        </div>
+        </>
     );
 };
 
-export const ReactionsPicker = ({
+export const ReactionPicker = ({
     react,
-    post,
-    user,
+    unreact,
 }: {
     react: (id: number) => void;
-    post: Post;
-    user: User;
-}) => {
-    if (!user || post.userObject.id == user.id) return null;
-    // Don't show reactions picker if the user reacted already
-    if (
-        Array.prototype.concat
-            .apply([], Object.values(post.reactions))
-            .includes(user.id)
-    )
-        return null;
-    return (
-        <div className="framed vcentered bottom_spaced top_spaced row_container">
-            {window.backendCache.config.reactions.map(([id, cost]) => (
-                <ReactionToggleButton
-                    title={`Karma points: ${cost}`}
-                    key={id}
-                    classNameArg="max_width_col centered"
-                    onClick={() => react(id)}
-                    testId={"give-" + id + "-reaction"}
-                    icon={reaction2icon(id)}
-                />
-            ))}
-        </div>
-    );
-};
+    unreact: () => void;
+}) => (
+    <div
+        className={`max_width_col ${
+            bigScreen() ? "row_container" : "emoji_table"
+        }`}
+        style={{ justifyContent: "flex-start" }}
+    >
+        {window.backendCache.config.reactions.map(([reactId, rewards]) => (
+            <button
+                key={reactId}
+                title={`Reward points: ${rewards}`}
+                className="medium_text reaction_button unselected text_centered centered"
+                onMouseDown={() => react(reactId)}
+                onMouseUp={unreact}
+                onTouchStart={() => react(reactId)}
+                onTouchEnd={unreact}
+                data-testid="reaction-picker"
+                style={{ padding: 0 }}
+            >
+                {reaction2icon(Number(reactId))}
+            </button>
+        ))}
+    </div>
+);
 
 export const Reactions = ({
     reactionsMap,
     react,
+    unreact,
 }: {
     reactionsMap: { [id: number]: UserId[] };
     react: (id: number) => void;
+    unreact: () => void;
 }) => {
-    if (Object.keys(reactionsMap).length == 0) return null;
+    const entries = Object.entries(reactionsMap);
     return (
-        <div className="vcentered flex_ended">
-            {Object.entries(reactionsMap).map(([reactId, users]) => {
-                if (users.length == 0) return null;
+        <div
+            className={`max_width_col ${
+                !bigScreen() && entries.length > 5
+                    ? "emoji_table"
+                    : "row_container"
+            }`}
+            style={{ justifyContent: "flex-start" }}
+        >
+            {entries.map(([reactId, users]) => {
                 const reacted = users.includes(window.user?.id);
                 return (
                     <button
-                        data-meta="skipClicks"
                         key={reactId}
                         className={
                             "reaction_button " +
                             (reacted ? "selected" : "unselected")
                         }
-                        onClick={() => react(parseInt(reactId))}
+                        onMouseDown={() => react(parseInt(reactId))}
+                        onMouseUp={unreact}
+                        onTouchStart={() => react(parseInt(reactId))}
+                        onTouchEnd={unreact}
                         data-testid={reactId + "-reaction"}
                     >
-                        {reaction2icon(Number(reactId))}&nbsp;
-                        {`${users.length}`}
+                        <span className="medium_text right_quarter_spaced">
+                            {reaction2icon(Number(reactId))}
+                        </span>
+                        {users.length}
                     </button>
                 );
             })}

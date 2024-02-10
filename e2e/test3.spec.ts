@@ -19,12 +19,13 @@ test.describe("Regular users flow, part two", () => {
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("john");
         await page.getByRole("button", { name: "JOIN" }).click();
+        await page.waitForTimeout(1000);
         await page.getByPlaceholder("Enter your password...").fill("john");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.getByRole("button", { name: "MINT CREDITS" }).click();
         const value = await page.getByTestId("invoice-amount").textContent();
         exec(
-            `dfx --identity local-minter ledger transfer --amount ${value} --memo 0 8f3bff512417de2d91aa3dfec425f1bc2c6ccdafb019bb3dca42d6ab328dd4a9`,
+            `dfx --identity local-minter ledger transfer --amount ${value} --memo 0 6b7ebd22b3ad442ffd64168b44068e6093b3a2f3f17230974e89ae60eef2ae8d`,
         );
         await page.getByRole("button", { name: "CHECK BALANCE" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
@@ -33,9 +34,7 @@ test.describe("Regular users flow, part two", () => {
             .getByPlaceholder("tell us what we should know about you")
             .fill("I am John");
         await page.getByRole("button", { name: "SAVE" }).click();
-        await expect(page).toHaveTitle("TAGGR: HOT");
-        await page.getByTestId("tab-NEW").click();
-        await expect(page).toHaveTitle("TAGGR: NEW");
+        await expect(page).toHaveTitle("TAGGR");
     });
 
     test("Create a post with poll", async () => {
@@ -91,7 +90,6 @@ test.describe("Regular users flow, part two", () => {
 
         // Make sure the post is visible on the front page too
         await page.goto("/");
-        await page.getByTestId("tab-NEW").click();
         await expect(
             page.locator("article", {
                 hasText: /Repost of the poll/,
