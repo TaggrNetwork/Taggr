@@ -258,7 +258,7 @@ fn user_posts() {
     read(|state| {
         resolve_handle(state, Some(&handle)).map(|user| {
             reply(
-                user.posts(state, offset)
+                user.posts(state, offset, true)
                     .skip(CONFIG.feed_page_size * page)
                     .take(CONFIG.feed_page_size)
                     .collect::<Vec<_>>(),
@@ -273,7 +273,7 @@ fn rewarded_posts() {
     read(|state| {
         resolve_handle(state, Some(&handle)).map(|user| {
             reply(
-                user.posts(state, offset)
+                user.posts(state, offset, true)
                     .filter(|post| !post.reactions.is_empty())
                     .skip(CONFIG.feed_page_size * page)
                     .take(CONFIG.feed_page_size)
@@ -290,7 +290,7 @@ fn user_tags() {
     read(|state| {
         reply(
             state
-                .last_posts(None, offset, true)
+                .last_posts(None, offset, 0, true)
                 .filter(|post| post.body.contains(&tag))
                 .skip(CONFIG.feed_page_size * page)
                 .take(CONFIG.feed_page_size)
@@ -347,22 +347,12 @@ fn posts() {
 fn journal() {
     let (handle, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     read(|state| {
-        let inverse_filters = state.principal_to_user(caller()).map(|user| &user.filters);
         reply(
             state
                 .user(&handle)
                 .map(|user| {
-                    user.posts(state, offset)
-                        // we filter out responses, root posts starting with tagging another user
-                        // and deletet posts
-                        .filter(|post| {
-                            !post.is_deleted()
-                                && post.parent.is_none()
-                                && !post.body.starts_with('@')
-                                && inverse_filters
-                                    .map(|filters| !post.matches_filters(filters))
-                                    .unwrap_or(true)
-                        })
+                    user.posts(state, offset, false)
+                        .filter(|post| !post.body.starts_with('@'))
                         .skip(page * CONFIG.feed_page_size)
                         .take(CONFIG.feed_page_size)
                         .collect::<Vec<_>>()
@@ -426,7 +416,7 @@ fn last_posts() {
         let user = state.principal_to_user(caller());
         reply(
             state
-                .last_posts(optional(realm), offset, /* with_comments = */ false)
+                .last_posts(optional(realm), offset, 0, /* with_comments = */ false)
                 .filter(|post| {
                     !filtered
                         || user

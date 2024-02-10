@@ -476,20 +476,15 @@ impl Post {
             }
         }
 
+        let is_comment = parent.is_some();
         let excess_factor = user
-            .posts(state, 0)
-            .filter(|post| {
-                if parent.is_none() {
-                    post.parent.is_none() && post.timestamp() + DAY > timestamp
-                } else {
-                    post.parent.is_some() && post.timestamp() + HOUR > timestamp
-                }
-            })
+            .posts(state, 0, is_comment)
+            .take_while(|post| post.timestamp() + if is_comment { HOUR } else { DAY } > timestamp)
             .count()
-            .saturating_sub(if parent.is_none() {
-                CONFIG.max_posts_per_day
-            } else {
+            .saturating_sub(if is_comment {
                 CONFIG.max_comments_per_hour
+            } else {
+                CONFIG.max_posts_per_day
             });
 
         let realm = match parent.and_then(|id| Post::get(state, &id)) {

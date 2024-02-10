@@ -549,7 +549,7 @@ impl State {
             Some(ids) => ids.iter().collect::<BTreeSet<_>>(),
         };
         Box::new(
-            self.last_posts(None, offset, false)
+            self.last_posts(None, offset, 0, false)
                 .filter(move |post| {
                     post.realm
                         .as_ref()
@@ -569,7 +569,7 @@ impl State {
         filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
-            .last_posts(realm, offset, false)
+            .last_posts(realm, offset, time().saturating_sub(4 * WEEK), false)
             .filter(|post| !matches!(post.extension, Some(Extension::Proposal(_))))
             .filter(|post| filter.map(|f| f(post)).unwrap_or(true))
             .take(1000)
@@ -1920,7 +1920,7 @@ impl State {
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let query: HashSet<_> = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
         Box::new(
-            self.last_posts(realm, offset, true)
+            self.last_posts(realm, offset, 0, true)
                 .filter(move |post| {
                     (users.is_empty() || users.contains(&post.user))
                         && post
@@ -1939,9 +1939,9 @@ impl State {
         &'a self,
         realm_id: Option<RealmId>,
         mut offset: PostId,
+        mut genesis: Time,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let mut genesis = 0;
         let realm = realm_id
             .as_ref()
             .and_then(|realm_id| self.realms.get(realm_id));
@@ -1977,7 +1977,7 @@ impl State {
         let mut tags: HashMap<String, u64> = Default::default();
         let mut tags_found = 0;
         'OUTER: for post in self
-            .last_posts(realm, 0, true)
+            .last_posts(realm, 0, time().saturating_sub(2 * WEEK), true)
             .take_while(|post| !post.archived)
         {
             for tag in &post.tags {
@@ -3495,7 +3495,7 @@ pub(crate) mod tests {
 
     fn realm_posts(state: &State, name: &str) -> Vec<PostId> {
         state
-            .last_posts(None, 0, true)
+            .last_posts(None, 0, 0, true)
             .filter(|post| post.realm.as_ref() == Some(&name.to_string()))
             .map(|post| post.id)
             .collect::<Vec<_>>()
@@ -4030,7 +4030,7 @@ pub(crate) mod tests {
             let post_visible = |state: &State| {
                 let inverse_filters = state.principal_to_user(caller).map(|user| &user.filters);
                 state
-                    .last_posts(None, 0, true)
+                    .last_posts(None, 0, 0, true)
                     .filter(|post| {
                         inverse_filters
                             .map(|filters| !post.matches_filters(filters))

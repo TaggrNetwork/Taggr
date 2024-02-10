@@ -192,6 +192,7 @@ impl User {
         &'a self,
         state: &'a State,
         offset: PostId,
+        with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         if self.num_posts == 0 {
             return Box::new(std::iter::empty());
@@ -202,7 +203,8 @@ impl User {
                 .last_posts(
                     None,
                     if offset == 0 { self.last_post } else { offset },
-                    true,
+                    self.timestamp,
+                    with_comments,
                 )
                 .filter(move |post| post.user == id),
         )
@@ -313,7 +315,7 @@ impl User {
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         Box::new(
             state
-                .last_posts(None, offset, false)
+                .last_posts(None, offset, self.timestamp, false)
                 .filter(move |post| {
                     !post.is_deleted()
                         && post.parent.is_none()
