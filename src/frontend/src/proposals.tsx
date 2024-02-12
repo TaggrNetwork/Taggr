@@ -516,7 +516,9 @@ export const ProposalView = ({
                 <>
                     <div className="bottom_half_spaced">
                         RECEIVER:{" "}
-                        <code>{hex(proposal.payload.ICPTransfer[0])}</code>
+                        <code className="breakable">
+                            {hex(proposal.payload.ICPTransfer[0])}
+                        </code>
                     </div>
                     <div className="bottom_spaced">
                         AMOUNT:{" "}
@@ -533,7 +535,9 @@ export const ProposalView = ({
                 <>
                     <div className="bottom_half_spaced">
                         RECEIVER:{" "}
-                        <code>{proposal.payload.Reward.receiver}</code>
+                        <code className="breakable">
+                            {proposal.payload.Reward.receiver}
+                        </code>
                     </div>
                     {proposal.status == "Executed" && (
                         <div className="bottom_spaced">
@@ -548,7 +552,10 @@ export const ProposalView = ({
             {"Fund" in proposal.payload && (
                 <>
                     <div className="bottom_half_spaced">
-                        RECEIVER: <code>{proposal.payload.Fund[0]}</code>
+                        RECEIVER:{" "}
+                        <code className="breakable">
+                            {proposal.payload.Fund[0]}
+                        </code>
                     </div>
                     <div className="bottom_spaced">
                         AMOUNT:{" "}

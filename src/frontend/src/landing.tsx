@@ -9,7 +9,7 @@ export const Landing = () => {
     const user = window.user;
     const realm = currentRealm();
     const [feed, setFeed] = React.useState(
-        (user && user.settings.tab) || "TRENDING",
+        (!currentRealm() && user && user.settings.tab) || "TRENDING",
     );
     let labels: [JSX.Element, string][] = [
         [<New />, "NEW"],

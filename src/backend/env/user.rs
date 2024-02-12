@@ -72,7 +72,7 @@ impl UserFilter {
 pub struct User {
     pub id: UserId,
     pub name: String,
-    pub num_posts: u64,
+    pub num_posts: usize,
     pub bookmarks: VecDeque<PostId>,
     pub about: String,
     pub account: String,
@@ -108,7 +108,10 @@ pub struct User {
     pub notifications: BTreeMap<u64, (Notification, bool)>,
     pub downvotes: BTreeMap<UserId, Time>,
     pub show_posts_in_realms: bool,
+    #[serde(skip)]
     pub last_post: PostId,
+    #[serde(default)]
+    pub posts: Vec<PostId>,
 }
 
 impl User {
@@ -150,6 +153,7 @@ impl User {
             post_reports: Default::default(),
             blacklist: Default::default(),
             last_post: 0,
+            posts: Default::default(),
             account: AccountIdentifier::new(&principal, &DEFAULT_SUBACCOUNT).to_string(),
             settings: Default::default(),
             cycles: 0,
@@ -197,16 +201,13 @@ impl User {
         if self.num_posts == 0 {
             return Box::new(std::iter::empty());
         }
-        let id = self.id;
         Box::new(
-            state
-                .last_posts(
-                    None,
-                    if offset == 0 { self.last_post } else { offset },
-                    self.timestamp,
-                    with_comments,
-                )
-                .filter(move |post| post.user == id),
+            self.posts
+                .iter()
+                .rev()
+                .skip_while(move |post_id| offset > 0 && post_id > &&offset)
+                .filter_map(move |post_id| Post::get(state, post_id))
+                .filter(move |post| with_comments || post.parent.is_none()),
         )
     }
 
@@ -416,7 +417,7 @@ impl User {
 
     pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {
         let credits_needed = CONFIG.credits_per_xdr.saturating_sub(self.credits());
-        if credits_needed > 0 && amount > 0 {
+        if credits_needed > 0 && amount > 0 && self.rewards() > 0 {
             self.change_credits(
                 amount as Credits,
                 CreditsDelta::Plus,

@@ -110,13 +110,15 @@ pub struct Realm {
     pub last_update: u64,
     logo: String,
     pub num_members: u64,
-    pub num_posts: u64,
+    pub num_posts: usize,
     pub revenue: Credits,
     theme: String,
     pub whitelist: BTreeSet<UserId>,
+    #[serde(skip)]
     pub last_root_post: PostId,
-    #[serde(default)]
     pub created: Time,
+    #[serde(default)]
+    pub posts: Vec<PostId>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -390,10 +392,9 @@ impl State {
         // if user has no credits left, ignore the error
         let _ = self.charge(user_id, penalty, msg);
         post::change_realm(self, post_id, None);
-        self.realms
-            .get_mut(&realm_id)
-            .expect("no realm found")
-            .num_posts -= 1;
+        let realm = self.realms.get_mut(&realm_id).expect("no realm found");
+        realm.posts.retain(|id| id != &post_id);
+        realm.num_posts = realm.posts.len();
         if realm_member {
             self.toggle_realm_membership(user_principal, realm_id);
         }
@@ -1938,38 +1939,26 @@ impl State {
     pub fn last_posts<'a>(
         &'a self,
         realm_id: Option<RealmId>,
-        mut offset: PostId,
-        mut genesis: Time,
+        offset: PostId,
+        genesis: Time,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let realm = realm_id
-            .as_ref()
-            .and_then(|realm_id| self.realms.get(realm_id));
-        if let Some(realm) = realm {
-            if realm.num_posts == 0 {
-                return Box::new(std::iter::empty());
-            }
-            genesis = realm.created;
-            if offset == 0 {
-                offset = realm.last_root_post;
-            }
-        }
+        let iter: Box<dyn Iterator<Item = _>> =
+            match realm_id.and_then(|realm_id| self.realms.get(&realm_id)) {
+                Some(realm) => Box::new(realm.posts.iter().rev().copied()),
+                _ => {
+                    let last_id = if offset > 0 {
+                        offset
+                    } else {
+                        self.next_post_id.saturating_sub(1)
+                    };
+                    Box::new((0..=last_id).rev())
+                }
+            };
         Box::new(
-            {
-                let last_id = if offset > 0 {
-                    offset
-                } else {
-                    self.next_post_id.saturating_sub(1)
-                };
-                Box::new((0..=last_id).rev())
-            }
-            .filter_map(move |i| Post::get(self, &i))
-            .take_while(move |post| post.creation_timestamp() >= genesis)
-            .filter(move |post| {
-                !post.is_deleted()
-                    && (with_comments || post.parent.is_none())
-                    && (realm.is_none() || post.realm == realm_id)
-            }),
+            iter.filter_map(move |i| Post::get(self, &i))
+                .take_while(move |post| post.creation_timestamp() >= genesis)
+                .filter(move |post| !post.is_deleted() && (with_comments || post.parent.is_none())),
         )
     }
 

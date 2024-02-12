@@ -220,7 +220,11 @@ article {
 }
 
 .post_extension article {
-    max-height: 20vh;
+    max-height: 40vh;
+}
+
+.prime .post_extension article {
+    max-height: 150vh;
 }
 
 .post_extension article.overflowing::after {

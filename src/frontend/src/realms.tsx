@@ -55,6 +55,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         last_update: 0,
         revenue: 0,
         last_root_post: 0,
+        created: 0,
     });
     const [controllersString, setControllersString] = React.useState(
         users[userId],

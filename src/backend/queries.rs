@@ -228,11 +228,16 @@ fn realms_data() {
 #[export_name = "canister_query realms"]
 fn realms() {
     let realm_ids: Vec<String> = parse(&arg_data_raw());
-    read(|state| {
+    mutate(|state| {
         reply(
             realm_ids
                 .into_iter()
-                .filter_map(|realm_id| state.realms.get(&realm_id))
+                .filter_map(|realm_id| {
+                    state.realms.remove(&realm_id).map(|mut realm| {
+                        realm.posts.clear();
+                        realm
+                    })
+                })
                 .collect::<Vec<_>>(),
         )
     })
@@ -310,6 +315,7 @@ fn user() {
             _ => return reply(None as Option<User>),
         };
         let user = state.users.get_mut(&user_id).expect("user not found");
+        user.posts.clear();
         if own_profile_fetch {
             user.accounting.clear();
         } else {

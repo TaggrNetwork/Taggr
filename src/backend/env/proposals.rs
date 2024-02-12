@@ -126,12 +126,6 @@ impl Proposal {
         let delay =
             ((100 - (time.saturating_sub(self.timestamp) / (HOUR * 24))).max(1)) as f64 / 100.0;
         let voting_power = (supply_of_users_total as f64 * delay) as u64;
-        if self.voting_power > 0 && self.voting_power > voting_power {
-            state.logger.info(format!(
-                "Decreasing the total voting power on latest proposal from `{}` to `{}`.",
-                self.voting_power, voting_power
-            ));
-        }
         self.voting_power = voting_power;
 
         let (approvals, rejects): (Token, Token) =
