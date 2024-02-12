@@ -1115,7 +1115,7 @@ impl State {
             if let Some(user) = self.users.get_mut(&user_id) {
                 let minted_fractional = tokens as f64 / base as f64;
                 user.notify(format!(
-                    "{} tokens `{}` ${} tokens for you! 💎",
+                    "{} minted `{}` ${} tokens for you! 💎",
                     CONFIG.name, minted_fractional, CONFIG.token_symbol,
                 ));
                 items.push((tokens, minted_fractional, user.name.clone()));
