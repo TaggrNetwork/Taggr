@@ -114,10 +114,8 @@ pub struct Realm {
     pub revenue: Credits,
     theme: String,
     pub whitelist: BTreeSet<UserId>,
-    #[serde(skip)]
-    pub last_root_post: PostId,
     pub created: Time,
-    #[serde(default)]
+    // Root posts assigned to the realm
     pub posts: Vec<PostId>,
 }
 
@@ -394,7 +392,6 @@ impl State {
         post::change_realm(self, post_id, None);
         let realm = self.realms.get_mut(&realm_id).expect("no realm found");
         realm.posts.retain(|id| id != &post_id);
-        realm.num_posts = realm.posts.len();
         if realm_member {
             self.toggle_realm_membership(user_principal, realm_id);
         }
@@ -1945,14 +1942,21 @@ impl State {
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         let iter: Box<dyn Iterator<Item = _>> =
             match realm_id.and_then(|realm_id| self.realms.get(&realm_id)) {
-                Some(realm) => Box::new(realm.posts.iter().rev().copied()),
+                Some(realm) => Box::new(
+                    realm
+                        .posts
+                        .iter()
+                        .rev()
+                        .skip_while(move |post_id| offset > 0 && *post_id > &offset)
+                        .copied(),
+                ),
                 _ => {
                     let last_id = if offset > 0 {
                         offset
                     } else {
-                        self.next_post_id.saturating_sub(1)
+                        self.next_post_id
                     };
-                    Box::new((0..=last_id).rev())
+                    Box::new((0..last_id).rev())
                 }
             };
         Box::new(
@@ -3721,7 +3725,7 @@ pub(crate) mod tests {
                 None,
             )
             .unwrap();
-            assert_eq!(state.realms.get(&name).unwrap().num_posts, 1);
+            assert_eq!(state.realms.get(&name).unwrap().posts.len(), 1);
 
             assert_eq!(
                 Post::get(state, &post_id).unwrap().realm,
@@ -3846,7 +3850,7 @@ pub(crate) mod tests {
             assert!(state.users.get(&_u1).unwrap().realms.contains(&name));
 
             assert_eq!(state.realms.get(&realm_name).unwrap().num_members, 1);
-            assert_eq!(state.realms.get(&realm_name).unwrap().num_posts, 0);
+            assert_eq!(state.realms.get(&realm_name).unwrap().posts.len(), 0);
 
             assert_eq!(
                 Post::create(
@@ -3861,7 +3865,7 @@ pub(crate) mod tests {
                 ),
                 Ok(6)
             );
-            assert_eq!(state.realms.get(&realm_name).unwrap().num_posts, 1);
+            assert_eq!(state.realms.get(&realm_name).unwrap().posts.len(), 1);
 
             assert!(state
                 .users
@@ -3889,7 +3893,7 @@ pub(crate) mod tests {
 
         read(|state| {
             assert_eq!(Post::get(state, &6).unwrap().realm, Some(realm_name));
-            assert_eq!(state.realms.get("TAGGRDAO").unwrap().num_posts, 3);
+            assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 1);
         });
         assert_eq!(
             Post::edit(
@@ -3906,8 +3910,8 @@ pub(crate) mod tests {
         );
 
         read(|state| {
-            assert_eq!(state.realms.get("NEW_REALM").unwrap().num_posts, 0);
-            assert_eq!(state.realms.get("TAGGRDAO").unwrap().num_posts, 4);
+            assert_eq!(state.realms.get("NEW_REALM").unwrap().posts.len(), 0);
+            assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 2);
             assert_eq!(
                 Post::get(state, &6).unwrap().realm,
                 Some("TAGGRDAO".to_string())

@@ -92,6 +92,7 @@ export type Realm = {
     last_update: number;
     last_setting_update: number;
     revenue: number;
+    posts: PostId[];
 };
 
 export type Post = {

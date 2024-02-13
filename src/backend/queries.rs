@@ -192,7 +192,7 @@ fn sorted_realms(
                 Reverse(
                     vp * moderation
                         + (realm.num_members as f32).sqrt() as u64
-                        + (realm.num_posts as f32).sqrt() as u64,
+                        + (realm.posts.len() as f32).sqrt() as u64,
                 )
             }
             _ => Reverse(realm.last_update),
@@ -234,6 +234,7 @@ fn realms() {
                 .into_iter()
                 .filter_map(|realm_id| {
                     state.realms.remove(&realm_id).map(|mut realm| {
+                        realm.num_posts = realm.posts.len();
                         realm.posts.clear();
                         realm
                     })
@@ -315,6 +316,7 @@ fn user() {
             _ => return reply(None as Option<User>),
         };
         let user = state.users.get_mut(&user_id).expect("user not found");
+        user.num_posts = user.posts.len();
         user.posts.clear();
         if own_profile_fetch {
             user.accounting.clear();

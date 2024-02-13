@@ -108,9 +108,6 @@ pub struct User {
     pub notifications: BTreeMap<u64, (Notification, bool)>,
     pub downvotes: BTreeMap<UserId, Time>,
     pub show_posts_in_realms: bool,
-    #[serde(skip)]
-    pub last_post: PostId,
-    #[serde(default)]
     pub posts: Vec<PostId>,
 }
 
@@ -152,7 +149,6 @@ impl User {
             report: None,
             post_reports: Default::default(),
             blacklist: Default::default(),
-            last_post: 0,
             posts: Default::default(),
             account: AccountIdentifier::new(&principal, &DEFAULT_SUBACCOUNT).to_string(),
             settings: Default::default(),
@@ -198,9 +194,6 @@ impl User {
         offset: PostId,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        if self.num_posts == 0 {
-            return Box::new(std::iter::empty());
-        }
         Box::new(
             self.posts
                 .iter()
