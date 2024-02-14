@@ -135,7 +135,12 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
             state
                 .users
                 .values()
-                .filter(|user| user.name.to_lowercase().starts_with(&query))
+                .filter(|user| {
+                    user.previous_names
+                        .iter()
+                        .chain(std::iter::once(&user.name))
+                        .any(|name| name.to_lowercase().starts_with(&query))
+                })
                 .map(|user| SearchResult {
                     id: user.id,
                     relevant: user.about.clone(),
@@ -166,41 +171,9 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
 
 fn wildcard_search(state: &State, term: &str) -> Vec<SearchResult> {
     state
-        .users
+        .realms
         .iter()
-        .filter_map(
-            |(
-                id,
-                User {
-                    name,
-                    about,
-                    previous_names,
-                    ..
-                },
-            )| {
-                if format!("@{} {0} {} {} {:?}", name, id, about, previous_names)
-                    .to_lowercase()
-                    .contains(term)
-                {
-                    return Some(SearchResult {
-                        id: *id,
-                        relevant: about.clone(),
-                        result: "user".to_string(),
-                        ..Default::default()
-                    });
-                }
-                None
-            },
-        )
-        .chain(state.realms.iter().filter_map(|(id, realm)| {
-            if id.to_lowercase().contains(term) {
-                return Some(SearchResult {
-                    generic_id: id.clone(),
-                    relevant: snippet(realm.description.as_str(), 0),
-                    result: "realm".to_string(),
-                    ..Default::default()
-                });
-            }
+        .filter_map(|(id, realm)| {
             if let Some(i) = realm.description.to_lowercase().find(term) {
                 return Some(SearchResult {
                     generic_id: id.clone(),
@@ -210,22 +183,7 @@ fn wildcard_search(state: &State, term: &str) -> Vec<SearchResult> {
                 });
             }
             None
-        }))
-        .chain(
-            state
-                .recent_tags(None, 500)
-                .into_iter()
-                .filter_map(|(tag, _)| {
-                    if format!("#{} {0}", tag).to_lowercase().contains(term) {
-                        return Some(SearchResult {
-                            relevant: tag,
-                            result: "tag".to_string(),
-                            ..Default::default()
-                        });
-                    }
-                    None
-                }),
-        )
+        })
         .chain(
             state
                 .last_posts(None, 0, 0, true)
@@ -323,9 +281,7 @@ pub fn realm_search(state: &State, query: String) -> Vec<(&'_ String, &'_ Realm)
     state
         .realms
         .iter()
-        .filter(|(realm_id, realm)| {
-            realm_id.to_lowercase().contains(query) || realm.description.contains(query)
-        })
+        .filter(|(_realm_id, realm)| realm.description.to_lowercase().contains(query))
         .collect()
 }
 

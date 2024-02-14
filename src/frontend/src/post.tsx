@@ -80,10 +80,7 @@ export const PostView = ({
     level?: number;
 }) => {
     const [post, setPost] = React.useState(data);
-    const [reactions, setReactions] = React.useState<{
-        [id: number]: UserId[];
-    }>({});
-    const [children, setChildren] = React.useState<PostId[]>([]);
+    const [body, setBody] = React.useState("");
     const [notFound, setNotFound] = React.useState(false);
     const [hidden, setHidden] = React.useState(false);
     const [blobs, setBlobs] = React.useState({});
@@ -106,8 +103,15 @@ export const PostView = ({
         if (prime || repost) {
             loadPostBlobs(data.files).then(setBlobs);
         }
-        setReactions(data.reactions);
-        setChildren(data.children);
+
+        let effBody = data.body;
+        if (version != undefined && !isNaN(version)) {
+            for (let i = data.patches.length - 1; i >= version; i--) {
+                const [_timestamp, patch] = data.patches[i];
+                effBody = applyPatch(effBody, patch)[0];
+            }
+        }
+        setBody(effBody);
         setPost(data);
     };
 
@@ -123,47 +127,9 @@ export const PostView = ({
         }
     }, [post, blobs]);
 
-    const registerObserver = () => {
-        const article: any = refArticle.current;
-        if (!article) return;
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry.isIntersecting && post) {
-                    loadPostBlobs(post.files).then((blobs) => {
-                        observer.unobserve(article);
-                        setBlobs(blobs);
-                    });
-                }
-            },
-            {
-                root: null,
-                rootMargin: "750px",
-                threshold: 0,
-            },
-        );
-
-        observer.observe(article);
-
-        return () => {
-            observer.unobserve(article);
-        };
-    };
-
-    React.useEffect(registerObserver, []);
-
-    React.useEffect(registerObserver, [post, safeToOpen]);
-
     if (!post) {
         if (notFound) return <NotFound />;
         return <Loading />;
-    }
-
-    post.effBody = post.body;
-    if (version != undefined && !isNaN(version)) {
-        for (let i = post.patches.length - 1; i >= version; i--) {
-            const [_timestamp, patch] = post.patches[i];
-            post.effBody = applyPatch(post.effBody, patch)[0];
-        }
     }
 
     const commentSubmissionCallback = async (
@@ -182,8 +148,9 @@ export const PostView = ({
             return false;
         }
         const commentId = result.Ok;
-        children.push(Number(commentId));
-        setChildren([...children]);
+        post.children.push(Number(commentId));
+        post.tree_size += 1;
+        setPost({ ...post });
         toggleInfo(false);
         toggleComments(true);
         return true;
@@ -208,12 +175,12 @@ export const PostView = ({
         if (!window.user) return;
         let userId = window.user?.id;
         if (post.user == userId) return;
-        if (!(id in reactions)) {
-            reactions[id] = [];
+        if (!(id in post.reactions)) {
+            post.reactions[id] = [];
         }
-        let users = reactions[id];
+        let users = post.reactions[id];
         if (
-            Object.values(reactions)
+            Object.values(post.reactions)
                 .reduce((acc, users) => acc.concat(users), [])
                 .includes(userId)
         ) {
@@ -224,7 +191,7 @@ export const PostView = ({
             window.reloadUser();
         });
         users.push(userId);
-        setReactions({ ...reactions });
+        setPost({ ...post });
         toggleInfo(commentIncoming);
     };
 
@@ -232,7 +199,7 @@ export const PostView = ({
     const costTable = reactionCosts();
     const isInactive =
         objectReduce(
-            reactions,
+            post.reactions,
             (acc, id, users) => acc + costTable[id as any] * users.length,
             0,
         ) < 0 || post.userObject.rewards < 0;
@@ -253,9 +220,7 @@ export const PostView = ({
     const postCreated =
         post.patches.length > 0 ? post.patches[0][0] : post.timestamp;
     const isNSFW =
-        post.effBody.toLowerCase().includes("#nsfw") &&
-        isFeedItem &&
-        !safeToOpen;
+        body.toLowerCase().includes("#nsfw") && isFeedItem && !safeToOpen;
     const versionSpecified = version != undefined && !isNaN(version);
     version =
         !versionSpecified && post.patches.length > 0
@@ -269,12 +234,12 @@ export const PostView = ({
         postCreated > window.lastVisit ||
         createdRecently;
     const blogTitle =
-        prime && post.effBody.length > 750 && post.effBody.startsWith("# ")
+        prime && body.length > 750 && body.startsWith("# ")
             ? {
                   author: post.userObject.name,
                   realm: post.realm,
                   created: postCreated,
-                  length: post.effBody.length,
+                  length: body.length,
               }
             : undefined;
 
@@ -364,14 +329,11 @@ export const PostView = ({
                         ref={refArticle as unknown as any}
                         onClick={(e) => goInside(e)}
                     >
-                        {/* The key is needed to render different content for different versions to avoid running into diffrrent
-                 number of memorized pieces inside content */}
                         <Content
                             blogTitle={blogTitle}
-                            key={post.effBody}
                             post={true}
-                            value={post.effBody}
                             blobs={blobs}
+                            value={body}
                             collapse={!expanded}
                             primeMode={isRoot(post) && !repost}
                         />
@@ -435,7 +397,7 @@ export const PostView = ({
                     )}
                     <PostInfo
                         post={post}
-                        reactions={reactions}
+                        reactions={post.reactions}
                         version={version}
                         versionSpecified={versionSpecified}
                         postCreated={postCreated}
@@ -444,14 +406,14 @@ export const PostView = ({
                     />
                 </div>
             )}
-            {(showComments || prime) && children.length > 0 && (
+            {(showComments || prime) && post.children.length > 0 && (
                 <Comments
                     heartbeat={`${post.id}_${
-                        Object.keys(children).length
+                        Object.keys(post.children).length
                     }_${showComments}`}
                     level={level + 1}
                     loader={async () =>
-                        await window.api.query("posts", children)
+                        await window.api.query("posts", post.children)
                     }
                 />
             )}
@@ -841,9 +803,13 @@ const PostBar = ({
     const newComments =
         window.user && (post.tree_update > window.lastVisit || updatedRecently);
     const ref = React.useRef(null);
+    const delay =
+        "tap_and_hold" in user.settings
+            ? Number(user.settings.tap_and_hold)
+            : 750;
 
     const unreact = () => {
-        if (Number(new Date()) - timeStart < 300) {
+        if (Number(new Date()) - timeStart < delay) {
             setShowHint(true);
             setTimeout(() => setShowHint(false), 1000);
         }
@@ -856,10 +822,6 @@ const PostBar = ({
 
     const delayedReact = (id: number) => {
         if (cantReact) return;
-        const delay =
-            "tap_and_hold" in user.settings
-                ? Number(user.settings.tap_and_hold)
-                : 750;
         if (delay <= 50) {
             react(id);
             unreact();
@@ -869,8 +831,9 @@ const PostBar = ({
         progressInterval = setInterval(() => {
             reactionIndicatorWidth += 100 / (delay / 50);
             // @ts-ignore
-            ref.current?.style.width = reactionIndicatorWidth + "%";
-            if (reactionIndicatorWidth >= 100) {
+            ref.current?.style.width =
+                Math.min(100, reactionIndicatorWidth) + "%";
+            if (reactionIndicatorWidth > 100) {
                 react(id);
                 unreact();
             }

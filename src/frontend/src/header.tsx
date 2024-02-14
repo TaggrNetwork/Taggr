@@ -135,7 +135,7 @@ export const Header = ({
                                     onClick={() => (location.href = "#/inbox")}
                                     icon={
                                         <>
-                                            <Bell classNameArg="accent" />
+                                            <Bell classNameArg="accent right_half_spaced" />
                                             {messages}
                                         </>
                                     }
