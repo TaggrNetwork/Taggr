@@ -7,7 +7,7 @@ use crate::env::config::CONFIG;
 use crate::env::NNSProposal;
 use candid::{
     utils::{ArgumentDecoder, ArgumentEncoder},
-    CandidType, IDLArgs, Principal,
+    CandidType, Principal,
 };
 use ic_cdk::api::call::{CallResult, RejectionCode};
 use ic_cdk::id;
@@ -252,12 +252,12 @@ pub struct NeuronId {
     pub id: u64,
 }
 
-pub async fn fetch_proposals() -> Result<Vec<NNSProposal>, String> {
-    #[derive(Clone, CandidType, Default, Serialize, Deserialize, PartialEq)]
-    pub struct ProposalId {
-        pub id: u64,
-    }
+#[derive(Clone, CandidType, Default, Serialize, Deserialize, PartialEq)]
+pub struct ProposalId {
+    pub id: u64,
+}
 
+pub async fn fetch_proposals() -> Result<Vec<NNSProposal>, String> {
     #[derive(CandidType, Serialize, Deserialize)]
     pub struct ListProposalInfo {
         pub limit: u32,
@@ -349,30 +349,35 @@ pub async fn get_full_neuron(neuron_id: u64) -> Result<String, String> {
 }
 
 pub async fn vote_on_nns_proposal(proposal_id: u64, vote: NNSVote) -> Result<(), String> {
-    let args = &format!(
-        r#"(record {{
-                id = opt record {{ id = {} : nat64 }};
-                command = opt variant {{
-                    RegisterVote = record {{
-                        vote = {} : int32;
-                        proposal = opt record {{ id = {} : nat64 }}
-                    }}
-                }}
-            }})"#,
-        CONFIG.neuron_id, vote as i32, proposal_id
-    )
-    .parse::<IDLArgs>()
-    .map_err(|err| format!("couldn't parse args: {:?}", err))?
-    .to_bytes()
-    .map_err(|err| format!("couldn't serialize args: {:?}", err))?;
+    #[derive(CandidType, Serialize)]
+    enum Command {
+        RegisterVote {
+            vote: i32,
+            proposal: Option<ProposalId>,
+        },
+    }
+    #[derive(CandidType, Serialize)]
+    struct NnsVoteArgs {
+        id: Option<ProposalId>,
+        command: Option<Command>,
+    }
+    let args = NnsVoteArgs {
+        id: Some(ProposalId {
+            id: CONFIG.neuron_id,
+        }),
+        command: Some(Command::RegisterVote {
+            vote: vote as i32,
+            proposal: Some(ProposalId { id: proposal_id }),
+        }),
+    };
+    let encoded_args = candid::utils::encode_one(args).expect("failed to encode args");
 
     let method = "manage_neuron";
     // Sometimes we can't vote because the governance canister gets an upgrade,
     // so we try at most 10 times
     let mut attempts: i16 = 10;
     loop {
-        let result =
-            call_canister_raw(MAINNET_GOVERNANCE_CANISTER_ID, method, args.as_slice()).await;
+        let result = call_canister_raw(MAINNET_GOVERNANCE_CANISTER_ID, method, &encoded_args).await;
 
         attempts -= 1;
 
