@@ -112,6 +112,7 @@ export const PostView = ({
             }
         }
         setBody(effBody);
+        setBlobs(await loadPostBlobs(data.files));
         setPost(data);
     };
 
@@ -794,9 +795,8 @@ const PostBar = ({
     // @ts-ignore
     const users: UserId[] = [].concat(...Object.values(post.reactions));
     let user = window.user;
-    if (!user) return;
-    let user_id = user.id;
-    const cantReact = users.includes(user_id) || post.user == user_id;
+    const cantReact =
+        !user || users.includes(user?.id) || post.user == user?.id;
     const updatedRecently =
         Number(new Date()) - Number(post.tree_update) / 1000000 <
         30 * 60 * 1000;
@@ -804,7 +804,7 @@ const PostBar = ({
         window.user && (post.tree_update > window.lastVisit || updatedRecently);
     const ref = React.useRef(null);
     const delay =
-        "tap_and_hold" in user.settings
+        user && "tap_and_hold" in user.settings
             ? Number(user.settings.tap_and_hold)
             : 750;
 

@@ -255,8 +255,8 @@ article.overflowing::after {
     border: 4px dashed orange;
 }
 
-.feed_item .post_head {
-    padding-bottom: 0.8rem;
+.comments .post_head {
+    padding-bottom: 0;
 }
 
 .post_head {
@@ -264,6 +264,7 @@ article.overflowing::after {
     border-top-right-radius: 10px;
     font-size: medium;
     padding: 0;
+    padding-bottom: 0.8rem;
     padding-top: 0.8rem;
 }
 

@@ -70,37 +70,7 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {
-    mutate(|state| {
-        for u in state.users.values_mut() {
-            u.posts.clear();
-        }
-        for u in state.realms.values_mut() {
-            u.posts.clear();
-        }
-
-        let posts = (0..state.next_post_id)
-            .filter_map(|id| Post::get(state, &id))
-            .map(|post| {
-                (
-                    post.id,
-                    post.user,
-                    if post.parent.is_none() {
-                        post.realm.clone()
-                    } else {
-                        None
-                    },
-                )
-            })
-            .collect::<Vec<_>>();
-        posts.into_iter().for_each(|(post_id, user_id, realm)| {
-            if let Some(realm_id) = realm.as_ref() {
-                state.realms.get_mut(realm_id).unwrap().posts.push(post_id);
-            }
-            state.users.get_mut(&user_id).unwrap().posts.push(post_id);
-        })
-    });
-}
+async fn post_upgrade_fixtures() {}
 
 /*
  * UPDATES
