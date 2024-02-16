@@ -1180,6 +1180,9 @@ impl State {
                 CONFIG.name, minted_tokens, CONFIG.token_symbol, ratio
             );
             self.distribution_reports.push(summary);
+            for user in self.users.values_mut() {
+                user.karma_donations.clear();
+            }
         }
     }
 
@@ -1668,7 +1671,6 @@ impl State {
                     "inactivity_penalty".to_string(),
                 );
             }
-            user.karma_donations.clear();
             user.post_reports
                 .retain(|_, timestamp| *timestamp + CONFIG.user_report_validity_days * DAY >= now);
         }
@@ -3122,6 +3124,9 @@ pub(crate) mod tests {
             state.balances.remove(&minting_acc);
             state.minting_mode = true;
             state.mint();
+            for u in state.users.values() {
+                assert!(u.karma_donations.is_empty());
+            }
 
             assert_eq!(state.balances.len(), 5);
             assert_eq!(*state.balances.get(&account(pr(0))).unwrap(), 95155);
@@ -4301,13 +4306,6 @@ pub(crate) mod tests {
                 .is_empty());
 
             state.clean_up(WEEK);
-
-            assert!(state
-                .users
-                .get_mut(&inactive_id1)
-                .unwrap()
-                .karma_donations
-                .is_empty())
         })
     }
 
