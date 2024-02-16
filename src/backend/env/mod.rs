@@ -2330,8 +2330,8 @@ impl State {
                 let post_author = self.users.get_mut(&post_user).expect("no user found");
                 post_author.post_reports.insert(id, time());
                 post_author.notify(format!(
-                    "Your [post](#/post/{}) was reported. Consider deleting it to avoid rewards and credit penalties.",
-                    id
+                    "Your [post](#/post/{}) was reported. Consider deleting it to avoid rewards and credit penalties. The reason for the report: {}",
+                    id, &report.expect("no report").reason
                 ));
             }
             "misbehaviour" => {
