@@ -7,8 +7,11 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
-ic-cdk = "0.12.1"
 candid = "0.10.3"
+ic-cdk = "0.12.1"
+ic-cdk-macros = "0.8.1"
+serde = { version = "1.0.192", features = ["derive"] }
+serde_bytes = "0.11.12"
 
 [features]
 dev = []

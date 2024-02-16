@@ -628,39 +628,6 @@ export const BurgerButton = ({
     );
 };
 
-export const loadPostBlobs = async (files: {
-    [id: string]: [number, number];
-}) => {
-    const ids = Object.keys(files);
-    const blobs: [string, ArrayBuffer][] = await Promise.all(
-        ids.map(async (id) => {
-            const [blobId, bucket_id] = id.split("@");
-            const [offset, len] = files[id];
-            let offsetBEBytes = intToBEBytes(offset);
-            let lenBEBytes = intToBEBytes(len);
-            let args = new Uint8Array(offsetBEBytes.length + lenBEBytes.length);
-            args.set(offsetBEBytes);
-            args.set(lenBEBytes, offsetBEBytes.length);
-            // This allows us to see the bucket pics in dev mode.
-            const api = window.backendCache.stats.buckets.every(
-                ([id]) => id != bucket_id,
-            )
-                ? window.mainnet_api
-                : window.api;
-            return api
-                .query_raw(bucket_id, "read", Buffer.from(args))
-                .then((blob) => [blobId, blob || new ArrayBuffer(0)]);
-        }),
-    );
-    return blobs.reduce(
-        (acc, [blobId, blob]) => {
-            acc[blobId] = blob;
-            return acc;
-        },
-        {} as { [id: string]: ArrayBuffer },
-    );
-};
-
 const dmp = new DiffMatchPatch();
 
 export const getPatch = (A: string, B: string) =>
@@ -1029,7 +996,7 @@ const checkUserFilterMatch = (
     if (safe && controversialUser(user)) {
         return `negative rewards or a report is pending or was confirmed in the last ${user_report_validity_days} days`;
     }
-    if (balance * tokenBase() > user.balance) {
+    if (balance * tokenBase() > user.balance + user.cold_balance) {
         return "token balance too low";
     }
     if (num_followers > user.followers.length) {

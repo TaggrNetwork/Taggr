@@ -35,7 +35,7 @@ export const Form = ({
     submitCallback,
     writingCallback = () => {},
     repost,
-    blobs,
+    urls,
     content,
 }: {
     postId?: PostId;
@@ -50,7 +50,7 @@ export const Form = ({
     ) => Promise<boolean>;
     writingCallback?: (arg: string) => void;
     repost?: PostId;
-    blobs?: { [id: string]: Uint8Array };
+    urls?: { [id: string]: string };
     content?: string;
 }) => {
     const draftKey = `draft_for_${comment ? "comment" : "post"}_${postId}`;
@@ -62,6 +62,9 @@ export const Form = ({
     const [dragAndDropping, setDragAndDropping] = React.useState(false);
     const [tmpBlobs, setTmpBlobs] = React.useState<{
         [name: string]: Uint8Array;
+    }>({});
+    const [tmpUrls, setTmpUrls] = React.useState<{
+        [name: string]: string;
     }>({});
     const [busy, setBusy] = React.useState(false);
     const [poll, setPoll] = React.useState<PollType>();
@@ -90,19 +93,23 @@ export const Form = ({
             return false;
         }
         setSubmitting(true);
-        const blobArrays = Object.keys(tmpBlobs).reduce(
-            (acc, id) => {
-                if (value.includes(`(/blob/${id})`)) {
-                    // @ts-ignore
-                    acc.push([id, [...tmpBlobs[id]]]);
-                }
-                return acc;
-            },
-            [] as [string, Uint8Array][],
+
+        // Note that `tmpUrls` contains ids and urls for both existing and new
+        // blobs. Find which ids are actually referenced in the text and then
+        // collect their blobs in `blobArrays`.
+        const blobIds = Object.keys(tmpUrls).filter((id) =>
+            value.includes(`(/blob/${id})`),
         );
+        const blobArrays = [] as [string, Uint8Array][];
+        for (const id of blobIds) {
+            if (tmpBlobs[id]) {
+                blobArrays.push([id, tmpBlobs[id]]);
+            }
+        }
+
         if (
             (value.match(/!\[.*?\]\(\/blob\/.*?\)/g) || []).length !=
-            blobArrays.length
+            blobIds.length
         ) {
             alert(
                 "You're referencing pictures that are not attached anymore. Please re-upload.",
@@ -180,6 +187,8 @@ export const Form = ({
             let key = await hash(resized_content_bytes);
             tmpBlobs[key] = resized_content_bytes;
             setTmpBlobs(tmpBlobs);
+            tmpUrls[key] = blobToUrl(resized_content_bytes);
+            setTmpUrls(tmpUrls);
             image = await loadImage(resized_content);
             fileLinks.push(
                 `![${image.width}x${image.height}, ${size}kb](/blob/${key})`,
@@ -253,8 +262,8 @@ export const Form = ({
         }, 1000);
     }, [value, poll]);
     React.useEffect(() => {
-        if (blobs) setTmpBlobs(blobs);
-    }, [blobs]);
+        if (urls) setTmpUrls(urls);
+    }, [urls]);
     React.useEffect(() => setRealm(realmArg), [realmArg]);
     React.useEffect(() => {
         const effContent = content || localStorage.getItem(draftKey) || "";
@@ -292,7 +301,7 @@ export const Form = ({
         >
             <Content
                 post={true}
-                blobs={tmpBlobs}
+                urls={tmpUrls}
                 value={value}
                 preview={true}
                 primeMode={postId == null}

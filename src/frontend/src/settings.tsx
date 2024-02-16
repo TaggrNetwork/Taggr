@@ -250,8 +250,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                     notification in your inbox,
                                 </li>
                                 <li>
-                                    posts of which users will appear in the
-                                    "NEW" tab on your landing page.
+                                    posts of which users will appear in all tabs
+                                    on your landing page.
                                 </li>
                             </ul>
                         </div>

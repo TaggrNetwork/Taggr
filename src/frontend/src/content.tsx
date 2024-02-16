@@ -1,6 +1,6 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowDown, RealmSpan, blobToUrl, timeAgo } from "./common";
+import { ArrowDown, RealmSpan, timeAgo } from "./common";
 import remarkGfm from "remark-gfm";
 import { BlogTitle } from "./types";
 import { previewImg } from "./image_preview";
@@ -67,7 +67,7 @@ export const Content = ({
     post,
     blogTitle,
     value = "",
-    blobs,
+    urls,
     collapse,
     preview,
     primeMode,
@@ -76,14 +76,12 @@ export const Content = ({
     post?: boolean;
     blogTitle?: BlogTitle;
     value: string;
-    blobs?: { [id: string]: ArrayBuffer };
+    urls?: { [id: string]: string };
     collapse?: boolean;
     preview?: boolean;
     primeMode?: boolean;
     classNameArg?: string;
 }) => {
-    const [urls, setUrls] = React.useState({});
-
     value = linkTagsAndUsers(value);
 
     if (!post)
@@ -123,31 +121,16 @@ export const Content = ({
     return React.useMemo(
         () => (
             <>
-                {markdownizer(
-                    value,
-                    urls,
-                    setUrls,
-                    blobs,
-                    blogTitle,
-                    preview,
-                    className,
-                )}
+                {markdownizer(value, urls || {}, blogTitle, preview, className)}
                 {shortened &&
                     (collapse ? (
                         <ArrowDown />
                     ) : (
-                        markdownizer(
-                            extValue,
-                            urls,
-                            setUrls,
-                            blobs,
-                            undefined,
-                            preview,
-                        )
+                        markdownizer(extValue, urls || {}, undefined, preview)
                     ))}
             </>
         ),
-        [value, extValue, blobs, collapse],
+        [value, extValue, urls, collapse],
     );
 };
 
@@ -211,8 +194,6 @@ const linkRenderer =
 const markdownizer = (
     value: string,
     urls: { [id: string]: string },
-    setUrls: (arg: { [id: string]: string }) => void,
-    blobs?: { [id: string]: ArrayBuffer },
     blogTitle?: BlogTitle,
     preview?: boolean,
     className?: string,
@@ -266,12 +247,6 @@ const markdownizer = (
                 },
                 img: ({ node, ...props }: any) => {
                     let srcUrl;
-                    try {
-                        if (!props.src.startsWith("/blob/"))
-                            srcUrl = new URL(props.src);
-                    } catch (_) {
-                        return null;
-                    }
                     let id: string = props.src;
                     let internal = false;
                     if (props.src.startsWith("/blob/")) {
@@ -279,14 +254,15 @@ const markdownizer = (
                         id = props.src.replace("/blob/", "");
                         if (id in urls) {
                             props.src = urls[id];
-                        } else if (blobs && id in blobs) {
-                            const url = blobToUrl(blobs[id]);
-                            urls[id] = url;
-                            setUrls(urls);
-                            props.src = url;
                         } else {
                             setDimensions(props);
                             props.src = fillerImg;
+                        }
+                    } else {
+                        try {
+                            srcUrl = new URL(props.src);
+                        } catch (_) {
+                            return null;
                         }
                     }
                     const element = (
@@ -354,7 +330,6 @@ const YouTube = ({ id, preview }: { id: string; preview?: boolean }) => {
         return (
             <span className="video-container" style={{ display: "block" }}>
                 <iframe
-                    loading="lazy"
                     allowFullScreen={true}
                     referrerPolicy="origin"
                     frameBorder="0"

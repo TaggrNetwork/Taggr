@@ -9,7 +9,6 @@ import {
     ToggleButton,
     NotFound,
     applyPatch,
-    loadPostBlobs,
     ShareButton,
     commaSeparated,
     Loading,
@@ -49,6 +48,7 @@ import {
 } from "./icons";
 import { ProposalView } from "./proposals";
 import { Post, PostId, UserId } from "./types";
+import { MAINNET_MODE } from "./env";
 
 export const PostView = ({
     id,
@@ -83,7 +83,6 @@ export const PostView = ({
     const [body, setBody] = React.useState("");
     const [notFound, setNotFound] = React.useState(false);
     const [hidden, setHidden] = React.useState(false);
-    const [blobs, setBlobs] = React.useState({});
     const [showComments, toggleComments] = React.useState(!!prime);
     const [showInfo, toggleInfo] = React.useState(false);
     const [safeToOpen, setSafeToOpen] = React.useState(false);
@@ -99,10 +98,6 @@ export const PostView = ({
             setNotFound(true);
             return;
         }
-        // if the post is in prime mode, load pics right away
-        if (prime || repost) {
-            loadPostBlobs(data.files).then(setBlobs);
-        }
 
         let effBody = data.body;
         if (version != undefined && !isNaN(version)) {
@@ -112,7 +107,6 @@ export const PostView = ({
             }
         }
         setBody(effBody);
-        setBlobs(await loadPostBlobs(data.files));
         setPost(data);
     };
 
@@ -126,7 +120,7 @@ export const PostView = ({
             article.classList.add("overflowing");
             setShowExpandButton(true);
         }
-    }, [post, blobs]);
+    }, [post]);
 
     if (!post) {
         if (notFound) return <NotFound />;
@@ -333,10 +327,10 @@ export const PostView = ({
                         <Content
                             blogTitle={blogTitle}
                             post={true}
-                            blobs={blobs}
                             value={body}
                             collapse={!expanded}
                             primeMode={isRoot(post) && !repost}
+                            urls={filesToUrls(post.files)}
                         />
                     </article>
                 )}
@@ -1026,3 +1020,29 @@ const objectReduce = (
     f: (acc: number, key: string, val: UserId[]) => number,
     initVal: number,
 ) => Object.keys(obj).reduce((acc, key) => f(acc, key, obj[key]), initVal);
+
+export const filesToUrls = (files: { [id: string]: [number, number] }) =>
+    Object.keys(files).reduce(
+        (acc, key) => {
+            const [id, bucketId] = key.split("@");
+            const [offset, len] = files[key];
+            acc[id] = bucket_image_url(bucketId, offset, len);
+            return acc;
+        },
+        {} as { [id: string]: string },
+    );
+
+function bucket_image_url(bucket_id: string, offset: number, len: number) {
+    // Fall back to the mainnet if the local config doesn't contain the bucket.
+    let fallback_to_mainnet = !window.backendCache.stats.buckets.find(
+        ([id, _y]) => id == bucket_id,
+    );
+    let host =
+        MAINNET_MODE || fallback_to_mainnet
+            ? `https://${bucket_id}.raw.icp0.io`
+            : `http://127.0.0.1:8080`;
+    return (
+        `${host}/image?offset=${offset}&len=${len}` +
+        (MAINNET_MODE ? "" : `&canisterId=${bucket_id}`)
+    );
+}

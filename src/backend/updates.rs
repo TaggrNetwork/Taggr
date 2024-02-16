@@ -70,7 +70,9 @@ fn post_upgrade() {
     });
 }
 
-async fn post_upgrade_fixtures() {}
+async fn post_upgrade_fixtures() {
+    env::storage::upgrade_buckets().await;
+}
 
 /*
  * UPDATES

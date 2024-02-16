@@ -73,11 +73,11 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
                     <ul>
                         <li>
                             <code>@XZY</code>: will show all users with names
-                            starting with "XZY". matching the prefix.
+                            starting with "XZY".
                         </li>
                         <li>
                             <code>/ABC</code>: will show all realms with names
-                            starting with "ABC". matching the prefix.
+                            starting with "ABC".
                         </li>
                         <li>
                             <code>@XYZ WORD</code>: will show all posts from

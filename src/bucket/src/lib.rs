@@ -1,10 +1,35 @@
-use candid::Principal;
+use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::api::{
     self,
     call::{arg_data_raw, reply_raw},
     canister_balance,
     stable::*,
 };
+use serde::Serialize;
+use serde_bytes::ByteBuf;
+
+mod url;
+
+// An upper bound on the blob size. Queries above this size will be rejected
+// without trying to read the stable memory.
+const MAX_BLOB_SIZE: u64 = 8 * 1024 * 1024;
+
+// HTTP request and responst headers.
+type Headers = Vec<(String, String)>;
+
+#[derive(CandidType, Deserialize)]
+struct HttpRequest {
+    url: String,
+    headers: Headers,
+}
+
+#[derive(CandidType, Default, Serialize)]
+struct HttpResponse {
+    status_code: u16,
+    headers: Headers,
+    body: ByteBuf,
+    upgrade: Option<bool>,
+}
 
 static mut CONTROLLER: Option<Principal> = None;
 
@@ -36,26 +61,54 @@ fn balance() {
     reply_raw(&canister_balance().to_be_bytes())
 }
 
-#[export_name = "canister_query read"]
-fn read() {
-    let args = &arg_data_raw();
-    let offset = bytes_to_u64(args, 0);
-    let len = bytes_to_u64(args, 8);
-    let mut buf = Vec::with_capacity(len as usize);
-    buf.spare_capacity_mut();
-    unsafe {
-        buf.set_len(len as usize);
+#[ic_cdk_macros::query]
+fn http_request(req: HttpRequest) -> HttpResponse {
+    let url = url::parse(&req.url);
+    match url.path {
+        "/image" => http_image(url.args),
+        _ => HttpResponse {
+            status_code: 404,
+            ..Default::default()
+        },
     }
-    stable64_read(offset, &mut buf);
-    reply_raw(&buf);
 }
 
-#[export_name = "canister_update update_pointer"]
-fn update_pointer() {
-    assert_controller();
-    let blob = arg_data_raw();
-    api::stable::stable64_write(0, &blob);
-    reply_raw(&blob);
+/// Serves a PNG image from the stable memory.
+/// It expects the arguments in the form: `offset=123&len=456`.
+fn http_image(args: &str) -> HttpResponse {
+    const HEADERS: &[(&str, &str)] = &[
+        ("Content-Type", "image/png"),
+        ("Cache-Control", "public, max-age=1000000"),
+    ];
+
+    fn error(msg: &str) -> HttpResponse {
+        HttpResponse {
+            status_code: 400,
+            body: ByteBuf::from(msg.as_bytes()),
+            ..Default::default()
+        }
+    }
+
+    let offset = url::find_arg_value(args, "offset=").and_then(|v| v.parse::<u64>().ok());
+
+    let len = url::find_arg_value(args, "len=").and_then(|v| v.parse::<u64>().ok());
+
+    if offset.is_none() || len.is_none() {
+        return error("Invalid or missing arguments");
+    }
+
+    match read_blob(offset.unwrap(), len.unwrap()) {
+        Ok(blob) => HttpResponse {
+            status_code: 200,
+            headers: HEADERS
+                .iter()
+                .map(|(key, value)| (key.to_string(), value.to_string()))
+                .collect(),
+            body: ByteBuf::from(blob),
+            upgrade: None,
+        },
+        Err(msg) => error(msg),
+    }
 }
 
 #[export_name = "canister_update write"]
@@ -100,4 +153,21 @@ fn bytes_to_u64(bytes: &[u8], offset: usize) -> u64 {
     let mut arr: [u8; 8] = Default::default();
     arr.copy_from_slice(&bytes[offset..offset + 8]);
     u64::from_be_bytes(arr)
+}
+
+fn read_blob(offset: u64, len: u64) -> Result<Vec<u8>, &'static str> {
+    if offset.saturating_add(len) > (stable64_size() << 16) {
+        return Err("blob offset and length are invalid");
+    }
+    if len > MAX_BLOB_SIZE {
+        return Err("blob length is too large");
+    }
+    let mut buf = Vec::with_capacity(len as usize);
+    buf.spare_capacity_mut();
+    unsafe {
+        // SAFETY: The length is equal to the capacity.
+        buf.set_len(len as usize);
+    }
+    stable64_read(offset, &mut buf);
+    Ok(buf)
 }
