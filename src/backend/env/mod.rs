@@ -190,8 +190,10 @@ pub struct State {
 
     pub distribution_reports: Vec<Summary>,
 
-    #[serde(default)]
     migrations: BTreeSet<UserId>,
+
+    #[serde(default)]
+    pub posts_with_tags: Vec<PostId>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -1920,7 +1922,7 @@ impl State {
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let query: HashSet<_> = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
         Box::new(
-            self.last_posts(realm, offset, 0, true)
+            self.posts_with_tags(realm, offset, true)
                 .filter(move |post| {
                     (users.is_empty() || users.contains(&post.user))
                         && post
@@ -1932,6 +1934,26 @@ impl State {
                 })
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size),
+        )
+    }
+
+    fn posts_with_tags<'a>(
+        &'a self,
+        realm_id: Option<RealmId>,
+        offset: PostId,
+        with_comments: bool,
+    ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+        Box::new(
+            self.posts_with_tags
+                .iter()
+                .rev()
+                .skip_while(move |post_id| offset > 0 && *post_id > &offset)
+                .filter_map(move |i| Post::get(self, &i))
+                .filter(move |post| {
+                    !post.is_deleted()
+                        && (with_comments || post.parent.is_none())
+                        && (realm_id.is_none() || post.realm == realm_id)
+                }),
         )
     }
 
@@ -1972,7 +1994,7 @@ impl State {
         let mut tags: HashMap<String, u64> = Default::default();
         let mut tags_found = 0;
         'OUTER: for post in self
-            .last_posts(realm, 0, time().saturating_sub(2 * WEEK), true)
+            .posts_with_tags(realm, 0, true)
             .take_while(|post| !post.archived)
         {
             for tag in &post.tags {

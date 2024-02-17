@@ -66,11 +66,23 @@ fn post_upgrade() {
 
     // post upgrade logic goes here
     set_timer(Duration::from_millis(0), move || {
-        spawn(post_upgrade_fixtures())
+        spawn(post_upgrade_fixtures());
+        spawn(post_upgrade_fixtures2());
     });
 }
 
+async fn post_upgrade_fixtures2() {
+    // create hashtag index
+    mutate(|state| {
+        state.posts_with_tags = (0..state.next_post_id)
+            .filter_map(|post_id| Post::get(state, &post_id))
+            .filter_map(|post| (!post.tags.is_empty()).then_some(post.id))
+            .collect();
+    })
+}
+
 async fn post_upgrade_fixtures() {
+    // restore minting
     mutate(|state| {
         let base = token::base();
         state.minting_mode = true;

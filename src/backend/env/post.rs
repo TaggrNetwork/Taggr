@@ -557,9 +557,12 @@ impl Post {
         post.id = id;
         if let Some(realm) = realm.and_then(|name| state.realms.get_mut(&name)) {
             if parent.is_none() {
-                realm.posts.push(id);
+                realm.posts.push(post.id);
             }
             realm.last_update = timestamp;
+        }
+        if !post.tags.is_empty() {
+            state.posts_with_tags.push(post.id)
         }
         if let Some(parent_id) = post.parent {
             let result = Post::mutate(state, &parent_id, |parent_post| {
