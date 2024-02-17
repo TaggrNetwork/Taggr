@@ -44,7 +44,7 @@ impl HttpRequest {
     }
 }
 
-#[derive(Debug, CandidType, Serialize, Clone)]
+#[derive(Debug, CandidType, Serialize)]
 pub struct HttpResponse {
     status_code: u16,
     headers: Headers,
@@ -72,16 +72,16 @@ fn http_request(req: HttpRequest) -> HttpResponse {
     use serde_json;
     use std::str::FromStr;
 
-    if req.path() == "/proposals" {
-        read(|s| {
+    if req.path() == "/api/v1/proposals" {
+        read(|state| {
             let offset = usize::from_str(req.raw_query_param("offset").unwrap_or_default())
                 .unwrap_or_default()
-                .min(s.proposals.len());
+                .min(state.proposals.len());
             let limit = usize::from_str(req.raw_query_param("limit").unwrap_or_default())
                 .unwrap_or(1_000_usize);
-            let end = (offset + limit).min(s.proposals.len());
+            let end = (offset + limit).min(state.proposals.len());
 
-            let proposal_slice = if let Some(slice) = s.proposals.get(offset..end) {
+            let proposal_slice = if let Some(slice) = state.proposals.get(offset..end) {
                 slice
             } else {
                 &[]
@@ -216,7 +216,7 @@ fn should_return_proposals() {
     use crate::State;
 
     let mut http_request_arg = HttpRequest {
-        url: "/proposals".to_string(),
+        url: "/api/v1/proposals".to_string(),
         headers: vec![],
     };
     let mut state = State::default();
@@ -246,12 +246,12 @@ fn should_return_proposals() {
 
     check_proposals(http_request_arg.clone(), 10_usize, 0_u32, 9_u32);
 
-    http_request_arg.url = "/proposals?limit=5".to_string();
+    http_request_arg.url = "/api/v1/proposals?limit=5".to_string();
     check_proposals(http_request_arg.clone(), 5_usize, 0_u32, 4_u32);
 
-    http_request_arg.url = "/proposals?limit=3&offset=6".to_string();
+    http_request_arg.url = "/api/v1/proposals?limit=3&offset=6".to_string();
     check_proposals(http_request_arg.clone(), 3_usize, 6_u32, 8_u32);
 
-    http_request_arg.url = "/proposals?offset=6&limit=3".to_string();
+    http_request_arg.url = "/api/v1/proposals?offset=6&limit=3".to_string();
     check_proposals(http_request_arg.clone(), 3_usize, 6_u32, 8_u32);
 }
