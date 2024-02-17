@@ -77,8 +77,8 @@ export type Proposal = {
 };
 
 export type Realm = {
+    adult_content: boolean;
     created: number;
-    last_root_post: number;
     cleanup_penalty: number;
     controllers: UserId[];
     description: string;

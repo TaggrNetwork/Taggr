@@ -78,6 +78,14 @@ async fn post_upgrade_fixtures2() {
             .filter_map(|post_id| Post::get(state, &post_id))
             .filter_map(|post| (!post.tags.is_empty()).then_some(post.id))
             .collect();
+
+        for realm_id in &["WEED", "FIREARMS", "ONLYFANSHUB", "DRINKS", "BEAUTY"] {
+            state
+                .realms
+                .get_mut(&realm_id.to_string())
+                .unwrap()
+                .adult_content = true;
+        }
     })
 }
 

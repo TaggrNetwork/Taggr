@@ -117,6 +117,8 @@ pub struct Realm {
     pub created: Time,
     // Root posts assigned to the realm
     pub posts: Vec<PostId>,
+    #[serde(default)]
+    pub adult_content: bool,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -625,6 +627,7 @@ impl State {
             whitelist,
             filter,
             cleanup_penalty,
+            adult_content,
             ..
         } = realm;
         let user = self.principal_to_user(principal).ok_or("no user found")?;
@@ -655,6 +658,7 @@ impl State {
         realm.filter = filter;
         realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty);
         realm.last_setting_update = time();
+        realm.adult_content = adult_content;
         if description_change {
             self.notify_with_filter(
                 &|user| user.realms.contains(&name),
