@@ -117,6 +117,8 @@ pub struct Realm {
     pub created: Time,
     // Root posts assigned to the realm
     pub posts: Vec<PostId>,
+    #[serde(default)]
+    pub adult_content: bool,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -190,8 +192,10 @@ pub struct State {
 
     pub distribution_reports: Vec<Summary>,
 
-    #[serde(default)]
     migrations: BTreeSet<UserId>,
+
+    #[serde(default)]
+    pub posts_with_tags: Vec<PostId>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -623,6 +627,7 @@ impl State {
             whitelist,
             filter,
             cleanup_penalty,
+            adult_content,
             ..
         } = realm;
         let user = self.principal_to_user(principal).ok_or("no user found")?;
@@ -653,6 +658,7 @@ impl State {
         realm.filter = filter;
         realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty);
         realm.last_setting_update = time();
+        realm.adult_content = adult_content;
         if description_change {
             self.notify_with_filter(
                 &|user| user.realms.contains(&name),
@@ -1180,6 +1186,9 @@ impl State {
                 CONFIG.name, minted_tokens, CONFIG.token_symbol, ratio
             );
             self.distribution_reports.push(summary);
+            for user in self.users.values_mut() {
+                user.karma_donations.clear();
+            }
         }
     }
 
@@ -1668,7 +1677,6 @@ impl State {
                     "inactivity_penalty".to_string(),
                 );
             }
-            user.karma_donations.clear();
             user.post_reports
                 .retain(|_, timestamp| *timestamp + CONFIG.user_report_validity_days * DAY >= now);
         }
@@ -1918,7 +1926,7 @@ impl State {
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let query: HashSet<_> = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
         Box::new(
-            self.last_posts(realm, offset, 0, true)
+            self.posts_with_tags(realm, offset, true)
                 .filter(move |post| {
                     (users.is_empty() || users.contains(&post.user))
                         && post
@@ -1930,6 +1938,26 @@ impl State {
                 })
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size),
+        )
+    }
+
+    fn posts_with_tags<'a>(
+        &'a self,
+        realm_id: Option<RealmId>,
+        offset: PostId,
+        with_comments: bool,
+    ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+        Box::new(
+            self.posts_with_tags
+                .iter()
+                .rev()
+                .skip_while(move |post_id| offset > 0 && *post_id > &offset)
+                .filter_map(move |i| Post::get(self, i))
+                .filter(move |post| {
+                    !post.is_deleted()
+                        && (with_comments || post.parent.is_none())
+                        && (realm_id.is_none() || post.realm == realm_id)
+                }),
         )
     }
 
@@ -1970,7 +1998,7 @@ impl State {
         let mut tags: HashMap<String, u64> = Default::default();
         let mut tags_found = 0;
         'OUTER: for post in self
-            .last_posts(realm, 0, time().saturating_sub(2 * WEEK), true)
+            .posts_with_tags(realm, 0, true)
             .take_while(|post| !post.archived)
         {
             for tag in &post.tags {
@@ -2306,12 +2334,12 @@ impl State {
                 ))
             }
         };
-        let report = Some(Report {
+        let report = Report {
             reporter: user_id,
             reason,
             timestamp: time(),
             ..Default::default()
-        });
+        };
 
         match domain.as_str() {
             "post" => {
@@ -2319,7 +2347,7 @@ impl State {
                     if post.report.as_ref().map(|r| !r.closed).unwrap_or_default() {
                         return Err("this post is already reported".into());
                     }
-                    post.report = report.clone();
+                    post.report = Some(report.clone());
                     Ok(post.user)
                 })?;
                 self.notify_with_predicate(
@@ -2330,8 +2358,8 @@ impl State {
                 let post_author = self.users.get_mut(&post_user).expect("no user found");
                 post_author.post_reports.insert(id, time());
                 post_author.notify(format!(
-                    "Your [post](#/post/{}) was reported. Consider deleting it to avoid rewards and credit penalties.",
-                    id
+                    "Your [post](#/post/{}) was reported. Consider deleting it to avoid rewards and credit penalties. The reason for the report: {}",
+                    id, &report.reason
                 ));
             }
             "misbehaviour" => {
@@ -2344,7 +2372,7 @@ impl State {
                 {
                     return Err("this user is already reported".into());
                 }
-                misbehaving_user.report = report;
+                misbehaving_user.report = Some(report);
                 let user_name = misbehaving_user.name.clone();
                 self.notify_with_predicate(
                     &|u| u.stalwart && u.id != id,
@@ -3122,6 +3150,9 @@ pub(crate) mod tests {
             state.balances.remove(&minting_acc);
             state.minting_mode = true;
             state.mint();
+            for u in state.users.values() {
+                assert!(u.karma_donations.is_empty());
+            }
 
             assert_eq!(state.balances.len(), 5);
             assert_eq!(*state.balances.get(&account(pr(0))).unwrap(), 95155);
@@ -4301,13 +4332,6 @@ pub(crate) mod tests {
                 .is_empty());
 
             state.clean_up(WEEK);
-
-            assert!(state
-                .users
-                .get_mut(&inactive_id1)
-                .unwrap()
-                .karma_donations
-                .is_empty())
         })
     }
 
