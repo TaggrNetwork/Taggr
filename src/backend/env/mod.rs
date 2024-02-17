@@ -1952,7 +1952,7 @@ impl State {
                 .iter()
                 .rev()
                 .skip_while(move |post_id| offset > 0 && *post_id > &offset)
-                .filter_map(move |i| Post::get(self, &i))
+                .filter_map(move |i| Post::get(self, i))
                 .filter(move |post| {
                     !post.is_deleted()
                         && (with_comments || post.parent.is_none())
@@ -2334,12 +2334,12 @@ impl State {
                 ))
             }
         };
-        let report = Some(Report {
+        let report = Report {
             reporter: user_id,
             reason,
             timestamp: time(),
             ..Default::default()
-        });
+        };
 
         match domain.as_str() {
             "post" => {
@@ -2347,7 +2347,7 @@ impl State {
                     if post.report.as_ref().map(|r| !r.closed).unwrap_or_default() {
                         return Err("this post is already reported".into());
                     }
-                    post.report = report.clone();
+                    post.report = Some(report.clone());
                     Ok(post.user)
                 })?;
                 self.notify_with_predicate(
@@ -2359,7 +2359,7 @@ impl State {
                 post_author.post_reports.insert(id, time());
                 post_author.notify(format!(
                     "Your [post](#/post/{}) was reported. Consider deleting it to avoid rewards and credit penalties. The reason for the report: {}",
-                    id, &report.expect("no report").reason
+                    id, &report.reason
                 ));
             }
             "misbehaviour" => {
@@ -2372,7 +2372,7 @@ impl State {
                 {
                     return Err("this user is already reported".into());
                 }
-                misbehaving_user.report = report;
+                misbehaving_user.report = Some(report);
                 let user_name = misbehaving_user.name.clone();
                 self.notify_with_predicate(
                     &|u| u.stalwart && u.id != id,

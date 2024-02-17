@@ -707,7 +707,7 @@ async fn post_upgrade_fixtures() {
             (3422, 1),
             (3505, 1),
         ] {
-            if let Some(user) = state.users.get_mut(&user_id) {
+            if let Some(user) = state.users.get_mut(user_id) {
                 let minted_fractional = *tokens as f64 / base as f64;
                 user.notify(format!(
                     "{} minted `{}` ${} tokens for you! 💎",
