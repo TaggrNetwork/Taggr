@@ -32,7 +32,7 @@ pub struct Release {
 
 type ProposedReward = Token;
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Reward {
     pub receiver: String,
     pub votes: Vec<(Token, ProposedReward)>,

@@ -9,13 +9,42 @@ use serde_bytes::ByteBuf;
 
 pub type Headers = Vec<(String, String)>;
 
-#[derive(CandidType, Deserialize)]
+#[derive(Clone, CandidType, Deserialize)]
 pub struct HttpRequest {
     url: String,
     headers: Headers,
 }
 
-#[derive(CandidType, Serialize)]
+impl HttpRequest {
+    pub fn path(&self) -> &str {
+        match self.url.find('?') {
+            None => &self.url[..],
+            Some(index) => &self.url[..index],
+        }
+    }
+
+    /// Searches for the first appearance of a parameter in the request URL.
+    /// Returns `None` if the given parameter does not appear in the query.
+    pub fn raw_query_param(&self, param: &str) -> Option<&str> {
+        const QUERY_SEPARATOR: &str = "?";
+        let query_string = self.url.split(QUERY_SEPARATOR).nth(1)?;
+        if query_string.is_empty() {
+            return None;
+        }
+        const PARAMETER_SEPARATOR: &str = "&";
+        for chunk in query_string.split(PARAMETER_SEPARATOR) {
+            const KEY_VALUE_SEPARATOR: &str = "=";
+            let mut split = chunk.splitn(2, KEY_VALUE_SEPARATOR);
+            let name = split.next()?;
+            if name == param {
+                return Some(split.next().unwrap_or_default());
+            }
+        }
+        None
+    }
+}
+
+#[derive(Debug, CandidType, Serialize, Clone)]
 pub struct HttpResponse {
     status_code: u16,
     headers: Headers,
@@ -39,8 +68,37 @@ fn http_request_update(req: HttpRequest) -> HttpResponse {
 #[ic_cdk_macros::query]
 fn http_request(req: HttpRequest) -> HttpResponse {
     let path = &req.url;
+
+    use serde_json;
+    use std::str::FromStr;
+
+    if req.path() == "/proposals" {
+        read(|s| {
+            let offset = usize::from_str(req.raw_query_param("offset").unwrap_or_default())
+                .unwrap_or_default()
+                .min(s.proposals.len());
+            let limit = usize::from_str(req.raw_query_param("limit").unwrap_or_default())
+                .unwrap_or(1_000_usize);
+            let end = (offset + limit).min(s.proposals.len());
+
+            let proposal_slice = if let Some(slice) = s.proposals.get(offset..end) {
+                slice
+            } else {
+                &[]
+            };
+            HttpResponse {
+                status_code: 200,
+                headers: vec![(
+                    "Content-Type".to_string(),
+                    "application/json; charset=UTF-8".to_string(),
+                )],
+                body: ByteBuf::from(serde_json::to_vec(&proposal_slice).unwrap_or_default()),
+                upgrade: None,
+            }
+        })
+    }
     // If the asset is certified, return it, otherwise, upgrade to http_request_update
-    if let Some((headers, body)) = assets::asset_certified(path) {
+    else if let Some((headers, body)) = assets::asset_certified(path) {
         HttpResponse {
             status_code: 200,
             headers,
@@ -150,4 +208,50 @@ fn index(
         index_html_headers(),
         ByteBuf::from(set_metadata(INDEX_HTML, host, path, title, desc, page_type)),
     ))
+}
+
+#[test]
+fn should_return_proposals() {
+    use crate::proposals::{Proposal, Status};
+    use crate::State;
+
+    let mut http_request_arg = HttpRequest {
+        url: "/proposals".to_string(),
+        headers: vec![],
+    };
+    let mut state = State::default();
+
+    for id in 0..10_u32 {
+        state.proposals.push(Proposal {
+            id,
+            proposer: 0,
+            bulletins: vec![(0, true, 1)],
+            status: Status::Open,
+            ..Default::default()
+        });
+    }
+    crate::mutate(|s| *s = state);
+
+    fn check_proposals(http_request_arg: HttpRequest, len: usize, start: u32, end: u32) {
+        let http_resp = http_request(http_request_arg.clone());
+        match serde_json::from_slice::<Vec<Proposal>>(&http_resp.body) {
+            Ok(proposals) => {
+                assert_eq!(proposals.len(), len);
+                assert_eq!(proposals[0].id, start);
+                assert_eq!(proposals.last().unwrap().id, end);
+            }
+            Err(_) => panic!("failed to deserialize json"),
+        }
+    }
+
+    check_proposals(http_request_arg.clone(), 10_usize, 0_u32, 9_u32);
+
+    http_request_arg.url = "/proposals?limit=5".to_string();
+    check_proposals(http_request_arg.clone(), 5_usize, 0_u32, 4_u32);
+
+    http_request_arg.url = "/proposals?limit=3&offset=6".to_string();
+    check_proposals(http_request_arg.clone(), 3_usize, 6_u32, 8_u32);
+
+    http_request_arg.url = "/proposals?offset=6&limit=3".to_string();
+    check_proposals(http_request_arg.clone(), 3_usize, 6_u32, 8_u32);
 }
