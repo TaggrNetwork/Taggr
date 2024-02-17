@@ -463,30 +463,6 @@ impl Post {
             return Err("bots can't create comments".into());
         }
 
-        if let Some(discussion_owner) = parent.and_then(|post_id| {
-            state.thread(post_id).next().and_then(|post_id| {
-                Post::get(state, &post_id).and_then(|post| state.users.get(&post.user))
-            })
-        }) {
-            if !discussion_owner.accepts(user.id, &user.get_filter()) {
-                return Err(format!(
-                    "you cannot participate in discussions started by {}",
-                    discussion_owner.name
-                ));
-            }
-        }
-
-        let is_comment = parent.is_some();
-        let excess_factor = user
-            .posts(state, 0, is_comment)
-            .take_while(|post| post.timestamp() + if is_comment { HOUR } else { DAY } > timestamp)
-            .count()
-            .saturating_sub(if is_comment {
-                CONFIG.max_comments_per_hour
-            } else {
-                CONFIG.max_posts_per_day
-            });
-
         let realm = match parent.and_then(|id| Post::get(state, &id)) {
             Some(parent) => parent.realm.clone(),
             None => match picked_realm {
@@ -509,7 +485,19 @@ impl Post {
                     ));
                 }
             }
+        } else if let Some(discussion_owner) = parent.and_then(|post_id| {
+            state.thread(post_id).next().and_then(|post_id| {
+                Post::get(state, &post_id).and_then(|post| state.users.get(&post.user))
+            })
+        }) {
+            if !discussion_owner.accepts(user.id, &user.get_filter()) {
+                return Err(format!(
+                    "you cannot participate in discussions started by {}",
+                    discussion_owner.name
+                ));
+            }
         }
+
         let user_id = user.id;
         let controversial = user.controversial();
         let user_balance = user.balance;
@@ -526,6 +514,16 @@ impl Post {
         let costs = post.costs(state, blobs.len());
         post.valid(blobs)?;
         let future_id = state.next_post_id;
+        let is_comment = parent.is_some();
+        let excess_factor = user
+            .posts(state, 0, is_comment)
+            .take_while(|post| post.timestamp() + if is_comment { HOUR } else { DAY } > timestamp)
+            .count()
+            .saturating_sub(if is_comment {
+                CONFIG.max_comments_per_hour
+            } else {
+                CONFIG.max_posts_per_day
+            });
         if excess_factor > 0 {
             let excess_penalty = CONFIG.excess_penalty * excess_factor as Credits;
             state.charge_in_realm(
