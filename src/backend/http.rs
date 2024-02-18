@@ -316,7 +316,7 @@ fn should_return_metadata() {
     crate::mutate(|s| *s = state);
 
     let http_resp = http_request(HttpRequest {
-        url: "/metadata".to_string(),
+        url: "/api/v1/metadata".to_string(),
         headers: vec![],
     });
     match serde_json::from_slice::<Metadata>(&http_resp.body) {
