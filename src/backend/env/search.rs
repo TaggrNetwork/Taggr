@@ -36,6 +36,36 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
     };
 
     match terms.as_slice() {
+        [hashtag] if hashtag.starts_with('#') => {
+            let tag = &hashtag[1..].to_lowercase();
+            state
+                .posts_with_tags(None, 0, true)
+                .filter_map(
+                    |Post {
+                         id,
+                         user,
+                         tags,
+                         body,
+                         ..
+                     }| {
+                        if tags.contains(tag) {
+                            let search_body = body.to_lowercase();
+                            if let Some(i) = search_body.find(hashtag) {
+                                return Some(SearchResult {
+                                    id: *id,
+                                    user_id: *user,
+                                    relevant: snippet(body, i),
+                                    result: "post".to_string(),
+                                    ..Default::default()
+                                });
+                            }
+                        }
+                        None
+                    },
+                )
+                .take(MAX_RESULTS)
+                .collect()
+        }
         // search for all posts containing `word` from specified users in the specified realm
         [realm, user_name, word] if user_name.starts_with('@') && realm.starts_with('/') => {
             let realm = &realm[1..].to_uppercase();
