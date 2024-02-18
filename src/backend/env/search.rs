@@ -22,17 +22,12 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         .collect::<Vec<_>>();
 
     terms.sort_unstable();
-    let user_ids = |user_name: &str| {
-        state
-            .users
-            .values()
-            .filter(|user| {
-                user.name
-                    .to_lowercase()
-                    .starts_with(&user_name[1..].to_lowercase())
-            })
-            .map(|user| user.id)
-            .collect::<BTreeSet<_>>()
+    let users = |prefix: String| {
+        state.users.values().filter(move |user| {
+            user.name
+                .to_lowercase()
+                .starts_with(&prefix[1..].to_lowercase())
+        })
     };
 
     match terms.as_slice() {
@@ -67,14 +62,24 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
                 .collect()
         }
         // search for all posts containing `word` from specified users in the specified realm
-        [realm, user_name, word] if user_name.starts_with('@') && realm.starts_with('/') => {
-            let realm = &realm[1..].to_uppercase();
-            let ids = user_ids(user_name);
-            let genesis = realm_genesis(state, realm).min(user_genesis(state, user_name));
-            state
-                .last_posts(Some(realm.to_string()), 0, genesis, true)
-                .filter_map(|Post { id, body, user, .. }| {
-                    if ids.contains(user) {
+        [realm, user_name_prefix, word]
+            if user_name_prefix.starts_with('@') && realm.starts_with('/') =>
+        {
+            let realm_id = &realm[1..].to_uppercase();
+            users(user_name_prefix.to_string())
+                .map(|user| user.posts(state, 0, true))
+                .flatten()
+                .filter_map(
+                    |Post {
+                         id,
+                         body,
+                         user,
+                         realm,
+                         ..
+                     }| {
+                        if realm.as_ref() != Some(&realm_id) {
+                            return None;
+                        }
                         let search_body = body.to_lowercase();
                         if let Some(i) = search_body.find(word) {
                             return Some(SearchResult {
@@ -85,25 +90,55 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
                                 ..Default::default()
                             });
                         }
-                    }
-                    None
-                })
+                        None
+                    },
+                )
                 .take(MAX_RESULTS)
                 .collect()
         }
         // search for all posts from specified users in the specified realm
-        [realm, user_name] if user_name.starts_with('@') && realm.starts_with('/') => {
-            let realm = &realm[1..].to_uppercase();
-            let ids = user_ids(user_name);
-            let genesis = user_genesis(state, user_name).min(realm_genesis(state, realm));
-            state
-                .last_posts(Some(realm.to_string()), 0, genesis, true)
-                .filter_map(|Post { id, body, user, .. }| {
-                    if ids.contains(user) {
+        [realm, user_name_prefix]
+            if user_name_prefix.starts_with('@') && realm.starts_with('/') =>
+        {
+            let realm_id = &realm[1..].to_uppercase();
+            users(user_name_prefix.to_string())
+                .map(|user| user.posts(state, 0, true))
+                .flatten()
+                .filter_map(
+                    |Post {
+                         id,
+                         body,
+                         user,
+                         realm,
+                         ..
+                     }| {
+                        if realm.as_ref() != Some(&realm_id) {
+                            return None;
+                        }
                         return Some(SearchResult {
                             id: *id,
                             user_id: *user,
                             relevant: snippet(body, 0),
+                            result: "post".to_string(),
+                            ..Default::default()
+                        });
+                    },
+                )
+                .take(MAX_RESULTS)
+                .collect()
+        }
+        // search for all posts from specified users containing `word`
+        [user_name_prefix, word] if user_name_prefix.starts_with('@') => {
+            users(user_name_prefix.to_string())
+                .map(|user| user.posts(state, 0, true))
+                .flatten()
+                .filter_map(|Post { id, body, user, .. }| {
+                    let search_body = body.to_lowercase();
+                    if let Some(i) = search_body.find(word) {
+                        return Some(SearchResult {
+                            id: *id,
+                            user_id: *user,
+                            relevant: snippet(body, i),
                             result: "post".to_string(),
                             ..Default::default()
                         });
@@ -113,36 +148,11 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
                 .take(MAX_RESULTS)
                 .collect()
         }
-        // search for all posts from specified users containing `word`
-        [user_name, word] if user_name.starts_with('@') => {
-            let ids = user_ids(user_name);
-            let genesis = user_genesis(state, user_name);
-            state
-                .last_posts(None, 0, genesis, true)
-                .filter_map(|Post { id, body, user, .. }| {
-                    if ids.contains(user) {
-                        let search_body = body.to_lowercase();
-                        if let Some(i) = search_body.find(word) {
-                            return Some(SearchResult {
-                                id: *id,
-                                user_id: *user,
-                                relevant: snippet(body, i),
-                                result: "post".to_string(),
-                                ..Default::default()
-                            });
-                        }
-                    }
-                    None
-                })
-                .take(MAX_RESULTS)
-                .collect()
-        }
         // search for all posts containing `word` in the specified realm
         [realm, word] if realm.starts_with('/') => {
             let realm = &realm[1..].to_uppercase();
-            let genesis = realm_genesis(state, realm);
             state
-                .last_posts(Some(realm.to_string()), 0, genesis, true)
+                .last_posts(Some(realm.to_string()), 0, 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     let search_body = body.to_lowercase();
                     if let Some(i) = search_body.find(word) {
@@ -313,16 +323,4 @@ pub fn realm_search(state: &State, query: String) -> Vec<(&'_ String, &'_ Realm)
         .iter()
         .filter(|(_realm_id, realm)| realm.description.to_lowercase().contains(query))
         .collect()
-}
-
-fn user_genesis(state: &State, name: &str) -> Time {
-    state.user(name).map(|user| user.timestamp).unwrap_or(0)
-}
-
-fn realm_genesis(state: &State, name: &String) -> Time {
-    state
-        .realms
-        .get(name)
-        .map(|realm| realm.created)
-        .unwrap_or(0)
 }
