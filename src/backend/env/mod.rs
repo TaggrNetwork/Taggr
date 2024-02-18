@@ -735,50 +735,48 @@ impl State {
         Ok(())
     }
 
-    pub async fn tip(principal: Principal, post_id: PostId, amount: u64) -> Result<(), String> {
-        let result: Result<_, String> = read(|state| {
-            let tipper = state.principal_to_user(principal).ok_or("no user found")?;
-            let tipper_id = tipper.id;
-            let tipper_name = tipper.name.clone();
-            let author_id = Post::get(state, &post_id).ok_or("post not found")?.user;
-            let author = state.users.get(&author_id).ok_or("no user found")?;
-            Ok((tipper_name, tipper_id, author.id, author.principal))
-        });
-        let (tipper_name, tipper_id, author_id, author_principal) = result?;
-        mutate(|state| {
-            token::transfer(
-                state,
-                time(),
-                principal,
-                TransferArgs {
-                    from_subaccount: None,
-                    to: account(author_principal),
-                    fee: Some(1), // special tipping fee
-                    amount: amount as u128,
-                    memo: None,
-                    created_at_time: None,
-                },
-            )
-            .map_err(|err| format!("tip transfer failed: {:?}", err))?;
-            Post::mutate(state, &post_id, |post| {
-                post.tips.push((tipper_id, amount));
-                Ok(())
-            })?;
-            state
-                .users
-                .get_mut(&author_id)
-                .expect("user not found")
-                .notify_about_post(
-                    format!(
-                        "@{} tipped you with `{}` {} for your post",
-                        tipper_name,
-                        display_tokens(amount, CONFIG.token_decimals as u32),
-                        CONFIG.token_symbol
-                    ),
-                    post_id,
-                );
+    pub fn tip(
+        &mut self,
+        principal: Principal,
+        post_id: PostId,
+        amount: u64,
+    ) -> Result<(), String> {
+        let tipper = self.principal_to_user(principal).ok_or("no user found")?;
+        let tipper_id = tipper.id;
+        let tipper_name = tipper.name.clone();
+        let author_id = Post::get(self, &post_id).ok_or("post not found")?.user;
+        let author = self.users.get(&author_id).ok_or("no user found")?;
+        token::transfer(
+            self,
+            time(),
+            principal,
+            TransferArgs {
+                from_subaccount: None,
+                to: account(author.principal),
+                fee: Some(1), // special tipping fee
+                amount: amount as u128,
+                memo: None,
+                created_at_time: None,
+            },
+        )
+        .map_err(|err| format!("tip transfer failed: {:?}", err))?;
+        Post::mutate(self, &post_id, |post| {
+            post.tips.push((tipper_id, amount));
             Ok(())
-        })
+        })?;
+        self.users
+            .get_mut(&author_id)
+            .expect("user not found")
+            .notify_about_post(
+                format!(
+                    "@{} tipped you with `{}` {} for your post",
+                    tipper_name,
+                    display_tokens(amount, CONFIG.token_decimals as u32),
+                    CONFIG.token_symbol
+                ),
+                post_id,
+            );
+        Ok(())
     }
 
     fn new_user(

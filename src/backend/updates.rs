@@ -141,10 +141,8 @@ fn withdraw_rewards() {
 
 #[export_name = "canister_update tip"]
 fn tip() {
-    spawn(async {
-        let (post_id, amount): (PostId, u64) = parse(&arg_data_raw());
-        reply(State::tip(caller(), post_id, amount).await);
-    })
+    let (post_id, amount): (PostId, u64) = parse(&arg_data_raw());
+    reply(mutate(|state| state.tip(caller(), post_id, amount)));
 }
 
 #[export_name = "canister_update react"]
