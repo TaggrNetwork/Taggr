@@ -65,7 +65,7 @@ fn http_request_update(req: HttpRequest) -> HttpResponse {
         .unwrap_or_else(|| panic!("no assets for {}", path))
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 struct Metadata<'a> {
     decimals: u8,
     symbol: &'a str,
