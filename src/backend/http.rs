@@ -109,7 +109,7 @@ fn http_request(req: HttpRequest) -> HttpResponse {
                 upgrade: None,
             }
         })
-    } else if req.path() == "/metadata" {
+    } else if req.path() == "/api/v1/metadata" {
         use base64::{engine::general_purpose, Engine as _};
         read(|s| HttpResponse {
             status_code: 200,
