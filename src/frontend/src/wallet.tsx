@@ -497,7 +497,7 @@ export const Wallet = () => {
                         );
                         if (typeof response == "string")
                             alert(
-                                `Transfer failed. One reason might be that you voted on a proposal that is still open.`,
+                                `Transfer failed with error: ` + response,
                             );
                         await window.reloadUser();
                         setUser(window.user);
