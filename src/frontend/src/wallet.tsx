@@ -496,9 +496,7 @@ export const Wallet = () => {
                             transaction_fee,
                         );
                         if (typeof response == "string")
-                            alert(
-                                `Transfer failed with error: ` + response,
-                            );
+                            alert(`Transfer failed with error: ` + response);
                         await window.reloadUser();
                         setUser(window.user);
                     }}
