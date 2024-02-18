@@ -1625,16 +1625,15 @@ impl State {
             })
             .collect::<Vec<_>>()
         {
-            total_revenue += revenue;
             let controllers = controllers
                 .into_iter()
                 .filter_map(|user_id| self.users.get(&user_id))
                 .filter(|user| user.active_within_weeks(now, 1))
                 .map(|user| (user.id, user.name.clone()))
                 .collect::<Vec<_>>();
-            let controller_revenue = revenue * CONFIG.realm_revenue_percentage as u64
-                / 100
-                / controllers.len().max(1) as u64;
+            let realm_revenue = revenue * CONFIG.realm_revenue_percentage as u64 / 100;
+            total_revenue += realm_revenue;
+            let controller_revenue = realm_revenue / controllers.len().max(1) as u64;
             for (id, name) in &controllers {
                 self.spend_to_user_rewards(
                     *id,
