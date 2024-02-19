@@ -1392,7 +1392,7 @@ impl State {
     }
 
     fn archive_cold_data(&mut self) -> Result<(), String> {
-        let max_posts_in_heap = 50_000;
+        let max_posts_in_heap = 10_000;
         archive_cold_posts(self, max_posts_in_heap)
     }
 

@@ -1,4 +1,4 @@
-use crate::env::user::UserFilter;
+use crate::env::{post::archive_cold_posts, user::UserFilter};
 
 use super::*;
 use env::{
@@ -670,4 +670,20 @@ fn check_candid_interface_compatibility() {
         "declared candid interface in taggr.did file",
         candid_parser::utils::CandidSource::File(old_interface.as_path()),
     );
+}
+
+#[export_name = "canister_update archive"]
+fn archive() {
+    mutate(|state| {
+        if !state.principal_to_user(caller()).unwrap().stalwart {
+            return;
+        }
+        let n: usize = parse(&arg_data_raw());
+        if let Err(err) = archive_cold_posts(state, n) {
+            state
+                .logger
+                .error(format!("couldn't archive cold data: {:?}", err));
+        }
+    });
+    reply_raw(&[]);
 }
