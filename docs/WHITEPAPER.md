@@ -1,7 +1,7 @@
 # $name
 
 $name aims to serve as a public good, providing decentralized and censorship-resistant services for content publishing and communication.
-It operates on the public compute infrastructure powered by the [Internet Computer](https://internetcomputer.org).
+It operates on the public computing infrastructure powered by the [Internet Computer](https://internetcomputer.org).
 
 ## Key Points
 
@@ -22,9 +22,9 @@ Below is a breakdown of costs.
 | Hashtags                     | `T * followers(T)` | Each unique hashtag `T` is charged with the number of credits corresponding to the number of its followers |
 | On-chain pictures            |   `B * $blob_cost` | For `B` pictures in a post or comment                                                                      |
 | Poll                         |       `$poll_cost` | For adding a poll to a post or comment                                                                     |
-| Reacting with ❤️ , 👍, 😢    |                `3` | Gives `2` reward points, burns the rest as fee.                                                            |
-| Reacting with 🔥, 😂, 🚀, 💯 |               `12` | Gives `10` rewards points, burns the rest as fee.                                                          |
-| Reacting with ⭐️, 🏴‍☠️        |               `23` | Gives `20` reward points, burns the rest as fee.                                                           |
+| Reacting with ❤️ , 👍, 😢    |                `3` | Gives `2` reward points, burns the rest as a fee.                                                          |
+| Reacting with 🔥, 😂, 🚀, 💯 |               `12` | Gives `10` rewards points, burns the rest as a fee.                                                        |
+| Reacting with ⭐️, 🏴‍☠️        |               `23` | Gives `20` reward points, burns the rest as a fee.                                                         |
 | Reacting with 👎             |                `3` | Burns `3` credits and rewards of post's author and burns 3 credits of the user.                            |
 | New realm creation           |      `$realm_cost` | Burns `$realm_cost` credits                                                                                |
 
@@ -32,7 +32,7 @@ Notes:
 
 1. Each response to a post increases the author's rewards by `$response_reward`.
 2. Inactive users' credits decrease by `$inactivity_penalty` per week after `$inactivity_duration_weeks` weeks of inactivity.
-3. Users with negative rewards balance don't participate in reward distributions or minting.
+3. Users with negative reward balances don't participate in reward distributions or minting.
 4. To curb the inorganic behaviour, $name automatically charges excess fees for all posts above `$max_posts_per_day`  per rolling 24h interval and for all comments above  `$max_comments_per_hour` per hour.
 The fee is computed by multiplying `$excess_penalty` with the number of excessive items. If the excessive items contain images, the computed excess fee is additionally charged per image.
 
@@ -52,7 +52,7 @@ They are considered trusted community members, authorized to carry out moderatin
 ## Realms
 
 Realms are sub-communities centered around specific topics.
-Each realm can establish its own terms and conditions, breaching which can lead to:
+Each realm can establish its terms and conditions, breaching which can lead to:
 
 -   Flagging of the user's post to stalwarts.
 -   Moving the post from a realm by the realm controller, incurring penalties.
@@ -92,7 +92,7 @@ In both cases, participating stalwarts share rewards from the penalty fee, cappe
 ## Governance
 
 $name is governed via proposals.
-There are proposals for upgrading the main smart contract, for minting new tokens for funding & rewards and for transfering ICP out of the treasury for off-chains activities of the DAO.
+There are proposals for upgrading the main smart contract, minting new tokens for funding & rewards, and transferring ICP out of the treasury for off-chain activities of the DAO.
 
 A proposal succeeds if `$proposal_approval_threshold%` of users approve it or fails if `(100 - $proposal_approval_threshold)%` of users reject it.
 Only tokens of registered users active within `$voting_power_activity_weeks` weeks count as participating votes.
@@ -102,7 +102,7 @@ The total voting power of all registered users required to adopt or reject a pro
 This is achieved by multiplying the total available voting power by a factor `d%`, where `d` is the number of days the proposal remains open.
 This ensures any proposal eventually passes within `100` days.
 
-For any pending proposal the following holds until it gets adopted, rejected or cancelled:
+For any pending proposal, the following holds until it gets adopted, rejected, or cancelled:
 
 -   the $$token_symbol tokens of voters who voted on that proposal are locked and cannot be transferred;
 -   the rewards and the token minting are deferred for everyone.
@@ -115,14 +115,14 @@ $name has a maximal supply of `$maximum_supply` tokens.
 ### Supply Increase
 
 New tokens can only be mined by users or minted via minting proposals.
-Once the maximal supply is reached, both the weekly minting and minting proposal will be suspended.
+Once the maximal supply is reached, both the weekly minting and minting proposals will be suspended.
 
 ### Supply Decrease
 
 When a `$token_symbol` transfer transaction gets executed, the fee of `$fee` gets burned.
 Once the maximal supply is reached, it can go below the maximum again after enough fees are burned via transfer transactions.
 In this case, the minting will be activated again.
-This will make the supply to keep an equilibrium around the maximal supply.
+This will make the supply keep an equilibrium around the maximal supply.
 
 ### Distribution of minted tokens
 
@@ -132,7 +132,7 @@ The amount of minted tokens is computed according to the following algorithm:
 
 1. For every user `U` who rewarded others, determine the maximal amount of donatable tokens capped by `U`'s `$token_symbol` balance divided by the minting ratio `R` (see below).
 2. Compute the maximum amount of tokens assignable from `U` to a single rewarded user by dividing `U`'s mintable tokens by `$active_user_share_for_minting_promille%` of all active users of the last week.
-3. Mint new tokens to users (rewarded by `U`) capped by the amount computed in the previous step and weighted by their share of received rewards and an additional factor `F` which depends on receiver's `$token_symbol` balance:
+3. Mint new tokens to users (rewarded by `U`) capped by the amount computed in the previous step and weighted by their share of received rewards and an additional factor `F` which depends on the receiver's `$token_symbol` balance:
 
 | Receiver's $token_symbol balance | `F`    |
 | -------------------------------- | ------ |
@@ -144,7 +144,7 @@ The amount of minted tokens is computed according to the following algorithm:
 The minting ratio `R` is algorithmically computed by $name.
 It starts at `1:1` and remains at this level until `10%` of supply is minted.
 Then the ratio decreases to `2:1` for the next `10%`, further decreasing to `4:1`, and so on.
-Hence, the last `10%` of supply will be minted at a ratio of `512:1`.
+Hence, the last `10%` of the supply will be minted at a ratio of `512:1`.
 
 ### Team Tokens
 
@@ -184,7 +184,7 @@ $name canister's `get_neuron_info` method confirms this:
 
 #### Voting
 
-Proposals categorized as "Governance", "Network Economics", "Replica Version Management," and "SNS & Community Fund" display as posts with polls.
+Proposals categorized as "Governance", "Network Economics", "Replica Version Management," and "SNS & Community Fund" are displayed as posts with polls.
 $name canister votes on these proposals after 3 days, weighted by voters' token balances.
 
 Other proposals are automatically rejected.
