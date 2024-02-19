@@ -67,8 +67,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         {
             let realm_id = &realm[1..].to_uppercase();
             users(user_name_prefix.to_string())
-                .map(|user| user.posts(state, 0, true))
-                .flatten()
+                .flat_map(|user| user.posts(state, 0, true))
                 .filter_map(
                     |Post {
                          id,
@@ -77,7 +76,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
                          realm,
                          ..
                      }| {
-                        if realm.as_ref() != Some(&realm_id) {
+                        if realm.as_ref() != Some(realm_id) {
                             return None;
                         }
                         let search_body = body.to_lowercase();
@@ -102,8 +101,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         {
             let realm_id = &realm[1..].to_uppercase();
             users(user_name_prefix.to_string())
-                .map(|user| user.posts(state, 0, true))
-                .flatten()
+                .flat_map(|user| user.posts(state, 0, true))
                 .filter_map(
                     |Post {
                          id,
@@ -112,16 +110,16 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
                          realm,
                          ..
                      }| {
-                        if realm.as_ref() != Some(&realm_id) {
+                        if realm.as_ref() != Some(realm_id) {
                             return None;
                         }
-                        return Some(SearchResult {
+                        Some(SearchResult {
                             id: *id,
                             user_id: *user,
                             relevant: snippet(body, 0),
                             result: "post".to_string(),
                             ..Default::default()
-                        });
+                        })
                     },
                 )
                 .take(MAX_RESULTS)
@@ -130,8 +128,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         // search for all posts from specified users containing `word`
         [user_name_prefix, word] if user_name_prefix.starts_with('@') => {
             users(user_name_prefix.to_string())
-                .map(|user| user.posts(state, 0, true))
-                .flatten()
+                .flat_map(|user| user.posts(state, 0, true))
                 .filter_map(|Post { id, body, user, .. }| {
                     let search_body = body.to_lowercase();
                     if let Some(i) = search_body.find(word) {
