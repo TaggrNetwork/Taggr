@@ -2561,18 +2561,25 @@ impl State {
                 }
             }
             let eff_delta = (delta / recipients.len() as i64) as Credits;
+            let fee = config::reaction_fee(reaction);
+            let eff_fee = fee / recipients.len() as Credits;
             // If delta is not divisible by 2, the original post author gets the rest
-            let deltas = vec![
-                eff_delta,
-                eff_delta
-                    + delta.saturating_sub(recipients.len() as i64 * eff_delta as i64) as Credits,
+            let params = vec![
+                (eff_delta, eff_fee),
+                (
+                    eff_delta
+                        + delta.saturating_sub(recipients.len() as i64 * eff_delta as i64)
+                            as Credits,
+                    eff_fee + fee.saturating_sub(recipients.len() as u64 * eff_fee) as Credits,
+                ),
             ];
-            for (recipient, delta) in recipients.iter().zip(deltas) {
+
+            for (recipient, (delta, fee)) in recipients.iter().zip(params) {
                 self.credit_transfer(
                     user_id,
                     *recipient,
                     delta,
-                    config::reaction_fee(reaction),
+                    fee,
                     Destination::Rewards,
                     log.clone(),
                     None,
@@ -4459,6 +4466,38 @@ pub(crate) mod tests {
             assert!(state.react(lurker_principal, id, 50, 0).is_ok());
 
             assert_eq!(state.users.get(&user_id111).unwrap().rewards(), 30);
+        })
+    }
+
+    #[test]
+    fn test_credits_accounting_reposts() {
+        STATE.with(|cell| cell.replace(Default::default()));
+        mutate(|state| {
+            create_user_with_credits(state, pr(0), 2000);
+            create_user_with_credits(state, pr(1), 2000);
+            create_user(state, pr(2));
+            let c = CONFIG;
+
+            for (reaction, total_fee) in &[(10, 1), (50, 2), (101, 3)] {
+                state.burned_cycles = 0;
+                let post_id =
+                    Post::create(state, "test".to_string(), &[], pr(0), 0, None, None, None)
+                        .unwrap();
+                let post_id2 = Post::create(
+                    state,
+                    "test".to_string(),
+                    &[],
+                    pr(1),
+                    0,
+                    None,
+                    None,
+                    Some(Extension::Repost(post_id)),
+                )
+                .unwrap();
+
+                assert!(state.react(pr(2), post_id2, *reaction, 0).is_ok());
+                assert_eq!(state.burned_cycles as Credits, 2 * c.post_cost + total_fee);
+            }
         })
     }
 
