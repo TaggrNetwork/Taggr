@@ -77,7 +77,8 @@ export type Proposal = {
 };
 
 export type Realm = {
-    last_root_post: number;
+    adult_content: boolean;
+    created: number;
     cleanup_penalty: number;
     controllers: UserId[];
     description: string;
@@ -91,6 +92,7 @@ export type Realm = {
     last_update: number;
     last_setting_update: number;
     revenue: number;
+    posts: PostId[];
 };
 
 export type Post = {

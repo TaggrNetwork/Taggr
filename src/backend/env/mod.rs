@@ -110,13 +110,15 @@ pub struct Realm {
     pub last_update: u64,
     logo: String,
     pub num_members: u64,
-    pub num_posts: u64,
+    pub num_posts: usize,
     pub revenue: Credits,
     theme: String,
     pub whitelist: BTreeSet<UserId>,
-    pub last_root_post: PostId,
-    #[serde(default)]
     pub created: Time,
+    // Root posts assigned to the realm
+    pub posts: Vec<PostId>,
+    #[serde(default)]
+    pub adult_content: bool,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -190,8 +192,10 @@ pub struct State {
 
     pub distribution_reports: Vec<Summary>,
 
-    #[serde(default)]
     migrations: BTreeSet<UserId>,
+
+    #[serde(default)]
+    pub posts_with_tags: Vec<PostId>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -390,10 +394,8 @@ impl State {
         // if user has no credits left, ignore the error
         let _ = self.charge(user_id, penalty, msg);
         post::change_realm(self, post_id, None);
-        self.realms
-            .get_mut(&realm_id)
-            .expect("no realm found")
-            .num_posts -= 1;
+        let realm = self.realms.get_mut(&realm_id).expect("no realm found");
+        realm.posts.retain(|id| id != &post_id);
         if realm_member {
             self.toggle_realm_membership(user_principal, realm_id);
         }
@@ -549,7 +551,7 @@ impl State {
             Some(ids) => ids.iter().collect::<BTreeSet<_>>(),
         };
         Box::new(
-            self.last_posts(None, offset, false)
+            self.last_posts(None, offset, 0, false)
                 .filter(move |post| {
                     post.realm
                         .as_ref()
@@ -569,7 +571,7 @@ impl State {
         filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
-            .last_posts(realm, offset, false)
+            .last_posts(realm, offset, time().saturating_sub(4 * WEEK), false)
             .filter(|post| !matches!(post.extension, Some(Extension::Proposal(_))))
             .filter(|post| filter.map(|f| f(post)).unwrap_or(true))
             .take(1000)
@@ -625,6 +627,7 @@ impl State {
             whitelist,
             filter,
             cleanup_penalty,
+            adult_content,
             ..
         } = realm;
         let user = self.principal_to_user(principal).ok_or("no user found")?;
@@ -655,6 +658,7 @@ impl State {
         realm.filter = filter;
         realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty);
         realm.last_setting_update = time();
+        realm.adult_content = adult_content;
         if description_change {
             self.notify_with_filter(
                 &|user| user.realms.contains(&name),
@@ -1114,7 +1118,7 @@ impl State {
             if let Some(user) = self.users.get_mut(&user_id) {
                 let minted_fractional = tokens as f64 / base as f64;
                 user.notify(format!(
-                    "{} tokens `{}` ${} tokens for you! 💎",
+                    "{} minted `{}` ${} tokens for you! 💎",
                     CONFIG.name, minted_fractional, CONFIG.token_symbol,
                 ));
                 items.push((tokens, minted_fractional, user.name.clone()));
@@ -1182,6 +1186,9 @@ impl State {
                 CONFIG.name, minted_tokens, CONFIG.token_symbol, ratio
             );
             self.distribution_reports.push(summary);
+            for user in self.users.values_mut() {
+                user.karma_donations.clear();
+            }
         }
     }
 
@@ -1670,7 +1677,6 @@ impl State {
                     "inactivity_penalty".to_string(),
                 );
             }
-            user.karma_donations.clear();
             user.post_reports
                 .retain(|_, timestamp| *timestamp + CONFIG.user_report_validity_days * DAY >= now);
         }
@@ -1920,7 +1926,7 @@ impl State {
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let query: HashSet<_> = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
         Box::new(
-            self.last_posts(realm, offset, true)
+            self.posts_with_tags(realm, offset, true)
                 .filter(move |post| {
                     (users.is_empty() || users.contains(&post.user))
                         && post
@@ -1935,41 +1941,56 @@ impl State {
         )
     }
 
+    fn posts_with_tags<'a>(
+        &'a self,
+        realm_id: Option<RealmId>,
+        offset: PostId,
+        with_comments: bool,
+    ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+        Box::new(
+            self.posts_with_tags
+                .iter()
+                .rev()
+                .skip_while(move |post_id| offset > 0 && *post_id > &offset)
+                .filter_map(move |i| Post::get(self, i))
+                .filter(move |post| {
+                    !post.is_deleted()
+                        && (with_comments || post.parent.is_none())
+                        && (realm_id.is_none() || post.realm == realm_id)
+                }),
+        )
+    }
+
     pub fn last_posts<'a>(
         &'a self,
         realm_id: Option<RealmId>,
-        mut offset: PostId,
+        offset: PostId,
+        genesis: Time,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let mut genesis = 0;
-        let realm = realm_id
-            .as_ref()
-            .and_then(|realm_id| self.realms.get(realm_id));
-        if let Some(realm) = realm {
-            if realm.num_posts == 0 {
-                return Box::new(std::iter::empty());
-            }
-            genesis = realm.created;
-            if offset == 0 {
-                offset = realm.last_root_post;
-            }
-        }
+        let iter: Box<dyn Iterator<Item = _>> =
+            match realm_id.and_then(|realm_id| self.realms.get(&realm_id)) {
+                Some(realm) => Box::new(
+                    realm
+                        .posts
+                        .iter()
+                        .rev()
+                        .skip_while(move |post_id| offset > 0 && *post_id > &offset)
+                        .copied(),
+                ),
+                _ => {
+                    let last_id = if offset > 0 {
+                        offset
+                    } else {
+                        self.next_post_id
+                    };
+                    Box::new((0..last_id).rev())
+                }
+            };
         Box::new(
-            {
-                let last_id = if offset > 0 {
-                    offset
-                } else {
-                    self.next_post_id.saturating_sub(1)
-                };
-                Box::new((0..=last_id).rev())
-            }
-            .filter_map(move |i| Post::get(self, &i))
-            .take_while(move |post| post.creation_timestamp() >= genesis)
-            .filter(move |post| {
-                !post.is_deleted()
-                    && (with_comments || post.parent.is_none())
-                    && (realm.is_none() || post.realm == realm_id)
-            }),
+            iter.filter_map(move |i| Post::get(self, &i))
+                .take_while(move |post| post.creation_timestamp() >= genesis)
+                .filter(move |post| !post.is_deleted() && (with_comments || post.parent.is_none())),
         )
     }
 
@@ -1977,7 +1998,7 @@ impl State {
         let mut tags: HashMap<String, u64> = Default::default();
         let mut tags_found = 0;
         'OUTER: for post in self
-            .last_posts(realm, 0, true)
+            .posts_with_tags(realm, 0, true)
             .take_while(|post| !post.archived)
         {
             for tag in &post.tags {
@@ -2313,12 +2334,12 @@ impl State {
                 ))
             }
         };
-        let report = Some(Report {
+        let report = Report {
             reporter: user_id,
             reason,
             timestamp: time(),
             ..Default::default()
-        });
+        };
 
         match domain.as_str() {
             "post" => {
@@ -2326,7 +2347,7 @@ impl State {
                     if post.report.as_ref().map(|r| !r.closed).unwrap_or_default() {
                         return Err("this post is already reported".into());
                     }
-                    post.report = report.clone();
+                    post.report = Some(report.clone());
                     Ok(post.user)
                 })?;
                 self.notify_with_predicate(
@@ -2337,8 +2358,8 @@ impl State {
                 let post_author = self.users.get_mut(&post_user).expect("no user found");
                 post_author.post_reports.insert(id, time());
                 post_author.notify(format!(
-                    "Your [post](#/post/{}) was reported. Consider deleting it to avoid rewards and credit penalties.",
-                    id
+                    "Your [post](#/post/{}) was reported. Consider deleting it to avoid rewards and credit penalties. The reason for the report: {}",
+                    id, &report.reason
                 ));
             }
             "misbehaviour" => {
@@ -2351,7 +2372,7 @@ impl State {
                 {
                     return Err("this user is already reported".into());
                 }
-                misbehaving_user.report = report;
+                misbehaving_user.report = Some(report);
                 let user_name = misbehaving_user.name.clone();
                 self.notify_with_predicate(
                     &|u| u.stalwart && u.id != id,
@@ -3129,6 +3150,9 @@ pub(crate) mod tests {
             state.balances.remove(&minting_acc);
             state.minting_mode = true;
             state.mint();
+            for u in state.users.values() {
+                assert!(u.karma_donations.is_empty());
+            }
 
             assert_eq!(state.balances.len(), 5);
             assert_eq!(*state.balances.get(&account(pr(0))).unwrap(), 95155);
@@ -3495,7 +3519,7 @@ pub(crate) mod tests {
 
     fn realm_posts(state: &State, name: &str) -> Vec<PostId> {
         state
-            .last_posts(None, 0, true)
+            .last_posts(None, 0, 0, true)
             .filter(|post| post.realm.as_ref() == Some(&name.to_string()))
             .map(|post| post.id)
             .collect::<Vec<_>>()
@@ -3732,7 +3756,7 @@ pub(crate) mod tests {
                 None,
             )
             .unwrap();
-            assert_eq!(state.realms.get(&name).unwrap().num_posts, 1);
+            assert_eq!(state.realms.get(&name).unwrap().posts.len(), 1);
 
             assert_eq!(
                 Post::get(state, &post_id).unwrap().realm,
@@ -3857,7 +3881,7 @@ pub(crate) mod tests {
             assert!(state.users.get(&_u1).unwrap().realms.contains(&name));
 
             assert_eq!(state.realms.get(&realm_name).unwrap().num_members, 1);
-            assert_eq!(state.realms.get(&realm_name).unwrap().num_posts, 0);
+            assert_eq!(state.realms.get(&realm_name).unwrap().posts.len(), 0);
 
             assert_eq!(
                 Post::create(
@@ -3872,7 +3896,7 @@ pub(crate) mod tests {
                 ),
                 Ok(6)
             );
-            assert_eq!(state.realms.get(&realm_name).unwrap().num_posts, 1);
+            assert_eq!(state.realms.get(&realm_name).unwrap().posts.len(), 1);
 
             assert!(state
                 .users
@@ -3900,7 +3924,7 @@ pub(crate) mod tests {
 
         read(|state| {
             assert_eq!(Post::get(state, &6).unwrap().realm, Some(realm_name));
-            assert_eq!(state.realms.get("TAGGRDAO").unwrap().num_posts, 3);
+            assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 1);
         });
         assert_eq!(
             Post::edit(
@@ -3917,8 +3941,8 @@ pub(crate) mod tests {
         );
 
         read(|state| {
-            assert_eq!(state.realms.get("NEW_REALM").unwrap().num_posts, 0);
-            assert_eq!(state.realms.get("TAGGRDAO").unwrap().num_posts, 4);
+            assert_eq!(state.realms.get("NEW_REALM").unwrap().posts.len(), 0);
+            assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 2);
             assert_eq!(
                 Post::get(state, &6).unwrap().realm,
                 Some("TAGGRDAO".to_string())
@@ -4030,7 +4054,7 @@ pub(crate) mod tests {
             let post_visible = |state: &State| {
                 let inverse_filters = state.principal_to_user(caller).map(|user| &user.filters);
                 state
-                    .last_posts(None, 0, true)
+                    .last_posts(None, 0, 0, true)
                     .filter(|post| {
                         inverse_filters
                             .map(|filters| !post.matches_filters(filters))
@@ -4308,13 +4332,6 @@ pub(crate) mod tests {
                 .is_empty());
 
             state.clean_up(WEEK);
-
-            assert!(state
-                .users
-                .get_mut(&inactive_id1)
-                .unwrap()
-                .karma_donations
-                .is_empty())
         })
     }
 

@@ -42,6 +42,7 @@ The fee is computed by multiplying `$excess_penalty` with the number of excessiv
 -   Rewards are converted to ICP and distributed to users every Friday.
 -   Earned rewards points are converted to ICP at the ratio `$credits_per_xdr` rewards / `$usd_per_xdr` USD.
 -   Additionally, users owning tokens and being active within the last `$voting_power_activity_weeks` weeks receive a share of $name's revenue proportionate to their token holdings.
+-   New rewards received by users with credit balance lower than `$credits_per_xdr` are automatically converted to credits and are used to top up the credit balance of these users.
 
 ## Stalwarts
 

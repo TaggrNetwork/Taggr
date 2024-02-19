@@ -40,8 +40,9 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         [realm, user_name, word] if user_name.starts_with('@') && realm.starts_with('/') => {
             let realm = &realm[1..].to_uppercase();
             let ids = user_ids(user_name);
+            let genesis = realm_genesis(state, realm).min(user_genesis(state, user_name));
             state
-                .last_posts(Some(realm.to_string()), 0, true)
+                .last_posts(Some(realm.to_string()), 0, genesis, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     if ids.contains(user) {
                         let search_body = body.to_lowercase();
@@ -64,8 +65,9 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         [realm, user_name] if user_name.starts_with('@') && realm.starts_with('/') => {
             let realm = &realm[1..].to_uppercase();
             let ids = user_ids(user_name);
+            let genesis = user_genesis(state, user_name).min(realm_genesis(state, realm));
             state
-                .last_posts(Some(realm.to_string()), 0, true)
+                .last_posts(Some(realm.to_string()), 0, genesis, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     if ids.contains(user) {
                         return Some(SearchResult {
@@ -84,8 +86,9 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         // search for all posts from specified users containing `word`
         [user_name, word] if user_name.starts_with('@') => {
             let ids = user_ids(user_name);
+            let genesis = user_genesis(state, user_name);
             state
-                .last_posts(None, 0, true)
+                .last_posts(None, 0, genesis, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     if ids.contains(user) {
                         let search_body = body.to_lowercase();
@@ -107,8 +110,9 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         // search for all posts containing `word` in the specified realm
         [realm, word] if realm.starts_with('/') => {
             let realm = &realm[1..].to_uppercase();
+            let genesis = realm_genesis(state, realm);
             state
-                .last_posts(Some(realm.to_string()), 0, true)
+                .last_posts(Some(realm.to_string()), 0, genesis, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     let search_body = body.to_lowercase();
                     if let Some(i) = search_body.find(word) {
@@ -131,7 +135,12 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
             state
                 .users
                 .values()
-                .filter(|user| user.name.to_lowercase().starts_with(&query))
+                .filter(|user| {
+                    user.previous_names
+                        .iter()
+                        .chain(std::iter::once(&user.name))
+                        .any(|name| name.to_lowercase().starts_with(&query))
+                })
                 .map(|user| SearchResult {
                     id: user.id,
                     relevant: user.about.clone(),
@@ -162,41 +171,9 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
 
 fn wildcard_search(state: &State, term: &str) -> Vec<SearchResult> {
     state
-        .users
+        .realms
         .iter()
-        .filter_map(
-            |(
-                id,
-                User {
-                    name,
-                    about,
-                    previous_names,
-                    ..
-                },
-            )| {
-                if format!("@{} {0} {} {} {:?}", name, id, about, previous_names)
-                    .to_lowercase()
-                    .contains(term)
-                {
-                    return Some(SearchResult {
-                        id: *id,
-                        relevant: about.clone(),
-                        result: "user".to_string(),
-                        ..Default::default()
-                    });
-                }
-                None
-            },
-        )
-        .chain(state.realms.iter().filter_map(|(id, realm)| {
-            if id.to_lowercase().contains(term) {
-                return Some(SearchResult {
-                    generic_id: id.clone(),
-                    relevant: snippet(realm.description.as_str(), 0),
-                    result: "realm".to_string(),
-                    ..Default::default()
-                });
-            }
+        .filter_map(|(id, realm)| {
             if let Some(i) = realm.description.to_lowercase().find(term) {
                 return Some(SearchResult {
                     generic_id: id.clone(),
@@ -206,25 +183,10 @@ fn wildcard_search(state: &State, term: &str) -> Vec<SearchResult> {
                 });
             }
             None
-        }))
+        })
         .chain(
             state
-                .recent_tags(None, 500)
-                .into_iter()
-                .filter_map(|(tag, _)| {
-                    if format!("#{} {0}", tag).to_lowercase().contains(term) {
-                        return Some(SearchResult {
-                            relevant: tag,
-                            result: "tag".to_string(),
-                            ..Default::default()
-                        });
-                    }
-                    None
-                }),
-        )
-        .chain(
-            state
-                .last_posts(None, 0, true)
+                .last_posts(None, 0, 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     if id.to_string() == term {
                         return Some(SearchResult {
@@ -319,8 +281,18 @@ pub fn realm_search(state: &State, query: String) -> Vec<(&'_ String, &'_ Realm)
     state
         .realms
         .iter()
-        .filter(|(realm_id, realm)| {
-            realm_id.to_lowercase().contains(query) || realm.description.contains(query)
-        })
+        .filter(|(_realm_id, realm)| realm.description.to_lowercase().contains(query))
         .collect()
+}
+
+fn user_genesis(state: &State, name: &str) -> Time {
+    state.user(name).map(|user| user.timestamp).unwrap_or(0)
+}
+
+fn realm_genesis(state: &State, name: &String) -> Time {
+    state
+        .realms
+        .get(name)
+        .map(|realm| realm.created)
+        .unwrap_or(0)
 }

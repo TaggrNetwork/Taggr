@@ -9,7 +9,6 @@ import {
     ToggleButton,
     NotFound,
     applyPatch,
-    loadPostBlobs,
     ShareButton,
     commaSeparated,
     Loading,
@@ -49,6 +48,7 @@ import {
 } from "./icons";
 import { ProposalView } from "./proposals";
 import { Post, PostId, UserId } from "./types";
+import { MAINNET_MODE } from "./env";
 
 export const PostView = ({
     id,
@@ -80,13 +80,9 @@ export const PostView = ({
     level?: number;
 }) => {
     const [post, setPost] = React.useState(data);
-    const [reactions, setReactions] = React.useState<{
-        [id: number]: UserId[];
-    }>({});
-    const [children, setChildren] = React.useState<PostId[]>([]);
+    const [body, setBody] = React.useState("");
     const [notFound, setNotFound] = React.useState(false);
     const [hidden, setHidden] = React.useState(false);
-    const [blobs, setBlobs] = React.useState({});
     const [showComments, toggleComments] = React.useState(!!prime);
     const [showInfo, toggleInfo] = React.useState(false);
     const [safeToOpen, setSafeToOpen] = React.useState(false);
@@ -102,12 +98,15 @@ export const PostView = ({
             setNotFound(true);
             return;
         }
-        // if the post is in prime mode, load pics right away
-        if (prime || repost) {
-            loadPostBlobs(data.files).then(setBlobs);
+
+        let effBody = data.body;
+        if (version != undefined && !isNaN(version)) {
+            for (let i = data.patches.length - 1; i >= version; i--) {
+                const [_timestamp, patch] = data.patches[i];
+                effBody = applyPatch(effBody, patch)[0];
+            }
         }
-        setReactions(data.reactions);
-        setChildren(data.children);
+        setBody(effBody);
         setPost(data);
     };
 
@@ -121,49 +120,11 @@ export const PostView = ({
             article.classList.add("overflowing");
             setShowExpandButton(true);
         }
-    }, [post, blobs]);
-
-    const registerObserver = () => {
-        const article: any = refArticle.current;
-        if (!article) return;
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry.isIntersecting && post) {
-                    loadPostBlobs(post.files).then((blobs) => {
-                        observer.unobserve(article);
-                        setBlobs(blobs);
-                    });
-                }
-            },
-            {
-                root: null,
-                rootMargin: "750px",
-                threshold: 0,
-            },
-        );
-
-        observer.observe(article);
-
-        return () => {
-            observer.unobserve(article);
-        };
-    };
-
-    React.useEffect(registerObserver, []);
-
-    React.useEffect(registerObserver, [post, safeToOpen]);
+    }, [post]);
 
     if (!post) {
         if (notFound) return <NotFound />;
         return <Loading />;
-    }
-
-    post.effBody = post.body;
-    if (version != undefined && !isNaN(version)) {
-        for (let i = post.patches.length - 1; i >= version; i--) {
-            const [_timestamp, patch] = post.patches[i];
-            post.effBody = applyPatch(post.effBody, patch)[0];
-        }
     }
 
     const commentSubmissionCallback = async (
@@ -182,8 +143,9 @@ export const PostView = ({
             return false;
         }
         const commentId = result.Ok;
-        children.push(Number(commentId));
-        setChildren([...children]);
+        post.children.push(Number(commentId));
+        post.tree_size += 1;
+        setPost({ ...post });
         toggleInfo(false);
         toggleComments(true);
         return true;
@@ -208,12 +170,12 @@ export const PostView = ({
         if (!window.user) return;
         let userId = window.user?.id;
         if (post.user == userId) return;
-        if (!(id in reactions)) {
-            reactions[id] = [];
+        if (!(id in post.reactions)) {
+            post.reactions[id] = [];
         }
-        let users = reactions[id];
+        let users = post.reactions[id];
         if (
-            Object.values(reactions)
+            Object.values(post.reactions)
                 .reduce((acc, users) => acc.concat(users), [])
                 .includes(userId)
         ) {
@@ -224,7 +186,7 @@ export const PostView = ({
             window.reloadUser();
         });
         users.push(userId);
-        setReactions({ ...reactions });
+        setPost({ ...post });
         toggleInfo(commentIncoming);
     };
 
@@ -232,7 +194,7 @@ export const PostView = ({
     const costTable = reactionCosts();
     const isInactive =
         objectReduce(
-            reactions,
+            post.reactions,
             (acc, id, users) => acc + costTable[id as any] * users.length,
             0,
         ) < 0 || post.userObject.rewards < 0;
@@ -253,9 +215,7 @@ export const PostView = ({
     const postCreated =
         post.patches.length > 0 ? post.patches[0][0] : post.timestamp;
     const isNSFW =
-        post.effBody.toLowerCase().includes("#nsfw") &&
-        isFeedItem &&
-        !safeToOpen;
+        body.toLowerCase().includes("#nsfw") && isFeedItem && !safeToOpen;
     const versionSpecified = version != undefined && !isNaN(version);
     version =
         !versionSpecified && post.patches.length > 0
@@ -269,12 +229,12 @@ export const PostView = ({
         postCreated > window.lastVisit ||
         createdRecently;
     const blogTitle =
-        prime && post.effBody.length > 750 && post.effBody.startsWith("# ")
+        prime && body.length > 750 && body.startsWith("# ")
             ? {
                   author: post.userObject.name,
                   realm: post.realm,
                   created: postCreated,
-                  length: post.effBody.length,
+                  length: body.length,
               }
             : undefined;
 
@@ -364,16 +324,13 @@ export const PostView = ({
                         ref={refArticle as unknown as any}
                         onClick={(e) => goInside(e)}
                     >
-                        {/* The key is needed to render different content for different versions to avoid running into diffrrent
-                 number of memorized pieces inside content */}
                         <Content
                             blogTitle={blogTitle}
-                            key={post.effBody}
                             post={true}
-                            value={post.effBody}
-                            blobs={blobs}
+                            value={body}
                             collapse={!expanded}
                             primeMode={isRoot(post) && !repost}
+                            urls={filesToUrls(post.files)}
                         />
                     </article>
                 )}
@@ -435,7 +392,7 @@ export const PostView = ({
                     )}
                     <PostInfo
                         post={post}
-                        reactions={reactions}
+                        reactions={post.reactions}
                         version={version}
                         versionSpecified={versionSpecified}
                         postCreated={postCreated}
@@ -444,14 +401,14 @@ export const PostView = ({
                     />
                 </div>
             )}
-            {(showComments || prime) && children.length > 0 && (
+            {(showComments || prime) && post.children.length > 0 && (
                 <Comments
                     heartbeat={`${post.id}_${
-                        Object.keys(children).length
+                        Object.keys(post.children).length
                     }_${showComments}`}
                     level={level + 1}
                     loader={async () =>
-                        await window.api.query("posts", children)
+                        await window.api.query("posts", post.children)
                     }
                 />
             )}
@@ -831,17 +788,22 @@ const PostBar = ({
     const replies = post.tree_size;
     // @ts-ignore
     const users: UserId[] = [].concat(...Object.values(post.reactions));
-    let user_id = window.user?.id;
-    const cantReact = users.includes(user_id) || post.user == user_id;
+    let user = window.user;
+    const cantReact =
+        !user || users.includes(user?.id) || post.user == user?.id;
     const updatedRecently =
         Number(new Date()) - Number(post.tree_update) / 1000000 <
         30 * 60 * 1000;
     const newComments =
         window.user && (post.tree_update > window.lastVisit || updatedRecently);
     const ref = React.useRef(null);
+    const delay =
+        user && "tap_and_hold" in user.settings
+            ? Number(user.settings.tap_and_hold)
+            : 750;
 
     const unreact = () => {
-        if (Number(new Date()) - timeStart < 300) {
+        if (Number(new Date()) - timeStart < delay) {
             setShowHint(true);
             setTimeout(() => setShowHint(false), 1000);
         }
@@ -854,12 +816,18 @@ const PostBar = ({
 
     const delayedReact = (id: number) => {
         if (cantReact) return;
+        if (delay <= 50) {
+            react(id);
+            unreact();
+            return;
+        }
         timeStart = new Date();
         progressInterval = setInterval(() => {
-            reactionIndicatorWidth += 6;
+            reactionIndicatorWidth += 100 / (delay / 50);
             // @ts-ignore
-            ref.current?.style.width = reactionIndicatorWidth + "%";
-            if (reactionIndicatorWidth >= 100) {
+            ref.current?.style.width =
+                Math.min(100, reactionIndicatorWidth) + "%";
+            if (reactionIndicatorWidth > 100) {
                 react(id);
                 unreact();
             }
@@ -892,74 +860,78 @@ const PostBar = ({
                         unreact={unreact}
                     />
                 )}
-                <>
-                    {!cantReact && (
-                        <IconToggleButton
-                            pressed={showEmojis}
-                            onClick={() => setShowEmojis(!showEmojis)}
-                            testId="reaction-picker"
-                            icon={<More />}
-                        />
-                    )}
-                    {post.tips.length > 0 && (
-                        <Coin classNameArg="accent right_quarter_spaced" />
-                    )}
-                    {post.reposts.length > 0 && (
-                        <IconToggleButton
-                            onClick={() =>
-                                (location.href = `#/reposts/${post.id}`)
-                            }
-                            icon={
-                                <>
-                                    <Repost classNameArg="right_quarter_spaced" />
-                                    {post.reposts.length}
-                                </>
-                            }
-                        />
-                    )}
-                    {replies > 0 && !isThreadView && (
-                        <IconToggleButton
-                            pressed={showComments}
-                            testId="post-comments-toggle"
-                            onClick={
-                                showCarret
-                                    ? (event) => goInside(event, true)
-                                    : () => {
-                                          toggleInfo(false);
-                                          toggleComments(!showComments);
-                                      }
-                            }
-                            icon={
-                                <>
-                                    <Comment
-                                        classNameArg={`right_quarter_spaced ${
-                                            newComments ? "accent" : undefined
-                                        }`}
-                                    />
-                                    {replies}
-                                </>
-                            }
-                        />
-                    )}
-                    {!isThreadView && !showCarret && (
-                        <BurgerButton
-                            onClick={() => {
-                                toggleInfo(!showInfo);
-                                toggleComments(false);
-                            }}
-                            pressed={showInfo}
-                            testId="post-info-toggle"
-                        />
-                    )}
-                    {(isThreadView || showCarret) && (
-                        <button
-                            className="reaction_button unselected"
-                            onClick={(e) => goInside(e)}
-                        >
-                            <CarretRight />
-                        </button>
-                    )}
-                </>
+                {!cantReact && (
+                    <IconToggleButton
+                        pressed={showEmojis}
+                        onClick={() => setShowEmojis(!showEmojis)}
+                        testId="reaction-picker"
+                        icon={<More />}
+                    />
+                )}
+                {!showEmojis && (
+                    <>
+                        {post.tips.length > 0 && (
+                            <Coin classNameArg="accent right_quarter_spaced" />
+                        )}
+                        {post.reposts.length > 0 && (
+                            <IconToggleButton
+                                onClick={() =>
+                                    (location.href = `#/reposts/${post.id}`)
+                                }
+                                icon={
+                                    <>
+                                        <Repost classNameArg="right_quarter_spaced" />
+                                        {post.reposts.length}
+                                    </>
+                                }
+                            />
+                        )}
+                        {replies > 0 && !isThreadView && (
+                            <IconToggleButton
+                                pressed={showComments}
+                                testId="post-comments-toggle"
+                                onClick={
+                                    showCarret
+                                        ? (event) => goInside(event, true)
+                                        : () => {
+                                              toggleInfo(false);
+                                              toggleComments(!showComments);
+                                          }
+                                }
+                                icon={
+                                    <>
+                                        <Comment
+                                            classNameArg={`right_quarter_spaced ${
+                                                newComments
+                                                    ? "accent"
+                                                    : undefined
+                                            }`}
+                                        />
+                                        {replies}
+                                    </>
+                                }
+                            />
+                        )}
+                        {!isThreadView && !showCarret && (
+                            <BurgerButton
+                                onClick={() => {
+                                    toggleInfo(!showInfo);
+                                    toggleComments(false);
+                                }}
+                                pressed={showInfo}
+                                testId="post-info-toggle"
+                            />
+                        )}
+                        {(isThreadView || showCarret) && (
+                            <button
+                                className="reaction_button unselected"
+                                onClick={(e) => goInside(e)}
+                            >
+                                <CarretRight />
+                            </button>
+                        )}
+                    </>
+                )}
             </div>
         </>
     );
@@ -976,19 +948,21 @@ export const ReactionPicker = ({
         className={`max_width_col ${
             bigScreen() ? "row_container" : "emoji_table"
         }`}
-        style={{ justifyContent: "flex-start" }}
+        style={{
+            justifyContent: "flex-start",
+            padding: "0.5em",
+        }}
     >
         {window.backendCache.config.reactions.map(([reactId, rewards]) => (
             <button
                 key={reactId}
                 title={`Reward points: ${rewards}`}
-                className="medium_text reaction_button unselected text_centered centered"
+                className="medium_text reaction_button unselected centered"
                 onMouseDown={() => react(reactId)}
                 onMouseUp={unreact}
                 onTouchStart={() => react(reactId)}
                 onTouchEnd={unreact}
                 data-testid="reaction-picker"
-                style={{ padding: 0 }}
             >
                 {reaction2icon(Number(reactId))}
             </button>
@@ -1008,11 +982,7 @@ export const Reactions = ({
     const entries = Object.entries(reactionsMap);
     return (
         <div
-            className={`max_width_col ${
-                !bigScreen() && entries.length > 5
-                    ? "emoji_table"
-                    : "row_container"
-            }`}
+            className="max_width_col row_container"
             style={{ justifyContent: "flex-start" }}
         >
             {entries.map(([reactId, users]) => {
@@ -1050,3 +1020,29 @@ const objectReduce = (
     f: (acc: number, key: string, val: UserId[]) => number,
     initVal: number,
 ) => Object.keys(obj).reduce((acc, key) => f(acc, key, obj[key]), initVal);
+
+export const filesToUrls = (files: { [id: string]: [number, number] }) =>
+    Object.keys(files).reduce(
+        (acc, key) => {
+            const [id, bucketId] = key.split("@");
+            const [offset, len] = files[key];
+            acc[id] = bucket_image_url(bucketId, offset, len);
+            return acc;
+        },
+        {} as { [id: string]: string },
+    );
+
+function bucket_image_url(bucket_id: string, offset: number, len: number) {
+    // Fall back to the mainnet if the local config doesn't contain the bucket.
+    let fallback_to_mainnet = !window.backendCache.stats.buckets.find(
+        ([id, _y]) => id == bucket_id,
+    );
+    let host =
+        MAINNET_MODE || fallback_to_mainnet
+            ? `https://${bucket_id}.raw.icp0.io`
+            : `http://127.0.0.1:8080`;
+    return (
+        `${host}/image?offset=${offset}&len=${len}` +
+        (MAINNET_MODE ? "" : `&canisterId=${bucket_id}`)
+    );
+}

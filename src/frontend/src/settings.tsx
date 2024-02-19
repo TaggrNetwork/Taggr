@@ -171,6 +171,21 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             value={settings.open_chat}
                             onChange={(event) => setSetting("open_chat", event)}
                         />
+                        <div className="bottom_half_spaced">
+                            Reaction tap-and-hold delay (smaller is faster)
+                        </div>
+                        <input
+                            className="bottom_spaced"
+                            type="text"
+                            value={
+                                "tap_and_hold" in settings
+                                    ? Number(settings.tap_and_hold)
+                                    : 750
+                            }
+                            onChange={(event) =>
+                                setSetting("tap_and_hold", event)
+                            }
+                        />
                     </>
                 )}
                 <div className="bottom_half_spaced">Color theme</div>
@@ -235,8 +250,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                     notification in your inbox,
                                 </li>
                                 <li>
-                                    posts of which users will appear in the
-                                    "NEW" tab on your landing page.
+                                    posts of which users will appear in all tabs
+                                    on your landing page.
                                 </li>
                             </ul>
                         </div>

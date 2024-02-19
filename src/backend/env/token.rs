@@ -172,7 +172,7 @@ fn icrc1_supported_standards() -> Vec<Standard> {
 }
 
 #[update]
-fn icrc1_transfer(args: TransferArgs) -> Result<u128, TransferError> {
+fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
     let owner = caller();
     if owner == Principal::anonymous() {
         return Err(TransferError::GenericError(GenericError {
@@ -180,7 +180,9 @@ fn icrc1_transfer(args: TransferArgs) -> Result<u128, TransferError> {
             message: "No transfers from the minting account possible.".into(),
         }));
     }
-    if args.fee != Some(icrc1_fee()) {
+    if args.fee.is_none() {
+        args.fee = Some(icrc1_fee())
+    } else if args.fee != Some(icrc1_fee()) {
         return Err(TransferError::BadFee(BadFee {
             expected_fee: icrc1_fee(),
         }));

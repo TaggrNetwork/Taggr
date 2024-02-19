@@ -2,12 +2,12 @@ import * as React from "react";
 import { Form } from "./form";
 import {
     getPatch,
-    loadPostBlobs,
     loadPosts,
     currentRealm,
     MAX_POST_SIZE_BYTES,
 } from "./common";
 import { Extension, Post, PostId } from "./types";
+import { filesToUrls } from "./post";
 
 export const PostSubmissionForm = ({
     id,
@@ -17,14 +17,12 @@ export const PostSubmissionForm = ({
     repost?: PostId;
 }) => {
     const [post, setPost] = React.useState<Post>();
-    const [blobs, setBlobs] = React.useState({});
 
     const load = async () => {
         if (id == undefined) return;
         const post = (await loadPosts([id])).pop();
         if (!post) return;
         setPost(post);
-        setBlobs(await loadPostBlobs(post.files));
     };
 
     React.useEffect(() => {
@@ -109,7 +107,7 @@ export const PostSubmissionForm = ({
                 submitCallback={callback}
                 postId={id}
                 content={post?.body || ""}
-                blobs={blobs}
+                urls={filesToUrls(post?.files || {})}
                 expanded={true}
                 repost={repost}
                 realmArg={post?.realm || currentRealm()}

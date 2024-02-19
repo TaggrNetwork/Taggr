@@ -79,10 +79,6 @@ pub fn finalize_report(
     let (sponsor_id, unit) = if report.confirmed_by.len() > report.rejected_by.len() {
         // penalty for the user
         let user = state.users.get_mut(&user_id).ok_or("no user found")?;
-        user.notify(format!(
-            "Somebody create a report for your {}. Reason: {}",
-            subject, report.reason
-        ));
         user.change_rewards(
             -(penalty as i64),
             format!("moderation penalty for {}", subject),

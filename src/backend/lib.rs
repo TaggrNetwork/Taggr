@@ -3,7 +3,6 @@ use std::{cell::RefCell, collections::HashMap};
 use candid::Principal;
 use env::{config::CONFIG, user::User, State, *};
 use ic_cdk::{api::call::reply_raw, caller};
-use ic_cdk_macros::export_candid;
 
 mod assets;
 #[cfg(feature = "dev")]
@@ -54,10 +53,3 @@ fn optional(s: String) -> Option<String> {
         Some(s)
     }
 }
-
-use crate::http::*;
-use crate::post::PostId;
-use crate::token::*;
-use crate::user::UserId;
-use serde_bytes::ByteBuf;
-export_candid!();

@@ -54,7 +54,9 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         last_setting_update: 0,
         last_update: 0,
         revenue: 0,
-        last_root_post: 0,
+        created: 0,
+        posts: [],
+        adult_content: false,
     });
     const [controllersString, setControllersString] = React.useState(
         users[userId],
@@ -84,6 +86,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         filter,
         label_color,
         cleanup_penalty,
+        adult_content,
     } = realm;
 
     const valid = name && description && controllers.length > 0;
@@ -212,6 +215,20 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         preview={true}
                         classNameArg="bottom_spaced"
                     />
+                </div>
+                <div className="column_container bottom_spaced">
+                    <div className="bottom_half_spaced">Adult content</div>
+                    <select
+                        value={adult_content.toString()}
+                        className="bottom_spaced"
+                        onChange={(e) => {
+                            realm.adult_content = Boolean(e.target.value);
+                            setRealm({ ...realm });
+                        }}
+                    >
+                        <option value="true">YES</option>
+                        <option value="false">NO</option>
+                    </select>
                 </div>
                 <div className="column_container bottom_spaced">
                     <div className="bottom_half_spaced">

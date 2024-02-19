@@ -5,13 +5,11 @@ import { bigScreen, currentRealm, Loading } from "./common";
 import { New, User, Bars, Gem, Balloon, Document, Fire, Realm } from "./icons";
 import { PostId } from "./types";
 
-const tabKey = () => `${currentRealm()}_tab`;
-
 export const Landing = () => {
     const user = window.user;
     const realm = currentRealm();
     const [feed, setFeed] = React.useState(
-        (user && user.settings[tabKey()]) || "TRENDING",
+        (!currentRealm() && user && user.settings.tab) || "TRENDING",
     );
     let labels: [JSX.Element, string][] = [
         [<New />, "NEW"],
@@ -41,8 +39,8 @@ export const Landing = () => {
                     key={id}
                     data-testid={`tab-${id}`}
                     onClick={() => {
-                        if (user) {
-                            user.settings[tabKey()] = id;
+                        if (user && !currentRealm()) {
+                            user.settings.tab = id;
                             window.api.call<any>(
                                 "update_user_settings",
                                 user.settings,

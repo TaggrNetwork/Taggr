@@ -192,7 +192,7 @@ fn sorted_realms(
                 Reverse(
                     vp * moderation
                         + (realm.num_members as f32).sqrt() as u64
-                        + (realm.num_posts as f32).sqrt() as u64,
+                        + (realm.posts.len() as f32).sqrt() as u64,
                 )
             }
             _ => Reverse(realm.last_update),
@@ -228,11 +228,17 @@ fn realms_data() {
 #[export_name = "canister_query realms"]
 fn realms() {
     let realm_ids: Vec<String> = parse(&arg_data_raw());
-    read(|state| {
+    mutate(|state| {
         reply(
             realm_ids
                 .into_iter()
-                .filter_map(|realm_id| state.realms.get(&realm_id))
+                .filter_map(|realm_id| {
+                    state.realms.remove(&realm_id).map(|mut realm| {
+                        realm.num_posts = realm.posts.len();
+                        realm.posts.clear();
+                        realm
+                    })
+                })
                 .collect::<Vec<_>>(),
         )
     })
@@ -258,7 +264,7 @@ fn user_posts() {
     read(|state| {
         resolve_handle(state, Some(&handle)).map(|user| {
             reply(
-                user.posts(state, offset)
+                user.posts(state, offset, true)
                     .skip(CONFIG.feed_page_size * page)
                     .take(CONFIG.feed_page_size)
                     .collect::<Vec<_>>(),
@@ -273,7 +279,7 @@ fn rewarded_posts() {
     read(|state| {
         resolve_handle(state, Some(&handle)).map(|user| {
             reply(
-                user.posts(state, offset)
+                user.posts(state, offset, true)
                     .filter(|post| !post.reactions.is_empty())
                     .skip(CONFIG.feed_page_size * page)
                     .take(CONFIG.feed_page_size)
@@ -290,7 +296,7 @@ fn user_tags() {
     read(|state| {
         reply(
             state
-                .last_posts(None, offset, true)
+                .last_posts(None, offset, 0, true)
                 .filter(|post| post.body.contains(&tag))
                 .skip(CONFIG.feed_page_size * page)
                 .take(CONFIG.feed_page_size)
@@ -310,6 +316,8 @@ fn user() {
             _ => return reply(None as Option<User>),
         };
         let user = state.users.get_mut(&user_id).expect("user not found");
+        user.num_posts = user.posts.len();
+        user.posts.clear();
         if own_profile_fetch {
             user.accounting.clear();
         } else {
@@ -347,22 +355,12 @@ fn posts() {
 fn journal() {
     let (handle, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     read(|state| {
-        let inverse_filters = state.principal_to_user(caller()).map(|user| &user.filters);
         reply(
             state
                 .user(&handle)
                 .map(|user| {
-                    user.posts(state, offset)
-                        // we filter out responses, root posts starting with tagging another user
-                        // and deletet posts
-                        .filter(|post| {
-                            !post.is_deleted()
-                                && post.parent.is_none()
-                                && !post.body.starts_with('@')
-                                && inverse_filters
-                                    .map(|filters| !post.matches_filters(filters))
-                                    .unwrap_or(true)
-                        })
+                    user.posts(state, offset, false)
+                        .filter(|post| !post.body.starts_with('@'))
                         .skip(page * CONFIG.feed_page_size)
                         .take(CONFIG.feed_page_size)
                         .collect::<Vec<_>>()
@@ -424,20 +422,21 @@ fn last_posts() {
     let (realm, page, offset, filtered): (String, usize, PostId, bool) = parse(&arg_data_raw());
     read(|state| {
         let user = state.principal_to_user(caller());
-        let inverse_filters = filtered.then_some(user.map(|user| &user.filters)).flatten();
         reply(
             state
-                .last_posts(optional(realm), offset, /* with_comments = */ false)
+                .last_posts(optional(realm), offset, 0, /* with_comments = */ false)
                 .filter(|post| {
-                    inverse_filters
-                        .map(|filters| !post.matches_filters(filters))
-                        .unwrap_or(true)
-                        && match (user, state.users.get(&post.user)) {
-                            (Some(user), Some(author)) => {
-                                user.accepts(author.id, &author.get_filter())
-                            }
-                            _ => true,
-                        }
+                    !filtered
+                        || user
+                            .map(|user| {
+                                !post.matches_filters(&user.filters)
+                                    && state
+                                        .users
+                                        .get(&post.user)
+                                        .map(|author| user.accepts(author.id, &author.get_filter()))
+                                        .unwrap_or(true)
+                            })
+                            .unwrap_or(true)
                 })
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
