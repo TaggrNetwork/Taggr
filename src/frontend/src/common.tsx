@@ -941,7 +941,6 @@ export const icrcTransfer = async (
     } catch (e) {
         return "Transfer failed";
     }
-    return response;
 };
 
 const DAY = 24 * 60 * 60 * 1000;
