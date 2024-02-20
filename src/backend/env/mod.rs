@@ -504,7 +504,7 @@ impl State {
 
     pub fn load(&mut self) {
         assets::load();
-        match token::balances_from_ledger(&self.ledger) {
+        match token::balances_from_ledger(&self.memory.ledger) {
             Ok(balances) => {
                 for user in self.users.values_mut() {
                     user.balance = balances
@@ -2697,7 +2697,7 @@ impl State {
                 tx.from.owner = new_principal;
             }
         }
-        match token::balances_from_ledger(&self.ledger) {
+        match token::balances_from_ledger(&self.memory.ledger) {
             Ok(balances) => {
                 let user = self.users.get_mut(&user_id).expect("no user found");
                 user.balance = balances

@@ -57,9 +57,6 @@ fn post_upgrade() {
     stable_to_heap_core();
     mutate(|state| state.load());
 
-    // TODO: DELETE BEFORE THE NEXT RELEASE
-    mutate(|state| state.memory.set_block_size(1));
-
     set_timer_interval(Duration::from_secs(15 * 60), || {
         spawn(State::chores(api::time()))
     });
@@ -75,26 +72,17 @@ fn post_upgrade() {
 }
 
 async fn post_upgrade_fixtures() {
-    let last_id = read(|state| state.next_post_id);
     mutate(|state| {
-        let num_posts = Post::count(state);
+        let balances = state.balances.clone();
+        state.balances.clear();
 
-        for post_id in 0..last_id {
-            Post::mutate(state, &post_id, |post| {
-                post.archived = false;
-                Ok(())
-            })
-            .unwrap();
+        for (i, tx) in state.ledger.iter().enumerate() {
+            state.memory.ledger.insert(i as u64, tx).unwrap();
         }
 
-        // The noop mutation above should move all posts to the heap
-        assert_eq!(state.memory.posts.len(), 0);
-        assert_eq!(state.posts.len(), num_posts);
-
-        // Now we can set the allocation block size
-        state.memory.set_block_size(200);
-
-        ic_cdk::println!("all posts loaded into heap");
+        state.load();
+        // This proves a successful migration
+        assert_eq!(balances, state.balances);
     });
 }
 

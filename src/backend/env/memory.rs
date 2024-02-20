@@ -38,6 +38,8 @@ impl Default for Api {
 pub struct Memory {
     api: Api,
     pub posts: ObjectManager<PostId>,
+    #[serde(default)]
+    pub ledger: ObjectManager<u64>,
     #[serde(skip)]
     api_ref: Rc<RefCell<Api>>,
 }
@@ -336,6 +338,14 @@ impl<K: Eq + Ord + Clone + Display> ObjectManager<K> {
         self.index
             .get(id)
             .map(|(offset, len)| self.api.borrow().read(*offset, *len))
+    }
+
+    pub fn iter<T: DeserializeOwned>(&self) -> Box<dyn DoubleEndedIterator<Item = (K, T)> + '_> {
+        Box::new(
+            self.index
+                .keys()
+                .map(move |id| (id.clone(), self.get(id).expect("no persisted value"))),
+        )
     }
 
     pub fn remove<T: DeserializeOwned>(&mut self, id: &K) -> Result<T, String> {

@@ -1,4 +1,4 @@
-use super::MINUTE;
+use super::{memory::ObjectManager, MINUTE};
 use crate::*;
 use base64::{engine::general_purpose, Engine as _};
 use candid::{CandidType, Deserialize, Principal};
@@ -13,7 +13,8 @@ type Memo = Vec<u8>;
 
 pub type Token = u64;
 
-#[derive(CandidType, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
+// TODO: remove Debug derivation
+#[derive(CandidType, Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub struct Account {
     pub owner: Principal,
     pub subaccount: Option<Subaccount>,
@@ -294,16 +295,28 @@ pub fn transfer(
         state.balances.insert(to.clone(), updated_balance);
         update_user_balance(state, to.owner, updated_balance as Token);
     }
+    let ledger = &mut state.memory.ledger;
+    let id = ledger.len() as u64;
 
-    state.ledger.push(Transaction {
-        timestamp: now,
-        from,
-        to,
-        amount: amount as Token,
-        fee: effective_fee,
-        memo,
-    });
-    Ok(state.ledger.len().saturating_sub(1) as u128)
+    ledger
+        .insert(
+            id,
+            Transaction {
+                timestamp: now,
+                from,
+                to,
+                amount: amount as Token,
+                fee: effective_fee,
+                memo,
+            },
+        )
+        .map(|_| id as u128)
+        .map_err(|err| {
+            TransferError::GenericError(GenericError {
+                error_code: 4,
+                message: err,
+            })
+        })
 }
 
 fn update_user_balance(state: &mut State, principal: Principal, balance: Token) {
@@ -345,10 +358,12 @@ pub fn mint(state: &mut State, account: Account, tokens: Token) {
     );
 }
 
-pub fn balances_from_ledger(ledger: &[Transaction]) -> Result<HashMap<Account, Token>, String> {
+pub fn balances_from_ledger(
+    ledger: &ObjectManager<u64>,
+) -> Result<HashMap<Account, Token>, String> {
     let mut balances = HashMap::new();
     let minting_account = icrc1_minting_account().ok_or("no minting account found")?;
-    for transaction in ledger {
+    for (_, transaction) in ledger.iter::<Transaction>() {
         if transaction.to != minting_account {
             if !balances.contains_key(&transaction.to) {
                 balances.insert(transaction.to.clone(), transaction.amount);

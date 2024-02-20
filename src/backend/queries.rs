@@ -1,7 +1,10 @@
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
-use crate::env::{token::Token, user::UserFilter};
+use crate::env::{
+    token::{Token, Transaction},
+    user::UserFilter,
+};
 
 use super::*;
 use candid::Principal;
@@ -93,15 +96,23 @@ fn tokens_to_mint() {
 
 #[export_name = "canister_query transaction"]
 fn transaction() {
-    let id: usize = parse(&arg_data_raw());
-    read(|state| reply(state.ledger.get(id).ok_or("not found")));
+    let id: u64 = parse(&arg_data_raw());
+    read(|state| {
+        reply(
+            state
+                .memory
+                .ledger
+                .get::<Transaction>(&id)
+                .ok_or("not found"),
+        )
+    });
 }
 
 #[export_name = "canister_query transactions"]
 fn transactions() {
     let (page, principal, subaccount): (usize, String, String) = parse(&arg_data_raw());
     read(|state| {
-        let iter = state.ledger.iter().enumerate();
+        let iter = state.memory.ledger.iter::<Transaction>();
         let owner = Principal::from_text(principal).expect("invalid principal");
         let subaccount = hex::decode(subaccount).expect("invalid subaccount");
         let iter: Box<dyn DoubleEndedIterator<Item = _>> = if Principal::anonymous() == owner {
@@ -119,7 +130,7 @@ fn transactions() {
             iter.rev()
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
-                .collect::<Vec<(usize, _)>>(),
+                .collect::<Vec<(u64, _)>>(),
         );
     });
 }
