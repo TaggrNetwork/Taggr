@@ -108,6 +108,10 @@ export const PostView = ({
         }
         setBody(effBody);
         setPost(data);
+        // I truly do not understand why this is needed on post pages,
+        // but without it, the post page opened from a feed scrolled down
+        // is displayed as scrolled down too.
+        if (prime) window.scrollTo(0, 0);
     };
 
     React.useEffect(() => {

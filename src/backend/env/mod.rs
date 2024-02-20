@@ -735,50 +735,48 @@ impl State {
         Ok(())
     }
 
-    pub async fn tip(principal: Principal, post_id: PostId, amount: u64) -> Result<(), String> {
-        let result: Result<_, String> = read(|state| {
-            let tipper = state.principal_to_user(principal).ok_or("no user found")?;
-            let tipper_id = tipper.id;
-            let tipper_name = tipper.name.clone();
-            let author_id = Post::get(state, &post_id).ok_or("post not found")?.user;
-            let author = state.users.get(&author_id).ok_or("no user found")?;
-            Ok((tipper_name, tipper_id, author.id, author.principal))
-        });
-        let (tipper_name, tipper_id, author_id, author_principal) = result?;
-        mutate(|state| {
-            token::transfer(
-                state,
-                time(),
-                principal,
-                TransferArgs {
-                    from_subaccount: None,
-                    to: account(author_principal),
-                    fee: Some(1), // special tipping fee
-                    amount: amount as u128,
-                    memo: None,
-                    created_at_time: None,
-                },
-            )
-            .map_err(|err| format!("tip transfer failed: {:?}", err))?;
-            Post::mutate(state, &post_id, |post| {
-                post.tips.push((tipper_id, amount));
-                Ok(())
-            })?;
-            state
-                .users
-                .get_mut(&author_id)
-                .expect("user not found")
-                .notify_about_post(
-                    format!(
-                        "@{} tipped you with `{}` {} for your post",
-                        tipper_name,
-                        display_tokens(amount, CONFIG.token_decimals as u32),
-                        CONFIG.token_symbol
-                    ),
-                    post_id,
-                );
+    pub fn tip(
+        &mut self,
+        principal: Principal,
+        post_id: PostId,
+        amount: u64,
+    ) -> Result<(), String> {
+        let tipper = self.principal_to_user(principal).ok_or("no user found")?;
+        let tipper_id = tipper.id;
+        let tipper_name = tipper.name.clone();
+        let author_id = Post::get(self, &post_id).ok_or("post not found")?.user;
+        let author = self.users.get(&author_id).ok_or("no user found")?;
+        token::transfer(
+            self,
+            time(),
+            principal,
+            TransferArgs {
+                from_subaccount: None,
+                to: account(author.principal),
+                fee: Some(1), // special tipping fee
+                amount: amount as u128,
+                memo: None,
+                created_at_time: None,
+            },
+        )
+        .map_err(|err| format!("tip transfer failed: {:?}", err))?;
+        Post::mutate(self, &post_id, |post| {
+            post.tips.push((tipper_id, amount));
             Ok(())
-        })
+        })?;
+        self.users
+            .get_mut(&author_id)
+            .expect("user not found")
+            .notify_about_post(
+                format!(
+                    "@{} tipped you with `{}` {} for your post",
+                    tipper_name,
+                    display_tokens(amount, CONFIG.token_decimals as u32),
+                    CONFIG.token_symbol
+                ),
+                post_id,
+            );
+        Ok(())
     }
 
     fn new_user(
@@ -1625,16 +1623,15 @@ impl State {
             })
             .collect::<Vec<_>>()
         {
-            total_revenue += revenue;
             let controllers = controllers
                 .into_iter()
                 .filter_map(|user_id| self.users.get(&user_id))
                 .filter(|user| user.active_within_weeks(now, 1))
                 .map(|user| (user.id, user.name.clone()))
                 .collect::<Vec<_>>();
-            let controller_revenue = revenue * CONFIG.realm_revenue_percentage as u64
-                / 100
-                / controllers.len().max(1) as u64;
+            let realm_revenue = revenue * CONFIG.realm_revenue_percentage as u64 / 100;
+            total_revenue += realm_revenue;
+            let controller_revenue = realm_revenue / controllers.len().max(1) as u64;
             for (id, name) in &controllers {
                 self.spend_to_user_rewards(
                     *id,
@@ -2197,8 +2194,8 @@ impl State {
             canister_id: ic_cdk::id(),
             last_upgrade: self.last_upgrade,
             last_weekly_chores: self.last_weekly_chores,
-            last_daily_chores: self.last_weekly_chores,
-            last_hourly_chores: self.last_weekly_chores,
+            last_daily_chores: self.last_daily_chores,
+            last_hourly_chores: self.last_hourly_chores,
             canister_cycle_balance: canister_balance(),
             users: self.users.len(),
             posts,
@@ -2564,18 +2561,25 @@ impl State {
                 }
             }
             let eff_delta = (delta / recipients.len() as i64) as Credits;
+            let fee = config::reaction_fee(reaction);
+            let eff_fee = fee / recipients.len() as Credits;
             // If delta is not divisible by 2, the original post author gets the rest
-            let deltas = vec![
-                eff_delta,
-                eff_delta
-                    + delta.saturating_sub(recipients.len() as i64 * eff_delta as i64) as Credits,
+            let params = vec![
+                (eff_delta, eff_fee),
+                (
+                    eff_delta
+                        + delta.saturating_sub(recipients.len() as i64 * eff_delta as i64)
+                            as Credits,
+                    eff_fee + fee.saturating_sub(recipients.len() as u64 * eff_fee) as Credits,
+                ),
             ];
-            for (recipient, delta) in recipients.iter().zip(deltas) {
+
+            for (recipient, (delta, fee)) in recipients.iter().zip(params) {
                 self.credit_transfer(
                     user_id,
                     *recipient,
                     delta,
-                    config::reaction_fee(reaction),
+                    fee,
                     Destination::Rewards,
                     log.clone(),
                     None,
@@ -4462,6 +4466,38 @@ pub(crate) mod tests {
             assert!(state.react(lurker_principal, id, 50, 0).is_ok());
 
             assert_eq!(state.users.get(&user_id111).unwrap().rewards(), 30);
+        })
+    }
+
+    #[test]
+    fn test_credits_accounting_reposts() {
+        STATE.with(|cell| cell.replace(Default::default()));
+        mutate(|state| {
+            create_user_with_credits(state, pr(0), 2000);
+            create_user_with_credits(state, pr(1), 2000);
+            create_user(state, pr(2));
+            let c = CONFIG;
+
+            for (reaction, total_fee) in &[(10, 1), (50, 2), (101, 3)] {
+                state.burned_cycles = 0;
+                let post_id =
+                    Post::create(state, "test".to_string(), &[], pr(0), 0, None, None, None)
+                        .unwrap();
+                let post_id2 = Post::create(
+                    state,
+                    "test".to_string(),
+                    &[],
+                    pr(1),
+                    0,
+                    None,
+                    None,
+                    Some(Extension::Repost(post_id)),
+                )
+                .unwrap();
+
+                assert!(state.react(pr(2), post_id2, *reaction, 0).is_ok());
+                assert_eq!(state.burned_cycles as Credits, 2 * c.post_cost + total_fee);
+            }
         })
     }
 

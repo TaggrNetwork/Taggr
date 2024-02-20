@@ -94,6 +94,10 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
                             from users matching the name "XZY" from the realm
                             starting with "ABC" and containing the word "WORD".
                         </li>
+                        <li>
+                            <code>#TAG</code>: will show all hashtags starting
+                            with "TAG".
+                        </li>
                     </ul>
                 </div>
             )}
