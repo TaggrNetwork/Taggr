@@ -318,6 +318,9 @@ pub fn realm_search(state: &State, query: String) -> Vec<(&'_ String, &'_ Realm)
     state
         .realms
         .iter()
-        .filter(|(_realm_id, realm)| realm.description.to_lowercase().contains(query))
+        .filter(|(realm_id, realm)| {
+            realm_id.to_lowercase().contains(query)
+                || realm.description.to_lowercase().contains(query)
+        })
         .collect()
 }
