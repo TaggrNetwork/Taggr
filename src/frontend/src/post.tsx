@@ -81,6 +81,7 @@ export const PostView = ({
 }) => {
     const [post, setPost] = React.useState(data);
     const [body, setBody] = React.useState("");
+    const [urls, setUrls] = React.useState({});
     const [notFound, setNotFound] = React.useState(false);
     const [hidden, setHidden] = React.useState(false);
     const [showComments, toggleComments] = React.useState(!!prime);
@@ -107,6 +108,7 @@ export const PostView = ({
             }
         }
         setBody(effBody);
+        setUrls(filesToUrls(data.files));
         setPost(data);
         // I truly do not understand why this is needed on post pages,
         // but without it, the post page opened from a feed scrolled down
@@ -334,7 +336,7 @@ export const PostView = ({
                             value={body}
                             collapse={!expanded}
                             primeMode={isRoot(post) && !repost}
-                            urls={filesToUrls(post.files)}
+                            urls={urls}
                         />
                     </article>
                 )}
