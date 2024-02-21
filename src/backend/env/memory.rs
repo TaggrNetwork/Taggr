@@ -184,7 +184,7 @@ impl Clone for Allocator {
 impl Default for Allocator {
     fn default() -> Self {
         Self {
-            block_size_bytes: 200,
+            block_size_bytes: 300,
             segments: Default::default(),
             boundary: INITIAL_OFFSET,
             mem_size: Some(Box::new(|| stable64_size() << 16)),
@@ -353,15 +353,16 @@ pub(crate) mod tests {
     #[test]
     fn test_allocation_size() {
         let a = Allocator::default();
-        assert_eq!(a.block_size_bytes, 200);
+        assert_eq!(a.block_size_bytes, 300);
         assert_eq!(a.get_allocation_length(0), 0);
-        assert_eq!(a.get_allocation_length(1), 200);
-        assert_eq!(a.get_allocation_length(100), 200);
-        assert_eq!(a.get_allocation_length(199), 200);
-        assert_eq!(a.get_allocation_length(200), 200);
-        assert_eq!(a.get_allocation_length(201), 400);
-        assert_eq!(a.get_allocation_length(301), 400);
-        assert_eq!(a.get_allocation_length(400), 400);
+        assert_eq!(a.get_allocation_length(1), 300);
+        assert_eq!(a.get_allocation_length(100), 300);
+        assert_eq!(a.get_allocation_length(199), 300);
+        assert_eq!(a.get_allocation_length(299), 300);
+        assert_eq!(a.get_allocation_length(300), 300);
+        assert_eq!(a.get_allocation_length(301), 600);
+        assert_eq!(a.get_allocation_length(400), 600);
+        assert_eq!(a.get_allocation_length(599), 600);
     }
 
     #[test]

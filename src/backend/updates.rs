@@ -92,7 +92,7 @@ async fn post_upgrade_fixtures() {
         assert_eq!(state.posts.len(), num_posts);
 
         // Now we can set the allocation block size
-        state.memory.set_block_size(200);
+        state.memory.set_block_size(300);
 
         ic_cdk::println!("all posts loaded into heap");
     });
