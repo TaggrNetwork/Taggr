@@ -47,9 +47,9 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
                             let search_body = body.to_lowercase();
                             if let Some(i) = search_body.find(hashtag) {
                                 return Some(SearchResult {
-                                    id: *id,
-                                    user_id: *user,
-                                    relevant: snippet(body, i),
+                                    id,
+                                    user_id: user,
+                                    relevant: snippet(&body, i),
                                     result: "post".to_string(),
                                     ..Default::default()
                                 });
@@ -67,7 +67,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         {
             let realm_id = &realm[1..].to_uppercase();
             users(user_name_prefix.to_string())
-                .flat_map(|user| user.posts(state, 0, true))
+                .flat_map(|user| user.posts(0, true))
                 .filter_map(
                     |Post {
                          id,
@@ -82,9 +82,9 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
                         let search_body = body.to_lowercase();
                         if let Some(i) = search_body.find(word) {
                             return Some(SearchResult {
-                                id: *id,
-                                user_id: *user,
-                                relevant: snippet(body, i),
+                                id,
+                                user_id: user,
+                                relevant: snippet(&body, i),
                                 result: "post".to_string(),
                                 ..Default::default()
                             });
@@ -101,7 +101,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         {
             let realm_id = &realm[1..].to_uppercase();
             users(user_name_prefix.to_string())
-                .flat_map(|user| user.posts(state, 0, true))
+                .flat_map(|user| user.posts(0, true))
                 .filter_map(
                     |Post {
                          id,
@@ -114,9 +114,9 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
                             return None;
                         }
                         Some(SearchResult {
-                            id: *id,
-                            user_id: *user,
-                            relevant: snippet(body, 0),
+                            id,
+                            user_id: user,
+                            relevant: snippet(&body, 0),
                             result: "post".to_string(),
                             ..Default::default()
                         })
@@ -128,14 +128,14 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         // search for all posts from specified users containing `word`
         [user_name_prefix, word] if user_name_prefix.starts_with('@') => {
             users(user_name_prefix.to_string())
-                .flat_map(|user| user.posts(state, 0, true))
+                .flat_map(|user| user.posts(0, true))
                 .filter_map(|Post { id, body, user, .. }| {
                     let search_body = body.to_lowercase();
                     if let Some(i) = search_body.find(word) {
                         return Some(SearchResult {
-                            id: *id,
-                            user_id: *user,
-                            relevant: snippet(body, i),
+                            id,
+                            user_id: user,
+                            relevant: snippet(&body, i),
                             result: "post".to_string(),
                             ..Default::default()
                         });
@@ -154,9 +154,9 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
                     let search_body = body.to_lowercase();
                     if let Some(i) = search_body.find(word) {
                         return Some(SearchResult {
-                            id: *id,
-                            user_id: *user,
-                            relevant: snippet(body, i),
+                            id,
+                            user_id: user,
+                            relevant: snippet(&body, i),
                             result: "post".to_string(),
                             ..Default::default()
                         });
@@ -227,9 +227,9 @@ fn wildcard_search(state: &State, term: &str) -> Vec<SearchResult> {
                 .filter_map(|Post { id, body, user, .. }| {
                     if id.to_string() == term {
                         return Some(SearchResult {
-                            id: *id,
-                            user_id: *user,
-                            relevant: snippet(body, 0),
+                            id,
+                            user_id: user,
+                            relevant: snippet(&body, 0),
                             result: "post".to_string(),
                             ..Default::default()
                         });
@@ -237,9 +237,9 @@ fn wildcard_search(state: &State, term: &str) -> Vec<SearchResult> {
                     let search_body = body.to_lowercase();
                     if let Some(i) = search_body.find(term) {
                         return Some(SearchResult {
-                            id: *id,
-                            user_id: *user,
-                            relevant: snippet(body, i),
+                            id,
+                            user_id: user,
+                            relevant: snippet(&body, i),
                             result: "post".to_string(),
                             ..Default::default()
                         });

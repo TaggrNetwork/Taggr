@@ -20,6 +20,7 @@ use ic_cdk::{
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use ic_ledger_types::{AccountIdentifier, Tokens};
+use ic_stable_structures::Cell;
 use serde_bytes::ByteBuf;
 use std::time::Duration;
 
@@ -41,7 +42,13 @@ fn init() {
 
 #[pre_upgrade]
 fn pre_upgrade() {
-    mutate(env::memory::heap_to_stable)
+    HEAP.with(|cell| {
+        cell.borrow_mut()
+            .as_mut()
+            .unwrap()
+            .set(STATE.with(|cell| cell.take()))
+    })
+    .expect("couldn't write heap to stable memory");
 }
 
 #[post_upgrade]
@@ -71,17 +78,91 @@ fn post_upgrade() {
 }
 
 async fn post_upgrade_fixtures() {
-    mutate(|state| {
-        let num_posts = Post::count(state);
-        for id in 0..state.next_post_id {
-            Post::mutate(state, &id, |post| {
-                post.archived = false;
-                Ok(())
-            })
-            .unwrap();
+    mutate(|state| state.read_only = true);
+    let total_posts = read(|state| state.posts.len());
+
+    // Init all stable structs becasue we do not need the old contents of the stable memory anymore
+    init_stable_structs();
+
+    loop {
+        let num_posts = read(|state| state.posts.len());
+        let _: Result<(), ()> = canisters::call_canister(id(), "migrate_posts", ((),))
+            .await
+            .map_err(|(code, err)| {
+                mutate(|state| {
+                    state.logger.error(format!(
+                        "couldn't migrate posts: code {:?}, err {}",
+                        code, err
+                    ))
+                })
+            });
+        let new_num_posts = read(|state| state.posts.len());
+        if new_num_posts == 0 {
+            // We're done with migration
+            break;
         }
-        assert_eq!(state.posts.len(), num_posts);
+        if num_posts == new_num_posts && num_posts > 0 {
+            // Something went wrong, so we stop and let the state locked.
+            mutate(|state| {
+                state
+                    .logger
+                    .error("couldn't migrate posts: something went wrong")
+            });
+            return;
+        }
+    }
+
+    if total_posts as u64 == Post::count() {
+        mutate(|state| {
+            state.read_only = false;
+            state
+                .logger
+                .debug(format!("Succefully migrated {} posts", total_posts))
+        })
+    }
+}
+
+#[update]
+fn migrate_posts() {
+    mutate(|state| {
+        let mut r = 0;
+        for _ in 0..20000 {
+            let Some((_, post)) = state.posts.pop_first() else {
+                break;
+            };
+            Post::save(post);
+            r += 1;
+        }
+        state
+            .logger
+            .debug(format!("migrated {} posts to stable memory", r));
     })
+}
+
+pub fn init_stable_structs() {
+    use ic_stable_structures::memory_manager::MemoryId;
+    use ic_stable_structures::StableBTreeMap;
+    MEMORY_MANAGER.with(|cell| {
+        cell.replace_with(|_| Some(MemoryManager::init(DefaultMemoryImpl::default())))
+    });
+    HEAP.with(|cell| {
+        cell.replace_with(|_| {
+            Some(
+                Cell::init(
+                    MEMORY_MANAGER.with(|m| m.borrow().as_ref().unwrap().get(MemoryId::new(0))),
+                    Default::default(),
+                )
+                .expect("couldn't initialize heap memory"),
+            )
+        })
+    });
+    env::post::POSTS.with(|cell| {
+        cell.replace_with(|_| {
+            Some(StableBTreeMap::init(MEMORY_MANAGER.with(|m| {
+                m.borrow().as_ref().unwrap().get(MemoryId::new(1))
+            })))
+        })
+    });
 }
 
 /*

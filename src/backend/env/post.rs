@@ -1,30 +1,16 @@
-use std::cmp::{Ordering, PartialOrd};
-
 use super::reports::ReportState;
 use super::*;
 use super::{storage::Storage, user::UserId};
 use crate::mutate;
 use crate::reports::Report;
+use ic_stable_structures::{StableBTreeMap, Storable};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+use std::cell::RefCell;
+use std::cmp::{Ordering, PartialOrd};
 
-static mut CACHE: Option<BTreeMap<PostId, Box<Post>>> = None;
-
-// This is a static cache that is only populated during one queries's life cycle. The reason why it's
-// needed is that `Post::get` always returns a reference to a post. But when we load an archived
-// post, we read raw bytes from the stable memory and deserialize them into a value. To return a
-// reference to that value, we need to anchor it somewhere on the heap. This is where we need our
-// cache. But we also _cannot_ store posts inside the cache directly, because any mutation of the
-// cache within a query life cycle will restructure the hash map and hence break all references.
-// To work around this issue, we go through one level of indirection and box all posts (put them on
-// to the heap) and then only add the pointers to the boxed value into the cache. This way,
-// when we get a reference to a post and dereference twice, we get a stable reference.
-fn cache<'a>() -> &'a mut BTreeMap<PostId, Box<Post>> {
-    unsafe {
-        if CACHE.is_none() {
-            CACHE = Some(Default::default())
-        }
-        CACHE.as_mut().expect("no cache instantiated")
-    }
+thread_local! {
+    pub static POSTS: RefCell<Option<StableBTreeMap<PostId, Post, crate::Memory>>> = Default::default();
 }
 
 pub type PostId = u64;
@@ -77,6 +63,19 @@ pub struct Post {
 
     #[serde(skip)]
     pub archived: bool,
+}
+
+impl Storable for Post {
+    const BOUND: ic_stable_structures::storable::Bound =
+        ic_stable_structures::storable::Bound::Unbounded;
+
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(serde_cbor::to_vec(self).expect("post serialization failed"))
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        serde_cbor::from_slice(&bytes).expect("post deserialization failed")
+    }
 }
 
 impl PartialEq for Post {
@@ -219,11 +218,9 @@ impl Post {
     }
 
     pub async fn save_blobs(post_id: PostId, blobs: Vec<(String, Blob)>) -> Result<(), String> {
-        let existing_blobs = read(|state| {
-            Post::get(state, &post_id)
-                .map(|post| post.files.keys().cloned().collect::<BTreeSet<_>>())
-        })
-        .unwrap_or_default();
+        let existing_blobs = Post::get(&post_id)
+            .map(|post| post.files.keys().cloned().collect::<BTreeSet<_>>())
+            .unwrap_or_default();
 
         for (id, blob) in blobs
             .into_iter()
@@ -336,7 +333,7 @@ impl Post {
     /// Checks if the poll has ended. If not, returns `Ok(false)`. If the poll ended,
     /// returns `Ok(true)` and assings the result weighted by the token voting power.
     pub fn conclude_poll(state: &mut State, post_id: &PostId, now: u64) -> Result<bool, String> {
-        let user_balances = Post::get(state, post_id)
+        let user_balances = Post::get(post_id)
             .and_then(|post| {
                 if let Some(Extension::Poll(poll)) = post.extension.as_ref() {
                     let user_ids = poll.votes.values().flatten().cloned();
@@ -382,7 +379,7 @@ impl Post {
     ) -> Result<(), String> {
         mutate(|state| {
             let user = state.principal_to_user(principal).ok_or("no user found")?;
-            let mut post = Post::get(state, &id).ok_or("no post found")?.clone();
+            let mut post = Post::get(&id).ok_or("no post found")?.clone();
             if post.user != user.id {
                 return Err("unauthorized".to_string());
             }
@@ -416,10 +413,7 @@ impl Post {
 
             let current_realm = post.realm.clone();
 
-            // After we validated the new edited copy of the post, charged the user, we should remove the
-            // old post, and insert the edited one.
-            Post::take(state, &id);
-            Post::save(state, post);
+            Post::save(post);
 
             if current_realm != picked_realm {
                 change_realm(state, id, picked_realm)
@@ -443,6 +437,9 @@ impl Post {
         picked_realm: Option<String>,
         extension: Option<Extension>,
     ) -> Result<PostId, String> {
+        if state.read_only {
+            return Err("read-only mode".into());
+        }
         let user = match state.principal_to_user(principal) {
             Some(user) => user,
             // look for an authorized controller
@@ -463,7 +460,7 @@ impl Post {
             return Err("bots can't create comments".into());
         }
 
-        let realm = match parent.and_then(|id| Post::get(state, &id)) {
+        let realm = match parent.and_then(|id| Post::get(&id)) {
             Some(parent) => parent.realm.clone(),
             None => match picked_realm {
                 Some(value) if value.to_lowercase() == CONFIG.name.to_lowercase() => None,
@@ -487,7 +484,7 @@ impl Post {
             }
         } else if let Some(discussion_owner) = parent.and_then(|post_id| {
             state.thread(post_id).next().and_then(|post_id| {
-                Post::get(state, &post_id).and_then(|post| state.users.get(&post.user))
+                Post::get(&post_id).and_then(|post| state.users.get(&post.user))
             })
         }) {
             if !discussion_owner.accepts(user.id, &user.get_filter()) {
@@ -516,7 +513,7 @@ impl Post {
         let future_id = state.next_post_id;
         let is_comment = parent.is_some();
         let excess_factor = user
-            .posts(state, 0, is_comment)
+            .posts(0, is_comment)
             .take_while(|post| post.timestamp() + if is_comment { HOUR } else { DAY } > timestamp)
             .count()
             .saturating_sub(if is_comment {
@@ -601,7 +598,7 @@ impl Post {
             state.root_posts += 1
         }
 
-        Post::save(state, post);
+        Post::save(post);
 
         state
             .thread(id)
@@ -621,52 +618,33 @@ impl Post {
         Ok(id)
     }
 
-    pub fn count(state: &State) -> usize {
-        state.posts.len() + state.memory.posts.len()
+    pub fn count() -> u64 {
+        POSTS.with(|p| p.borrow().as_ref().unwrap().len())
     }
 
-    // Get the post from the heap if available, or load from the stable memory into the cache and
-    // return the reference to it
-    pub fn get<'a>(state: &'a State, post_id: &PostId) -> Option<&'a Post> {
-        state.posts.get(post_id).or_else(|| {
-            let boxed = cache().get(post_id).or_else(|| {
-                state.memory.posts.get(post_id).and_then(|mut post: Post| {
-                    let cache = cache();
-                    post.archived = true;
-                    cache.insert(*post_id, Box::new(post));
-                    cache.get(post_id)
-                })
-            });
-            boxed.map(|ptr| &**ptr)
-        })
+    pub fn get(post_id: &PostId) -> Option<Post> {
+        POSTS.with(|p| p.borrow().as_ref().unwrap().get(post_id))
     }
 
-    // Takes the post from cold or hot memory
-    fn take(state: &mut State, post_id: &PostId) -> Post {
-        cache().remove(post_id);
-        state
-            .posts
-            .remove(post_id)
-            .ok_or("no post found".to_string())
-            .or_else(|_| state.memory.posts.remove(post_id))
-            .expect("couldn't take post")
-    }
-
-    // Takes the post from hot or cold memory, mutates and inserts into the hot memory
+    /// Mutates the post. Note that the mutation is applied even if errors occur. This function
+    /// should only be used for fail-safe mutation.
     pub fn mutate<T, F>(state: &mut State, post_id: &PostId, f: F) -> Result<T, String>
     where
         F: FnOnce(&mut Post) -> Result<T, String>,
     {
-        let mut post = Post::take(state, post_id);
+        if state.read_only {
+            return Err("read-only mode".into());
+        }
+        let mut post = POSTS
+            .with(|p| p.borrow_mut().as_mut().unwrap().remove(post_id))
+            .ok_or("no post found")?;
         let result = f(&mut post);
-        Post::save(state, post);
+        Post::save(post);
         result
     }
 
-    fn save(state: &mut State, post: Post) {
-        if state.posts.insert(post.id, post).is_some() {
-            panic!("no post should exist")
-        }
+    pub fn save(post: Post) {
+        POSTS.with(|p| p.borrow_mut().as_mut().unwrap().insert(post.id, post));
     }
 
     pub fn matches_filters(&self, filters: &Filters) -> bool {
@@ -685,7 +663,7 @@ pub fn change_realm(state: &mut State, root_post_id: PostId, new_realm: Option<S
 
     while let Some(post_id) = post_ids.pop() {
         let Some((children, realm)) =
-            Post::get(state, &post_id).map(|post| (post.children.clone(), post.realm.clone()))
+            Post::get(&post_id).map(|post| (post.children.clone(), post.realm.clone()))
         else {
             continue;
         };
@@ -718,10 +696,7 @@ fn notify_about(state: &mut State, post: &Post) {
     let mut notified: HashSet<_> = HashSet::new();
     // Don't notify the author
     notified.insert(post.user);
-    if let Some(parent) = post
-        .parent
-        .and_then(|parent_id| Post::get(state, &parent_id))
-    {
+    if let Some(parent) = post.parent.and_then(|parent_id| Post::get(&parent_id)) {
         let parent_author = parent.user;
         if parent_author != post.user {
             if let Some(user) = state.users.get_mut(&parent_author) {
@@ -734,10 +709,8 @@ fn notify_about(state: &mut State, post: &Post) {
     }
 
     if let Some(Extension::Repost(post_id)) = post.extension.as_ref() {
-        let Some(user_id) = state
-            .posts
-            .get(post_id)
-            .and_then(|post| state.users.get(&post.user).map(|user| user.id))
+        let Some(user_id) =
+            Post::get(post_id).and_then(|post| state.users.get(&post.user).map(|user| user.id))
         else {
             return;
         };
@@ -772,7 +745,7 @@ fn notify_about(state: &mut State, post: &Post) {
     if let Some(parent_id) = post.parent {
         state
             .thread(parent_id)
-            .filter_map(|id| Post::get(state, &id))
+            .filter_map(|id| Post::get(&id))
             .flat_map(|post| {
                 post.watchers
                     .clone()

@@ -150,7 +150,7 @@ fn proposals() {
                 .rev()
                 .skip(page * page_size)
                 .take(page_size)
-                .filter_map(|proposal| Post::get(state, &proposal.post_id))
+                .filter_map(|proposal| Post::get(&proposal.post_id))
                 .collect::<Vec<_>>(),
         )
     })
@@ -264,7 +264,7 @@ fn user_posts() {
     read(|state| {
         resolve_handle(state, Some(&handle)).map(|user| {
             reply(
-                user.posts(state, offset, true)
+                user.posts(offset, true)
                     .skip(CONFIG.feed_page_size * page)
                     .take(CONFIG.feed_page_size)
                     .collect::<Vec<_>>(),
@@ -279,7 +279,7 @@ fn rewarded_posts() {
     read(|state| {
         resolve_handle(state, Some(&handle)).map(|user| {
             reply(
-                user.posts(state, offset, true)
+                user.posts(offset, true)
                     .filter(|post| !post.reactions.is_empty())
                     .skip(CONFIG.feed_page_size * page)
                     .take(CONFIG.feed_page_size)
@@ -342,13 +342,11 @@ fn invites() {
 #[export_name = "canister_query posts"]
 fn posts() {
     let ids: Vec<PostId> = parse(&arg_data_raw());
-    read(|state| {
-        reply(
-            ids.into_iter()
-                .filter_map(|id| Post::get(state, &id))
-                .collect::<Vec<&Post>>(),
-        );
-    })
+    reply(
+        ids.into_iter()
+            .filter_map(|id| Post::get(&id))
+            .collect::<Vec<_>>(),
+    );
 }
 
 #[export_name = "canister_query journal"]
@@ -359,7 +357,7 @@ fn journal() {
             state
                 .user(&handle)
                 .map(|user| {
-                    user.posts(state, offset, false)
+                    user.posts(offset, false)
                         .filter(|post| !post.body.starts_with('@'))
                         .skip(page * CONFIG.feed_page_size)
                         .take(CONFIG.feed_page_size)
@@ -476,7 +474,7 @@ fn thread() {
         reply(
             state
                 .thread(id)
-                .filter_map(|id| Post::get(state, &id))
+                .filter_map(|id| Post::get(&id))
                 .collect::<Vec<_>>(),
         )
     })

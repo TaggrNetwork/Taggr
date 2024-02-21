@@ -167,9 +167,7 @@ fn route(path: &str) -> Option<(Headers, ByteBuf)> {
         let mut parts = path.split('/').skip(1);
         match (parts.next(), parts.next()) {
             (Some("post"), Some(id)) | (Some("thread"), Some(id)) => {
-                if let Some(post) =
-                    Post::get(state, &id.parse::<u64>().expect("couldn't parse post id"))
-                {
+                if let Some(post) = Post::get(&id.parse::<u64>().expect("couldn't parse post id")) {
                     return index(
                         domain,
                         &format!(

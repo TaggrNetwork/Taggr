@@ -15,10 +15,12 @@ use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{self, canister_balance};
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
+use ic_stable_structures::Storable;
 use invoices::Invoices;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use sha2::{Digest, Sha256};
+use std::borrow::Cow;
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use user::{User, UserId};
@@ -73,8 +75,8 @@ pub struct Stats {
     burned_credits_total: Credits,
     total_revenue_shared: u64,
     total_rewards_shared: u64,
-    posts: usize,
-    comments: usize,
+    posts: u64,
+    comments: u64,
     account: String,
     last_weekly_chores: u64,
     last_daily_chores: u64,
@@ -196,6 +198,9 @@ pub struct State {
 
     #[serde(default)]
     pub posts_with_tags: Vec<PostId>,
+
+    #[serde(skip)]
+    pub read_only: bool,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -246,6 +251,19 @@ impl Logger {
 pub enum Destination {
     Rewards,
     Credits,
+}
+
+impl Storable for State {
+    const BOUND: ic_stable_structures::storable::Bound =
+        ic_stable_structures::storable::Bound::Unbounded;
+
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(serde_cbor::to_vec(self).expect("state serialization failed"))
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        serde_cbor::from_slice(&bytes).expect("state deserialization failed")
+    }
 }
 
 impl State {
@@ -364,7 +382,7 @@ impl State {
         reason: String,
     ) -> Result<(), String> {
         let controller = self.principal_to_user(principal).ok_or("no user found")?.id;
-        let post = Post::get(self, &post_id).ok_or("no post found")?;
+        let post = Post::get(&post_id).ok_or("no post found")?;
         if post.parent.is_some() {
             return Err("only root posts can be moved out of realms".into());
         }
@@ -542,7 +560,7 @@ impl State {
         caller: Principal,
         page: usize,
         offset: PostId,
-    ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
+    ) -> Box<dyn Iterator<Item = Post> + '_> {
         let realm_ids = match self
             .principal_to_user(caller)
             .map(|user| user.realms.as_slice())
@@ -569,7 +587,7 @@ impl State {
         page: usize,
         offset: PostId,
         filter: Option<&dyn Fn(&Post) -> bool>,
-    ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
+    ) -> Box<dyn Iterator<Item = Post>> {
         let mut hot_posts = self
             .last_posts(realm, offset, time().saturating_sub(4 * WEEK), false)
             .filter(|post| !matches!(post.extension, Some(Extension::Proposal(_))))
@@ -744,7 +762,7 @@ impl State {
         let tipper = self.principal_to_user(principal).ok_or("no user found")?;
         let tipper_id = tipper.id;
         let tipper_name = tipper.name.clone();
-        let author_id = Post::get(self, &post_id).ok_or("post not found")?.user;
+        let author_id = Post::get(&post_id).ok_or("post not found")?.user;
         let author = self.users.get(&author_id).ok_or("no user found")?;
         token::transfer(
             self,
@@ -935,7 +953,7 @@ impl State {
                             .get(user_id)
                             .and_then(|p| p.report.as_ref().map(|r| r.closed))
                             .unwrap_or_default(),
-                        Predicate::ReportOpen(post_id) => Post::get(self, post_id)
+                        Predicate::ReportOpen(post_id) => Post::get(post_id)
                             .and_then(|p| p.report.as_ref().map(|r| r.closed))
                             .unwrap_or_default(),
                         Predicate::Proposal(post_id) => self
@@ -1388,9 +1406,9 @@ impl State {
 
         // Vote on proposals if pending ones exist
         for (proposal_id, post_id) in read(|state| state.pending_nns_proposals.clone()) {
-            if let Some(Extension::Poll(poll)) = read(|state| {
-                Post::get(state, &post_id).and_then(|post| post.extension.as_ref().cloned())
-            }) {
+            if let Some(Extension::Poll(poll)) =
+                Post::get(&post_id).and_then(|post| post.extension.as_ref().cloned())
+            {
                 // The poll is still pending.
                 if read(|state| state.pending_polls.contains(&post_id)) {
                     continue;
@@ -1498,13 +1516,7 @@ impl State {
     }
 
     pub async fn hourly_chores(now: u64) {
-        mutate(|state| {
-            // Automatically dump the heap to the stable memory. This should be the first
-            // opearation to avoid blocking of the backup by a panic in other parts of the routine.
-            memory::heap_to_stable(state);
-
-            state.conclude_polls(now)
-        });
+        mutate(|state| state.conclude_polls(now));
 
         State::fetch_xdr_rate().await;
 
@@ -1905,7 +1917,7 @@ impl State {
         users: Vec<UserId>,
         page: usize,
         offset: PostId,
-    ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
+    ) -> Box<dyn Iterator<Item = Post> + '_> {
         let query: HashSet<_> = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
         Box::new(
             self.posts_with_tags(realm, offset, true)
@@ -1923,18 +1935,18 @@ impl State {
         )
     }
 
-    fn posts_with_tags<'a>(
-        &'a self,
+    fn posts_with_tags(
+        &self,
         realm_id: Option<RealmId>,
         offset: PostId,
         with_comments: bool,
-    ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+    ) -> Box<dyn Iterator<Item = Post> + '_> {
         Box::new(
             self.posts_with_tags
                 .iter()
                 .rev()
                 .skip_while(move |post_id| offset > 0 && *post_id > &offset)
-                .filter_map(move |i| Post::get(self, i))
+                .filter_map(Post::get)
                 .filter(move |post| {
                     !post.is_deleted()
                         && (with_comments || post.parent.is_none())
@@ -1943,13 +1955,13 @@ impl State {
         )
     }
 
-    pub fn last_posts<'a>(
-        &'a self,
+    pub fn last_posts(
+        &self,
         realm_id: Option<RealmId>,
         offset: PostId,
         genesis: Time,
         with_comments: bool,
-    ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+    ) -> Box<dyn Iterator<Item = Post> + '_> {
         let iter: Box<dyn Iterator<Item = _>> =
             match realm_id.and_then(|realm_id| self.realms.get(&realm_id)) {
                 Some(realm) => Box::new(
@@ -1970,7 +1982,7 @@ impl State {
                 }
             };
         Box::new(
-            iter.filter_map(move |i| Post::get(self, &i))
+            iter.filter_map(move |i| Post::get(&i))
                 .take_while(move |post| post.creation_timestamp() >= genesis)
                 .filter(move |post| !post.is_deleted() && (with_comments || post.parent.is_none())),
         )
@@ -2005,10 +2017,10 @@ impl State {
     pub fn thread(&self, id: PostId) -> Box<dyn Iterator<Item = PostId>> {
         let mut result = Vec::new();
         let mut curr = id;
-        while let Some(Post { id, parent, .. }) = Post::get(self, &curr) {
-            result.push(*id);
+        while let Some(Post { id, parent, .. }) = Post::get(&curr) {
+            result.push(id);
             if let Some(parent_id) = parent {
-                curr = *parent_id
+                curr = parent_id
             } else {
                 break;
             }
@@ -2148,7 +2160,7 @@ impl State {
             credits += user.credits();
         }
         stalwarts.sort_unstable_by_key(|u| u.id);
-        let posts = self.root_posts;
+        let posts = self.root_posts as u64;
         let volume_day = self
             .ledger
             .iter()
@@ -2184,7 +2196,7 @@ impl State {
             canister_cycle_balance: canister_balance(),
             users: self.users.len(),
             posts,
-            comments: Post::count(self) - posts,
+            comments: Post::count() - posts,
             credits,
             burned_credits: self.burned_cycles,
             burned_credits_total: self.burned_cycles_total,
@@ -2374,7 +2386,7 @@ impl State {
         post_id: PostId,
         versions: Vec<String>,
     ) -> Result<(), String> {
-        let post = Post::get(self, &post_id).ok_or("no post found")?.clone();
+        let post = Post::get(&post_id).ok_or("no post found")?.clone();
         if self.principal_to_user(principal).map(|user| user.id) != Some(post.user) {
             return Err("not authorized".into());
         }
@@ -2480,7 +2492,7 @@ impl State {
         let user_credits = user.credits();
         let user_balance = user.total_balance();
         let user_controversial = user.controversial();
-        let post = Post::get(self, &post_id).ok_or("post not found")?.clone();
+        let post = Post::get(&post_id).ok_or("post not found")?.clone();
         if post.is_deleted() {
             return Err("post deleted".into());
         }
@@ -2538,9 +2550,7 @@ impl State {
         } else {
             let mut recipients = vec![post.user];
             if let Some(Extension::Repost(post_id)) = post.extension.as_ref() {
-                let original_author = Post::get(self, post_id)
-                    .expect("no reposted post found")
-                    .user;
+                let original_author = Post::get(post_id).expect("no reposted post found").user;
                 if original_author != user_id {
                     recipients.push(original_author)
                 }
@@ -3254,9 +3264,7 @@ pub(crate) mod tests {
             assert_eq!(state.pending_polls.len(), 1);
             state.conclude_polls(now + 3 * 24 * HOUR);
             assert_eq!(state.pending_polls.len(), 0);
-            if let Some(Extension::Poll(poll)) =
-                Post::get(state, &post_id).unwrap().extension.as_ref()
-            {
+            if let Some(Extension::Poll(poll)) = Post::get(&post_id).unwrap().extension.as_ref() {
                 // Here we can see that by rewards the difference is way smaller becasue values are
                 // normalized by the square root.
                 assert_eq!(*poll.weighted_by_tokens.get(&0).unwrap(), 9000);
@@ -3566,9 +3574,9 @@ pub(crate) mod tests {
             )
             .unwrap();
 
-            assert_eq!(Post::get(state, &post_id).unwrap().tree_size, 3);
-            assert_eq!(Post::get(state, &comment_id).unwrap().tree_size, 1);
-            assert_eq!(Post::get(state, &leaf).unwrap().tree_size, 0);
+            assert_eq!(Post::get(&post_id).unwrap().tree_size, 3);
+            assert_eq!(Post::get(&comment_id).unwrap().tree_size, 1);
+            assert_eq!(Post::get(&leaf).unwrap().tree_size, 0);
 
             // React from both users
             assert!(state.react(pr(1), post_id, 100, 0).is_ok());
@@ -3606,10 +3614,10 @@ pub(crate) mod tests {
                 .change_credits(1000, CreditsDelta::Plus, "")
                 .unwrap();
 
-            assert_eq!(&Post::get(state, &0).unwrap().body, "Test");
+            assert_eq!(&Post::get(&0).unwrap().body, "Test");
             assert_eq!(state.delete_post(pr(0), post_id, versions.clone()), Ok(()));
-            assert_eq!(&Post::get(state, &0).unwrap().body, "");
-            assert_eq!(Post::get(state, &0).unwrap().hashes.len(), versions.len());
+            assert_eq!(&Post::get(&0).unwrap().body, "");
+            assert_eq!(Post::get(&0).unwrap().hashes.len(), versions.len());
 
             assert_eq!(
                 state.users.get(&upvoter_id).unwrap().credits(),
@@ -3747,10 +3755,7 @@ pub(crate) mod tests {
             .unwrap();
             assert_eq!(state.realms.get(&name).unwrap().posts.len(), 1);
 
-            assert_eq!(
-                Post::get(state, &post_id).unwrap().realm,
-                Some(name.clone())
-            );
+            assert_eq!(Post::get(&post_id).unwrap().realm, Some(name.clone()));
             assert!(realm_posts(state, &name).contains(&post_id));
 
             // Posting without realm creates the post in the global realm
@@ -3766,7 +3771,7 @@ pub(crate) mod tests {
             )
             .unwrap();
 
-            assert_eq!(Post::get(state, &post_id).unwrap().realm, None,);
+            assert_eq!(Post::get(&post_id).unwrap().realm, None,);
 
             // comments are possible even if user is not in the realm
             assert_eq!(
@@ -3827,7 +3832,7 @@ pub(crate) mod tests {
             )
             .unwrap();
 
-            assert_eq!(Post::get(state, &comment_id).unwrap().realm, None);
+            assert_eq!(Post::get(&comment_id).unwrap().realm, None);
 
             // Creating post without entering the realm
             let realm_name = "NEW_REALM".to_string();
@@ -3912,7 +3917,7 @@ pub(crate) mod tests {
         );
 
         read(|state| {
-            assert_eq!(Post::get(state, &6).unwrap().realm, Some(realm_name));
+            assert_eq!(Post::get(&6).unwrap().realm, Some(realm_name));
             assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 1);
         });
         assert_eq!(
@@ -3932,10 +3937,7 @@ pub(crate) mod tests {
         read(|state| {
             assert_eq!(state.realms.get("NEW_REALM").unwrap().posts.len(), 0);
             assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 2);
-            assert_eq!(
-                Post::get(state, &6).unwrap().realm,
-                Some("TAGGRDAO".to_string())
-            );
+            assert_eq!(Post::get(&6).unwrap().realm, Some("TAGGRDAO".to_string()));
         });
     }
 

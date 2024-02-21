@@ -1,9 +1,7 @@
-use std::{cell::RefCell, collections::HashMap};
-
 use candid::Principal;
 use env::{config::CONFIG, user::User, State, *};
 use ic_cdk::{api::call::reply_raw, caller};
-
+use std::{cell::RefCell, collections::HashMap};
 mod assets;
 #[cfg(feature = "dev")]
 mod dev_helpers;
@@ -12,12 +10,19 @@ mod http;
 mod metadata;
 mod queries;
 mod updates;
+use ic_stable_structures::memory_manager::{MemoryManager, VirtualMemory};
+use ic_stable_structures::DefaultMemoryImpl;
 
-const BACKUP_PAGE_SIZE: u32 = 1024 * 1024;
+type Memory = VirtualMemory<DefaultMemoryImpl>;
 
 thread_local! {
     static STATE: RefCell<State> = Default::default();
+    static MEMORY_MANAGER: RefCell<Option<MemoryManager<DefaultMemoryImpl>>> =
+        Default::default();
+    static HEAP: RefCell<Option<ic_stable_structures::Cell<State, crate::Memory>>> = Default::default();
 }
+
+const BACKUP_PAGE_SIZE: u32 = 1024 * 1024;
 
 pub fn read<F, R>(f: F) -> R
 where

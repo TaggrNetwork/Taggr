@@ -190,16 +190,15 @@ impl User {
 
     pub fn posts<'a>(
         &'a self,
-        state: &'a State,
         offset: PostId,
         with_comments: bool,
-    ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+    ) -> Box<dyn Iterator<Item = Post> + 'a> {
         Box::new(
             self.posts
                 .iter()
                 .rev()
                 .skip_while(move |post_id| offset > 0 && post_id > &&offset)
-                .filter_map(move |post_id| Post::get(state, post_id))
+                .filter_map(Post::get)
                 .filter(move |post| with_comments || post.parent.is_none()),
         )
     }
@@ -306,7 +305,7 @@ impl User {
         state: &'a State,
         page: usize,
         offset: PostId,
-    ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+    ) -> Box<dyn Iterator<Item = Post> + 'a> {
         Box::new(
             state
                 .last_posts(None, offset, self.timestamp, false)

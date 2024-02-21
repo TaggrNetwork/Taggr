@@ -66,19 +66,11 @@ impl Api {
         (self.read_bytes.as_ref().expect("no reader"))(offset, &mut bytes);
         serde_cbor::from_slice(&bytes).expect("couldn't deserialize")
     }
-
-    pub fn boundary(&self) -> u64 {
-        self.allocator.boundary
-    }
 }
 
 impl Memory {
     pub fn health(&self, unit: &str) -> String {
         self.api_ref.as_ref().borrow().allocator.health(unit)
-    }
-
-    fn pack(&mut self) {
-        self.api = (*self.api_ref.as_ref().borrow()).clone();
     }
 
     fn unpack(&mut self) {
@@ -109,19 +101,6 @@ impl Memory {
         self.api_ref = Rc::new(RefCell::new(test_api));
         self.posts.api = Rc::clone(&self.api_ref);
     }
-}
-
-pub fn heap_to_stable(state: &mut super::State) {
-    state.memory.pack();
-    let offset = state.memory.api.boundary();
-    let bytes = serde_cbor::to_vec(&state).expect("couldn't serialize the state");
-    let len = bytes.len() as u64;
-    if offset + len > (stable64_size() << 16) {
-        stable64_grow((len >> 16) + 1).expect("couldn't grow memory");
-    }
-    stable64_write(offset, &bytes);
-    stable64_write(0, &offset.to_be_bytes());
-    stable64_write(8, &len.to_be_bytes());
 }
 
 pub fn heap_address() -> (u64, u64) {
