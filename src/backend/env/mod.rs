@@ -1,6 +1,6 @@
 use self::canisters::{icrc_transfer, upgrade_main_canister, NNSVote};
 use self::invoices::{Invoice, USER_ICP_SUBACCOUNT};
-use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
+use self::post::{Extension, Poll, Post, PostId};
 use self::proposals::{Payload, Status};
 use self::reports::Report;
 use self::token::{account, TransferArgs};
@@ -1367,16 +1367,6 @@ impl State {
                 state.logger.info("An emergency release is pending! 🚨");
             }
 
-            if let Err(err) = state.archive_cold_data() {
-                state
-                    .logger
-                    .error(format!("couldn't archive cold data: {:?}", err));
-            } else {
-                // If we archived posts without errors, we should create a heap backup, so that we
-                // always have a valid heap snapshot at the end of the stable memory.
-                memory::heap_to_stable(state);
-            }
-
             state.recompute_stalwarts(now);
 
             for user in state.users.values_mut() {
@@ -1389,11 +1379,6 @@ impl State {
         });
 
         export_token_supply(token::icrc1_total_supply());
-    }
-
-    fn archive_cold_data(&mut self) -> Result<(), String> {
-        let max_posts_in_heap = 10_000;
-        archive_cold_posts(self, max_posts_in_heap)
     }
 
     async fn handle_nns_proposals(now: u64) {
