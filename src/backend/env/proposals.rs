@@ -427,11 +427,13 @@ mod tests {
             tests::{create_user, insert_balance, pr},
             time,
         },
+        updates::init_stable_structs,
         STATE,
     };
 
     #[test]
     fn test_proposal_canceling() {
+        init_stable_structs();
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -542,6 +544,7 @@ mod tests {
 
     #[test]
     fn test_proposal_voting() {
+        init_stable_structs();
         let data = &"".to_string();
         let proposer = pr(1);
         STATE.with(|cell| {
@@ -682,6 +685,7 @@ mod tests {
 
     #[test]
     fn test_reducing_voting_power() {
+        init_stable_structs();
         let data = &"".to_string();
         STATE.with(|cell| {
             cell.replace(Default::default());
@@ -729,6 +733,7 @@ mod tests {
 
     #[test]
     fn test_non_controversial_rejection() {
+        init_stable_structs();
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -771,6 +776,7 @@ mod tests {
 
     #[test]
     fn test_funding_proposal() {
+        init_stable_structs();
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -826,6 +832,7 @@ mod tests {
 
     #[test]
     fn test_reward_proposal() {
+        init_stable_structs();
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();

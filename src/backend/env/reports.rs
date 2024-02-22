@@ -172,10 +172,11 @@ pub fn finalize_report(
 mod tests {
 
     use super::*;
-    use crate::{env::tests::*, mutate, STATE};
+    use crate::{env::tests::*, mutate, updates::init_stable_structs, STATE};
 
     #[test]
     fn test_reporting() {
+        init_stable_structs();
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();

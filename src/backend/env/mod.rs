@@ -2789,7 +2789,7 @@ pub fn display_tokens(amount: u64, decimals: u32) -> String {
 pub(crate) mod tests {
 
     use super::*;
-    use crate::STATE;
+    use crate::{updates::init_stable_structs, STATE};
     use post::Post;
 
     pub fn pr(n: u8) -> Principal {
@@ -2924,6 +2924,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_donated_rewards() {
+        init_stable_structs();
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -3213,6 +3214,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_poll_conclusion() {
+        init_stable_structs();
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -3278,6 +3280,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_principal_change() {
+        init_stable_structs();
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -3349,6 +3352,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_realm_whitelist() {
+        init_stable_structs();
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -3397,6 +3401,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_realm_revenue() {
+        init_stable_structs();
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -3451,6 +3456,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_realm_change() {
+        init_stable_structs();
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -3524,6 +3530,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_post_deletion() {
+        init_stable_structs();
         STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -3635,6 +3642,7 @@ pub(crate) mod tests {
 
     #[actix_rt::test]
     async fn test_realms() {
+        init_stable_structs();
         let (p1, realm_name) = STATE.with(|cell| {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
@@ -4017,6 +4025,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_inverse_filter() {
+        init_stable_structs();
         STATE.with(|cell| cell.replace(Default::default()));
 
         mutate(|state| {
@@ -4081,6 +4090,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_personal_feed() {
+        init_stable_structs();
         STATE.with(|cell| cell.replace(Default::default()));
 
         mutate(|state| {
@@ -4328,6 +4338,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_credits_accounting() {
+        init_stable_structs();
         STATE.with(|cell| cell.replace(Default::default()));
         mutate(|state| {
             let p0 = pr(0);
@@ -4458,6 +4469,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_credits_accounting_reposts() {
+        init_stable_structs();
         STATE.with(|cell| cell.replace(Default::default()));
         mutate(|state| {
             create_user_with_credits(state, pr(0), 2000);

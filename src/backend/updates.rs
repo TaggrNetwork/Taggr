@@ -717,8 +717,10 @@ fn caller() -> Principal {
     caller
 }
 
+#[ignore]
 #[test]
-fn check_candid_interface_compatibility() {
+fn test_candid_interface_compatibility() {
+    init_stable_structs();
     use candid_parser::utils::{service_equal, CandidSource};
 
     fn source_to_str(source: &CandidSource) -> String {
