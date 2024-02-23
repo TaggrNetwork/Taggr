@@ -127,7 +127,7 @@ export const Header = ({
                                     testId="toggle-user-section"
                                 />
                             )}
-                            {user && !inboxEmpty && (
+                            {user && (
                                 <IconToggleButton
                                     title="Inbox"
                                     pressed={location.href.includes("inbox")}
@@ -135,8 +135,14 @@ export const Header = ({
                                     onClick={() => (location.href = "#/inbox")}
                                     icon={
                                         <>
-                                            <Bell classNameArg="accent right_half_spaced" />
-                                            {messages}
+                                            <Bell
+                                                classNameArg={
+                                                    !inboxEmpty
+                                                        ? "accent right_half_spaced"
+                                                        : ""
+                                                }
+                                            />
+                                            {!inboxEmpty && messages}
                                         </>
                                     }
                                 />
