@@ -14,6 +14,7 @@ use ic_cdk::{
     api::{
         self,
         call::{arg_data_raw, reply_raw},
+        performance_counter,
     },
     spawn,
 };
@@ -56,6 +57,10 @@ fn post_upgrade() {
     }
     stable_to_heap_core();
     mutate(|state| state.load());
+
+    // TODO: DELETE BEFORE THE NEXT RELEASE
+    mutate(|state| state.memory.set_block_size(1));
+
     set_timer_interval(Duration::from_secs(15 * 60), || {
         spawn(State::chores(api::time()))
     });
@@ -64,13 +69,40 @@ fn post_upgrade() {
         || spawn(State::finalize_upgrade()),
     );
 
+    post_upgrade_fixtures();
+
     // post upgrade logic goes here
-    set_timer(Duration::from_millis(0), move || {
-        spawn(post_upgrade_fixtures());
-    });
+    // set_timer(Duration::from_millis(0), move || {
+    //     spawn(post_upgrade_fixtures());
+    // });
 }
 
-async fn post_upgrade_fixtures() {}
+fn post_upgrade_fixtures() {
+    let last_id = read(|state| state.next_post_id);
+    mutate(|state| {
+        let num_posts = Post::count(state);
+
+        for post_id in 0..last_id {
+            Post::mutate(state, &post_id, |post| {
+                post.archived = false;
+                Ok(())
+            })
+            .unwrap();
+        }
+
+        // The noop mutation above should move all posts to the heap
+        assert_eq!(state.memory.posts.len(), 0);
+        assert_eq!(state.posts.len(), num_posts);
+
+        // Now we can set the allocation block size
+        state.memory.set_block_size(300);
+
+        ic_cdk::println!(
+            "all posts loaded into heap (instructions: {}B)",
+            performance_counter(0) / 1000000000
+        );
+    });
+}
 
 /*
  * UPDATES

@@ -649,7 +649,7 @@ impl Post {
             .remove(post_id)
             .ok_or("no post found".to_string())
             .or_else(|_| state.memory.posts.remove(post_id))
-            .expect("couldn't take post")
+            .unwrap_or_else(|err| panic!("couldn't take post {}: {}", post_id, err))
     }
 
     // Takes the post from hot or cold memory, mutates and inserts into the hot memory
