@@ -1,5 +1,6 @@
 body {
     user-select: none;
+    -webkit-user-select: none;
     margin-top: 0.5em;
     min-height: 100vh;
     display: flex;
@@ -812,8 +813,6 @@ a.reply_tag {
 }
 
 .post_bar {
-    user-select: none;
-    -webkit-user-select: none;
     padding: 0.5em;
     justify-content: flex-end;
 }

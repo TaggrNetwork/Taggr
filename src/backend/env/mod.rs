@@ -1641,7 +1641,6 @@ impl State {
                 .map(|user| (user.id, user.name.clone()))
                 .collect::<Vec<_>>();
             let realm_revenue = revenue * CONFIG.realm_revenue_percentage as u64 / 100;
-            total_revenue += realm_revenue;
             let controller_revenue = realm_revenue / controllers.len().max(1) as u64;
             for (id, name) in &controllers {
                 self.spend_to_user_rewards(
@@ -1649,6 +1648,7 @@ impl State {
                     controller_revenue,
                     format!("revenue from realm /{}", &realm_id),
                 );
+                total_revenue += controller_revenue;
                 items.push((controller_revenue, realm_id.clone(), name.clone()));
             }
         }
