@@ -1,8 +1,20 @@
-use std::{cell::RefCell, collections::HashMap};
-
 use candid::Principal;
 use env::{config::CONFIG, user::User, State, *};
 use ic_cdk::{api::call::reply_raw, caller};
+use ic_stable_structures::memory_manager::{MemoryManager, VirtualMemory};
+use ic_stable_structures::DefaultMemoryImpl;
+use std::{cell::RefCell, collections::HashMap};
+
+const BACKUP_PAGE_SIZE: u32 = 1024 * 1024;
+
+type Memory = VirtualMemory<DefaultMemoryImpl>;
+
+thread_local! {
+    static STATE: RefCell<State> = Default::default();
+    static MEMORY_MANAGER: RefCell<Option<MemoryManager<DefaultMemoryImpl>>> =
+        Default::default();
+    static HEAP: RefCell<Option<ic_stable_structures::Cell<State, crate::Memory>>> = Default::default();
+}
 
 mod assets;
 #[cfg(feature = "dev")]
@@ -12,12 +24,6 @@ mod http;
 mod metadata;
 mod queries;
 mod updates;
-
-const BACKUP_PAGE_SIZE: u32 = 1024 * 1024;
-
-thread_local! {
-    static STATE: RefCell<State> = Default::default();
-}
 
 pub fn read<F, R>(f: F) -> R
 where
@@ -52,4 +58,25 @@ fn optional(s: String) -> Option<String> {
     } else {
         Some(s)
     }
+}
+
+pub fn id() -> Principal {
+    #[cfg(test)]
+    return Principal::anonymous();
+    #[cfg(not(test))]
+    ic_cdk::id()
+}
+
+pub fn time() -> u64 {
+    #[cfg(test)]
+    return 0;
+    #[cfg(not(test))]
+    ic_cdk::api::time()
+}
+
+pub fn performance_counter(_n: u32) -> u64 {
+    #[cfg(test)]
+    return 0;
+    #[cfg(not(test))]
+    ic_cdk::api::performance_counter(_n)
 }

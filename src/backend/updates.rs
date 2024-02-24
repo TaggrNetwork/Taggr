@@ -20,6 +20,7 @@ use ic_cdk::{
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use ic_ledger_types::{AccountIdentifier, Tokens};
+use ic_stable_structures::Cell;
 use serde_bytes::ByteBuf;
 use std::time::Duration;
 
@@ -41,7 +42,13 @@ fn init() {
 
 #[pre_upgrade]
 fn pre_upgrade() {
-    mutate(env::memory::heap_to_stable)
+    HEAP.with(|cell| {
+        cell.borrow_mut()
+            .as_mut()
+            .unwrap()
+            .set(STATE.with(|cell| cell.take()))
+    })
+    .expect("couldn't write heap to stable memory");
 }
 
 #[post_upgrade]
@@ -64,9 +71,57 @@ fn post_upgrade() {
         || spawn(State::finalize_upgrade()),
     );
 
+    migrate_posts();
+
     // post upgrade logic goes here
     set_timer(Duration::from_millis(0), move || {
         spawn(post_upgrade_fixtures());
+    });
+}
+
+fn migrate_posts() {
+    mutate(|state| {
+        let num_posts = Post::count(state);
+        for id in 0..state.next_post_id {
+            Post::mutate(state, &id, |post| {
+                post.archived = false;
+                Ok(())
+            })
+            .unwrap();
+        }
+        assert_eq!(state.posts.len(), num_posts);
+    });
+
+    init_stable_structs();
+
+    mutate(|state| {
+        state.logger.debug("Post migration successful.");
+    })
+}
+
+pub fn init_stable_structs() {
+    use ic_stable_structures::memory_manager::MemoryId;
+    use ic_stable_structures::StableBTreeMap;
+    MEMORY_MANAGER.with(|cell| {
+        cell.replace_with(|_| Some(MemoryManager::init(DefaultMemoryImpl::default())))
+    });
+    HEAP.with(|cell| {
+        cell.replace_with(|_| {
+            Some(
+                Cell::init(
+                    MEMORY_MANAGER.with(|m| m.borrow().as_ref().unwrap().get(MemoryId::new(0))),
+                    Default::default(),
+                )
+                .expect("couldn't initialize heap memory"),
+            )
+        })
+    });
+    env::post::POSTS.with(|cell| {
+        cell.replace_with(|_| {
+            Some(StableBTreeMap::init(MEMORY_MANAGER.with(|m| {
+                m.borrow().as_ref().unwrap().get(MemoryId::new(1))
+            })))
+        })
     });
 }
 

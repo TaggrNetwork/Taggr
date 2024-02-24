@@ -550,6 +550,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ic-stable-structures"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "774d7d26420c095f2b5f0f71f7b2ff4a5b58b87e0959dccc78b3d513a7db5112"
+dependencies = [
+ "ic_principal",
+]
+
+[[package]]
 name = "ic0"
 version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1153,6 +1162,7 @@ dependencies = [
  "ic-cdk-timers",
  "ic-certified-map",
  "ic-ledger-types",
+ "ic-stable-structures",
  "serde",
  "serde_bytes",
  "serde_cbor",

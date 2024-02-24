@@ -10,15 +10,18 @@ use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
 use crate::token::{Account, Token, Transaction};
 use crate::{assets, mutate, read};
+use crate::{id, time};
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{self, canister_balance};
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
+use ic_stable_structures::Storable;
 use invoices::Invoices;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use sha2::{Digest, Sha256};
+use std::borrow::Cow;
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use user::{User, UserId};
@@ -194,7 +197,6 @@ pub struct State {
 
     migrations: BTreeSet<UserId>,
 
-    #[serde(default)]
     pub posts_with_tags: Vec<PostId>,
 }
 
@@ -246,6 +248,19 @@ impl Logger {
 pub enum Destination {
     Rewards,
     Credits,
+}
+
+impl Storable for State {
+    const BOUND: ic_stable_structures::storable::Bound =
+        ic_stable_structures::storable::Bound::Unbounded;
+
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(serde_cbor::to_vec(self).expect("state serialization failed"))
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        serde_cbor::from_slice(&bytes).expect("state deserialization failed")
+    }
 }
 
 impl State {
@@ -1367,16 +1382,6 @@ impl State {
                 state.logger.info("An emergency release is pending! 🚨");
             }
 
-            if let Err(err) = state.archive_cold_data() {
-                state
-                    .logger
-                    .error(format!("couldn't archive cold data: {:?}", err));
-            } else {
-                // If we archived posts without errors, we should create a heap backup, so that we
-                // always have a valid heap snapshot at the end of the stable memory.
-                memory::heap_to_stable(state);
-            }
-
             state.recompute_stalwarts(now);
 
             for user in state.users.values_mut() {
@@ -1392,7 +1397,7 @@ impl State {
     }
 
     fn archive_cold_data(&mut self) -> Result<(), String> {
-        let max_posts_in_heap = 10_000;
+        let max_posts_in_heap = 30_000;
         archive_cold_posts(self, max_posts_in_heap)
     }
 
@@ -1514,9 +1519,11 @@ impl State {
 
     pub async fn hourly_chores(now: u64) {
         mutate(|state| {
-            // Automatically dump the heap to the stable memory. This should be the first
-            // opearation to avoid blocking of the backup by a panic in other parts of the routine.
-            memory::heap_to_stable(state);
+            if let Err(err) = state.archive_cold_data() {
+                state
+                    .logger
+                    .error(format!("couldn't archive cold data: {:?}", err));
+            }
 
             state.conclude_polls(now)
         });
@@ -2746,20 +2753,6 @@ fn covered_by_feeds(
         }
     }
     None
-}
-
-pub fn id() -> Principal {
-    #[cfg(test)]
-    return Principal::anonymous();
-    #[cfg(not(test))]
-    ic_cdk::id()
-}
-
-pub fn time() -> u64 {
-    #[cfg(test)]
-    return 0;
-    #[cfg(not(test))]
-    api::time()
 }
 
 pub fn parse_amount(amount: &str, token_decimals: u8) -> Result<u64, String> {

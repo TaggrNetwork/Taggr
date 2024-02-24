@@ -1,11 +1,17 @@
-use std::cmp::{Ordering, PartialOrd};
-
 use super::reports::ReportState;
 use super::*;
 use super::{storage::Storage, user::UserId};
-use crate::mutate;
 use crate::reports::Report;
+use crate::{mutate, performance_counter};
+use ic_stable_structures::{StableBTreeMap, Storable};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+use std::cell::RefCell;
+use std::cmp::{Ordering, PartialOrd};
+
+thread_local! {
+    pub static POSTS: RefCell<Option<StableBTreeMap<PostId, Post, crate::Memory>>> = Default::default();
+}
 
 static mut CACHE: Option<BTreeMap<PostId, Box<Post>>> = None;
 
@@ -88,6 +94,19 @@ impl PartialEq for Post {
 impl PartialOrd for Post {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.id.cmp(&other.id))
+    }
+}
+
+impl Storable for Post {
+    const BOUND: ic_stable_structures::storable::Bound =
+        ic_stable_structures::storable::Bound::Unbounded;
+
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(serde_cbor::to_vec(self).expect("post serialization failed"))
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        serde_cbor::from_slice(&bytes).expect("post deserialization failed")
     }
 }
 
@@ -622,7 +641,12 @@ impl Post {
     }
 
     pub fn count(state: &State) -> usize {
-        state.posts.len() + state.memory.posts.len()
+        state.posts.len()
+            + POSTS.with(|p| match p.borrow().as_ref() {
+                Some(tree) => tree.len(), _ => 0
+            }) as usize
+            // TODO: delete this line after migration
+            + state.memory.posts.len()
     }
 
     // Get the post from the heap if available, or load from the stable memory into the cache and
@@ -630,12 +654,18 @@ impl Post {
     pub fn get<'a>(state: &'a State, post_id: &PostId) -> Option<&'a Post> {
         state.posts.get(post_id).or_else(|| {
             let boxed = cache().get(post_id).or_else(|| {
-                state.memory.posts.get(post_id).and_then(|mut post: Post| {
-                    let cache = cache();
-                    post.archived = true;
-                    cache.insert(*post_id, Box::new(post));
-                    cache.get(post_id)
-                })
+                // TODO: delete state.memory access after migration
+                state
+                    .memory
+                    .posts
+                    .get(post_id)
+                    .or_else(|| POSTS.with(|p| p.borrow().as_ref().unwrap().get(post_id)))
+                    .and_then(|mut post: Post| {
+                        let cache = cache();
+                        post.archived = true;
+                        cache.insert(*post_id, Box::new(post));
+                        cache.get(post_id)
+                    })
             });
             boxed.map(|ptr| &**ptr)
         })
@@ -648,7 +678,17 @@ impl Post {
             .posts
             .remove(post_id)
             .ok_or("no post found".to_string())
+            // TODO: delete state.memory access after migration
             .or_else(|_| state.memory.posts.remove(post_id))
+            .or_else(|_| {
+                POSTS.with(|p| {
+                    p.borrow()
+                        .as_ref()
+                        .unwrap()
+                        .get(post_id)
+                        .ok_or("no post found")
+                })
+            })
             .expect("couldn't take post")
     }
 
@@ -710,13 +750,20 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
                 .posts
                 .remove(&post_id)
                 .ok_or(format!("no post found for id={post_id}"))?;
-            state.memory.posts.insert(post_id, post)
+            #[cfg(test)]
+            state.memory.posts.insert(post_id, post.clone()).unwrap();
+            #[cfg(not(test))]
+            POSTS.with(|p| p.borrow_mut().as_mut().unwrap().insert(post.id, post));
+            Ok::<(), String>(())
         })
         .expect("couldn't archive post");
 
-    state
-        .logger
-        .debug(format!("`{}` posts archived", archived_posts));
+    state.logger.debug(format!(
+        "`{}` posts archived (posts still in heap: `{}`, instructions used: `{}B`)",
+        archived_posts,
+        state.posts.len(),
+        performance_counter(0) / 1000000000
+    ));
     Ok(())
 }
 
