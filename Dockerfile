@@ -34,7 +34,8 @@ RUN mkdir -p /opt/ic-wasm && \
 
 # Install dfx
 COPY dfx.json ./
-RUN DFX_VERSION=$(cat dfx.json | jq -r .dfx) sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+RUN DFXVM_INIT_YES=1 DFX_VERSION=$(cat dfx.json | jq -r .dfx) sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+ENV export PATH=${HOME}/.local/share/dfx/bin:${PATH}
 
 # Install NPM dependencies
 COPY package.json package-lock.json ./
