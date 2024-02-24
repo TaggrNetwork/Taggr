@@ -119,7 +119,7 @@ test.describe("Upgrades & token transfer flow", () => {
         ).toBeVisible();
     });
 
-    test.skip("Recovery proposal", async ({ page }) => {
+    test("Recovery proposal", async ({ page }) => {
         await page.goto("/#/recovery");
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("eve");
@@ -191,7 +191,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await expect(page.getByText("Upgrade succeeded")).toBeVisible();
     });
 
-    test.skip("Regular proposal", async () => {
+    test("Regular proposal", async () => {
         await page.goto("/#/proposals");
 
         // Create a regular proposal
