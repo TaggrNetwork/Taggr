@@ -1,24 +1,40 @@
+use std::path::Path;
+
 use candid::{decode_one, encode_args, encode_one, Principal};
 use ic_cdk::api::management_canister::main::CanisterId;
-use pocket_ic::{PocketIc, WasmResult};
+use pocket_ic::{ErrorCode, PocketIc, WasmResult};
 
-use crate::{controller, get_wasm, setup};
+use crate::{controller, get_wasm, setup, setup_from_snapshot};
 
-fn create_test_user(pic: &PocketIc, backend: CanisterId, caller: Principal, name: &str) -> u64 {
-    let result = pic
-        .update_call(
-            backend,
-            caller,
-            "create_test_user",
-            encode_one(name).unwrap(),
-        )
-        .unwrap();
+fn create_test_user(
+    pic: &PocketIc,
+    backend: CanisterId,
+    caller: Principal,
+    name: &str,
+) -> Option<u64> {
+    let result = pic.update_call(
+        backend,
+        caller,
+        "create_test_user",
+        encode_one(name).unwrap(),
+    );
 
-    let user_id: u64 = match result {
-        WasmResult::Reply(blob) => decode_one(&blob).unwrap(),
-        WasmResult::Reject(err) => unreachable!("{}", err),
-    };
-    user_id
+    match result {
+        Ok(reply) => {
+            match reply {
+                WasmResult::Reply(blob) => {
+                    Some(decode_one(&blob).unwrap())
+                }
+                WasmResult::Reject(err) => unreachable!("{}", err),
+            }
+        }
+        Err(err) => {
+            if err.code == ErrorCode::CanisterMethodNotFound {
+                return None;
+            }
+            unreachable!("{}", err);
+        }
+    }
 }
 
 fn add_post(
@@ -74,11 +90,56 @@ fn posts(
     posts.clone()
 }
 
+fn users(pic: &PocketIc, backend: CanisterId, caller: Principal) -> Vec<serde_json::Value> {
+    let result = pic.query_call(backend, caller, "users", vec![]).unwrap();
+
+    let json: String = match result {
+        WasmResult::Reply(blob) => String::from_utf8(blob).unwrap(),
+        WasmResult::Reject(err) => unreachable!("{}", err),
+    };
+
+    let users: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let users = users.as_array().unwrap();
+    users.clone()
+}
+
+fn journal(
+    pic: &PocketIc,
+    backend: CanisterId,
+    caller: Principal,
+    user: &str,
+) -> Vec<serde_json::Value> {
+    let result = pic
+        .query_call(
+            backend,
+            caller,
+            "journal",
+            serde_json::json!([user, 0, 0])
+                .to_string()
+                .as_bytes()
+                .to_vec(),
+        )
+        .unwrap();
+
+    let json: String = match result {
+        WasmResult::Reply(blob) => String::from_utf8(blob).unwrap(),
+        WasmResult::Reject(err) => unreachable!("{}", err),
+    };
+
+    let posts: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let posts = posts.as_array().unwrap();
+    posts.clone()
+}
+
 #[test]
 fn test_add_post() {
     let (pic, backend) = setup("taggr");
 
-    let _user_id = create_test_user(&pic, backend, controller(), "test");
+    let user_id = create_test_user(&pic, backend, controller(), "test");
+    if user_id.is_none() {
+        eprintln!("Skipping test_add_post because Wasm binary doesn't have create_test_user method");
+        return;
+    }
     let post_id = add_post(&pic, backend, controller(), "lorem ipsum", vec![], None).unwrap();
     let post = &posts(&pic, backend, controller(), vec![post_id])[0];
 
@@ -90,7 +151,11 @@ fn test_add_post() {
 fn test_upgrades() {
     let (pic, backend) = setup("taggr");
 
-    let _user_id = create_test_user(&pic, backend, controller(), "test");
+    let user_id = create_test_user(&pic, backend, controller(), "test");
+    if user_id.is_none() {
+        eprintln!("Skipping test_upgrades because Wasm binary doesn't have create_test_user method");
+        return;
+    }
 
     let mut post_ids = vec![];
     let mut bodies = vec![];
@@ -109,8 +174,9 @@ fn test_upgrades() {
     )
     .unwrap();
 
-    // Skip a few rounds to wait until the upgrade rate limitting stops.
+    // Wait 10 rounds to complete post-upgrade tasks.
     for _ in 0..10 {
+        pic.advance_time(std::time::Duration::from_secs(1));
         pic.tick();
     }
 
@@ -122,10 +188,55 @@ fn test_upgrades() {
     )
     .unwrap();
 
+    // Wait 10 rounds to complete post-upgrade tasks.
+    for _ in 0..10 {
+        pic.advance_time(std::time::Duration::from_secs(1));
+        pic.tick();
+    }
+
     let posts = &posts(&pic, backend, controller(), post_ids.clone());
 
     for (post_id, (post, body)) in post_ids.iter().zip(posts.iter().zip(bodies.iter())) {
         assert_eq!(post.get("id").unwrap().as_u64().unwrap(), *post_id);
         assert_eq!(post.get("body").unwrap().as_str().unwrap(), *body);
     }
+}
+
+#[test]
+fn test_upgrade_from_snapshot() {
+    let snapshot = Path::new("./snapshot");
+    let old_wasm = Path::new("./snapshot/taggr.wasm.gz");
+    if !snapshot.exists() {
+        eprintln!("Skipping test_upgrade_from_snapshot because there is no snapshot");
+        return;
+    }
+    let (pic, backend) = setup_from_snapshot(old_wasm, snapshot);
+
+    let old_users = users(&pic, backend, controller());
+    assert!(old_users.len() >= 4000);
+    assert_eq!(old_users[0].as_array().unwrap()[0].as_u64().unwrap(), 0);
+    assert_eq!(old_users[0].as_array().unwrap()[1].as_str().unwrap(), "X");
+
+    let old_posts = journal(&pic, backend, controller(), "X");
+    assert!(old_posts.len() >= 10);
+
+    pic.upgrade_canister(
+        backend,
+        get_wasm("taggr"),
+        controller().as_slice().to_vec(),
+        Some(controller()),
+    )
+    .unwrap();
+
+    // Wait 10 rounds to complete post-upgrade tasks.
+    for _ in 0..10 {
+        pic.advance_time(std::time::Duration::from_secs(1));
+        pic.tick();
+    }
+
+    let new_users = users(&pic, backend, controller());
+    assert_eq!(old_users, new_users);
+
+    let new_posts = journal(&pic, backend, controller(), "X");
+    assert_eq!(old_posts, new_posts);
 }
