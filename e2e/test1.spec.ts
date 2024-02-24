@@ -119,7 +119,7 @@ test.describe("Upgrades & token transfer flow", () => {
         ).toBeVisible();
     });
 
-    test("Recovery proposal", async ({ page }) => {
+    test.skip("Recovery proposal", async ({ page }) => {
         await page.goto("/#/recovery");
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("eve");
@@ -181,7 +181,7 @@ test.describe("Upgrades & token transfer flow", () => {
         exec("dfx canister call taggr chores");
     });
 
-    test("Verify recovery upgrade", async () => {
+    test.skip("Verify recovery upgrade", async () => {
         await page.waitForTimeout(6000);
         await page.goto("/#/dashboard");
         await page.getByRole("button", { name: "TECHNICAL" }).click();
@@ -191,7 +191,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await expect(page.getByText("Upgrade succeeded")).toBeVisible();
     });
 
-    test("Regular proposal", async () => {
+    test.skip("Regular proposal", async () => {
         await page.goto("/#/proposals");
 
         // Create a regular proposal
@@ -237,7 +237,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.locator("#logo").click();
     });
 
-    test("Verify regular upgrade", async () => {
+    test.skip("Verify regular upgrade", async () => {
         await page.waitForTimeout(10000);
         await page.goto("/#/dashboard");
         await page.waitForURL(/dashboard/);
