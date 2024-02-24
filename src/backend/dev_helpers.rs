@@ -1,12 +1,10 @@
 //! Dev methods used for testing only.
 
 use super::*;
-use crate::env::post::Post;
 use crate::env::user::UserId;
 use ic_cdk::spawn;
-use ic_cdk_macros::{query, update};
+use ic_cdk_macros::update;
 use ic_cdk_timers::set_timer;
-use serde_bytes::ByteBuf;
 use std::time::Duration;
 
 #[update]
@@ -33,29 +31,6 @@ async fn weekly_chores() {
             spawn(weekly_chores());
         });
     }
-}
-
-#[query]
-async fn check() {
-    let last_id = read(|state| state.next_post_id.saturating_sub(1));
-    let ids = (0..=last_id).into_iter().collect::<Vec<_>>();
-    let id_chunks = ids.chunks(10000);
-    let mut parts: Vec<u64> = Vec::new();
-    for chunk in id_chunks {
-        let result = async {
-            read(|state| {
-                chunk
-                    .iter()
-                    .filter_map(|id| Post::get(&state, &id))
-                    .map(|post| post.id)
-                    .sum()
-            })
-        }
-        .await;
-        parts.push(result);
-    }
-    let sum: u64 = parts.into_iter().sum();
-    assert_eq!(sum, (last_id.pow(2) + last_id) / 2);
 }
 
 #[update]
@@ -87,29 +62,4 @@ fn make_stalwart(user_handle: String) {
                 user.stalwart = true;
             })
     });
-}
-
-#[update]
-// Backup restore method.
-fn stable_mem_write(input: Vec<(u64, ByteBuf)>) {
-    use ic_cdk::api::stable;
-    if let Some((page, buffer)) = input.get(0) {
-        if buffer.is_empty() {
-            return;
-        }
-        let offset = page * BACKUP_PAGE_SIZE as u64;
-        let current_size = stable::stable64_size();
-        let needed_size = ((offset + buffer.len() as u64) >> 16) + 1;
-        let delta = needed_size.saturating_sub(current_size);
-        if delta > 0 {
-            stable::stable64_grow(delta).unwrap_or_else(|_| panic!("couldn't grow memory"));
-        }
-        stable::stable64_write(offset, buffer);
-    }
-}
-
-#[update]
-// Backup restore method.
-fn stable_to_heap() {
-    stable_to_heap_core();
 }

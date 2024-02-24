@@ -64,6 +64,5 @@ service : () -> {
   prod_release : () -> (bool);
   propose_release : (text, text, vec nat8) -> (Result_4);
   set_emergency_release : (vec nat8) -> ();
-  stable_mem_read : (nat64) -> (vec record { nat64; vec nat8 }) query;
   unlink_cold_wallet : () -> (Result_1);
 }

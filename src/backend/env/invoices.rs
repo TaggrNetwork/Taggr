@@ -37,7 +37,7 @@ pub struct Invoice {
     pub account: AccountIdentifier,
 }
 
-#[derive(Deserialize, Default, Serialize)]
+#[derive(Clone, Deserialize, Default, Serialize)]
 pub struct Invoices {
     invoices: HashMap<Principal, Invoice>,
 }

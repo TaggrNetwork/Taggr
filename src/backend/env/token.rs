@@ -29,7 +29,7 @@ pub struct TransferArgs {
     pub created_at_time: Option<Timestamp>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Transaction {
     pub timestamp: u64,
     pub from: Account,

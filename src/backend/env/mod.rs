@@ -29,7 +29,6 @@ use user::{User, UserId};
 pub mod canisters;
 pub mod config;
 pub mod invoices;
-pub mod memory;
 pub mod post;
 pub mod proposals;
 pub mod reports;
@@ -93,7 +92,6 @@ pub struct Stats {
     module_hash: String,
     canister_id: Principal,
     circulating_supply: u64,
-    meta: String,
 
     fees_burned: Token,
     volume_day: Token,
@@ -102,7 +100,7 @@ pub struct Stats {
 
 pub type RealmId = String;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Realm {
     pub cleanup_penalty: Credits,
     pub controllers: BTreeSet<UserId>,
@@ -124,14 +122,14 @@ pub struct Realm {
     pub adult_content: bool,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Summary {
     pub title: String,
     description: String,
     items: Vec<String>,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct State {
     pub burned_cycles: i64,
     pub burned_cycles_total: Credits,
@@ -164,7 +162,8 @@ pub struct State {
 
     pub team_tokens: HashMap<UserId, Token>,
 
-    pub memory: memory::Memory,
+    #[serde(skip)]
+    pub memory: bool,
 
     // This runtime flag has to be set in order to mint new tokens.
     #[serde(skip)]
@@ -200,7 +199,7 @@ pub struct State {
     pub posts_with_tags: Vec<PostId>,
 }
 
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 pub struct Logger {
     pub events: BTreeMap<String, Vec<Event>>,
 }
@@ -2196,7 +2195,6 @@ impl State {
             e8s_revenue_per_1k: self.last_revenues.iter().sum::<u64>()
                 / self.last_revenues.len().max(1) as u64,
             team_tokens: self.team_tokens.clone(),
-            meta: format!("Memory health: {}", self.memory.health("MB")),
             module_hash: self.module_hash.clone(),
             canister_id: ic_cdk::id(),
             last_upgrade: self.last_upgrade,

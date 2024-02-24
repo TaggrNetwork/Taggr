@@ -181,7 +181,7 @@ test.describe("Upgrades & token transfer flow", () => {
         exec("dfx canister call taggr chores");
     });
 
-    test.skip("Verify recovery upgrade", async () => {
+    test("Verify recovery upgrade", async () => {
         await page.waitForTimeout(6000);
         await page.goto("/#/dashboard");
         await page.getByRole("button", { name: "TECHNICAL" }).click();
@@ -237,7 +237,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.locator("#logo").click();
     });
 
-    test.skip("Verify regular upgrade", async () => {
+    test("Verify regular upgrade", async () => {
         await page.waitForTimeout(10000);
         await page.goto("/#/dashboard");
         await page.waitForURL(/dashboard/);

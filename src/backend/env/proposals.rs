@@ -22,7 +22,7 @@ pub enum Status {
     Cancelled,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Release {
     pub commit: String,
     pub hash: String,
@@ -32,14 +32,14 @@ pub struct Release {
 
 type ProposedReward = Token;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Reward {
     pub receiver: String,
     pub votes: Vec<(Token, ProposedReward)>,
     pub minted: Token,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub enum Payload {
     #[default]
     Noop,
@@ -50,7 +50,7 @@ pub enum Payload {
     AddRealmController(String, UserId),
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Proposal {
     pub id: u32,
     pub proposer: UserId,

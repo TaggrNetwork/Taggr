@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 use super::config::CONFIG;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Storage {
     pub buckets: BTreeMap<Principal, u64>,
 }

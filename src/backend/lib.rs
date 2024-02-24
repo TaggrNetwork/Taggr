@@ -2,18 +2,25 @@ use candid::Principal;
 use env::{config::CONFIG, user::User, State, *};
 use ic_cdk::{api::call::reply_raw, caller};
 use ic_stable_structures::memory_manager::{MemoryManager, VirtualMemory};
-use ic_stable_structures::DefaultMemoryImpl;
+use ic_stable_structures::{memory_manager::MemoryId, Cell, DefaultMemoryImpl};
 use std::{cell::RefCell, collections::HashMap};
-
-const BACKUP_PAGE_SIZE: u32 = 1024 * 1024;
 
 type Memory = VirtualMemory<DefaultMemoryImpl>;
 
 thread_local! {
     static STATE: RefCell<State> = Default::default();
-    static MEMORY_MANAGER: RefCell<Option<MemoryManager<DefaultMemoryImpl>>> =
-        Default::default();
-    static HEAP: RefCell<Option<ic_stable_structures::Cell<State, crate::Memory>>> = Default::default();
+    static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> =
+        RefCell::new(
+            MemoryManager::init(DefaultMemoryImpl::default())
+        );
+
+    static HEAP: RefCell<ic_stable_structures::Cell<State, crate::Memory>> = RefCell::new(
+        Cell::init(
+            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0))),
+            Default::default(),
+        )
+        .expect("couldn't initialize heap memory"),
+    );
 }
 
 mod assets;
@@ -45,11 +52,6 @@ fn parse<'a, T: serde::Deserialize<'a>>(bytes: &'a [u8]) -> T {
 
 fn reply<T: serde::Serialize>(data: T) {
     reply_raw(serde_json::json!(data).to_string().as_bytes());
-}
-
-fn stable_to_heap_core() {
-    STATE.with(|cell| cell.replace(env::memory::stable_to_heap()));
-    mutate(|state| state.load());
 }
 
 fn optional(s: String) -> Option<String> {

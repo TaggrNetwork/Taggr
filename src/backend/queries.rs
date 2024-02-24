@@ -7,7 +7,6 @@ use super::*;
 use candid::Principal;
 use env::{
     config::CONFIG,
-    memory,
     post::{Post, PostId},
     user::UserId,
     State,
@@ -16,8 +15,6 @@ use ic_cdk::{
     api::{self, call::arg_data_raw},
     caller,
 };
-use ic_cdk_macros::query;
-use serde_bytes::ByteBuf;
 
 #[export_name = "canister_query check_invite"]
 fn check_invite() {
@@ -537,24 +534,6 @@ fn search() {
 fn realm_search() {
     let query: String = parse(&arg_data_raw());
     read(|state| reply(env::search::realm_search(state, query)));
-}
-
-#[query]
-fn stable_mem_read(page: u64) -> Vec<(u64, Blob)> {
-    let offset = page * BACKUP_PAGE_SIZE as u64;
-    let (heap_off, heap_size) = memory::heap_address();
-    let memory_end = heap_off + heap_size;
-    if offset > memory_end {
-        return Default::default();
-    }
-    let chunk_size = (BACKUP_PAGE_SIZE as u64).min(memory_end - offset) as usize;
-    let mut buf = Vec::with_capacity(chunk_size);
-    buf.spare_capacity_mut();
-    unsafe {
-        buf.set_len(chunk_size);
-    }
-    api::stable::stable64_read(offset, &mut buf);
-    vec![(page, ByteBuf::from(buf))]
 }
 
 fn resolve_handle<'a>(state: &'a State, handle: Option<&'a String>) -> Option<&'a User> {

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 pub type UserId = u64;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Filters {
     pub users: BTreeSet<UserId>,
     pub tags: BTreeSet<String>,
@@ -34,6 +34,7 @@ pub enum Notification {
 }
 
 // This struct will hold user's new post until it's saved.
+#[derive(Clone)]
 pub struct Draft {
     pub body: String,
     pub realm: Option<String>,
@@ -41,7 +42,7 @@ pub struct Draft {
     pub blobs: Vec<(String, Blob)>,
 }
 
-#[derive(Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct UserFilter {
     age_days: u64,
     safe: bool,
@@ -68,7 +69,7 @@ impl UserFilter {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: UserId,
     pub name: String,

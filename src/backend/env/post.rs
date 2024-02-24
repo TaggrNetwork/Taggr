@@ -2,15 +2,17 @@ use super::reports::ReportState;
 use super::*;
 use super::{storage::Storage, user::UserId};
 use crate::reports::Report;
-use crate::{mutate, performance_counter};
-use ic_stable_structures::{StableBTreeMap, Storable};
+use crate::{mutate, performance_counter, MEMORY_MANAGER};
+use ic_stable_structures::{memory_manager::MemoryId, StableBTreeMap, Storable};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::{Ordering, PartialOrd};
 
 thread_local! {
-    pub static POSTS: RefCell<Option<StableBTreeMap<PostId, Post, crate::Memory>>> = Default::default();
+    pub static POSTS: RefCell<StableBTreeMap<PostId, Post, crate::Memory>> =
+        RefCell::new(
+            StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1)))));
 }
 
 static mut CACHE: Option<BTreeMap<PostId, Box<Post>>> = None;
@@ -641,12 +643,7 @@ impl Post {
     }
 
     pub fn count(state: &State) -> usize {
-        state.posts.len()
-            + POSTS.with(|p| match p.borrow().as_ref() {
-                Some(tree) => tree.len(), _ => 0
-            }) as usize
-            // TODO: delete this line after migration
-            + state.memory.posts.len()
+        state.posts.len() + POSTS.with(|p| p.borrow().len()) as usize
     }
 
     // Get the post from the heap if available, or load from the stable memory into the cache and
@@ -655,7 +652,7 @@ impl Post {
         state.posts.get(post_id).or_else(|| {
             let boxed = cache().get(post_id).or_else(|| {
                 POSTS
-                    .with(|p| p.borrow().as_ref().unwrap().get(post_id))
+                    .with(|p| p.borrow().get(post_id))
                     .and_then(|mut post: Post| {
                         let cache = cache();
                         post.archived = true;
@@ -674,17 +671,7 @@ impl Post {
             .posts
             .remove(post_id)
             .ok_or("no post found".to_string())
-            // TODO: delete state.memory access after migration
-            .or_else(|_| state.memory.posts.remove(post_id))
-            .or_else(|_| {
-                POSTS.with(|p| {
-                    p.borrow()
-                        .as_ref()
-                        .unwrap()
-                        .get(post_id)
-                        .ok_or("no post found")
-                })
-            })
+            .or_else(|_| POSTS.with(|p| p.borrow().get(post_id).ok_or("no post found")))
             .expect("couldn't take post")
     }
 
@@ -746,7 +733,7 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
                 .posts
                 .remove(&post_id)
                 .ok_or(format!("no post found for id={post_id}"))?;
-            POSTS.with(|p| p.borrow_mut().as_mut().unwrap().insert(post.id, post));
+            POSTS.with(|p| p.borrow_mut().insert(post.id, post));
             Ok::<(), String>(())
         })
         .expect("couldn't archive post");
@@ -927,136 +914,6 @@ fn tokens(max_tag_length: usize, input: &str, tokens: &[char]) -> BTreeSet<Strin
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        env::tests::{create_user, pr},
-        STATE,
-    };
-
-    #[ignore]
-    #[test]
-    fn test_post_archiving() {
-        static mut MEM_END: u64 = 16;
-        static mut MEMORY: Option<Vec<u8>> = None;
-        unsafe {
-            let size = 1024 * 512;
-            MEMORY = Some(Vec::with_capacity(size));
-            for _ in 0..size {
-                MEMORY.as_mut().unwrap().push(0);
-            }
-        };
-        let mem_grow = |n| unsafe {
-            MEM_END += n;
-            Ok(0)
-        };
-        fn mem_end() -> u64 {
-            unsafe { MEM_END }
-        }
-        let writer = |offset, buf: &[u8]| {
-            buf.iter().enumerate().for_each(|(i, byte)| unsafe {
-                MEMORY.as_mut().unwrap()[offset as usize + i] = *byte
-            });
-        };
-        let reader = |offset, buf: &mut [u8]| {
-            for (i, b) in buf.iter_mut().enumerate() {
-                *b = unsafe { MEMORY.as_ref().unwrap()[offset as usize + i] }
-            }
-        };
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            cell.borrow_mut().memory.set_test_api(
-                Box::new(mem_grow),
-                Box::new(mem_end),
-                Box::new(writer),
-                Box::new(reader),
-            );
-        });
-
-        mutate(|state| {
-            for i in 0..10 {
-                create_user(state, pr(i));
-                let id = Post::create(
-                    state,
-                    format!("test {}", i),
-                    &[],
-                    pr(i),
-                    0,
-                    None,
-                    None,
-                    None,
-                )
-                .unwrap();
-                // Make every new post be older than the previous one
-                Post::mutate(state, &id, |post| {
-                    post.timestamp = 10 << i;
-                    Ok(())
-                })
-                .unwrap();
-            }
-
-            assert_eq!(state.posts.len(), 10);
-            // Trigger post archiving
-            archive_cold_posts(state, 5).unwrap();
-            assert_eq!(
-                state.memory.health("B"),
-                "boundary=894B, mem_size=894B, segments=0".to_string()
-            );
-
-            // Make sure we have the right numbers in cold and hot memories
-            assert_eq!(state.posts.len(), 5);
-            assert_eq!(state.memory.posts.len(), 5);
-
-            // Make sure the first posts are deserialized correctly and are marked as archived
-            for i in 0..5 {
-                let post = Post::get(state, &i).unwrap();
-                assert!(post.archived);
-                assert_eq!(post.body, format!("test {}", i));
-            }
-            for i in 5..10 {
-                assert!(!Post::get(state, &i).unwrap().archived);
-            }
-
-            // Mutate post 1 by reacting on it
-            state.react(pr(0), 1, 10, 0).unwrap();
-
-            // This should unarchive the post
-            assert!(!Post::get(state, &1).unwrap().archived);
-            assert_eq!(state.posts.len(), 6);
-            assert_eq!(state.memory.posts.len(), 4);
-
-            // Create a comment on 3rd post
-            Post::create(
-                state,
-                "comment".to_string(),
-                &[],
-                pr(4),
-                0,
-                Some(3),
-                None,
-                None,
-            )
-            .unwrap();
-
-            // Make sure the post is unarchived
-            assert!(!Post::get(state, &3).unwrap().archived);
-            assert_eq!(state.posts.len(), 8);
-            assert_eq!(state.memory.posts.len(), 3);
-            assert_eq!(
-                state.memory.health("B"),
-                "boundary=894B, mem_size=894B, segments=2".to_string()
-            );
-
-            // Archive posts again
-            archive_cold_posts(state, 5).unwrap();
-            assert_eq!(state.posts.len(), 5);
-            assert_eq!(state.memory.posts.len(), 6);
-            // Segments were reduced, becasue the new post 10 fits into a gap left from one of the
-            // old posts
-            assert_eq!(
-                state.memory.health("B"),
-                "boundary=1250B, mem_size=1250B, segments=1".to_string()
-            );
-        });
-    }
 
     #[test]
     fn test_hashtag_extraction() {

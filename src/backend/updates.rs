@@ -1,4 +1,4 @@
-use crate::env::{post::archive_cold_posts, user::UserFilter};
+use crate::env::user::UserFilter;
 
 use super::*;
 use env::{
@@ -20,7 +20,6 @@ use ic_cdk::{
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use ic_ledger_types::{AccountIdentifier, Tokens};
-use ic_stable_structures::Cell;
 use serde_bytes::ByteBuf;
 use std::time::Duration;
 
@@ -42,13 +41,8 @@ fn init() {
 
 #[pre_upgrade]
 fn pre_upgrade() {
-    HEAP.with(|cell| {
-        cell.borrow_mut()
-            .as_mut()
-            .unwrap()
-            .set(STATE.with(|cell| cell.take()))
-    })
-    .expect("couldn't write heap to stable memory");
+    HEAP.with(|cell| cell.borrow_mut().set(STATE.with(|cell| cell.take())))
+        .expect("couldn't write heap to stable memory");
 }
 
 #[post_upgrade]
@@ -61,7 +55,9 @@ fn post_upgrade() {
             panic!("dev or staging feature is enabled!")
         }
     }
-    stable_to_heap_core();
+
+    STATE.with(|cell| cell.replace(HEAP.with(|cell| cell.borrow().get().clone())));
+
     mutate(|state| state.load());
     set_timer_interval(Duration::from_secs(15 * 60), || {
         spawn(State::chores(api::time()))
@@ -71,57 +67,9 @@ fn post_upgrade() {
         || spawn(State::finalize_upgrade()),
     );
 
-    migrate_posts();
-
     // post upgrade logic goes here
     set_timer(Duration::from_millis(0), move || {
         spawn(post_upgrade_fixtures());
-    });
-}
-
-fn migrate_posts() {
-    mutate(|state| {
-        let num_posts = Post::count(state);
-        for id in 0..state.next_post_id {
-            Post::mutate(state, &id, |post| {
-                post.archived = false;
-                Ok(())
-            })
-            .unwrap();
-        }
-        assert_eq!(state.posts.len(), num_posts);
-    });
-
-    init_stable_structs();
-
-    mutate(|state| {
-        state.logger.debug("Post migration successful.");
-    })
-}
-
-pub fn init_stable_structs() {
-    use ic_stable_structures::memory_manager::MemoryId;
-    use ic_stable_structures::StableBTreeMap;
-    MEMORY_MANAGER.with(|cell| {
-        cell.replace_with(|_| Some(MemoryManager::init(DefaultMemoryImpl::default())))
-    });
-    HEAP.with(|cell| {
-        cell.replace_with(|_| {
-            Some(
-                Cell::init(
-                    MEMORY_MANAGER.with(|m| m.borrow().as_ref().unwrap().get(MemoryId::new(0))),
-                    Default::default(),
-                )
-                .expect("couldn't initialize heap memory"),
-            )
-        })
-    });
-    env::post::POSTS.with(|cell| {
-        cell.replace_with(|_| {
-            Some(StableBTreeMap::init(MEMORY_MANAGER.with(|m| {
-                m.borrow().as_ref().unwrap().get(MemoryId::new(1))
-            })))
-        })
     });
 }
 
@@ -725,20 +673,4 @@ fn check_candid_interface_compatibility() {
         "declared candid interface in taggr.did file",
         candid_parser::utils::CandidSource::File(old_interface.as_path()),
     );
-}
-
-#[export_name = "canister_update archive"]
-fn archive() {
-    mutate(|state| {
-        if !state.principal_to_user(caller()).unwrap().stalwart {
-            return;
-        }
-        let n: usize = parse(&arg_data_raw());
-        if let Err(err) = archive_cold_posts(state, n) {
-            state
-                .logger
-                .error(format!("couldn't archive cold data: {:?}", err));
-        }
-    });
-    reply_raw(&[]);
 }
