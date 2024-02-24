@@ -77,6 +77,15 @@ fn replace_user_principal(principal: String, user_id: UserId) {
 }
 
 #[update]
+fn create_test_user(name: String) -> u64 {
+    mutate(|state| {
+        state
+            .new_test_user(caller(), time(), name.clone(), Some(1_000_000_000))
+            .unwrap()
+    })
+}
+
+#[update]
 fn make_stalwart(user_handle: String) {
     mutate(|state| {
         state
