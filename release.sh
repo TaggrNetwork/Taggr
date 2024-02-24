@@ -1,5 +1,7 @@
 #!/bin/sh
 
+export PATH=${HOME}/.local/share/dfx/bin:${PATH}
+
 make build
 make start
 dfx deploy
