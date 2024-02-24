@@ -20,14 +20,10 @@ fn create_test_user(
     );
 
     match result {
-        Ok(reply) => {
-            match reply {
-                WasmResult::Reply(blob) => {
-                    Some(decode_one(&blob).unwrap())
-                }
-                WasmResult::Reject(err) => unreachable!("{}", err),
-            }
-        }
+        Ok(reply) => match reply {
+            WasmResult::Reply(blob) => Some(decode_one(&blob).unwrap()),
+            WasmResult::Reject(err) => unreachable!("{}", err),
+        },
         Err(err) => {
             if err.code == ErrorCode::CanisterMethodNotFound {
                 return None;
@@ -137,7 +133,9 @@ fn test_add_post() {
 
     let user_id = create_test_user(&pic, backend, controller(), "test");
     if user_id.is_none() {
-        eprintln!("Skipping test_add_post because Wasm binary doesn't have create_test_user method");
+        eprintln!(
+            "Skipping test_add_post because Wasm binary doesn't have create_test_user method"
+        );
         return;
     }
     let post_id = add_post(&pic, backend, controller(), "lorem ipsum", vec![], None).unwrap();
@@ -153,7 +151,9 @@ fn test_upgrades() {
 
     let user_id = create_test_user(&pic, backend, controller(), "test");
     if user_id.is_none() {
-        eprintln!("Skipping test_upgrades because Wasm binary doesn't have create_test_user method");
+        eprintln!(
+            "Skipping test_upgrades because Wasm binary doesn't have create_test_user method"
+        );
         return;
     }
 
