@@ -330,6 +330,7 @@ const YouTube = ({ id, preview }: { id: string; preview?: boolean }) => {
         return (
             <span className="video-container" style={{ display: "block" }}>
                 <iframe
+                    loading="lazy"
                     allowFullScreen={true}
                     referrerPolicy="origin"
                     frameBorder="0"

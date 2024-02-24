@@ -46,7 +46,6 @@ export const Header = ({
 
     const realm = currentRealm();
 
-    const inboxEmpty = !user || messages == 0;
     const refreshMessageCounter = () =>
         setMessages(
             user
@@ -127,7 +126,7 @@ export const Header = ({
                                     testId="toggle-user-section"
                                 />
                             )}
-                            {user && !inboxEmpty && (
+                            {user && (
                                 <IconToggleButton
                                     title="Inbox"
                                     pressed={location.href.includes("inbox")}
@@ -135,8 +134,14 @@ export const Header = ({
                                     onClick={() => (location.href = "#/inbox")}
                                     icon={
                                         <>
-                                            <Bell classNameArg="accent right_half_spaced" />
-                                            {messages}
+                                            <Bell
+                                                classNameArg={
+                                                    messages > 0
+                                                        ? "accent right_half_spaced"
+                                                        : undefined
+                                                }
+                                            />
+                                            {messages > 0 && messages}
                                         </>
                                     }
                                 />
