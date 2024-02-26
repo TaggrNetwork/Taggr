@@ -122,7 +122,7 @@ impl User {
         UserFilter {
             age_days: (time() - self.timestamp) / DAY,
             safe: !self.controversial(),
-            balance: self.balance / token::base(),
+            balance: self.total_balance() / token::base(),
             num_followers: self.followers.len(),
             downvotes: self.downvotes.len(),
         }

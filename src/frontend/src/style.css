@@ -1,5 +1,6 @@
 body {
     user-select: none;
+    -webkit-user-select: none;
     margin-top: 0.5em;
     min-height: 100vh;
     display: flex;
@@ -118,6 +119,11 @@ h5 {
 
 article.prime {
     font-size: 115%;
+}
+
+article ul,
+article ol {
+    margin-top: 1em;
 }
 
 .prime h1 {
@@ -812,8 +818,6 @@ a.reply_tag {
 }
 
 .post_bar {
-    user-select: none;
-    -webkit-user-select: none;
     padding: 0.5em;
     justify-content: flex-end;
 }
@@ -958,7 +962,6 @@ a.accent,
 .controversial,
 .deleted {
     padding: 1em;
-    border-radius: 10px;
 }
 
 .nsfw,
