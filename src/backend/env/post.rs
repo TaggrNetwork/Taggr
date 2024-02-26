@@ -3,8 +3,8 @@ use std::cmp::{Ordering, PartialOrd};
 use super::reports::ReportState;
 use super::*;
 use super::{storage::Storage, user::UserId};
-use crate::mutate;
 use crate::reports::Report;
+use crate::{mutate, performance_counter};
 use serde::{Deserialize, Serialize};
 
 static mut CACHE: Option<BTreeMap<PostId, Box<Post>>> = None;
@@ -714,9 +714,12 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
         })
         .expect("couldn't archive post");
 
-    state
-        .logger
-        .debug(format!("`{}` posts archived", archived_posts));
+    state.logger.debug(format!(
+        "`{}` posts archived (posts still in heap: `{}`, instructions used: `{}B`)",
+        archived_posts,
+        state.posts.len(),
+        performance_counter(0) / 1000000000
+    ));
     Ok(())
 }
 
