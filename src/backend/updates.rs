@@ -32,6 +32,7 @@ fn init() {
         state.last_daily_chores = time();
         state.last_hourly_chores = time();
     });
+    init_stable_structs();
     set_timer(Duration::from_millis(0), || {
         spawn(State::fetch_xdr_rate());
     });
