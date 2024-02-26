@@ -360,7 +360,7 @@ fn journal() {
                 .user(&handle)
                 .map(|user| {
                     user.posts(state, offset, false)
-                        .filter(|post| !post.body.starts_with('@'))
+                        .filter(|post| !post.is_deleted() && !post.body.starts_with('@'))
                         .skip(page * CONFIG.feed_page_size)
                         .take(CONFIG.feed_page_size)
                         .collect::<Vec<_>>()
@@ -387,13 +387,27 @@ fn hot_realm_posts() {
     });
 }
 
+fn personal_filter(state: &State, user: Option<&User>, post: &Post) -> bool {
+    user.map(|user| {
+        !post.matches_filters(&user.filters)
+            && state
+                .users
+                .get(&post.user)
+                .map(|author| user.accepts(author.id, &author.get_filter()))
+                .unwrap_or(true)
+    })
+    .unwrap_or(true)
+}
+
 #[export_name = "canister_query hot_posts"]
 fn hot_posts() {
     let (realm, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     read(|state| {
+        let user = state.principal_to_user(caller());
         reply(
             state
                 .hot_posts(optional(realm), page, offset, None)
+                .filter(|post| personal_filter(state, user, post))
                 .collect::<Vec<_>>(),
         )
     });
@@ -403,15 +417,11 @@ fn hot_posts() {
 fn realms_posts() {
     let (page, offset): (usize, PostId) = parse(&arg_data_raw());
     read(|state| {
-        let inverse_filters = state.principal_to_user(caller()).map(|user| &user.filters);
+        let user = state.principal_to_user(caller());
         reply(
             state
                 .realms_posts(caller(), page, offset)
-                .filter(|post| {
-                    inverse_filters
-                        .map(|filters| !post.matches_filters(filters))
-                        .unwrap_or(true)
-                })
+                .filter(|post| personal_filter(state, user, post))
                 .collect::<Vec<_>>(),
         )
     });
@@ -425,19 +435,7 @@ fn last_posts() {
         reply(
             state
                 .last_posts(optional(realm), offset, 0, /* with_comments = */ false)
-                .filter(|post| {
-                    !filtered
-                        || user
-                            .map(|user| {
-                                !post.matches_filters(&user.filters)
-                                    && state
-                                        .users
-                                        .get(&post.user)
-                                        .map(|author| user.accepts(author.id, &author.get_filter()))
-                                        .unwrap_or(true)
-                            })
-                            .unwrap_or(true)
-                })
+                .filter(|post| !filtered || personal_filter(state, user, post))
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
                 .collect::<Vec<_>>(),
