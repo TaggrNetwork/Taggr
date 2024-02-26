@@ -121,6 +121,11 @@ article.prime {
     font-size: 115%;
 }
 
+article ul,
+article ol {
+    margin-top: 1em;
+}
+
 .prime h1 {
     font-size: 250%;
     line-height: normal;
@@ -957,7 +962,6 @@ a.accent,
 .controversial,
 .deleted {
     padding: 1em;
-    border-radius: 10px;
 }
 
 .nsfw,

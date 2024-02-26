@@ -10,6 +10,15 @@ set -e
 
 mkdir -p $DIR
 
+size() {
+    FILE="$1"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        stat -f%z $FILE
+    else
+        stat -c%s $FILE
+    fi
+}
+
 restore() {
     FILE="$1"
     echo "Restoring $FILE..."
@@ -26,7 +35,7 @@ if [ "$CMD" == "restore" ]; then
             PAGE=$((PAGE + 1))
         done
         wait
-        if [ "$(stat -f%z $FILE)" == "18" ]; then break; fi
+        if [ "$(size $FILE)" == "18" ]; then break; fi
     done
     echo "Clearing buckets before restoring heap..."
     dfx canister call taggr clear_buckets '("")' || 1
@@ -56,6 +65,6 @@ while true; do
         PAGE=$((PAGE + 1))
     done
     wait
-    if [ "$(stat -f%z $FILE)" == "18" ]; then break; fi
+    if [ "$(size $FILE)" == "18" ]; then break; fi
 done
 

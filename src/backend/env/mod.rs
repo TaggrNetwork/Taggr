@@ -819,6 +819,17 @@ impl State {
         Ok(id)
     }
 
+    #[cfg(feature = "dev")]
+    pub fn new_test_user(
+        &mut self,
+        principal: Principal,
+        timestamp: u64,
+        name: String,
+        credits: Option<Credits>,
+    ) -> Result<UserId, String> {
+        self.new_user(principal, timestamp, name, credits)
+    }
+
     pub async fn create_user(
         principal: Principal,
         name: String,
