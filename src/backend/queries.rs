@@ -296,7 +296,7 @@ fn user_tags() {
     read(|state| {
         reply(
             state
-                .last_posts(None, offset, 0, true)
+                .last_posts(None, offset, 0, false)
                 .filter(|post| post.body.contains(&tag))
                 .skip(CONFIG.feed_page_size * page)
                 .take(CONFIG.feed_page_size)
