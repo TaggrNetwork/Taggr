@@ -73,6 +73,10 @@ impl Api {
 }
 
 impl Memory {
+    pub fn assert_segments(&mut self, n: usize) {
+        assert_eq!(self.api_ref.borrow().allocator.segments.len(), n)
+    }
+
     pub fn set_block_size(&mut self, n: u64) {
         ic_cdk::println!(
             "old allocation block size: {}",
@@ -198,7 +202,8 @@ impl Default for Allocator {
 
 impl Allocator {
     fn get_allocation_length(&self, n: u64) -> u64 {
-        (n + self.block_size_bytes - 1) / self.block_size_bytes * self.block_size_bytes
+        let block_size = self.block_size_bytes.max(1);
+        (n + block_size - 1) / block_size * block_size
     }
 
     fn alloc(&mut self, len: u64) -> Result<u64, String> {

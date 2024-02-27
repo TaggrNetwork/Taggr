@@ -80,6 +80,11 @@ fn post_upgrade() {
 fn post_upgrade_fixtures() {
     let last_id = read(|state| state.next_post_id);
     mutate(|state| {
+        // fix tests, otherwise the new assertions break them
+        if state.memory.posts.len() == 0 {
+            return;
+        }
+
         let num_posts = Post::count(state);
 
         for post_id in 0..last_id {
@@ -91,6 +96,7 @@ fn post_upgrade_fixtures() {
         }
 
         // The noop mutation above should move all posts to the heap
+        state.memory.assert_segments(1);
         assert_eq!(state.memory.posts.len(), 0);
         assert_eq!(state.posts.len(), num_posts);
 
@@ -98,8 +104,9 @@ fn post_upgrade_fixtures() {
         state.memory.set_block_size(300);
 
         ic_cdk::println!(
-            "all posts loaded into heap (instructions: {}B)",
-            performance_counter(0) / 1000000000
+            "all posts loaded into heap (instructions: {}B, current SM size: {}Mb)",
+            performance_counter(0) / 1000000000,
+            (ic_cdk::api::stable::stable_size() << 16) / 1024 / 1024
         );
     });
 }
