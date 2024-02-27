@@ -598,7 +598,7 @@ impl Post {
         notify_about(state, &post);
 
         if post.parent.is_none() {
-            state.root_posts += 1
+            state.root_posts_index.push(post.id);
         }
 
         Post::save(state, post);

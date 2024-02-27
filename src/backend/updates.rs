@@ -65,13 +65,24 @@ fn post_upgrade() {
         || spawn(State::finalize_upgrade()),
     );
 
+    sync_post_upgrade_fixtures();
+
     // post upgrade logic goes here
     set_timer(Duration::from_millis(0), move || {
-        spawn(post_upgrade_fixtures());
+        spawn(async_post_upgrade_fixtures());
     });
 }
 
-async fn post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        state.root_posts_index = (0..state.next_post_id)
+            .filter_map(|id| Post::get(state, &id))
+            .filter_map(|post| post.parent.is_none().then_some(post.id))
+            .collect()
+    })
+}
+
+async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES

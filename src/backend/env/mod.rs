@@ -182,7 +182,12 @@ pub struct State {
 
     pub last_nns_proposal: u64,
 
+    // TODO: delete
+    #[serde(skip)]
     pub root_posts: usize,
+
+    #[serde(default)]
+    pub root_posts_index: Vec<PostId>,
 
     e8s_for_one_xdr: u64,
 
@@ -1982,18 +1987,28 @@ impl State {
                         .copied(),
                 ),
                 _ => {
-                    let last_id = if offset > 0 {
-                        offset
+                    if with_comments {
+                        let last_id = if offset > 0 {
+                            offset
+                        } else {
+                            self.next_post_id
+                        };
+                        Box::new((0..last_id).rev())
                     } else {
-                        self.next_post_id
-                    };
-                    Box::new((0..last_id).rev())
+                        Box::new(
+                            self.root_posts_index
+                                .iter()
+                                .rev()
+                                .skip_while(move |post_id| offset > 0 && *post_id > &offset)
+                                .copied(),
+                        )
+                    }
                 }
             };
         Box::new(
             iter.filter_map(move |i| Post::get(self, &i))
                 .take_while(move |post| post.creation_timestamp() >= genesis)
-                .filter(move |post| !post.is_deleted() && (with_comments || post.parent.is_none())),
+                .filter(move |post| !post.is_deleted()),
         )
     }
 
@@ -2169,7 +2184,7 @@ impl State {
             credits += user.credits();
         }
         stalwarts.sort_unstable_by_key(|u| u.id);
-        let posts = self.root_posts;
+        let posts = self.root_posts_index.len();
         let volume_day = self
             .ledger
             .iter()
