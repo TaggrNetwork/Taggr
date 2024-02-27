@@ -724,14 +724,20 @@ fn backup() {
 #[export_name = "canister_update archive"]
 fn archive() {
     mutate(|state| {
-        if !state.principal_to_user(caller()).unwrap().stalwart {
+        let user = state.principal_to_user(caller()).unwrap();
+        if !user.stalwart || state.last_archive + MINUTE * 15 > time() {
             return;
         }
+        state
+            .logger
+            .debug(format!("@{} triggered archiving.", user.name));
         let n: usize = parse(&arg_data_raw());
         if let Err(err) = archive_cold_posts(state, n) {
             state
                 .logger
                 .error(format!("couldn't archive cold data: {:?}", err));
+        } else {
+            state.last_archive = time();
         }
     });
     reply_raw(&[]);
