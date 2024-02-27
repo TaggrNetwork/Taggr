@@ -73,22 +73,6 @@ impl Api {
 }
 
 impl Memory {
-    pub fn assert_segments(&mut self, n: usize) {
-        assert_eq!(self.api_ref.borrow().allocator.segments.len(), n)
-    }
-
-    pub fn set_block_size(&mut self, n: u64) {
-        ic_cdk::println!(
-            "old allocation block size: {}",
-            self.api_ref.borrow().allocator.block_size_bytes
-        );
-        self.api_ref.borrow_mut().allocator.block_size_bytes = n;
-        ic_cdk::println!(
-            "new allocation block size: {}",
-            self.api_ref.borrow().allocator.block_size_bytes
-        );
-    }
-
     pub fn health(&self, unit: &str) -> String {
         self.api_ref.as_ref().borrow().allocator.health(unit)
     }
@@ -163,7 +147,6 @@ pub fn stable_to_heap() -> super::State {
 #[derive(Serialize, Deserialize)]
 struct Allocator {
     // The smallest amount of space that can be allocated.
-    #[serde(default)]
     block_size_bytes: u64,
     // Mapping of free segments: offset -> length
     segments: BTreeMap<u64, u64>,
