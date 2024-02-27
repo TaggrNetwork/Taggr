@@ -272,7 +272,7 @@ impl User {
         self.messages += 1;
         self.notifications
             .insert(self.messages, (notification, false));
-        while self.notifications.len() > 200 {
+        while self.notifications.len() > 100 {
             self.notifications.pop_first();
         }
     }
@@ -425,7 +425,7 @@ impl User {
 
     fn add_accounting_log(&mut self, time: Time, level: String, amount: i64, log: String) {
         self.accounting.push_front((time, level, amount, log));
-        while self.accounting.len() > 300 {
+        while self.accounting.len() > 100 {
             self.accounting.pop_back();
         }
     }
