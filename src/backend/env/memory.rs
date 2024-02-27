@@ -73,6 +73,22 @@ impl Api {
 }
 
 impl Memory {
+    pub fn assert_segments(&mut self, n: usize) {
+        assert_eq!(self.api_ref.borrow().allocator.segments.len(), n)
+    }
+
+    pub fn set_block_size(&mut self, n: u64) {
+        ic_cdk::println!(
+            "old allocation block size: {}",
+            self.api_ref.borrow().allocator.block_size_bytes
+        );
+        self.api_ref.borrow_mut().allocator.block_size_bytes = n;
+        ic_cdk::println!(
+            "new allocation block size: {}",
+            self.api_ref.borrow().allocator.block_size_bytes
+        );
+    }
+
     pub fn health(&self, unit: &str) -> String {
         self.api_ref.as_ref().borrow().allocator.health(unit)
     }
@@ -96,6 +112,7 @@ impl Memory {
         read_bytes: Box<dyn Fn(u64, &mut [u8])>,
     ) {
         let allocator = Allocator {
+            block_size_bytes: 1,
             segments: Default::default(),
             mem_grow: Some(mem_grow),
             mem_size: Some(mem_end),
@@ -145,6 +162,10 @@ pub fn stable_to_heap() -> super::State {
 
 #[derive(Serialize, Deserialize)]
 struct Allocator {
+    // The smallest amount of space that can be allocated.
+    #[serde(default)]
+    block_size_bytes: u64,
+    // Mapping of free segments: offset -> length
     segments: BTreeMap<u64, u64>,
     boundary: u64,
     #[serde(skip)]
@@ -167,6 +188,7 @@ impl Clone for Allocator {
 impl Default for Allocator {
     fn default() -> Self {
         Self {
+            block_size_bytes: 300,
             segments: Default::default(),
             boundary: INITIAL_OFFSET,
             mem_size: Some(Box::new(|| stable64_size() << 16)),
@@ -179,7 +201,13 @@ impl Default for Allocator {
 }
 
 impl Allocator {
-    fn alloc(&mut self, n: u64) -> Result<u64, String> {
+    fn get_allocation_length(&self, n: u64) -> u64 {
+        let block_size = self.block_size_bytes.max(1);
+        (n + block_size - 1) / block_size * block_size
+    }
+
+    fn alloc(&mut self, len: u64) -> Result<u64, String> {
+        let n = self.get_allocation_length(len);
         // find all segments that are big enough
         let mut candidates = BTreeMap::new();
         for (start, size) in self.segments.iter() {
@@ -214,7 +242,8 @@ impl Allocator {
         Ok(start)
     }
 
-    fn free(&mut self, offset: u64, size: u64) -> Result<(), String> {
+    fn free(&mut self, offset: u64, len: u64) -> Result<(), String> {
+        let size = self.get_allocation_length(len);
         let left_segment = self.segments.range(..offset).last().map(|(a, b)| (*a, *b));
         let right_segment = self
             .segments
@@ -327,6 +356,21 @@ pub(crate) mod tests {
     use super::*;
 
     #[test]
+    fn test_allocation_size() {
+        let a = Allocator::default();
+        assert_eq!(a.block_size_bytes, 300);
+        assert_eq!(a.get_allocation_length(0), 0);
+        assert_eq!(a.get_allocation_length(1), 300);
+        assert_eq!(a.get_allocation_length(100), 300);
+        assert_eq!(a.get_allocation_length(199), 300);
+        assert_eq!(a.get_allocation_length(299), 300);
+        assert_eq!(a.get_allocation_length(300), 300);
+        assert_eq!(a.get_allocation_length(301), 600);
+        assert_eq!(a.get_allocation_length(400), 600);
+        assert_eq!(a.get_allocation_length(599), 600);
+    }
+
+    #[test]
     fn test_allocator() {
         static mut MEM_END: u64 = 16;
         let mem_grow = |n| unsafe {
@@ -337,6 +381,7 @@ pub(crate) mod tests {
             unsafe { MEM_END }
         }
         let mut a = Allocator {
+            block_size_bytes: 1,
             segments: Default::default(),
             mem_grow: Some(Box::new(mem_grow)),
             mem_size: Some(Box::new(mem_end)),

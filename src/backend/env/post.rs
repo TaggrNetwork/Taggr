@@ -3,8 +3,8 @@ use std::cmp::{Ordering, PartialOrd};
 use super::reports::ReportState;
 use super::*;
 use super::{storage::Storage, user::UserId};
-use crate::mutate;
 use crate::reports::Report;
+use crate::{mutate, performance_counter};
 use serde::{Deserialize, Serialize};
 
 static mut CACHE: Option<BTreeMap<PostId, Box<Post>>> = None;
@@ -649,7 +649,7 @@ impl Post {
             .remove(post_id)
             .ok_or("no post found".to_string())
             .or_else(|_| state.memory.posts.remove(post_id))
-            .expect("couldn't take post")
+            .unwrap_or_else(|err| panic!("couldn't take post {}: {}", post_id, err))
     }
 
     // Takes the post from hot or cold memory, mutates and inserts into the hot memory
@@ -714,9 +714,14 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
         })
         .expect("couldn't archive post");
 
-    state
-        .logger
-        .debug(format!("`{}` posts archived", archived_posts));
+    state.backup_exists = false;
+
+    state.logger.debug(format!(
+        "`{}` posts archived (posts still in heap: `{}`, instructions used: `{}B`)",
+        archived_posts,
+        state.posts.len(),
+        performance_counter(0) / 1000000000
+    ));
     Ok(())
 }
 

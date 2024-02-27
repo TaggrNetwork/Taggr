@@ -53,3 +53,23 @@ fn optional(s: String) -> Option<String> {
         Some(s)
     }
 }
+
+pub fn performance_counter(_n: u32) -> u64 {
+    #[cfg(test)]
+    return 0;
+    #[cfg(not(test))]
+    ic_cdk::api::performance_counter(_n)
+}
+pub fn id() -> Principal {
+    #[cfg(test)]
+    return Principal::anonymous();
+    #[cfg(not(test))]
+    ic_cdk::id()
+}
+
+pub fn time() -> u64 {
+    #[cfg(test)]
+    return 0;
+    #[cfg(not(test))]
+    ic_cdk::api::time()
+}

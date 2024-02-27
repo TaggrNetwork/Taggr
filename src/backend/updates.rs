@@ -14,6 +14,7 @@ use ic_cdk::{
     api::{
         self,
         call::{arg_data_raw, reply_raw},
+        performance_counter,
     },
     spawn,
 };
@@ -56,6 +57,10 @@ fn post_upgrade() {
     }
     stable_to_heap_core();
     mutate(|state| state.load());
+
+    // TODO: DELETE BEFORE THE NEXT RELEASE
+    mutate(|state| state.memory.set_block_size(1));
+
     set_timer_interval(Duration::from_secs(15 * 60), || {
         spawn(State::chores(api::time()))
     });
@@ -64,13 +69,47 @@ fn post_upgrade() {
         || spawn(State::finalize_upgrade()),
     );
 
+    post_upgrade_fixtures();
+
     // post upgrade logic goes here
-    set_timer(Duration::from_millis(0), move || {
-        spawn(post_upgrade_fixtures());
-    });
+    // set_timer(Duration::from_millis(0), move || {
+    //     spawn(post_upgrade_fixtures());
+    // });
 }
 
-async fn post_upgrade_fixtures() {}
+fn post_upgrade_fixtures() {
+    let last_id = read(|state| state.next_post_id);
+    mutate(|state| {
+        // fix tests, otherwise the new assertions break them
+        if state.memory.posts.len() == 0 {
+            return;
+        }
+
+        let num_posts = Post::count(state);
+
+        for post_id in 0..last_id {
+            Post::mutate(state, &post_id, |post| {
+                post.archived = false;
+                Ok(())
+            })
+            .unwrap();
+        }
+
+        // The noop mutation above should move all posts to the heap
+        state.memory.assert_segments(1);
+        assert_eq!(state.memory.posts.len(), 0);
+        assert_eq!(state.posts.len(), num_posts);
+
+        // Now we can set the allocation block size
+        state.memory.set_block_size(300);
+
+        ic_cdk::println!(
+            "all posts loaded into heap (instructions: {}B, current SM size: {}Mb)",
+            performance_counter(0) / 1000000000,
+            (ic_cdk::api::stable::stable_size() << 16) / 1024 / 1024
+        );
+    });
+}
 
 /*
  * UPDATES
@@ -670,6 +709,16 @@ fn check_candid_interface_compatibility() {
         "declared candid interface in taggr.did file",
         candid_parser::utils::CandidSource::File(old_interface.as_path()),
     );
+}
+
+#[update]
+fn backup() {
+    mutate(|state| {
+        if !state.backup_exists {
+            env::memory::heap_to_stable(state);
+            state.backup_exists = true;
+        }
+    })
 }
 
 #[export_name = "canister_update archive"]

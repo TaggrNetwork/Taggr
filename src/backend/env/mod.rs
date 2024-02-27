@@ -9,7 +9,7 @@ use crate::assets::export_token_supply;
 use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
 use crate::token::{Account, Token, Transaction};
-use crate::{assets, mutate, read};
+use crate::{assets, id, mutate, read, time};
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::stable::stable64_size;
@@ -194,8 +194,11 @@ pub struct State {
 
     migrations: BTreeSet<UserId>,
 
-    #[serde(default)]
     pub posts_with_tags: Vec<PostId>,
+
+    // Indicates whether the end of the stable memory contains a valid heap snapshot.
+    #[serde(skip)]
+    pub backup_exists: bool,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -1378,16 +1381,6 @@ impl State {
                 state.logger.info("An emergency release is pending! 🚨");
             }
 
-            if let Err(err) = state.archive_cold_data() {
-                state
-                    .logger
-                    .error(format!("couldn't archive cold data: {:?}", err));
-            } else {
-                // If we archived posts without errors, we should create a heap backup, so that we
-                // always have a valid heap snapshot at the end of the stable memory.
-                memory::heap_to_stable(state);
-            }
-
             state.recompute_stalwarts(now);
 
             for user in state.users.values_mut() {
@@ -1525,9 +1518,11 @@ impl State {
 
     pub async fn hourly_chores(now: u64) {
         mutate(|state| {
-            // Automatically dump the heap to the stable memory. This should be the first
-            // opearation to avoid blocking of the backup by a panic in other parts of the routine.
-            memory::heap_to_stable(state);
+            if let Err(err) = state.archive_cold_data() {
+                state
+                    .logger
+                    .error(format!("couldn't archive cold data: {:?}", err));
+            }
 
             state.conclude_polls(now)
         });
@@ -2757,20 +2752,6 @@ fn covered_by_feeds(
         }
     }
     None
-}
-
-pub fn id() -> Principal {
-    #[cfg(test)]
-    return Principal::anonymous();
-    #[cfg(not(test))]
-    ic_cdk::id()
-}
-
-pub fn time() -> u64 {
-    #[cfg(test)]
-    return 0;
-    #[cfg(not(test))]
-    api::time()
 }
 
 pub fn parse_amount(amount: &str, token_decimals: u8) -> Result<u64, String> {
