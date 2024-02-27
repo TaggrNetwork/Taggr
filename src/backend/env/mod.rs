@@ -194,8 +194,11 @@ pub struct State {
 
     migrations: BTreeSet<UserId>,
 
-    #[serde(default)]
     pub posts_with_tags: Vec<PostId>,
+
+    // Indicates whether the end of the stable memory contains a valid heap snapshot.
+    #[serde(skip)]
+    pub backup_exists: bool,
 }
 
 #[derive(Default, Deserialize, Serialize)]

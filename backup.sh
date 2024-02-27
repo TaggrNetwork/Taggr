@@ -55,6 +55,7 @@ fetch() {
 }
 
 git rev-parse HEAD > $DIR/commit.txt
+dfx canister --network ic call taggr backup
 
 PAGE=0
 while true; do

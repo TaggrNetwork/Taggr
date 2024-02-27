@@ -714,6 +714,8 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
         })
         .expect("couldn't archive post");
 
+    state.backup_exists = false;
+
     state.logger.debug(format!(
         "`{}` posts archived (posts still in heap: `{}`, instructions used: `{}B`)",
         archived_posts,

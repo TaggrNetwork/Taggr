@@ -711,6 +711,16 @@ fn check_candid_interface_compatibility() {
     );
 }
 
+#[update]
+fn backup() {
+    mutate(|state| {
+        if !state.backup_exists {
+            env::memory::heap_to_stable(state);
+            state.backup_exists = true;
+        }
+    })
+}
+
 #[export_name = "canister_update archive"]
 fn archive() {
     mutate(|state| {
