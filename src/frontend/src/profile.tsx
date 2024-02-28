@@ -6,7 +6,6 @@ import {
     commaSeparated,
     Loading,
     HeadBar,
-    userList,
     bigScreen,
     tokenBalance,
     FlagButton,
@@ -17,6 +16,7 @@ import {
     popUp,
     RealmList,
     noiseControlBanner,
+    UserList,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -292,7 +292,7 @@ export const UserInfo = ({
                     profile.followers.length,
                     <>
                         <h2>Followers</h2>
-                        {userList(profile.followers)}
+                        <UserList ids={profile.followers} />
                     </>,
                 )}
             </div>
@@ -467,9 +467,7 @@ export const UserInfo = ({
                     <div className="db_cell">
                         INVITED BY
                         <span>
-                            <a
-                                href={`/#/user/${inviter}`}
-                            >{`${window.backendCache.users[inviter]}`}</a>
+                            <UserLink id={inviter} />
                         </span>
                     </div>
                 )}

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ButtonWithLoading, userList } from "./common";
+import { ButtonWithLoading, UserList } from "./common";
 import { Content } from "./content";
 import { Poll, PostId } from "./types";
 
@@ -110,7 +110,7 @@ export const PollView = ({
                                             className="active"
                                         ></div>
                                         <div className="small_text top_half_spaced">
-                                            {userList(data.votes[id])}
+                                            <UserList ids={data.votes[id]} />
                                         </div>
                                     </div>
                                 </div>

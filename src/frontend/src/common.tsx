@@ -11,7 +11,16 @@ import {
     Share,
 } from "./icons";
 import { loadFile } from "./form";
-import { Post, PostId, Report, User, UserFilter, UserId } from "./types";
+import {
+    Meta,
+    Post,
+    PostId,
+    Report,
+    User,
+    UserData,
+    UserFilter,
+    UserId,
+} from "./types";
 import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger-icrc";
@@ -521,15 +530,16 @@ export const Loading = ({
     );
 };
 
-export const loadPosts = async (ids: PostId[]) =>
-    ((await window.api.query<Post[]>("posts", ids)) || []).map(expandUser);
-
-export const expandUser = (post: Post) => {
-    const id = post.user;
-    const { users, rewards } = window.backendCache;
-    post.userObject = { id, name: users[id], rewards: rewards[id] };
+export const expandMeta = ([post, meta]: [Post, Meta]) => {
+    post.meta = meta;
     return post;
 };
+
+export const loadFeed = async (ids: PostId[]) =>
+    await window.api.query<[Post, Meta][]>("posts", ids);
+
+export const loadPosts = async (ids: PostId[]) =>
+    ((await loadFeed(ids)) || []).map(expandMeta);
 
 export const blobToUrl = (blob: ArrayBuffer) =>
     URL.createObjectURL(
@@ -542,12 +552,24 @@ export const UserLink = ({
     id,
     classNameArg,
     profile,
+    name,
 }: {
     id: UserId;
     classNameArg?: string;
     profile?: boolean;
+    name?: string;
 }) => {
-    const userName = window.backendCache.users[id];
+    const [userName, setUserName] = React.useState<string | undefined>(name);
+
+    const loadUserName = async () => {
+        const data = await window.api.query<UserData>("users_data", [id]);
+        if (data) setUserName(data[id]);
+    };
+
+    React.useEffect(() => {
+        if (!userName) loadUserName();
+    }, [userName]);
+
     return userName ? (
         <a
             className={`${classNameArg} user_link`}
@@ -560,8 +582,32 @@ export const UserLink = ({
     );
 };
 
-export const userList = (ids: UserId[] = []) =>
-    commaSeparated(ids.map((id) => <UserLink key={id} id={id} />));
+export const UserList = ({
+    ids,
+    profile,
+}: {
+    ids: UserId[];
+    profile?: boolean;
+}) => {
+    const [names, setNames] = React.useState<UserData>({});
+
+    const loadNames = async () =>
+        setNames((await window.api.query<UserData>("users_data", ids)) || {});
+
+    React.useEffect(() => {
+        loadNames();
+    }, []);
+
+    return Object.keys(names).length == 0 ? (
+        <Loading />
+    ) : (
+        commaSeparated(
+            ids.map((id) => (
+                <UserLink key={id} id={id} name={names[id]} profile={profile} />
+            )),
+        )
+    );
+};
 
 export const token = (n: number) =>
     Math.ceil(

@@ -64,6 +64,19 @@ fn distribution() {
     });
 }
 
+#[export_name = "canister_query users_data"]
+fn users_data() {
+    read(|state| {
+        let ids: Vec<UserId> = parse(&arg_data_raw());
+        reply(
+            ids.into_iter()
+                .filter_map(|id| state.users.get(&id))
+                .map(|user| (user.id, &user.name))
+                .collect::<HashMap<_, _>>(),
+        );
+    });
+}
+
 #[export_name = "canister_query balances"]
 fn balances() {
     read(|state| {
@@ -151,6 +164,7 @@ fn proposals() {
                 .skip(page * page_size)
                 .take(page_size)
                 .filter_map(|proposal| Post::get(state, &proposal.post_id))
+                .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         )
     })
@@ -267,6 +281,7 @@ fn user_posts() {
                 user.posts(state, offset, true)
                     .skip(CONFIG.feed_page_size * page)
                     .take(CONFIG.feed_page_size)
+                    .map(|post| post.with_meta(state))
                     .collect::<Vec<_>>(),
             )
         })
@@ -283,6 +298,7 @@ fn rewarded_posts() {
                     .filter(|post| !post.reactions.is_empty())
                     .skip(CONFIG.feed_page_size * page)
                     .take(CONFIG.feed_page_size)
+                    .map(|post| post.with_meta(state))
                     .collect::<Vec<_>>(),
             )
         })
@@ -300,6 +316,7 @@ fn user_tags() {
                 .filter(|post| post.body.contains(&tag))
                 .skip(CONFIG.feed_page_size * page)
                 .take(CONFIG.feed_page_size)
+                .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         )
     });
@@ -339,6 +356,18 @@ fn invites() {
     read(|state| reply(state.invites(caller())));
 }
 
+fn personal_filter(state: &State, user: Option<&User>, post: &Post) -> bool {
+    user.map(|user| {
+        !post.matches_filters(&user.filters)
+            && state
+                .users
+                .get(&post.user)
+                .map(|author| user.accepts(author.id, &author.get_filter()))
+                .unwrap_or(true)
+    })
+    .unwrap_or(true)
+}
+
 #[export_name = "canister_query posts"]
 fn posts() {
     let ids: Vec<PostId> = parse(&arg_data_raw());
@@ -346,7 +375,8 @@ fn posts() {
         reply(
             ids.into_iter()
                 .filter_map(|id| Post::get(state, &id))
-                .collect::<Vec<&Post>>(),
+                .map(|post| post.with_meta(state))
+                .collect::<Vec<_>>(),
         );
     })
 }
@@ -363,6 +393,7 @@ fn journal() {
                         .filter(|post| !post.is_deleted() && !post.body.starts_with('@'))
                         .skip(page * CONFIG.feed_page_size)
                         .take(CONFIG.feed_page_size)
+                        .map(|post| post.with_meta(state))
                         .collect::<Vec<_>>()
                 })
                 .unwrap_or_default(),
@@ -382,21 +413,10 @@ fn hot_realm_posts() {
                     offset,
                     Some(&|post: &Post| post.realm.is_some()),
                 )
+                .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         )
     });
-}
-
-fn personal_filter(state: &State, user: Option<&User>, post: &Post) -> bool {
-    user.map(|user| {
-        !post.matches_filters(&user.filters)
-            && state
-                .users
-                .get(&post.user)
-                .map(|author| user.accepts(author.id, &author.get_filter()))
-                .unwrap_or(true)
-    })
-    .unwrap_or(true)
 }
 
 #[export_name = "canister_query hot_posts"]
@@ -408,6 +428,7 @@ fn hot_posts() {
             state
                 .hot_posts(optional(realm), page, offset, None)
                 .filter(|post| !filtered || personal_filter(state, user, post))
+                .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         )
     });
@@ -422,6 +443,7 @@ fn realms_posts() {
             state
                 .realms_posts(caller(), page, offset)
                 .filter(|post| personal_filter(state, user, post))
+                .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         )
     });
@@ -438,6 +460,7 @@ fn last_posts() {
                 .filter(|post| !filtered || personal_filter(state, user, post))
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
+                .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         )
     });
@@ -451,6 +474,7 @@ fn posts_by_tags() {
         reply(
             state
                 .posts_by_tags(optional(realm), tags, users, page, offset)
+                .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         )
     });
@@ -462,7 +486,10 @@ fn personal_feed() {
     read(|state| {
         reply(match state.principal_to_user(caller()) {
             None => Default::default(),
-            Some(user) => user.personal_feed(state, page, offset).collect::<Vec<_>>(),
+            Some(user) => user
+                .personal_feed(state, page, offset)
+                .map(|post| post.with_meta(state))
+                .collect::<Vec<_>>(),
         })
     });
 }
@@ -475,15 +502,10 @@ fn thread() {
             state
                 .thread(id)
                 .filter_map(|id| Post::get(state, &id))
+                .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         )
     })
-}
-
-#[export_name = "canister_query validate_username"]
-fn validate_username() {
-    let name: String = parse(&arg_data_raw());
-    read(|state| reply(state.validate_username(&name)));
 }
 
 #[export_name = "canister_query recent_tags"]
@@ -492,17 +514,10 @@ fn recent_tags() {
     read(|state| reply(state.recent_tags(optional(realm), n)));
 }
 
-#[export_name = "canister_query users"]
-fn users() {
-    read(|state| {
-        reply(
-            state
-                .users
-                .values()
-                .map(|user| (user.id, user.name.clone(), user.rewards()))
-                .collect::<Vec<(UserId, String, i64)>>(),
-        )
-    });
+#[export_name = "canister_query validate_username"]
+fn validate_username() {
+    let name: String = parse(&arg_data_raw());
+    read(|state| reply(state.validate_username(&name)));
 }
 
 #[export_name = "canister_query config"]

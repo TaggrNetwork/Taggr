@@ -95,6 +95,12 @@ export type Realm = {
     posts: PostId[];
 };
 
+export type Meta = {
+    author_name: string;
+    author_rewards: number;
+    realm_color: string[];
+};
+
 export type Post = {
     id: PostId;
     parent?: PostId;
@@ -102,7 +108,6 @@ export type Post = {
     children: PostId[];
     reposts: PostId[];
     user: UserId;
-    userObject: { id: UserId; name: string; rewards: number };
     report?: Report;
     body: string;
     effBody: string;
@@ -116,6 +121,7 @@ export type Post = {
     extension: Extension;
     tree_size: number;
     tree_update: BigInt;
+    meta: Meta;
 };
 
 export type BlogTitle = {
@@ -231,6 +237,7 @@ export type Report = {
 };
 
 export type Theme = { [name: string]: any };
+export type UserData = { [id: UserId]: string };
 
 declare global {
     interface Window {
@@ -252,8 +259,7 @@ declare global {
         lastSavedUpgrade: number;
         uiInitialized: boolean;
         backendCache: {
-            users: { [name: UserId]: string };
-            rewards: { [name: UserId]: number };
+            followees: UserData;
             recent_tags: string[];
             realms_data: { [name: string]: [string, boolean, UserFilter] };
             stats: {

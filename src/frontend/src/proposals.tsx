@@ -4,7 +4,6 @@ import {
     ButtonWithLoading,
     timeAgo,
     token,
-    userList,
     percentage,
     FileUploadInput,
     tokenBalance,
@@ -12,12 +11,13 @@ import {
     tokens,
     hex,
     UserLink,
+    UserList,
 } from "./common";
 import * as React from "react";
 import { Content } from "./content";
 import { HourGlass } from "./icons";
 import { PostFeed } from "./post_feed";
-import { PostId, Proposal } from "./types";
+import { PostId, Proposal, User } from "./types";
 
 const REPO_RELEASE = "https://github.com/TaggrNetwork/taggr/releases/latest";
 const REPO_COMMIT = "https://github.com/TaggrNetwork/taggr/commit";
@@ -118,21 +118,18 @@ export const Proposals = () => {
                                     alert("Error: incomplete data.");
                                     return;
                                 }
-                                const userEntry = Object.entries(
-                                    window.backendCache.users,
-                                ).find(
-                                    ([_, name]) =>
-                                        name.toLowerCase() ==
-                                        userName.toLowerCase(),
+                                const user = await window.api.query<User>(
+                                    "user",
+                                    [name],
                                 );
-                                if (!userEntry) {
+                                if (!user) {
                                     alert(`No user ${userName} found!`);
                                     return;
                                 }
                                 let response = await window.api.call<any>(
                                     "propose_add_realm_controller",
                                     description,
-                                    Number(userEntry[0]),
+                                    user.id,
                                     realmId.toUpperCase(),
                                 );
                                 if ("Err" in response) {
@@ -339,7 +336,6 @@ export const ProposalView = ({
     id: number;
     postId: PostId;
 }) => {
-    const users = window.backendCache.users;
     const [status, setStatus] = React.useState(0);
     const [proposal, setProposal] = React.useState<Proposal>();
 
@@ -585,12 +581,11 @@ export const ProposalView = ({
                     ({percentage(adopted, proposal.voting_power)})
                 </div>
                 <div className="small_text">
-                    {users &&
-                        userList(
-                            proposal.bulletins
-                                .filter((vote) => vote[1])
-                                .map((vote) => vote[0]),
-                        )}
+                    <UserList
+                        ids={proposal.bulletins
+                            .filter((vote) => vote[1])
+                            .map((vote) => vote[0])}
+                    />
                 </div>
             </div>
             <div className="bottom_spaced">
@@ -606,12 +601,11 @@ export const ProposalView = ({
                     ({percentage(rejected, proposal.voting_power)})
                 </div>
                 <div className="small_text">
-                    {users &&
-                        userList(
-                            proposal.bulletins
-                                .filter((vote) => !vote[1])
-                                .map((vote) => vote[0]),
-                        )}
+                    <UserList
+                        ids={proposal.bulletins
+                            .filter((vote) => !vote[1])
+                            .map((vote) => vote[0])}
+                    />
                 </div>
             </div>
             {window.user && open && !voted && (

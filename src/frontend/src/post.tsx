@@ -27,8 +27,8 @@ import {
     parseNumber,
     noiseControlBanner,
     getRealmsData,
-    expandUser,
     ArrowDown,
+    UserList,
 } from "./common";
 import {
     reaction2icon,
@@ -203,7 +203,7 @@ export const PostView = ({
             post.reactions,
             (acc, id, users) => acc + costTable[id as any] * users.length,
             0,
-        ) < 0 || post.userObject.rewards < 0;
+        ) < 0 || post.meta.author_rewards < 0;
     const user = window.user;
     const showReport =
         post.report && !post.report.closed && user && user.stalwart;
@@ -237,14 +237,14 @@ export const PostView = ({
     const blogTitle =
         prime && body.length > 750 && body.startsWith("# ")
             ? {
-                  author: post.userObject.name,
+                  author: post.meta.author_name,
                   realm: post.realm,
                   created: postCreated,
                   length: body.length,
               }
             : undefined;
 
-    if (prime) setTitle(`Post #${post.id} by @${post.userObject.name}`);
+    if (prime) setTitle(`Post #${post.id} by @${post.meta.author_name}`);
 
     const showExtension = !isNSFW && post.extension && !repost;
 
@@ -285,6 +285,7 @@ export const PostView = ({
                         <UserLink
                             classNameArg="left_well_spaced right_half_spaced"
                             id={post.user}
+                            name={post.meta.author_name}
                             profile={true}
                         />
                         <span className="right_half_spaced">&middot;</span>
@@ -413,9 +414,7 @@ export const PostView = ({
                         Object.keys(post.children).length
                     }_${showComments}`}
                     level={level + 1}
-                    loader={async () =>
-                        await window.api.query("posts", post.children)
-                    }
+                    loader={async () => await loadPosts(post.children)}
                 />
             )}
         </div>
@@ -436,7 +435,7 @@ const Comments = ({
     const loadPosts = async () => {
         setLoading(true);
         const comments = await loader();
-        setPosts((comments || []).map(expandUser));
+        setPosts(comments || []);
         setLoading(false);
     };
 
@@ -483,7 +482,7 @@ const PostInfo = ({
     realmMoveOutCallback: () => void;
     versionSpecified?: boolean;
 }) => {
-    const postAuthor = window.user?.id == post.userObject.id;
+    const postAuthor = window.user?.id == post.user;
     const realmController = post.realm && getRealmsData(post.realm)[1];
     const { token_symbol, token_decimals } = window.backendCache.config;
     return (
@@ -551,7 +550,7 @@ const PostInfo = ({
                                 const amount =
                                     parseNumber(
                                         prompt(
-                                            `Tip @${post.userObject.name} with ${token_symbol}:`,
+                                            `Tip @${post.meta.author_name} with ${token_symbol}:`,
                                         ) || "",
                                         token_decimals,
                                     ) || NaN;
@@ -562,7 +561,7 @@ const PostInfo = ({
                                             amount,
                                             token_decimals,
                                         )} ${token_symbol} to @${
-                                            post.userObject.name
+                                            post.meta.author_name
                                         } as a tip?`,
                                     )
                                 )
@@ -718,12 +717,7 @@ const PostInfo = ({
                 )}
                 {post.watchers.length > 0 && (
                     <div>
-                        <b>WATCHERS</b>:{" "}
-                        {commaSeparated(
-                            post.watchers.map((id) => (
-                                <UserLink key={id} id={id} />
-                            )),
-                        )}
+                        <b>WATCHERS</b>: <UserList ids={post.watchers} />
                     </div>
                 )}
                 {post.tips.length > 0 && (
@@ -746,15 +740,7 @@ const PostInfo = ({
                         {Object.entries(reactions).map(([reactId, users]) => (
                             <div key={reactId} className="bottom_half_spaced">
                                 {reaction2icon(Number(reactId))}{" "}
-                                {commaSeparated(
-                                    users.map((id) => (
-                                        <UserLink
-                                            key={id}
-                                            id={id}
-                                            profile={true}
-                                        />
-                                    )),
-                                )}
+                                <UserList ids={users} profile={true} />
                             </div>
                         ))}
                     </div>

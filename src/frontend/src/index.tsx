@@ -21,6 +21,8 @@ import {
     HeadBar,
     setTitle,
     currentRealm,
+    loadFeed,
+    expandMeta,
 } from "./common";
 import { Settings } from "./settings";
 import { ApiGenerator } from "./api";
@@ -30,7 +32,7 @@ import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
 import { MAINNET_MODE, CANISTER_ID } from "./env";
-import { Post, PostId, UserFilter, UserId } from "./types";
+import { PostId, User, UserData, UserFilter } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
@@ -80,7 +82,6 @@ const renderFrame = (content: React.ReactNode) => {
 
 const App = () => {
     window.lastActivity = new Date();
-    const api = window.api;
     const auth = (content: React.ReactNode) =>
         window.principalId ? content : <Unauthorized />;
     const [handler = "", param, param2] = parseHash();
@@ -136,9 +137,9 @@ const App = () => {
                     />
                 }
                 feedLoader={async () => {
-                    const posts = await api.query<Post[]>("posts", [id]);
+                    const posts = await loadFeed([id]);
                     if (posts && posts.length > 0)
-                        return await api.query("posts", posts[0].reposts);
+                        return await loadFeed(expandMeta(posts[0]).reposts);
                     return [];
                 }}
             />
@@ -188,9 +189,7 @@ const App = () => {
                 useList={true}
                 title={<HeadBar title="BOOKMARKS" shareLink="bookmarks" />}
                 includeComments={true}
-                feedLoader={async () =>
-                    await api.query("posts", window.user.bookmarks)
-                }
+                feedLoader={async () => await loadFeed(window.user.bookmarks)}
             />,
         );
     } else if (handler == "invites") {
@@ -243,8 +242,7 @@ const App = () => {
 
 const reloadCache = async () => {
     window.backendCache = window.backendCache || { users: [], recent_tags: [] };
-    const [users, recent_tags, stats, config, realms] = await Promise.all([
-        window.api.query<[UserId, string, number][]>("users"),
+    const [recent_tags, stats, config, realms] = await Promise.all([
         window.api.query<[string, any][]>("recent_tags", "", 500),
         window.api.query<any>("stats"),
         window.api.query<any>("config"),
@@ -253,14 +251,7 @@ const reloadCache = async () => {
         ),
     ]);
     window.backendCache = {
-        users: (users || []).reduce((acc, [id, name]) => {
-            acc[id] = name;
-            return acc;
-        }, {} as any),
-        rewards: (users || []).reduce((acc, [id, _, karma]) => {
-            acc[id] = karma;
-            return acc;
-        }, {} as any),
+        followees: {},
         recent_tags: (recent_tags || []).map(([tag, _]) => tag),
         realms_data: realms || {},
         stats,
@@ -322,8 +313,14 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
 
         if (api) {
             window.reloadUser = async () => {
-                let data = await api.query<any>("user", []);
+                let data = await api.query<User>("user", []);
                 if (data) {
+                    window.api
+                        .query<UserData>("users_data", data.followees)
+                        .then(
+                            (names) =>
+                                (window.backendCache.followees = names || {}),
+                        );
                     window.user = data;
                     window.user.realms.reverse();
                     if (600000 < microSecsSince(window.user.last_activity)) {

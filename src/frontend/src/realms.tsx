@@ -3,7 +3,6 @@ import { loadFile } from "./form";
 import {
     BurgerButton,
     ButtonWithLoading,
-    commaSeparated,
     noiseControlBanner,
     HeadBar,
     Loading,
@@ -11,25 +10,15 @@ import {
     RealmSpan,
     setTitle,
     ToggleButton,
-    UserLink,
-    userList,
+    UserList,
 } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
 import { getTheme, setRealmUI } from "./theme";
-import { Realm, Theme, UserFilter, UserId } from "./types";
+import { Realm, Theme, User, UserFilter } from "./types";
 
 export const RealmForm = ({ existingName }: { existingName?: string }) => {
     const editing = !!existingName;
-    const users = window.backendCache.users;
-    const name2Id = Object.keys(users).reduce(
-        (acc, idStr) => {
-            let id = parseInt(idStr);
-            acc[users[id].toLowerCase()] = id;
-            return acc;
-        },
-        {} as { [name: string]: UserId },
-    );
     const userId = window.user.id;
 
     const [theme, setTheme] = React.useState<Theme>();
@@ -58,9 +47,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         posts: [],
         adult_content: false,
     });
-    const [controllersString, setControllersString] = React.useState(
-        users[userId],
-    );
+    const [controllersString, setControllersString] = React.useState("");
     const [whitelistString, setWhitelistString] = React.useState("");
 
     const loadRealm = async () => {
@@ -70,14 +57,62 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         if (existingName) setName(existingName);
         setRealm(realm);
         if (realm.theme) setTheme(JSON.parse(realm.theme));
-        setWhitelistString(realm.whitelist.map((id) => users[id]).join(", "));
+        setWhitelistString(
+            Object.values(
+                (await window.api.query<{ [id: number]: string }>(
+                    "users_data",
+                    realm.whitelist,
+                )) || {},
+            )
+                .map((name) => `@${name}`)
+                .join(", "),
+        );
         setControllersString(
-            realm.controllers.map((id) => users[id]).join(", "),
+            Object.values(
+                (await window.api.query<{ [id: number]: string }>(
+                    "users_data",
+                    realm.controllers,
+                )) || {},
+            )
+                .map((name) => `@${name}`)
+                .join(", "),
         );
     };
+
+    const validateUserNames = async () => {
+        // @ts-ignore
+        realm.whitelist = (
+            await Promise.all(
+                whitelistString
+                    .split(",")
+                    .map((name) => name.trim().replace("@", ""))
+                    .map((name) => window.api.query<User>("user", [name])),
+            )
+        )
+            .map((user) => user?.id)
+            .filter((user) => user != undefined);
+        // @ts-ignore
+        realm.controllers = (
+            await Promise.all(
+                controllersString
+                    .split(",")
+                    .map((name) => name.trim().replace("@", ""))
+                    .map((name) => window.api.query<User>("user", [name])),
+            )
+        )
+            .map((user) => user?.id)
+            .filter((user) => user != undefined);
+        setRealm({ ...realm });
+    };
+
+    React.useEffect(() => {
+        validateUserNames();
+    }, [controllersString, whitelistString]);
+
     React.useEffect(() => {
         if (editing) loadRealm();
     }, []);
+
     const {
         logo,
         description,
@@ -254,27 +289,13 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         value={controllersString}
                         onChange={(event) => {
                             const input = event.target.value;
-                            const ids = input
-                                .split(",")
-                                .map(
-                                    (id) =>
-                                        name2Id[
-                                            id
-                                                .replace("@", "")
-                                                .trim()
-                                                .toLowerCase()
-                                        ],
-                                )
-                                .filter((n) => !isNaN(n));
                             setControllersString(input);
-                            realm.controllers = ids;
-                            setRealm({ ...realm });
                         }}
                     />
                     {controllers.length > 0 && (
                         <div className="column_container bottom_spaced">
                             <div className="bottom_half_spaced">
-                                Recognized users: {userList(controllers)}
+                                Recognized users: <UserList ids={controllers} />
                             </div>
                         </div>
                     )}
@@ -290,27 +311,13 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         value={whitelistString}
                         onChange={(event) => {
                             const input = event.target.value;
-                            const whitelist = input
-                                .split(",")
-                                .map(
-                                    (id) =>
-                                        name2Id[
-                                            id
-                                                .replace("@", "")
-                                                .trim()
-                                                .toLowerCase()
-                                        ],
-                                )
-                                .filter((n) => !isNaN(n));
                             setWhitelistString(input);
-                            realm.whitelist = whitelist;
-                            setRealm({ ...realm });
                         }}
                     />
                     {whitelist.length > 0 && (
                         <div className="column_container bottom_spaced">
                             <div className="bottom_half_spaced">
-                                Recognized users: {userList(whitelist)}
+                                Recognized users: <UserList ids={whitelist} />
                             </div>
                         </div>
                     )}
@@ -607,7 +614,7 @@ export const RealmHeader = ({ name }: { name: string }) => {
                     <Restrictions realm={realm} />
                     <code>{realm.num_posts}</code> posts,{" "}
                     <code>{realm.num_members}</code> members, controlled by:{" "}
-                    {userList(realm.controllers)}
+                    <UserList ids={realm.controllers} />
                     {user && (
                         <div className="row_container top_spaced flex_ended">
                             {realm.controllers.includes(user.id) && (
@@ -830,7 +837,8 @@ export const Realms = () => {
                                 <>
                                     <code>{realm.num_posts}</code> posts,{" "}
                                     <code>{realm.num_members}</code> members,
-                                    controlled by: {userList(realm.controllers)}
+                                    controlled by:{" "}
+                                    <UserList ids={realm.controllers} />
                                 </>
                             </div>
                         );
@@ -869,10 +877,7 @@ const Restrictions = ({ realm }: { realm: Realm }) => {
     if (realm.whitelist.length > 0)
         restrictions.push(
             <>
-                Whitelisted users:{" "}
-                {commaSeparated(
-                    realm.whitelist.map((id) => <UserLink id={id} />),
-                )}
+                Whitelisted users: <UserList ids={realm.whitelist} />
             </>,
         );
     if (restrictions.length == 0) return null;

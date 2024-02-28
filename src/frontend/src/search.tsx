@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Loading, ShareButton } from "./common";
+import { Loading, ShareButton, UserLink } from "./common";
 import { PostId, UserId } from "./types";
 
 type SearchResult = {
@@ -116,11 +116,7 @@ const renderResult = ({
     if (result == "user")
         return (
             <span>
-                User{" "}
-                <a
-                    href={`#/user/${id}`}
-                >{`@${window.backendCache.users[id]}`}</a>
-                : {relevant || "no info."}
+                User <UserLink id={id} />: {relevant || "no info."}
             </span>
         );
     if (result == "tag")
@@ -139,12 +135,8 @@ const renderResult = ({
     if (result == "post")
         return (
             <span>
-                <a href={`#/post/${id}`}>{`Post ${id}`}</a> by&nbsp;
-                <a
-                    href={`#/user/${user_id}`}
-                >{`@${window.backendCache.users[user_id]}`}</a>
-                :&nbsp;
-                {relevant}
+                <a href={`#/post/${id}`}>{`Post ${id}`}</a> by{" "}
+                <UserLink id={user_id} /> {relevant}
             </span>
         );
     return "can't render";

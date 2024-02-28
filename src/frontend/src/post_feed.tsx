@@ -1,7 +1,7 @@
 import * as React from "react";
-import { bigScreen, isRoot, Loading, expandUser } from "./common";
+import { bigScreen, expandMeta, isRoot, Loading } from "./common";
 import { PostView } from "./post";
-import { Post, PostId } from "./types";
+import { Meta, Post, PostId } from "./types";
 
 export const PostFeed = ({
     classNameArg,
@@ -22,7 +22,7 @@ export const PostFeed = ({
         page: number,
         offset: number,
         comments?: boolean,
-    ) => Promise<Post[] | null>;
+    ) => Promise<[Post, Meta][] | null>;
     heartbeat?: any;
     title?: JSX.Element;
     thread?: boolean;
@@ -57,13 +57,13 @@ export const PostFeed = ({
     const loadPage = async (page: number) => {
         // only show the loading indicator on the first load
         setLoading(refreshBeat == 0);
-        const loadedPost = await feedLoader(
+        const loadedPosts = await feedLoader(
             page,
             page == 0 ? 0 : offset,
             !!includeComments,
         );
-        if (!loadedPost) return;
-        let nextPosts = loadedPost.map(expandUser);
+        if (!loadedPosts) return;
+        let nextPosts = loadedPosts.map(expandMeta);
         setPosts(page == 0 ? nextPosts : posts.concat(nextPosts));
         if (page == 0 && nextPosts.length > 0) setOffset(nextPosts[0].id);
         if (nextPosts.length < window.backendCache.config.feed_page_size)

@@ -88,15 +88,6 @@ export const Tokens = () => {
     ) {
         vp += balanceAmounts.shift() || 0;
     }
-    const userToPrincipal = balances.reduce(
-        (acc, balance) => {
-            const userName = window.backendCache.users[balance[2]];
-            if (userName)
-                acc[userName.toLowerCase()] = balance[0].owner.toString();
-            return acc;
-        },
-        {} as { [name: string]: string },
-    );
     const { e8s_for_one_xdr, e8s_revenue_per_1k } = window.backendCache.stats;
     const holders = balances.length;
 
@@ -108,9 +99,7 @@ export const Tokens = () => {
     }
     let searchedPrincipal;
     try {
-        searchedPrincipal = Principal.fromText(
-            userToPrincipal[query.toLowerCase()] || query,
-        ).toString();
+        searchedPrincipal = Principal.fromText(query).toString();
     } catch (_) {}
     return (
         <>
@@ -406,7 +395,11 @@ export const TransactionsView = ({
                         {identifiedUser && (
                             <>
                                 <h3 className="larger_text ">
-                                    User <UserLink id={identifiedUser.id} />
+                                    User{" "}
+                                    <UserLink
+                                        id={identifiedUser.id}
+                                        name={identifiedUser.name}
+                                    />
                                 </h3>
                                 <Content value={identifiedUser.about} />
                             </>
