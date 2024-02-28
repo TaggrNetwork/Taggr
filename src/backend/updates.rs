@@ -73,16 +73,24 @@ fn post_upgrade() {
     });
 }
 
-fn sync_post_upgrade_fixtures() {
+fn sync_post_upgrade_fixtures() {}
+
+async fn async_post_upgrade_fixtures() {
+    // Fill the root posts index.
     mutate(|state| {
         state.root_posts_index = (0..state.next_post_id)
             .filter_map(|id| Post::get(state, &id))
             .filter_map(|post| post.parent.is_none().then_some(post.id))
             .collect()
+    });
+
+    // Remove user report according to DAO poll: https://6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io/#/post/621615
+    mutate(|state| {
+        let zikhas = state.users.get_mut(&789).unwrap();
+        assert_eq!(zikhas.name, "Zikhas");
+        zikhas.report.take();
     })
 }
-
-async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES
