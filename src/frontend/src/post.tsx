@@ -26,7 +26,6 @@ import {
     currentRealm,
     parseNumber,
     noiseControlBanner,
-    getRealmsData,
     ArrowDown,
     UserList,
 } from "./common";
@@ -47,7 +46,7 @@ import {
     More,
 } from "./icons";
 import { ProposalView } from "./proposals";
-import { Post, PostId, UserId } from "./types";
+import { Post, PostId, Realm, UserId } from "./types";
 import { MAINNET_MODE } from "./env";
 
 export const PostView = ({
@@ -214,10 +213,6 @@ export const PostView = ({
         (!isComment || !isCommentView) &&
         post.realm &&
         post.realm != currentRealm();
-    const realmAccessError =
-        user && post.realm
-            ? noiseControlBanner("realm", getRealmsData(post.realm)[2], user)
-            : null;
     const postCreated =
         post.patches.length > 0 ? post.patches[0][0] : post.timestamp;
     const isNSFW =
@@ -241,6 +236,7 @@ export const PostView = ({
                   realm: post.realm,
                   created: postCreated,
                   length: body.length,
+                  background: post.meta.realm_color[0] || "",
               }
             : undefined;
 
@@ -299,6 +295,7 @@ export const PostView = ({
                         {realmPost && post.realm && (
                             <RealmSpan
                                 name={post.realm}
+                                background={post.meta.realm_color}
                                 classNameArg="realm_tag"
                             />
                         )}
@@ -381,32 +378,17 @@ export const PostView = ({
                 )}
             </div>
             {showInfo && (
-                <div className="left_half_spaced right_half_spaced top_spaced">
-                    {user && (
-                        <>
-                            {realmAccessError}
-                            {!realmAccessError && (
-                                <Form
-                                    submitCallback={commentSubmissionCallback}
-                                    postId={post.id}
-                                    writingCallback={() =>
-                                        setCommentIncoming(true)
-                                    }
-                                    comment={true}
-                                />
-                            )}
-                        </>
-                    )}
-                    <PostInfo
-                        post={post}
-                        reactions={post.reactions}
-                        version={version}
-                        versionSpecified={versionSpecified}
-                        postCreated={postCreated}
-                        callback={async () => await loadData()}
-                        realmMoveOutCallback={() => setHidden(true)}
-                    />
-                </div>
+                <PostInfo
+                    post={post}
+                    reactions={post.reactions}
+                    version={version}
+                    versionSpecified={versionSpecified}
+                    postCreated={postCreated}
+                    callback={async () => await loadData()}
+                    realmMoveOutCallback={() => setHidden(true)}
+                    commentSubmissionCallback={commentSubmissionCallback}
+                    writingCallback={() => setCommentIncoming(true)}
+                />
             )}
             {(showComments || prime) && post.children.length > 0 && (
                 <Comments
@@ -473,6 +455,8 @@ const PostInfo = ({
     callback,
     versionSpecified,
     realmMoveOutCallback,
+    commentSubmissionCallback,
+    writingCallback,
 }: {
     post: Post;
     reactions: { [id: number]: UserId[] };
@@ -481,12 +465,50 @@ const PostInfo = ({
     callback: () => Promise<void>;
     realmMoveOutCallback: () => void;
     versionSpecified?: boolean;
+    commentSubmissionCallback: (
+        comment: string,
+        blobs: [string, Uint8Array][],
+    ) => Promise<any>;
+    writingCallback: () => void;
 }) => {
-    const postAuthor = window.user?.id == post.user;
-    const realmController = post.realm && getRealmsData(post.realm)[1];
+    const [realmData, setRealmData] = React.useState<Realm | null>();
+
+    const loadRealmData = async () => {
+        setRealmData(
+            ((await window.api.query<Realm[]>("realms", [post.realm])) ||
+                [])[0],
+        );
+    };
+
+    React.useEffect(() => {
+        if (post.realm) loadRealmData();
+    }, []);
+
+    const user = window.user;
+    const realmAccessError =
+        user && realmData
+            ? noiseControlBanner("realm", realmData.filter, user)
+            : null;
+
+    const postAuthor = user?.id == post.user;
+    const realmController =
+        realmData && realmData.controllers.includes(user?.id);
     const { token_symbol, token_decimals } = window.backendCache.config;
     return (
-        <>
+        <div className="left_half_spaced right_half_spaced top_spaced">
+            {user && (
+                <>
+                    {realmAccessError}
+                    {!realmAccessError && (
+                        <Form
+                            submitCallback={commentSubmissionCallback}
+                            postId={post.id}
+                            writingCallback={writingCallback}
+                            comment={true}
+                        />
+                    )}
+                </>
+            )}
             <div className="row_container top_spaced">
                 <ShareButton
                     text={!window.user}
@@ -746,7 +768,7 @@ const PostInfo = ({
                     </div>
                 )}
             </div>
-        </>
+        </div>
     );
 };
 

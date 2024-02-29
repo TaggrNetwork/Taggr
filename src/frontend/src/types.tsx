@@ -98,7 +98,7 @@ export type Realm = {
 export type Meta = {
     author_name: string;
     author_rewards: number;
-    realm_color: string[];
+    realm_color: string;
 };
 
 export type Post = {
@@ -129,6 +129,7 @@ export type BlogTitle = {
     realm?: string;
     created: BigInt;
     length: number;
+    background: string;
 };
 
 export type Account = {
@@ -261,7 +262,6 @@ declare global {
         backendCache: {
             followees: UserData;
             recent_tags: string[];
-            realms_data: { [name: string]: [string, boolean, UserFilter] };
             stats: {
                 fees_burned: number;
                 volume_day: number;

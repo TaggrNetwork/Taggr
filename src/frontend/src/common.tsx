@@ -15,6 +15,7 @@ import {
     Meta,
     Post,
     PostId,
+    Realm,
     Report,
     User,
     UserData,
@@ -41,20 +42,36 @@ export const RealmList = ({
 }: {
     ids?: string[];
     classNameArg?: string;
-}) => (
-    <div
-        className={`row_container ${classNameArg || ""}`}
-        style={{ alignItems: "center" }}
-    >
-        {ids.map((name) => (
-            <RealmSpan
-                key={name}
-                name={name}
-                classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
-            />
-        ))}
-    </div>
-);
+}) => {
+    if (ids.length == 0) return null;
+    const [realmsData, setRealmsData] = React.useState<Realm[]>([]);
+
+    const loadData = async () => {
+        setRealmsData((await window.api.query("realms", ids)) || []);
+    };
+
+    React.useEffect(() => {
+        loadData();
+    }, []);
+
+    return realmsData.length == 0 ? (
+        <Loading />
+    ) : (
+        <div
+            className={`row_container ${classNameArg || ""}`}
+            style={{ alignItems: "center" }}
+        >
+            {realmsData.map((data, i) => (
+                <RealmSpan
+                    key={i}
+                    name={ids[i]}
+                    background={data.label_color}
+                    classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
+                />
+            ))}
+        </div>
+    );
+};
 
 export const hex = (arr: number[]) =>
     Array.from(arr, (byte) =>
@@ -70,9 +87,6 @@ export const MoreButton = ({ callback }: { callback: () => Promise<any> }) => (
         />
     </div>
 );
-
-export const getRealmsData = (id: string) =>
-    window.backendCache.realms_data[id] || ["#ffffff", false, {}];
 
 export const FileUploadInput = ({
     classNameArg,
@@ -204,7 +218,7 @@ export const HeadBar = ({
     );
 };
 
-export const realmColors = (name: string, col?: string) => {
+export const foregroundColor = (background: string) => {
     const light = (col: string) => {
         const hex = col.replace("#", "");
         const c_r = parseInt(hex.substring(0, 0 + 2), 16);
@@ -213,24 +227,22 @@ export const realmColors = (name: string, col?: string) => {
         const brightness = (c_r * 299 + c_g * 587 + c_b * 114) / 1000;
         return brightness > 155;
     };
-    const effCol = col || getRealmsData(name)[0] || "#FFFFFF";
-    const color = light(effCol) ? "black" : "white";
-    return { background: effCol, color, fill: color };
+    return light(background) ? "black" : "white";
 };
 
 export const RealmSpan = ({
-    col,
+    background,
     name,
     classNameArg,
     styleArg,
 }: {
-    col?: string;
+    background: string;
     name: string;
     classNameArg?: string;
     styleArg?: any;
 }) => {
     if (!name) return null;
-    const { background, color } = realmColors(name, col);
+    const color = foregroundColor(background);
     return (
         <span
             className={`realm_span ${classNameArg}`}
@@ -595,7 +607,7 @@ export const UserList = ({
         setNames((await window.api.query<UserData>("users_data", ids)) || {});
 
     React.useEffect(() => {
-        loadNames();
+        if (ids) loadNames();
     }, []);
 
     return Object.keys(names).length == 0 ? (

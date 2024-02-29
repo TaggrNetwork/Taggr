@@ -206,7 +206,8 @@ const markdownizer = (
             components={{
                 h1: ({ node, children, ...props }) => {
                     if (!blogTitle) return <h1 {...props}>{children}</h1>;
-                    let { author, created, length, realm } = blogTitle;
+                    let { author, created, length, realm, background } =
+                        blogTitle;
                     return (
                         <>
                             <h1>{children}</h1>
@@ -219,6 +220,7 @@ const markdownizer = (
                                         &nbsp;&nbsp;&middot;&nbsp;&nbsp;
                                         <RealmSpan
                                             name={realm}
+                                            background={background}
                                             classNameArg="realm_tag"
                                             styleArg={{ borderRadius: "5px" }}
                                         />

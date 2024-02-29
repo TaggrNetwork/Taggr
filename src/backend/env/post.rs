@@ -143,15 +143,14 @@ impl Post {
     /// Returns the post with some meta information needed for by the UI.
     pub fn with_meta<'a>(&'a self, state: &'a State) -> (&'_ Self, Meta<'_>) {
         let user = state.users.get(&self.user).expect("no user found");
+        let realm = self
+            .realm
+            .as_ref()
+            .and_then(|realm_id| state.realms.get(realm_id));
         let meta = Meta {
             author_name: user.name.as_str(),
             author_rewards: user.rewards(),
-            realm_color: self.realm.as_ref().and_then(|realm_id| {
-                state
-                    .realms
-                    .get(realm_id)
-                    .map(|realm| realm.label_color.as_str())
-            }),
+            realm_color: realm.map(|realm| realm.label_color.as_str()),
         };
         (self, meta)
     }

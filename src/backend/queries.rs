@@ -215,30 +215,6 @@ fn sorted_realms(
     Box::new(realms.into_iter())
 }
 
-#[export_name = "canister_query realms_data"]
-fn realms_data() {
-    read(|state| {
-        let user_id = state.principal_to_user(caller()).map(|user| user.id);
-        reply(
-            state
-                .realms
-                .iter()
-                .filter(|(_, realm)| realm.last_update + 2 * WEEK > time())
-                .map(|(name, realm)| {
-                    (
-                        name,
-                        (
-                            &realm.label_color,
-                            user_id.map(|id| realm.controllers.contains(&id)),
-                            &realm.filter,
-                        ),
-                    )
-                })
-                .collect::<BTreeMap<_, _>>(),
-        );
-    });
-}
-
 #[export_name = "canister_query realms"]
 fn realms() {
     let realm_ids: Vec<String> = parse(&arg_data_raw());

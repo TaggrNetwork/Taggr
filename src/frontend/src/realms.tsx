@@ -6,11 +6,11 @@ import {
     noiseControlBanner,
     HeadBar,
     Loading,
-    realmColors,
     RealmSpan,
     setTitle,
     ToggleButton,
     UserList,
+    foregroundColor,
 } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
@@ -228,7 +228,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                     />
                     <RealmSpan
                         classNameArg="realm_tag"
-                        col={label_color}
+                        background={label_color}
                         name={name}
                     />
                 </div>
@@ -562,7 +562,10 @@ export const RealmHeader = ({ name }: { name: string }) => {
 
     if (!realm) return <Loading />;
 
-    const colors = realmColors(name);
+    const colors = {
+        background: realm.label_color,
+        color: foregroundColor(realm.label_color),
+    };
     const user = window.user;
     return (
         <>

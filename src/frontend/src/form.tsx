@@ -80,7 +80,7 @@ export const Form = ({
     const form = React.useRef();
     const tags = window.backendCache.recent_tags;
     const users = Object.values(window.backendCache.followees);
-    const realms = Object.keys(window.backendCache.realms_data);
+    const realms = Object.keys(window.user?.realms);
     const { max_post_length, max_blob_size_bytes } = window.backendCache.config;
 
     const previewAtLeft = bigScreen() && !comment;

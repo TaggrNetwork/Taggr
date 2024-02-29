@@ -32,7 +32,7 @@ import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
 import { MAINNET_MODE, CANISTER_ID } from "./env";
-import { PostId, User, UserData, UserFilter } from "./types";
+import { PostId, User, UserData } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
@@ -242,18 +242,14 @@ const App = () => {
 
 const reloadCache = async () => {
     window.backendCache = window.backendCache || { users: [], recent_tags: [] };
-    const [recent_tags, stats, config, realms] = await Promise.all([
+    const [recent_tags, stats, config] = await Promise.all([
         window.api.query<[string, any][]>("recent_tags", "", 500),
         window.api.query<any>("stats"),
         window.api.query<any>("config"),
-        window.api.query<{ [key: string]: [string, boolean, UserFilter] }>(
-            "realms_data",
-        ),
     ]);
     window.backendCache = {
         followees: {},
         recent_tags: (recent_tags || []).map(([tag, _]) => tag),
-        realms_data: realms || {},
         stats,
         config,
     };
