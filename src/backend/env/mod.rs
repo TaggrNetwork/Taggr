@@ -204,6 +204,9 @@ pub struct State {
     // Indicates whether the end of the stable memory contains a valid heap snapshot.
     #[serde(skip)]
     pub backup_exists: bool,
+
+    #[serde(skip)]
+    pub last_archive: u64,
 }
 
 #[derive(Default, Deserialize, Serialize)]
