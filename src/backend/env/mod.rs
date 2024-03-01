@@ -39,7 +39,9 @@ pub type Credits = u64;
 pub type Blob = ByteBuf;
 pub type Time = u64;
 
-pub const MINUTE: u64 = 60000000000_u64;
+pub const MILLISECOND: u64 = 1_000_000_u64;
+pub const SECOND: u64 = 1000 * MILLISECOND;
+pub const MINUTE: u64 = 60 * SECOND;
 pub const HOUR: u64 = 60 * MINUTE;
 pub const DAY: u64 = 24 * HOUR;
 pub const WEEK: u64 = 7 * DAY;
@@ -1559,19 +1561,36 @@ impl State {
             )
         });
 
+        let log_time = |state: &mut State, frequency| {
+            state.logger.debug(format!(
+                "{} routine finished after `{}` ms.",
+                frequency,
+                (time() - now) / MILLISECOND
+            ))
+        };
+
         if last_weekly_chores + WEEK < now {
             State::weekly_chores(now).await;
-            mutate(|state| state.last_weekly_chores += WEEK);
+            mutate(|state| {
+                state.last_weekly_chores += WEEK;
+                log_time(state, "Weekly");
+            });
         }
 
         if last_daily_chores + DAY < now {
             State::daily_chores(now).await;
-            mutate(|state| state.last_daily_chores += DAY);
+            mutate(|state| {
+                state.last_daily_chores += DAY;
+                log_time(state, "Daily");
+            });
         }
 
         if last_hourly_chores + HOUR < now {
             State::hourly_chores(now).await;
-            mutate(|state| state.last_hourly_chores += HOUR);
+            mutate(|state| {
+                state.last_hourly_chores += HOUR;
+                log_time(state, "Hourly");
+            });
         }
     }
 
