@@ -42,6 +42,7 @@ input[type="color"] {
 
 .selectable {
     user-select: text;
+    -webkit-user-select: text;
 }
 
 .popup_body {
