@@ -584,7 +584,7 @@ impl State {
         filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
-            .last_posts(realm, offset, time().saturating_sub(4 * WEEK), false)
+            .last_posts(realm, offset, 0, false)
             .filter(|post| !matches!(post.extension, Some(Extension::Proposal(_))))
             .filter(|post| filter.map(|f| f(post)).unwrap_or(true))
             .take(1000)

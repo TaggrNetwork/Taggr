@@ -401,13 +401,13 @@ fn personal_filter(state: &State, user: Option<&User>, post: &Post) -> bool {
 
 #[export_name = "canister_query hot_posts"]
 fn hot_posts() {
-    let (realm, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
+    let (realm, page, offset, filtered): (String, usize, PostId, bool) = parse(&arg_data_raw());
     read(|state| {
         let user = state.principal_to_user(caller());
         reply(
             state
                 .hot_posts(optional(realm), page, offset, None)
-                .filter(|post| personal_filter(state, user, post))
+                .filter(|post| !filtered || personal_filter(state, user, post))
                 .collect::<Vec<_>>(),
         )
     });
