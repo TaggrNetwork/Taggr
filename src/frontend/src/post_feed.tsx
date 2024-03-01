@@ -74,6 +74,7 @@ export const PostFeed = ({
     React.useEffect(() => {
         setPage(0);
         loadPage(0);
+        setPageVlipperVisibility(!thread);
     }, [heartbeat, refreshBeat]);
 
     const itemRenderer = (
