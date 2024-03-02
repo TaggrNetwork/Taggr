@@ -414,7 +414,7 @@ impl User {
             self.change_credits(
                 amount as Credits,
                 CreditsDelta::Plus,
-                "credits top-up from rewards",
+                format!("{} (credits top-up from rewards)", log.to_string()),
             )
             .expect("couldn't top up credits");
             return;
