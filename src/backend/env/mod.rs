@@ -1090,13 +1090,11 @@ impl State {
                 .or_insert(tokens);
         }
 
-        tokens_to_mint.retain(|user_id, balance| {
-            *balance > 0
-                && self
-                    .users
-                    .get(user_id)
-                    .map(|user| user.eligible_for_minting())
-                    .unwrap_or_default()
+        tokens_to_mint.retain(|user_id, _| {
+            self.users
+                .get(user_id)
+                .map(|user| user.eligible_for_minting())
+                .unwrap_or_default()
         });
 
         tokens_to_mint

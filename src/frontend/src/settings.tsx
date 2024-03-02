@@ -152,15 +152,18 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 {user && (
                     <>
                         <div className="bottom_half_spaced">
-                            Participate in token minting
+                            Token minting and rewards:
                         </div>
                         <select
                             value={miner}
                             className="bottom_spaced"
                             onChange={(event) => setMiner(event.target.value)}
                         >
-                            <option value="true">YES</option>
-                            <option value="false">NO</option>
+                            <option value="true">
+                                Mint {window.backendCache.config.token_symbol}{" "}
+                                tokens
+                            </option>
+                            <option value="false">Receive ICP rewards</option>
                         </select>
                         <div className="bottom_half_spaced">
                             Participate in governance

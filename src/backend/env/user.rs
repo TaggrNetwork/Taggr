@@ -593,13 +593,18 @@ impl User {
 
         let total = shares.iter().map(|(_, share)| share).sum::<u64>();
 
-        Box::new(shares.into_iter().map(move |(user_id, share)| {
-            (
-                user_id,
-                spendable_tokens_per_user
-                    .min((share as f32 / total as f32 * spendable_tokens as f32) as Token),
-            )
-        }))
+        Box::new(
+            shares
+                .into_iter()
+                .map(move |(user_id, share)| {
+                    (
+                        user_id,
+                        spendable_tokens_per_user
+                            .min((share as f32 / total as f32 * spendable_tokens as f32) as Token),
+                    )
+                })
+                .filter(|(_, balance)| balance > &0),
+        )
     }
 }
 
