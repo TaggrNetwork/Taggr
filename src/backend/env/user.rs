@@ -314,9 +314,7 @@ impl User {
             state
                 .last_posts(None, offset, self.timestamp, false)
                 .filter(move |post| {
-                    !post.is_deleted()
-                        && post.parent.is_none()
-                        && !post.matches_filters(&self.filters)
+                    !post.matches_filters(&self.filters)
                         && post
                             .realm
                             .as_ref()
