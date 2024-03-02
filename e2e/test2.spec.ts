@@ -269,10 +269,6 @@ test.describe("Regular users flow", () => {
     test("User profile", async () => {
         // Check data on alice's profile
         await page.getByRole("link", { name: "alice" }).first().click();
-        const rewards = Number(
-            await page.locator("div:has-text('REWARDS') > code").textContent(),
-        );
-        expect(rewards).toBeGreaterThanOrEqual(20);
 
         await page.locator("div:has-text('ACCOUNTING') > code").click();
         await expect(page.locator(".popup_body")).toHaveText(

@@ -39,7 +39,7 @@ The fee is computed by multiplying `$excess_penalty` with the number of excessiv
 ## Rewards and Revenue Distribution
 
 -   During positive interactions, users can receive rewards from other users.
--   Rewards are converted to ICP and distributed to users every Friday.
+-   Rewards are converted to ICP and distributed to users every Friday if the user did not opt into mining mode.
 -   Earned rewards points are converted to ICP at the ratio `$credits_per_xdr` rewards / `$usd_per_xdr` USD.
 -   Additionally, users owning tokens and being active within the last `$voting_power_activity_weeks` weeks receive a share of $name's revenue proportionate to their token holdings.
 -   New rewards received by users with credit balance lower than `$credits_per_xdr` are automatically converted to credits and are used to top up the credit balance of these users.
@@ -127,7 +127,7 @@ This will make the supply keep an equilibrium around the maximal supply.
 ### Distribution of minted tokens
 
 All eligible users receive newly minted `$token_symbol` tokens on a weekly basis.
-Eligible are users without pending reports or reports closed within the last `$user_report_validity_days` and a positive reward balance.
+Eligible are users who opted for token minting, without pending reports or reports closed within the last `$user_report_validity_days`, and without a negative rewards balance.
 The amount of minted tokens is computed according to the following algorithm:
 
 1. For every user `U` who rewarded others, determine the maximal amount of donatable tokens capped by `U`'s `$token_symbol` balance divided by the minting ratio `R` (see below).

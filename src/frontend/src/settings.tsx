@@ -17,6 +17,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
     const [timer, setTimer] = React.useState<any>();
     const [uiRefresh, setUIRefresh] = React.useState(false);
     const [governance, setGovernance] = React.useState("true");
+    const [miner, setMiner] = React.useState("true");
     const [showPostsInRealms, setShowPostsInRealms] = React.useState("true");
     const [userFilter, setUserFilter] = React.useState<UserFilter>({
         safe: false,
@@ -33,6 +34,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         setControllers(user.controllers.join("\n"));
         setSettings(user.settings);
         setGovernance(user.governance.toString());
+        setMiner(user.miner.toString());
         setShowPostsInRealms(user.show_posts_in_realms.toString());
         setUserFilter(user.filters.noise);
     };
@@ -102,6 +104,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 principal_ids,
                 userFilter,
                 governance == "true",
+                miner == "true",
                 showPostsInRealms == "true",
             ),
             window.api.call<any>("update_user_settings", settings),
@@ -148,6 +151,20 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 />
                 {user && (
                     <>
+                        <div className="bottom_half_spaced">
+                            Token minting and rewards:
+                        </div>
+                        <select
+                            value={miner}
+                            className="bottom_spaced"
+                            onChange={(event) => setMiner(event.target.value)}
+                        >
+                            <option value="true">
+                                Mint {window.backendCache.config.token_symbol}{" "}
+                                tokens
+                            </option>
+                            <option value="false">Receive ICP rewards</option>
+                        </select>
                         <div className="bottom_half_spaced">
                             Participate in governance
                         </div>

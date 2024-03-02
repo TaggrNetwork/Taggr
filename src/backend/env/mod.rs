@@ -1083,13 +1083,19 @@ impl State {
             .users
             .values()
             .flat_map(|user| user.mintable_tokens(self, user_shares, boostraping_mode))
-            .filter(|(_, balance)| *balance > 0)
         {
             tokens_to_mint
                 .entry(user_id)
                 .and_modify(|balance| *balance += tokens)
                 .or_insert(tokens);
         }
+
+        tokens_to_mint.retain(|user_id, _| {
+            self.users
+                .get(user_id)
+                .map(|user| user.eligible_for_minting())
+                .unwrap_or_default()
+        });
 
         tokens_to_mint
     }
@@ -1215,19 +1221,25 @@ impl State {
     }
 
     pub fn collect_new_rewards(&mut self) -> HashMap<UserId, u64> {
-        self.users
-            .values_mut()
-            .filter_map(|u| {
-                (u.rewards() > 0).then_some((u.id, u.take_positive_rewards() as Credits))
-            })
-            .collect()
+        let mut payouts = HashMap::default();
+
+        for user in self.users.values_mut() {
+            let rewards = user.take_positive_rewards();
+            if rewards == 0 {
+                continue;
+            };
+            // All miner rewards are burned.
+            if user.miner {
+                self.burned_cycles += rewards;
+            } else {
+                payouts.insert(user.id, rewards as Credits);
+            }
+        }
+
+        payouts
     }
 
-    async fn distribute_icp(
-        e8s_for_one_xdr: u64,
-        rewards: HashMap<UserId, u64>,
-        revenue: HashMap<UserId, u64>,
-    ) {
+    async fn distribute_icp() {
         let treasury_balance = match invoices::account_balance(invoices::main_account()).await {
             Ok(balance) => balance.e8s(),
             Err(err) => {
@@ -1240,89 +1252,8 @@ impl State {
                 return;
             }
         };
-        let debt = mutate(|state| {
-            let rewards = rewards
-                .iter()
-                .map(|(id, donations)| {
-                    (
-                        id,
-                        (*donations as f64 / CONFIG.credits_per_xdr as f64 * e8s_for_one_xdr as f64)
-                            as u64,
-                    )
-                })
-                .collect::<HashMap<_, _>>();
-            let total_payout =
-                rewards.values().copied().sum::<u64>() + revenue.values().copied().sum::<u64>();
-            if total_payout == 0 {
-                state.logger.info("No payouts to distribute...");
-                return 0;
-            }
-            // We stop distributions if the treasury balance falls below the minimum balance.
-            let minimal_treasury_balance = CONFIG.min_treasury_balance_xdrs * e8s_for_one_xdr;
-            if treasury_balance < total_payout || treasury_balance < minimal_treasury_balance {
-                state
-                    .logger
-                    .info("Treasury balance is too low; skipping the payouts...");
-                return 0;
-            }
-            let mut total_rewards = 0;
-            let mut total_revenue = 0;
-            let mut summary = Summary {
-                title: "Rewards report".into(),
-                description: Default::default(),
-                items: Vec::default(),
-            };
-            let mut items = Vec::default();
-            for user in state.users.values_mut() {
-                let mut user_revenue = revenue.get(&user.id).copied().unwrap_or_default();
-                let _ = user.top_up_credits_from_revenue(&mut user_revenue, e8s_for_one_xdr);
-                let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
-                let e8s = match user_reward.checked_add(user_revenue) {
-                    Some(0) | None => continue,
-                    Some(value) => value,
-                };
-                user.treasury_e8s = match user.treasury_e8s.checked_add(e8s) {
-                    Some(0) | None => continue,
-                    Some(value) => value,
-                };
-                total_rewards += user_reward;
-                total_revenue += user_revenue;
-                items.push((e8s, user.name.clone()));
-                user.notify(format!(
-                    "You received `{}` ICP as rewards and `{}` ICP as revenue! 💸",
-                    display_tokens(user_reward, 8),
-                    display_tokens(user_revenue, 8)
-                ));
-            }
-            if state.burned_cycles > 0 {
-                state.spend(state.burned_cycles as Credits, "revenue distribution");
-                state.burned_cycles_total += state.burned_cycles as Credits;
-            }
-            state.total_rewards_shared += total_rewards;
-            state.total_revenue_shared += total_revenue;
-            let supply_of_active_users = state.active_voting_power(time());
-            let e8s_revenue_per_1k =
-                total_revenue / (supply_of_active_users / 1000 / token::base()).max(1);
-            state.last_revenues.push_back(e8s_revenue_per_1k);
-            while state.last_revenues.len() > 12 {
-                state.last_revenues.pop_front();
-            }
 
-            items.sort_by_cached_key(|(e8s, _)| Reverse(*e8s));
-            for (e8s, name) in &items {
-                summary
-                    .items
-                    .push(format!("`{}` to @{}", display_tokens(*e8s, 8), name));
-            }
-
-            summary.description = format!(
-                "Weekly pay out to users: `{}` ICP as rewards and `{}` ICP as revenue.",
-                display_tokens(total_rewards, 8),
-                display_tokens(total_revenue, 8)
-            );
-            state.distribution_reports.push(summary);
-            total_rewards + total_revenue
-        });
+        let debt = mutate(|state| state.assign_rewards_and_revenue(time(), treasury_balance));
 
         if let Err(err) = canisters::icrc_transfer(
             MAINNET_LEDGER_CANISTER_ID,
@@ -1341,6 +1272,96 @@ impl State {
                 ))
             });
         }
+    }
+
+    fn assign_rewards_and_revenue(&mut self, now: Time, treasury_balance: u64) -> u64 {
+        let (rewards, revenue, e8s_for_one_xdr) = (
+            self.collect_new_rewards(),
+            self.collect_revenue(now, self.e8s_for_one_xdr),
+            self.e8s_for_one_xdr,
+        );
+        let rewards = rewards
+            .iter()
+            .map(|(id, donations)| {
+                (
+                    id,
+                    (*donations as f64 / CONFIG.credits_per_xdr as f64 * e8s_for_one_xdr as f64)
+                        as u64,
+                )
+            })
+            .collect::<HashMap<_, _>>();
+        let total_payout =
+            rewards.values().copied().sum::<u64>() + revenue.values().copied().sum::<u64>();
+        if total_payout == 0 {
+            self.logger.info("No payouts to distribute...");
+            return 0;
+        }
+        // We stop distributions if the treasury balance falls below the minimum balance.
+        let minimal_treasury_balance = CONFIG.min_treasury_balance_xdrs * e8s_for_one_xdr;
+        if treasury_balance < total_payout || treasury_balance < minimal_treasury_balance {
+            self.logger
+                .info("Treasury balance is too low; skipping the payouts...");
+            return 0;
+        }
+        let mut total_rewards = 0;
+        let mut total_revenue = 0;
+        let mut summary = Summary {
+            title: "Rewards report".into(),
+            description: Default::default(),
+            items: Vec::default(),
+        };
+        let mut items = Vec::default();
+        for user in self.users.values_mut() {
+            let mut user_revenue = revenue.get(&user.id).copied().unwrap_or_default();
+            let _ = user.top_up_credits_from_revenue(&mut user_revenue, e8s_for_one_xdr);
+            let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
+            let e8s = match user_reward.checked_add(user_revenue) {
+                Some(0) | None => continue,
+                Some(value) => value,
+            };
+
+            user.treasury_e8s = match user.treasury_e8s.checked_add(e8s) {
+                Some(0) | None => continue,
+                Some(value) => value,
+            };
+            total_rewards += user_reward;
+            total_revenue += user_revenue;
+            items.push((e8s, user.name.clone()));
+            user.notify(format!(
+                "You received `{}` ICP as rewards and `{}` ICP as revenue! 💸",
+                display_tokens(user_reward, 8),
+                display_tokens(user_revenue, 8)
+            ));
+        }
+        if self.burned_cycles > 0 {
+            self.spend(self.burned_cycles as Credits, "revenue distribution");
+            self.burned_cycles_total += self.burned_cycles as Credits;
+        }
+        self.total_rewards_shared += total_rewards;
+        self.total_revenue_shared += total_revenue;
+        let supply_of_active_users = self.active_voting_power(time());
+        let e8s_revenue_per_1k =
+            total_revenue / (supply_of_active_users / 1000 / token::base()).max(1);
+        self.last_revenues.push_back(e8s_revenue_per_1k);
+        while self.last_revenues.len() > 12 {
+            self.last_revenues.pop_front();
+        }
+
+        items.sort_by_cached_key(|(e8s, _)| Reverse(*e8s));
+        for (e8s, name) in &items {
+            summary
+                .items
+                .push(format!("`{}` to @{}", display_tokens(*e8s, 8), name));
+        }
+
+        summary.description = format!(
+            "Weekly pay out to users: `{}` ICP as rewards and `{}` ICP as revenue.",
+            display_tokens(total_rewards, 8),
+            display_tokens(total_revenue, 8)
+        );
+        self.distribution_reports.push(summary);
+
+        total_rewards + total_revenue
     }
 
     fn conclude_polls(&mut self, now: u64) {
@@ -1445,7 +1466,7 @@ impl State {
                     });
                 };
             }
-            mutate(|state| state.pending_nns_proposals.remove(&post_id));
+            mutate(|state| state.pending_nns_proposals.remove(&proposal_id));
         }
 
         // fetch new proposals
@@ -1581,6 +1602,12 @@ impl State {
             State::daily_chores(now).await;
             mutate(|state| {
                 state.last_daily_chores += DAY;
+                state.logger.debug(format!(
+                    "Pending NNS proposals: `{}`, pending polls: `{}`, migrations: `{}`.",
+                    state.pending_nns_proposals.len(),
+                    state.pending_polls.len(),
+                    state.migrations.len(),
+                ));
                 log_time(state, "Daily");
             });
         }
@@ -1602,17 +1629,12 @@ impl State {
 
         // We only mint and distribute if no open proposals exists
         if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
-            let (rewards, revenues, e8s_for_one_xdr) = mutate(|state| {
+            mutate(|state| {
                 state.minting_mode = true;
                 state.mint();
                 state.minting_mode = false;
-                (
-                    state.collect_new_rewards(),
-                    state.collect_revenue(time(), state.e8s_for_one_xdr),
-                    state.e8s_for_one_xdr,
-                )
             });
-            State::distribute_icp(e8s_for_one_xdr, rewards, revenues).await;
+            State::distribute_icp().await;
             mutate(|state| {
                 for summary in &state.distribution_reports {
                     state.logger.info(format!(
@@ -3047,6 +3069,7 @@ pub(crate) mod tests {
             vec![],
             Default::default(),
             false,
+            false,
             false
         )
         .is_err());
@@ -3058,6 +3081,7 @@ pub(crate) mod tests {
             Default::default(),
             vec![],
             Default::default(),
+            false,
             false,
             false
         )
@@ -3082,10 +3106,11 @@ pub(crate) mod tests {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
-            for (i, rewards) in vec![125, -11, 0].into_iter().enumerate() {
+            for (i, rewards) in vec![125, -11, 0, 672].into_iter().enumerate() {
                 let id = create_user(state, pr(i as u8));
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(rewards, "");
+                user.miner = i == 4;
             }
 
             let new_rewards = state.collect_new_rewards();
@@ -3102,6 +3127,10 @@ pub(crate) mod tests {
             let user = state.principal_to_user(pr(2)).unwrap();
             // no new rewards was collected
             assert!(!new_rewards.contains_key(&user.id));
+            assert_eq!(user.rewards(), 0);
+
+            let user = state.principal_to_user(pr(3)).unwrap();
+            // no new rewards was collected becasue the user is a miner
             assert_eq!(user.rewards(), 0);
         });
     }
@@ -3150,7 +3179,7 @@ pub(crate) mod tests {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
-            let rewards_insert = |state: &mut State, donor_id, user_id, rewards| {
+            let insert_rewards = |state: &mut State, donor_id, user_id, rewards| {
                 state
                     .users
                     .get_mut(&donor_id)
@@ -3161,10 +3190,11 @@ pub(crate) mod tests {
 
             for i in 0..5 {
                 create_user(state, pr(i));
+                state.principal_to_user_mut(pr(i)).unwrap().miner = true;
                 insert_balance(state, pr(i), (((i + 1) as u64) << 2) * 10000);
                 for j in 0..5 {
                     if i != j {
-                        rewards_insert(state, i as u64, j as u64, ((j + 1) * (i + 1)) as u64 * 100);
+                        insert_rewards(state, i as u64, j as u64, ((j + 1) * (i + 1)) as u64 * 100);
                     }
                 }
             }
@@ -3181,8 +3211,15 @@ pub(crate) mod tests {
             assert_eq!(state.balances.get(&account(pr(0))).unwrap(), &40000);
 
             state.balances.remove(&minting_acc);
+
+            // user 3 switches to non-miner
+            state.principal_to_user_mut(pr(3)).unwrap().miner = false;
+            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 160000);
+
             state.minting_mode = true;
             state.mint();
+
+            // we cleaned up all donations accounting
             for u in state.users.values() {
                 assert!(u.karma_donations.is_empty());
             }
@@ -3191,7 +3228,8 @@ pub(crate) mod tests {
             assert_eq!(*state.balances.get(&account(pr(0))).unwrap(), 95155);
             assert_eq!(*state.balances.get(&account(pr(1))).unwrap(), 173510);
             assert_eq!(*state.balances.get(&account(pr(2))).unwrap(), 249761);
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 314877);
+            // non-miner didn't get anything
+            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 160000);
             assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 366688);
 
             // increase minting ratio
@@ -3200,14 +3238,14 @@ pub(crate) mod tests {
             assert_eq!(state.minting_ratio(), 2);
 
             // Test circuit breaking
-            rewards_insert(state, 4, 3, 301);
-            rewards_insert(state, 4, 4, 60_000);
+            insert_rewards(state, 4, 3, 301);
+            insert_rewards(state, 4, 4, 60_000);
 
             // Tokens were not minted to to circuit breaking
             state.minting_mode = true;
             state.mint();
             assert_eq!(*state.balances.get(&account(pr(2))).unwrap(), 249761);
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 314877);
+            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 160000);
 
             // increase minting ratio to 512:1
             state.balances.insert(account(pr(7)), 60000000);
@@ -4691,6 +4729,85 @@ pub(crate) mod tests {
             let user = state.users.get(&id).unwrap();
             assert_eq!(user.credits(), prev_balance - 222);
             assert_eq!(read(|state| state.burned_cycles), prev_revenue);
+        });
+    }
+
+    #[test]
+    fn test_icp_distribution() {
+        mutate(|state| {
+            let now = WEEK * 4;
+            // Create 10 users with balances and rewards
+            for i in 0..10 {
+                create_user(state, pr(i));
+                let user = state.principal_to_user_mut(pr(i)).unwrap();
+                assert!(user.miner);
+                user.last_activity = now;
+                if i > 0 {
+                    user.change_rewards(300, "");
+                    insert_balance(state, pr(i), 300 * token::base());
+                }
+            }
+
+            // Make user pr(3) have a low credits balance
+            state
+                .principal_to_user_mut(pr(3))
+                .unwrap()
+                .change_credits(900, CreditsDelta::Minus, "")
+                .unwrap();
+
+            // Make user pr(4) have a pending report
+            state.principal_to_user_mut(pr(4)).unwrap().report = Some(Default::default());
+
+            // Make user pr(5) inactive
+            let user = state.principal_to_user_mut(pr(5)).unwrap();
+            user.last_activity = 0;
+            user.change_rewards(-user.rewards(), "");
+
+            // Make user pr(6) have negative rewards
+            state
+                .principal_to_user_mut(pr(6))
+                .unwrap()
+                .change_rewards(-1000, "");
+
+            // Make user pr(7) non-miner
+            state.principal_to_user_mut(pr(7)).unwrap().miner = false;
+
+            // Assume the revenue was 1M credits
+            state.burned_cycles = 1_000_000;
+
+            // For simplicity assume 100 e8s for 1 xdr
+            state.e8s_for_one_xdr = 100;
+
+            let payout = state.assign_rewards_and_revenue(now, 100000000);
+
+            // Payout will be the amount of burned cycles + rewards of miners,
+            // divided by the XDR rate
+            assert_eq!(payout, 100330);
+            assert_eq!(
+                payout,
+                state.users.values().map(|u| u.treasury_e8s).sum::<u64>()
+            );
+
+            // pr(0) had 0 rewards and 0 tokens
+            assert_eq!(state.principal_to_user(pr(0)).unwrap().treasury_e8s, 0);
+            // pr(1) had 100 rewards and 10000 tokens
+            assert_eq!(state.principal_to_user(pr(1)).unwrap().treasury_e8s, 12545);
+            // pr(2) had 200 rewards and 20000 tokens
+            assert_eq!(state.principal_to_user(pr(2)).unwrap().treasury_e8s, 12545);
+            // pr(3) had 300 rewards and 30000 tokens, but also a low credit balance
+            let user = state.principal_to_user(pr(3)).unwrap();
+            assert_eq!(user.credits(), 1000);
+            assert_eq!(user.treasury_e8s, 12455);
+            // pr(4) had a pending report (no effect on VP => revenue ICP)
+            assert_eq!(state.principal_to_user(pr(4)).unwrap().treasury_e8s, 12545);
+            // pr(5) is inactive and skipped for revenue
+            assert_eq!(state.principal_to_user(pr(5)).unwrap().treasury_e8s, 0);
+            // pr(6) has negative rewards balance (no effect on VP => revenue ICP)
+            assert_eq!(state.principal_to_user(pr(6)).unwrap().treasury_e8s, 12545);
+            // pr(7) is not miner, so he gets the highest rewards
+            assert_eq!(state.principal_to_user(pr(7)).unwrap().treasury_e8s, 12605);
+            assert_eq!(state.principal_to_user(pr(8)).unwrap().treasury_e8s, 12545);
+            assert_eq!(state.principal_to_user(pr(9)).unwrap().treasury_e8s, 12545);
         });
     }
 }

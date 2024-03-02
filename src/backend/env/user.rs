@@ -109,6 +109,8 @@ pub struct User {
     pub downvotes: BTreeMap<UserId, Time>,
     pub show_posts_in_realms: bool,
     pub posts: Vec<PostId>,
+    #[serde(default)]
+    pub miner: bool,
 }
 
 impl User {
@@ -179,6 +181,7 @@ impl User {
             cold_wallet: None,
             cold_balance: 0,
             governance: true,
+            miner: true,
             downvotes: Default::default(),
             show_posts_in_realms: true,
         }
@@ -311,9 +314,7 @@ impl User {
             state
                 .last_posts(None, offset, self.timestamp, false)
                 .filter(move |post| {
-                    !post.is_deleted()
-                        && post.parent.is_none()
-                        && !post.matches_filters(&self.filters)
+                    !post.matches_filters(&self.filters)
                         && post
                             .realm
                             .as_ref()
@@ -409,16 +410,6 @@ impl User {
     }
 
     pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {
-        let credits_needed = CONFIG.credits_per_xdr.saturating_sub(self.credits());
-        if credits_needed > 0 && amount > 0 && self.rewards() > 0 {
-            self.change_credits(
-                amount as Credits,
-                CreditsDelta::Plus,
-                format!("{} (credits top-up from rewards)", log.to_string()),
-            )
-            .expect("couldn't top up credits");
-            return;
-        }
         self.rewards = self.rewards.saturating_add(amount);
         self.add_accounting_log(time(), "RWD".to_string(), amount, log.to_string());
     }
@@ -482,6 +473,7 @@ impl User {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
         caller: Principal,
         new_name: Option<String>,
@@ -489,6 +481,7 @@ impl User {
         principals: Vec<String>,
         filter: UserFilter,
         governance: bool,
+        miner: bool,
         show_posts_in_realms: bool,
     ) -> Result<(), String> {
         if read(|state| {
@@ -523,6 +516,7 @@ impl User {
                 user.about = about;
                 user.controllers = principals;
                 user.governance = governance;
+                user.miner = miner;
                 user.filters.noise = filter;
                 user.show_posts_in_realms = show_posts_in_realms;
                 if let Some(name) = new_name {
@@ -534,6 +528,10 @@ impl User {
                 Err("no user found".into())
             }
         })
+    }
+
+    pub fn eligible_for_minting(&self) -> bool {
+        self.miner && !self.controversial()
     }
 
     pub fn mintable_tokens(
@@ -581,13 +579,6 @@ impl User {
         let shares = self
             .karma_donations
             .iter()
-            .filter(|(user_id, _)| {
-                state
-                    .users
-                    .get(user_id)
-                    .map(|user| !user.controversial())
-                    .unwrap_or_default()
-            })
             .map(|(user_id, karma_donated)| {
                 (
                     *user_id,
@@ -600,13 +591,18 @@ impl User {
 
         let total = shares.iter().map(|(_, share)| share).sum::<u64>();
 
-        Box::new(shares.into_iter().map(move |(user_id, share)| {
-            (
-                user_id,
-                spendable_tokens_per_user
-                    .min((share as f32 / total as f32 * spendable_tokens as f32) as Token),
-            )
-        }))
+        Box::new(
+            shares
+                .into_iter()
+                .map(move |(user_id, share)| {
+                    (
+                        user_id,
+                        spendable_tokens_per_user
+                            .min((share as f32 / total as f32 * spendable_tokens as f32) as Token),
+                    )
+                })
+                .filter(|(_, balance)| balance > &0),
+        )
     }
 }
 
@@ -843,52 +839,6 @@ mod tests {
         assert_eq!(mintable_tokens.get(&u2).unwrap(), &7500);
         assert_eq!(mintable_tokens.get(&u3).unwrap(), &7500);
         assert_eq!(mintable_tokens.get(&u4).unwrap(), &7500);
-    }
-
-    #[test]
-    fn test_automatic_top_up() {
-        let mut user = User::new(pr(0), 66, 0, Default::default());
-        let e8s_for_one_xdr = 3095_0000;
-
-        // no top up triggered
-        user.cycles = 1000;
-        user.rewards = 30;
-        user.change_rewards(30, "");
-        assert_eq!(user.rewards, 60);
-        let mut revenue = 2000_0000;
-        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
-            .unwrap();
-        assert_eq!(revenue, 2000_0000);
-        assert_eq!(user.credits(), 1000);
-
-        // rewards are enough
-        user.cycles = 980;
-        user.rewards = 30;
-        user.change_rewards(30, "");
-        let mut revenue = 2000_0000;
-        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
-            .unwrap();
-        assert_eq!(revenue, 2000_0000);
-        assert_eq!(user.credits(), 1010);
-
-        // rewards are still enough
-        user.cycles = 0;
-        user.rewards = 3000;
-        user.change_rewards(1010, "");
-        let mut revenue = 2000_0000;
-        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
-            .unwrap();
-        assert_eq!(revenue, 2000_0000);
-        assert_eq!(user.credits(), 1010);
-
-        // rewards are not enough
-        user.cycles = 0;
-        user.rewards = 500;
-        let mut revenue = 2000_0000;
-        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
-            .unwrap();
-        assert_eq!(revenue, 0);
-        assert_eq!(user.credits(), 646);
     }
 
     #[test]
