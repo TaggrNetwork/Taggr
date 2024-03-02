@@ -122,18 +122,10 @@ export const PostView = ({
 
     React.useEffect(() => {
         const article: any = refArticle.current;
-        // We delay shortening the post by half a second in the hope that images would
-        // have loaded by that time. But it should be improved in the future.
-        setTimeout(() => {
-            if (
-                !prime &&
-                article &&
-                article.scrollHeight > article.clientHeight
-            ) {
-                article.classList.add("overflowing");
-                setShowExpandButton(true);
-            }
-        }, 500);
+        if (!prime && article && article.scrollHeight > article.clientHeight) {
+            article.classList.add("overflowing");
+            setShowExpandButton(true);
+        }
     }, [post]);
 
     if (!post) {
