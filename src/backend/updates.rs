@@ -71,11 +71,14 @@ fn post_upgrade() {
     set_timer(Duration::from_millis(0), move || {
         spawn(async_post_upgrade_fixtures());
     });
+
+    ic_cdk::println!(
+        "Post-upgrade spent {}B instructions",
+        performance_counter(0) / 1000000000
+    )
 }
 
-fn sync_post_upgrade_fixtures() {}
-
-async fn async_post_upgrade_fixtures() {
+fn sync_post_upgrade_fixtures() {
     // Fill the root posts index.
     mutate(|state| {
         state.root_posts_index = (0..state.next_post_id)
@@ -86,11 +89,14 @@ async fn async_post_upgrade_fixtures() {
 
     // Remove user report according to DAO poll: https://6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io/#/post/621615
     mutate(|state| {
-        let zikhas = state.users.get_mut(&789).unwrap();
-        assert_eq!(zikhas.name, "Zikhas");
-        zikhas.report.take();
+        if let Some(zikhas) = state.users.get_mut(&789) {
+            assert_eq!(zikhas.name, "Zikhas");
+            zikhas.report.take();
+        }
     })
 }
+
+async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES
