@@ -411,12 +411,14 @@ export const UserInfo = ({
                         </a>
                     </div>
                 )}
-                <div className="db_cell">
-                    REWARDS
-                    <code className="accent">
-                        {profile.rewards.toLocaleString()}
-                    </code>
-                </div>
+                {(!profile.miner || profile.rewards < 0) && (
+                    <div className="db_cell">
+                        REWARDS
+                        <code className="accent">
+                            {profile.rewards.toLocaleString()}
+                        </code>
+                    </div>
+                )}
                 <div className="db_cell">
                     JOINED
                     <span>{`${timeAgo(profile.timestamp)}`}</span>

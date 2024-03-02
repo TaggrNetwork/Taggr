@@ -1083,13 +1083,21 @@ impl State {
             .users
             .values()
             .flat_map(|user| user.mintable_tokens(self, user_shares, boostraping_mode))
-            .filter(|(_, balance)| *balance > 0)
         {
             tokens_to_mint
                 .entry(user_id)
                 .and_modify(|balance| *balance += tokens)
                 .or_insert(tokens);
         }
+
+        tokens_to_mint.retain(|user_id, balance| {
+            *balance > 0
+                && self
+                    .users
+                    .get(user_id)
+                    .map(|user| user.eligible_for_minting())
+                    .unwrap_or_default()
+        });
 
         tokens_to_mint
     }
@@ -1215,12 +1223,22 @@ impl State {
     }
 
     pub fn collect_new_rewards(&mut self) -> HashMap<UserId, u64> {
-        self.users
-            .values_mut()
-            .filter_map(|u| {
-                (u.rewards() > 0).then_some((u.id, u.take_positive_rewards() as Credits))
-            })
-            .collect()
+        let mut payouts = HashMap::default();
+
+        for user in self.users.values_mut() {
+            let rewards = user.take_positive_rewards();
+            if rewards == 0 {
+                continue;
+            };
+            // All miner rewards are burned.
+            if user.miner {
+                self.burned_cycles += rewards;
+            } else {
+                payouts.insert(user.id, rewards as Credits);
+            }
+        }
+
+        payouts
     }
 
     async fn distribute_icp(
@@ -3047,6 +3065,7 @@ pub(crate) mod tests {
             vec![],
             Default::default(),
             false,
+            false,
             false
         )
         .is_err());
@@ -3058,6 +3077,7 @@ pub(crate) mod tests {
             Default::default(),
             vec![],
             Default::default(),
+            false,
             false,
             false
         )
@@ -3161,6 +3181,7 @@ pub(crate) mod tests {
 
             for i in 0..5 {
                 create_user(state, pr(i));
+                state.principal_to_user_mut(pr(i)).unwrap().miner = true;
                 insert_balance(state, pr(i), (((i + 1) as u64) << 2) * 10000);
                 for j in 0..5 {
                     if i != j {
@@ -3181,8 +3202,15 @@ pub(crate) mod tests {
             assert_eq!(state.balances.get(&account(pr(0))).unwrap(), &40000);
 
             state.balances.remove(&minting_acc);
+
+            // user 3 switches to non-miner
+            state.principal_to_user_mut(pr(3)).unwrap().miner = false;
+            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 160000);
+
             state.minting_mode = true;
             state.mint();
+
+            // we cleaned up all donations accounting
             for u in state.users.values() {
                 assert!(u.karma_donations.is_empty());
             }
@@ -3191,7 +3219,8 @@ pub(crate) mod tests {
             assert_eq!(*state.balances.get(&account(pr(0))).unwrap(), 95155);
             assert_eq!(*state.balances.get(&account(pr(1))).unwrap(), 173510);
             assert_eq!(*state.balances.get(&account(pr(2))).unwrap(), 249761);
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 314877);
+            // non-miner didn't get anything
+            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 160000);
             assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 366688);
 
             // increase minting ratio
@@ -3207,7 +3236,7 @@ pub(crate) mod tests {
             state.minting_mode = true;
             state.mint();
             assert_eq!(*state.balances.get(&account(pr(2))).unwrap(), 249761);
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 314877);
+            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 160000);
 
             // increase minting ratio to 512:1
             state.balances.insert(account(pr(7)), 60000000);

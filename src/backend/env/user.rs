@@ -109,6 +109,8 @@ pub struct User {
     pub downvotes: BTreeMap<UserId, Time>,
     pub show_posts_in_realms: bool,
     pub posts: Vec<PostId>,
+    #[serde(default)]
+    pub miner: bool,
 }
 
 impl User {
@@ -179,6 +181,7 @@ impl User {
             cold_wallet: None,
             cold_balance: 0,
             governance: true,
+            miner: true,
             downvotes: Default::default(),
             show_posts_in_realms: true,
         }
@@ -410,7 +413,7 @@ impl User {
 
     pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {
         let credits_needed = CONFIG.credits_per_xdr.saturating_sub(self.credits());
-        if credits_needed > 0 && amount > 0 && self.rewards() > 0 {
+        if credits_needed > 0 && amount > 0 && self.rewards() > 0 && !self.miner {
             self.change_credits(
                 amount as Credits,
                 CreditsDelta::Plus,
@@ -482,6 +485,7 @@ impl User {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
         caller: Principal,
         new_name: Option<String>,
@@ -489,6 +493,7 @@ impl User {
         principals: Vec<String>,
         filter: UserFilter,
         governance: bool,
+        miner: bool,
         show_posts_in_realms: bool,
     ) -> Result<(), String> {
         if read(|state| {
@@ -523,6 +528,7 @@ impl User {
                 user.about = about;
                 user.controllers = principals;
                 user.governance = governance;
+                user.miner = miner;
                 user.filters.noise = filter;
                 user.show_posts_in_realms = show_posts_in_realms;
                 if let Some(name) = new_name {
@@ -534,6 +540,10 @@ impl User {
                 Err("no user found".into())
             }
         })
+    }
+
+    pub fn eligible_for_minting(&self) -> bool {
+        self.miner && !self.controversial()
     }
 
     pub fn mintable_tokens(
@@ -581,13 +591,6 @@ impl User {
         let shares = self
             .karma_donations
             .iter()
-            .filter(|(user_id, _)| {
-                state
-                    .users
-                    .get(user_id)
-                    .map(|user| !user.controversial())
-                    .unwrap_or_default()
-            })
             .map(|(user_id, karma_donated)| {
                 (
                     *user_id,
@@ -848,6 +851,7 @@ mod tests {
     #[test]
     fn test_automatic_top_up() {
         let mut user = User::new(pr(0), 66, 0, Default::default());
+        user.miner = false;
         let e8s_for_one_xdr = 3095_0000;
 
         // no top up triggered

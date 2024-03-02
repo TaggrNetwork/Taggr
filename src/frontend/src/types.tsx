@@ -190,6 +190,7 @@ export type User = {
     bookmarks: number[];
     last_activity: BigInt;
     governance: boolean;
+    miner: boolean;
     settings: {
         [key: string]: string;
     };

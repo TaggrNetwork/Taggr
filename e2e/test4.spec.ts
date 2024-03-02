@@ -135,10 +135,6 @@ test.describe("Report and transfer to user", () => {
             .click({ delay: 3000 });
         // Wait because the UI waits for 4s before sending the command
         await page.waitForTimeout(6000);
-        await feedItem.getByRole("link", { name: "jane" }).first().click();
-        await expect(page.locator("div:has-text('REWARDS') > code")).toHaveText(
-            "20",
-        );
         exec("dfx canister call taggr weekly_chores");
         await page.waitForTimeout(1500);
     });

@@ -220,11 +220,12 @@ fn confirm_principal_change() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (new_name, about, principals, filter, governance, show_posts_in_realms): (
+    let (new_name, about, principals, filter, governance, miner, show_posts_in_realms): (
         String,
         String,
         Vec<String>,
         UserFilter,
+        bool,
         bool,
         bool,
     ) = parse(&arg_data_raw());
@@ -235,6 +236,7 @@ fn update_user() {
         principals,
         filter,
         governance,
+        miner,
         show_posts_in_realms,
     ))
 }
