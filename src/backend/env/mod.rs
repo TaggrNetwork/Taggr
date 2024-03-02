@@ -3102,10 +3102,11 @@ pub(crate) mod tests {
             cell.replace(Default::default());
             let state = &mut *cell.borrow_mut();
 
-            for (i, rewards) in vec![125, -11, 0].into_iter().enumerate() {
+            for (i, rewards) in vec![125, -11, 0, 672].into_iter().enumerate() {
                 let id = create_user(state, pr(i as u8));
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(rewards, "");
+                user.miner = i == 4;
             }
 
             let new_rewards = state.collect_new_rewards();
@@ -3122,6 +3123,10 @@ pub(crate) mod tests {
             let user = state.principal_to_user(pr(2)).unwrap();
             // no new rewards was collected
             assert!(!new_rewards.contains_key(&user.id));
+            assert_eq!(user.rewards(), 0);
+
+            let user = state.principal_to_user(pr(3)).unwrap();
+            // no new rewards was collected becasue the user is a miner
             assert_eq!(user.rewards(), 0);
         });
     }
