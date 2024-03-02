@@ -39,7 +39,9 @@ pub type Credits = u64;
 pub type Blob = ByteBuf;
 pub type Time = u64;
 
-pub const MINUTE: u64 = 60000000000_u64;
+pub const MILLISECOND: u64 = 1_000_000_u64;
+pub const SECOND: u64 = 1000 * MILLISECOND;
+pub const MINUTE: u64 = 60 * SECOND;
 pub const HOUR: u64 = 60 * MINUTE;
 pub const DAY: u64 = 24 * HOUR;
 pub const WEEK: u64 = 7 * DAY;
@@ -182,7 +184,12 @@ pub struct State {
 
     pub last_nns_proposal: u64,
 
+    // TODO: delete
+    #[serde(skip)]
     pub root_posts: usize,
+
+    #[serde(default)]
+    pub root_posts_index: Vec<PostId>,
 
     e8s_for_one_xdr: u64,
 
@@ -577,7 +584,7 @@ impl State {
         filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
-            .last_posts(realm, offset, time().saturating_sub(4 * WEEK), false)
+            .last_posts(realm, offset, 0, false)
             .filter(|post| !matches!(post.extension, Some(Extension::Proposal(_))))
             .filter(|post| filter.map(|f| f(post)).unwrap_or(true))
             .take(1000)
@@ -1554,19 +1561,36 @@ impl State {
             )
         });
 
+        let log_time = |state: &mut State, frequency| {
+            state.logger.debug(format!(
+                "{} routine finished after `{}` ms.",
+                frequency,
+                (time() - now) / MILLISECOND
+            ))
+        };
+
         if last_weekly_chores + WEEK < now {
             State::weekly_chores(now).await;
-            mutate(|state| state.last_weekly_chores += WEEK);
+            mutate(|state| {
+                state.last_weekly_chores += WEEK;
+                log_time(state, "Weekly");
+            });
         }
 
         if last_daily_chores + DAY < now {
             State::daily_chores(now).await;
-            mutate(|state| state.last_daily_chores += DAY);
+            mutate(|state| {
+                state.last_daily_chores += DAY;
+                log_time(state, "Daily");
+            });
         }
 
         if last_hourly_chores + HOUR < now {
             State::hourly_chores(now).await;
-            mutate(|state| state.last_hourly_chores += HOUR);
+            mutate(|state| {
+                state.last_hourly_chores += HOUR;
+                log_time(state, "Hourly");
+            });
         }
     }
 
@@ -1985,18 +2009,28 @@ impl State {
                         .copied(),
                 ),
                 _ => {
-                    let last_id = if offset > 0 {
-                        offset
+                    if with_comments {
+                        let last_id = if offset > 0 {
+                            offset
+                        } else {
+                            self.next_post_id
+                        };
+                        Box::new((0..last_id).rev())
                     } else {
-                        self.next_post_id
-                    };
-                    Box::new((0..last_id).rev())
+                        Box::new(
+                            self.root_posts_index
+                                .iter()
+                                .rev()
+                                .skip_while(move |post_id| offset > 0 && *post_id > &offset)
+                                .copied(),
+                        )
+                    }
                 }
             };
         Box::new(
             iter.filter_map(move |i| Post::get(self, &i))
                 .take_while(move |post| post.creation_timestamp() >= genesis)
-                .filter(move |post| !post.is_deleted() && (with_comments || post.parent.is_none())),
+                .filter(move |post| !post.is_deleted()),
         )
     }
 
@@ -2172,7 +2206,7 @@ impl State {
             credits += user.credits();
         }
         stalwarts.sort_unstable_by_key(|u| u.id);
-        let posts = self.root_posts;
+        let posts = self.root_posts_index.len();
         let volume_day = self
             .ledger
             .iter()

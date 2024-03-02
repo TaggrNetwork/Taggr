@@ -42,6 +42,7 @@ input[type="color"] {
 
 .selectable {
     user-select: text;
+    -webkit-user-select: text;
 }
 
 .popup_body {
@@ -656,10 +657,6 @@ article img {
     border-radius: 5px;
 }
 
-.feed_item article img {
-    width: 100%;
-}
-
 .padded_rounded {
     border-radius: 5px;
     padding-left: 0.5em;
@@ -668,29 +665,6 @@ article img {
 
 .current > img {
     border: 2px solid $accent;
-}
-
-div.thumbnails img {
-    height: 25px;
-    width: 25px;
-    object-fit: cover;
-    margin: 0.15em;
-    border-radius: 20px;
-    border: 1px solid $text;
-}
-
-.gallery {
-    position: relative;
-    display: flex;
-    justify-content: center;
-}
-
-div.thumbnails {
-    width: 100%;
-    bottom: 0;
-    justify-content: center;
-    margin-top: 0.4em;
-    padding: 0.1em 0 0.1em 0;
 }
 
 .realm_span,
@@ -1125,6 +1099,10 @@ label svg {
         display: inline;
     }
 
+    .feed_item article img {
+        width: 100%;
+    }
+
     .prime .post_head,
     .post_head {
         border-radius: 0;
@@ -1149,4 +1127,27 @@ label svg {
 
 .bottom_spaced {
     margin-bottom: 1em;
+}
+
+div.thumbnails img {
+    height: 25px;
+    width: 25px;
+    object-fit: cover;
+    margin: 0.15em;
+    border-radius: 20px;
+    border: 1px solid $text;
+}
+
+.gallery {
+    position: relative;
+    display: flex;
+    justify-content: center;
+}
+
+div.thumbnails {
+    width: 100%;
+    bottom: 0;
+    justify-content: center;
+    margin-top: 0.4em;
+    padding: 0.1em 0 0.1em 0;
 }

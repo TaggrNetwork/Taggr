@@ -97,6 +97,8 @@ export const Landing = () => {
                             realm,
                             page,
                             offset,
+                            // only enable noise filtering outside of realms
+                            !currentRealm(),
                         );
                     if (feed == "REALMS")
                         return await window.api.query(

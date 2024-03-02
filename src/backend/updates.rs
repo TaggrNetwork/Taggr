@@ -1,4 +1,4 @@
-use crate::env::{post::archive_cold_posts, user::UserFilter};
+use crate::env::user::UserFilter;
 
 use super::*;
 use env::{
@@ -14,7 +14,6 @@ use ic_cdk::{
     api::{
         self,
         call::{arg_data_raw, reply_raw},
-        performance_counter,
     },
     spawn,
 };
@@ -58,9 +57,6 @@ fn post_upgrade() {
     stable_to_heap_core();
     mutate(|state| state.load());
 
-    // TODO: DELETE BEFORE THE NEXT RELEASE
-    mutate(|state| state.memory.set_block_size(1));
-
     set_timer_interval(Duration::from_secs(15 * 60), || {
         spawn(State::chores(api::time()))
     });
@@ -69,47 +65,38 @@ fn post_upgrade() {
         || spawn(State::finalize_upgrade()),
     );
 
-    post_upgrade_fixtures();
+    sync_post_upgrade_fixtures();
 
     // post upgrade logic goes here
-    // set_timer(Duration::from_millis(0), move || {
-    //     spawn(post_upgrade_fixtures());
-    // });
-}
-
-fn post_upgrade_fixtures() {
-    let last_id = read(|state| state.next_post_id);
-    mutate(|state| {
-        // fix tests, otherwise the new assertions break them
-        if state.memory.posts.len() == 0 {
-            return;
-        }
-
-        let num_posts = Post::count(state);
-
-        for post_id in 0..last_id {
-            Post::mutate(state, &post_id, |post| {
-                post.archived = false;
-                Ok(())
-            })
-            .unwrap();
-        }
-
-        // The noop mutation above should move all posts to the heap
-        state.memory.assert_segments(1);
-        assert_eq!(state.memory.posts.len(), 0);
-        assert_eq!(state.posts.len(), num_posts);
-
-        // Now we can set the allocation block size
-        state.memory.set_block_size(300);
-
-        ic_cdk::println!(
-            "all posts loaded into heap (instructions: {}B, current SM size: {}Mb)",
-            performance_counter(0) / 1000000000,
-            (ic_cdk::api::stable::stable_size() << 16) / 1024 / 1024
-        );
+    set_timer(Duration::from_millis(0), move || {
+        spawn(async_post_upgrade_fixtures());
     });
+
+    ic_cdk::println!(
+        "Post-upgrade spent {}B instructions",
+        performance_counter(0) / 1000000000
+    )
 }
+
+fn sync_post_upgrade_fixtures() {
+    // Fill the root posts index.
+    mutate(|state| {
+        state.root_posts_index = (0..state.next_post_id)
+            .filter_map(|id| Post::get(state, &id))
+            .filter_map(|post| post.parent.is_none().then_some(post.id))
+            .collect()
+    });
+
+    // Remove user report according to DAO poll: https://6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io/#/post/621615
+    mutate(|state| {
+        if let Some(zikhas) = state.users.get_mut(&789) {
+            assert_eq!(zikhas.name, "Zikhas");
+            zikhas.report.take();
+        }
+    })
+}
+
+async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES
@@ -719,26 +706,4 @@ fn backup() {
             state.backup_exists = true;
         }
     })
-}
-
-#[export_name = "canister_update archive"]
-fn archive() {
-    mutate(|state| {
-        let user = state.principal_to_user(caller()).unwrap();
-        if !user.stalwart || state.last_archive + MINUTE * 15 > time() {
-            return;
-        }
-        state
-            .logger
-            .debug(format!("@{} triggered archiving.", user.name));
-        let n: usize = parse(&arg_data_raw());
-        if let Err(err) = archive_cold_posts(state, n) {
-            state
-                .logger
-                .error(format!("couldn't archive cold data: {:?}", err));
-        } else {
-            state.last_archive = time();
-        }
-    });
-    reply_raw(&[]);
 }
