@@ -1466,7 +1466,7 @@ impl State {
                     });
                 };
             }
-            mutate(|state| state.pending_nns_proposals.remove(&post_id));
+            mutate(|state| state.pending_nns_proposals.remove(&proposal_id));
         }
 
         // fetch new proposals
@@ -1602,6 +1602,12 @@ impl State {
             State::daily_chores(now).await;
             mutate(|state| {
                 state.last_daily_chores += DAY;
+                state.logger.debug(format!(
+                    "Pending NNS proposals: `{}`, pending polls: `{}`, migrations: `{}`.",
+                    state.pending_nns_proposals.len(),
+                    state.pending_polls.len(),
+                    state.migrations.len(),
+                ));
                 log_time(state, "Daily");
             });
         }
