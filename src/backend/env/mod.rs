@@ -2205,9 +2205,13 @@ impl State {
         let mut active_users = 0;
         let mut bots = Vec::new();
         let mut credits = 0;
+        let mut speculative_revenue = 0;
         for user in self.users.values() {
             if user.stalwart {
                 stalwarts.push(user);
+            }
+            if user.miner {
+                speculative_revenue += user.rewards().max(0);
             }
             if now < user.last_activity + CONFIG.online_activity_minutes {
                 users_online += 1;
@@ -2262,7 +2266,7 @@ impl State {
             posts,
             comments: Post::count(self) - posts,
             credits,
-            burned_credits: self.burned_cycles,
+            burned_credits: self.burned_cycles + speculative_revenue,
             total_revenue_shared: self.total_revenue_shared,
             total_rewards_shared: self.total_rewards_shared,
             account: invoices::main_account().to_string(),
