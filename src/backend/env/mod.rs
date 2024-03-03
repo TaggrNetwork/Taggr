@@ -72,7 +72,6 @@ pub struct Stats {
     credits: Credits,
     canister_cycle_balance: u64,
     burned_credits: i64,
-    burned_credits_total: Credits,
     total_revenue_shared: u64,
     total_rewards_shared: u64,
     posts: usize,
@@ -133,6 +132,8 @@ pub struct Summary {
 #[derive(Default, Serialize, Deserialize)]
 pub struct State {
     pub burned_cycles: i64,
+    // TODO: delete
+    #[serde(skip)]
     pub burned_cycles_total: Credits,
     pub posts: BTreeMap<PostId, Post>,
     pub users: BTreeMap<UserId, User>,
@@ -183,10 +184,6 @@ pub struct State {
     pending_nns_proposals: BTreeMap<u64, PostId>,
 
     pub last_nns_proposal: u64,
-
-    // TODO: delete
-    #[serde(skip)]
-    pub root_posts: usize,
 
     #[serde(default)]
     pub root_posts_index: Vec<PostId>,
@@ -1335,7 +1332,6 @@ impl State {
         }
         if self.burned_cycles > 0 {
             self.spend(self.burned_cycles as Credits, "revenue distribution");
-            self.burned_cycles_total += self.burned_cycles as Credits;
         }
         self.total_rewards_shared += total_rewards;
         self.total_revenue_shared += total_revenue;
@@ -2267,7 +2263,6 @@ impl State {
             comments: Post::count(self) - posts,
             credits,
             burned_credits: self.burned_cycles,
-            burned_credits_total: self.burned_cycles_total,
             total_revenue_shared: self.total_revenue_shared,
             total_rewards_shared: self.total_rewards_shared,
             account: invoices::main_account().to_string(),
