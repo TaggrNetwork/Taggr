@@ -41,13 +41,12 @@ pub struct Draft {
     pub blobs: Vec<(String, Blob)>,
 }
 
-#[derive(Default, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UserFilter {
     age_days: u64,
     safe: bool,
     balance: Token,
     num_followers: usize,
-    #[serde(default)]
     downvotes: usize,
 }
 

@@ -475,8 +475,13 @@ const PostInfo = ({
     const [userData, setUserData] = React.useState<UserData>();
 
     const loadData = async () => {
-        // @ts-ignore
-        const ids: UserId[] = [].concat(...Object.values(reactions));
+        const ids: UserId[] = []
+            // @ts-ignore
+            .concat(...Object.values(reactions))
+            // @ts-ignore
+            .concat(post.watchers)
+            // @ts-ignore
+            .concat(Object.keys(post.tips).map(Number));
         if (ids.length > 0)
             setUserData(
                 (await window.api.query<UserData>("users_data", ids)) || {},
@@ -493,10 +498,27 @@ const PostInfo = ({
     }, []);
 
     const user = window.user;
-    const realmAccessError =
-        user && realmData
-            ? noiseControlBanner("realm", realmData.filter, user)
-            : null;
+    let realmAccessError = null;
+    if (user) {
+        if (post.meta.viewer_blocked)
+            realmAccessError = (
+                <div className="banner vertically_spaced">
+                    You're blocked by this user.
+                </div>
+            );
+        else if (realmData)
+            realmAccessError = noiseControlBanner(
+                "realm",
+                realmData.filter,
+                user,
+            );
+        else
+            realmAccessError = noiseControlBanner(
+                "user",
+                post.meta.author_filters,
+                user,
+            );
+    }
 
     const postAuthor = user?.id == post.user;
     const realmController =
@@ -745,12 +767,13 @@ const PostInfo = ({
                         )}
                     </div>
                 )}
-                {post.watchers.length > 0 && (
+                {post.watchers.length > 0 && userData && (
                     <div>
-                        <b>WATCHERS</b>: <UserList ids={post.watchers} />
+                        <b>WATCHERS</b>:{" "}
+                        <UserList ids={post.watchers} loadedNames={userData} />
                     </div>
                 )}
-                {post.tips.length > 0 && (
+                {post.tips.length > 0 && userData && (
                     <div>
                         <b>{token_symbol} TIPS</b>:{" "}
                         {commaSeparated(
@@ -759,13 +782,20 @@ const PostInfo = ({
                                     <code>
                                         {tokens(Number(tip), token_decimals)}
                                     </code>{" "}
-                                    from {<UserLink id={id} profile={true} />}
+                                    from{" "}
+                                    {
+                                        <UserLink
+                                            id={id}
+                                            name={userData[id]}
+                                            profile={true}
+                                        />
+                                    }
                                 </span>
                             )),
                         )}
                     </div>
                 )}
-                {Object.keys(reactions).length > 0 && (
+                {Object.keys(reactions).length > 0 && userData && (
                     <div className="top_spaced">
                         {Object.entries(reactions).map(([reactId, users]) => (
                             <div key={reactId} className="bottom_half_spaced">

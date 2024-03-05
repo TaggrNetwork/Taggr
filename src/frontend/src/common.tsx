@@ -580,7 +580,7 @@ export const UserLink = ({
     };
 
     React.useEffect(() => {
-        if (!userName) loadUserName();
+        if (!userName && id != null) loadUserName();
     }, [userName]);
 
     return userName ? (
@@ -615,11 +615,11 @@ export const UserList = ({
         );
 
     React.useEffect(() => {
-        if (ids || !loadedNames) loadNames();
+        if (ids && Object.entries(loadedNames).length == 0) loadNames();
     }, []);
 
     return Object.keys(names).length == 0 ? (
-        <Loading />
+        <Loading spaced={false} />
     ) : (
         commaSeparated(
             ids.map((id) => (

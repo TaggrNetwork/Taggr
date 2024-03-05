@@ -178,9 +178,9 @@ export const Tokens = () => {
                 </div>
                 <h2>Top 100 token holders</h2>
                 <div className="row_container bottom_spaced">
-                    {balances.slice(0, 100).map((b) => (
+                    {balances.slice(0, 100).map((b, i) => (
                         <div
-                            key={b[0].owner.toString()}
+                            key={i}
                             style={{
                                 height: "5em",
                                 width: percentage(b[1], mintedSupply),
@@ -208,8 +208,8 @@ export const Tokens = () => {
                         style={{ textAlign: "right" }}
                         className={bigScreen() ? "" : "small_text"}
                     >
-                        {balances.slice(0, (balPage + 1) * 25).map((b) => (
-                            <tr key={b[0].owner.toString()}>
+                        {balances.slice(0, (balPage + 1) * 25).map((b, i) => (
+                            <tr key={i}>
                                 <td style={{ textAlign: "left" }}>
                                     {showPrincipal(b[0])}
                                 </td>
