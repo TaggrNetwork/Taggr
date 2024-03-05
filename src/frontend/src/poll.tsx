@@ -182,7 +182,12 @@ export const PollView = ({
                     )}
                 </span>
             )}
-            {expired && (
+            {expired && Object.keys(data.weighted_by_tokens).length == 0 && (
+                <span className="top_spaced small_text text_centered inactive">
+                    RESULTS ARE PENDING
+                </span>
+            )}
+            {expired && Object.keys(data.weighted_by_tokens).length > 0 && (
                 <>
                     <h4 className="top_framed" style={{ paddingTop: "1em" }}>
                         RESULTS BY VOTING POWER
@@ -190,6 +195,7 @@ export const PollView = ({
                     {Object.entries(data.weighted_by_tokens).map(
                         ([index, vp]: [string, number]) => (
                             <Content
+                                key={index}
                                 post={false}
                                 value={
                                     data.options[Number(index)] +
