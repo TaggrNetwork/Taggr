@@ -46,7 +46,7 @@ import {
     More,
 } from "./icons";
 import { ProposalView } from "./proposals";
-import { Post, PostId, Realm, UserId } from "./types";
+import { Post, PostId, Realm, UserData, UserId } from "./types";
 import { MAINNET_MODE } from "./env";
 
 export const PostView = ({
@@ -472,16 +472,24 @@ const PostInfo = ({
     writingCallback: () => void;
 }) => {
     const [realmData, setRealmData] = React.useState<Realm | null>();
+    const [userData, setUserData] = React.useState<UserData>();
 
-    const loadRealmData = async () => {
-        setRealmData(
-            ((await window.api.query<Realm[]>("realms", [post.realm])) ||
-                [])[0],
-        );
+    const loadData = async () => {
+        // @ts-ignore
+        const ids: UserId[] = [].concat(...Object.values(reactions));
+        if (ids.length > 0)
+            setUserData(
+                (await window.api.query<UserData>("users_data", ids)) || {},
+            );
+        if (post.realm)
+            setRealmData(
+                ((await window.api.query<Realm[]>("realms", [post.realm])) ||
+                    [])[0],
+            );
     };
 
     React.useEffect(() => {
-        if (post.realm) loadRealmData();
+        loadData();
     }, []);
 
     const user = window.user;
@@ -762,7 +770,11 @@ const PostInfo = ({
                         {Object.entries(reactions).map(([reactId, users]) => (
                             <div key={reactId} className="bottom_half_spaced">
                                 {reaction2icon(Number(reactId))}{" "}
-                                <UserList ids={users} profile={true} />
+                                <UserList
+                                    ids={users}
+                                    loadedNames={userData}
+                                    profile={true}
+                                />
                             </div>
                         ))}
                     </div>

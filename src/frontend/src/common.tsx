@@ -574,6 +574,7 @@ export const UserLink = ({
     const [userName, setUserName] = React.useState<string | undefined>(name);
 
     const loadUserName = async () => {
+        if (id > Number.MAX_SAFE_INTEGER) return;
         const data = await window.api.query<UserData>("users_data", [id]);
         if (data) setUserName(data[id]);
     };
@@ -596,18 +597,25 @@ export const UserLink = ({
 
 export const UserList = ({
     ids,
+    loadedNames = {},
     profile,
 }: {
     ids: UserId[];
+    loadedNames?: UserData;
     profile?: boolean;
 }) => {
-    const [names, setNames] = React.useState<UserData>({});
+    const [names, setNames] = React.useState<UserData>(loadedNames);
 
     const loadNames = async () =>
-        setNames((await window.api.query<UserData>("users_data", ids)) || {});
+        setNames(
+            (await window.api.query<UserData>(
+                "users_data",
+                ids.filter((id) => id < Number.MAX_SAFE_INTEGER),
+            )) || {},
+        );
 
     React.useEffect(() => {
-        if (ids) loadNames();
+        if (ids || !loadedNames) loadNames();
     }, []);
 
     return Object.keys(names).length == 0 ? (
