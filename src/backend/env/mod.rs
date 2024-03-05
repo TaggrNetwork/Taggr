@@ -2874,7 +2874,6 @@ pub(crate) mod tests {
         token::mint(state, account(principal), amount);
         state.minting_mode = false;
         if let Some(user) = state.principal_to_user_mut(principal) {
-            user.balance = amount;
             user.change_rewards((amount / token::base()) as i64, "");
         }
     }

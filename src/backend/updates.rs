@@ -78,7 +78,23 @@ fn post_upgrade() {
     )
 }
 
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    // compute minted amount of tokens for all users
+    mutate(|state| {
+        for (owner, amount) in state
+            .ledger
+            .iter()
+            .filter(|tx| tx.from.owner == Principal::anonymous())
+            .map(|tx| (tx.to.owner, tx.amount))
+            .collect::<Vec<_>>()
+            .into_iter()
+        {
+            if let Some(user) = state.principal_to_user_mut(owner) {
+                user.minted += amount;
+            }
+        }
+    })
+}
 
 async fn async_post_upgrade_fixtures() {}
 
