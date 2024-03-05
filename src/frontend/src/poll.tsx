@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ButtonWithLoading, userList } from "./common";
+import { ButtonWithLoading, token, userList } from "./common";
 import { Content } from "./content";
 import { Poll, PostId } from "./types";
 
@@ -41,12 +41,6 @@ export const PollView = ({
         poll.deadline - createdHoursAgo >
             window.backendCache.config.poll_revote_deadline_hours;
     const showVoting = !isNaN(user_id) && !voted && !expired;
-    const keyWithMaxVal = (obj: { [key: number]: number }) =>
-        Object.keys(obj).reduce(
-            ([maxKey, maxVal]: any, key: any) =>
-                obj[key] > maxVal ? [key, obj[key]] : [maxKey, maxVal],
-            [null, 0],
-        )[0];
 
     return (
         <div className="column_container post_extension" data-meta="skipClicks">
@@ -189,12 +183,22 @@ export const PollView = ({
                 </span>
             )}
             {expired && (
-                <Content
-                    post={false}
-                    value={`RESULT BY VP: **${
-                        data.options[keyWithMaxVal(data.weighted_by_tokens)]
-                    }**`}
-                />
+                <>
+                    <h4 className="top_framed" style={{ paddingTop: "1em" }}>
+                        RESULTS BY VOTING POWER
+                    </h4>
+                    {Object.entries(data.weighted_by_tokens).map(
+                        ([index, vp]: [string, number]) => (
+                            <Content
+                                post={false}
+                                value={
+                                    data.options[Number(index)] +
+                                    `: \`${token(vp)}\``
+                                }
+                            />
+                        ),
+                    )}
+                </>
             )}
         </div>
     );
