@@ -145,6 +145,7 @@ The minting ratio `R` is algorithmically computed by $name.
 It starts at `1:1` and remains at this level until `10%` of supply is minted.
 Then the ratio decreases to `2:1` for the next `10%`, further decreasing to `4:1`, and so on.
 Hence, the last `10%` of the supply will be minted at a ratio of `512:1`.
+Additionally, the DAO can increase the ratio by setting a difficulty amplification factor if the minting speed becomes misaligned with DAO's expectations.
 
 ### Team Tokens
 

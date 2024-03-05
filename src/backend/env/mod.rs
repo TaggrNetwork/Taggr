@@ -1058,7 +1058,7 @@ impl State {
     pub fn minting_ratio(&self) -> u64 {
         let circulating_supply: Token = self.balances.values().sum();
         let factor = (circulating_supply as f64 / CONFIG.maximum_supply as f64 * 10.0) as u64;
-        1 << factor
+        (1 << factor) * CONFIG.difficulty_amplification
     }
 
     pub fn tokens_to_mint(&self) -> BTreeMap<UserId, Token> {
