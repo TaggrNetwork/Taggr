@@ -550,7 +550,6 @@ impl State {
     pub fn realms_posts(
         &self,
         caller: Principal,
-        page: usize,
         offset: PostId,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let realm_ids = match self
@@ -560,23 +559,17 @@ impl State {
             None | Some(&[]) => return Box::new(std::iter::empty()),
             Some(ids) => ids.iter().collect::<BTreeSet<_>>(),
         };
-        Box::new(
-            self.last_posts(None, offset, 0, false)
-                .filter(move |post| {
-                    post.realm
-                        .as_ref()
-                        .map(|id| realm_ids.contains(&id))
-                        .unwrap_or_default()
-                })
-                .skip(page * CONFIG.feed_page_size)
-                .take(CONFIG.feed_page_size),
-        )
+        Box::new(self.last_posts(None, offset, 0, false).filter(move |post| {
+            post.realm
+                .as_ref()
+                .map(|id| realm_ids.contains(&id))
+                .unwrap_or_default()
+        }))
     }
 
     pub fn hot_posts(
         &self,
         realm: Option<RealmId>,
-        page: usize,
         offset: PostId,
         filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
@@ -587,12 +580,7 @@ impl State {
             .take(1000)
             .collect::<Vec<_>>();
         hot_posts.sort_unstable_by_key(|post| Reverse(post.heat()));
-        Box::new(
-            hot_posts
-                .into_iter()
-                .skip(page * CONFIG.feed_page_size)
-                .take(CONFIG.feed_page_size),
-        )
+        Box::new(hot_posts.into_iter())
     }
 
     pub fn toggle_realm_membership(&mut self, principal: Principal, name: String) -> bool {
