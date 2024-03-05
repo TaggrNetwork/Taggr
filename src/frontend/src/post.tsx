@@ -500,7 +500,7 @@ const PostInfo = ({
 
     const postAuthor = user?.id == post.user;
     const realmController =
-        realmData && realmData.controllers.includes(user?.id);
+        user && user.controlled_realms.includes(post.realm || "");
     const { token_symbol, token_decimals } = window.backendCache.config;
     return (
         <div className="left_half_spaced right_half_spaced top_spaced">

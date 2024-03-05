@@ -628,7 +628,7 @@ impl State {
     pub fn edit_realm(
         &mut self,
         principal: Principal,
-        name: String,
+        realm_id: String,
         realm: Realm,
     ) -> Result<(), String> {
         let Realm {
@@ -646,7 +646,7 @@ impl State {
         let user = self.principal_to_user(principal).ok_or("no user found")?;
         let user_id = user.id;
         let user_name = user.name.clone();
-        let realm = self.realms.get_mut(&name).ok_or("no realm found")?;
+        let realm = self.realms.get_mut(&realm_id).ok_or("no realm found")?;
         if !realm.controllers.contains(&user_id) {
             return Err("not authorized".into());
         }
@@ -659,9 +659,21 @@ impl State {
         let description_change = realm.description != description;
         realm.description = description;
         if realm.controllers != controllers {
+            let mut old_names = Vec::default();
+            let mut new_names = Vec::default();
+            for user_id in &realm.controllers {
+                let controller = self.users.get_mut(&user_id).expect("no user found");
+                controller.controlled_realms.remove(&realm_id);
+                old_names.push(controller.name.clone());
+            }
+            for user_id in &controllers {
+                let controller = self.users.get_mut(&user_id).expect("no user found");
+                controller.controlled_realms.insert(realm_id.clone());
+                new_names.push(controller.name.clone());
+            }
             self.logger.info(format!(
                 "Realm /{} controller list was changed from {:?} to {:?}",
-                name, &realm.controllers, &controllers
+                realm_id, old_names, new_names
             ));
         }
         realm.controllers = controllers;
@@ -674,10 +686,10 @@ impl State {
         realm.adult_content = adult_content;
         if description_change {
             self.notify_with_filter(
-                &|user| user.realms.contains(&name),
+                &|user| user.realms.contains(&realm_id),
                 format!(
                     "@{} changed the description of the realm /{}! ",
-                    user_name, name
+                    user_name, realm_id
                 ) + "Please read the new description to avoid potential penalties for rules violation!",
             );
         }

@@ -213,6 +213,7 @@ export type User = {
     timestamp: bigint;
     active_weeks: number;
     invited_by?: UserId;
+    controlled_realms: RealmId[];
     about: string;
     rewards: number;
     cycles: number;
