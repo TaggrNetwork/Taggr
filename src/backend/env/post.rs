@@ -143,7 +143,7 @@ impl Post {
         }
     }
 
-    /// Returns the post with some meta information needed for by the UI.
+    /// Returns the post with some meta information needed by the UI.
     pub fn with_meta<'a>(&'a self, state: &'a State) -> (&'_ Self, Meta<'_>) {
         let user = state.users.get(&self.user).expect("no user found");
         let realm = self
