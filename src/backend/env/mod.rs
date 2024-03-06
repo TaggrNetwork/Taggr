@@ -662,12 +662,12 @@ impl State {
             let mut old_names = Vec::default();
             let mut new_names = Vec::default();
             for user_id in &realm.controllers {
-                let controller = self.users.get_mut(&user_id).expect("no user found");
+                let controller = self.users.get_mut(user_id).expect("no user found");
                 controller.controlled_realms.remove(&realm_id);
                 old_names.push(controller.name.clone());
             }
             for user_id in &controllers {
-                let controller = self.users.get_mut(&user_id).expect("no user found");
+                let controller = self.users.get_mut(user_id).expect("no user found");
                 controller.controlled_realms.insert(realm_id.clone());
                 new_names.push(controller.name.clone());
             }

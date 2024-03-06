@@ -84,7 +84,7 @@ fn sync_post_upgrade_fixtures() {
             for user_id in &realm.controllers {
                 state
                     .users
-                    .get_mut(&user_id)
+                    .get_mut(user_id)
                     .unwrap()
                     .controlled_realms
                     .insert(realm_id.clone());
