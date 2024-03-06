@@ -595,8 +595,12 @@ export const UserLink = ({
     );
 };
 
+// We use u64::MAX to denote anonymous users. We should filter them out before we try to load user data.
+const removeNAs = (ids: UserId[]) =>
+    ids.filter((id) => id < Number.MAX_SAFE_INTEGER);
+
 export const UserList = ({
-    ids,
+    ids = [],
     loadedNames = {},
     profile,
 }: {
@@ -608,17 +612,16 @@ export const UserList = ({
 
     const loadNames = async () =>
         setNames(
-            (await window.api.query<UserData>(
-                "users_data",
-                ids.filter((id) => id < Number.MAX_SAFE_INTEGER),
-            )) || {},
+            (await window.api.query<UserData>("users_data", removeNAs(ids))) ||
+                {},
         );
 
     React.useEffect(() => {
-        if (ids && Object.entries(loadedNames).length == 0) loadNames();
+        if (removeNAs(ids) && Object.entries(loadedNames).length == 0)
+            loadNames();
     }, []);
 
-    return Object.keys(names).length == 0 ? (
+    return Object.keys(names).length == 0 && removeNAs(ids).length > 0 ? (
         <Loading spaced={false} />
     ) : (
         commaSeparated(

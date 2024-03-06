@@ -17,6 +17,8 @@ import { Close } from "./icons";
 import { getTheme, setRealmUI } from "./theme";
 import { Realm, Theme, User, UserFilter } from "./types";
 
+let timer: any = null;
+
 export const RealmForm = ({ existingName }: { existingName?: string }) => {
     const editing = !!existingName;
     const userId = window.user.id;
@@ -57,6 +59,9 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         if (existingName) setName(existingName);
         setRealm(realm);
         if (realm.theme) setTheme(JSON.parse(realm.theme));
+    };
+
+    const setStrings = async () => {
         setWhitelistString(
             Object.values(
                 (await window.api.query<{ [id: number]: string }>(
@@ -106,8 +111,13 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
     };
 
     React.useEffect(() => {
-        validateUserNames();
+        clearTimeout(timer);
+        timer = setTimeout(validateUserNames, 1500);
     }, [controllersString, whitelistString]);
+
+    React.useEffect(() => {
+        setStrings();
+    }, [realm]);
 
     React.useEffect(() => {
         if (editing) loadRealm();
@@ -691,8 +701,6 @@ export const RealmHeader = ({ name }: { name: string }) => {
         </>
     );
 };
-
-let timer: any = null;
 
 export const Realms = () => {
     const [realms, setRealms] = React.useState<[string, Realm][]>([]);
