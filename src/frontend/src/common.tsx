@@ -609,21 +609,25 @@ export const UserList = ({
     profile?: boolean;
 }) => {
     const [names, setNames] = React.useState<UserData>(loadedNames);
+    const [loading, setLoading] = React.useState(false);
 
-    const loadNames = async () =>
+    const loadNames = async () => {
+        setLoading(true);
         setNames(
             (await window.api.query<UserData>("users_data", removeNAs(ids))) ||
                 {},
         );
-
-    const namesPending =
-        removeNAs(ids).length > 0 && Object.entries(loadedNames).length == 0;
+        setLoading(false);
+    };
 
     React.useEffect(() => {
+        const namesPending =
+            removeNAs(ids).length > 0 &&
+            Object.entries(loadedNames).length == 0;
         if (namesPending) loadNames();
     }, []);
 
-    return namesPending ? (
+    return loading ? (
         <Loading spaced={false} />
     ) : (
         commaSeparated(
