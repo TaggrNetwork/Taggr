@@ -109,7 +109,6 @@ pub struct User {
     pub downvotes: BTreeMap<UserId, Time>,
     pub show_posts_in_realms: bool,
     pub posts: Vec<PostId>,
-    #[serde(default)]
     pub miner: bool,
 }
 
@@ -552,7 +551,13 @@ impl User {
             // During the bootstrap period, use karma and not balances
             donated_karma
         } else {
+            let minting_power = state
+                .minting_power
+                .get(&self.principal)
+                .copied()
+                .unwrap_or_default();
             self.total_balance()
+                .min(minting_power)
                 .min(donated_karma)
                 .min(CONFIG.max_spendable_tokens)
         } / ratio;
@@ -706,6 +711,118 @@ mod tests {
             balance: 1,
             num_followers: 0
         }));
+    }
+
+    #[test]
+    fn test_minted_tokens_cap() {
+        let state = &mut State::default();
+        let donor_id = create_user(state, pr(0));
+        let u1 = create_user(state, pr(1));
+        let u2 = create_user(state, pr(2));
+        let u3 = create_user(state, pr(3));
+        insert_balance(state, pr(0), 6000); // spendable tokens
+        assert_eq!(state.minting_ratio(), 1);
+
+        let donor = state.users.get_mut(&donor_id).unwrap();
+        donor.karma_donations.insert(u1, 330);
+        donor.karma_donations.insert(u2, 660);
+        donor.karma_donations.insert(u3, 990);
+        // Donate
+        let mintable_tokens = state
+            .users
+            .get(&donor_id)
+            .unwrap()
+            .mintable_tokens(state, 1, false)
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(mintable_tokens.len(), 3);
+
+        let donor = state.users.get_mut(&donor_id).unwrap();
+
+        // Assume the donor minted 6k tokens
+        assert_eq!(donor.minted, 6000);
+
+        // Simulate a tx to the cold wallet
+        donor.balance -= 5500;
+        donor.cold_balance += 5500;
+
+        // Ensure we mint as many tokens as before
+        assert_eq!(
+            mintable_tokens,
+            state
+                .users
+                .get(&donor_id)
+                .unwrap()
+                .mintable_tokens(state, 1, false)
+                .collect::<BTreeMap<_, _>>()
+        );
+
+        // Simulate an outflow of 50% from the cold wallet
+        let donor = state.users.get_mut(&donor_id).unwrap();
+        donor.cold_balance -= 3000;
+        let mintable_tokens_after_outflow = state
+            .users
+            .get(&donor_id)
+            .unwrap()
+            .mintable_tokens(state, 1, false)
+            .collect::<BTreeMap<_, _>>();
+
+        // Rewards have halved
+        for id in &[u1, u2, u3] {
+            assert_eq!(
+                *mintable_tokens.get(id).unwrap(),
+                mintable_tokens_after_outflow.get(id).unwrap() * 2,
+            );
+        }
+
+        // Simulate an inflow of 100%
+        let donor = state.users.get_mut(&donor_id).unwrap();
+        donor.balance += 6000;
+        let mintable_tokens_after_inflow = state
+            .users
+            .get(&donor_id)
+            .unwrap()
+            .mintable_tokens(state, 1, false)
+            .collect::<BTreeMap<_, _>>();
+
+        // Rewards are back to the minting levels, but not more!
+        for id in &[u1, u2, u3] {
+            assert_eq!(
+                mintable_tokens.get(id).unwrap(),
+                mintable_tokens_after_inflow.get(id).unwrap(),
+            );
+        }
+
+        // Simulate an outflow from all wallets
+        let donor = state.users.get_mut(&donor_id).unwrap();
+        donor.balance = 0;
+        donor.cold_balance = 0;
+        let mintable_tokens_after_selloff = state
+            .users
+            .get(&donor_id)
+            .unwrap()
+            .mintable_tokens(state, 1, false)
+            .collect::<BTreeMap<_, _>>();
+        assert!(mintable_tokens_after_selloff.is_empty());
+
+        // Simulate an inflow of 10% of the original minted balance
+        let donor = state.users.get_mut(&donor_id).unwrap();
+        assert_eq!(donor.balance, 0);
+        assert_eq!(donor.cold_balance, 0);
+        donor.balance += 600;
+        let mintable_tokens_after_buyback = state
+            .users
+            .get(&donor_id)
+            .unwrap()
+            .mintable_tokens(state, 1, false)
+            .collect::<BTreeMap<_, _>>();
+
+        // Rewards are back to the minting levels, but not more!
+        for id in &[u1, u2, u3] {
+            assert_eq!(
+                mintable_tokens.get(id).unwrap() / 10,
+                *mintable_tokens_after_buyback.get(id).unwrap(),
+            );
+        }
     }
 
     #[test]

@@ -79,22 +79,24 @@ fn post_upgrade() {
 }
 
 fn sync_post_upgrade_fixtures() {
+    // compute minted amount of tokens for all users
     mutate(|state| {
-        // Fill the root posts index.
-        state.root_posts_index = (0..state.next_post_id)
-            .filter_map(|id| Post::get(state, &id))
-            .filter_map(|post| post.parent.is_none().then_some(post.id))
-            .collect();
-
-        // Remove user report according to DAO poll: https://6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io/#/post/621615
-        if let Some(zikhas) = state.users.get_mut(&789) {
-            assert_eq!(zikhas.name, "Zikhas");
-            zikhas.report.take();
-        }
-
-        // Init all users as minters
-        for user in state.users.values_mut() {
-            user.miner = true;
+        for (owner, amount) in state
+            .ledger
+            .iter()
+            .filter(|tx| tx.from.owner == Principal::anonymous())
+            .map(|tx| (tx.to.owner, tx.amount))
+            .collect::<Vec<_>>()
+            .into_iter()
+        {
+            // We only track it for actually used principals
+            if state.principal_to_user(owner).is_some() {
+                state
+                    .minting_power
+                    .entry(owner)
+                    .and_modify(|b| *b += amount)
+                    .or_insert(amount);
+            }
         }
     })
 }
