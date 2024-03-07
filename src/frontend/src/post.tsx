@@ -19,7 +19,6 @@ import {
     setTitle,
     ButtonWithLoading,
     bigScreen,
-    UserLink,
     FlagButton,
     ReportBanner,
     tokens,
@@ -27,7 +26,6 @@ import {
     parseNumber,
     noiseControlBanner,
     ArrowDown,
-    UserList,
 } from "./common";
 import {
     reaction2icon,
@@ -46,8 +44,9 @@ import {
     More,
 } from "./icons";
 import { ProposalView } from "./proposals";
-import { Post, PostId, Realm, UserData, UserId } from "./types";
+import { Post, PostId, Realm, UserId } from "./types";
 import { MAINNET_MODE } from "./env";
+import { UserLink, UserList, populateUserNameCache } from "./user_resolve";
 
 export const PostView = ({
     id,
@@ -472,7 +471,7 @@ const PostInfo = ({
     writingCallback: () => void;
 }) => {
     const [realmData, setRealmData] = React.useState<Realm | null>();
-    const [userData, setUserData] = React.useState<UserData>();
+    const [loading, setLoading] = React.useState(false);
 
     const loadData = async () => {
         const ids: UserId[] = []
@@ -482,15 +481,15 @@ const PostInfo = ({
             .concat(post.watchers)
             // @ts-ignore
             .concat(Object.keys(post.tips).map(Number));
-        if (ids.length > 0)
-            setUserData(
-                (await window.api.query<UserData>("users_data", ids)) || {},
-            );
-        if (post.realm)
-            setRealmData(
-                ((await window.api.query<Realm[]>("realms", [post.realm])) ||
-                    [])[0],
-            );
+        let promises = [];
+        if (ids.length > 0) promises.push(populateUserNameCache(ids));
+        if (post.realm) {
+            promises.push(window.api.query<Realm[]>("realms", [post.realm]));
+        }
+        setLoading(true);
+        const [realmData] = await Promise.all(promises);
+        setLoading(false);
+        setRealmData((realmData || [])[0]);
     };
 
     React.useEffect(() => {
@@ -524,6 +523,7 @@ const PostInfo = ({
     const realmController =
         user && user.controlled_realms.includes(post.realm || "");
     const { token_symbol, token_decimals } = window.backendCache.config;
+    if (loading) return <Loading />;
     return (
         <div className="left_half_spaced right_half_spaced top_spaced">
             {user && (
@@ -767,13 +767,12 @@ const PostInfo = ({
                         )}
                     </div>
                 )}
-                {post.watchers.length > 0 && userData && (
+                {post.watchers.length > 0 && (
                     <div>
-                        <b>WATCHERS</b>:{" "}
-                        <UserList ids={post.watchers} loadedNames={userData} />
+                        <b>WATCHERS</b>: <UserList ids={post.watchers} />
                     </div>
                 )}
-                {post.tips.length > 0 && userData && (
+                {post.tips.length > 0 && (
                     <div>
                         <b>{token_symbol} TIPS</b>:{" "}
                         {commaSeparated(
@@ -782,29 +781,18 @@ const PostInfo = ({
                                     <code>
                                         {tokens(Number(tip), token_decimals)}
                                     </code>{" "}
-                                    from{" "}
-                                    {
-                                        <UserLink
-                                            id={id}
-                                            name={userData[id]}
-                                            profile={true}
-                                        />
-                                    }
+                                    from {<UserLink id={id} profile={true} />}
                                 </span>
                             )),
                         )}
                     </div>
                 )}
-                {Object.keys(reactions).length > 0 && userData && (
+                {Object.keys(reactions).length > 0 && (
                     <div className="top_spaced">
                         {Object.entries(reactions).map(([reactId, users]) => (
                             <div key={reactId} className="bottom_half_spaced">
                                 {reaction2icon(Number(reactId))}{" "}
-                                <UserList
-                                    ids={users}
-                                    loadedNames={userData}
-                                    profile={true}
-                                />
+                                <UserList ids={users} profile={true} />
                             </div>
                         ))}
                     </div>

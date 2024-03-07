@@ -1,6 +1,7 @@
 import * as React from "react";
-import { Loading, ShareButton, UserLink } from "./common";
+import { Loading, ShareButton } from "./common";
 import { PostId, UserId } from "./types";
+import { UserLink } from "./user_resolve";
 
 type SearchResult = {
     id: PostId;

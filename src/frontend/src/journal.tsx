@@ -1,9 +1,10 @@
 import * as React from "react";
-import { bigScreen, Loading, NotFound, ShareButton, UserLink } from "./common";
+import { bigScreen, Loading, NotFound, ShareButton } from "./common";
 import { Content } from "./content";
 import { PostFeed } from "./post_feed";
 import { PostId, User } from "./types";
 import { FollowButton } from "./profile";
+import { UserLink } from "./user_resolve";
 
 export const Journal = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);

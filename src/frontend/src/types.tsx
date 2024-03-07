@@ -263,7 +263,6 @@ declare global {
         lastSavedUpgrade: number;
         uiInitialized: boolean;
         backendCache: {
-            followees: UserData;
             recent_tags: string[];
             stats: {
                 fees_burned: number;

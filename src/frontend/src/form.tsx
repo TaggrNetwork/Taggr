@@ -23,6 +23,7 @@ import {
 import { PostView } from "./post";
 import { Extension, Poll as PollType, PostId } from "./types";
 import { PollView } from "./poll";
+import { USER_CACHE } from "./user_resolve";
 
 const MAX_IMG_SIZE = 16777216;
 const MAX_SUGGESTED_TAGS = 5;
@@ -79,7 +80,7 @@ export const Form = ({
     const textarea = React.useRef<HTMLTextAreaElement>();
     const form = React.useRef();
     const tags = window.backendCache.recent_tags;
-    const users = Object.values(window.backendCache.followees);
+    const users = Object.values(USER_CACHE);
     const realms = Object.keys(window.user?.realms);
     const { max_post_length, max_blob_size_bytes } = window.backendCache.config;
 

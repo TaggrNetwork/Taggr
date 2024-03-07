@@ -10,7 +10,6 @@ import {
     token,
     TokenBalance,
     tokenBalance,
-    UserLink,
     USD_PER_XDR,
 } from "./common";
 import * as React from "react";
@@ -19,6 +18,7 @@ import { Principal } from "@dfinity/principal";
 import { decodeIcrcAccount, encodeIcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
 import { CANISTER_ID } from "./env";
+import { UserLink } from "./user_resolve";
 
 type Balances = [Account, number, UserId][];
 

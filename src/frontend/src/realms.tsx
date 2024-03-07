@@ -9,13 +9,18 @@ import {
     RealmSpan,
     setTitle,
     ToggleButton,
-    UserList,
     foregroundColor,
 } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
 import { getTheme, setRealmUI } from "./theme";
-import { Realm, Theme, User, UserFilter } from "./types";
+import { Realm, Theme, UserFilter } from "./types";
+import {
+    USER_CACHE,
+    UserList,
+    populateUserNameCache,
+    userNameToIds,
+} from "./user_resolve";
 
 let timer: any = null;
 
@@ -62,51 +67,20 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
     };
 
     const setStrings = async () => {
+        await populateUserNameCache(realm.whitelist.concat(realm.controllers));
         setWhitelistString(
-            Object.values(
-                (await window.api.query<{ [id: number]: string }>(
-                    "users_data",
-                    realm.whitelist,
-                )) || {},
-            )
-                .map((name) => `@${name}`)
-                .join(", "),
+            realm.whitelist.map((id) => `@${USER_CACHE[id]}`).join(", "),
         );
         setControllersString(
-            Object.values(
-                (await window.api.query<{ [id: number]: string }>(
-                    "users_data",
-                    realm.controllers,
-                )) || {},
-            )
-                .map((name) => `@${name}`)
-                .join(", "),
+            realm.controllers.map((id) => `@${USER_CACHE[id]}`).join(", "),
         );
     };
 
     const validateUserNames = async () => {
         // @ts-ignore
-        realm.whitelist = (
-            await Promise.all(
-                whitelistString
-                    .split(",")
-                    .map((name) => name.trim().replace("@", ""))
-                    .map((name) => window.api.query<User>("user", [name])),
-            )
-        )
-            .map((user) => user?.id)
-            .filter((user) => user != undefined);
+        realm.whitelist = await userNameToIds(whitelistString.split(","));
         // @ts-ignore
-        realm.controllers = (
-            await Promise.all(
-                controllersString
-                    .split(",")
-                    .map((name) => name.trim().replace("@", ""))
-                    .map((name) => window.api.query<User>("user", [name])),
-            )
-        )
-            .map((user) => user?.id)
-            .filter((user) => user != undefined);
+        realm.controllers = await userNameToIds(controllersString.split(","));
         setRealm({ ...realm });
     };
 
