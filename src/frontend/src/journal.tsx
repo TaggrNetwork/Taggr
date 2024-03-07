@@ -37,7 +37,11 @@ export const Journal = ({ handle }: { handle: string }) => {
             {profile && (
                 <div className="text_centered">
                     <h1>
-                        <UserLink id={profile.id} profile={true} />
+                        <UserLink
+                            id={profile.id}
+                            name={profile.name}
+                            profile={true}
+                        />
                         's Journal
                     </h1>
                     {

@@ -120,7 +120,7 @@ export const ApiGenerator = (
                 identity,
             );
             if (response.status != "replied") {
-                console.error(response);
+                console.error(methodName, response);
                 return null;
             }
             return response.reply.arg;

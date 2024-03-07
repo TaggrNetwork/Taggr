@@ -201,7 +201,11 @@ const UserSection = ({ user }: { user: UserType }) => {
                 {user && (
                     <span className="xx_large_text bottom_spaced">
                         <User classNameArg="right_half_spaced" />{" "}
-                        <UserLink profile={true} id={user.id} />
+                        <UserLink
+                            profile={true}
+                            id={user.id}
+                            name={user.name}
+                        />
                     </span>
                 )}
 

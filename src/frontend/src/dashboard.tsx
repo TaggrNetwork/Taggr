@@ -5,10 +5,10 @@ import {
     timeAgo,
     hoursTillNext,
     HeadBar,
-    userList,
     icpCode,
     IcpAccountLink,
     USD_PER_XDR,
+    UserList,
 } from "./common";
 import { Content } from "./content";
 import {
@@ -264,7 +264,7 @@ export const Dashboard = ({}) => {
                 <hr />
                 <div>
                     <h2>STALWARTS</h2>
-                    {userList(stats.stalwarts)}
+                    <UserList ids={stats.stalwarts} />
                 </div>
                 <hr />
                 {logSelector}

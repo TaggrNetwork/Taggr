@@ -5,6 +5,7 @@ use super::*;
 use super::{storage::Storage, user::UserId};
 use crate::reports::Report;
 use crate::{mutate, performance_counter};
+use ic_cdk::caller;
 use serde::{Deserialize, Serialize};
 
 static mut CACHE: Option<BTreeMap<PostId, Box<Post>>> = None;
@@ -47,6 +48,15 @@ pub enum Extension {
     Poll(Poll),
     Proposal(u32),
     Repost(PostId),
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Meta<'a> {
+    author_name: &'a str,
+    author_rewards: i64,
+    author_filters: UserFilter,
+    viewer_blocked: bool,
+    realm_color: Option<&'a str>,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -131,6 +141,26 @@ impl Post {
             realm,
             heat,
         }
+    }
+
+    /// Returns the post with some meta information needed by the UI.
+    pub fn with_meta<'a>(&'a self, state: &'a State) -> (&'_ Self, Meta<'_>) {
+        let user = state.users.get(&self.user).expect("no user found");
+        let realm = self
+            .realm
+            .as_ref()
+            .and_then(|realm_id| state.realms.get(realm_id));
+        let meta = Meta {
+            author_name: user.name.as_str(),
+            author_rewards: user.rewards(),
+            author_filters: user.filters.noise.clone(),
+            viewer_blocked: state
+                .principal_to_user(caller())
+                .map(|viewer| user.blacklist.contains(&viewer.id))
+                .unwrap_or_default(),
+            realm_color: realm.map(|realm| realm.label_color.as_str()),
+        };
+        (self, meta)
     }
 
     pub fn creation_timestamp(&self) -> u64 {

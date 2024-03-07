@@ -91,15 +91,6 @@ export const Tokens = () => {
     ) {
         vp += balanceAmounts.shift() || 0;
     }
-    const userToPrincipal = balances.reduce(
-        (acc, balance) => {
-            const userName = window.backendCache.users[balance[2]];
-            if (userName)
-                acc[userName.toLowerCase()] = balance[0].owner.toString();
-            return acc;
-        },
-        {} as { [name: string]: string },
-    );
     const { e8s_for_one_xdr, e8s_revenue_per_1k } = window.backendCache.stats;
     const holders = balances.length;
 
@@ -111,9 +102,7 @@ export const Tokens = () => {
     }
     let searchedPrincipal;
     try {
-        searchedPrincipal = Principal.fromText(
-            userToPrincipal[query.toLowerCase()] || query,
-        ).toString();
+        searchedPrincipal = Principal.fromText(query).toString();
     } catch (_) {}
     return (
         <>
@@ -192,9 +181,9 @@ export const Tokens = () => {
                 </div>
                 <h2>Top 100 token holders</h2>
                 <div className="bottom_spaced" style={{ display: "flex" }}>
-                    {balances.slice(0, 100).map((b) => (
+                    {balances.slice(0, 100).map((b, i) => (
                         <div
-                            key={b[0].owner.toString()}
+                            key={i}
                             style={{
                                 height: "5em",
                                 width: percentage(b[1], top100Supply),
@@ -222,8 +211,8 @@ export const Tokens = () => {
                         style={{ textAlign: "right" }}
                         className={bigScreen() ? "" : "small_text"}
                     >
-                        {balances.slice(0, (balPage + 1) * 25).map((b) => (
-                            <tr key={b[0].owner.toString()}>
+                        {balances.slice(0, (balPage + 1) * 25).map((b, i) => (
+                            <tr key={i}>
                                 <td style={{ textAlign: "left" }}>
                                     {showPrincipal(b[0])}
                                 </td>
@@ -409,7 +398,11 @@ export const TransactionsView = ({
                         {identifiedUser && (
                             <>
                                 <h3 className="larger_text ">
-                                    User <UserLink id={identifiedUser.id} />
+                                    User{" "}
+                                    <UserLink
+                                        id={identifiedUser.id}
+                                        name={identifiedUser.name}
+                                    />
                                 </h3>
                                 <Content value={identifiedUser.about} />
                             </>

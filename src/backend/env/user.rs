@@ -41,13 +41,12 @@ pub struct Draft {
     pub blobs: Vec<(String, Blob)>,
 }
 
-#[derive(Default, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UserFilter {
     age_days: u64,
     safe: bool,
     balance: Token,
     num_followers: usize,
-    #[serde(default)]
     downvotes: usize,
 }
 
@@ -110,6 +109,8 @@ pub struct User {
     pub show_posts_in_realms: bool,
     pub posts: Vec<PostId>,
     pub miner: bool,
+    #[serde(default)]
+    pub controlled_realms: HashSet<RealmId>,
 }
 
 impl User {
@@ -162,6 +163,7 @@ impl User {
             followers: Default::default(),
             accounting: Default::default(),
             controllers: Default::default(),
+            controlled_realms: Default::default(),
             last_activity: timestamp,
             stalwart: false,
             invited_by: None,

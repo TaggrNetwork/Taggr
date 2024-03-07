@@ -26,9 +26,8 @@ import {
     currentRealm,
     parseNumber,
     noiseControlBanner,
-    getRealmsData,
-    expandUser,
     ArrowDown,
+    UserList,
 } from "./common";
 import {
     reaction2icon,
@@ -47,7 +46,7 @@ import {
     More,
 } from "./icons";
 import { ProposalView } from "./proposals";
-import { Post, PostId, UserId } from "./types";
+import { Post, PostId, Realm, UserData, UserId } from "./types";
 import { MAINNET_MODE } from "./env";
 
 export const PostView = ({
@@ -203,7 +202,7 @@ export const PostView = ({
             post.reactions,
             (acc, id, users) => acc + costTable[id as any] * users.length,
             0,
-        ) < 0 || post.userObject.rewards < 0;
+        ) < 0 || post.meta.author_rewards < 0;
     const user = window.user;
     const showReport =
         post.report && !post.report.closed && user && user.stalwart;
@@ -214,10 +213,6 @@ export const PostView = ({
         (!isComment || !isCommentView) &&
         post.realm &&
         post.realm != currentRealm();
-    const realmAccessError =
-        user && post.realm
-            ? noiseControlBanner("realm", getRealmsData(post.realm)[2], user)
-            : null;
     const postCreated =
         post.patches.length > 0 ? post.patches[0][0] : post.timestamp;
     const isNSFW =
@@ -237,14 +232,15 @@ export const PostView = ({
     const blogTitle =
         prime && body.length > 750 && body.startsWith("# ")
             ? {
-                  author: post.userObject.name,
+                  author: post.meta.author_name,
                   realm: post.realm,
                   created: postCreated,
                   length: body.length,
+                  background: post.meta.realm_color[0] || "",
               }
             : undefined;
 
-    if (prime) setTitle(`Post #${post.id} by @${post.userObject.name}`);
+    if (prime) setTitle(`Post #${post.id} by @${post.meta.author_name}`);
 
     const showExtension = !isNSFW && post.extension && !repost;
 
@@ -285,6 +281,7 @@ export const PostView = ({
                         <UserLink
                             classNameArg="left_well_spaced right_half_spaced"
                             id={post.user}
+                            name={post.meta.author_name}
                             profile={true}
                         />
                         <span className="right_half_spaced">&middot;</span>
@@ -298,6 +295,7 @@ export const PostView = ({
                         {realmPost && post.realm && (
                             <RealmSpan
                                 name={post.realm}
+                                background={post.meta.realm_color}
                                 classNameArg="realm_tag"
                             />
                         )}
@@ -380,32 +378,17 @@ export const PostView = ({
                 )}
             </div>
             {showInfo && (
-                <div className="left_half_spaced right_half_spaced top_spaced">
-                    {user && (
-                        <>
-                            {realmAccessError}
-                            {!realmAccessError && (
-                                <Form
-                                    submitCallback={commentSubmissionCallback}
-                                    postId={post.id}
-                                    writingCallback={() =>
-                                        setCommentIncoming(true)
-                                    }
-                                    comment={true}
-                                />
-                            )}
-                        </>
-                    )}
-                    <PostInfo
-                        post={post}
-                        reactions={post.reactions}
-                        version={version}
-                        versionSpecified={versionSpecified}
-                        postCreated={postCreated}
-                        callback={async () => await loadData()}
-                        realmMoveOutCallback={() => setHidden(true)}
-                    />
-                </div>
+                <PostInfo
+                    post={post}
+                    reactions={post.reactions}
+                    version={version}
+                    versionSpecified={versionSpecified}
+                    postCreated={postCreated}
+                    callback={async () => await loadData()}
+                    realmMoveOutCallback={() => setHidden(true)}
+                    commentSubmissionCallback={commentSubmissionCallback}
+                    writingCallback={() => setCommentIncoming(true)}
+                />
             )}
             {(showComments || prime) && post.children.length > 0 && (
                 <Comments
@@ -413,9 +396,7 @@ export const PostView = ({
                         Object.keys(post.children).length
                     }_${showComments}`}
                     level={level + 1}
-                    loader={async () =>
-                        await window.api.query("posts", post.children)
-                    }
+                    loader={async () => await loadPosts(post.children)}
                 />
             )}
         </div>
@@ -436,7 +417,7 @@ const Comments = ({
     const loadPosts = async () => {
         setLoading(true);
         const comments = await loader();
-        setPosts((comments || []).map(expandUser));
+        setPosts(comments || []);
         setLoading(false);
     };
 
@@ -474,6 +455,8 @@ const PostInfo = ({
     callback,
     versionSpecified,
     realmMoveOutCallback,
+    commentSubmissionCallback,
+    writingCallback,
 }: {
     post: Post;
     reactions: { [id: number]: UserId[] };
@@ -482,12 +465,80 @@ const PostInfo = ({
     callback: () => Promise<void>;
     realmMoveOutCallback: () => void;
     versionSpecified?: boolean;
+    commentSubmissionCallback: (
+        comment: string,
+        blobs: [string, Uint8Array][],
+    ) => Promise<any>;
+    writingCallback: () => void;
 }) => {
-    const postAuthor = window.user?.id == post.userObject.id;
-    const realmController = post.realm && getRealmsData(post.realm)[1];
+    const [realmData, setRealmData] = React.useState<Realm | null>();
+    const [userData, setUserData] = React.useState<UserData>();
+
+    const loadData = async () => {
+        const ids: UserId[] = []
+            // @ts-ignore
+            .concat(...Object.values(reactions))
+            // @ts-ignore
+            .concat(post.watchers)
+            // @ts-ignore
+            .concat(Object.keys(post.tips).map(Number));
+        if (ids.length > 0)
+            setUserData(
+                (await window.api.query<UserData>("users_data", ids)) || {},
+            );
+        if (post.realm)
+            setRealmData(
+                ((await window.api.query<Realm[]>("realms", [post.realm])) ||
+                    [])[0],
+            );
+    };
+
+    React.useEffect(() => {
+        loadData();
+    }, []);
+
+    const user = window.user;
+    let realmAccessError = null;
+    if (user) {
+        if (post.meta.viewer_blocked)
+            realmAccessError = (
+                <div className="banner vertically_spaced">
+                    You're blocked by this user.
+                </div>
+            );
+        else if (realmData)
+            realmAccessError = noiseControlBanner(
+                "realm",
+                realmData.filter,
+                user,
+            );
+        else
+            realmAccessError = noiseControlBanner(
+                "user",
+                post.meta.author_filters,
+                user,
+            );
+    }
+
+    const postAuthor = user?.id == post.user;
+    const realmController =
+        user && user.controlled_realms.includes(post.realm || "");
     const { token_symbol, token_decimals } = window.backendCache.config;
     return (
-        <>
+        <div className="left_half_spaced right_half_spaced top_spaced">
+            {user && (
+                <>
+                    {realmAccessError}
+                    {!realmAccessError && (
+                        <Form
+                            submitCallback={commentSubmissionCallback}
+                            postId={post.id}
+                            writingCallback={writingCallback}
+                            comment={true}
+                        />
+                    )}
+                </>
+            )}
             <div className="row_container top_spaced">
                 <ShareButton
                     text={!window.user}
@@ -551,7 +602,7 @@ const PostInfo = ({
                                 const amount =
                                     parseNumber(
                                         prompt(
-                                            `Tip @${post.userObject.name} with ${token_symbol}:`,
+                                            `Tip @${post.meta.author_name} with ${token_symbol}:`,
                                         ) || "",
                                         token_decimals,
                                     ) || NaN;
@@ -562,7 +613,7 @@ const PostInfo = ({
                                             amount,
                                             token_decimals,
                                         )} ${token_symbol} to @${
-                                            post.userObject.name
+                                            post.meta.author_name
                                         } as a tip?`,
                                     )
                                 )
@@ -716,17 +767,13 @@ const PostInfo = ({
                         )}
                     </div>
                 )}
-                {post.watchers.length > 0 && (
+                {post.watchers.length > 0 && userData && (
                     <div>
                         <b>WATCHERS</b>:{" "}
-                        {commaSeparated(
-                            post.watchers.map((id) => (
-                                <UserLink key={id} id={id} />
-                            )),
-                        )}
+                        <UserList ids={post.watchers} loadedNames={userData} />
                     </div>
                 )}
-                {post.tips.length > 0 && (
+                {post.tips.length > 0 && userData && (
                     <div>
                         <b>{token_symbol} TIPS</b>:{" "}
                         {commaSeparated(
@@ -735,32 +782,35 @@ const PostInfo = ({
                                     <code>
                                         {tokens(Number(tip), token_decimals)}
                                     </code>{" "}
-                                    from {<UserLink id={id} profile={true} />}
+                                    from{" "}
+                                    {
+                                        <UserLink
+                                            id={id}
+                                            name={userData[id]}
+                                            profile={true}
+                                        />
+                                    }
                                 </span>
                             )),
                         )}
                     </div>
                 )}
-                {Object.keys(reactions).length > 0 && (
+                {Object.keys(reactions).length > 0 && userData && (
                     <div className="top_spaced">
                         {Object.entries(reactions).map(([reactId, users]) => (
                             <div key={reactId} className="bottom_half_spaced">
                                 {reaction2icon(Number(reactId))}{" "}
-                                {commaSeparated(
-                                    users.map((id) => (
-                                        <UserLink
-                                            key={id}
-                                            id={id}
-                                            profile={true}
-                                        />
-                                    )),
-                                )}
+                                <UserList
+                                    ids={users}
+                                    loadedNames={userData}
+                                    profile={true}
+                                />
                             </div>
                         ))}
                     </div>
                 )}
             </div>
-        </>
+        </div>
     );
 };
 

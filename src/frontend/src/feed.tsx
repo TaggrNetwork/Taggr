@@ -2,16 +2,7 @@ import * as React from "react";
 import { currentRealm, HeadBar, setTitle } from "./common";
 import { ToggleButton } from "./common";
 import { PostFeed } from "./post_feed";
-import { PostId, UserId } from "./types";
-
-const userId = (handle: string) => {
-    const users = window.backendCache.users;
-    const username = handle.replace("@", "").toLowerCase();
-    for (const i in users) {
-        if (users[i].toLowerCase() == username) return parseInt(i);
-    }
-    return -1;
-};
+import { PostId } from "./types";
 
 export const Feed = ({ params }: { params: string[] }) => {
     const [filter, setFilter] = React.useState(params);
@@ -22,16 +13,21 @@ export const Feed = ({ params }: { params: string[] }) => {
             <PostFeed
                 feedLoader={async (page: number, offset: PostId) => {
                     const tags: string[] = [],
-                        users: UserId[] = [];
+                        users: string[] = [];
                     filter.forEach((token) => {
-                        if (token.startsWith("@")) users.push(userId(token));
+                        if (token.startsWith("@")) users.push(token.slice(1));
                         else tags.push(token);
                     });
                     return await window.api.query(
                         "posts_by_tags",
                         currentRealm(),
                         tags,
-                        users,
+                        Object.values(
+                            (await window.api.query<{ [id: number]: string }>(
+                                "users_data",
+                                users,
+                            )) || {},
+                        ),
                         page,
                         offset,
                     );

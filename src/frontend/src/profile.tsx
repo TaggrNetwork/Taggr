@@ -6,7 +6,6 @@ import {
     commaSeparated,
     Loading,
     HeadBar,
-    userList,
     bigScreen,
     tokenBalance,
     FlagButton,
@@ -17,17 +16,17 @@ import {
     popUp,
     RealmList,
     noiseControlBanner,
+    UserList,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
 import { PostFeed } from "./post_feed";
-import { PostId, Realm, User, UserId } from "./types";
+import { PostId, User, UserId } from "./types";
 import { Principal } from "@dfinity/principal";
 
 export const Profile = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
     const [profile, setProfile] = React.useState({} as User);
-    const [controlledRealms, setControlledRealms] = React.useState<string[]>();
     const [tab, setTab] = React.useState("LAST");
 
     const updateState = async () => {
@@ -38,14 +37,6 @@ export const Profile = ({ handle }: { handle: string }) => {
         }
         setStatus(1);
         setProfile(profile);
-        const realms = (
-            (await window.api.query<Realm[]>("realms", profile.realms)) || []
-        ).map((realm, i): [string, Realm] => [profile.realms[i], realm]);
-        setControlledRealms(
-            realms
-                .filter(([_, realm]) => realm.controllers.includes(profile.id))
-                .map(([realm_id, _]: [string, Realm]) => realm_id),
-        );
     };
 
     React.useEffect(() => {
@@ -214,10 +205,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                     domain="misbehaviour"
                 />
             )}
-            <UserInfo
-                profile={profile}
-                controlledRealms={controlledRealms || []}
-            />
+            <UserInfo profile={profile} />
             <PostFeed
                 title={title}
                 useList={true}
@@ -250,13 +238,7 @@ export const Profile = ({ handle }: { handle: string }) => {
     );
 };
 
-export const UserInfo = ({
-    profile,
-    controlledRealms,
-}: {
-    profile: User;
-    controlledRealms: string[];
-}) => {
+export const UserInfo = ({ profile }: { profile: User }) => {
     const placeholder = (label: number, content: any) =>
         status ? (
             <div className="small_text">{content}</div>
@@ -292,7 +274,7 @@ export const UserInfo = ({
                     profile.followers.length,
                     <>
                         <h2>Followers</h2>
-                        {userList(profile.followers)}
+                        <UserList ids={profile.followers} />
                     </>,
                 )}
             </div>
@@ -467,9 +449,7 @@ export const UserInfo = ({
                     <div className="db_cell">
                         INVITED BY
                         <span>
-                            <a
-                                href={`/#/user/${inviter}`}
-                            >{`${window.backendCache.users[inviter]}`}</a>
+                            <UserLink id={inviter} />
                         </span>
                     </div>
                 )}
@@ -483,12 +463,12 @@ export const UserInfo = ({
                     <hr />
                 </>
             )}
-            {controlledRealms.length > 0 && (
+            {profile.controlled_realms.length > 0 && (
                 <>
                     <h2>Controls realms</h2>
                     <RealmList
                         classNameArg="top_spaced"
-                        ids={controlledRealms}
+                        ids={profile.controlled_realms}
                     />
                     <hr />
                 </>
