@@ -132,9 +132,6 @@ pub struct Summary {
 #[derive(Default, Serialize, Deserialize)]
 pub struct State {
     pub burned_cycles: i64,
-    // TODO: delete
-    #[serde(skip)]
-    pub burned_cycles_total: Credits,
     pub posts: BTreeMap<PostId, Post>,
     pub users: BTreeMap<UserId, User>,
     pub principals: HashMap<Principal, UserId>,
@@ -203,10 +200,6 @@ pub struct State {
     // Indicates whether the end of the stable memory contains a valid heap snapshot.
     #[serde(skip)]
     pub backup_exists: bool,
-
-    // TODO: delete
-    #[serde(skip)]
-    pub last_archive: u64,
 
     #[serde(default)]
     pub minting_power: HashMap<Principal, Token>,
