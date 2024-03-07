@@ -2133,8 +2133,7 @@ impl State {
         self.principals.insert(new_principal, user_id);
         let minting_power = self
             .minting_power
-            .get(&old_principal)
-            .copied()
+            .remove(&old_principal)
             .unwrap_or_default();
         self.minting_power.insert(new_principal, minting_power);
         let user = self.users.get_mut(&user_id).expect("no user found");
