@@ -72,7 +72,6 @@ pub struct Stats {
     credits: Credits,
     canister_cycle_balance: u64,
     burned_credits: i64,
-    burned_credits_total: Credits,
     total_revenue_shared: u64,
     total_rewards_shared: u64,
     posts: usize,
@@ -133,6 +132,8 @@ pub struct Summary {
 #[derive(Default, Serialize, Deserialize)]
 pub struct State {
     pub burned_cycles: i64,
+    // TODO: delete
+    #[serde(skip)]
     pub burned_cycles_total: Credits,
     pub posts: BTreeMap<PostId, Post>,
     pub users: BTreeMap<UserId, User>,
@@ -184,10 +185,6 @@ pub struct State {
 
     pub last_nns_proposal: u64,
 
-    // TODO: delete
-    #[serde(skip)]
-    pub root_posts: usize,
-
     #[serde(default)]
     pub root_posts_index: Vec<PostId>,
 
@@ -207,8 +204,12 @@ pub struct State {
     #[serde(skip)]
     pub backup_exists: bool,
 
+    // TODO: delete
     #[serde(skip)]
     pub last_archive: u64,
+
+    #[serde(default)]
+    pub minting_power: HashMap<Principal, Token>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -553,7 +554,6 @@ impl State {
     pub fn realms_posts(
         &self,
         caller: Principal,
-        page: usize,
         offset: PostId,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let realm_ids = match self
@@ -563,23 +563,17 @@ impl State {
             None | Some(&[]) => return Box::new(std::iter::empty()),
             Some(ids) => ids.iter().collect::<BTreeSet<_>>(),
         };
-        Box::new(
-            self.last_posts(None, offset, 0, false)
-                .filter(move |post| {
-                    post.realm
-                        .as_ref()
-                        .map(|id| realm_ids.contains(&id))
-                        .unwrap_or_default()
-                })
-                .skip(page * CONFIG.feed_page_size)
-                .take(CONFIG.feed_page_size),
-        )
+        Box::new(self.last_posts(None, offset, 0, false).filter(move |post| {
+            post.realm
+                .as_ref()
+                .map(|id| realm_ids.contains(&id))
+                .unwrap_or_default()
+        }))
     }
 
     pub fn hot_posts(
         &self,
         realm: Option<RealmId>,
-        page: usize,
         offset: PostId,
         filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
@@ -590,12 +584,7 @@ impl State {
             .take(1000)
             .collect::<Vec<_>>();
         hot_posts.sort_unstable_by_key(|post| Reverse(post.heat()));
-        Box::new(
-            hot_posts
-                .into_iter()
-                .skip(page * CONFIG.feed_page_size)
-                .take(CONFIG.feed_page_size),
-        )
+        Box::new(hot_posts.into_iter())
     }
 
     pub fn toggle_realm_membership(&mut self, principal: Principal, name: String) -> bool {
@@ -1073,7 +1062,7 @@ impl State {
     pub fn minting_ratio(&self) -> u64 {
         let circulating_supply: Token = self.balances.values().sum();
         let factor = (circulating_supply as f64 / CONFIG.maximum_supply as f64 * 10.0) as u64;
-        1 << factor
+        (1 << factor) * CONFIG.difficulty_amplification
     }
 
     pub fn tokens_to_mint(&self) -> BTreeMap<UserId, Token> {
@@ -1347,7 +1336,6 @@ impl State {
         }
         if self.burned_cycles > 0 {
             self.spend(self.burned_cycles as Credits, "revenue distribution");
-            self.burned_cycles_total += self.burned_cycles as Credits;
         }
         self.total_rewards_shared += total_rewards;
         self.total_revenue_shared += total_revenue;
@@ -2150,6 +2138,12 @@ impl State {
             .remove(&old_principal)
             .ok_or("no principal found")?;
         self.principals.insert(new_principal, user_id);
+        let minting_power = self
+            .minting_power
+            .get(&old_principal)
+            .copied()
+            .unwrap_or_default();
+        self.minting_power.insert(new_principal, minting_power);
         let user = self.users.get_mut(&user_id).expect("no user found");
         assert_eq!(user.principal, old_principal);
         user.principal = new_principal;
@@ -2221,9 +2215,13 @@ impl State {
         let mut active_users = 0;
         let mut bots = Vec::new();
         let mut credits = 0;
+        let mut speculative_revenue = 0;
         for user in self.users.values() {
             if user.stalwart {
                 stalwarts.push(user);
+            }
+            if user.miner {
+                speculative_revenue += user.rewards().max(0);
             }
             if now < user.last_activity + CONFIG.online_activity_minutes {
                 users_online += 1;
@@ -2278,8 +2276,7 @@ impl State {
             posts,
             comments: Post::count(self) - posts,
             credits,
-            burned_credits: self.burned_cycles,
-            burned_credits_total: self.burned_cycles_total,
+            burned_credits: self.burned_cycles + speculative_revenue,
             total_revenue_shared: self.total_revenue_shared,
             total_rewards_shared: self.total_rewards_shared,
             account: invoices::main_account().to_string(),
@@ -2887,7 +2884,6 @@ pub(crate) mod tests {
         token::mint(state, account(principal), amount);
         state.minting_mode = false;
         if let Some(user) = state.principal_to_user_mut(principal) {
-            user.balance = amount;
             user.change_rewards((amount / token::base()) as i64, "");
         }
     }

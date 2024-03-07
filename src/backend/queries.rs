@@ -385,10 +385,11 @@ fn hot_realm_posts() {
             state
                 .hot_posts(
                     optional(realm),
-                    page,
                     offset,
                     Some(&|post: &Post| post.realm.is_some()),
                 )
+                .skip(page * CONFIG.feed_page_size)
+                .take(CONFIG.feed_page_size)
                 .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         )
@@ -402,8 +403,10 @@ fn hot_posts() {
         let user = state.principal_to_user(caller());
         reply(
             state
-                .hot_posts(optional(realm), page, offset, None)
+                .hot_posts(optional(realm), offset, None)
                 .filter(|post| !filtered || personal_filter(state, user, post))
+                .skip(page * CONFIG.feed_page_size)
+                .take(CONFIG.feed_page_size)
                 .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         )
@@ -417,8 +420,10 @@ fn realms_posts() {
         let user = state.principal_to_user(caller());
         reply(
             state
-                .realms_posts(caller(), page, offset)
+                .realms_posts(caller(), offset)
                 .filter(|post| personal_filter(state, user, post))
+                .skip(page * CONFIG.feed_page_size)
+                .take(CONFIG.feed_page_size)
                 .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         )

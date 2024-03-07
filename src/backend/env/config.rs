@@ -23,6 +23,11 @@ pub struct Config {
     pub token_symbol: &'static str,
     pub maximum_supply: Token,
 
+    // This is a custom difficulty adjustment that can be set by the DAO in emergency cases
+    // when the speed of minting does not meet DAO's expectations. Currently, we consider this as a
+    // temporary measure to slow down the minting until the DAO agrees on a better approach.
+    pub difficulty_amplification: u64,
+
     pub max_age_hot_post_days: u64,
 
     pub downvote_counting_period_days: u64,
@@ -186,6 +191,11 @@ pub const CONFIG: &Config = &Config {
     minting_threshold_percentage: 5,
 
     active_user_share_for_minting_promille: 10,
+
+    #[cfg(any(test, feature = "dev"))]
+    difficulty_amplification: 1,
+    #[cfg(not(any(test, feature = "dev")))]
+    difficulty_amplification: 6,
 
     max_age_hot_post_days: 2,
 

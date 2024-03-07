@@ -62,6 +62,9 @@ export const Tokens = () => {
     }, []);
 
     const mintedSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
+    const top100Supply = balances
+        .slice(0, 100)
+        .reduce((acc, balance) => acc + balance[1], 0);
     const heldByUsers = balances.reduce(
         (acc, [_0, balance, userId]) => (userId == null ? acc : acc + balance),
         0,
@@ -177,13 +180,13 @@ export const Tokens = () => {
                     </div>
                 </div>
                 <h2>Top 100 token holders</h2>
-                <div className="row_container bottom_spaced">
+                <div className="bottom_spaced" style={{ display: "flex" }}>
                     {balances.slice(0, 100).map((b, i) => (
                         <div
                             key={i}
                             style={{
                                 height: "5em",
-                                width: percentage(b[1], mintedSupply),
+                                width: percentage(b[1], top100Supply),
                                 background:
                                     holder == b[2]
                                         ? "black"

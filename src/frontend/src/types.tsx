@@ -275,7 +275,6 @@ declare global {
                 users_online: number;
                 credits: number;
                 burned_credits: BigInt;
-                burned_credits_total: BigInt;
                 circulating_supply: number;
                 total_rewards_shared: BigInt;
                 total_revenue_shared: BigInt;

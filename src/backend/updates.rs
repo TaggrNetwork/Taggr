@@ -80,6 +80,7 @@ fn post_upgrade() {
 
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
+        // recompute controlled realms lists for all users
         for (realm_id, realm) in state.realms.iter().clone() {
             for user_id in &realm.controllers {
                 state
@@ -88,6 +89,25 @@ fn sync_post_upgrade_fixtures() {
                     .unwrap()
                     .controlled_realms
                     .insert(realm_id.clone());
+            }
+        }
+
+        // compute minted amount of tokens for all users
+        for (owner, amount) in state
+            .ledger
+            .iter()
+            .filter(|tx| tx.from.owner == Principal::anonymous())
+            .map(|tx| (tx.to.owner, tx.amount))
+            .collect::<Vec<_>>()
+            .into_iter()
+        {
+            // We only track it for actually used principals
+            if state.principal_to_user(owner).is_some() {
+                state
+                    .minting_power
+                    .entry(owner)
+                    .and_modify(|b| *b += amount)
+                    .or_insert(amount);
             }
         }
     })

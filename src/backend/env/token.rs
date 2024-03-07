@@ -286,13 +286,14 @@ pub fn transfer(
         } else {
             state.balances.insert(from.clone(), resulting_balance);
         }
-        update_user_balance(state, from.owner, resulting_balance as Token);
+        update_user_balance(state, from.owner, resulting_balance as Token, None);
     }
     if to.owner != Principal::anonymous() {
         let recipient_balance = state.balances.remove(&to).unwrap_or_default();
         let updated_balance = recipient_balance.saturating_add(amount as Token);
         state.balances.insert(to.clone(), updated_balance);
-        update_user_balance(state, to.owner, updated_balance as Token);
+        let minted_tokens = (from.owner == Principal::anonymous()).then_some(amount as Token);
+        update_user_balance(state, to.owner, updated_balance as Token, minted_tokens);
     }
 
     state.ledger.push(Transaction {
@@ -306,12 +307,26 @@ pub fn transfer(
     Ok(state.ledger.len().saturating_sub(1) as u128)
 }
 
-fn update_user_balance(state: &mut State, principal: Principal, balance: Token) {
+fn update_user_balance(
+    state: &mut State,
+    principal: Principal,
+    balance: Token,
+    minted_tokens: Option<Token>,
+) {
     if let Some(user) = state.principal_to_user_mut(principal) {
         if user.principal == principal {
             user.balance = balance
         } else if user.cold_wallet == Some(principal) {
             user.cold_balance = balance
+        } else {
+            unreachable!("unidentifiable principal")
+        }
+        if let Some(tokens) = minted_tokens {
+            state
+                .minting_power
+                .entry(principal)
+                .and_modify(|balance| *balance += tokens)
+                .or_insert(tokens);
         }
     }
 }

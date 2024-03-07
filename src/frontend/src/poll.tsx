@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ButtonWithLoading, UserList } from "./common";
+import { ButtonWithLoading, token, UserList } from "./common";
 import { Content } from "./content";
 import { Poll, PostId } from "./types";
 
@@ -41,12 +41,6 @@ export const PollView = ({
         poll.deadline - createdHoursAgo >
             window.backendCache.config.poll_revote_deadline_hours;
     const showVoting = !isNaN(user_id) && !voted && !expired;
-    const keyWithMaxVal = (obj: { [key: number]: number }) =>
-        Object.keys(obj).reduce(
-            ([maxKey, maxVal]: any, key: any) =>
-                obj[key] > maxVal ? [key, obj[key]] : [maxKey, maxVal],
-            [null, 0],
-        )[0];
 
     return (
         <div className="column_container post_extension" data-meta="skipClicks">
@@ -188,13 +182,29 @@ export const PollView = ({
                     )}
                 </span>
             )}
-            {expired && (
-                <Content
-                    post={false}
-                    value={`RESULT BY VP: **${
-                        data.options[keyWithMaxVal(data.weighted_by_tokens)]
-                    }**`}
-                />
+            {expired && Object.keys(data.weighted_by_tokens).length == 0 && (
+                <span className="top_spaced small_text text_centered inactive">
+                    RESULTS ARE PENDING
+                </span>
+            )}
+            {expired && Object.keys(data.weighted_by_tokens).length > 0 && (
+                <>
+                    <h4 className="top_framed" style={{ paddingTop: "1em" }}>
+                        RESULTS BY VOTING POWER
+                    </h4>
+                    {Object.entries(data.weighted_by_tokens).map(
+                        ([index, vp]: [string, number]) => (
+                            <Content
+                                key={index}
+                                post={false}
+                                value={
+                                    data.options[Number(index)] +
+                                    `: \`${token(vp)}\``
+                                }
+                            />
+                        ),
+                    )}
+                </>
             )}
         </div>
     );
