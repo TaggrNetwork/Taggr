@@ -195,7 +195,7 @@ pub const CONFIG: &Config = &Config {
     #[cfg(any(test, feature = "dev"))]
     difficulty_amplification: 1,
     #[cfg(not(any(test, feature = "dev")))]
-    difficulty_amplification: 6,
+    difficulty_amplification: 4,
 
     max_age_hot_post_days: 2,
 
