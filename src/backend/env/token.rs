@@ -322,7 +322,11 @@ fn update_user_balance(
             unreachable!("unidentifiable principal")
         }
         if let Some(tokens) = minted_tokens {
-            user.minted += tokens;
+            state
+                .minting_power
+                .entry(principal)
+                .and_modify(|balance| *balance += tokens)
+                .or_insert(tokens);
         }
     }
 }

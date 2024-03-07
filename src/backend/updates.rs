@@ -89,8 +89,13 @@ fn sync_post_upgrade_fixtures() {
             .collect::<Vec<_>>()
             .into_iter()
         {
-            if let Some(user) = state.principal_to_user_mut(owner) {
-                user.minted += amount;
+            // We only track it for actually used principals
+            if state.principal_to_user(owner).is_some() {
+                state
+                    .minting_power
+                    .entry(owner)
+                    .and_modify(|b| *b += amount)
+                    .or_insert(amount);
             }
         }
     })

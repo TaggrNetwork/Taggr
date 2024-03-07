@@ -204,8 +204,12 @@ pub struct State {
     #[serde(skip)]
     pub backup_exists: bool,
 
+    // TODO: delete
     #[serde(skip)]
     pub last_archive: u64,
+
+    #[serde(default)]
+    pub minting_power: HashMap<Principal, Token>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -2122,6 +2126,12 @@ impl State {
             .remove(&old_principal)
             .ok_or("no principal found")?;
         self.principals.insert(new_principal, user_id);
+        let minting_power = self
+            .minting_power
+            .get(&old_principal)
+            .copied()
+            .unwrap_or_default();
+        self.minting_power.insert(new_principal, minting_power);
         let user = self.users.get_mut(&user_id).expect("no user found");
         assert_eq!(user.principal, old_principal);
         user.principal = new_principal;

@@ -110,8 +110,6 @@ pub struct User {
     pub show_posts_in_realms: bool,
     pub posts: Vec<PostId>,
     pub miner: bool,
-    #[serde(default)]
-    pub minted: Token,
 }
 
 impl User {
@@ -185,7 +183,6 @@ impl User {
             miner: true,
             downvotes: Default::default(),
             show_posts_in_realms: true,
-            minted: 0,
         }
     }
 
@@ -554,8 +551,13 @@ impl User {
             // During the bootstrap period, use karma and not balances
             donated_karma
         } else {
+            let minting_power = state
+                .minting_power
+                .get(&self.principal)
+                .copied()
+                .unwrap_or_default();
             self.total_balance()
-                .min(self.minted)
+                .min(minting_power)
                 .min(donated_karma)
                 .min(CONFIG.max_spendable_tokens)
         } / ratio;
