@@ -616,12 +616,14 @@ export const UserList = ({
                 {},
         );
 
+    const namesPending =
+        removeNAs(ids).length > 0 && Object.entries(loadedNames).length == 0;
+
     React.useEffect(() => {
-        if (removeNAs(ids) && Object.entries(loadedNames).length == 0)
-            loadNames();
+        if (namesPending) loadNames();
     }, []);
 
-    return Object.keys(names).length == 0 && removeNAs(ids).length > 0 ? (
+    return namesPending ? (
         <Loading spaced={false} />
     ) : (
         commaSeparated(

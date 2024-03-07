@@ -741,7 +741,7 @@ mod tests {
         let donor = state.users.get_mut(&donor_id).unwrap();
 
         // Assume the donor minted 6k tokens
-        assert_eq!(donor.minted, 6000);
+        assert_eq!(state.minting_power.get(&pr(0)).unwrap(), &6000);
 
         // Simulate a tx to the cold wallet
         donor.balance -= 5500;
