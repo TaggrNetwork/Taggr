@@ -236,6 +236,7 @@ export const PostView = ({
         (window.user && highlighted.includes(post.id)) ||
         postCreated > window.lastVisit ||
         createdRecently;
+    const { realm_color } = post.meta;
     const blogTitle =
         prime && body.length > 750 && body.startsWith("# ")
             ? {
@@ -243,7 +244,7 @@ export const PostView = ({
                   realm: post.realm,
                   created: postCreated,
                   length: body.length,
-                  background: post.meta.realm_color[0] || "",
+                  background: realm_color ? realm_color[0] : "",
               }
             : undefined;
 
@@ -302,7 +303,7 @@ export const PostView = ({
                         {realmPost && post.realm && (
                             <RealmSpan
                                 name={post.realm}
-                                background={post.meta.realm_color}
+                                background={realm_color}
                                 classNameArg="realm_tag"
                             />
                         )}
