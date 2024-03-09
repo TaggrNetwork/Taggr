@@ -476,9 +476,10 @@ const PostInfo = ({
 
     const loadData = async () => {
         // Load realm data asynchronously
-        window.api
-            .query<Realm[]>("realms", [post.realm])
-            .then((realmData) => setRealmData((realmData || [])[0]));
+        post.realm &&
+            window.api
+                .query<Realm[]>("realms", [post.realm])
+                .then((realmData) => setRealmData((realmData || [])[0]));
         const ids: UserId[] = []
             // @ts-ignore
             .concat(...Object.values(reactions))

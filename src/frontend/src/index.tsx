@@ -36,7 +36,7 @@ import { PostId, User } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
-import { populateUserNameCache } from "./user_resolve";
+import { populateUserNameCacheSpeculatively } from "./user_resolve";
 
 const { hash, pathname } = location;
 
@@ -311,7 +311,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
             window.reloadUser = async () => {
                 let data = await api.query<User>("user", []);
                 if (data) {
-                    populateUserNameCache(data.followees);
+                    populateUserNameCacheSpeculatively();
                     window.user = data;
                     window.user.realms.reverse();
                     if (600000 < microSecsSince(window.user.last_activity)) {

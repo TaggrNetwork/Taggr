@@ -64,13 +64,28 @@ fn distribution() {
     });
 }
 
+/// Loads the user names for given ids or a speculative list of user name that could be relevant
+/// for the caller: followers, followees, users from engagements and so on.
 #[export_name = "canister_query users_data"]
 fn users_data() {
     read(|state| {
         let ids: Vec<UserId> = parse(&arg_data_raw());
+        let iter: Box<dyn Iterator<Item = &UserId>> = if ids.is_empty() {
+            match state.principal_to_user(caller()) {
+                Some(user) => Box::new(
+                    user.followees
+                        .iter()
+                        .chain(user.followers.iter())
+                        .chain(user.karma_donations.keys()),
+                ),
+                _ => Box::new(std::iter::empty()),
+            }
+        } else {
+            Box::new(ids.iter())
+        };
+
         reply(
-            ids.into_iter()
-                .filter_map(|id| state.users.get(&id))
+            iter.filter_map(|id| state.users.get(&id))
                 .map(|user| (user.id, &user.name))
                 .collect::<HashMap<_, _>>(),
         );
