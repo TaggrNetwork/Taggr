@@ -17,6 +17,7 @@ import {
     RealmList,
     noiseControlBanner,
     UserList,
+    avatarToUrl,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -79,7 +80,15 @@ export const Profile = ({ handle }: { handle: string }) => {
     return (
         <>
             <HeadBar
-                title={profile.name}
+                title=<>
+                    {profile.avatar && (
+                        <img
+                            className="avatar_large left_well_spaced right_spaced"
+                            src={avatarToUrl(profile.avatar)}
+                        ></img>
+                    )}
+                    {profile.name}
+                </>
                 button1={
                     <button
                         title={`${profile.name}'s journal`}

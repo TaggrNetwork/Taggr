@@ -1,8 +1,16 @@
 import * as React from "react";
-import { ButtonWithLoading, HeadBar, ICP_LEDGER_ID } from "./common";
+import {
+    ButtonWithLoading,
+    HeadBar,
+    ICP_LEDGER_ID,
+    avatarToUrl,
+    blobToUrl,
+} from "./common";
 import { User, UserFilter } from "./types";
 import { Principal } from "@dfinity/principal";
 import { setTheme } from "./theme";
+import { loadFile, resizeImage } from "./image";
+import { User as UserElement } from "./icons";
 
 export const Settings = ({ invite }: { invite?: string }) => {
     const user = window.user;
@@ -26,6 +34,10 @@ export const Settings = ({ invite }: { invite?: string }) => {
         num_followers: 0,
         downvotes: 0,
     });
+    const [avatarBlob, setAvatarBlob] = React.useState<Uint8Array | undefined>(
+        undefined,
+    );
+    const [avatarUrl, setAvatarUrl] = React.useState<string>("");
 
     const updateData = (user: User) => {
         if (!user) return;
@@ -37,6 +49,9 @@ export const Settings = ({ invite }: { invite?: string }) => {
         setMiner(user.miner.toString());
         setShowPostsInRealms(user.show_posts_in_realms.toString());
         setUserFilter(user.filters.noise);
+        if (user.avatar) {
+            setAvatarUrl(avatarToUrl(user.avatar));
+        }
     };
 
     React.useEffect(() => updateData(user), [user]);
@@ -70,6 +85,46 @@ export const Settings = ({ invite }: { invite?: string }) => {
         setName(name);
     };
 
+    const onAvatarChange = async (ev: any) => {
+        ev.preventDefault();
+        if (!ev.target.files[0]) {
+            return;
+        }
+        const max_blob_size_bytes =
+            window.backendCache.config.max_blob_size_bytes;
+        let blob = null;
+        for (let size of [768, 512, 384, 256, 128, 64, 32]) {
+            const content = await loadFile(ev.target.files[0]);
+            const resized_content = await resizeImage(content, size, size);
+            blob = new Uint8Array(resized_content);
+            if (blob.byteLength <= max_blob_size_bytes) break;
+        }
+        if (blob) {
+            setAvatarBlob(blob);
+            setAvatarUrl(blobToUrl(blob));
+        }
+    };
+
+    const clearAvatar = (ev: any) => {
+        ev.preventDefault();
+        setAvatarBlob(undefined);
+        setAvatarUrl("");
+        if (user) {
+            user.avatar = undefined;
+        }
+    };
+
+    const cost = () => {
+        let credits = 0;
+        if (user && avatarBlob) {
+            credits += window.backendCache.config.blob_cost;
+        }
+        if (user && user.name != name) {
+            credits += window.backendCache.config.name_change_cost;
+        }
+        return credits == 0 ? "" : ` ⚡${credits}`;
+    };
+
     const submit = async () => {
         if (!user) {
             let response = await window.api.call<any>(
@@ -85,8 +140,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         if (nameChange) {
             if (
                 !confirm(
-                    `A name change incurs costs of ${window.backendCache.config.name_change_cost} credits. ` +
-                        `Moreover, the old name will still route to your profile. ` +
+                    `The old name will still route to your profile. ` +
                         `Do you want to continue?`,
                 )
             )
@@ -106,8 +160,10 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 governance == "true",
                 miner == "true",
                 showPostsInRealms == "true",
+                avatarUrl == "",
             ),
             window.api.call<any>("update_user_settings", settings),
+            avatarBlob ? window.api.upload_avatar(avatarBlob) : { Ok: null },
         ]);
         for (let i in responses) {
             const response = responses[i];
@@ -151,6 +207,38 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 />
                 {user && (
                     <>
+                        <div className="bottom_spaced">Profile picture</div>
+                        <label
+                            id="file_picker_label"
+                            htmlFor="file-picker"
+                            className="action bottom_spaced clickable"
+                            data-testid="file-picker"
+                        >
+                            <div className="top_aligned">
+                                {avatarUrl && (
+                                    <>
+                                        {" "}
+                                        <img
+                                            alt=""
+                                            src={avatarUrl}
+                                            className="avatar_large"
+                                        />{" "}
+                                        <span onClick={clearAvatar}>[X]</span>{" "}
+                                    </>
+                                )}
+                                {!avatarUrl && (
+                                    <UserElement classNameArg="avatar_large" />
+                                )}
+                            </div>
+                        </label>
+                        <input
+                            id="file-picker"
+                            className="bottom_spaced"
+                            style={{ display: "none" }}
+                            type="file"
+                            accept=".png, .jpg, .jpeg"
+                            onChange={onAvatarChange}
+                        />
                         <div className="bottom_half_spaced">
                             Token minting and rewards:
                         </div>
@@ -385,7 +473,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 <ButtonWithLoading
                     classNameArg="active"
                     onClick={submit}
-                    label="SAVE"
+                    label={`SAVE ${cost()}`}
                 />
                 {window.user && (
                     <div className="top_spaced column_container">

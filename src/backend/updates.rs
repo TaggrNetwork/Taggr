@@ -1,5 +1,7 @@
 use crate::env::user::UserFilter;
 
+use self::{storage::Storage, user::Avatar};
+
 use super::*;
 use env::{
     canisters::get_full_neuron,
@@ -237,11 +239,21 @@ fn confirm_principal_change() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (new_name, about, principals, filter, governance, miner, show_posts_in_realms): (
+    let (
+        new_name,
+        about,
+        principals,
+        filter,
+        governance,
+        miner,
+        show_posts_in_realms,
+        clear_avatar,
+    ): (
         String,
         String,
         Vec<String>,
         UserFilter,
+        bool,
         bool,
         bool,
         bool,
@@ -255,6 +267,7 @@ fn update_user() {
         governance,
         miner,
         show_posts_in_realms,
+        clear_avatar,
     ))
 }
 
@@ -725,4 +738,35 @@ fn backup() {
             state.backup_exists = true;
         }
     })
+}
+
+#[update]
+async fn upload_avatar(blob: Blob) -> Result<(), String> {
+    let user_id = mutate(|state| -> Result<u64, String> {
+        let user_id = state.principal_to_user(caller()).ok_or("no user found")?.id;
+        state.charge_in_realm(
+            user_id,
+            CONFIG.blob_cost,
+            None,
+            format!("uploading profile picture"),
+        )?;
+        Ok(user_id)
+    })?;
+
+    match Storage::write_to_bucket(blob.as_slice()).await {
+        Ok((bucket_id, offset)) => mutate(|state| {
+            let user = state.users.get_mut(&user_id).unwrap();
+            user.avatar = Some(Avatar {
+                bucket_id: bucket_id.to_text(),
+                offset,
+                len: blob.len(),
+            });
+            Ok(())
+        }),
+        Err(err) => {
+            let msg = format!("Couldn't write a blob to bucket: {:?}", err);
+            mutate(|state| state.logger.error(&msg));
+            Err(err)
+        }
+    }
 }

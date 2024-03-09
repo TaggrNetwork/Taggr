@@ -401,7 +401,9 @@ export const TransactionsView = ({
                                     User{" "}
                                     <UserLink
                                         id={identifiedUser.id}
-                                        name={identifiedUser.name}
+                                        user_data={{
+                                            name: identifiedUser.name,
+                                        }}
                                     />
                                 </h3>
                                 <Content value={identifiedUser.about} />

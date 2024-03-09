@@ -32,7 +32,7 @@ import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
 import { MAINNET_MODE, CANISTER_ID } from "./env";
-import { PostId, User, UserData } from "./types";
+import { PostId, User, UserDataMap } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
@@ -312,11 +312,15 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                 let data = await api.query<User>("user", []);
                 if (data) {
                     window.api
-                        .query<UserData>("users_data", data.followees)
-                        .then(
-                            (names) =>
-                                (window.backendCache.followees = names || {}),
-                        );
+                        .query<UserDataMap>("users_data", data.followees)
+                        .then((user_data) => {
+                            const followees = Object.fromEntries(
+                                Object.entries(user_data || {}).map(
+                                    ([k, v]) => [k, v.name],
+                                ),
+                            );
+                            window.backendCache.followees = followees;
+                        });
                     window.user = data;
                     window.user.realms.reverse();
                     if (600000 < microSecsSince(window.user.last_activity)) {

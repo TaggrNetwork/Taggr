@@ -1,7 +1,10 @@
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
-use crate::env::{token::Token, user::UserFilter};
+use crate::{
+    env::{token::Token, user::UserFilter},
+    user::UserData,
+};
 
 use super::*;
 use candid::Principal;
@@ -66,12 +69,19 @@ fn distribution() {
 
 #[export_name = "canister_query users_data"]
 fn users_data() {
+    fn user_data(user: &User) -> UserData {
+        UserData {
+            name: user.name.clone(),
+            avatar: user.avatar.clone(),
+        }
+    }
+
     read(|state| {
         let ids: Vec<UserId> = parse(&arg_data_raw());
         reply(
             ids.into_iter()
                 .filter_map(|id| state.users.get(&id))
-                .map(|user| (user.id, &user.name))
+                .map(|user| (user.id, user_data(&user)))
                 .collect::<HashMap<_, _>>(),
         );
     });

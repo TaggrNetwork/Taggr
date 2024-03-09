@@ -99,6 +99,7 @@ export type Meta = {
     author_name: string;
     author_rewards: number;
     author_filters: UserFilter;
+    author_avatar?: Avatar;
     viewer_blocked: boolean;
     realm_color: string;
 };
@@ -188,6 +189,12 @@ export type UserFilter = {
     downvotes: number;
 };
 
+export type Avatar = {
+    bucket_id: string;
+    offset: number;
+    len: number;
+};
+
 export type User = {
     name: string;
     id: UserId;
@@ -229,6 +236,7 @@ export type User = {
     filters: Filters;
     blacklist: UserId[];
     notifications: { [key: number]: [Notification, boolean] };
+    avatar?: Avatar;
 };
 
 export type Report = {
@@ -241,7 +249,11 @@ export type Report = {
 };
 
 export type Theme = { [name: string]: any };
-export type UserData = { [id: UserId]: string };
+export type UserData = {
+    name: string;
+    avatar?: Avatar;
+};
+export type UserDataMap = { [id: UserId]: UserData };
 
 declare global {
     interface Window {
@@ -263,7 +275,7 @@ declare global {
         lastSavedUpgrade: number;
         uiInitialized: boolean;
         backendCache: {
-            followees: UserData;
+            followees: { [id: UserId]: string };
             recent_tags: string[];
             stats: {
                 fees_burned: number;

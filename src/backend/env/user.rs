@@ -67,6 +67,21 @@ impl UserFilter {
     }
 }
 
+/// Contains the location of the Avatar image blob.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Avatar {
+    // The canister id of the bucket canister.
+    pub bucket_id: String,
+    pub offset: u64,
+    pub len: usize,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct UserData {
+    pub name: String,
+    pub avatar: Option<Avatar>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct User {
     pub id: UserId,
@@ -111,6 +126,8 @@ pub struct User {
     pub miner: bool,
     #[serde(default)]
     pub controlled_realms: HashSet<RealmId>,
+    #[serde(default)]
+    pub avatar: Option<Avatar>,
 }
 
 impl User {
@@ -185,6 +202,7 @@ impl User {
             miner: true,
             downvotes: Default::default(),
             show_posts_in_realms: true,
+            avatar: None,
         }
     }
 
@@ -484,6 +502,7 @@ impl User {
         governance: bool,
         miner: bool,
         show_posts_in_realms: bool,
+        clear_avatar: bool,
     ) -> Result<(), String> {
         if read(|state| {
             state
@@ -520,6 +539,9 @@ impl User {
                 user.miner = miner;
                 user.filters.noise = filter;
                 user.show_posts_in_realms = show_posts_in_realms;
+                if clear_avatar {
+                    user.avatar = None;
+                }
                 if let Some(name) = new_name {
                     user.previous_names.push(user.name.clone());
                     user.name = name;

@@ -10,8 +10,9 @@ import {
     Menu,
     Share,
 } from "./icons";
-import { loadFile } from "./form";
+import { loadFile } from "./image";
 import {
+    Avatar,
     Meta,
     Post,
     PostId,
@@ -19,6 +20,7 @@ import {
     Report,
     User,
     UserData,
+    UserDataMap,
     UserFilter,
     UserId,
 } from "./types";
@@ -26,6 +28,7 @@ import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
+import { MAINNET_MODE } from "./env";
 
 export const USD_PER_XDR = 1.33;
 
@@ -560,35 +563,54 @@ export const blobToUrl = (blob: ArrayBuffer) =>
 
 export const isRoot = (post: Post) => post.parent == null;
 
+export const AvatarElement = ({ avatar }: { avatar?: Avatar }) => {
+    if (!avatar) {
+        return <></>;
+    }
+    return (
+        <div className="avatar_container">
+            <img className="avatar" src={avatarToUrl(avatar)} />
+        </div>
+    );
+};
+
 export const UserLink = ({
     id,
     classNameArg,
     profile,
-    name,
+    user_data,
+    show_avatar,
+    suffix,
 }: {
     id: UserId;
     classNameArg?: string;
     profile?: boolean;
-    name?: string;
+    user_data?: UserData;
+    show_avatar?: boolean;
+    suffix?: string;
 }) => {
-    const [userName, setUserName] = React.useState<string | undefined>(name);
+    const [userData, setUserData] = React.useState<UserData | undefined>(
+        user_data,
+    );
 
-    const loadUserName = async () => {
+    const loadUserData = async () => {
         if (id > Number.MAX_SAFE_INTEGER) return;
-        const data = await window.api.query<UserData>("users_data", [id]);
-        if (data) setUserName(data[id]);
+        const data = await window.api.query<UserDataMap>("users_data", [id]);
+        if (data) setUserData(data[id]);
     };
 
     React.useEffect(() => {
-        if (!userName && id != null) loadUserName();
-    }, [userName]);
+        if (!userData && id != null) loadUserData();
+    }, [userData]);
 
-    return userName ? (
+    return userData ? (
         <a
-            className={`${classNameArg} user_link`}
+            className={`${classNameArg} user_link no_wrap vcentered`}
             href={`#/${profile ? "user" : "journal"}/${id}`}
         >
-            {userName}
+            {show_avatar && <AvatarElement avatar={userData.avatar} />}
+            {userData.name}
+            {suffix}
         </a>
     ) : (
         <span>N/A</span>
@@ -601,30 +623,32 @@ const removeNAs = (ids: UserId[]) =>
 
 export const UserList = ({
     ids = [],
-    loadedNames = {},
+    loadedUserData = {},
     profile,
 }: {
     ids: UserId[];
-    loadedNames?: UserData;
+    loadedUserData?: UserDataMap;
     profile?: boolean;
 }) => {
-    const [names, setNames] = React.useState<UserData>(loadedNames);
+    const [userData, setUserData] = React.useState<UserDataMap>(loadedUserData);
     const [loading, setLoading] = React.useState(false);
 
-    const loadNames = async () => {
+    const loadUserData = async () => {
         setLoading(true);
-        setNames(
-            (await window.api.query<UserData>("users_data", removeNAs(ids))) ||
-                {},
+        setUserData(
+            (await window.api.query<UserDataMap>(
+                "users_data",
+                removeNAs(ids),
+            )) || {},
         );
         setLoading(false);
     };
 
     React.useEffect(() => {
-        const namesPending =
+        const userDataPending =
             removeNAs(ids).length > 0 &&
-            Object.entries(loadedNames).length == 0;
-        if (namesPending) loadNames();
+            Object.entries(loadedUserData).length == 0;
+        if (userDataPending) loadUserData();
     }, []);
 
     return loading ? (
@@ -632,7 +656,12 @@ export const UserList = ({
     ) : (
         commaSeparated(
             ids.map((id) => (
-                <UserLink key={id} id={id} name={names[id]} profile={profile} />
+                <UserLink
+                    key={id}
+                    id={id}
+                    user_data={userData[id]}
+                    profile={profile}
+                />
             )),
         )
     );
@@ -1096,3 +1125,26 @@ export const ArrowDown = ({ onClick }: { onClick?: () => void }) => (
         <CarretDown classNameArg="action" />
     </div>
 );
+
+export const avatarToUrl = (avatar: Avatar): string => {
+    return bucketImageUrl(avatar.bucket_id, avatar.offset, avatar.len);
+};
+
+export const bucketImageUrl = (
+    bucket_id: string,
+    offset: number,
+    len: number,
+): string => {
+    // Fall back to the mainnet if the local config doesn't contain the bucket.
+    let fallback_to_mainnet = !window.backendCache.stats.buckets.find(
+        ([id, _y]) => id == bucket_id,
+    );
+    let host =
+        MAINNET_MODE || fallback_to_mainnet
+            ? `https://${bucket_id}.raw.icp0.io`
+            : `http://127.0.0.1:8080`;
+    return (
+        `${host}/image?offset=${offset}&len=${len}` +
+        (MAINNET_MODE ? "" : `&canisterId=${bucket_id}`)
+    );
+};

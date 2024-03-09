@@ -36,13 +36,15 @@ export const Journal = ({ handle }: { handle: string }) => {
         <>
             {profile && (
                 <div className="text_centered">
-                    <h1>
+                    <h1 className="vcentered centered nowrap">
                         <UserLink
                             id={profile.id}
-                            name={profile.name}
+                            user_data={{ name: profile.name }}
                             profile={true}
+                            classNameArg="centered"
+                            suffix="'s"
                         />
-                        's Journal
+                        &nbsp;journal
                     </h1>
                     {
                         <Content

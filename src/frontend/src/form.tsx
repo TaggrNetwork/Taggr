@@ -23,8 +23,14 @@ import {
 import { PostView } from "./post";
 import { Extension, Poll as PollType, PostId } from "./types";
 import { PollView } from "./poll";
+import {
+    imageHash,
+    imageTooLarge,
+    loadFile,
+    loadImage,
+    rescaleImage,
+} from "./image";
 
-const MAX_IMG_SIZE = 16777216;
 const MAX_SUGGESTED_TAGS = 5;
 
 export const Form = ({
@@ -159,7 +165,7 @@ export const Form = ({
             let file = files[i];
             let content = await loadFile(file);
             let image = await loadImage(content);
-            if (iOS() && image.height * image.width > MAX_IMG_SIZE) {
+            if (imageTooLarge(image)) {
                 alert("Image resolution should be under 16 megapixels.");
                 setBusy(false);
                 return;
@@ -170,7 +176,7 @@ export const Form = ({
             if (content.byteLength > max_blob_size_bytes)
                 while (true) {
                     const scale = (low + high) / 2;
-                    resized_content = await resize(content, scale / 100);
+                    resized_content = await rescaleImage(content, scale / 100);
                     const ratio =
                         resized_content.byteLength / max_blob_size_bytes;
                     if (ratio < 1 && (0.92 < ratio || low > 99)) {
@@ -184,7 +190,7 @@ export const Form = ({
                 }
             const size = Math.ceil(resized_content.byteLength / 1024);
             const resized_content_bytes = new Uint8Array(resized_content);
-            let key = await hash(resized_content_bytes);
+            let key = await imageHash(resized_content_bytes);
             tmpBlobs[key] = resized_content_bytes;
             setTmpBlobs(tmpBlobs);
             tmpUrls[key] = blobToUrl(resized_content_bytes);
@@ -618,52 +624,6 @@ const costs = async (value: string, poll: boolean) => {
     return post_cost + tagCosts + images * blob_cost + (poll ? poll_cost : 0);
 };
 
-export const loadFile = (file: any): Promise<ArrayBuffer> => {
-    const reader = new FileReader();
-    return new Promise((resolve, reject) => {
-        reader.onerror = () => {
-            reader.abort();
-            reject(alert("Couldn't upload file!"));
-        };
-        reader.onload = () => resolve(reader.result as ArrayBuffer);
-        reader.readAsArrayBuffer(file);
-    });
-};
-
-const loadImage = (blob: ArrayBuffer): Promise<HTMLImageElement> => {
-    const image = new Image();
-    return new Promise((resolve) => {
-        image.onload = () => resolve(image);
-        image.src = blobToUrl(blob);
-    });
-};
-
-const canvasToBlob = (canvas: HTMLCanvasElement): Promise<ArrayBuffer> =>
-    new Promise((resolve) =>
-        canvas.toBlob(
-            (blob) => blob && blob.arrayBuffer().then(resolve),
-            "image/jpeg",
-            0.5,
-        ),
-    );
-
-const hash = async (buffer: ArrayBuffer): Promise<string> => {
-    const result = await crypto.subtle.digest("SHA-256", buffer);
-    const hashArray = Array.from(new Uint8Array(result)).slice(0, 4);
-    return hashArray
-        .map((bytes) => bytes.toString(16).padStart(2, "0"))
-        .join("");
-};
-
-const resize = async (
-    blob: ArrayBuffer,
-    scale: number,
-): Promise<ArrayBuffer> => {
-    const image = await loadImage(blob);
-    const canvas = downScaleImage(image, scale);
-    return await canvasToBlob(canvas);
-};
-
 const suggestTokens = (
     cursor: number,
     value: string,
@@ -691,48 +651,6 @@ const suggestTokens = (
     }
     return [];
 };
-
-// scales the image by (float) scale < 1
-// returns a canvas containing the scaled image.
-function downScaleImage(
-    img: HTMLImageElement,
-    scale: number,
-): HTMLCanvasElement {
-    let width = img.width;
-    let height = img.height;
-    const MAX_WIDTH = width * scale;
-    const MAX_HEIGHT = height * scale;
-    // Change the resizing logic
-    if (width > height) {
-        if (width > MAX_WIDTH) {
-            height = height * (MAX_WIDTH / width);
-            width = MAX_WIDTH;
-        }
-    } else {
-        if (height > MAX_HEIGHT) {
-            width = width * (MAX_HEIGHT / height);
-            height = MAX_HEIGHT;
-        }
-    }
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-        ctx.drawImage(img, 0, 0, width, height);
-    }
-    return canvas;
-}
-
-const iOS = () =>
-    [
-        "iPad Simulator",
-        "iPhone Simulator",
-        "iPod Simulator",
-        "iPad",
-        "iPhone",
-        "iPod",
-    ].includes(navigator.platform);
 
 const tableTemplate =
     "\n| XXX | YYY | ZZZ |\n" +

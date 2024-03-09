@@ -28,6 +28,7 @@ import {
     noiseControlBanner,
     ArrowDown,
     UserList,
+    bucketImageUrl,
 } from "./common";
 import {
     reaction2icon,
@@ -46,8 +47,7 @@ import {
     More,
 } from "./icons";
 import { ProposalView } from "./proposals";
-import { Post, PostId, Realm, UserData, UserId } from "./types";
-import { MAINNET_MODE } from "./env";
+import { Post, PostId, Realm, UserDataMap, UserId } from "./types";
 
 export const PostView = ({
     id,
@@ -281,8 +281,12 @@ export const PostView = ({
                         <UserLink
                             classNameArg="left_well_spaced right_half_spaced"
                             id={post.user}
-                            name={post.meta.author_name}
+                            user_data={{
+                                name: post.meta.author_name,
+                                avatar: post.meta.author_avatar,
+                            }}
                             profile={true}
+                            show_avatar={true}
                         />
                         <span className="right_half_spaced">&middot;</span>
                         <div className="no_wrap vcentered">
@@ -472,7 +476,7 @@ const PostInfo = ({
     writingCallback: () => void;
 }) => {
     const [realmData, setRealmData] = React.useState<Realm | null>();
-    const [userData, setUserData] = React.useState<UserData>();
+    const [userData, setUserData] = React.useState<UserDataMap>();
 
     const loadData = async () => {
         const ids: UserId[] = []
@@ -484,7 +488,7 @@ const PostInfo = ({
             .concat(Object.keys(post.tips).map(Number));
         if (ids.length > 0)
             setUserData(
-                (await window.api.query<UserData>("users_data", ids)) || {},
+                (await window.api.query<UserDataMap>("users_data", ids)) || {},
             );
         if (post.realm)
             setRealmData(
@@ -770,7 +774,10 @@ const PostInfo = ({
                 {post.watchers.length > 0 && userData && (
                     <div>
                         <b>WATCHERS</b>:{" "}
-                        <UserList ids={post.watchers} loadedNames={userData} />
+                        <UserList
+                            ids={post.watchers}
+                            loadedUserData={userData}
+                        />
                     </div>
                 )}
                 {post.tips.length > 0 && userData && (
@@ -786,7 +793,7 @@ const PostInfo = ({
                                     {
                                         <UserLink
                                             id={id}
-                                            name={userData[id]}
+                                            user_data={userData[id]}
                                             profile={true}
                                         />
                                     }
@@ -802,7 +809,7 @@ const PostInfo = ({
                                 {reaction2icon(Number(reactId))}{" "}
                                 <UserList
                                     ids={users}
-                                    loadedNames={userData}
+                                    loadedUserData={userData}
                                     profile={true}
                                 />
                             </div>
@@ -1082,23 +1089,8 @@ export const filesToUrls = (files: { [id: string]: [number, number] }) =>
         (acc, key) => {
             const [id, bucketId] = key.split("@");
             const [offset, len] = files[key];
-            acc[id] = bucket_image_url(bucketId, offset, len);
+            acc[id] = bucketImageUrl(bucketId, offset, len);
             return acc;
         },
         {} as { [id: string]: string },
     );
-
-function bucket_image_url(bucket_id: string, offset: number, len: number) {
-    // Fall back to the mainnet if the local config doesn't contain the bucket.
-    let fallback_to_mainnet = !window.backendCache.stats.buckets.find(
-        ([id, _y]) => id == bucket_id,
-    );
-    let host =
-        MAINNET_MODE || fallback_to_mainnet
-            ? `https://${bucket_id}.raw.icp0.io`
-            : `http://127.0.0.1:8080`;
-    return (
-        `${host}/image?offset=${offset}&len=${len}` +
-        (MAINNET_MODE ? "" : `&canisterId=${bucket_id}`)
-    );
-}

@@ -1,5 +1,7 @@
 use std::cmp::{Ordering, PartialOrd};
 
+use self::user::Avatar;
+
 use super::reports::ReportState;
 use super::*;
 use super::{storage::Storage, user::UserId};
@@ -55,6 +57,7 @@ pub struct Meta<'a> {
     author_name: &'a str,
     author_rewards: i64,
     author_filters: UserFilter,
+    author_avatar: Option<Avatar>,
     viewer_blocked: bool,
     realm_color: Option<&'a str>,
 }
@@ -154,6 +157,7 @@ impl Post {
             author_name: user.name.as_str(),
             author_rewards: user.rewards(),
             author_filters: user.filters.noise.clone(),
+            author_avatar: user.avatar.clone(),
             viewer_blocked: state
                 .principal_to_user(caller())
                 .map(|viewer| user.blacklist.contains(&viewer.id))
