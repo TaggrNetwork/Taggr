@@ -351,12 +351,6 @@ export const Form = ({
             onDragOver={dragOverHandler}
             className="column_container"
         >
-            {tooExpensive && (
-                <div className="banner vertically_spaced">
-                    You are low on credits! Please mint credits in{" "}
-                    <a href="#/wallet">your wallet</a> to create this post.
-                </div>
-            )}
             {!showTextField && (
                 <input
                     type="text"
@@ -364,7 +358,13 @@ export const Form = ({
                     onFocus={() => setShowTextField(true)}
                 />
             )}
-            {showTextField && (
+            {showTextField && tooExpensive && (
+                <div className="banner vertically_spaced">
+                    You are low on credits! Please mint credits in{" "}
+                    <a href="#/wallet">your wallet</a> to create this post.
+                </div>
+            )}
+            {showTextField && !tooExpensive && (
                 <form
                     ref={form as unknown as any}
                     className={`${
