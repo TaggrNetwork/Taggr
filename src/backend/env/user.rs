@@ -109,11 +109,17 @@ pub struct User {
     pub show_posts_in_realms: bool,
     pub posts: Vec<PostId>,
     pub miner: bool,
-    #[serde(default)]
     pub controlled_realms: HashSet<RealmId>,
 }
 
 impl User {
+    pub fn deactivate(&mut self) {
+        self.active_weeks = 0;
+        self.notifications.clear();
+        self.accounting.clear();
+        self.draft.take();
+    }
+
     pub fn accepts(&self, user_id: UserId, filter: &UserFilter) -> bool {
         !self.blacklist.contains(&user_id)
             && !self.filters.users.contains(&user_id)

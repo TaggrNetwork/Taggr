@@ -1709,18 +1709,7 @@ impl State {
             if user.active_within_weeks(now, 1) {
                 user.active_weeks += 1;
             } else {
-                user.active_weeks = 0;
-            }
-            let inactive = !user.active_within_weeks(now, CONFIG.inactivity_duration_weeks);
-            if inactive || user.is_bot() {
-                user.notifications.clear();
-                user.accounting.clear();
-            }
-            if inactive && user.rewards() > 0 {
-                user.change_rewards(
-                    -(CONFIG.inactivity_penalty as i64).min(user.rewards()),
-                    "inactivity_penalty".to_string(),
-                );
+                user.deactivate();
             }
             user.post_reports
                 .retain(|_, timestamp| *timestamp + CONFIG.user_report_validity_days * DAY >= now);
@@ -1731,27 +1720,32 @@ impl State {
     fn charge_for_inactivity(&mut self, now: u64) {
         let mut inactive_users = 0;
         let mut credits_total = 0;
+        // Don't charge below this credit balance
         let inactive_user_balance_threshold = CONFIG.inactivity_penalty * 4;
         for (id, credits) in self
             .users
             .values()
-            .filter(|user| {
-                !user.active_within_weeks(now, CONFIG.inactivity_duration_weeks)
-                    && user.credits() > inactive_user_balance_threshold
-            })
+            .filter(|user| !user.active_within_weeks(now, CONFIG.inactivity_duration_weeks))
             .map(|u| (u.id, u.credits()))
             .collect::<Vec<_>>()
         {
+            inactive_users += 1;
             let costs = CONFIG
                 .inactivity_penalty
-                .min(credits - inactive_user_balance_threshold);
-            if let Err(err) = self.charge(id, costs, "inactivity penalty".to_string()) {
-                self.logger
-                    .warn(format!("Couldn't charge inactivity penalty: {:?}", err));
-            } else {
-                credits_total += costs;
-                inactive_users += 1;
+                .min(credits.saturating_sub(inactive_user_balance_threshold));
+            if costs > 0 {
+                if let Err(err) = self.charge(id, costs, "inactivity penalty".to_string()) {
+                    self.logger
+                        .warn(format!("Couldn't charge inactivity penalty: {:?}", err));
+                } else {
+                    credits_total += costs;
+                }
             }
+            let user = self.users.get_mut(&id).expect("no user found");
+            user.change_rewards(
+                -(CONFIG.inactivity_penalty as i64).min(user.rewards()),
+                "inactivity_penalty".to_string(),
+            );
         }
         self.logger.info(format!(
             "Charged `{}` inactive users with `{}` credits.",
