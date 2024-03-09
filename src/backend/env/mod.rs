@@ -2580,7 +2580,7 @@ impl State {
                     "no downvotes for users with pending reports or negative reward balance".into(),
                 );
             }
-            if user.balance < token::base() {
+            if user.total_balance() < token::base() {
                 return Err("no downvotes for users with low token balance".into());
             }
             if self
