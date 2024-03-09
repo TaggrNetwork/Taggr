@@ -120,7 +120,11 @@ export const PostView = ({
 
     React.useEffect(() => {
         const article: any = refArticle.current;
-        if (!prime && article && article.scrollHeight > article.clientHeight) {
+        if (
+            (isFeedItem || repost) &&
+            article &&
+            article.scrollHeight > article.clientHeight
+        ) {
             article.classList.add("overflowing");
             setShowExpandButton(true);
         }
