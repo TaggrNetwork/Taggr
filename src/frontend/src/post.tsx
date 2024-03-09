@@ -471,9 +471,14 @@ const PostInfo = ({
     writingCallback: () => void;
 }) => {
     const [realmData, setRealmData] = React.useState<Realm | null>();
+    const [loaded, setLoaded] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
 
     const loadData = async () => {
+        // Load realm data asynchronously
+        window.api
+            .query<Realm[]>("realms", [post.realm])
+            .then((realmData) => setRealmData((realmData || [])[0]));
         const ids: UserId[] = []
             // @ts-ignore
             .concat(...Object.values(reactions))
@@ -481,15 +486,8 @@ const PostInfo = ({
             .concat(post.watchers)
             // @ts-ignore
             .concat(Object.keys(post.tips).map(Number));
-        let promises = [];
-        if (ids.length > 0) promises.push(populateUserNameCache(ids));
-        if (post.realm) {
-            promises.push(window.api.query<Realm[]>("realms", [post.realm]));
-        }
-        setLoading(true);
-        const [realmData] = await Promise.all(promises);
-        setLoading(false);
-        setRealmData((realmData || [])[0]);
+        await populateUserNameCache(ids, setLoading);
+        setLoaded(true);
     };
 
     React.useEffect(() => {
@@ -523,7 +521,7 @@ const PostInfo = ({
     const realmController =
         user && user.controlled_realms.includes(post.realm || "");
     const { token_symbol, token_decimals } = window.backendCache.config;
-    if (loading) return <Loading />;
+    if (loading || !loaded) return <Loading />;
     return (
         <div className="left_half_spaced right_half_spaced top_spaced">
             {user && (

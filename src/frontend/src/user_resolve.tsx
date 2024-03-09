@@ -33,33 +33,36 @@ export const userNameToIds = async (names: string[]) =>
 
 export const UserLink = ({
     id,
+    name,
     classNameArg,
     profile,
-    name,
 }: {
     id: UserId;
+    name?: string;
     classNameArg?: string;
     profile?: boolean;
-    name?: string;
 }) => {
     const [loading, setLoading] = React.useState(false);
+    const [userName, setUserName] = React.useState<string>();
 
-    const loadUserName = async () =>
+    const loadUserName = async () => {
+        if (name) USER_CACHE[id] = name;
         await populateUserNameCache([id], setLoading);
+        setUserName(USER_CACHE[id]);
+    };
 
     React.useEffect(() => {
-        if (name) USER_CACHE[id] = name;
-        else loadUserName();
-    }, [name]);
+        loadUserName();
+    }, []);
 
     if (loading) return <Loading spaced={false} />;
 
-    return id in USER_CACHE ? (
+    return userName ? (
         <a
             className={`${classNameArg} user_link`}
             href={`#/${profile ? "user" : "journal"}/${id}`}
         >
-            {USER_CACHE[id]}
+            {userName}
         </a>
     ) : (
         <span>N/A</span>
@@ -85,14 +88,7 @@ export const UserList = ({
         <Loading spaced={false} />
     ) : (
         commaSeparated(
-            ids.map((id) => (
-                <UserLink
-                    key={id}
-                    id={id}
-                    name={USER_CACHE[id]}
-                    profile={profile}
-                />
-            )),
+            ids.map((id) => <UserLink key={id} id={id} profile={profile} />),
         )
     );
 };
