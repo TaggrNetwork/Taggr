@@ -174,6 +174,10 @@ export const PostView = ({
         if (!window.user) return;
         let userId = window.user?.id;
         if (post.user == userId) return;
+        if (post.meta.viewer_blocked) {
+            alert!("You can't downvote users who blocked you.");
+            return;
+        }
         if (!(id in post.reactions)) {
             post.reactions[id] = [];
         }
