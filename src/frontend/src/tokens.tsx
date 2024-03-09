@@ -230,7 +230,7 @@ export const Tokens = () => {
                 <MoreButton callback={async () => setBalPage(balPage + 1)} />
                 <hr />
                 <h2>
-                    UPCOMING MINTING (
+                    Upcoming Minting (
                     {token(rewards.reduce((acc, [_, val]) => acc + val, 0))})
                 </h2>
                 <div
@@ -253,7 +253,7 @@ export const Tokens = () => {
                     />
                 )}
                 <hr />
-                <h2>LARGEST TOKEN DONORS</h2>
+                <h2>Largest Donors</h2>
                 <div
                     className={`dynamic_table ${
                         bigScreen() ? "" : "tripple"
@@ -273,22 +273,27 @@ export const Tokens = () => {
                 )}
             </div>
             <hr />
-            <h2>Latest transactions</h2>
-            <div className="row_container">
-                <input
-                    id="search_field"
-                    className="max_width_col"
-                    type="search"
-                    placeholder="Search for user name or principal..."
-                    value={searchValue}
-                    onChange={(event) => {
-                        clearTimeout(timer as unknown as any);
-                        setSearchValue(event.target.value);
-                        setTimer(
-                            setTimeout(() => setQuery(event.target.value), 300),
-                        );
-                    }}
-                />
+            <div className="spaced">
+                <h2>Latest transactions</h2>
+                <div className="row_container">
+                    <input
+                        id="search_field"
+                        className="max_width_col"
+                        type="search"
+                        placeholder="Search for user name or principal..."
+                        value={searchValue}
+                        onChange={(event) => {
+                            clearTimeout(timer as unknown as any);
+                            setSearchValue(event.target.value);
+                            setTimer(
+                                setTimeout(
+                                    () => setQuery(event.target.value),
+                                    300,
+                                ),
+                            );
+                        }}
+                    />
+                </div>
             </div>
             <TransactionsView icrcAccount={searchedPrincipal} />
         </>
