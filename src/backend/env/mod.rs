@@ -2607,15 +2607,16 @@ impl State {
                 post.realm.as_ref(),
                 log.clone(),
             )?;
-            self.charge_in_realm(
-                post.user,
-                delta
-                    .unsigned_abs()
-                    .min(self.users.get(&post.user).expect("no user found").credits()),
-                post.realm.as_ref(),
-                log,
-            )
-            .expect("couldn't charge user");
+            let credit_balance = self.users.get(&post.user).expect("no user found").credits();
+            if credit_balance > 0 {
+                self.charge_in_realm(
+                    post.user,
+                    delta.unsigned_abs().min(credit_balance),
+                    post.realm.as_ref(),
+                    log,
+                )
+                .expect("couldn't charge user");
+            }
         } else {
             let mut recipients = vec![post.user];
             if let Some(Extension::Repost(post_id)) = post.extension.as_ref() {
