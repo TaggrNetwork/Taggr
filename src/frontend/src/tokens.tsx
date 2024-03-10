@@ -69,8 +69,12 @@ export const Tokens = () => {
         (acc, [_0, balance, userId]) => (userId == null ? acc : acc + balance),
         0,
     );
-    const { maximum_supply, proposal_approval_threshold, transaction_fee } =
-        window.backendCache.config;
+    const {
+        maximum_supply,
+        proposal_approval_threshold,
+        transaction_fee,
+        difficulty_amplification,
+    } = window.backendCache.config;
     const uniqueUsers = balances.reduce(
         (acc, [_, balance, userId]) => {
             if (userId != null && !isNaN(userId))
@@ -133,10 +137,10 @@ export const Tokens = () => {
                         </code>
                     </div>
                     <div className="db_cell">
-                        MINTING RATIO
+                        MINING DIFFICULTY
                         <code>
-                            {window.backendCache.stats.minting_ratio}
-                            :1
+                            ({window.backendCache.stats.minting_ratio} &#215;{" "}
+                            {difficulty_amplification}) :1
                         </code>
                     </div>
                     <div className="db_cell">
