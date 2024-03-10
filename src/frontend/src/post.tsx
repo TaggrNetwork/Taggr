@@ -997,7 +997,7 @@ export const ReactionPicker = ({
     unreact: () => void;
 }) => (
     <div
-        className={`max_width_col ${
+        className={`framed right_spaced max_width_col ${
             bigScreen() ? "row_container" : "emoji_table"
         }`}
         style={{
