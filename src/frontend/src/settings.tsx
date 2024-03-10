@@ -3,6 +3,7 @@ import { ButtonWithLoading, HeadBar, ICP_LEDGER_ID } from "./common";
 import { User, UserFilter } from "./types";
 import { Principal } from "@dfinity/principal";
 import { setTheme } from "./theme";
+import { UserList } from "./user_resolve";
 
 export const Settings = ({ invite }: { invite?: string }) => {
     const user = window.user;
@@ -387,8 +388,16 @@ export const Settings = ({ invite }: { invite?: string }) => {
                     onClick={submit}
                     label="SAVE"
                 />
-                {window.user && (
+                {user && (
                     <div className="top_spaced column_container">
+                        <h2>Muted Users</h2>
+                        <div>
+                            <UserList profile={true} ids={user.filters.users} />
+                        </div>
+                        <h2>Blocked Users</h2>
+                        <div>
+                            <UserList profile={true} ids={user.blacklist} />
+                        </div>
                         <h2>Principal Change</h2>
                         You can change your principal as follows:
                         <ol>
