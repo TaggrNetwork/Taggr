@@ -528,7 +528,7 @@ export const getLabels = (profile: User) => {
 const followeeList = (ids: UserId[]) => (
     <>
         {ids.map((id) => (
-            <div key={id} className="stands_out row_container">
+            <div key={id} className="row_container vcentered bottom_spaced">
                 <UserLink id={id} classNameArg="max_width_col" />
                 {window.user && window.user.id != id && (
                     <ToggleButton
