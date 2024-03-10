@@ -280,6 +280,8 @@ impl State {
             .get(&account(caller))
             .copied()
             .unwrap_or_default();
+        // To avoid any kind of farming manipulations.
+        user.karma_donations.clear();
         self.principals.insert(caller, user.id);
         Ok(())
     }
@@ -291,6 +293,8 @@ impl State {
         if let Some(user) = self.principal_to_user_mut(caller) {
             let principal = user.cold_wallet.take();
             user.cold_balance = 0;
+            // To avoid any kind of farming manipulations.
+            user.karma_donations.clear();
             if let Some(principal) = principal {
                 self.principals.remove(&principal);
             }
