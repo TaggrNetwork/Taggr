@@ -109,6 +109,7 @@ pub struct User {
     pub show_posts_in_realms: bool,
     pub posts: Vec<PostId>,
     pub miner: bool,
+    #[serde(default)]
     pub controlled_realms: HashSet<RealmId>,
 }
 
