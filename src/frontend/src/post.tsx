@@ -893,7 +893,7 @@ const PostBar = ({
                 className="active"
                 style={{ height: "1px", width: 0 }}
             ></div>
-            <div className="post_bar vcentered smaller_text">
+            <div className="post_bar vcentered">
                 {showHint && (
                     <div
                         className="max_width_col"
@@ -1043,7 +1043,7 @@ export const Reactions = ({
                     <button
                         key={reactId}
                         className={
-                            "reaction_button " +
+                            "reaction_button button_text " +
                             (reacted ? "selected" : "unselected")
                         }
                         onMouseDown={() => react(parseInt(reactId))}
@@ -1052,7 +1052,7 @@ export const Reactions = ({
                         onTouchEnd={unreact}
                         data-testid={reactId + "-reaction"}
                     >
-                        <span className="medium_text right_quarter_spaced">
+                        <span className="small_text right_quarter_spaced">
                             {reaction2icon(Number(reactId))}
                         </span>
                         {users.length}

@@ -578,7 +578,7 @@ export const IconToggleButton = ({
             onClick(e);
         }}
         data-testid={testId}
-        className={`${
+        className={`button_text ${
             pressed ? "" : "un"
         }selected reaction_button vcentered ${classNameArg}`}
     >
