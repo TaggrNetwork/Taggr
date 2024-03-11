@@ -12,17 +12,16 @@ import {
     ReportBanner,
     ShareButton,
     ButtonWithLoading,
-    UserLink,
     popUp,
     RealmList,
     noiseControlBanner,
-    UserList,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
 import { PostFeed } from "./post_feed";
 import { PostId, User, UserId } from "./types";
 import { Principal } from "@dfinity/principal";
+import { UserLink, UserList } from "./user_resolve";
 
 export const Profile = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
@@ -529,7 +528,7 @@ export const getLabels = (profile: User) => {
 const followeeList = (ids: UserId[]) => (
     <>
         {ids.map((id) => (
-            <div key={id} className="stands_out row_container">
+            <div key={id} className="row_container vcentered bottom_spaced">
                 <UserLink id={id} classNameArg="max_width_col" />
                 {window.user && window.user.id != id && (
                     <ToggleButton

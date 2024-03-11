@@ -8,7 +8,6 @@ import {
     icpCode,
     IcpAccountLink,
     USD_PER_XDR,
-    UserList,
 } from "./common";
 import { Content } from "./content";
 import {
@@ -30,6 +29,7 @@ import {
     Treasury,
     User,
 } from "./icons";
+import { UserList } from "./user_resolve";
 
 const show = (val: number | BigInt, unit?: string, unit_position?: string) => (
     <code>

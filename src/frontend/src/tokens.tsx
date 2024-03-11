@@ -10,7 +10,6 @@ import {
     token,
     TokenBalance,
     tokenBalance,
-    UserLink,
     USD_PER_XDR,
 } from "./common";
 import * as React from "react";
@@ -19,6 +18,7 @@ import { Principal } from "@dfinity/principal";
 import { decodeIcrcAccount, encodeIcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
 import { CANISTER_ID } from "./env";
+import { UserLink } from "./user_resolve";
 
 type Balances = [Account, number, UserId][];
 
@@ -69,8 +69,12 @@ export const Tokens = () => {
         (acc, [_0, balance, userId]) => (userId == null ? acc : acc + balance),
         0,
     );
-    const { maximum_supply, proposal_approval_threshold, transaction_fee } =
-        window.backendCache.config;
+    const {
+        maximum_supply,
+        proposal_approval_threshold,
+        transaction_fee,
+        difficulty_amplification,
+    } = window.backendCache.config;
     const uniqueUsers = balances.reduce(
         (acc, [_, balance, userId]) => {
             if (userId != null && !isNaN(userId))
@@ -133,10 +137,10 @@ export const Tokens = () => {
                         </code>
                     </div>
                     <div className="db_cell">
-                        MINTING RATIO
+                        MINING DIFFICULTY
                         <code>
-                            {window.backendCache.stats.minting_ratio}
-                            :1
+                            ({window.backendCache.stats.minting_ratio} &#215;{" "}
+                            {difficulty_amplification}) :1
                         </code>
                     </div>
                     <div className="db_cell">
@@ -230,7 +234,7 @@ export const Tokens = () => {
                 <MoreButton callback={async () => setBalPage(balPage + 1)} />
                 <hr />
                 <h2>
-                    UPCOMING MINTING (
+                    Upcoming Minting (
                     {token(rewards.reduce((acc, [_, val]) => acc + val, 0))})
                 </h2>
                 <div
@@ -253,7 +257,7 @@ export const Tokens = () => {
                     />
                 )}
                 <hr />
-                <h2>LARGEST TOKEN DONORS</h2>
+                <h2>Largest Donors</h2>
                 <div
                     className={`dynamic_table ${
                         bigScreen() ? "" : "tripple"
@@ -273,22 +277,27 @@ export const Tokens = () => {
                 )}
             </div>
             <hr />
-            <h2>Latest transactions</h2>
-            <div className="row_container">
-                <input
-                    id="search_field"
-                    className="max_width_col"
-                    type="search"
-                    placeholder="Search for user name or principal..."
-                    value={searchValue}
-                    onChange={(event) => {
-                        clearTimeout(timer as unknown as any);
-                        setSearchValue(event.target.value);
-                        setTimer(
-                            setTimeout(() => setQuery(event.target.value), 300),
-                        );
-                    }}
-                />
+            <div className="spaced">
+                <h2>Latest transactions</h2>
+                <div className="row_container">
+                    <input
+                        id="search_field"
+                        className="max_width_col"
+                        type="search"
+                        placeholder="Search for user name or principal..."
+                        value={searchValue}
+                        onChange={(event) => {
+                            clearTimeout(timer as unknown as any);
+                            setSearchValue(event.target.value);
+                            setTimer(
+                                setTimeout(
+                                    () => setQuery(event.target.value),
+                                    300,
+                                ),
+                            );
+                        }}
+                    />
+                </div>
             </div>
             <TransactionsView icrcAccount={searchedPrincipal} />
         </>

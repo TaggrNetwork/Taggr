@@ -1,7 +1,8 @@
 import * as React from "react";
-import { ButtonWithLoading, token, UserList } from "./common";
+import { ButtonWithLoading, token } from "./common";
 import { Content } from "./content";
 import { Poll, PostId } from "./types";
+import { UserList } from "./user_resolve";
 
 export const PollView = ({
     poll,

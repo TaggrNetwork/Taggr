@@ -32,10 +32,11 @@ import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
 import { MAINNET_MODE, CANISTER_ID } from "./env";
-import { PostId, User, UserData } from "./types";
+import { PostId, User } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
+import { populateUserNameCacheSpeculatively } from "./user_resolve";
 
 const { hash, pathname } = location;
 
@@ -248,7 +249,6 @@ const reloadCache = async () => {
         window.api.query<any>("config"),
     ]);
     window.backendCache = {
-        followees: {},
         recent_tags: (recent_tags || []).map(([tag, _]) => tag),
         stats,
         config,
@@ -311,12 +311,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
             window.reloadUser = async () => {
                 let data = await api.query<User>("user", []);
                 if (data) {
-                    window.api
-                        .query<UserData>("users_data", data.followees)
-                        .then(
-                            (names) =>
-                                (window.backendCache.followees = names || {}),
-                        );
+                    populateUserNameCacheSpeculatively();
                     window.user = data;
                     window.user.realms.reverse();
                     if (600000 < microSecsSince(window.user.last_activity)) {

@@ -263,7 +263,6 @@ declare global {
         lastSavedUpgrade: number;
         uiInitialized: boolean;
         backendCache: {
-            followees: UserData;
             recent_tags: string[];
             stats: {
                 fees_burned: number;
@@ -299,6 +298,7 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                difficulty_amplification: number;
                 user_report_validity_days: number;
                 downvote_counting_period_days: number;
                 max_report_length: number;

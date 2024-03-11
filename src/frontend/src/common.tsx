@@ -11,17 +11,7 @@ import {
     Share,
 } from "./icons";
 import { loadFile } from "./form";
-import {
-    Meta,
-    Post,
-    PostId,
-    Realm,
-    Report,
-    User,
-    UserData,
-    UserFilter,
-    UserId,
-} from "./types";
+import { Meta, Post, PostId, Realm, Report, User, UserFilter } from "./types";
 import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger-icrc";
@@ -560,84 +550,6 @@ export const blobToUrl = (blob: ArrayBuffer) =>
 
 export const isRoot = (post: Post) => post.parent == null;
 
-export const UserLink = ({
-    id,
-    classNameArg,
-    profile,
-    name,
-}: {
-    id: UserId;
-    classNameArg?: string;
-    profile?: boolean;
-    name?: string;
-}) => {
-    const [userName, setUserName] = React.useState<string | undefined>(name);
-
-    const loadUserName = async () => {
-        if (id > Number.MAX_SAFE_INTEGER) return;
-        const data = await window.api.query<UserData>("users_data", [id]);
-        if (data) setUserName(data[id]);
-    };
-
-    React.useEffect(() => {
-        if (!userName && id != null) loadUserName();
-    }, [userName]);
-
-    return userName ? (
-        <a
-            className={`${classNameArg} user_link`}
-            href={`#/${profile ? "user" : "journal"}/${id}`}
-        >
-            {userName}
-        </a>
-    ) : (
-        <span>N/A</span>
-    );
-};
-
-// We use u64::MAX to denote anonymous users. We should filter them out before we try to load user data.
-const removeNAs = (ids: UserId[]) =>
-    ids.filter((id) => id < Number.MAX_SAFE_INTEGER);
-
-export const UserList = ({
-    ids = [],
-    loadedNames = {},
-    profile,
-}: {
-    ids: UserId[];
-    loadedNames?: UserData;
-    profile?: boolean;
-}) => {
-    const [names, setNames] = React.useState<UserData>(loadedNames);
-    const [loading, setLoading] = React.useState(false);
-
-    const loadNames = async () => {
-        setLoading(true);
-        setNames(
-            (await window.api.query<UserData>("users_data", removeNAs(ids))) ||
-                {},
-        );
-        setLoading(false);
-    };
-
-    React.useEffect(() => {
-        const namesPending =
-            removeNAs(ids).length > 0 &&
-            Object.entries(loadedNames).length == 0;
-        if (namesPending) loadNames();
-    }, []);
-
-    return loading ? (
-        <Loading spaced={false} />
-    ) : (
-        commaSeparated(
-            ids.map((id) => (
-                <UserLink key={id} id={id} name={names[id]} profile={profile} />
-            )),
-        )
-    );
-};
-
 export const token = (n: number) =>
     Math.ceil(
         n / Math.pow(10, window.backendCache.config.token_decimals),
@@ -666,7 +578,7 @@ export const IconToggleButton = ({
             onClick(e);
         }}
         data-testid={testId}
-        className={`${
+        className={`button_text ${
             pressed ? "" : "un"
         }selected reaction_button vcentered ${classNameArg}`}
     >

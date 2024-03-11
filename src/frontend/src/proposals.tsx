@@ -10,14 +10,13 @@ import {
     NotFound,
     tokens,
     hex,
-    UserLink,
-    UserList,
 } from "./common";
 import * as React from "react";
 import { Content } from "./content";
 import { HourGlass } from "./icons";
 import { PostFeed } from "./post_feed";
 import { PostId, Proposal, User } from "./types";
+import { UserLink, UserList } from "./user_resolve";
 
 const REPO_RELEASE = "https://github.com/TaggrNetwork/taggr/releases/latest";
 const REPO_COMMIT = "https://github.com/TaggrNetwork/taggr/commit";

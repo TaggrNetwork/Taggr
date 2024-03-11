@@ -764,6 +764,10 @@ a.reply_tag {
     margin: auto;
 }
 
+.button_text {
+    font-size: small;
+}
+
 .small_text {
     font-size: small;
 }
@@ -981,6 +985,7 @@ label svg {
 .post_box > article h3,
 .post_box > article h4,
 .post_box > article h5,
+.post_box > article h6,
 .post_box > article pre,
 .post_box > article table {
     margin-left: 0.8rem;
@@ -1093,6 +1098,10 @@ label svg {
 
     article img {
         width: 100%;
+    }
+
+    .button_text {
+        font-size: x-small;
     }
 
     .mobile_only {

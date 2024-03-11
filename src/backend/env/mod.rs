@@ -132,9 +132,6 @@ pub struct Summary {
 #[derive(Default, Serialize, Deserialize)]
 pub struct State {
     pub burned_cycles: i64,
-    // TODO: delete
-    #[serde(skip)]
-    pub burned_cycles_total: Credits,
     pub posts: BTreeMap<PostId, Post>,
     pub users: BTreeMap<UserId, User>,
     pub principals: HashMap<Principal, UserId>,
@@ -203,10 +200,6 @@ pub struct State {
     // Indicates whether the end of the stable memory contains a valid heap snapshot.
     #[serde(skip)]
     pub backup_exists: bool,
-
-    // TODO: delete
-    #[serde(skip)]
-    pub last_archive: u64,
 
     #[serde(default)]
     pub minting_power: HashMap<Principal, Token>,
@@ -1716,18 +1709,7 @@ impl State {
             if user.active_within_weeks(now, 1) {
                 user.active_weeks += 1;
             } else {
-                user.active_weeks = 0;
-            }
-            let inactive = !user.active_within_weeks(now, CONFIG.inactivity_duration_weeks);
-            if inactive || user.is_bot() {
-                user.notifications.clear();
-                user.accounting.clear();
-            }
-            if inactive && user.rewards() > 0 {
-                user.change_rewards(
-                    -(CONFIG.inactivity_penalty as i64).min(user.rewards()),
-                    "inactivity_penalty".to_string(),
-                );
+                user.deactivate();
             }
             user.post_reports
                 .retain(|_, timestamp| *timestamp + CONFIG.user_report_validity_days * DAY >= now);
@@ -1738,27 +1720,32 @@ impl State {
     fn charge_for_inactivity(&mut self, now: u64) {
         let mut inactive_users = 0;
         let mut credits_total = 0;
+        // Don't charge below this credit balance
         let inactive_user_balance_threshold = CONFIG.inactivity_penalty * 4;
         for (id, credits) in self
             .users
             .values()
-            .filter(|user| {
-                !user.active_within_weeks(now, CONFIG.inactivity_duration_weeks)
-                    && user.credits() > inactive_user_balance_threshold
-            })
+            .filter(|user| !user.active_within_weeks(now, CONFIG.inactivity_duration_weeks))
             .map(|u| (u.id, u.credits()))
             .collect::<Vec<_>>()
         {
+            inactive_users += 1;
             let costs = CONFIG
                 .inactivity_penalty
-                .min(credits - inactive_user_balance_threshold);
-            if let Err(err) = self.charge(id, costs, "inactivity penalty".to_string()) {
-                self.logger
-                    .warn(format!("Couldn't charge inactivity penalty: {:?}", err));
-            } else {
-                credits_total += costs;
-                inactive_users += 1;
+                .min(credits.saturating_sub(inactive_user_balance_threshold));
+            if costs > 0 {
+                if let Err(err) = self.charge(id, costs, "inactivity penalty".to_string()) {
+                    self.logger
+                        .warn(format!("Couldn't charge inactivity penalty: {:?}", err));
+                } else {
+                    credits_total += costs;
+                }
             }
+            let user = self.users.get_mut(&id).expect("no user found");
+            user.change_rewards(
+                -(CONFIG.inactivity_penalty as i64).min(user.rewards()),
+                "inactivity_penalty".to_string(),
+            );
         }
         self.logger.info(format!(
             "Charged `{}` inactive users with `{}` credits.",
@@ -2140,8 +2127,7 @@ impl State {
         self.principals.insert(new_principal, user_id);
         let minting_power = self
             .minting_power
-            .get(&old_principal)
-            .copied()
+            .remove(&old_principal)
             .unwrap_or_default();
         self.minting_power.insert(new_principal, minting_power);
         let user = self.users.get_mut(&user_id).expect("no user found");
@@ -2594,7 +2580,7 @@ impl State {
                     "no downvotes for users with pending reports or negative reward balance".into(),
                 );
             }
-            if user.balance < token::base() {
+            if user.total_balance() < token::base() {
                 return Err("no downvotes for users with low token balance".into());
             }
             if self
@@ -2615,15 +2601,16 @@ impl State {
                 post.realm.as_ref(),
                 log.clone(),
             )?;
-            self.charge_in_realm(
-                post.user,
-                delta
-                    .unsigned_abs()
-                    .min(self.users.get(&post.user).expect("no user found").credits()),
-                post.realm.as_ref(),
-                log,
-            )
-            .expect("couldn't charge user");
+            let credit_balance = self.users.get(&post.user).expect("no user found").credits();
+            if credit_balance > 0 {
+                self.charge_in_realm(
+                    post.user,
+                    delta.unsigned_abs().min(credit_balance),
+                    post.realm.as_ref(),
+                    log,
+                )
+                .expect("couldn't charge user");
+            }
         } else {
             let mut recipients = vec![post.user];
             if let Some(Extension::Repost(post_id)) = post.extension.as_ref() {

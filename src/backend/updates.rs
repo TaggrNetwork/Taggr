@@ -80,18 +80,6 @@ fn post_upgrade() {
 
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
-        // recompute controlled realms lists for all users
-        for (realm_id, realm) in state.realms.iter().clone() {
-            for user_id in &realm.controllers {
-                state
-                    .users
-                    .get_mut(user_id)
-                    .unwrap()
-                    .controlled_realms
-                    .insert(realm_id.clone());
-            }
-        }
-
         // compute minted amount of tokens for all users
         for (owner, amount) in state
             .ledger

@@ -19,7 +19,6 @@ import {
     setTitle,
     ButtonWithLoading,
     bigScreen,
-    UserLink,
     FlagButton,
     ReportBanner,
     tokens,
@@ -27,7 +26,6 @@ import {
     parseNumber,
     noiseControlBanner,
     ArrowDown,
-    UserList,
 } from "./common";
 import {
     reaction2icon,
@@ -46,8 +44,9 @@ import {
     More,
 } from "./icons";
 import { ProposalView } from "./proposals";
-import { Post, PostId, Realm, UserData, UserId } from "./types";
+import { Post, PostId, Realm, UserId } from "./types";
 import { MAINNET_MODE } from "./env";
+import { UserLink, UserList, populateUserNameCache } from "./user_resolve";
 
 export const PostView = ({
     id,
@@ -121,7 +120,11 @@ export const PostView = ({
 
     React.useEffect(() => {
         const article: any = refArticle.current;
-        if (!prime && article && article.scrollHeight > article.clientHeight) {
+        if (
+            (isFeedItem || repost) &&
+            article &&
+            article.scrollHeight > article.clientHeight
+        ) {
             article.classList.add("overflowing");
             setShowExpandButton(true);
         }
@@ -175,6 +178,10 @@ export const PostView = ({
         if (!window.user) return;
         let userId = window.user?.id;
         if (post.user == userId) return;
+        if (post.meta.viewer_blocked) {
+            alert!("You can't downvote users who blocked you.");
+            return;
+        }
         if (!(id in post.reactions)) {
             post.reactions[id] = [];
         }
@@ -229,6 +236,7 @@ export const PostView = ({
         (window.user && highlighted.includes(post.id)) ||
         postCreated > window.lastVisit ||
         createdRecently;
+    const { realm_color } = post.meta;
     const blogTitle =
         prime && body.length > 750 && body.startsWith("# ")
             ? {
@@ -236,7 +244,7 @@ export const PostView = ({
                   realm: post.realm,
                   created: postCreated,
                   length: body.length,
-                  background: post.meta.realm_color[0] || "",
+                  background: realm_color ? realm_color[0] : "",
               }
             : undefined;
 
@@ -295,7 +303,7 @@ export const PostView = ({
                         {realmPost && post.realm && (
                             <RealmSpan
                                 name={post.realm}
-                                background={post.meta.realm_color}
+                                background={realm_color}
                                 classNameArg="realm_tag"
                             />
                         )}
@@ -472,9 +480,15 @@ const PostInfo = ({
     writingCallback: () => void;
 }) => {
     const [realmData, setRealmData] = React.useState<Realm | null>();
-    const [userData, setUserData] = React.useState<UserData>();
+    const [loaded, setLoaded] = React.useState(false);
+    const [loading, setLoading] = React.useState(false);
 
     const loadData = async () => {
+        // Load realm data asynchronously
+        post.realm &&
+            window.api
+                .query<Realm[]>("realms", [post.realm])
+                .then((realmData) => setRealmData((realmData || [])[0]));
         const ids: UserId[] = []
             // @ts-ignore
             .concat(...Object.values(reactions))
@@ -482,15 +496,8 @@ const PostInfo = ({
             .concat(post.watchers)
             // @ts-ignore
             .concat(Object.keys(post.tips).map(Number));
-        if (ids.length > 0)
-            setUserData(
-                (await window.api.query<UserData>("users_data", ids)) || {},
-            );
-        if (post.realm)
-            setRealmData(
-                ((await window.api.query<Realm[]>("realms", [post.realm])) ||
-                    [])[0],
-            );
+        await populateUserNameCache(ids, setLoading);
+        setLoaded(true);
     };
 
     React.useEffect(() => {
@@ -524,6 +531,7 @@ const PostInfo = ({
     const realmController =
         user && user.controlled_realms.includes(post.realm || "");
     const { token_symbol, token_decimals } = window.backendCache.config;
+    if (loading || !loaded) return <Loading />;
     return (
         <div className="left_half_spaced right_half_spaced top_spaced">
             {user && (
@@ -767,13 +775,12 @@ const PostInfo = ({
                         )}
                     </div>
                 )}
-                {post.watchers.length > 0 && userData && (
+                {post.watchers.length > 0 && (
                     <div>
-                        <b>WATCHERS</b>:{" "}
-                        <UserList ids={post.watchers} loadedNames={userData} />
+                        <b>WATCHERS</b>: <UserList ids={post.watchers} />
                     </div>
                 )}
-                {post.tips.length > 0 && userData && (
+                {post.tips.length > 0 && (
                     <div>
                         <b>{token_symbol} TIPS</b>:{" "}
                         {commaSeparated(
@@ -782,29 +789,18 @@ const PostInfo = ({
                                     <code>
                                         {tokens(Number(tip), token_decimals)}
                                     </code>{" "}
-                                    from{" "}
-                                    {
-                                        <UserLink
-                                            id={id}
-                                            name={userData[id]}
-                                            profile={true}
-                                        />
-                                    }
+                                    from {<UserLink id={id} profile={true} />}
                                 </span>
                             )),
                         )}
                     </div>
                 )}
-                {Object.keys(reactions).length > 0 && userData && (
+                {Object.keys(reactions).length > 0 && (
                     <div className="top_spaced">
                         {Object.entries(reactions).map(([reactId, users]) => (
                             <div key={reactId} className="bottom_half_spaced">
                                 {reaction2icon(Number(reactId))}{" "}
-                                <UserList
-                                    ids={users}
-                                    loadedNames={userData}
-                                    profile={true}
-                                />
+                                <UserList ids={users} profile={true} />
                             </div>
                         ))}
                     </div>
@@ -897,7 +893,7 @@ const PostBar = ({
                 className="active"
                 style={{ height: "1px", width: 0 }}
             ></div>
-            <div className="post_bar vcentered smaller_text">
+            <div className="post_bar vcentered">
                 {showHint && (
                     <div
                         className="max_width_col"
@@ -1001,7 +997,7 @@ export const ReactionPicker = ({
     unreact: () => void;
 }) => (
     <div
-        className={`max_width_col ${
+        className={`framed right_spaced max_width_col ${
             bigScreen() ? "row_container" : "emoji_table"
         }`}
         style={{
@@ -1047,7 +1043,7 @@ export const Reactions = ({
                     <button
                         key={reactId}
                         className={
-                            "reaction_button " +
+                            "reaction_button button_text " +
                             (reacted ? "selected" : "unselected")
                         }
                         onMouseDown={() => react(parseInt(reactId))}
@@ -1056,7 +1052,7 @@ export const Reactions = ({
                         onTouchEnd={unreact}
                         data-testid={reactId + "-reaction"}
                     >
-                        <span className="medium_text right_quarter_spaced">
+                        <span className="small_text right_quarter_spaced">
                             {reaction2icon(Number(reactId))}
                         </span>
                         {users.length}

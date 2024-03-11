@@ -32,7 +32,7 @@ Notes:
 
 1. Each response to a post increases the author's rewards by `$response_reward`.
 2. Inactive users' credits decrease by `$inactivity_penalty` per week after `$inactivity_duration_weeks` weeks of inactivity.
-3. Users with negative reward balances don't participate in reward distributions or minting.
+3. Users with negative reward balances don't participate in reward distributions or mining.
 4. To curb the inorganic behaviour, $name automatically charges excess fees for all posts above `$max_posts_per_day`  per rolling 24h interval and for all comments above  `$max_comments_per_hour` per hour.
 The fee is computed by multiplying `$excess_penalty` with the number of excessive items. If the excessive items contain images, the computed excess fee is additionally charged per image.
 
@@ -124,13 +124,13 @@ Once the maximal supply is reached, it can go below the maximum again after enou
 In this case, the minting will be activated again.
 This will make the supply keep an equilibrium around the maximal supply.
 
-### Distribution of minted tokens
+### Distribution of mined tokens
 
 All eligible users receive newly minted `$token_symbol` tokens on a weekly basis.
-Eligible are users who opted for token minting, without pending reports or reports closed within the last `$user_report_validity_days`, and without a negative rewards balance.
+Eligible are users who opted for token mining, without pending reports or reports closed within the last `$user_report_validity_days`, and without a negative rewards balance.
 The amount of minted tokens is computed according to the following algorithm:
 
-1. For every user `U` who rewarded others, determine the maximal amount of donatable tokens capped by `U`'s `$token_symbol` balance divided by the minting ratio `R` (see below).
+1. For every user `U` who rewarded others, determine the maximal amount of donatable tokens capped by `U`'s `$token_symbol` balance divided by the mining difficulty `R` (see below).
 2. Compute the maximum amount of tokens assignable from `U` to a single rewarded user by dividing `U`'s mintable tokens by `$active_user_share_for_minting_promille%` of all active users of the last week.
 3. Mint new tokens to users (rewarded by `U`) capped by the amount computed in the previous step and weighted by their share of received rewards and an additional factor `F` which depends on the receiver's `$token_symbol` balance:
 
@@ -141,28 +141,21 @@ The amount of minted tokens is computed according to the following algorithm:
 | Below `500`                      | `1.1`  |
 | Above `500`                      | `1`    |
 
-The minting ratio `R` is algorithmically computed by $name.
-It starts at `1:1` and remains at this level until `10%` of supply is minted.
-Then the ratio decreases to `2:1` for the next `10%`, further decreasing to `4:1`, and so on.
-Hence, the last `10%` of the supply will be minted at a ratio of `512:1`.
-Additionally, the DAO can increase the ratio by setting a difficulty amplification factor if the minting speed becomes misaligned with DAO's expectations.
+The mining difficulty `R` is algorithmically computed by $name.
+It starts at `1` and remains at this level until `10%` of supply is mined.
+Then the difficulty doubles to `2` for the next `10%`, further doubling to `4`, and so on.
+Hence, the last `10%` of the supply will be mined with the difficulty of `512`.
+Additionally, the DAO can increase the difficulty by setting a _difficulty amplification_ factor (current value: `$difficulty_amplification`) if the mining velocity becomes misaligned with DAO's expectations.
 
-### Team Tokens
+### Founder's Tokens
 
-`20%` of tokens are allocated to the first two users forming an informal bootstrapping team before the tokenization:
+`18%` of tokens are allocated to @X, the founder of $name.
+His tokens are minted weekly, by an amount equal to `1%` of the circulating supply if and only if one of the following conditions are met:
 
--   `18%` to @X (founder and the only software developer),
--   `2%` to @mechaquan (growth & marketing).
-
-Tokens are minted weekly, with each user receiving an amount equal to `1%` of the current supply if and only if one of the following conditions are met:
-
--   Their individual share is below `14%` of minted supply.
+-   His individual share is below `14%` of minted supply.
 -   `2/3` of the total supply has been minted.
 
-Vesting tokens:
-
--   @mechaquan: `$vesting_tokens_m`
--   @X: `$vesting_tokens_x`
+Currently vesting tokens: `$vesting_tokens_x`.
 
 ## Autonomy
 

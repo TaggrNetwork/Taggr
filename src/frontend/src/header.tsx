@@ -5,7 +5,6 @@ import {
     IconToggleButton,
     RealmList,
     ToggleButton,
-    UserLink,
 } from "./common";
 import { LoginMasks, logout } from "./logins";
 import {
@@ -23,6 +22,7 @@ import { STAGING_MODE } from "./env";
 import { User as UserType } from "./types";
 import { Wallet } from "./wallet";
 import { Links } from "./landing";
+import { UserLink } from "./user_resolve";
 
 let interval: any = null;
 
