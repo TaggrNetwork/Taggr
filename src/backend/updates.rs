@@ -78,28 +78,7 @@ fn post_upgrade() {
     )
 }
 
-fn sync_post_upgrade_fixtures() {
-    mutate(|state| {
-        // compute minted amount of tokens for all users
-        for (owner, amount) in state
-            .ledger
-            .iter()
-            .filter(|tx| tx.from.owner == Principal::anonymous())
-            .map(|tx| (tx.to.owner, tx.amount))
-            .collect::<Vec<_>>()
-            .into_iter()
-        {
-            // We only track it for actually used principals
-            if state.principal_to_user(owner).is_some() {
-                state
-                    .minting_power
-                    .entry(owner)
-                    .and_modify(|b| *b += amount)
-                    .or_insert(amount);
-            }
-        }
-    })
-}
+fn sync_post_upgrade_fixtures() {}
 
 async fn async_post_upgrade_fixtures() {}
 
