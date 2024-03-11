@@ -178,10 +178,6 @@ export const PostView = ({
         if (!window.user) return;
         let userId = window.user?.id;
         if (post.user == userId) return;
-        if (post.meta.viewer_blocked) {
-            alert!("You can't downvote users who blocked you.");
-            return;
-        }
         if (!(id in post.reactions)) {
             post.reactions[id] = [];
         }
@@ -842,7 +838,10 @@ const PostBar = ({
     const users: UserId[] = [].concat(...Object.values(post.reactions));
     let user = window.user;
     const cantReact =
-        !user || users.includes(user?.id) || post.user == user?.id;
+        post.meta.viewer_blocked ||
+        !user ||
+        users.includes(user?.id) ||
+        post.user == user?.id;
     const updatedRecently =
         Number(new Date()) - Number(post.tree_update) / 1000000 <
         30 * 60 * 1000;
@@ -905,7 +904,7 @@ const PostBar = ({
                 {showEmojis && !showHint && (
                     <ReactionPicker react={delayedReact} unreact={unreact} />
                 )}
-                {!showEmojis && !showHint && (
+                {!showEmojis && !showHint && !post.meta.viewer_blocked && (
                     <Reactions
                         reactionsMap={post.reactions}
                         react={delayedReact}
