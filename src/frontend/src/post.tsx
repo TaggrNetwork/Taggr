@@ -519,7 +519,7 @@ const PostInfo = ({
                 realmData.filter,
                 user,
             );
-        else
+        else if (!post.realm)
             realmAccessError = noiseControlBanner(
                 "user",
                 post.meta.author_filters,

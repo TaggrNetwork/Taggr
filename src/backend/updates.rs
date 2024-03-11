@@ -80,6 +80,7 @@ fn post_upgrade() {
 
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
+        state.minting_power.clear();
         // compute minted amount of tokens for all users
         for (owner, amount) in state
             .ledger
