@@ -139,8 +139,9 @@ export const Tokens = () => {
                     <div className="db_cell">
                         MINING DIFFICULTY
                         <code>
-                            ({window.backendCache.stats.minting_ratio} &#215;{" "}
-                            {difficulty_amplification}) :1
+                            {window.backendCache.stats.minting_ratio /
+                                difficulty_amplification}{" "}
+                            &#215; {difficulty_amplification}
                         </code>
                     </div>
                     <div className="db_cell">
