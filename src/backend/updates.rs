@@ -1,4 +1,4 @@
-use crate::env::user::UserFilter;
+use crate::env::user::{Mode, UserFilter};
 
 use super::*;
 use env::{
@@ -80,24 +80,8 @@ fn post_upgrade() {
 
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
-        state.minting_power.clear();
-        // compute minted amount of tokens for all users
-        for (owner, amount) in state
-            .ledger
-            .iter()
-            .filter(|tx| tx.from.owner == Principal::anonymous())
-            .map(|tx| (tx.to.owner, tx.amount))
-            .collect::<Vec<_>>()
-            .into_iter()
-        {
-            // We only track it for actually used principals
-            if state.principal_to_user(owner).is_some() {
-                state
-                    .minting_power
-                    .entry(owner)
-                    .and_modify(|b| *b += amount)
-                    .or_insert(amount);
-            }
+        for u in state.users.values_mut() {
+            u.mode = if u.miner { Mode::Mining } else { Mode::Rewards };
         }
     })
 }
@@ -226,13 +210,13 @@ fn confirm_principal_change() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (new_name, about, principals, filter, governance, miner, show_posts_in_realms): (
+    let (new_name, about, principals, filter, governance, mode, show_posts_in_realms): (
         String,
         String,
         Vec<String>,
         UserFilter,
         bool,
-        bool,
+        Mode,
         bool,
     ) = parse(&arg_data_raw());
     reply(User::update(
@@ -242,7 +226,7 @@ fn update_user() {
         principals,
         filter,
         governance,
-        miner,
+        mode,
         show_posts_in_realms,
     ))
 }

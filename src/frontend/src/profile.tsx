@@ -392,7 +392,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                         </a>
                     </div>
                 )}
-                {(!profile.miner || profile.rewards < 0) && (
+                {(profile.mode == "Rewards" || profile.rewards < 0) && (
                     <div className="db_cell">
                         REWARDS
                         <code className="accent">

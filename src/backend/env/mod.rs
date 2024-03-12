@@ -4,7 +4,7 @@ use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
 use self::proposals::{Payload, Status};
 use self::reports::Report;
 use self::token::{account, TransferArgs};
-use self::user::{Filters, Notification, Predicate, UserFilter};
+use self::user::{Filters, Mode, Notification, Predicate, UserFilter};
 use crate::assets::export_token_supply;
 use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
@@ -854,6 +854,7 @@ impl State {
                 };
                 let user = state.users.get_mut(&new_user_id).expect("no user found");
                 user.invited_by = Some(inviter_id);
+                user.mode = Mode::Credits;
                 if let Some(inviter) = state.users.get_mut(&inviter_id) {
                     inviter.notify(format!(
                         "Your invite was used by @{}! Thanks for helping #{} grow! 🤗",
@@ -1223,7 +1224,7 @@ impl State {
                 continue;
             };
             // All miner rewards are burned.
-            if user.miner {
+            if user.mode == Mode::Mining {
                 self.burned_cycles += rewards;
             } else {
                 payouts.insert(user.id, rewards as Credits);
@@ -2206,7 +2207,7 @@ impl State {
             if user.stalwart {
                 stalwarts.push(user);
             }
-            if user.miner {
+            if user.mode == Mode::Mining {
                 speculative_revenue += user.rewards().max(0);
             }
             if now < user.last_activity + CONFIG.online_activity_minutes {
@@ -2645,12 +2646,21 @@ impl State {
                     log.clone(),
                     None,
                 )?;
-                self.principal_to_user_mut(principal)
-                    .expect("no user for principal found")
-                    .karma_donations
-                    .entry(*recipient)
-                    .and_modify(|donated| *donated = donated.saturating_add(delta))
-                    .or_insert(delta);
+                // Only record a donation for users in non-credit mode, so that these users can
+                // switch in other modes any time.
+                if self
+                    .users
+                    .get(&recipient)
+                    .map(|user| user.mode != Mode::Credits)
+                    .unwrap_or_default()
+                {
+                    self.principal_to_user_mut(principal)
+                        .expect("no user for principal found")
+                        .karma_donations
+                        .entry(*recipient)
+                        .and_modify(|donated| *donated = donated.saturating_add(delta))
+                        .or_insert(delta);
+                }
             }
         }
 
@@ -3064,7 +3074,7 @@ pub(crate) mod tests {
             vec![],
             Default::default(),
             false,
-            false,
+            Mode::Mining,
             false
         )
         .is_err());
@@ -3077,7 +3087,7 @@ pub(crate) mod tests {
             vec![],
             Default::default(),
             false,
-            false,
+            Mode::Mining,
             false
         )
         .is_ok());
@@ -3105,7 +3115,11 @@ pub(crate) mod tests {
                 let id = create_user(state, pr(i as u8));
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(rewards, "");
-                user.miner = i == 4;
+                if i == 4 {
+                    user.mode = Mode::Mining
+                } else {
+                    user.mode = Mode::Rewards
+                };
             }
 
             let new_rewards = state.collect_new_rewards();
@@ -3185,7 +3199,7 @@ pub(crate) mod tests {
 
             for i in 0..5 {
                 create_user(state, pr(i));
-                state.principal_to_user_mut(pr(i)).unwrap().miner = true;
+                state.principal_to_user_mut(pr(i)).unwrap().mode = Mode::Mining;
                 insert_balance(state, pr(i), (((i + 1) as u64) << 2) * 10000);
                 for j in 0..5 {
                     if i != j {
@@ -3208,7 +3222,7 @@ pub(crate) mod tests {
             state.balances.remove(&minting_acc);
 
             // user 3 switches to non-miner
-            state.principal_to_user_mut(pr(3)).unwrap().miner = false;
+            state.principal_to_user_mut(pr(3)).unwrap().mode = Mode::Rewards;
             assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 160000);
 
             state.minting_mode = true;
@@ -4735,7 +4749,7 @@ pub(crate) mod tests {
             for i in 0..10 {
                 create_user(state, pr(i));
                 let user = state.principal_to_user_mut(pr(i)).unwrap();
-                assert!(user.miner);
+                assert_eq!(user.mode, Mode::Mining);
                 user.last_activity = now;
                 if i > 0 {
                     user.change_rewards(300, "");
@@ -4765,7 +4779,7 @@ pub(crate) mod tests {
                 .change_rewards(-1000, "");
 
             // Make user pr(7) non-miner
-            state.principal_to_user_mut(pr(7)).unwrap().miner = false;
+            state.principal_to_user_mut(pr(7)).unwrap().mode = Mode::Rewards;
 
             // Assume the revenue was 1M credits
             state.burned_cycles = 1_000_000;
