@@ -47,7 +47,7 @@ export const UserLink = ({
     profile?: boolean;
 }) => {
     const [loading, setLoading] = React.useState(false);
-    const [userName, setUserName] = React.useState<string>();
+    const [userName, setUserName] = React.useState<string>(USER_CACHE[id]);
 
     const loadUserName = async () => {
         if (name) USER_CACHE[id] = name;
