@@ -78,7 +78,29 @@ fn post_upgrade() {
     )
 }
 
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        for (realm_id, user_id) in state
+            .realms
+            .iter()
+            .flat_map(|(realm_id, realm)| {
+                realm
+                    .controllers
+                    .iter()
+                    .map(move |user_id| (realm_id.clone(), user_id))
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+        {
+            state
+                .users
+                .get_mut(&user_id)
+                .unwrap()
+                .controlled_realms
+                .insert(realm_id);
+        }
+    })
+}
 
 async fn async_post_upgrade_fixtures() {}
 
