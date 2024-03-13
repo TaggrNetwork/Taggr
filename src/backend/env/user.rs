@@ -431,7 +431,7 @@ impl User {
     pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {
         if self.mode == Mode::Credits {
             self.change_credits(
-                amount.abs() as Credits,
+                amount.unsigned_abs(),
                 if amount > 0 {
                     CreditsDelta::Plus
                 } else {
@@ -545,7 +545,7 @@ impl User {
                     .info(format!("@{} changed name to @{} 🪪", old_name, name));
             }
             if let Some(user) = state.principal_to_user_mut(caller) {
-                if user.rewards() > 0 || mode == Mode::Credits {
+                if user.rewards() > 0 && mode == Mode::Credits {
                     return Err("switching to the credits mode is only possible when a user has no pending rewards".into());
                 }
                 user.about = about;
@@ -566,7 +566,11 @@ impl User {
     }
 
     pub fn eligible_for_minting(&self) -> bool {
-        self.mode == Mode::Mining && !self.controversial()
+        self.mode == Mode::Mining && !self.controversial() &&
+            // While `controversial` covers users with negative rewards, user with 0 rewards should
+            // not be picked for minting because they either have no rewards, or they were
+            // downvoted back to zero and then nothing should be minted for them.
+            self.rewards() > 0
     }
 
     pub fn mintable_tokens(

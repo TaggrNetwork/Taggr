@@ -854,7 +854,6 @@ impl State {
                 };
                 let user = state.users.get_mut(&new_user_id).expect("no user found");
                 user.invited_by = Some(inviter_id);
-                user.mode = Mode::Credits;
                 if let Some(inviter) = state.users.get_mut(&inviter_id) {
                     inviter.notify(format!(
                         "Your invite was used by @{}! Thanks for helping #{} grow! 🤗",
@@ -2647,10 +2646,10 @@ impl State {
                     None,
                 )?;
                 // Only record a donation for users in non-credit mode, so that these users can
-                // switch in other modes any time.
+                // switch to other modes any time.
                 if self
                     .users
-                    .get(&recipient)
+                    .get(recipient)
                     .map(|user| user.mode != Mode::Credits)
                     .unwrap_or_default()
                 {

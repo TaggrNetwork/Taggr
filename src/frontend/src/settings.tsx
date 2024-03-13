@@ -18,7 +18,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
     const [timer, setTimer] = React.useState<any>();
     const [uiRefresh, setUIRefresh] = React.useState(false);
     const [governance, setGovernance] = React.useState("true");
-    const [mode, setMode] = React.useState("true");
+    const [mode, setMode] = React.useState("Mining");
     const [showPostsInRealms, setShowPostsInRealms] = React.useState("true");
     const [userFilter, setUserFilter] = React.useState<UserFilter>({
         safe: false,
@@ -72,7 +72,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
     };
 
     const submit = async () => {
-        if (!user) {
+        const registrationFlow = !user;
+        if (registrationFlow) {
             let response = await window.api.call<any>(
                 "create_user",
                 name,
@@ -82,7 +83,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 return alert(`Error: ${response.Err}`);
             }
         }
-        const nameChange = user && user.name != name;
+
+        const nameChange = !registrationFlow && user.name != name;
         if (nameChange) {
             if (
                 !confirm(
@@ -105,7 +107,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 principal_ids,
                 userFilter,
                 governance == "true",
-                mode,
+                // For new and invited users, set the mode to "Credits"
+                registrationFlow && invite ? "Credits" : mode,
                 showPostsInRealms == "true",
             ),
             window.api.call<any>("update_user_settings", settings),
@@ -117,7 +120,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 return;
             }
         }
-        if (!user || nameChange) location.href = "/";
+        if (registrationFlow || nameChange) location.href = "/";
         else if (uiRefresh) {
             await window.reloadUser();
             window.uiInitialized = false;
