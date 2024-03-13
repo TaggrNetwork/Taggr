@@ -260,6 +260,7 @@ export const ShareButton = ({
     text?: boolean;
 }) => {
     const fullUlr = `https://${location.host}/${url}`;
+    styleArg.fill = styleArg.color;
     return (
         <button
             title={`Share link to ${fullUlr}`}
@@ -598,6 +599,7 @@ export const BurgerButton = ({
     styleArg?: { [name: string]: string };
 }) => {
     const effStyle = { ...styleArg };
+    effStyle.fill = effStyle.color;
     if (pressed) {
         const color = effStyle.color;
         effStyle.color = effStyle.background;
