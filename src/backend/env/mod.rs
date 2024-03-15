@@ -2352,12 +2352,12 @@ impl State {
         vote: u16,
         anonymously: bool,
     ) -> Result<(), String> {
-        let user = self
+        let user_id = self
             .principal_to_user(principal)
-            .ok_or_else(|| "no user found".to_string())?;
-        let (user_id, user_realms) = (user.id, user.realms.clone());
+            .ok_or_else(|| "no user found".to_string())?
+            .id;
         Post::mutate(self, &post_id, |post| {
-            post.vote_on_poll(user_id, user_realms.clone(), time, vote, anonymously)
+            post.vote_on_poll(user_id, time, vote, anonymously)
         })
     }
 
