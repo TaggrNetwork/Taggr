@@ -564,10 +564,10 @@ const showPrincipal = ({ owner, subaccount }: Account, long?: string) => {
                     {principal in knownAddresses
                         ? knownAddresses[principal]
                         : principal == "2vxsx-fae"
-                          ? "🌱"
-                          : long
-                            ? principal
-                            : principal.split("-")[0]}
+                        ? "🌱"
+                        : long
+                        ? principal
+                        : principal.split("-")[0]}
                 </a>
             )}
         />
