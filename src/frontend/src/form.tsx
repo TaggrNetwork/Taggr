@@ -81,7 +81,8 @@ export const Form = ({
     const form = React.useRef();
     const tags = window.backendCache.recent_tags;
     const users = Object.values(USER_CACHE);
-    const realms = Object.keys(window.user?.realms);
+    const user = window.user;
+    const realms = user ? user.realms : [];
     const { max_post_length, max_blob_size_bytes } = window.backendCache.config;
 
     const previewAtLeft = bigScreen() && !comment;
@@ -342,7 +343,6 @@ export const Form = ({
             {content}
         </button>
     );
-    const user = window.user;
     const tooExpensive = user.cycles < totalCosts;
 
     return (
