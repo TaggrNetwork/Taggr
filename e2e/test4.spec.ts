@@ -120,6 +120,19 @@ test.describe("Report and transfer to user", () => {
         );
     });
 
+    test("Login and switch to minting", async ({ page }) => {
+        await page.goto("/");
+        await page.getByRole("button", { name: "CONNECT" }).click();
+        await page.getByRole("button", { name: "PASSWORD" }).click();
+        await page.getByPlaceholder("Enter your password...").fill("jane");
+        await page.getByRole("button", { name: "JOIN" }).click();
+        await page.waitForTimeout(1000);
+
+        await page.goto("/#/settings");
+        await page.getByTestId("mode-selector").selectOption("Mining");
+        await page.getByRole("button", { name: "SAVE" }).click();
+    });
+
     test("Reward user and trigger minting", async () => {
         await page.reload();
         await page.goto("/");
@@ -133,20 +146,18 @@ test.describe("Report and transfer to user", () => {
             .locator('button[title="Reward points: 20"]')
             .first()
             .click({ delay: 3000 });
-        // Wait because the UI waits for 4s before sending the command
-        await page.waitForTimeout(6000);
+
         exec("dfx canister call taggr weekly_chores");
         await page.waitForTimeout(1500);
     });
 
-    test("Login and report user", async ({ page }) => {
+    test("Report user", async ({ page }) => {
         await page.goto("/");
         await page.getByRole("button", { name: "CONNECT" }).click();
         await page.getByRole("button", { name: "PASSWORD" }).click();
         await page.getByPlaceholder("Enter your password...").fill("jane");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.waitForTimeout(1000);
-
         await page.goto("/#/user/kyle");
         await page.getByTestId("profile-burger-menu").click();
         const reporting = new Promise((resolve, reject) => {

@@ -18,7 +18,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
     const [timer, setTimer] = React.useState<any>();
     const [uiRefresh, setUIRefresh] = React.useState(false);
     const [governance, setGovernance] = React.useState("true");
-    const [miner, setMiner] = React.useState("true");
+    const [mode, setMode] = React.useState("Mining");
     const [showPostsInRealms, setShowPostsInRealms] = React.useState("true");
     const [userFilter, setUserFilter] = React.useState<UserFilter>({
         safe: false,
@@ -35,7 +35,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         setControllers(user.controllers.join("\n"));
         setSettings(user.settings);
         setGovernance(user.governance.toString());
-        setMiner(user.miner.toString());
+        setMode(user.mode);
         setShowPostsInRealms(user.show_posts_in_realms.toString());
         setUserFilter(user.filters.noise);
     };
@@ -72,7 +72,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
     };
 
     const submit = async () => {
-        if (!user) {
+        const registrationFlow = !user;
+        if (registrationFlow) {
             let response = await window.api.call<any>(
                 "create_user",
                 name,
@@ -82,7 +83,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 return alert(`Error: ${response.Err}`);
             }
         }
-        const nameChange = user && user.name != name;
+
+        const nameChange = !registrationFlow && user.name != name;
         if (nameChange) {
             if (
                 !confirm(
@@ -105,7 +107,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 principal_ids,
                 userFilter,
                 governance == "true",
-                miner == "true",
+                // For new and invited users, set the mode to "Credits"
+                registrationFlow && invite ? "Credits" : mode,
                 showPostsInRealms == "true",
             ),
             window.api.call<any>("update_user_settings", settings),
@@ -117,7 +120,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 return;
             }
         }
-        if (!user || nameChange) location.href = "/";
+        if (registrationFlow || nameChange) location.href = "/";
         else if (uiRefresh) {
             await window.reloadUser();
             window.uiInitialized = false;
@@ -152,19 +155,21 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 />
                 {user && (
                     <>
-                        <div className="bottom_half_spaced">
-                            Token minting and rewards:
-                        </div>
+                        <div className="bottom_half_spaced">Usage mode</div>
                         <select
-                            value={miner}
+                            data-testid="mode-selector"
+                            value={mode}
                             className="bottom_spaced"
-                            onChange={(event) => setMiner(event.target.value)}
+                            onChange={(event) => setMode(event.target.value)}
                         >
-                            <option value="true">
-                                Mint {window.backendCache.config.token_symbol}{" "}
+                            <option value="Credits">
+                                Convert rewards to credits automatically
+                            </option>
+                            <option value="Rewards">Receive ICP rewards</option>
+                            <option value="Mining">
+                                Mine {window.backendCache.config.token_symbol}{" "}
                                 tokens
                             </option>
-                            <option value="false">Receive ICP rewards</option>
                         </select>
                         <div className="bottom_half_spaced">
                             Participate in governance
