@@ -1223,7 +1223,7 @@ impl State {
                 continue;
             };
             // All miner rewards are burned.
-            if user.mode == Mode::Mining {
+            if user.mode == Mode::Mining || user.mode == Mode::Credits {
                 self.burned_cycles += rewards;
             } else {
                 payouts.insert(user.id, rewards as Credits);
