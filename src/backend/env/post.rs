@@ -190,16 +190,10 @@ impl Post {
     pub fn vote_on_poll(
         &mut self,
         user_id: UserId,
-        user_realms: Vec<String>,
         time: u64,
         vote: u16,
         anonymously: bool,
     ) -> Result<(), String> {
-        if let Some(realm) = self.realm.as_ref() {
-            if !user_realms.contains(realm) {
-                return Err(format!("you're not in realm {}", realm));
-            }
-        }
         let timestamp = self.timestamp();
         if let Some(Extension::Poll(poll)) = self.extension.as_mut() {
             if poll.options.len() as u16 <= vote {
