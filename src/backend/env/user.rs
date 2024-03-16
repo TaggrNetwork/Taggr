@@ -429,17 +429,10 @@ impl User {
     }
 
     pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {
-        if self.mode == Mode::Credits {
-            self.change_credits(
-                amount.unsigned_abs(),
-                if amount > 0 {
-                    CreditsDelta::Plus
-                } else {
-                    CreditsDelta::Minus
-                },
-                log,
-            )
-            .expect("couldn't change credits");
+        // The top up only works if the rewards balance is non-negative
+        if self.mode == Mode::Credits && self.rewards() >= 0 && amount > 0 {
+            self.change_credits(amount.unsigned_abs(), CreditsDelta::Plus, log)
+                .expect("couldn't change credits");
             return;
         }
         self.rewards = self.rewards.saturating_add(amount);
@@ -871,11 +864,23 @@ mod tests {
         user.mode = Mode::Credits;
         let e8s_for_one_xdr = 3095_0000;
 
+        // simple top up
         user.cycles = 1000;
         user.change_rewards(30, "");
         assert_eq!(user.cycles, 1030);
+
+        // decrease in rewards does not remove credits, but creates a "debt"
         user.change_rewards(-30, "");
+        assert_eq!(user.cycles, 1030);
+        assert_eq!(user.rewards(), -30);
+        user.change_rewards(35, "");
+        assert_eq!(user.cycles, 1030);
+        assert_eq!(user.rewards(), 5);
+
+        // Chraging credits works as before
+        user.change_credits(30, CreditsDelta::Minus, "").unwrap();
         assert_eq!(user.cycles, 1000);
+
         let mut revenue = 2000_0000;
         user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();

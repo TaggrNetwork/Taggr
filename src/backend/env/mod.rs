@@ -1222,7 +1222,7 @@ impl State {
             if rewards == 0 {
                 continue;
             };
-            // All miner rewards are burned.
+            // All miner and normie rewards are burned.
             if user.mode == Mode::Mining || user.mode == Mode::Credits {
                 self.burned_cycles += rewards;
             } else {

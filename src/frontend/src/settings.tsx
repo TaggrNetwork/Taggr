@@ -155,8 +155,9 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 />
                 {user && (
                     <>
-                        <div className="bottom_half_spaced">Usage mode:</div>
+                        <div className="bottom_half_spaced">Usage mode</div>
                         <select
+                            data-testid="mode-selector"
                             value={mode}
                             className="bottom_spaced"
                             onChange={(event) => setMode(event.target.value)}
