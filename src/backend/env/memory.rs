@@ -3,6 +3,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{cell::RefCell, collections::BTreeMap, fmt::Display, rc::Rc};
 
 use super::post::{Post, PostId};
+use crate::{user::UserId, Blob};
 
 #[derive(Serialize, Deserialize)]
 pub struct Api {
@@ -38,6 +39,7 @@ impl Default for Api {
 pub struct Memory {
     api: Api,
     pub posts: ObjectManager<PostId, Post>,
+    pub avatars: ObjectManager<UserId, Blob>,
     #[serde(skip)]
     api_ref: Rc<RefCell<Api>>,
 }
@@ -84,6 +86,7 @@ impl Memory {
     fn unpack(&mut self) {
         self.api_ref = Rc::new(RefCell::new(self.api.clone()));
         self.posts.api = Rc::clone(&self.api_ref);
+        self.avatars.api = Rc::clone(&self.api_ref);
     }
 
     #[allow(clippy::type_complexity)]
@@ -109,6 +112,7 @@ impl Memory {
         };
         self.api_ref = Rc::new(RefCell::new(test_api));
         self.posts.api = Rc::clone(&self.api_ref);
+        self.avatars.api = Rc::clone(&self.api_ref);
     }
 }
 

@@ -88,6 +88,7 @@ pub struct Config {
 
     pub post_cost: Credits,
     pub blob_cost: Credits,
+    pub avatar_cost: Credits,
     pub poll_cost: Credits,
     pub realm_cost: Credits,
 
@@ -116,6 +117,7 @@ pub struct Config {
     pub max_tag_length: usize,
     pub max_user_info_length: usize,
     pub max_blob_size_bytes: usize,
+    pub max_avatar_size_bytes: usize,
 
     pub min_credits_for_inviting: Credits,
 
@@ -275,6 +277,7 @@ pub const CONFIG: &Config = &Config {
 
     post_cost: 2,
     blob_cost: 20,
+    avatar_cost: 100,
     poll_cost: 3,
     realm_cost: 1000,
 
@@ -310,6 +313,7 @@ pub const CONFIG: &Config = &Config {
     max_tag_length: 30,
     max_user_info_length: 500,
     max_blob_size_bytes: 460800,
+    max_avatar_size_bytes: 65536,
 
     online_activity_minutes: 10 * 60000000000_u64,
 

@@ -1,9 +1,16 @@
 import * as React from "react";
-import { ButtonWithLoading, HeadBar, ICP_LEDGER_ID } from "./common";
+import {
+    ButtonWithLoading,
+    HeadBar,
+    ICP_LEDGER_ID,
+    blobToUrl,
+    getAvatarUrl,
+} from "./common";
 import { User, UserFilter } from "./types";
 import { Principal } from "@dfinity/principal";
 import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
+import { loadFile, resizeImage } from "./image";
 
 export const Settings = ({ invite }: { invite?: string }) => {
     const user = window.user;
@@ -27,6 +34,15 @@ export const Settings = ({ invite }: { invite?: string }) => {
         num_followers: 0,
         downvotes: 0,
     });
+    {
+        (" ");
+    }
+    const [avatarBlob, setAvatarBlob] = React.useState<Uint8Array | undefined>(
+        undefined,
+    );
+    const [avatarUrl, setAvatarUrl] = React.useState<string>(
+        getAvatarUrl(user?.id),
+    );
 
     const updateData = (user: User) => {
         if (!user) return;
@@ -71,6 +87,42 @@ export const Settings = ({ invite }: { invite?: string }) => {
         setName(name);
     };
 
+    const onAvatarChange = async (ev: any) => {
+        ev.preventDefault();
+        if (!ev.target.files[0]) {
+            return;
+        }
+        const max_size_bytes = window.backendCache.config.max_avatar_size_bytes;
+        let blob = null;
+        for (let size of [64, 32, 24, 16]) {
+            const content = await loadFile(ev.target.files[0]);
+            const resized_content = await resizeImage(content, size, size);
+            blob = new Uint8Array(resized_content);
+            if (blob.byteLength <= max_size_bytes) break;
+        }
+        if (blob) {
+            setAvatarBlob(blob);
+            setAvatarUrl(blobToUrl(blob));
+        }
+    };
+
+    const clearAvatar = (ev: any) => {
+        ev.preventDefault();
+        setAvatarBlob(undefined);
+        setAvatarUrl(getAvatarUrl());
+    };
+
+    const cost = () => {
+        let credits = 0;
+        if (user && avatarBlob) {
+            credits += window.backendCache.config.avatar_cost;
+        }
+        if (user && user.name != name) {
+            credits += window.backendCache.config.name_change_cost;
+        }
+        return credits == 0 ? "" : ` ⚡${credits}`;
+    };
+
     const submit = async () => {
         const registrationFlow = !user;
         if (registrationFlow) {
@@ -88,8 +140,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         if (nameChange) {
             if (
                 !confirm(
-                    `A name change incurs costs of ${window.backendCache.config.name_change_cost} credits. ` +
-                        `Moreover, the old name will still route to your profile. ` +
+                    `The old name will still route to your profile. ` +
                         `Do you want to continue?`,
                 )
             )
@@ -110,8 +161,10 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 // For new and invited users, set the mode to "Credits"
                 registrationFlow && invite ? "Credits" : mode,
                 showPostsInRealms == "true",
+                avatarUrl == getAvatarUrl(),
             ),
             window.api.call<any>("update_user_settings", settings),
+            avatarBlob ? window.api.upload_avatar(avatarBlob) : { Ok: null },
         ]);
         for (let i in responses) {
             const response = responses[i];
@@ -127,6 +180,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
             window.setUI();
             updateData(window.user);
         }
+        setAvatarBlob(undefined);
         await window.reloadUser();
     };
 
@@ -155,6 +209,30 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 />
                 {user && (
                     <>
+                        <div className="bottom_spaced">Profile picture</div>
+                        <label
+                            id="file_picker_label"
+                            htmlFor="file-picker"
+                            className="action bottom_spaced clickable"
+                            data-testid="file-picker"
+                        >
+                            <div className="top_aligned">
+                                <img
+                                    alt=""
+                                    src={avatarUrl}
+                                    className="avatar_large"
+                                />
+                                <span onClick={clearAvatar}>[X]</span>
+                            </div>
+                        </label>
+                        <input
+                            id="file-picker"
+                            className="bottom_spaced"
+                            style={{ display: "none" }}
+                            type="file"
+                            accept=".png, .jpg, .jpeg"
+                            onChange={onAvatarChange}
+                        />
                         <div className="bottom_half_spaced">Usage mode</div>
                         <select
                             data-testid="mode-selector"
@@ -391,7 +469,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 <ButtonWithLoading
                     classNameArg="active"
                     onClick={submit}
-                    label="SAVE"
+                    label={`SAVE ${cost()}`}
                 />
                 {user && (
                     <div className="top_spaced column_container">

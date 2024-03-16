@@ -312,9 +312,11 @@ declare global {
                 logo: string;
                 poll_revote_deadline_hours: number;
                 blob_cost: number;
+                avatar_cost: number;
                 poll_cost: number;
                 max_post_length: number;
                 max_blob_size_bytes: number;
+                max_avatar_size_bytes: number;
                 name_change_cost: number;
                 max_realm_name: number;
                 max_realm_logo_len: number;

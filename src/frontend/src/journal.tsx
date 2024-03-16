@@ -37,13 +37,14 @@ export const Journal = ({ handle }: { handle: string }) => {
         <>
             {profile && (
                 <div className="text_centered">
-                    <h1>
+                    <h1 className="vcentered centered nowrap">
                         <UserLink
                             id={profile.id}
                             name={profile.name}
                             profile={true}
+                            suffix="'s"
                         />
-                        's Journal
+                        &nbsp;journal
                     </h1>
                     {
                         <Content

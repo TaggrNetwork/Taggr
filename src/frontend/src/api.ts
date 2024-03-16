@@ -89,6 +89,8 @@ export type Backend = {
         amount: number,
         fee: number,
     ) => Promise<string | number>;
+
+    upload_avatar: (blob: Uint8Array) => Promise<JsonValue | null>;
 };
 
 export const ApiGenerator = (
@@ -436,6 +438,18 @@ export const ApiGenerator = (
                 owner: account.owner,
                 subaccount: account.subaccount,
             });
+        },
+
+        upload_avatar: async (blob: Uint8Array): Promise<JsonValue | null> => {
+            const arg = IDL.encode([IDL.Vec(IDL.Nat8)], [blob]);
+            const response = await call_raw(undefined, "upload_avatar", arg);
+            if (!response) {
+                return null;
+            }
+            return IDL.decode(
+                [IDL.Variant({ Ok: IDL.Null, Err: IDL.Text })],
+                response,
+            )[0];
         },
     };
 };

@@ -214,7 +214,7 @@ fn confirm_principal_change() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (new_name, about, principals, filter, governance, mode, show_posts_in_realms): (
+    let (new_name, about, principals, filter, governance, mode, show_posts_in_realms, clear_avatar): (
         String,
         String,
         Vec<String>,
@@ -222,6 +222,7 @@ fn update_user() {
         bool,
         Mode,
         bool,
+        bool
     ) = parse(&arg_data_raw());
     reply(User::update(
         caller(),
@@ -232,7 +233,28 @@ fn update_user() {
         governance,
         mode,
         show_posts_in_realms,
+        clear_avatar,
     ))
+}
+
+#[update]
+async fn upload_avatar(blob: Blob) -> Result<(), String> {
+    mutate(|state| -> Result<(), String> {
+        let user_id = state.principal_to_user(caller()).ok_or("no user found")?.id;
+        if blob.len() > CONFIG.max_avatar_size_bytes {
+            return Err("avatar image is too large".to_string());
+        }
+        state.charge_in_realm(
+            user_id,
+            CONFIG.avatar_cost,
+            None,
+            "uploading profile picture".to_string(),
+        )?;
+        if state.memory.avatars.get(&user_id).is_some() {
+            state.memory.avatars.remove(&user_id)?;
+        }
+        state.memory.avatars.insert(user_id, blob)
+    })
 }
 
 #[export_name = "canister_update update_user_settings"]

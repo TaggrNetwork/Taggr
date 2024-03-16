@@ -287,6 +287,7 @@ export const PostView = ({
                             id={post.user}
                             name={post.meta.author_name}
                             profile={true}
+                            show_avatar={true}
                         />
                         <span className="right_half_spaced">&middot;</span>
                         <div className="no_wrap vcentered">
