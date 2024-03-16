@@ -192,7 +192,7 @@ export const HeadBar = ({
                     )}
                     {button1}
                     {button2}
-                    {menu && (
+                    {menu && content && (
                         <BurgerButton
                             styleArg={effStyle}
                             onClick={() => setShowMenu(!showMenu)}

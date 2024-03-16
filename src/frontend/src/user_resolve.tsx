@@ -80,15 +80,18 @@ export const UserList = ({
     ids: UserId[];
     profile?: boolean;
 }) => {
-    const [loading, setLoading] = React.useState(false);
+    const [loaded, setLoaded] = React.useState(false);
 
-    const loadNames = async () => await populateUserNameCache(ids, setLoading);
+    const loadNames = async () => {
+        await populateUserNameCache(ids);
+        setLoaded(true);
+    };
 
     React.useEffect(() => {
         loadNames();
     }, []);
 
-    return loading ? (
+    return !loaded ? (
         <Loading spaced={false} />
     ) : (
         commaSeparated(

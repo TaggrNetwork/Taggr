@@ -51,17 +51,19 @@ export const Proposals = () => {
                 menu={true}
                 burgerTestId="proposals-burger-button"
                 content={
-                    <div className="two_columns_grid">
-                        {Object.values(ProposalType).map((id) => (
-                            <button
-                                key={id}
-                                className="max_width_col"
-                                onClick={() => setProposalType(id)}
-                            >
-                                {id}
-                            </button>
-                        ))}
-                    </div>
+                    window.user?.stalwart ? (
+                        <div className="two_columns_grid">
+                            {Object.values(ProposalType).map((id) => (
+                                <button
+                                    key={id}
+                                    className="max_width_col"
+                                    onClick={() => setProposalType(id)}
+                                >
+                                    {id}
+                                </button>
+                            ))}
+                        </div>
+                    ) : undefined
                 }
             />
             <div className="vertically_spaced">

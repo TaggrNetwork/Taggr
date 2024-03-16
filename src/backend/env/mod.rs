@@ -2352,12 +2352,22 @@ impl State {
         vote: u16,
         anonymously: bool,
     ) -> Result<(), String> {
-        let user = self
+        let user_id = self
             .principal_to_user(principal)
-            .ok_or_else(|| "no user found".to_string())?;
-        let (user_id, user_realms) = (user.id, user.realms.clone());
+            .ok_or_else(|| "no user found".to_string())?
+            .id;
+        if let Some(realm_id) = Post::get(self, &post_id).and_then(|post| post.realm.as_ref()) {
+            if self
+                .realms
+                .get(realm_id.as_str())
+                .map(|realm| !realm.whitelist.is_empty() && !realm.whitelist.contains(&user_id))
+                .unwrap_or_default()
+            {
+                return Err(format!("you're not in realm {}", realm_id));
+            }
+        }
         Post::mutate(self, &post_id, |post| {
-            post.vote_on_poll(user_id, user_realms.clone(), time, vote, anonymously)
+            post.vote_on_poll(user_id, time, vote, anonymously)
         })
     }
 
