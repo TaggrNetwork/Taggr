@@ -79,15 +79,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    mutate(|state| {
-        for u in state.users.values_mut() {
-            u.mode = if u.miner { Mode::Mining } else { Mode::Rewards };
-            // clean up of old settings still present for some users
-            u.settings.retain(|key, _| !key.ends_with("_tab"));
-        }
-    })
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}

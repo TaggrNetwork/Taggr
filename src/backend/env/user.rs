@@ -117,6 +117,7 @@ pub struct User {
     pub show_posts_in_realms: bool,
     pub posts: Vec<PostId>,
     // TODO: delete
+    #[serde(skip)]
     pub miner: bool,
     pub controlled_realms: HashSet<RealmId>,
     #[serde(default)]
