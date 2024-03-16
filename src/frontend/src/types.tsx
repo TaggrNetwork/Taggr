@@ -25,6 +25,8 @@ export type Summary = {
     items: string[];
 };
 
+export type Mode = "Mining" | "Rewards" | "Credits";
+
 export type Extension =
     | {
           ["Poll"]: Poll;
@@ -199,7 +201,6 @@ export type User = {
     bookmarks: number[];
     last_activity: BigInt;
     governance: boolean;
-    miner: boolean;
     settings: {
         [key: string]: string;
     };
@@ -229,6 +230,7 @@ export type User = {
     filters: Filters;
     blacklist: UserId[];
     notifications: { [key: number]: [Notification, boolean] };
+    mode: Mode;
 };
 
 export type Report = {

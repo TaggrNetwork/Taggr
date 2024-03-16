@@ -67,6 +67,14 @@ impl UserFilter {
     }
 }
 
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub enum Mode {
+    #[default]
+    Mining,
+    Rewards,
+    Credits,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct User {
     pub id: UserId,
@@ -108,9 +116,11 @@ pub struct User {
     pub downvotes: BTreeMap<UserId, Time>,
     pub show_posts_in_realms: bool,
     pub posts: Vec<PostId>,
+    // TODO: delete
     pub miner: bool,
-    #[serde(default)]
     pub controlled_realms: HashSet<RealmId>,
+    #[serde(default)]
+    pub mode: Mode,
 }
 
 impl User {
@@ -192,6 +202,7 @@ impl User {
             miner: true,
             downvotes: Default::default(),
             show_posts_in_realms: true,
+            mode: Mode::default(),
         }
     }
 
@@ -418,6 +429,12 @@ impl User {
     }
 
     pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {
+        // The top up only works if the rewards balance is non-negative
+        if self.mode == Mode::Credits && self.rewards() >= 0 && amount > 0 {
+            self.change_credits(amount.unsigned_abs(), CreditsDelta::Plus, log)
+                .expect("couldn't change credits");
+            return;
+        }
         self.rewards = self.rewards.saturating_add(amount);
         self.add_accounting_log(time(), "RWD".to_string(), amount, log.to_string());
     }
@@ -489,7 +506,7 @@ impl User {
         principals: Vec<String>,
         filter: UserFilter,
         governance: bool,
-        miner: bool,
+        mode: Mode,
         show_posts_in_realms: bool,
     ) -> Result<(), String> {
         if read(|state| {
@@ -521,10 +538,13 @@ impl User {
                     .info(format!("@{} changed name to @{} 🪪", old_name, name));
             }
             if let Some(user) = state.principal_to_user_mut(caller) {
+                if user.rewards() > 0 && mode == Mode::Credits {
+                    return Err("switching to the credits mode is only possible when a user has no pending rewards".into());
+                }
                 user.about = about;
                 user.controllers = principals;
                 user.governance = governance;
-                user.miner = miner;
+                user.mode = mode;
                 user.filters.noise = filter;
                 user.show_posts_in_realms = show_posts_in_realms;
                 if let Some(name) = new_name {
@@ -539,7 +559,11 @@ impl User {
     }
 
     pub fn eligible_for_minting(&self) -> bool {
-        self.miner && !self.controversial()
+        self.mode == Mode::Mining && !self.controversial() &&
+            // While `controversial` covers users with negative rewards, user with 0 rewards should
+            // not be picked for minting because they either have no rewards, or they were
+            // downvoted back to zero and then nothing should be minted for them.
+            self.rewards() > 0
     }
 
     pub fn mintable_tokens(
@@ -832,6 +856,65 @@ mod tests {
                 *mintable_tokens_after_buyback.get(id).unwrap(),
             );
         }
+    }
+
+    #[test]
+    fn test_automatic_top_up() {
+        let mut user = User::new(pr(0), 66, 0, Default::default());
+        user.mode = Mode::Credits;
+        let e8s_for_one_xdr = 3095_0000;
+
+        // simple top up
+        user.cycles = 1000;
+        user.change_rewards(30, "");
+        assert_eq!(user.cycles, 1030);
+
+        // decrease in rewards does not remove credits, but creates a "debt"
+        user.change_rewards(-30, "");
+        assert_eq!(user.cycles, 1030);
+        assert_eq!(user.rewards(), -30);
+        user.change_rewards(35, "");
+        assert_eq!(user.cycles, 1030);
+        assert_eq!(user.rewards(), 5);
+
+        // Chraging credits works as before
+        user.change_credits(30, CreditsDelta::Minus, "").unwrap();
+        assert_eq!(user.cycles, 1000);
+
+        let mut revenue = 2000_0000;
+        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
+            .unwrap();
+        assert_eq!(revenue, 2000_0000);
+        assert_eq!(user.credits(), 1000);
+
+        // rewards are enough
+        user.cycles = 980;
+        user.rewards = 30;
+        user.change_rewards(30, "");
+        let mut revenue = 2000_0000;
+        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
+            .unwrap();
+        assert_eq!(revenue, 2000_0000);
+        assert_eq!(user.credits(), 1010);
+
+        // rewards are still enough
+        user.cycles = 0;
+        user.rewards = 3000;
+        user.change_rewards(1010, "");
+        let mut revenue = 2000_0000;
+        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
+            .unwrap();
+        assert_eq!(revenue, 2000_0000);
+        assert_eq!(user.credits(), 1010);
+
+        // rewards are not enough
+        user.cycles = 0;
+        user.rewards = 500;
+        let mut revenue = 2000_0000;
+        user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
+            .unwrap();
+        assert_eq!(revenue, 0);
+        assert_eq!(user.credits(), 646);
     }
 
     #[test]

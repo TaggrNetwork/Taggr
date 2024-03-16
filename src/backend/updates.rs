@@ -1,4 +1,4 @@
-use crate::env::user::UserFilter;
+use crate::env::user::{Mode, UserFilter};
 
 use super::*;
 use env::{
@@ -79,7 +79,15 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        for u in state.users.values_mut() {
+            u.mode = if u.miner { Mode::Mining } else { Mode::Rewards };
+            // clean up of old settings still present for some users
+            u.settings.retain(|key, _| !key.ends_with("_tab"));
+        }
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -206,13 +214,13 @@ fn confirm_principal_change() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (new_name, about, principals, filter, governance, miner, show_posts_in_realms): (
+    let (new_name, about, principals, filter, governance, mode, show_posts_in_realms): (
         String,
         String,
         Vec<String>,
         UserFilter,
         bool,
-        bool,
+        Mode,
         bool,
     ) = parse(&arg_data_raw());
     reply(User::update(
@@ -222,7 +230,7 @@ fn update_user() {
         principals,
         filter,
         governance,
-        miner,
+        mode,
         show_posts_in_realms,
     ))
 }
