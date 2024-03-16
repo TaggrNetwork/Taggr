@@ -532,7 +532,7 @@ impl User {
             let user_id = user.id;
             let old_name = user.name.clone();
             if clear_avatar {
-                state.memory.avatars.remove(&user_id)?;
+                let _ = state.memory.avatars.remove(&user_id);
             }
             if let Some(name) = &new_name {
                 state.validate_username(name)?;
