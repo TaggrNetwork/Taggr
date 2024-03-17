@@ -762,7 +762,7 @@ impl State {
                 to: account(author.principal),
                 fee: Some(1), // special tipping fee
                 amount: amount as u128,
-                memo: None,
+                memo: Some(format!("Tips on post {}", post_id).as_bytes().to_vec()),
                 created_at_time: None,
             },
         )
