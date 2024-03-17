@@ -58,7 +58,7 @@ test.describe("Regular users flow", () => {
         await page.getByPlaceholder("Enter your password...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.getByTestId("toggle-user-section").click();
-        const profileButton = page.getByRole("link", { name: /.*alice.*/ });
+        const profileButton = page.getByRole("link", { name: "PROFILE" });
         await expect(profileButton).toBeVisible();
 
         // Open our own profile and make sure it works
@@ -93,7 +93,7 @@ test.describe("Regular users flow", () => {
         await expect(
             page.locator("article", { hasText: /Hello world/ }),
         ).toBeVisible();
-        await expect(page.locator("img")).toBeVisible();
+        await expect(page.getByRole("img", {name: "512x512, 2kb"})).toBeVisible();
 
         // Edit the post
         await page.getByTestId("post-info-toggle").click();
@@ -113,7 +113,7 @@ test.describe("Regular users flow", () => {
                 hasText: "Hello world!\n" + "Edit: this is a post-scriptum",
             }),
         ).toBeVisible();
-        await expect(page.locator("img")).toBeVisible();
+        await expect(page.getByRole("img", {name: "512x512, 2kb"})).toBeVisible();
     });
 
     test("Wallet", async () => {
