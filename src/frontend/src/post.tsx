@@ -509,6 +509,16 @@ const PostInfo = ({
                     You're blocked by this user.
                 </div>
             );
+        else if (
+            realmData &&
+            realmData.whitelist.length > 0 &&
+            !realmData.whitelist.includes(user.id)
+        )
+            realmAccessError = (
+                <div className="banner vertically_spaced">
+                    This realm is gated by a whitelist.
+                </div>
+            );
         else if (realmData)
             realmAccessError = noiseControlBanner(
                 "realm",
