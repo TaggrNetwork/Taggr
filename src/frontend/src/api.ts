@@ -8,6 +8,7 @@ import {
     IcrcTransferError,
     IcrcAccount,
 } from "@dfinity/ledger-icrc";
+import { PostId } from "./types";
 
 export type Backend = {
     query: <T>(
@@ -43,7 +44,7 @@ export type Backend = {
     unlink_cold_wallet: () => Promise<JsonValue | null>;
 
     propose_release: (
-        text: string,
+        postId: PostId,
         commit: string,
         blob: Uint8Array,
     ) => Promise<JsonValue | null>;
@@ -242,13 +243,13 @@ export const ApiGenerator = (
         },
 
         propose_release: async (
-            text: string,
+            postId: PostId,
             commit: string,
             blob: Uint8Array,
         ): Promise<JsonValue | null> => {
             const arg = IDL.encode(
-                [IDL.Text, IDL.Text, IDL.Vec(IDL.Nat8)],
-                [text, commit, blob],
+                [IDL.Nat64, IDL.Text, IDL.Vec(IDL.Nat8)],
+                [postId, commit, blob],
             );
             const response = await call_raw(undefined, "propose_release", arg);
             if (!response) {

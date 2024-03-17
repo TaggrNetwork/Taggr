@@ -2828,25 +2828,6 @@ fn covered_by_feeds(
     None
 }
 
-pub fn parse_amount(amount: &str, token_decimals: u8) -> Result<u64, String> {
-    let parse = |s: &str| {
-        s.parse::<u64>()
-            .map_err(|err| format!("couldn't parse as u64: {:?}", err))
-    };
-    match &amount.split('.').collect::<Vec<_>>().as_slice() {
-        [tokens] => Ok(parse(tokens)? * 10_u64.pow(token_decimals as u32)),
-        [tokens, after_comma] => {
-            let mut after_comma = after_comma.to_string();
-            while after_comma.len() < token_decimals as usize {
-                after_comma.push('0');
-            }
-            let after_comma = &after_comma[..token_decimals as usize];
-            Ok(parse(tokens)? * 10_u64.pow(token_decimals as u32) + parse(after_comma)?)
-        }
-        _ => Err(format!("can't parse amount {}", amount)),
-    }
-}
-
 pub fn display_tokens(amount: u64, decimals: u32) -> String {
     let base = 10_u64.pow(decimals);
     if decimals == 8 {

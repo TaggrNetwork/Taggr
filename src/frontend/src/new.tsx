@@ -34,7 +34,7 @@ export const PostSubmissionForm = ({
         blobs: [string, Uint8Array][],
         extension: Extension | undefined,
         realm: string | undefined,
-    ): Promise<boolean> => {
+    ): Promise<PostId | null> => {
         let postId;
         text = text.trim();
         const optionalRealm = realm ? [realm] : [];
@@ -49,7 +49,7 @@ export const PostSubmissionForm = ({
             );
             if ("Err" in response) {
                 alert(`Error: ${response.Err}`);
-                return false;
+                return null;
             }
             postId = post.id;
         } else {
@@ -72,7 +72,7 @@ export const PostSubmissionForm = ({
                 let error: any = results.find((result: any) => "Err" in result);
                 if (error) {
                     alert(`Error: ${error.Err}`);
-                    return false;
+                    return null;
                 }
                 result = await window.api.commit_post();
             } else {
@@ -86,7 +86,7 @@ export const PostSubmissionForm = ({
             }
             if ("Err" in result) {
                 alert(`Error: ${result.Err}`);
-                return false;
+                return null;
             }
             // this is the rare case when a blob triggers the creation of a new bucket
             if (window.backendCache.stats.buckets.length == 0) {
@@ -94,9 +94,7 @@ export const PostSubmissionForm = ({
             }
             postId = result.Ok;
         }
-        window.resetUI();
-        location.href = `#/post/${postId}`;
-        return true;
+        return Number(postId);
     };
 
     if (id != undefined && !isNaN(id) && !post) return null;

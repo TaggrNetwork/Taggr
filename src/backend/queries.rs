@@ -1,7 +1,7 @@
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
-use crate::env::{token::Token, user::UserFilter};
+use crate::env::{proposals::Payload, token::Token, user::UserFilter};
 
 use super::*;
 use candid::Principal;
@@ -508,6 +508,12 @@ fn thread() {
 fn recent_tags() {
     let (realm, n): (String, u64) = parse(&arg_data_raw());
     read(|state| reply(state.recent_tags(optional(realm), n)));
+}
+
+#[export_name = "canister_query validate_proposal"]
+fn validate_proposal() {
+    let payload: Payload = parse(&arg_data_raw());
+    read(|state| reply(payload.validate(state)));
 }
 
 #[export_name = "canister_query validate_username"]
