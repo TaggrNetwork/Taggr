@@ -508,7 +508,6 @@ impl User {
         governance: bool,
         mode: Mode,
         show_posts_in_realms: bool,
-        clear_avatar: bool,
     ) -> Result<(), String> {
         if read(|state| {
             state
@@ -531,9 +530,6 @@ impl User {
             }
             let user_id = user.id;
             let old_name = user.name.clone();
-            if clear_avatar {
-                let _ = state.memory.avatars.remove(&user_id);
-            }
             if let Some(name) = &new_name {
                 state.validate_username(name)?;
                 state.charge(user_id, CONFIG.name_change_cost, "name change")?;

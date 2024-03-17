@@ -106,9 +106,11 @@ export const Settings = ({ invite }: { invite?: string }) => {
         }
     };
 
-    const clearAvatar = (ev: any) => {
+    const removeAvatar = (ev: any) => {
         ev.preventDefault();
-        setAvatarBlob(undefined);
+        // Uploading an empty avater blob to the backend,
+        // removes it.
+        setAvatarBlob(new Uint8Array());
         setAvatarUrl(getAvatarUrl());
     };
 
@@ -161,7 +163,6 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 // For new and invited users, set the mode to "Credits"
                 registrationFlow && invite ? "Credits" : mode,
                 showPostsInRealms == "true",
-                avatarUrl == getAvatarUrl(),
             ),
             window.api.call<any>("update_user_settings", settings),
             avatarBlob ? window.api.upload_avatar(avatarBlob) : { Ok: null },
@@ -222,7 +223,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                     src={avatarUrl}
                                     className="avatar_large"
                                 />
-                                <span onClick={clearAvatar}>[X]</span>
+                                <span onClick={removeAvatar}>[X]</span>
                             </div>
                         </label>
                         <input

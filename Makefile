@@ -42,9 +42,6 @@ e2e_build:
 	FEATURES=dev ./build.sh taggr
 
 e2e_test:
-	npm run install:e2e
-	dfx canister create --all
-	make e2e_build
 	make start || true # don't fail if DFX is already running
 	npm run test:e2e
 	dfx stop

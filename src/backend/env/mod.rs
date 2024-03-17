@@ -3085,7 +3085,6 @@ pub(crate) mod tests {
             false,
             Mode::Mining,
             false,
-            false,
         )
         .is_err());
 
@@ -3098,7 +3097,6 @@ pub(crate) mod tests {
             Default::default(),
             false,
             Mode::Mining,
-            false,
             false,
         )
         .is_ok());

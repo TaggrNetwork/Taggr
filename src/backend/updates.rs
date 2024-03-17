@@ -214,7 +214,7 @@ fn confirm_principal_change() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (new_name, about, principals, filter, governance, mode, show_posts_in_realms, clear_avatar): (
+    let (new_name, about, principals, filter, governance, mode, show_posts_in_realms): (
         String,
         String,
         Vec<String>,
@@ -222,7 +222,6 @@ fn update_user() {
         bool,
         Mode,
         bool,
-        bool
     ) = parse(&arg_data_raw());
     reply(User::update(
         caller(),
@@ -233,7 +232,6 @@ fn update_user() {
         governance,
         mode,
         show_posts_in_realms,
-        clear_avatar,
     ))
 }
 
@@ -244,16 +242,23 @@ async fn upload_avatar(blob: Blob) -> Result<(), String> {
         if blob.len() > CONFIG.max_avatar_size_bytes {
             return Err("avatar image is too large".to_string());
         }
-        state.charge_in_realm(
-            user_id,
-            CONFIG.avatar_cost,
-            None,
-            "uploading profile picture".to_string(),
-        )?;
-        if state.memory.avatars.get(&user_id).is_some() {
-            state.memory.avatars.remove(&user_id)?;
+        if blob.is_empty() {
+            if state.memory.avatars.get(&user_id).is_some() {
+                state.memory.avatars.remove(&user_id)?;
+            }
+            Ok(())
+        } else {
+            state.charge_in_realm(
+                user_id,
+                CONFIG.avatar_cost,
+                None,
+                "uploading profile picture".to_string(),
+            )?;
+            if state.memory.avatars.get(&user_id).is_some() {
+                state.memory.avatars.remove(&user_id)?;
+            }
+            state.memory.avatars.insert(user_id, blob)
         }
-        state.memory.avatars.insert(user_id, blob)
     })
 }
 
