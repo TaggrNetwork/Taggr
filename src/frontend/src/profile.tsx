@@ -452,6 +452,14 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                         </span>
                     </div>
                 )}
+                {Object.entries(profile.downvotes).length > 0 && (
+                    <div className="db_cell">
+                        DOWNVOTERS (7d)
+                        <code style={{ color: "red" }}>
+                            {Object.entries(profile.downvotes).length}
+                        </code>
+                    </div>
+                )}
             </div>
             <hr />
             {(feeds || profile.realms.length > 0) && (
