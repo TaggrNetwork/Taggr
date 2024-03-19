@@ -149,11 +149,9 @@ impl User {
     }
 
     pub fn controversial(&self) -> bool {
-        self.rewards < 0
-            || self
-                .post_reports
-                .values()
-                .any(|timestamp| timestamp + CONFIG.user_report_validity_days * DAY >= time())
+        self.post_reports
+            .values()
+            .any(|timestamp| timestamp + CONFIG.user_report_validity_days * DAY >= time())
             || self
                 .report
                 .as_ref()

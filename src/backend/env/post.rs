@@ -53,7 +53,6 @@ pub enum Extension {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Meta<'a> {
     author_name: &'a str,
-    author_rewards: i64,
     author_filters: UserFilter,
     viewer_blocked: bool,
     realm_color: Option<&'a str>,
@@ -152,7 +151,6 @@ impl Post {
             .and_then(|realm_id| state.realms.get(realm_id));
         let meta = Meta {
             author_name: user.name.as_str(),
-            author_rewards: user.rewards(),
             author_filters: user.filters.noise.clone(),
             viewer_blocked: state
                 .principal_to_user(caller())
