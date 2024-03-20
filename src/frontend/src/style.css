@@ -222,7 +222,7 @@ article {
 }
 
 .feed_item article {
-    max-height: 100vh;
+    max-height: 90vh;
     position: relative;
 }
 
