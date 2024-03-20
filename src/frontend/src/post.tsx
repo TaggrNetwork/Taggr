@@ -465,15 +465,20 @@ const PostContent = ({
     const refArticle = React.useRef();
 
     React.useEffect(() => {
-        if (renderingAttempts == 0) return;
+        if (renderingAttempts <= 0) return;
         setTimeout(() => {
             const article: any = refArticle.current;
-            if (article && article.scrollHeight > article.clientHeight) {
-                article.classList.add("overflowing");
-                setRenderingAttempts(0);
-            } else {
+            // The parent content was not rendered yet.
+            if (!article) return;
+            // The child content was not rendered yet.
+            if (article.clientHeight == 0) {
                 setRenderingAttempts(renderingAttempts - 1);
+                return;
             }
+            if (article.scrollHeight > article.clientHeight) {
+                article.classList.add("overflowing");
+            }
+            setRenderingAttempts(0);
         }, 100);
     }, [renderingAttempts]);
 
