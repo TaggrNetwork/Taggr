@@ -25,7 +25,6 @@ import {
     currentRealm,
     parseNumber,
     noiseControlBanner,
-    ArrowDown,
 } from "./common";
 import {
     reaction2icon,
@@ -44,7 +43,7 @@ import {
     More,
 } from "./icons";
 import { ProposalView } from "./proposals";
-import { Post, PostId, Realm, UserId } from "./types";
+import { BlogTitle, Post, PostId, Realm, UserId } from "./types";
 import { MAINNET_MODE } from "./env";
 import { UserLink, UserList, populateUserNameCache } from "./user_resolve";
 
@@ -85,11 +84,9 @@ export const PostView = ({
     const [showComments, toggleComments] = React.useState(!!prime);
     const [showInfo, toggleInfo] = React.useState(false);
     const [safeToOpen, setSafeToOpen] = React.useState(false);
-    const [showExpandButton, setShowExpandButton] = React.useState(false);
     const [commentIncoming, setCommentIncoming] = React.useState(false);
 
     const refPost = React.useRef();
-    const refArticle = React.useRef();
 
     const loadData = async (preloadedData?: Post) => {
         const data = preloadedData || (await loadPosts([id])).pop();
@@ -117,18 +114,6 @@ export const PostView = ({
     React.useEffect(() => {
         loadData(data);
     }, [id, version, data]);
-
-    React.useEffect(() => {
-        const article: any = refArticle.current;
-        if (
-            (isFeedItem || repost) &&
-            article &&
-            article.scrollHeight > article.clientHeight
-        ) {
-            article.classList.add("overflowing");
-            setShowExpandButton(true);
-        }
-    }, [post]);
 
     if (!post) {
         if (notFound) return <NotFound />;
@@ -205,7 +190,7 @@ export const PostView = ({
             post.reactions,
             (acc, id, users) => acc + costTable[id as any] * users.length,
             0,
-        ) < 0 || post.meta.author_rewards < 0;
+        ) < 0;
     const user = window.user;
     const showReport =
         post.report && !post.report.closed && user && user.stalwart;
@@ -328,23 +313,13 @@ export const PostView = ({
                     </div>
                 )}
                 {!isNSFW && (
-                    <article
-                        ref={refArticle as unknown as any}
-                        onClick={(e) => goInside(e)}
-                    >
-                        <Content
-                            blogTitle={blogTitle}
-                            post={true}
-                            value={body}
-                            collapse={!expanded}
-                            primeMode={isRoot(post) && !repost}
-                            urls={urls}
-                        />
-                    </article>
-                )}
-                {showExpandButton && (
-                    <ArrowDown
-                        onClick={() => (location.href = `#/post/${post.id}`)}
+                    <PostContent
+                        blogTitle={blogTitle}
+                        expanded={expanded}
+                        value={body}
+                        primeMode={isRoot(post) && !repost && !isFeedItem}
+                        urls={urls}
+                        goInside={goInside}
                     />
                 )}
                 {showExtension && "Poll" in post.extension && (
@@ -451,6 +426,71 @@ const Comments = ({
     );
 };
 
+const PostContent = ({
+    goInside,
+    expanded,
+    blogTitle,
+    primeMode,
+    urls,
+    value,
+}: {
+    blogTitle?: BlogTitle;
+    primeMode: boolean;
+    expanded?: boolean;
+    goInside: any;
+    urls: { [id: string]: string };
+    value: string;
+}) => {
+    // All posts in non-prime mode should be collapsed if they are too long. The problem with
+    // deterministic collapsing is that the height of a DOM element is only known when this element
+    // is rendered. The rendering itself is asynchronous and transparent to the React framework.
+    // So there is a fundamental limitation to how much we can do from inside the React itself.
+    //
+    // To work around this limitation, we do the following. First, we render the container of
+    // the post and then, once we have the link to the DOM element, we make 10 attempts lasting at
+    // most 1s in total, where we try to measure the height of the container and the height of its
+    // content. If the content is longer that the container height, we mark the post as overflowing
+    // which displays the post with a gradient below.
+    //
+    // In the worst case (if the content takes longer than 1s to render), this post will be cut but
+    // not display the gradient.
+    //
+    // The reason why it needs to be delayed and implemented asynchronously is that
+    // the post content itself is rendered asynchronously as well: it takes non-zero time to render
+    // long posts, let alone to load and render an image. The markdown library we use does not provide
+    // any reliable callback mechanism notofying about the end of the rendering.
+    const [renderingAttempts, setRenderingAttempts] = React.useState(
+        primeMode ? 0 : 10,
+    );
+    const refArticle = React.useRef();
+
+    React.useEffect(() => {
+        if (renderingAttempts == 0) return;
+        setTimeout(() => {
+            const article: any = refArticle.current;
+            if (article && article.scrollHeight > article.clientHeight) {
+                article.classList.add("overflowing");
+                setRenderingAttempts(0);
+            } else {
+                setRenderingAttempts(renderingAttempts - 1);
+            }
+        }, 100);
+    }, [renderingAttempts]);
+
+    return (
+        <article ref={refArticle as unknown as any} onClick={goInside}>
+            <Content
+                blogTitle={blogTitle}
+                post={true}
+                value={value}
+                collapse={!expanded}
+                primeMode={primeMode}
+                urls={urls}
+            />
+        </article>
+    );
+};
+
 const PostInfo = ({
     post,
     reactions,
@@ -507,6 +547,16 @@ const PostInfo = ({
             realmAccessError = (
                 <div className="banner vertically_spaced">
                     You're blocked by this user.
+                </div>
+            );
+        else if (
+            realmData &&
+            realmData.whitelist.length > 0 &&
+            !realmData.whitelist.includes(user.id)
+        )
+            realmAccessError = (
+                <div className="banner vertically_spaced">
+                    This realm is gated by a whitelist.
                 </div>
             );
         else if (realmData)
@@ -886,7 +936,7 @@ const PostBar = ({
     };
 
     return (
-        <>
+        <div onClick={goInside}>
             <div
                 ref={ref}
                 className="active"
@@ -984,7 +1034,7 @@ const PostBar = ({
                     </>
                 )}
             </div>
-        </>
+        </div>
     );
 };
 
@@ -1003,6 +1053,7 @@ export const ReactionPicker = ({
             justifyContent: "flex-start",
             padding: "0.5em",
         }}
+        data-meta="skipClicks"
     >
         {window.backendCache.config.reactions.map(([reactId, rewards]) => (
             <button
@@ -1041,6 +1092,7 @@ export const Reactions = ({
                 return (
                     <button
                         key={reactId}
+                        data-meta="skipClicks"
                         className={
                             "reaction_button button_text " +
                             (reacted ? "selected" : "unselected")

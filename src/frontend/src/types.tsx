@@ -99,7 +99,6 @@ export type Realm = {
 
 export type Meta = {
     author_name: string;
-    author_rewards: number;
     author_filters: UserFilter;
     viewer_blocked: boolean;
     realm_color: string;

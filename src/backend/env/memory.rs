@@ -318,6 +318,9 @@ impl<K: Eq + Ord + Clone + Copy + Display, T: Serialize + DeserializeOwned> Obje
     }
 
     pub fn insert(&mut self, id: K, value: T) -> Result<(), String> {
+        if self.index.contains_key(&id) {
+            self.remove(&id)?;
+        }
         self.index.insert(id, self.api.borrow_mut().write(&value)?);
         Ok(())
     }
@@ -364,6 +367,39 @@ pub(crate) mod tests {
         assert_eq!(a.get_allocation_length(301), 600);
         assert_eq!(a.get_allocation_length(400), 600);
         assert_eq!(a.get_allocation_length(599), 600);
+    }
+
+    #[test]
+    fn test_leaks() {
+        static mut MEM_END: u64 = 16;
+        let mem_grow = |n| unsafe {
+            MEM_END += n;
+            Ok(0)
+        };
+        fn mem_end() -> u64 {
+            unsafe { MEM_END }
+        }
+        let mut memory = Memory::default();
+        memory.set_test_api(
+            Box::new(mem_grow),
+            Box::new(mem_end),
+            Box::new(|_, _| { /* noop write */ }),
+            Box::new(|_, buf| serde_cbor::to_writer(buf, &Post::default()).unwrap()),
+        );
+
+        memory.posts.insert(0, Post::default()).unwrap();
+        memory.posts.insert(1, Post::default()).unwrap();
+        memory.posts.insert(2, Post::default()).unwrap();
+
+        // overwrite post 1 with a much larger value so that it does not fit into the free slot
+        let mut post = Post::default();
+        post.body =
+            "overwrite post 1 with a much larger value so that it does not fit into the free slot"
+                .into();
+        memory.posts.insert(1, post).unwrap();
+
+        // ensure that the memory from the previous vlaue was deallocated
+        assert_eq!(memory.api_ref.as_ref().borrow().allocator.segments.len(), 1);
     }
 
     #[test]

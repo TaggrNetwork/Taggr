@@ -222,7 +222,7 @@ article {
 }
 
 .feed_item article {
-    max-height: 100vh;
+    max-height: 90vh;
     position: relative;
 }
 
@@ -765,7 +765,7 @@ a.reply_tag {
 }
 
 .button_text {
-    font-size: small;
+    font-size: x-small;
 }
 
 .small_text {
@@ -1098,10 +1098,6 @@ label svg {
 
     article img {
         width: 100%;
-    }
-
-    .button_text {
-        font-size: x-small;
     }
 
     .mobile_only {
