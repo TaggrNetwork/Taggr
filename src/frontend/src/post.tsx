@@ -896,7 +896,7 @@ const PostBar = ({
     };
 
     return (
-        <>
+        <div onClick={goInside}>
             <div
                 ref={ref}
                 className="active"
@@ -994,7 +994,7 @@ const PostBar = ({
                     </>
                 )}
             </div>
-        </>
+        </div>
     );
 };
 
@@ -1013,6 +1013,7 @@ export const ReactionPicker = ({
             justifyContent: "flex-start",
             padding: "0.5em",
         }}
+        data-meta="skipClicks"
     >
         {window.backendCache.config.reactions.map(([reactId, rewards]) => (
             <button
@@ -1051,6 +1052,7 @@ export const Reactions = ({
                 return (
                     <button
                         key={reactId}
+                        data-meta="skipClicks"
                         className={
                             "reaction_button button_text " +
                             (reacted ? "selected" : "unselected")
