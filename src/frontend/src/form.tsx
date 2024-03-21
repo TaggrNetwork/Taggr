@@ -19,13 +19,12 @@ import {
     Paperclip,
     Quote,
     Table,
-    Balloon,
 } from "./icons";
 import { PostView } from "./post";
 import { Extension, Payload, Poll as PollType, PostId } from "./types";
 import { PollView } from "./poll";
 import { USER_CACHE } from "./user_resolve";
-import { ProposalMask, ProposalType } from "./proposals";
+import { ProposalMask, ProposalType, validateProposal } from "./proposals";
 
 const MAX_IMG_SIZE = 16777216;
 const MAX_SUGGESTED_TAGS = 5;
@@ -40,11 +39,13 @@ export const Form = ({
     repost,
     urls,
     content,
+    proposalForm,
 }: {
     postId?: PostId;
     comment?: boolean;
     realmArg?: string;
     expanded?: boolean;
+    proposalForm?: boolean;
     submitCallback: (
         value: string,
         blobs: [string, Uint8Array][],
@@ -62,7 +63,6 @@ export const Form = ({
     const [submitting, setSubmitting] = React.useState(false);
     const [lines, setLines] = React.useState(3);
     const [totalCosts, setTotalCosts] = React.useState(0);
-    const [showProposalMask, setShowProposalMask] = React.useState(false);
     const [proposalType, setProposalType] = React.useState<ProposalType>(
         ProposalType.Release,
     );
@@ -76,16 +76,16 @@ export const Form = ({
     const [busy, setBusy] = React.useState(false);
     const [poll, setPoll] = React.useState<PollType>();
     const [proposal, setProposal] = React.useState<Payload>();
-    const [proposalIsValid, setProposalIsValid] = React.useState(true);
     const [showTextField, setShowTextField] = React.useState(
-        !!localStorage.getItem(draftKey) || expanded,
+        !!localStorage.getItem(draftKey) || expanded || proposalForm,
     );
     const [suggestedTags, setSuggestedTags] = React.useState<string[]>([]);
     const [suggestedUsers, setSuggestedUsers] = React.useState<string[]>([]);
     const [suggestedRealms, setSuggestedRealms] = React.useState<string[]>([]);
     const [choresTimer, setChoresTimer] = React.useState<any>(null);
     const [cursor, setCursor] = React.useState(0);
-    const [status, setStatus] = React.useState("");
+    const [proposalValidationError, setProposalValidationError] =
+        React.useState("");
     const textarea = React.useRef<HTMLTextAreaElement>();
     const form = React.useRef();
     const tags = window.backendCache.recent_tags;
@@ -501,23 +501,6 @@ export const Form = ({
                                     className="left_half_spaced right_spaced"
                                     data-testid="credit-cost"
                                 >{`${totalCosts}`}</code>
-                                {user.stalwart &&
-                                    !poll &&
-                                    isRootPost &&
-                                    !isRepost && (
-                                        <IconToggleButton
-                                            title="Create a proposal"
-                                            classNameArg="reaction_button action left_spaced clickable"
-                                            pressed={showProposalMask}
-                                            data-testid="proposal-button"
-                                            onClick={() =>
-                                                setShowProposalMask(
-                                                    !showProposalMask,
-                                                )
-                                            }
-                                            icon={<Balloon />}
-                                        />
-                                    )}
                                 <label
                                     id="file_picker_label"
                                     title="Attach a picture"
@@ -535,39 +518,34 @@ export const Form = ({
                                     accept=".png, .jpg, .jpeg, .gif"
                                     onChange={dropHandler}
                                 />
-                                {isRootPost &&
-                                    !isRepost &&
-                                    !showProposalMask && (
-                                        <IconToggleButton
-                                            testId="poll-button"
-                                            classNameArg="left_half_spaced"
-                                            icon={<Bars />}
-                                            pressed={!!poll}
-                                            onClick={() => {
-                                                setPoll(
-                                                    poll &&
-                                                        confirm(
-                                                            "Delete the poll?",
-                                                        )
-                                                        ? undefined
-                                                        : {
-                                                              options: [
-                                                                  "Option 1",
-                                                                  "Option 2",
-                                                                  "...",
-                                                              ],
-                                                              votes: {},
-                                                              voters: [],
-                                                              deadline: 24,
-                                                              weighted_by_karma:
-                                                                  {},
-                                                              weighted_by_tokens:
-                                                                  {},
-                                                          },
-                                                );
-                                            }}
-                                        />
-                                    )}
+                                {isRootPost && !isRepost && !proposalForm && (
+                                    <IconToggleButton
+                                        testId="poll-button"
+                                        classNameArg="left_half_spaced"
+                                        icon={<Bars />}
+                                        pressed={!!poll}
+                                        onClick={() => {
+                                            setPoll(
+                                                poll &&
+                                                    confirm("Delete the poll?")
+                                                    ? undefined
+                                                    : {
+                                                          options: [
+                                                              "Option 1",
+                                                              "Option 2",
+                                                              "...",
+                                                          ],
+                                                          votes: {},
+                                                          voters: [],
+                                                          deadline: 24,
+                                                          weighted_by_karma: {},
+                                                          weighted_by_tokens:
+                                                              {},
+                                                      },
+                                            );
+                                        }}
+                                    />
+                                )}
                                 {!comment &&
                                     user.realms.length > 0 &&
                                     (!realm || user.realms.includes(realm)) && (
@@ -591,7 +569,7 @@ export const Form = ({
                             </div>
                         </div>
                     )}
-                    {showProposalMask && (
+                    {proposalForm && (
                         <>
                             <div className="top_spaced row_container vcentered">
                                 <span className="right_spaced">
@@ -616,41 +594,12 @@ export const Form = ({
                             <ProposalMask
                                 proposalType={proposalType}
                                 saveProposal={async (proposal) => {
-                                    // Release proposals contain a binary and need a special handling
-                                    if ("Release" in proposal) {
-                                        if (
-                                            !proposal.Release.commit ||
-                                            proposal.Release.binary.length == 0
-                                        ) {
-                                            setStatus(
-                                                "commit or the binary is missing",
-                                            );
-                                            setProposalIsValid(false);
-                                            return;
-                                        }
-                                        setProposalIsValid(true);
-                                        setStatus("");
-                                        return;
+                                    let error =
+                                        await validateProposal(proposal);
+                                    setProposalValidationError(error || "");
+                                    if (!error) {
+                                        setProposal(proposal);
                                     }
-
-                                    let result = await window.api.query<any>(
-                                        "validate_proposal",
-                                        proposal,
-                                    );
-                                    if (
-                                        result == null ||
-                                        (result && "Err" in result)
-                                    ) {
-                                        setStatus(
-                                            result
-                                                ? result.Err
-                                                : "invalid inputs",
-                                        );
-                                        setProposalIsValid(false);
-                                        return;
-                                    } else setProposalIsValid(true);
-                                    setStatus("");
-                                    setProposal(proposal);
                                 }}
                             />
                         </>
@@ -693,16 +642,16 @@ export const Form = ({
                 </form>
             )}
             {!previewAtLeft && showPreview && preview}
-            {status && (
+            {proposalValidationError && (
                 <div className="accent bottom_spaced">
-                    Proposal validation failed: {status}
+                    Proposal validation failed: {proposalValidationError}
                 </div>
             )}
             {!tooExpensive && (
                 <ButtonWithLoading
-                    disabled={!proposalIsValid}
+                    disabled={!!proposalValidationError}
                     classNameArg={
-                        "active" + (proposalIsValid ? "" : " inactive")
+                        "active" + (proposalValidationError ? " inactive" : "")
                     }
                     label="SUBMIT"
                     onClick={handleSubmit}

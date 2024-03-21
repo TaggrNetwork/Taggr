@@ -17,6 +17,8 @@ import { HourGlass } from "./icons";
 import { PostFeed } from "./post_feed";
 import { Payload, PostId, Proposal, User } from "./types";
 import { UserLink, UserList } from "./user_resolve";
+import { Form } from "./form";
+import { newPostCallback } from "./new";
 
 const REPO_RELEASE = "https://github.com/TaggrNetwork/taggr/releases/latest";
 const REPO_COMMIT = "https://github.com/TaggrNetwork/taggr/commit";
@@ -38,6 +40,15 @@ export const Proposals = () => (
             shareLink="proposals"
             menu={true}
             burgerTestId="proposals-burger-button"
+            content={
+                <>
+                    <h2>New Proposal Form</h2>
+                    <Form
+                        proposalForm={true}
+                        submitCallback={newPostCallback}
+                    />
+                </>
+            }
         />
         <PostFeed
             useList={true}
@@ -567,3 +578,19 @@ function hexToBytes(hex: string) {
         bytes.push(parseInt(hex.substr(i, 2), 16));
     return bytes;
 }
+
+export const validateProposal = async (proposal: Payload) => {
+    // Release proposals contain a binary and need a special handling
+    if ("Release" in proposal) {
+        if (!proposal.Release.commit || proposal.Release.binary.length == 0) {
+            return "commit or the binary missing";
+        }
+        return null;
+    }
+
+    let result = await window.api.query<any>("validate_proposal", proposal);
+    if (result == null || (result && "Err" in result))
+        return result ? result.Err : "invalid inputs";
+
+    return null;
+};

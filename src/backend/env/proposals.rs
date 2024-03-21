@@ -245,7 +245,7 @@ impl Payload {
                 if !state.users.contains_key(user_id) {
                     return Err("user not found".to_string());
                 }
-                if !state.realms.contains_key(realm_id) {
+                if !state.realms.contains_key(&realm_id.to_uppercase()) {
                     return Err("realm not found".to_string());
                 }
             }
