@@ -170,7 +170,7 @@ export const Form = ({
                 setLines(3);
                 setShowTextField(false);
             }
-            if (isRootPost) {
+            if (isRootPost || editMode) {
                 window.resetUI();
                 location.href = `#/post/${postId}`;
             }
@@ -324,7 +324,8 @@ export const Form = ({
     }
 
     const isRepost = repost != null && !isNaN(repost);
-    const isRootPost = postId == null;
+    const isRootPost = postId == undefined;
+    const editMode = !isRootPost && !comment;
     const showPreview = value || isRepost;
 
     const preview = (
@@ -387,6 +388,7 @@ export const Form = ({
             {!showTextField && (
                 <input
                     type="text"
+                    className="bottom_spaced"
                     placeholder="Reply here..."
                     onFocus={() => setShowTextField(true)}
                 />

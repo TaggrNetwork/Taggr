@@ -101,7 +101,12 @@ impl Proposal {
                 }
             }
             Payload::Funding(_, _) => {}
-            Payload::Rewards(Rewards { votes, .. }) => {
+            Payload::Rewards(Rewards {
+                votes, receiver, ..
+            }) => {
+                if receiver == &principal {
+                    return Err("reward receivers can not vote".into());
+                }
                 let minting_ratio = state.minting_ratio();
                 let base = token::base();
                 let max_funding_amount = CONFIG.max_funding_amount / minting_ratio / base;
@@ -422,7 +427,7 @@ pub(super) fn execute_proposal(
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 
     use super::*;
     use crate::{
@@ -432,6 +437,17 @@ mod tests {
         },
         STATE,
     };
+
+    pub fn propose(
+        state: &mut State,
+        caller: Principal,
+        description: String,
+        payload: Payload,
+        time: u64,
+    ) -> Result<u32, String> {
+        let post_id = Post::create(state, description, &[], caller, time, None, None, None)?;
+        create_proposal(state, caller, post_id, payload, time)
+    }
 
     #[test]
     fn test_proposal_canceling() {
@@ -461,7 +477,10 @@ mod tests {
                 state,
                 pr(1),
                 "test".into(),
-                Payload::Fund("e3mmv-5qaaa-aaaah-aadma-cai".into(), 10),
+                Payload::Funding(
+                    Principal::from_text("e3mmv-5qaaa-aaaah-aadma-cai").unwrap(),
+                    10,
+                ),
                 0,
             )
             .expect("couldn't create proposal");
@@ -488,7 +507,10 @@ mod tests {
                 state,
                 pr(1),
                 "test".into(),
-                Payload::Fund("e3mmv-5qaaa-aaaah-aadma-cai".into(), 10),
+                Payload::Funding(
+                    Principal::from_text("e3mmv-5qaaa-aaaah-aadma-cai").unwrap(),
+                    10,
+                ),
                 2 * HOUR,
             )
             .expect("couldn't create proposal");
@@ -575,11 +597,11 @@ mod tests {
             // check error cases on voting
             assert_eq!(
                 propose(state, pr(111), "".into(), Payload::Noop, 0),
-                Err("proposer user not found".to_string())
+                Err("no user with controller ttkg4-nqan4 found".to_string())
             );
             assert_eq!(
                 propose(state, proposer, "".into(), Payload::Noop, 0),
-                Err("description is empty".to_string())
+                Err("invalid post content".to_string())
             );
             let id = propose(state, proposer, "test".into(), Payload::Noop, 0)
                 .expect("couldn't create proposal");
@@ -796,14 +818,14 @@ mod tests {
                     state,
                     pr(1),
                     "test".into(),
-                    Payload::Reward(Reward {
-                        receiver: pr(4).to_string(),
+                    Payload::Rewards(Rewards {
+                        receiver: pr(4),
                         votes: Default::default(),
                         minted: 0,
                     }),
                     time(),
                 ),
-                Err("no funding is allowed when the curent supply is above maximum".to_string())
+                Err("no rewards are allowed when the current supply is above maximum".to_string())
             );
             state.balances.remove(&account(pr(222)));
 
@@ -811,8 +833,8 @@ mod tests {
                 state,
                 pr(1),
                 "test".into(),
-                Payload::Reward(Reward {
-                    receiver: pr(1).to_string(),
+                Payload::Rewards(Rewards {
+                    receiver: pr(1),
                     votes: Default::default(),
                     minted: 0,
                 }),
@@ -853,14 +875,14 @@ mod tests {
                     state,
                     pr(1),
                     "test".into(),
-                    Payload::Reward(Reward {
-                        receiver: pr(4).to_string(),
+                    Payload::Rewards(Rewards {
+                        receiver: pr(4),
                         votes: Default::default(),
                         minted: 0,
                     }),
                     time(),
                 ),
-                Err("no funding is allowed when the curent supply is above maximum".to_string())
+                Err("no rewards are allowed when the current supply is above maximum".to_string())
             );
             state.balances.remove(&account(pr(222)));
 
@@ -869,8 +891,8 @@ mod tests {
                 state,
                 pr(1),
                 "test".into(),
-                Payload::Reward(Reward {
-                    receiver: pr(4).to_string(),
+                Payload::Rewards(Rewards {
+                    receiver: pr(4),
                     votes: Default::default(),
                     minted: 0,
                 }),
@@ -902,7 +924,7 @@ mod tests {
             );
 
             let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
-            if let Payload::Reward(reward) = &proposal.payload {
+            if let Payload::Rewards(reward) = &proposal.payload {
                 assert_eq!(reward.minted, 48571);
                 assert_eq!(proposal.status, Status::Executed);
             } else {
@@ -916,8 +938,8 @@ mod tests {
                 state,
                 pr(1),
                 "test".into(),
-                Payload::Reward(Reward {
-                    receiver: pr(111).to_string(),
+                Payload::Rewards(Rewards {
+                    receiver: pr(111),
                     votes: Default::default(),
                     minted: 0,
                 }),
@@ -947,7 +969,7 @@ mod tests {
             );
 
             let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
-            if let Payload::Reward(reward) = &proposal.payload {
+            if let Payload::Rewards(reward) = &proposal.payload {
                 assert_eq!(reward.minted, 0);
                 assert_eq!(proposal.status, Status::Rejected);
             } else {
@@ -959,8 +981,8 @@ mod tests {
                 state,
                 pr(1),
                 "test".into(),
-                Payload::Reward(Reward {
-                    receiver: pr(111).to_string(),
+                Payload::Rewards(Rewards {
+                    receiver: pr(111),
                     votes: Default::default(),
                     minted: 0,
                 }),
@@ -990,7 +1012,7 @@ mod tests {
             );
 
             let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
-            if let Payload::Reward(reward) = &proposal.payload {
+            if let Payload::Rewards(reward) = &proposal.payload {
                 assert_eq!(reward.minted, 42857);
                 assert_eq!(proposal.status, Status::Executed);
             } else {
@@ -1002,8 +1024,8 @@ mod tests {
                 state,
                 pr(2),
                 "test".into(),
-                Payload::Reward(Reward {
-                    receiver: pr(1).to_string(),
+                Payload::Rewards(Rewards {
+                    receiver: pr(1),
                     votes: Default::default(),
                     minted: 0,
                 }),

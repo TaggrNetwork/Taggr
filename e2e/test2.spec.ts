@@ -86,7 +86,7 @@ test.describe("Regular users flow", () => {
             page.getByTestId("file-picker").click(),
         ]);
         await fileChooser.setFiles([imagePath]);
-        await page.getByRole("button", { name: "SEND" }).click();
+        await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
 
         // Make sure the post loads
@@ -102,7 +102,7 @@ test.describe("Regular users flow", () => {
         await page
             .locator("textarea")
             .fill(value + "\n\n**Edit:** this is a post-scriptum");
-        await page.getByRole("button", { name: "SEND" }).click();
+        await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
         await expect(page.getByText("post-scriptum")).toBeVisible();
 
@@ -192,7 +192,7 @@ test.describe("Regular users flow", () => {
         // Now we can create a new post in the new realm
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("#form_undefined_3").fill("Hello from Alice!");
-        await page.getByRole("button", { name: "SEND" }).click();
+        await page.getByRole("button", { name: "SUBMIT" }).click();
 
         // Make sure the post is visible on the front page and is labeled with realm tag
         await page.locator("#logo").click();
@@ -245,7 +245,7 @@ test.describe("Regular users flow", () => {
             .click();
         await page.getByPlaceholder("Reply here...").focus();
         await page.locator("textarea").fill("Bob was here");
-        await page.getByRole("button", { name: "SEND" }).click();
+        await page.getByRole("button", { name: "SUBMIT" }).click();
 
         // Wait because the UI waits for 4s before sending the command
         await page.waitForTimeout(4000);

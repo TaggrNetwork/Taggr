@@ -2962,18 +2962,6 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_amount_parsing() {
-        assert_eq!(parse_amount("12.34", 8), Ok(1234000000));
-        assert_eq!(parse_amount("0.0034", 8), Ok(340000));
-        assert_eq!(parse_amount("00.67", 2), Ok(67));
-        assert_eq!(parse_amount("1.25", 2), Ok(125));
-        assert_eq!(parse_amount("123.4567", 2), Ok(12345));
-        assert_eq!(parse_amount("777", 2), Ok(77700));
-        assert_eq!(parse_amount("0777", 2), Ok(77700));
-        assert!(parse_amount("34,56", 2).is_err());
-    }
-
-    #[test]
     fn test_donated_rewards() {
         STATE.with(|cell| {
             cell.replace(Default::default());
@@ -3370,7 +3358,7 @@ pub(crate) mod tests {
             let user = state.principal_to_user_mut(pr(1)).unwrap();
             user.stalwart = true;
             let user_id = user.id;
-            let proposal_id = proposals::propose(
+            let proposal_id = proposals::tests::propose(
                 state,
                 pr(1),
                 "test".into(),

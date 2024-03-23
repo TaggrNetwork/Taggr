@@ -87,6 +87,7 @@ export const FileUploadInput = ({
 }) => (
     <input
         type="file"
+        data-testid="bin-file-picker"
         className={classNameArg}
         onChange={async (ev) => {
             const files = (
