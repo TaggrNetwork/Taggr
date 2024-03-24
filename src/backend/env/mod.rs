@@ -3362,8 +3362,8 @@ pub(crate) mod tests {
                 state,
                 pr(1),
                 "test".into(),
-                Payload::Reward(proposals::Reward {
-                    receiver: pr(2).to_string(),
+                Payload::Rewards(proposals::Rewards {
+                    receiver: pr(2),
                     votes: Default::default(),
                     minted: 0,
                 }),
