@@ -116,9 +116,6 @@ pub struct User {
     pub downvotes: BTreeMap<UserId, Time>,
     pub show_posts_in_realms: bool,
     pub posts: Vec<PostId>,
-    // TODO: delete
-    #[serde(skip)]
-    pub miner: bool,
     pub controlled_realms: HashSet<RealmId>,
     #[serde(default)]
     pub mode: Mode,
@@ -198,7 +195,6 @@ impl User {
             cold_wallet: None,
             cold_balance: 0,
             governance: true,
-            miner: true,
             downvotes: Default::default(),
             show_posts_in_realms: true,
             mode: Mode::default(),

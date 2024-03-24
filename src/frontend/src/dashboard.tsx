@@ -1,7 +1,6 @@
 import * as React from "react";
 import {
     ICPAccountBalance,
-    intFromBEBytes,
     timeAgo,
     hoursTillNext,
     HeadBar,
@@ -328,8 +327,8 @@ const CycleBalance = ({ id }: { id: string }) => {
     const [cycles, setCycles] = React.useState(-1);
     React.useEffect(() => {
         window.api
-            .query_raw(id, "balance", new ArrayBuffer(0))
-            .then((response: any) => setCycles(intFromBEBytes(response)));
+            .cycle_balance(id)
+            .then((response: any) => setCycles(Number(response)));
     }, [id]);
     return (
         <code className="xx_large_text">{show(cycles / 10 ** 12, "T")}</code>

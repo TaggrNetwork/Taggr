@@ -317,7 +317,7 @@ export const PostView = ({
                         blogTitle={blogTitle}
                         expanded={expanded}
                         value={body}
-                        primeMode={isRoot(post) && !repost && !isFeedItem}
+                        primeMode={isRoot(post) && !repost}
                         urls={urls}
                         goInside={goInside}
                     />
@@ -460,7 +460,7 @@ const PostContent = ({
     // long posts, let alone to load and render an image. The markdown library we use does not provide
     // any reliable callback mechanism notofying about the end of the rendering.
     const [renderingAttempts, setRenderingAttempts] = React.useState(
-        primeMode ? 0 : 10,
+        primeMode ? 0 : 15,
     );
     const refArticle = React.useRef();
 
@@ -468,10 +468,8 @@ const PostContent = ({
         if (renderingAttempts <= 0) return;
         setTimeout(() => {
             const article: any = refArticle.current;
-            // The parent content was not rendered yet.
-            if (!article) return;
-            // The child content was not rendered yet.
-            if (article.clientHeight == 0) {
+            // The parent container or the child content was not rendered yet.
+            if (!article || article.clientHeight == 0) {
                 setRenderingAttempts(renderingAttempts - 1);
                 return;
             }
