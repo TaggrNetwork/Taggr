@@ -2,6 +2,8 @@ import * as React from "react";
 import { Loading, ShareButton } from "./common";
 import { PostId, UserId } from "./types";
 import { UserLink } from "./user_resolve";
+import { Principal } from "@dfinity/principal";
+import { TransactionsView } from "./tokens";
 
 type SearchResult = {
     id: PostId;
@@ -19,6 +21,7 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
     const [results, setResults] = React.useState<SearchResult[]>([]);
     const [timer, setTimer] = React.useState<any>(null);
     const [searching, setSearching] = React.useState(false);
+    const [principal, setPrincipal] = React.useState<Principal>();
 
     const search = async (query: string) => {
         setHint(false);
@@ -26,6 +29,10 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
             setResults([]);
             return;
         }
+        try {
+            setPrincipal(Principal.fromText(query));
+            return;
+        } catch (_) {}
         setSearching(true);
         setResults((await window.api.query("search", query)) || []);
         setSearching(false);
@@ -59,6 +66,14 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
                     />
                 )}
             </div>
+            {principal && (
+                <div className="top_spaced">
+                    <TransactionsView
+                        prime={true}
+                        icrcAccount={principal.toString()}
+                    />
+                </div>
+            )}
             {!searching && results.length > 0 && (
                 <ul>
                     {results.map((i) => (
@@ -98,6 +113,10 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
                         <li>
                             <code>#TAG</code>: will show all hashtags starting
                             with "TAG".
+                        </li>
+                        <li>
+                            <code>PRINCIPAL</code>: will show all transactions
+                            and the balance of the principal.
                         </li>
                     </ul>
                 </div>

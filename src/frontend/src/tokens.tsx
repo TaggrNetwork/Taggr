@@ -28,9 +28,6 @@ export const Tokens = () => {
     const [donors, setDonors] = React.useState<[UserId, number][]>([]);
     const [showAllRewards, setShowAllRewards] = React.useState(false);
     const [showAllDonors, setShowAllDonors] = React.useState(false);
-    const [timer, setTimer] = React.useState<any>(null);
-    const [searchValue, setSearchValue] = React.useState("");
-    const [query, setQuery] = React.useState("");
     const [balances, setBalances] = React.useState([] as Balances);
     const [balPage, setBalPage] = React.useState(0);
     const [holder, setHolder] = React.useState(-1);
@@ -104,10 +101,6 @@ export const Tokens = () => {
         case -1:
             return <NotFound />;
     }
-    let searchedPrincipal;
-    try {
-        searchedPrincipal = Principal.fromText(query).toString();
-    } catch (_) {}
     return (
         <>
             <HeadBar title="TOKENS" shareLink="tokens" />
@@ -243,7 +236,7 @@ export const Tokens = () => {
                         bigScreen() ? "" : "tripple"
                     } bottom_spaced`}
                 >
-                    {(showAllRewards ? rewards : rewards.slice(0, 24)).map(
+                    {(showAllRewards ? rewards : rewards.slice(0, 12)).map(
                         ([userId, tokens]) => (
                             <div key={userId} className="db_cell">
                                 <UserLink id={userId} />
@@ -264,7 +257,7 @@ export const Tokens = () => {
                         bigScreen() ? "" : "tripple"
                     } bottom_spaced`}
                 >
-                    {(showAllDonors ? donors : donors.slice(0, 24)).map(
+                    {(showAllDonors ? donors : donors.slice(0, 12)).map(
                         ([userId, tokens]) => (
                             <div key={userId} className="db_cell">
                                 <UserLink id={userId} />
@@ -280,27 +273,8 @@ export const Tokens = () => {
             <hr />
             <div className="spaced">
                 <h2>Latest transactions</h2>
-                <div className="row_container">
-                    <input
-                        id="search_field"
-                        className="max_width_col"
-                        type="search"
-                        placeholder="Search for user name or principal..."
-                        value={searchValue}
-                        onChange={(event) => {
-                            clearTimeout(timer as unknown as any);
-                            setSearchValue(event.target.value);
-                            setTimer(
-                                setTimeout(
-                                    () => setQuery(event.target.value),
-                                    300,
-                                ),
-                            );
-                        }}
-                    />
-                </div>
             </div>
-            <TransactionsView icrcAccount={searchedPrincipal} />
+            <TransactionsView />
         </>
     );
 };
