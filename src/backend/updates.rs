@@ -1,5 +1,5 @@
 use crate::env::{
-    proposals::{Payload, Release, Reward, Rewards},
+    proposals::{Payload, Release},
     user::{Mode, UserFilter},
 };
 
@@ -79,36 +79,10 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    mutate(|state| {
-        for p in state.proposals.iter_mut() {
-            p.payload = migrate_payload(p.payload.clone());
-        }
-    })
-}
-
-fn migrate_payload(p: Payload) -> Payload {
-    match p {
-        Payload::Fund(receiver, tokens) => {
-            Payload::Funding(Principal::from_text(receiver).unwrap(), tokens)
-        }
-        Payload::Reward(Reward {
-            receiver,
-            votes,
-            minted,
-        }) => Payload::Rewards(Rewards {
-            receiver: Principal::from_text(receiver).unwrap(),
-            minted,
-            votes,
-        }),
-        val => val,
-    }
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {
-    storage::upgrade_buckets().await;
-}
+async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES

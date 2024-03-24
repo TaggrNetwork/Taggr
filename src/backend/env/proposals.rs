@@ -22,8 +22,7 @@ pub enum Status {
     Cancelled,
 }
 
-// TODO: remove Clone
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Release {
     pub commit: String,
     pub hash: String,
@@ -33,33 +32,19 @@ pub struct Release {
 
 type ProposedReward = Token;
 
-// TODO: remove Clone
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Rewards {
     pub receiver: Principal,
     pub votes: Vec<(Token, ProposedReward)>,
     pub minted: Token,
 }
 
-// TODO: remove Clone
-#[derive(Clone, Deserialize, Serialize)]
-pub struct Reward {
-    pub receiver: String,
-    pub votes: Vec<(Token, ProposedReward)>,
-    pub minted: Token,
-}
-
-// TODO: remove Clone
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub enum Payload {
     #[default]
     Noop,
     Release(Release),
-    // TODO: delete
-    Fund(String, Token),
     ICPTransfer(AccountIdentifier, Tokens),
-    // TODO: delete
-    Reward(Reward),
     AddRealmController(RealmId, UserId),
     Funding(Principal, Token),
     Rewards(Rewards),
