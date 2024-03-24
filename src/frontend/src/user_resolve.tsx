@@ -1,6 +1,6 @@
 import * as React from "react";
 import { UserId, UserData, User } from "./types";
-import { Loading, commaSeparated } from "./common";
+import { Loading, commaSeparated, getAvatarUrl } from "./common";
 
 export const USER_CACHE: UserData = {};
 
@@ -24,6 +24,14 @@ export const populateUserNameCache = async (
     );
 };
 
+export const AvatarElement = ({ user_id }: { user_id?: UserId }) => {
+    return (
+        <div className="avatar_container">
+            <img className="avatar" src={getAvatarUrl(user_id)} />
+        </div>
+    );
+};
+
 export const userNameToIds = async (names: string[]) =>
     (
         await Promise.all(
@@ -40,11 +48,15 @@ export const UserLink = ({
     name,
     classNameArg,
     profile,
+    show_avatar,
+    suffix,
 }: {
     id: UserId;
     name?: string;
     classNameArg?: string;
     profile?: boolean;
+    show_avatar?: boolean;
+    suffix?: string;
 }) => {
     const [loading, setLoading] = React.useState(false);
     const [userName, setUserName] = React.useState<string>(USER_CACHE[id]);
@@ -63,10 +75,12 @@ export const UserLink = ({
 
     return userName ? (
         <a
-            className={`${classNameArg} user_link`}
+            className={`${classNameArg} user_link no_wrap vcentered`}
             href={`#/${profile ? "user" : "journal"}/${id}`}
         >
+            {show_avatar && <AvatarElement user_id={id} />}
             {userName}
+            {suffix}
         </a>
     ) : (
         <span>N/A</span>

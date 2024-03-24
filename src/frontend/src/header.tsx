@@ -22,7 +22,6 @@ import { STAGING_MODE } from "./env";
 import { User as UserType } from "./types";
 import { Wallet } from "./wallet";
 import { Links } from "./landing";
-import { UserLink } from "./user_resolve";
 
 let interval: any = null;
 
@@ -181,7 +180,12 @@ export const Header = ({
                 </div>
             </header>
             {showLogins && <LoginMasks />}
-            {showUserSection && <UserSection user={user} />}
+            {showUserSection && (
+                <UserSection
+                    user={user}
+                    hide={() => toggleUserSection(false)}
+                />
+            )}
             {showLinks && <Links />}
             {showRealms && (
                 <RealmList
@@ -194,21 +198,10 @@ export const Header = ({
     );
 };
 
-const UserSection = ({ user }: { user: UserType }) => {
+const UserSection = ({ user, hide }: { user: UserType; hide: () => void }) => {
     return (
         <div className="bottom_spaced stands_out">
             <div className="column_container centered">
-                {user && (
-                    <span className="xx_large_text bottom_spaced">
-                        <User classNameArg="right_half_spaced" />{" "}
-                        <UserLink
-                            profile={true}
-                            id={user.id}
-                            name={user.name}
-                        />
-                    </span>
-                )}
-
                 <div className="row_container icon_bar top_half_spaced">
                     {user && (
                         <>
@@ -218,6 +211,14 @@ const UserSection = ({ user }: { user: UserType }) => {
                                 href={`/#/journal/${user.name}`}
                             >
                                 <Journal /> JOURNAL
+                            </a>
+                            <a
+                                title="PROFILE"
+                                className="icon_link"
+                                href={`/#/user/${user.id}`}
+                                onClick={hide}
+                            >
+                                <User /> PROFILE
                             </a>
                             <a
                                 title="INVITES"

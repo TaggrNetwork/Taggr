@@ -1,5 +1,5 @@
 import * as React from "react";
-import { loadFile } from "./form";
+import { loadFile } from "./image";
 import {
     BurgerButton,
     ButtonWithLoading,

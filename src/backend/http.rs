@@ -1,8 +1,8 @@
 use super::assets;
-use crate::assets::{index_html_headers, INDEX_HTML};
+use crate::assets::{index_html_headers, DEFAULT_AVATAR, INDEX_HTML};
 use crate::post::Post;
-use crate::read;
 use crate::{config::CONFIG, metadata::set_metadata};
+use crate::{read, Blob};
 use candid::CandidType;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -44,7 +44,7 @@ impl HttpRequest {
     }
 }
 
-#[derive(Debug, CandidType, Serialize)]
+#[derive(Debug, Default, CandidType, Serialize)]
 pub struct HttpResponse {
     status_code: u16,
     headers: Headers,
@@ -135,6 +135,20 @@ fn http_request(req: HttpRequest) -> HttpResponse {
                 })
                 .unwrap_or_default(),
             ),
+            upgrade: None,
+        })
+    } else if req.path().starts_with("/avatar") {
+        let user_id = path.split('/').nth(2).and_then(|s| s.split('?').next());
+        read(|state| HttpResponse {
+            status_code: 200,
+            headers: vec![
+                ("Content-Type".to_string(), "image/png".to_string()),
+                ("Cache-Control".to_string(), "public".to_string()),
+            ],
+            body: user_id
+                .and_then(|id| id.parse::<u64>().ok())
+                .and_then(|id| state.memory.avatars.get(&id))
+                .unwrap_or(Blob::from(DEFAULT_AVATAR)),
             upgrade: None,
         })
     }

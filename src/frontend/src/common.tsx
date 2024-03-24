@@ -10,12 +10,13 @@ import {
     Menu,
     Share,
 } from "./icons";
-import { loadFile } from "./form";
+import { loadFile } from "./image";
 import { Meta, Post, PostId, Realm, Report, User, UserFilter } from "./types";
 import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
+import { CANISTER_ID, MAINNET_MODE } from "./env";
 
 export const USD_PER_XDR = 1.33;
 
@@ -1010,3 +1011,14 @@ export const ArrowDown = ({ onClick }: { onClick?: () => void }) => (
         <CarretDown classNameArg="action" />
     </div>
 );
+
+export const getAvatarUrl = (user_id?: number) => {
+    let id = user_id === undefined ? "default" : user_id.toString();
+    let host = MAINNET_MODE
+        ? `https://${CANISTER_ID}.raw.icp0.io`
+        : `http://127.0.0.1:8080`;
+    return (
+        `${host}/avatar/${id}` +
+        (MAINNET_MODE ? "" : `?canisterId=${CANISTER_ID}`)
+    );
+};

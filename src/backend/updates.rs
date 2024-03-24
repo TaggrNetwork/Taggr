@@ -227,6 +227,33 @@ fn update_user() {
     ))
 }
 
+#[update]
+async fn upload_avatar(blob: Blob) -> Result<(), String> {
+    mutate(|state| -> Result<(), String> {
+        let user_id = state.principal_to_user(caller()).ok_or("no user found")?.id;
+        if blob.len() > CONFIG.max_avatar_size_bytes {
+            return Err("avatar image is too large".to_string());
+        }
+        if blob.is_empty() {
+            if state.memory.avatars.get(&user_id).is_some() {
+                state.memory.avatars.remove(&user_id)?;
+            }
+            Ok(())
+        } else {
+            state.charge_in_realm(
+                user_id,
+                CONFIG.avatar_cost,
+                None,
+                "uploading profile picture".to_string(),
+            )?;
+            if state.memory.avatars.get(&user_id).is_some() {
+                state.memory.avatars.remove(&user_id)?;
+            }
+            state.memory.avatars.insert(user_id, blob)
+        }
+    })
+}
+
 #[export_name = "canister_update update_user_settings"]
 fn update_user_settings() {
     let settings: std::collections::BTreeMap<String, String> = parse(&arg_data_raw());

@@ -27,6 +27,8 @@ pub fn index_html_headers() -> Headers {
     )]
 }
 
+pub const DEFAULT_AVATAR: &[u8] = include_bytes!("../../dist/frontend/avatar.png");
+
 pub fn load() {
     unsafe {
         ASSET_HASHES = Some(Default::default());
