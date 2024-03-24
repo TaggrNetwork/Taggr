@@ -56,9 +56,9 @@ fn post_upgrade() {
     set_controller();
 }
 
-#[export_name = "canister_query balance"]
-fn balance() {
-    reply_raw(&canister_balance().to_be_bytes())
+#[ic_cdk_macros::query]
+fn balance() -> u64 {
+    canister_balance()
 }
 
 #[ic_cdk_macros::query]

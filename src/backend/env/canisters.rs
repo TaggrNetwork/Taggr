@@ -229,16 +229,10 @@ pub async fn topup_with_cycles(canister_id: Principal, cycles: u64) -> Result<()
 }
 
 pub async fn top_up(canister_id: Principal, min_cycle_balance: u64) -> Result<bool, String> {
-    let result = call_canister_raw(canister_id, "balance", Default::default()).await;
-    let bytes = result.map_err(|err| {
-        format!(
-            "couldn't get balance from canister {}: {:?}",
-            canister_id, err
-        )
-    })?;
-    let mut arr: [u8; 8] = Default::default();
-    arr.copy_from_slice(&bytes);
-    if u64::from_be_bytes(arr) < min_cycle_balance {
+    let (response,): (u64,) = call_canister(canister_id, "balance", ((),))
+        .await
+        .map_err(|err| format!("couldn't call child canister: {:?}", err))?;
+    if response < min_cycle_balance {
         topup_with_cycles(canister_id, min_cycle_balance)
             .await
             .map_err(|err| format!("failed to top up canister {}: {:?}", canister_id, err))?;

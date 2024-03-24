@@ -680,19 +680,6 @@ export function CopyToClipboard({
     );
 }
 
-export const intFromBEBytes = (bytes: Uint8Array) => {
-    let buffer = bytes.buffer;
-    let view = new DataView(buffer);
-    return Number(view.getBigInt64(0, false)); // false for big endian
-};
-
-export const intToBEBytes = (val: number) => {
-    let buffer = new ArrayBuffer(8);
-    let view = new DataView(buffer);
-    view.setBigInt64(0, BigInt(val), false); // false for big endian
-    return new Uint8Array(buffer);
-};
-
 export const FlagButton = ({
     id,
     domain,

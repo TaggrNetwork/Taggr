@@ -76,6 +76,8 @@ export type Backend = {
 
     icp_account_balance: (address: string) => Promise<BigInt>;
 
+    cycle_balance: (principal: string) => Promise<JsonValue>;
+
     account_balance: (
         token: Principal,
         account: IcrcAccount,
@@ -352,6 +354,17 @@ export const ApiGenerator = (
                 response,
             )[0];
         },
+
+        cycle_balance: async (bucket_id: string): Promise<JsonValue> => {
+            const arg = IDL.encode([], []);
+            const response = await query_raw(bucket_id, "balance", arg);
+
+            if (!response) {
+                return -1;
+            }
+            return IDL.decode([IDL.Nat64], response)[0];
+        },
+
         icp_account_balance: async (address: string): Promise<BigInt> => {
             const arg = IDL.encode(
                 [IDL.Record({ account: IDL.Vec(IDL.Nat8) })],
