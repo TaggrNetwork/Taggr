@@ -21,9 +21,10 @@ import {
     Table,
 } from "./icons";
 import { PostView } from "./post";
-import { Extension, Poll as PollType, PostId } from "./types";
+import { Extension, Payload, Poll as PollType, PostId } from "./types";
 import { PollView } from "./poll";
 import { USER_CACHE } from "./user_resolve";
+import { ProposalMask, ProposalType, validateProposal } from "./proposals";
 
 const MAX_IMG_SIZE = 16777216;
 const MAX_SUGGESTED_TAGS = 5;
@@ -38,17 +39,19 @@ export const Form = ({
     repost,
     urls,
     content,
+    proposalForm,
 }: {
     postId?: PostId;
     comment?: boolean;
     realmArg?: string;
     expanded?: boolean;
+    proposalForm?: boolean;
     submitCallback: (
         value: string,
         blobs: [string, Uint8Array][],
         extension: Extension | undefined,
         realm: string | undefined,
-    ) => Promise<boolean>;
+    ) => Promise<PostId | null>;
     writingCallback?: (arg: string) => void;
     repost?: PostId;
     urls?: { [id: string]: string };
@@ -60,6 +63,9 @@ export const Form = ({
     const [submitting, setSubmitting] = React.useState(false);
     const [lines, setLines] = React.useState(3);
     const [totalCosts, setTotalCosts] = React.useState(0);
+    const [proposalType, setProposalType] = React.useState<ProposalType>(
+        ProposalType.Release,
+    );
     const [dragAndDropping, setDragAndDropping] = React.useState(false);
     const [tmpBlobs, setTmpBlobs] = React.useState<{
         [name: string]: Uint8Array;
@@ -69,14 +75,17 @@ export const Form = ({
     }>({});
     const [busy, setBusy] = React.useState(false);
     const [poll, setPoll] = React.useState<PollType>();
+    const [proposal, setProposal] = React.useState<Payload>();
     const [showTextField, setShowTextField] = React.useState(
-        !!localStorage.getItem(draftKey) || expanded,
+        !!localStorage.getItem(draftKey) || expanded || proposalForm,
     );
     const [suggestedTags, setSuggestedTags] = React.useState<string[]>([]);
     const [suggestedUsers, setSuggestedUsers] = React.useState<string[]>([]);
     const [suggestedRealms, setSuggestedRealms] = React.useState<string[]>([]);
     const [choresTimer, setChoresTimer] = React.useState<any>(null);
     const [cursor, setCursor] = React.useState(0);
+    const [proposalValidationError, setProposalValidationError] =
+        React.useState("");
     const textarea = React.useRef<HTMLTextAreaElement>();
     const form = React.useRef();
     const tags = window.backendCache.recent_tags;
@@ -129,18 +138,41 @@ export const Form = ({
             } else if (repost != undefined) {
                 extension = { Repost: repost };
             }
-            const result = await submitCallback(
+            const postId = await submitCallback(
                 value,
                 blobArrays,
                 extension,
                 realm,
             );
-            if (result) {
+            if (postId != null) {
+                if (proposal) {
+                    let result =
+                        "Release" in proposal
+                            ? await window.api.propose_release(
+                                  postId,
+                                  proposal.Release.commit,
+                                  proposal.Release.binary,
+                              )
+                            : await window.api.call<any>(
+                                  "create_proposal",
+                                  postId,
+                                  proposal,
+                              );
+                    if (result && "Err" in result) {
+                        alert(
+                            `Post could be created, but the proposal creation failed: ${result.Err}`,
+                        );
+                    }
+                }
                 setValue("");
                 clearTimeout(choresTimer);
                 localStorage.removeItem(draftKey);
                 setLines(3);
                 setShowTextField(false);
+            }
+            if (isRootPost || editMode) {
+                window.resetUI();
+                location.href = `#/post/${postId}`;
             }
         }
         setSubmitting(false);
@@ -292,6 +324,8 @@ export const Form = ({
     }
 
     const isRepost = repost != null && !isNaN(repost);
+    const isRootPost = postId == undefined;
+    const editMode = !isRootPost && !comment;
     const showPreview = value || isRepost;
 
     const preview = (
@@ -354,6 +388,7 @@ export const Form = ({
             {!showTextField && (
                 <input
                     type="text"
+                    className="bottom_spaced"
                     placeholder="Reply here..."
                     onFocus={() => setShowTextField(true)}
                 />
@@ -465,11 +500,12 @@ export const Form = ({
                                 <div className="max_width_col"></div>
                                 <Credits />
                                 <code
-                                    className="left_half_spaced"
+                                    className="left_half_spaced right_spaced"
                                     data-testid="credit-cost"
                                 >{`${totalCosts}`}</code>
                                 <label
                                     id="file_picker_label"
+                                    title="Attach a picture"
                                     htmlFor="file-picker"
                                     className="action left_spaced clickable"
                                     data-testid="file-picker"
@@ -484,7 +520,7 @@ export const Form = ({
                                     accept=".png, .jpg, .jpeg, .gif"
                                     onChange={dropHandler}
                                 />
-                                {postId == null && !isRepost && (
+                                {isRootPost && !isRepost && !proposalForm && (
                                     <IconToggleButton
                                         testId="poll-button"
                                         classNameArg="left_half_spaced"
@@ -513,6 +549,7 @@ export const Form = ({
                                     />
                                 )}
                                 {!comment &&
+                                    !proposalForm &&
                                     user.realms.length > 0 &&
                                     (!realm || user.realms.includes(realm)) && (
                                         <select
@@ -532,15 +569,43 @@ export const Form = ({
                                             ))}
                                         </select>
                                     )}
-                                {!tooExpensive && (
-                                    <ButtonWithLoading
-                                        classNameArg="active left_spaced"
-                                        label="SEND"
-                                        onClick={handleSubmit}
-                                    />
-                                )}
                             </div>
                         </div>
+                    )}
+                    {proposalForm && (
+                        <>
+                            <div className="top_spaced row_container vcentered">
+                                <span className="right_spaced">
+                                    PROPOSAL TYPE
+                                </span>
+                                <select
+                                    className="max_width_col"
+                                    value={proposalType}
+                                    onChange={(e) =>
+                                        setProposalType(
+                                            e.target.value as unknown as any,
+                                        )
+                                    }
+                                >
+                                    {Object.values(ProposalType).map((id) => (
+                                        <option key={id} value={id}>
+                                            {id}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <ProposalMask
+                                proposalType={proposalType}
+                                saveProposal={async (proposal) => {
+                                    let error =
+                                        await validateProposal(proposal);
+                                    setProposalValidationError(error || "");
+                                    if (!error) {
+                                        setProposal(proposal);
+                                    }
+                                }}
+                            />
+                        </>
                     )}
                     {poll && (
                         <div className="column_container bottom_spaced">
@@ -580,6 +645,21 @@ export const Form = ({
                 </form>
             )}
             {!previewAtLeft && showPreview && preview}
+            {proposalValidationError && (
+                <div className="accent bottom_spaced">
+                    Proposal validation failed: {proposalValidationError}
+                </div>
+            )}
+            {!tooExpensive && (
+                <ButtonWithLoading
+                    disabled={!!proposalValidationError}
+                    classNameArg={
+                        "active" + (proposalValidationError ? " inactive" : "")
+                    }
+                    label="SUBMIT"
+                    onClick={handleSubmit}
+                />
+            )}
         </div>
     );
 };

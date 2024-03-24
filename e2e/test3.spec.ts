@@ -43,7 +43,7 @@ test.describe("Regular users flow, part two", () => {
         await page.locator("textarea").fill("Poll from John");
         await page.getByTestId("poll-button").click();
         await page.getByTestId("poll-editor").fill("YES\nNO\nCOMMENTS");
-        await page.getByRole("button", { name: "SEND" }).click();
+        await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
 
         // Make sure the post loads
@@ -85,7 +85,7 @@ test.describe("Regular users flow, part two", () => {
         await feedItem.locator("button[title=Repost]").click();
         await page.waitForURL(/#\/new/);
         await page.locator("textarea").fill("Repost of the poll");
-        await page.getByRole("button", { name: "SEND" }).click();
+        await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
 
         // Make sure the post is visible on the front page too

@@ -1,12 +1,13 @@
-use crate::env::user::{Mode, UserFilter};
+use crate::env::{
+    proposals::{Payload, Release, Reward, Rewards},
+    user::{Mode, UserFilter},
+};
 
 use super::*;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
-    parse_amount,
     post::{Extension, Post, PostId},
-    proposals::{Release, Reward},
     user::{Draft, User, UserId},
     State,
 };
@@ -19,7 +20,6 @@ use ic_cdk::{
 };
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
-use ic_ledger_types::{AccountIdentifier, Tokens};
 use serde_bytes::ByteBuf;
 use std::time::Duration;
 
@@ -79,7 +79,31 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        for p in state.proposals.iter_mut() {
+            p.payload = migrate_payload(p.payload.clone());
+        }
+    })
+}
+
+fn migrate_payload(p: Payload) -> Payload {
+    match p {
+        Payload::Fund(receiver, tokens) => {
+            Payload::Funding(Principal::from_text(receiver).unwrap(), tokens)
+        }
+        Payload::Reward(Reward {
+            receiver,
+            votes,
+            minted,
+        }) => Payload::Rewards(Rewards {
+            receiver: Principal::from_text(receiver).unwrap(),
+            minted,
+            votes,
+        }),
+        val => val,
+    }
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {
@@ -286,49 +310,21 @@ fn create_invite() {
     mutate(|state| reply(state.create_invite(caller(), credits)));
 }
 
-#[export_name = "canister_update propose_add_realm_controller"]
-fn propose_add_realm_controller() {
-    let (description, user_id, realm_id): (String, UserId, RealmId) = parse(&arg_data_raw());
+#[export_name = "canister_update create_proposal"]
+fn create_proposal() {
+    let (post_id, payload): (PostId, Payload) = parse(&arg_data_raw());
     reply(mutate(|state| {
-        proposals::propose(
-            state,
-            caller(),
-            description,
-            proposals::Payload::AddRealmController(realm_id, user_id),
-            time(),
-        )
+        proposals::create_proposal(state, caller(), post_id, payload, time())
     }))
 }
 
-#[export_name = "canister_update propose_icp_transfer"]
-fn propose_icp_transfer() {
-    let (description, receiver, amount): (String, String, String) = parse(&arg_data_raw());
-    reply({
-        match (
-            AccountIdentifier::from_hex(&receiver),
-            parse_amount(&amount, 8),
-        ) {
-            (Ok(account), Ok(amount)) => mutate(|state| {
-                proposals::propose(
-                    state,
-                    caller(),
-                    description,
-                    proposals::Payload::ICPTransfer(account, Tokens::from_e8s(amount)),
-                    time(),
-                )
-            }),
-            (Err(err), _) | (_, Err(err)) => Err(err),
-        }
-    })
-}
-
 #[update]
-fn propose_release(description: String, commit: String, binary: ByteBuf) -> Result<u32, String> {
+fn propose_release(post_id: PostId, commit: String, binary: ByteBuf) -> Result<u32, String> {
     mutate(|state| {
-        proposals::propose(
+        proposals::create_proposal(
             state,
             caller(),
-            description,
+            post_id,
             proposals::Payload::Release(Release {
                 commit,
                 binary: binary.to_vec(),
@@ -336,38 +332,6 @@ fn propose_release(description: String, commit: String, binary: ByteBuf) -> Resu
             }),
             time(),
         )
-    })
-}
-
-#[export_name = "canister_update propose_reward"]
-fn propose_reward() {
-    let (description, receiver): (String, String) = parse(&arg_data_raw());
-    mutate(|state| {
-        reply(proposals::propose(
-            state,
-            caller(),
-            description,
-            proposals::Payload::Reward(Reward {
-                receiver,
-                votes: Default::default(),
-                minted: 0,
-            }),
-            time(),
-        ))
-    })
-}
-
-#[export_name = "canister_update propose_funding"]
-fn propose_funding() {
-    let (description, receiver, tokens): (String, String, u64) = parse(&arg_data_raw());
-    mutate(|state| {
-        reply(proposals::propose(
-            state,
-            caller(),
-            description,
-            proposals::Payload::Fund(receiver, tokens * token::base()),
-            time(),
-        ))
     })
 }
 

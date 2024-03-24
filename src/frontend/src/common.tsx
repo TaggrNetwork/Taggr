@@ -87,6 +87,7 @@ export const FileUploadInput = ({
 }) => (
     <input
         type="file"
+        data-testid="bin-file-picker"
         className={classNameArg}
         onChange={async (ev) => {
             const files = (
@@ -314,6 +315,7 @@ export const ButtonWithLoading = ({
     classNameArg,
     styleArg,
     testId,
+    disabled,
 }: {
     id?: string;
     label: any;
@@ -322,13 +324,14 @@ export const ButtonWithLoading = ({
     classNameArg?: string;
     styleArg?: any;
     testId?: any;
+    disabled?: boolean;
 }) => {
     let [loading, setLoading] = React.useState(false);
     return (
         <button
             id={id}
             title={title}
-            disabled={loading}
+            disabled={disabled || loading}
             className={`fat ${
                 loading ? classNameArg?.replaceAll("active", "") : classNameArg
             }`}

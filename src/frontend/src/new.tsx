@@ -34,7 +34,7 @@ export const PostSubmissionForm = ({
         blobs: [string, Uint8Array][],
         extension: Extension | undefined,
         realm: string | undefined,
-    ): Promise<boolean> => {
+    ): Promise<PostId | null> => {
         let postId;
         text = text.trim();
         const optionalRealm = realm ? [realm] : [];
@@ -49,54 +49,11 @@ export const PostSubmissionForm = ({
             );
             if ("Err" in response) {
                 alert(`Error: ${response.Err}`);
-                return false;
+                return null;
             }
             postId = post.id;
-        } else {
-            const postSize =
-                text.length +
-                blobs.reduce((acc, [_, blob]) => acc + blob.length, 0);
-            let result: any;
-            // If the post has too many blobs, upload them separately.
-            if (postSize > MAX_POST_SIZE_BYTES) {
-                await window.api.add_post_data(
-                    text,
-                    optionalRealm,
-                    encodeExtension(extension),
-                );
-                let results = await Promise.all(
-                    blobs.map(([id, blob]) =>
-                        window.api.add_post_blob(id, blob),
-                    ),
-                );
-                let error: any = results.find((result: any) => "Err" in result);
-                if (error) {
-                    alert(`Error: ${error.Err}`);
-                    return false;
-                }
-                result = await window.api.commit_post();
-            } else {
-                result = await window.api.add_post(
-                    text,
-                    blobs,
-                    [],
-                    optionalRealm,
-                    encodeExtension(extension),
-                );
-            }
-            if ("Err" in result) {
-                alert(`Error: ${result.Err}`);
-                return false;
-            }
-            // this is the rare case when a blob triggers the creation of a new bucket
-            if (window.backendCache.stats.buckets.length == 0) {
-                await window.reloadCache();
-            }
-            postId = result.Ok;
-        }
-        window.resetUI();
-        location.href = `#/post/${postId}`;
-        return true;
+        } else postId = await newPostCallback(text, blobs, extension, realm);
+        return Number(postId);
     };
 
     if (id != undefined && !isNaN(id) && !post) return null;
@@ -142,3 +99,49 @@ export const PostSubmissionForm = ({
 
 const encodeExtension = (extension?: Extension) =>
     extension ? [new TextEncoder().encode(JSON.stringify(extension))] : [];
+
+export const newPostCallback = async (
+    text: string,
+    blobs: [string, Uint8Array][],
+    extension: Extension | undefined,
+    realm: string | undefined,
+) => {
+    const optionalRealm = realm ? [realm] : [];
+    const postSize =
+        text.length + blobs.reduce((acc, [_, blob]) => acc + blob.length, 0);
+    let result: any;
+    // If the post has too many blobs, upload them separately.
+    if (postSize > MAX_POST_SIZE_BYTES) {
+        await window.api.add_post_data(
+            text,
+            optionalRealm,
+            encodeExtension(extension),
+        );
+        let results = await Promise.all(
+            blobs.map(([id, blob]) => window.api.add_post_blob(id, blob)),
+        );
+        let error: any = results.find((result: any) => "Err" in result);
+        if (error) {
+            alert(`Error: ${error.Err}`);
+            return null;
+        }
+        result = await window.api.commit_post();
+    } else {
+        result = await window.api.add_post(
+            text,
+            blobs,
+            [],
+            optionalRealm,
+            encodeExtension(extension),
+        );
+    }
+    if ("Err" in result) {
+        alert(`Error: ${result.Err}`);
+        return null;
+    }
+    // this is the rare case when a blob triggers the creation of a new bucket
+    if (window.backendCache.stats.buckets.length == 0) {
+        await window.reloadCache();
+    }
+    return Number(result.Ok);
+};

@@ -2828,25 +2828,6 @@ fn covered_by_feeds(
     None
 }
 
-pub fn parse_amount(amount: &str, token_decimals: u8) -> Result<u64, String> {
-    let parse = |s: &str| {
-        s.parse::<u64>()
-            .map_err(|err| format!("couldn't parse as u64: {:?}", err))
-    };
-    match &amount.split('.').collect::<Vec<_>>().as_slice() {
-        [tokens] => Ok(parse(tokens)? * 10_u64.pow(token_decimals as u32)),
-        [tokens, after_comma] => {
-            let mut after_comma = after_comma.to_string();
-            while after_comma.len() < token_decimals as usize {
-                after_comma.push('0');
-            }
-            let after_comma = &after_comma[..token_decimals as usize];
-            Ok(parse(tokens)? * 10_u64.pow(token_decimals as u32) + parse(after_comma)?)
-        }
-        _ => Err(format!("can't parse amount {}", amount)),
-    }
-}
-
 pub fn display_tokens(amount: u64, decimals: u32) -> String {
     let base = 10_u64.pow(decimals);
     if decimals == 8 {
@@ -2978,18 +2959,6 @@ pub(crate) mod tests {
         assert_eq!(display_tokens(10000000, 8), "0.10000000");
         assert_eq!(display_tokens(123456789, 8), "1.23456789");
         assert_eq!(display_tokens(34544, 2), "345.44");
-    }
-
-    #[test]
-    fn test_amount_parsing() {
-        assert_eq!(parse_amount("12.34", 8), Ok(1234000000));
-        assert_eq!(parse_amount("0.0034", 8), Ok(340000));
-        assert_eq!(parse_amount("00.67", 2), Ok(67));
-        assert_eq!(parse_amount("1.25", 2), Ok(125));
-        assert_eq!(parse_amount("123.4567", 2), Ok(12345));
-        assert_eq!(parse_amount("777", 2), Ok(77700));
-        assert_eq!(parse_amount("0777", 2), Ok(77700));
-        assert!(parse_amount("34,56", 2).is_err());
     }
 
     #[test]
@@ -3389,7 +3358,7 @@ pub(crate) mod tests {
             let user = state.principal_to_user_mut(pr(1)).unwrap();
             user.stalwart = true;
             let user_id = user.id;
-            let proposal_id = proposals::propose(
+            let proposal_id = proposals::tests::propose(
                 state,
                 pr(1),
                 "test".into(),

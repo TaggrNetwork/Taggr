@@ -7,7 +7,7 @@ export type UserId = number;
 export type RealmId = string;
 
 export type ICP = {
-    e8s: BigInt;
+    e8s: BigInt | number;
 };
 
 export type Poll = {
@@ -38,7 +38,7 @@ export type Extension =
           ["Proposal"]: number;
       };
 
-export type Reward = {
+export type Rewards = {
     receiver: string;
     votes: [number, number][];
     minted: number;
@@ -47,6 +47,7 @@ export type Reward = {
 export type Release = {
     commit: string;
     hash: string;
+    binary: Uint8Array;
 };
 
 export type Payload =
@@ -55,7 +56,7 @@ export type Payload =
           ["Release"]: Release;
       }
     | {
-          ["Fund"]: [string, number];
+          ["Funding"]: [string, number];
       }
     | {
           ["ICPTransfer"]: [number[], ICP];
@@ -64,7 +65,7 @@ export type Payload =
           ["AddRealmController"]: [RealmId, UserId];
       }
     | {
-          ["Reward"]: Reward;
+          ["Rewards"]: Rewards;
       };
 
 export type Proposal = {

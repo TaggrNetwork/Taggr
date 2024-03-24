@@ -42,7 +42,7 @@ test.describe("Upgrades & token transfer flow", () => {
         // Create a post
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("textarea").fill("Message from Eve");
-        await page.getByRole("button", { name: "SEND" }).click();
+        await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
 
         // Create an invite
@@ -199,9 +199,7 @@ test.describe("Upgrades & token transfer flow", () => {
             page.getByRole("heading", { name: "PROPOSALS" }),
         ).toBeVisible();
         await page.getByTestId("proposals-burger-button").click();
-        await page.getByRole("button", { name: "RELEASE" }).click();
         await page.locator("textarea").fill("A regular upgrade");
-        await page.locator("input[type=text]").fill("coffeecoffeecoffee");
 
         // Upload the binary
         const binaryPath = resolve(
@@ -215,11 +213,14 @@ test.describe("Upgrades & token transfer flow", () => {
 
         const [fileChooser] = await Promise.all([
             page.waitForEvent("filechooser"),
-            page.locator('input[type="file"]').click(),
+            page.getByTestId("bin-file-picker").click(),
         ]);
 
         const buildHash = await hashFile(binaryPath);
         await fileChooser.setFiles([binaryPath]);
+        // Wait for async proposal validation
+        await page.waitForTimeout(2000);
+        await page.locator("input[type=text]").fill("coffeecoffeecoffee");
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await expect(page.getByText(/STATUS.*OPEN/)).toBeVisible();
         await expect(page.getByText("TYPE: RELEASE")).toBeVisible();

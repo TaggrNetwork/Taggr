@@ -10,323 +10,246 @@ import {
     NotFound,
     tokens,
     hex,
+    parseNumber,
 } from "./common";
 import * as React from "react";
-import { Content } from "./content";
 import { HourGlass } from "./icons";
 import { PostFeed } from "./post_feed";
-import { PostId, Proposal, User } from "./types";
+import { Payload, PostId, Proposal, User } from "./types";
 import { UserLink, UserList } from "./user_resolve";
+import { Form } from "./form";
+import { newPostCallback } from "./new";
 
 const REPO_RELEASE = "https://github.com/TaggrNetwork/taggr/releases/latest";
 const REPO_COMMIT = "https://github.com/TaggrNetwork/taggr/commit";
 
-enum ProposalType {
+let timer: any = null;
+
+export enum ProposalType {
     IcpTranfer = "ICP TRANSFER",
     AddRealmController = "ADD REALM CONTROLLER",
-    Fund = "FUND",
-    Reward = "REWARD",
+    Funding = "FUNDING",
+    Rewards = "REWARDS",
     Release = "RELEASE",
 }
 
-export const Proposals = () => {
-    const [proposalType, setProposalType] = React.useState<ProposalType | null>(
-        null,
-    );
+export const Proposals = () => (
+    <>
+        <HeadBar
+            title="PROPOSALS"
+            shareLink="proposals"
+            menu={true}
+            burgerTestId="proposals-burger-button"
+            content={
+                <>
+                    <h2>New Proposal Form</h2>
+                    <Form
+                        proposalForm={true}
+                        submitCallback={newPostCallback}
+                    />
+                </>
+            }
+        />
+        <PostFeed
+            useList={true}
+            feedLoader={async (page) =>
+                await window.api.query("proposals", page)
+            }
+        />
+    </>
+);
+
+export const ProposalMask = ({
+    proposalType,
+    saveProposal,
+}: {
+    proposalType: ProposalType;
+    saveProposal: (payload: Payload) => void;
+}) => {
     const [receiver, setReceiver] = React.useState("");
     const [fundingAmount, setFundingAmount] = React.useState(0);
     const [icpAmount, setICPAmount] = React.useState(0);
     const [userName, setUserName] = React.useState("");
     const [realmId, setRealmId] = React.useState("");
-    const [binary, setBinary] = React.useState(null);
+    const [binary, setBinary] = React.useState(new Uint8Array());
     const [commit, setCommit] = React.useState("");
-    const [proposal, setProposal] = React.useState(null);
-    const [description, setDescription] = React.useState("");
+
+    const validateAndSaveProposal = async () => {
+        switch (proposalType) {
+            case ProposalType.AddRealmController:
+                const user = await window.api.query<User>("user", [userName]);
+                if (!user) {
+                    alert(`No user ${userName} found!`);
+                    return;
+                }
+                saveProposal({
+                    ["AddRealmController"]: [realmId, user.id],
+                });
+                break;
+            case ProposalType.IcpTranfer:
+                saveProposal({
+                    ["ICPTransfer"]: [
+                        hexToBytes(receiver),
+                        {
+                            e8s: parseNumber(icpAmount.toString(), 8) || 0,
+                        },
+                    ],
+                });
+                break;
+            case ProposalType.Rewards:
+                saveProposal({
+                    ["Rewards"]: {
+                        receiver,
+                        votes: [],
+                        minted: 0,
+                    },
+                });
+                break;
+            case ProposalType.Funding:
+                saveProposal({
+                    ["Funding"]: [
+                        receiver,
+                        parseNumber(
+                            fundingAmount.toString(),
+                            window.backendCache.config.token_decimals,
+                        ) || 0,
+                    ],
+                });
+                break;
+            default:
+                saveProposal({
+                    ["Release"]: { commit, hash: "", binary },
+                });
+        }
+    };
+
+    React.useEffect(() => {
+        if (
+            receiver ||
+            fundingAmount ||
+            icpAmount ||
+            userName ||
+            realmId ||
+            binary.length > 0 ||
+            commit
+        ) {
+            clearTimeout(timer);
+            timer = setTimeout(validateAndSaveProposal, 1000);
+        }
+    }, [receiver, fundingAmount, icpAmount, userName, realmId, binary, commit]);
 
     return (
-        <>
-            <HeadBar
-                title="PROPOSALS"
-                shareLink="proposals"
-                menu={true}
-                burgerTestId="proposals-burger-button"
-                content={
-                    window.user?.stalwart ? (
-                        <div className="two_columns_grid">
-                            {Object.values(ProposalType).map((id) => (
-                                <button
-                                    key={id}
-                                    className="max_width_col"
-                                    onClick={() => setProposalType(id)}
-                                >
-                                    {id}
-                                </button>
-                            ))}
-                        </div>
-                    ) : undefined
-                }
-            />
-            <div className="vertically_spaced">
-                {proposalType && (
-                    <div className="column_container spaced">
-                        <h1>NEW PROPOSAL: {proposalType?.toString()}</h1>
-                        <div className="bottom_half_spaced">DESCRIPTION</div>
-                        <textarea
-                            className="bottom_spaced"
-                            rows={10}
-                            value={description}
-                            onChange={(event) =>
-                                setDescription(event.target.value)
-                            }
-                        ></textarea>
-                        {description && (
-                            <Content
-                                value={description}
-                                preview={true}
-                                classNameArg="bottom_spaced framed"
-                            />
-                        )}
-                    </div>
-                )}
-                {proposalType == ProposalType.AddRealmController && (
-                    <div className="spaced column_container">
-                        <div className="vcentered bottom_half_spaced">
-                            NEW CONTROLLER
-                            <input
-                                type="text"
-                                className="left_spaced max_width_col"
-                                value={userName}
-                                onChange={async (ev) => {
-                                    setUserName(ev.target.value);
-                                }}
-                            />
-                        </div>
-                        <div className="vcentered bottom_half_spaced">
-                            REALM
-                            <input
-                                type="text"
-                                className="left_spaced max_width_col"
-                                value={realmId}
-                                onChange={async (ev) => {
-                                    setRealmId(ev.target.value);
-                                }}
-                            />
-                        </div>
-                        <ButtonWithLoading
-                            classNameArg="top_spaced active"
-                            onClick={async () => {
-                                if (!description || !userName || !realmId) {
-                                    alert("Error: incomplete data.");
-                                    return;
-                                }
-                                const user = await window.api.query<User>(
-                                    "user",
-                                    [name],
-                                );
-                                if (!user) {
-                                    alert(`No user ${userName} found!`);
-                                    return;
-                                }
-                                let response = await window.api.call<any>(
-                                    "propose_add_realm_controller",
-                                    description,
-                                    user.id,
-                                    realmId.toUpperCase(),
-                                );
-                                if ("Err" in response) {
-                                    alert(`Error: ${response.Err}`);
-                                    return;
-                                }
-                                setProposalType(null);
-                                setProposal(response.Ok);
+        <div className="vertically_spaced">
+            {proposalType == ProposalType.AddRealmController && (
+                <div className="spaced column_container">
+                    <div className="vcentered bottom_half_spaced">
+                        NEW CONTROLLER
+                        <input
+                            type="text"
+                            className="left_spaced max_width_col"
+                            value={userName}
+                            onChange={async (ev) => {
+                                setUserName(ev.target.value);
                             }}
-                            label="SUBMIT"
                         />
                     </div>
-                )}
-                {proposalType == ProposalType.IcpTranfer && (
-                    <div className="spaced column_container">
-                        <div className="vcentered bottom_half_spaced">
-                            RECEIVER
-                            <input
-                                type="text"
-                                className="left_spaced max_width_col"
-                                onChange={async (ev) => {
-                                    setReceiver(ev.target.value.toString());
-                                }}
-                            />
-                        </div>
-                        <div className="vcentered bottom_half_spaced">
-                            ICP AMOUNT
-                            <input
-                                type="text"
-                                className="left_spaced max_width_col"
-                                onChange={async (ev) => {
-                                    setICPAmount(Number(ev.target.value));
-                                }}
-                            />
-                        </div>
-                        <ButtonWithLoading
-                            classNameArg="top_spaced active"
-                            onClick={async () => {
-                                if (!description || !receiver || !icpAmount) {
-                                    alert("Error: incomplete data.");
-                                    return;
-                                }
-                                let response = await window.api.call<any>(
-                                    "propose_icp_transfer",
-                                    description,
-                                    receiver,
-                                    icpAmount.toString(),
-                                );
-                                if ("Err" in response) {
-                                    alert(`Error: ${response.Err}`);
-                                    return;
-                                }
-                                setProposalType(null);
-                                setProposal(response.Ok);
+                    <div className="vcentered bottom_half_spaced">
+                        REALM
+                        <input
+                            type="text"
+                            className="left_spaced max_width_col"
+                            value={realmId}
+                            onChange={async (ev) => {
+                                setRealmId(ev.target.value);
                             }}
-                            label="SUBMIT"
                         />
                     </div>
-                )}
-                {proposalType == ProposalType.Reward && (
-                    <div className="spaced column_container">
-                        <div className="vcentered bottom_half_spaced">
-                            RECEIVER
-                            <input
-                                type="text"
-                                className="left_spaced max_width_col"
-                                onChange={async (ev) => {
-                                    setReceiver(ev.target.value.toString());
-                                }}
-                            />
-                        </div>
-                        <ButtonWithLoading
-                            classNameArg="top_spaced active"
-                            onClick={async () => {
-                                if (!description || !receiver) {
-                                    alert("Error: incomplete data.");
-                                    return;
-                                }
-                                let response = await window.api.call<any>(
-                                    "propose_reward",
-                                    description,
-                                    receiver,
-                                );
-                                if ("Err" in response) {
-                                    alert(`Error: ${response.Err}`);
-                                    return;
-                                }
-                                setProposalType(null);
-                                setProposal(response.Ok);
+                </div>
+            )}
+            {proposalType == ProposalType.IcpTranfer && (
+                <div className="spaced column_container">
+                    <div className="vcentered bottom_half_spaced">
+                        ICP ADDRESS
+                        <input
+                            type="text"
+                            className="left_spaced max_width_col"
+                            onChange={async (ev) => {
+                                setReceiver(ev.target.value.toString());
                             }}
-                            label="SUBMIT"
                         />
                     </div>
-                )}
-                {proposalType == ProposalType.Fund && (
-                    <div className="spaced column_container">
-                        <div className="vcentered bottom_half_spaced">
-                            RECEIVER
-                            <input
-                                type="text"
-                                className="left_spaced max_width_col"
-                                onChange={async (ev) => {
-                                    setReceiver(ev.target.value);
-                                }}
-                            />
-                        </div>
-                        <div className="vcentered bottom_half_spaced">
-                            TOKEN AMOUNT
-                            <input
-                                type="text"
-                                className="left_spaced max_width_col"
-                                onChange={async (ev) => {
-                                    setFundingAmount(Number(ev.target.value));
-                                }}
-                            />
-                        </div>
-                        <ButtonWithLoading
-                            classNameArg="top_spaced active"
-                            onClick={async () => {
-                                if (
-                                    !description ||
-                                    !receiver ||
-                                    !fundingAmount
-                                ) {
-                                    alert("Error: incomplete data.");
-                                    return;
-                                }
-                                let response = await window.api.call<any>(
-                                    "propose_funding",
-                                    description,
-                                    receiver,
-                                    fundingAmount,
-                                );
-                                if ("Err" in response) {
-                                    alert(`Error: ${response.Err}`);
-                                    return;
-                                }
-                                setProposalType(null);
-                                setProposal(response.Ok);
+                    <div className="vcentered bottom_half_spaced">
+                        ICP AMOUNT
+                        <input
+                            type="text"
+                            className="left_spaced max_width_col"
+                            onChange={async (ev) => {
+                                setICPAmount(Number(ev.target.value));
                             }}
-                            label="SUBMIT"
                         />
                     </div>
-                )}
-                {proposalType == ProposalType.Release && (
-                    <div className="spaced column_container">
-                        <div className="vcentered bottom_half_spaced">
-                            COMMIT
-                            <input
-                                type="text"
-                                className="left_spaced max_width_col"
-                                onChange={async (ev) => {
-                                    setCommit(ev.target.value);
-                                }}
-                            />
-                        </div>
-                        <div className="vcentered bottom_half_spaced">
-                            BINARY{" "}
-                            <FileUploadInput
-                                classNameArg="left_spaced max_width_col"
-                                callback={setBinary as unknown as any}
-                            />
-                        </div>
-                        <ButtonWithLoading
-                            classNameArg="top_spaced active"
-                            onClick={async () => {
-                                if (!description || !binary) {
-                                    alert("Error: incomplete data.");
-                                    return;
-                                }
-                                const response: any =
-                                    await window.api.propose_release(
-                                        description,
-                                        commit,
-                                        binary,
-                                    );
-                                if ("Err" in response) {
-                                    alert(`Error: ${response.Err}`);
-                                    return;
-                                }
-                                setProposalType(null);
-                                setProposal(response.Ok);
+                </div>
+            )}
+            {proposalType == ProposalType.Rewards && (
+                <div className="spaced column_container">
+                    <div className="vcentered bottom_half_spaced">
+                        PRINCIPAL
+                        <input
+                            type="text"
+                            className="left_spaced max_width_col"
+                            onChange={async (ev) => {
+                                setReceiver(ev.target.value.toString());
                             }}
-                            label="SUBMIT"
                         />
                     </div>
-                )}
-            </div>
-            <PostFeed
-                heartbeat={proposal}
-                useList={true}
-                feedLoader={async (page) =>
-                    await window.api.query("proposals", page)
-                }
-            />
-        </>
+                </div>
+            )}
+            {proposalType == ProposalType.Funding && (
+                <div className="spaced column_container">
+                    <div className="vcentered bottom_half_spaced">
+                        PRINCIPAL
+                        <input
+                            type="text"
+                            className="left_spaced max_width_col"
+                            onChange={async (ev) => {
+                                setReceiver(ev.target.value);
+                            }}
+                        />
+                    </div>
+                    <div className="vcentered bottom_half_spaced">
+                        TOKEN AMOUNT
+                        <input
+                            type="text"
+                            className="left_spaced max_width_col"
+                            onChange={async (ev) => {
+                                setFundingAmount(Number(ev.target.value));
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
+            {proposalType == ProposalType.Release && (
+                <div className="spaced column_container">
+                    <div className="vcentered bottom_half_spaced">
+                        COMMIT
+                        <input
+                            type="text"
+                            className="left_spaced max_width_col"
+                            onChange={async (ev) => {
+                                setCommit(ev.target.value);
+                            }}
+                        />
+                    </div>
+                    <div className="vcentered bottom_half_spaced">
+                        BINARY{" "}
+                        <FileUploadInput
+                            classNameArg="left_spaced max_width_col"
+                            callback={setBinary as unknown as any}
+                        />
+                    </div>
+                </div>
+            )}
+        </div>
     );
 };
 
@@ -528,35 +451,35 @@ export const ProposalView = ({
                     </div>
                 </>
             )}
-            {"Reward" in proposal.payload && (
+            {"Rewards" in proposal.payload && (
                 <>
                     <div className="bottom_half_spaced">
                         RECEIVER:{" "}
                         <code className="breakable">
-                            {proposal.payload.Reward.receiver}
+                            {proposal.payload.Rewards.receiver.toString()}
                         </code>
                     </div>
                     {proposal.status == "Executed" && (
                         <div className="bottom_spaced">
                             TOKENS MINTED:{" "}
                             <code>
-                                {tokenBalance(proposal.payload.Reward.minted)}
+                                {tokenBalance(proposal.payload.Rewards.minted)}
                             </code>
                         </div>
                     )}
                 </>
             )}
-            {"Fund" in proposal.payload && (
+            {"Funding" in proposal.payload && (
                 <>
                     <div className="bottom_half_spaced">
                         RECEIVER:{" "}
                         <code className="breakable">
-                            {proposal.payload.Fund[0]}
+                            {proposal.payload.Funding[0].toString()}
                         </code>
                     </div>
                     <div className="bottom_spaced">
                         AMOUNT:{" "}
-                        <code>{tokenBalance(proposal.payload.Fund[1])}</code>
+                        <code>{tokenBalance(proposal.payload.Funding[1])}</code>
                     </div>
                 </>
             )}
@@ -647,4 +570,27 @@ export const ProposalView = ({
             )}
         </div>
     );
+};
+
+function hexToBytes(hex: string) {
+    let bytes = [];
+    for (let i = 0; i < hex.length - 1; i += 2)
+        bytes.push(parseInt(hex.substr(i, 2), 16));
+    return bytes;
+}
+
+export const validateProposal = async (proposal: Payload) => {
+    // Release proposals contain a binary and need a special handling
+    if ("Release" in proposal) {
+        if (!proposal.Release.commit || proposal.Release.binary.length == 0) {
+            return "commit or the binary missing";
+        }
+        return null;
+    }
+
+    let result = await window.api.query<any>("validate_proposal", proposal);
+    if (result == null || (result && "Err" in result))
+        return result ? result.Err : "invalid inputs";
+
+    return null;
 };

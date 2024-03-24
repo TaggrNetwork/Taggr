@@ -2,7 +2,7 @@ use super::config::CONFIG;
 use super::post::{Extension, Post, PostId};
 use super::token::{self, account};
 use super::user::Predicate;
-use super::{invoices, HOUR};
+use super::{invoices, RealmId, HOUR};
 use super::{user::UserId, State};
 use crate::mutate;
 use crate::token::Token;
@@ -22,7 +22,8 @@ pub enum Status {
     Cancelled,
 }
 
-#[derive(Deserialize, Serialize)]
+// TODO: remove Clone
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Release {
     pub commit: String,
     pub hash: String,
@@ -32,22 +33,36 @@ pub struct Release {
 
 type ProposedReward = Token;
 
-#[derive(Deserialize, Serialize)]
+// TODO: remove Clone
+#[derive(Clone, Deserialize, Serialize)]
+pub struct Rewards {
+    pub receiver: Principal,
+    pub votes: Vec<(Token, ProposedReward)>,
+    pub minted: Token,
+}
+
+// TODO: remove Clone
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Reward {
     pub receiver: String,
     pub votes: Vec<(Token, ProposedReward)>,
     pub minted: Token,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+// TODO: remove Clone
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub enum Payload {
     #[default]
     Noop,
     Release(Release),
+    // TODO: delete
     Fund(String, Token),
     ICPTransfer(AccountIdentifier, Tokens),
+    // TODO: delete
     Reward(Reward),
-    AddRealmController(String, UserId),
+    AddRealmController(RealmId, UserId),
+    Funding(Principal, Token),
+    Rewards(Rewards),
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -85,15 +100,15 @@ impl Proposal {
                     return Err("wrong hash".into());
                 }
             }
-            Payload::Fund(receiver, _) => {
-                if Principal::from_text(receiver) == Ok(principal) {
-                    return Err("funding receivers can not vote".into());
+            Payload::Funding(receiver, _) => {
+                if receiver == &principal {
+                    return Err("reward receivers can not vote".into());
                 }
             }
-            Payload::Reward(Reward {
-                receiver, votes, ..
+            Payload::Rewards(Rewards {
+                votes, receiver, ..
             }) => {
-                if Principal::from_text(receiver) == Ok(principal) {
+                if receiver == &principal {
                     return Err("reward receivers can not vote".into());
                 }
                 let minting_ratio = state.minting_ratio();
@@ -165,14 +180,14 @@ impl Proposal {
 
         if approvals * 100 >= voting_power * CONFIG.proposal_approval_threshold as u64 {
             match &mut self.payload {
-                Payload::Fund(receiver, tokens) => mint_tokens(state, receiver, *tokens)?,
-                Payload::Reward(reward) => {
+                Payload::Funding(receiver, tokens) => mint_tokens(state, *receiver, *tokens)?,
+                Payload::Rewards(reward) => {
                     let total: Token = reward.votes.iter().map(|(vp, _)| vp).sum();
                     let tokens_to_mint: Token =
                         reward.votes.iter().fold(0.0, |acc, (vp, reward)| {
                             acc + *vp as f32 / total as f32 * *reward as f32
                         }) as Token;
-                    mint_tokens(state, &reward.receiver, tokens_to_mint)?;
+                    mint_tokens(state, reward.receiver, tokens_to_mint)?;
                     reward.votes.clear();
                     reward.minted = tokens_to_mint;
                 }
@@ -212,8 +227,7 @@ impl Proposal {
     }
 }
 
-fn mint_tokens(state: &mut State, receiver: &str, mut tokens: Token) -> Result<(), String> {
-    let receiver = Principal::from_text(receiver).map_err(|e| e.to_string())?;
+fn mint_tokens(state: &mut State, receiver: Principal, mut tokens: Token) -> Result<(), String> {
     state.minting_mode = true;
     crate::token::mint(state, account(receiver), tokens);
     state.minting_mode = false;
@@ -232,7 +246,7 @@ fn mint_tokens(state: &mut State, receiver: &str, mut tokens: Token) -> Result<(
 }
 
 impl Payload {
-    fn validate(&mut self, state: &State) -> Result<(), String> {
+    pub fn validate(&self, state: &State) -> Result<(), String> {
         let minting_ratio = state.minting_ratio();
         let current_supply: Token = state.balances.values().sum();
         match self {
@@ -240,7 +254,7 @@ impl Payload {
                 if !state.users.contains_key(user_id) {
                     return Err("user not found".to_string());
                 }
-                if !state.realms.contains_key(realm_id) {
+                if !state.realms.contains_key(&realm_id.to_uppercase()) {
                     return Err("realm not found".to_string());
                 }
             }
@@ -251,15 +265,11 @@ impl Payload {
                 if release.binary.is_empty() {
                     return Err("binary is missing".to_string());
                 }
-                let mut hasher = Sha256::new();
-                hasher.update(&release.binary);
-                release.hash = format!("{:x}", hasher.finalize());
             }
-            Payload::Fund(controller, tokens) => {
-                Principal::from_text(controller).map_err(|err| err.to_string())?;
+            Payload::Funding(_, tokens) => {
                 if current_supply >= CONFIG.maximum_supply {
                     return Err(
-                        "no funding is allowed when the curent supply is above maximum".into(),
+                        "no funding is allowed when the current supply is above maximum".into(),
                     );
                 }
                 let max_funding_amount = CONFIG.max_funding_amount / minting_ratio;
@@ -270,10 +280,10 @@ impl Payload {
                     ));
                 }
             }
-            Payload::Reward(_) => {
+            Payload::Rewards(_) => {
                 if current_supply >= CONFIG.maximum_supply {
                     return Err(
-                        "no funding is allowed when the curent supply is above maximum".into(),
+                        "no rewards are allowed when the current supply is above maximum".into(),
                     );
                 }
             }
@@ -283,22 +293,30 @@ impl Payload {
     }
 }
 
-pub fn propose(
+pub fn create_proposal(
     state: &mut State,
     caller: Principal,
-    description: String,
+    post_id: PostId,
     mut payload: Payload,
     time: u64,
 ) -> Result<u32, String> {
+    if Post::get(state, &post_id).is_none() {
+        return Err("post not found".to_string());
+    }
     payload.validate(state)?;
+
+    // For an upgrade release proposal, compute the binary hash
+    if let Payload::Release(release) = &mut payload {
+        let mut hasher = Sha256::new();
+        hasher.update(&release.binary);
+        release.hash = format!("{:x}", hasher.finalize());
+    }
+
     let user = state
         .principal_to_user_mut(caller)
         .ok_or("proposer user not found")?;
     if !user.stalwart {
         return Err("only stalwarts can create proposals".to_string());
-    }
-    if description.is_empty() {
-        return Err("description is empty".to_string());
     }
     if !user.realms.contains(&CONFIG.dao_realm.to_owned()) {
         user.realms.push(CONFIG.dao_realm.to_owned());
@@ -320,17 +338,6 @@ pub fn propose(
 
     let id = state.proposals.len() as u32;
 
-    let post_id = Post::create(
-        state,
-        description,
-        Default::default(),
-        caller,
-        time,
-        None,
-        Some(CONFIG.dao_realm.to_owned()),
-        Some(Extension::Proposal(id)),
-    )?;
-
     state.proposals.push(Proposal {
         post_id,
         proposer,
@@ -348,6 +355,11 @@ pub fn propose(
         format!("@{} submitted a new proposal", &proposer_name,),
         Predicate::Proposal(post_id),
     );
+    Post::mutate(state, &post_id, |post| {
+        post.extension = Some(Extension::Proposal(id));
+        Ok(())
+    })
+    .expect("couldn't mutate post");
     state.logger.info(format!(
         "@{} submitted a new [proposal](#/post/{}).",
         &proposer_name, post_id
@@ -419,7 +431,7 @@ pub(super) fn execute_proposal(
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 
     use super::*;
     use crate::{
@@ -429,6 +441,17 @@ mod tests {
         },
         STATE,
     };
+
+    pub fn propose(
+        state: &mut State,
+        caller: Principal,
+        description: String,
+        payload: Payload,
+        time: u64,
+    ) -> Result<u32, String> {
+        let post_id = Post::create(state, description, &[], caller, time, None, None, None)?;
+        create_proposal(state, caller, post_id, payload, time)
+    }
 
     #[test]
     fn test_proposal_canceling() {
@@ -458,7 +481,10 @@ mod tests {
                 state,
                 pr(1),
                 "test".into(),
-                Payload::Fund("e3mmv-5qaaa-aaaah-aadma-cai".into(), 10),
+                Payload::Funding(
+                    Principal::from_text("e3mmv-5qaaa-aaaah-aadma-cai").unwrap(),
+                    10,
+                ),
                 0,
             )
             .expect("couldn't create proposal");
@@ -485,7 +511,10 @@ mod tests {
                 state,
                 pr(1),
                 "test".into(),
-                Payload::Fund("e3mmv-5qaaa-aaaah-aadma-cai".into(), 10),
+                Payload::Funding(
+                    Principal::from_text("e3mmv-5qaaa-aaaah-aadma-cai").unwrap(),
+                    10,
+                ),
                 2 * HOUR,
             )
             .expect("couldn't create proposal");
@@ -572,11 +601,11 @@ mod tests {
             // check error cases on voting
             assert_eq!(
                 propose(state, pr(111), "".into(), Payload::Noop, 0),
-                Err("proposer user not found".to_string())
+                Err("no user with controller ttkg4-nqan4 found".to_string())
             );
             assert_eq!(
                 propose(state, proposer, "".into(), Payload::Noop, 0),
-                Err("description is empty".to_string())
+                Err("invalid post content".to_string())
             );
             let id = propose(state, proposer, "test".into(), Payload::Noop, 0)
                 .expect("couldn't create proposal");
@@ -793,14 +822,14 @@ mod tests {
                     state,
                     pr(1),
                     "test".into(),
-                    Payload::Reward(Reward {
-                        receiver: pr(4).to_string(),
+                    Payload::Rewards(Rewards {
+                        receiver: pr(4),
                         votes: Default::default(),
                         minted: 0,
                     }),
                     time(),
                 ),
-                Err("no funding is allowed when the curent supply is above maximum".to_string())
+                Err("no rewards are allowed when the current supply is above maximum".to_string())
             );
             state.balances.remove(&account(pr(222)));
 
@@ -808,8 +837,8 @@ mod tests {
                 state,
                 pr(1),
                 "test".into(),
-                Payload::Reward(Reward {
-                    receiver: pr(1).to_string(),
+                Payload::Rewards(Rewards {
+                    receiver: pr(1),
                     votes: Default::default(),
                     minted: 0,
                 }),
@@ -850,14 +879,14 @@ mod tests {
                     state,
                     pr(1),
                     "test".into(),
-                    Payload::Reward(Reward {
-                        receiver: pr(4).to_string(),
+                    Payload::Rewards(Rewards {
+                        receiver: pr(4),
                         votes: Default::default(),
                         minted: 0,
                     }),
                     time(),
                 ),
-                Err("no funding is allowed when the curent supply is above maximum".to_string())
+                Err("no rewards are allowed when the current supply is above maximum".to_string())
             );
             state.balances.remove(&account(pr(222)));
 
@@ -866,8 +895,8 @@ mod tests {
                 state,
                 pr(1),
                 "test".into(),
-                Payload::Reward(Reward {
-                    receiver: pr(4).to_string(),
+                Payload::Rewards(Rewards {
+                    receiver: pr(4),
                     votes: Default::default(),
                     minted: 0,
                 }),
@@ -899,7 +928,7 @@ mod tests {
             );
 
             let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
-            if let Payload::Reward(reward) = &proposal.payload {
+            if let Payload::Rewards(reward) = &proposal.payload {
                 assert_eq!(reward.minted, 48571);
                 assert_eq!(proposal.status, Status::Executed);
             } else {
@@ -913,8 +942,8 @@ mod tests {
                 state,
                 pr(1),
                 "test".into(),
-                Payload::Reward(Reward {
-                    receiver: pr(111).to_string(),
+                Payload::Rewards(Rewards {
+                    receiver: pr(111),
                     votes: Default::default(),
                     minted: 0,
                 }),
@@ -944,7 +973,7 @@ mod tests {
             );
 
             let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
-            if let Payload::Reward(reward) = &proposal.payload {
+            if let Payload::Rewards(reward) = &proposal.payload {
                 assert_eq!(reward.minted, 0);
                 assert_eq!(proposal.status, Status::Rejected);
             } else {
@@ -956,8 +985,8 @@ mod tests {
                 state,
                 pr(1),
                 "test".into(),
-                Payload::Reward(Reward {
-                    receiver: pr(111).to_string(),
+                Payload::Rewards(Rewards {
+                    receiver: pr(111),
                     votes: Default::default(),
                     minted: 0,
                 }),
@@ -987,7 +1016,7 @@ mod tests {
             );
 
             let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
-            if let Payload::Reward(reward) = &proposal.payload {
+            if let Payload::Rewards(reward) = &proposal.payload {
                 assert_eq!(reward.minted, 42857);
                 assert_eq!(proposal.status, Status::Executed);
             } else {
@@ -999,8 +1028,8 @@ mod tests {
                 state,
                 pr(2),
                 "test".into(),
-                Payload::Reward(Reward {
-                    receiver: pr(1).to_string(),
+                Payload::Rewards(Rewards {
+                    receiver: pr(1),
                     votes: Default::default(),
                     minted: 0,
                 }),

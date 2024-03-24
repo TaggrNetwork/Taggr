@@ -61,7 +61,7 @@ test.describe("Report and transfer to user", () => {
         await page.locator("#logo").click();
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("textarea").fill("Good stuff");
-        await page.getByRole("button", { name: "SEND" }).click();
+        await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
     });
 
@@ -78,7 +78,7 @@ test.describe("Report and transfer to user", () => {
         await page.locator("#logo").click();
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("textarea").fill("Illigal stuff");
-        await page.getByRole("button", { name: "SEND" }).click();
+        await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
     });
 
