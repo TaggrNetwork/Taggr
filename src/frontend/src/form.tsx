@@ -549,6 +549,7 @@ export const Form = ({
                                     />
                                 )}
                                 {!comment &&
+                                    !proposalForm &&
                                     user.realms.length > 0 &&
                                     (!realm || user.realms.includes(realm)) && (
                                         <select
