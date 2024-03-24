@@ -317,7 +317,7 @@ export const PostView = ({
                         blogTitle={blogTitle}
                         expanded={expanded}
                         value={body}
-                        primeMode={isRoot(post) && !repost && !isFeedItem}
+                        primeMode={isRoot(post) && !repost}
                         urls={urls}
                         goInside={goInside}
                     />
