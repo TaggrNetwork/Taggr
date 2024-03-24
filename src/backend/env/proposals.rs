@@ -100,7 +100,11 @@ impl Proposal {
                     return Err("wrong hash".into());
                 }
             }
-            Payload::Funding(_, _) => {}
+            Payload::Funding(receiver, _) => {
+                if receiver == &principal {
+                    return Err("reward receivers can not vote".into());
+                }
+            }
             Payload::Rewards(Rewards {
                 votes, receiver, ..
             }) => {
