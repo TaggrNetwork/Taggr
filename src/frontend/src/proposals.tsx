@@ -41,13 +41,15 @@ export const Proposals = () => (
             menu={true}
             burgerTestId="proposals-burger-button"
             content={
-                <>
-                    <h2>New Proposal Form</h2>
-                    <Form
-                        proposalForm={true}
-                        submitCallback={newPostCallback}
-                    />
-                </>
+                window.user?.stalwart ? (
+                    <>
+                        <h2>New Proposal Form</h2>
+                        <Form
+                            proposalForm={true}
+                            submitCallback={newPostCallback}
+                        />
+                    </>
+                ) : undefined
             }
         />
         <PostFeed
