@@ -25,6 +25,7 @@ use user::{User, UserId};
 
 pub mod canisters;
 pub mod config;
+pub mod features;
 pub mod invoices;
 pub mod memory;
 pub mod post;
@@ -443,11 +444,11 @@ impl State {
 
     pub fn charge<T: ToString>(
         &mut self,
-        id: UserId,
+        user_id: UserId,
         amount: Credits,
         log: T,
     ) -> Result<(), String> {
-        self.charge_in_realm(id, amount, None, log)
+        self.charge_in_realm(user_id, amount, None, log)
     }
 
     pub fn charge_in_realm<T: ToString>(
@@ -2539,6 +2540,11 @@ impl State {
             Ok(())
         })
         .expect("couldn't delete post");
+
+        self.memory
+            .features
+            .remove(&post_id)
+            .expect("couldn't delete feature");
 
         if has_open_report {
             self.denotify_users(&|u| u.stalwart);

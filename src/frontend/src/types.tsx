@@ -27,6 +27,11 @@ export type Summary = {
 
 export type Mode = "Mining" | "Rewards" | "Credits";
 
+export type Feature = {
+    supporters: UserId[];
+    status: number;
+};
+
 export type Extension =
     | {
           ["Poll"]: Poll;
@@ -36,7 +41,8 @@ export type Extension =
       }
     | {
           ["Proposal"]: number;
-      };
+      }
+    | "Feature";
 
 export type Rewards = {
     receiver: string;
@@ -311,6 +317,7 @@ declare global {
                 max_credits_mint_kilos: number;
                 logo: string;
                 poll_revote_deadline_hours: number;
+                feature_cost: number;
                 blob_cost: number;
                 poll_cost: number;
                 max_post_length: number;

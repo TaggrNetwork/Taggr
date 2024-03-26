@@ -37,6 +37,7 @@ import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
 import { populateUserNameCacheSpeculatively } from "./user_resolve";
+import { Roadmap } from "./roadmap";
 
 const { hash, pathname } = location;
 
@@ -184,6 +185,8 @@ const App = () => {
         content = <Search initQuery={param} />;
     } else if (handler == "distribution") {
         content = <Distribution />;
+    } else if (handler == "roadmap") {
+        content = <Roadmap />;
     } else if (handler == "bookmarks") {
         content = auth(
             <PostFeed
