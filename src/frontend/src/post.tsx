@@ -460,7 +460,7 @@ const PostContent = ({
     // long posts, let alone to load and render an image. The markdown library we use does not provide
     // any reliable callback mechanism notofying about the end of the rendering.
     const [renderingAttempts, setRenderingAttempts] = React.useState(
-        primeMode ? 0 : 15,
+        expanded ? 0 : 15,
     );
     const refArticle = React.useRef();
 
