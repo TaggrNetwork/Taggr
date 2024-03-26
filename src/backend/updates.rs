@@ -233,6 +233,18 @@ fn update_user_settings() {
     reply(User::update_settings(caller(), settings))
 }
 
+#[export_name = "canister_update create_feature"]
+fn create_feature() {
+    let post_id: PostId = parse(&arg_data_raw());
+    reply(features::create_feature(caller(), post_id));
+}
+
+#[export_name = "canister_update support_feature"]
+fn support_feature() {
+    let post_id: PostId = parse(&arg_data_raw());
+    reply(features::support_feature(caller(), post_id));
+}
+
 #[export_name = "canister_update create_user"]
 fn create_user() {
     let (name, invite): (String, Option<String>) = parse(&arg_data_raw());

@@ -45,7 +45,7 @@ export const Proposals = () => (
                     <>
                         <h2>New Proposal Form</h2>
                         <Form
-                            proposalForm={true}
+                            proposalCreation={true}
                             submitCallback={newPostCallback}
                         />
                     </>

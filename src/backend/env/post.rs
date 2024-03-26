@@ -48,6 +48,7 @@ pub enum Extension {
     Poll(Poll),
     Proposal(u32),
     Repost(PostId),
+    Feature,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

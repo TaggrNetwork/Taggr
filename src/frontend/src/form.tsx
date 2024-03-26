@@ -39,13 +39,15 @@ export const Form = ({
     repost,
     urls,
     content,
-    proposalForm,
+    proposalCreation,
+    featureRequest,
 }: {
     postId?: PostId;
     comment?: boolean;
     realmArg?: string;
     expanded?: boolean;
-    proposalForm?: boolean;
+    proposalCreation?: boolean;
+    featureRequest?: boolean;
     submitCallback: (
         value: string,
         blobs: [string, Uint8Array][],
@@ -77,7 +79,7 @@ export const Form = ({
     const [poll, setPoll] = React.useState<PollType>();
     const [proposal, setProposal] = React.useState<Payload>();
     const [showTextField, setShowTextField] = React.useState(
-        !!localStorage.getItem(draftKey) || expanded || proposalForm,
+        !!localStorage.getItem(draftKey) || expanded || proposalCreation,
     );
     const [suggestedTags, setSuggestedTags] = React.useState<string[]>([]);
     const [suggestedUsers, setSuggestedUsers] = React.useState<string[]>([]);
@@ -161,6 +163,16 @@ export const Form = ({
                     if (result && "Err" in result) {
                         alert(
                             `Post could be created, but the proposal creation failed: ${result.Err}`,
+                        );
+                    }
+                } else if (featureRequest) {
+                    let result: any = await window.api.call(
+                        "create_feature",
+                        postId,
+                    );
+                    if (result && "Err" in result) {
+                        alert(
+                            `Post could be created, but the feature request failed: ${result.Err}`,
                         );
                     }
                 }
@@ -520,36 +532,41 @@ export const Form = ({
                                     accept=".png, .jpg, .jpeg, .gif"
                                     onChange={dropHandler}
                                 />
-                                {isRootPost && !isRepost && !proposalForm && (
-                                    <IconToggleButton
-                                        testId="poll-button"
-                                        classNameArg="left_half_spaced"
-                                        icon={<Bars />}
-                                        pressed={!!poll}
-                                        onClick={() => {
-                                            setPoll(
-                                                poll &&
-                                                    confirm("Delete the poll?")
-                                                    ? undefined
-                                                    : {
-                                                          options: [
-                                                              "Option 1",
-                                                              "Option 2",
-                                                              "...",
-                                                          ],
-                                                          votes: {},
-                                                          voters: [],
-                                                          deadline: 24,
-                                                          weighted_by_karma: {},
-                                                          weighted_by_tokens:
-                                                              {},
-                                                      },
-                                            );
-                                        }}
-                                    />
-                                )}
+                                {isRootPost &&
+                                    !isRepost &&
+                                    !proposalCreation && (
+                                        <IconToggleButton
+                                            testId="poll-button"
+                                            classNameArg="left_half_spaced"
+                                            icon={<Bars />}
+                                            pressed={!!poll}
+                                            onClick={() => {
+                                                setPoll(
+                                                    poll &&
+                                                        confirm(
+                                                            "Delete the poll?",
+                                                        )
+                                                        ? undefined
+                                                        : {
+                                                              options: [
+                                                                  "Option 1",
+                                                                  "Option 2",
+                                                                  "...",
+                                                              ],
+                                                              votes: {},
+                                                              voters: [],
+                                                              deadline: 24,
+                                                              weighted_by_karma:
+                                                                  {},
+                                                              weighted_by_tokens:
+                                                                  {},
+                                                          },
+                                                );
+                                            }}
+                                        />
+                                    )}
                                 {!comment &&
-                                    !proposalForm &&
+                                    !proposalCreation &&
                                     user.realms.length > 0 &&
                                     (!realm || user.realms.includes(realm)) && (
                                         <select
@@ -572,7 +589,7 @@ export const Form = ({
                             </div>
                         </div>
                     )}
-                    {proposalForm && (
+                    {proposalCreation && (
                         <>
                             <div className="top_spaced row_container vcentered">
                                 <span className="right_spaced">

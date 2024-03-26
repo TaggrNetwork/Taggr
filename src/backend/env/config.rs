@@ -86,6 +86,7 @@ pub struct Config {
 
     pub num_hot_posts: usize,
 
+    pub feature_cost: Credits,
     pub post_cost: Credits,
     pub blob_cost: Credits,
     pub poll_cost: Credits,
@@ -273,6 +274,7 @@ pub const CONFIG: &Config = &Config {
 
     min_credits_for_inviting: 50,
 
+    feature_cost: 1000,
     post_cost: 2,
     blob_cost: 20,
     poll_cost: 3,

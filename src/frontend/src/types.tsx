@@ -35,6 +35,9 @@ export type Extension =
           ["Repost"]: PostId;
       }
     | {
+          ["Feature"]: null;
+      }
+    | {
           ["Proposal"]: number;
       };
 
@@ -311,6 +314,7 @@ declare global {
                 max_credits_mint_kilos: number;
                 logo: string;
                 poll_revote_deadline_hours: number;
+                feature_cost: number;
                 blob_cost: number;
                 poll_cost: number;
                 max_post_length: number;
