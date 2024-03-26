@@ -300,24 +300,30 @@ pub fn create_proposal(
     mut payload: Payload,
     time: u64,
 ) -> Result<u32, String> {
+    let user = state
+        .principal_to_user(caller)
+        .ok_or("proposer user not found")?;
+    if !user.stalwart {
+        return Err("only stalwarts can create proposals".to_string());
+    }
     if Post::get(state, &post_id).is_none() {
         return Err("post not found".to_string());
     }
     payload.validate(state)?;
 
-    // For an upgrade release proposal, compute the binary hash
-    if let Payload::Release(release) = &mut payload {
-        let mut hasher = Sha256::new();
-        hasher.update(&release.binary);
-        release.hash = format!("{:x}", hasher.finalize());
-    }
+    match &mut payload {
+        Payload::Release(release) => {
+            let mut hasher = Sha256::new();
+            hasher.update(&release.binary);
+            release.hash = format!("{:x}", hasher.finalize());
+        }
+        Payload::Rewards(rewards) => rewards.votes.clear(),
+        _ => {}
+    };
 
     let user = state
         .principal_to_user_mut(caller)
         .ok_or("proposer user not found")?;
-    if !user.stalwart {
-        return Err("only stalwarts can create proposals".to_string());
-    }
     if !user.realms.contains(&CONFIG.dao_realm.to_owned()) {
         user.realms.push(CONFIG.dao_realm.to_owned());
     }
