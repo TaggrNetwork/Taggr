@@ -3176,7 +3176,9 @@ pub(crate) mod tests {
 
             for i in 0..5 {
                 create_user(state, pr(i));
-                state.principal_to_user_mut(pr(i)).unwrap().mode = Mode::Mining;
+                let user = state.principal_to_user_mut(pr(i)).unwrap();
+                user.mode = Mode::Mining;
+                user.active_weeks = 1;
                 insert_balance(state, pr(i), (((i + 1) as u64) << 2) * 10000);
                 for j in 0..5 {
                     if i != j {
