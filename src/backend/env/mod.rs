@@ -1601,7 +1601,6 @@ impl State {
                     state.pending_polls.len(),
                     state.migrations.len(),
                 ));
-                log_time(state, "Daily");
             });
         }
 
