@@ -291,7 +291,7 @@ pub const CONFIG: &Config = &Config {
 
     inactivity_penalty: 45,
     inactivity_duration_weeks: 26,
-    voting_power_activity_weeks: 2,
+    voting_power_activity_weeks: 4,
 
     stalwart_percentage: 3,
     #[cfg(feature = "staging")]
