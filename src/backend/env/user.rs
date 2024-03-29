@@ -554,11 +554,7 @@ impl User {
     }
 
     pub fn eligible_for_minting(&self) -> bool {
-        self.mode == Mode::Mining && !self.controversial() &&
-            // While `controversial` covers users with negative rewards, user with 0 rewards should
-            // not be picked for minting because they either have no rewards, or they were
-            // downvoted back to zero and then nothing should be minted for them.
-            self.rewards() > 0
+        self.mode == Mode::Mining && !self.controversial() && self.rewards() > 0
     }
 
     pub fn mintable_tokens(

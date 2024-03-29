@@ -127,7 +127,7 @@ This will make the supply keep an equilibrium around the maximal supply.
 ### Distribution of mined tokens
 
 All eligible users receive newly minted `$token_symbol` tokens on a weekly basis.
-Eligible are users who opted for token mining, without pending reports or reports closed within the last `$user_report_validity_days`, and without a negative rewards balance.
+Eligible are users who opted for token mining, who have no pending reports or reports closed within the last `$user_report_validity_days`, who were active within `$voting_power_activity_weeks` weeks and have no negative rewards balance.
 The amount of minted tokens is computed according to the following algorithm:
 
 1. For every user `U` who rewarded others, determine the maximal amount of donatable tokens capped by `U`'s `$token_symbol` balance divided by the mining difficulty `R` (see below).
