@@ -183,7 +183,8 @@ export const PostView = ({
         toggleInfo(commentIncoming);
     };
 
-    const expanded = focused || (!isFeedItem && !repost) || isThreadView;
+    const expanded =
+        !isCommentView && (focused || (!isFeedItem && !repost) || isThreadView);
     const costTable = reactionCosts();
     const isInactive =
         objectReduce(
