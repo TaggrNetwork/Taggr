@@ -79,7 +79,28 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        let controllers = state
+            .realms
+            .iter()
+            .flat_map(|(realm_id, realm)| {
+                realm
+                    .controllers
+                    .iter()
+                    .map(move |user_id| (realm_id.clone(), *user_id))
+            })
+            .collect::<Vec<_>>();
+        for (realm_id, controller_id) in controllers {
+            state
+                .users
+                .get_mut(&controller_id)
+                .unwrap()
+                .controlled_realms
+                .insert(realm_id);
+        }
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}

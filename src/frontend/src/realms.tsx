@@ -76,19 +76,6 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         );
     };
 
-    const validateUserNames = async () => {
-        // @ts-ignore
-        realm.whitelist = await userNameToIds(whitelistString.split(","));
-        // @ts-ignore
-        realm.controllers = await userNameToIds(controllersString.split(","));
-        setRealm({ ...realm });
-    };
-
-    React.useEffect(() => {
-        clearTimeout(timer);
-        timer = setTimeout(validateUserNames, 1500);
-    }, [controllersString, whitelistString]);
-
     React.useEffect(() => {
         setStrings();
     }, [realm]);
@@ -272,17 +259,19 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         type="text"
                         value={controllersString}
                         onChange={(event) => {
+                            clearTimeout(timer);
                             const input = event.target.value;
                             setControllersString(input);
+
+                            timer = setTimeout(async () => {
+                                // @ts-ignore
+                                realm.controllers = await userNameToIds(
+                                    input.split(","),
+                                );
+                                setRealm({ ...realm });
+                            }, 1500);
                         }}
                     />
-                    {controllers.length > 0 && (
-                        <div className="column_container bottom_spaced">
-                            <div className="bottom_half_spaced">
-                                Recognized users: <UserList ids={controllers} />
-                            </div>
-                        </div>
-                    )}
                 </div>
                 <hr />
                 <h2>Realm contributor settings</h2>
@@ -294,17 +283,19 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         type="text"
                         value={whitelistString}
                         onChange={(event) => {
+                            clearTimeout(timer);
                             const input = event.target.value;
                             setWhitelistString(input);
+
+                            timer = setTimeout(async () => {
+                                // @ts-ignore
+                                realm.whitelist = await userNameToIds(
+                                    input.split(","),
+                                );
+                                setRealm({ ...realm });
+                            }, 1500);
                         }}
                     />
-                    {whitelist.length > 0 && (
-                        <div className="column_container bottom_spaced">
-                            <div className="bottom_half_spaced">
-                                Recognized users: <UserList ids={whitelist} />
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 {whitelist.length == 0 && (
