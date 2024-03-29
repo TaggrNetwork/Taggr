@@ -107,7 +107,9 @@ const App = () => {
         setRealmUI(param.toUpperCase());
     }
 
-    if (handler == "settings") {
+    if (handler == "whitepaper") {
+        content = <Whitepaper />;
+    } else if (handler == "settings") {
         content = auth(<Settings />);
     } else if (handler == "welcome") {
         subtle = !window.principalId;
@@ -176,8 +178,6 @@ const App = () => {
         content = <Proposals />;
     } else if (handler == "tokens") {
         content = <Tokens />;
-    } else if (handler == "whitepaper" || handler == "about") {
-        content = <Whitepaper />;
     } else if (handler == "dashboard" || handler == "stats") {
         content = <Dashboard />;
     } else if (handler == "search") {
