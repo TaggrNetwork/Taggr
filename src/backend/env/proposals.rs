@@ -285,14 +285,12 @@ pub fn create_proposal(
     mut payload: Payload,
     time: u64,
 ) -> Result<u32, String> {
-    let user = state
+    if !state
         .principal_to_user(caller)
-        .ok_or("proposer user not found")?;
-    if !user.stalwart {
+        .map(|user| user.stalwart)
+        .unwrap_or_default()
+    {
         return Err("only stalwarts can create proposals".to_string());
-    }
-    if Post::get(state, &post_id).is_none() {
-        return Err("post not found".to_string());
     }
     payload.validate(state)?;
 
@@ -347,6 +345,7 @@ pub fn create_proposal(
         Predicate::Proposal(post_id),
     );
     Post::mutate(state, &post_id, |post| {
+        assert!(post.extension.is_none(), "post cannot have any extensions");
         post.extension = Some(Extension::Proposal(id));
         Ok(())
     })
@@ -442,6 +441,37 @@ pub mod tests {
     ) -> Result<u32, String> {
         let post_id = Post::create(state, description, &[], caller, time, None, None, None)?;
         create_proposal(state, caller, post_id, payload, time)
+    }
+
+    #[test]
+    #[should_panic(expected = "couldn't take post 2: not found")]
+    fn test_wrong_post_id_in_proposal() {
+        mutate(|state| {
+            create_user(state, pr(1));
+            state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
+            create_proposal(state, pr(1), 2, Payload::Noop, 0).unwrap();
+        })
+    }
+
+    #[test]
+    #[should_panic(expected = "post cannot have any extensions")]
+    fn test_wrong_post_id_in_proposal_2() {
+        mutate(|state| {
+            create_user(state, pr(1));
+            state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
+            let post_id = Post::create(
+                state,
+                "hello world".into(),
+                &[],
+                pr(1),
+                0,
+                None,
+                None,
+                Some(Extension::Proposal(4)),
+            )
+            .unwrap();
+            create_proposal(state, pr(1), post_id, Payload::Noop, 0).unwrap();
+        })
     }
 
     #[test]
