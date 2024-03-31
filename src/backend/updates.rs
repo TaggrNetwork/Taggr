@@ -1,5 +1,5 @@
 use crate::env::{
-    proposals::{Payload, Release, Reward, Rewards},
+    proposals::{Payload, Release},
     user::{Mode, UserFilter},
 };
 
@@ -81,34 +81,29 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
-        for p in state.proposals.iter_mut() {
-            p.payload = migrate_payload(p.payload.clone());
+        let controllers = state
+            .realms
+            .iter()
+            .flat_map(|(realm_id, realm)| {
+                realm
+                    .controllers
+                    .iter()
+                    .map(move |user_id| (realm_id.clone(), *user_id))
+            })
+            .collect::<Vec<_>>();
+        for (realm_id, controller_id) in controllers {
+            state
+                .users
+                .get_mut(&controller_id)
+                .unwrap()
+                .controlled_realms
+                .insert(realm_id);
         }
     })
 }
 
-fn migrate_payload(p: Payload) -> Payload {
-    match p {
-        Payload::Fund(receiver, tokens) => {
-            Payload::Funding(Principal::from_text(receiver).unwrap(), tokens)
-        }
-        Payload::Reward(Reward {
-            receiver,
-            votes,
-            minted,
-        }) => Payload::Rewards(Rewards {
-            receiver: Principal::from_text(receiver).unwrap(),
-            minted,
-            votes,
-        }),
-        val => val,
-    }
-}
-
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {
-    storage::upgrade_buckets().await;
-}
+async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES

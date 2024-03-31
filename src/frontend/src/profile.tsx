@@ -15,6 +15,7 @@ import {
     popUp,
     RealmList,
     noiseControlBanner,
+    setTitle,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -36,6 +37,7 @@ export const Profile = ({ handle }: { handle: string }) => {
         }
         setStatus(1);
         setProfile(profile);
+        setTitle(`${profile.name}'s profile`);
     };
 
     React.useEffect(() => {
