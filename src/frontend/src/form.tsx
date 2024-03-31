@@ -39,13 +39,15 @@ export const Form = ({
     repost,
     urls,
     content,
-    proposalForm,
+    proposalCreation,
+    featureRequest,
 }: {
     postId?: PostId;
     comment?: boolean;
     realmArg?: string;
     expanded?: boolean;
-    proposalForm?: boolean;
+    proposalCreation?: boolean;
+    featureRequest?: boolean;
     submitCallback: (
         value: string,
         blobs: [string, Uint8Array][],
@@ -77,7 +79,10 @@ export const Form = ({
     const [poll, setPoll] = React.useState<PollType>();
     const [proposal, setProposal] = React.useState<Payload>();
     const [showTextField, setShowTextField] = React.useState(
-        !!localStorage.getItem(draftKey) || expanded || proposalForm,
+        !!localStorage.getItem(draftKey) ||
+            expanded ||
+            proposalCreation ||
+            featureRequest,
     );
     const [suggestedTags, setSuggestedTags] = React.useState<string[]>([]);
     const [suggestedUsers, setSuggestedUsers] = React.useState<string[]>([]);
@@ -128,7 +133,7 @@ export const Form = ({
             setSubmitting(false);
             return false;
         } else {
-            let extension;
+            let extension: Extension | undefined = undefined;
             if (poll) {
                 // Trim
                 poll.options = poll.options.filter(
@@ -137,6 +142,8 @@ export const Form = ({
                 extension = { Poll: poll };
             } else if (repost != undefined) {
                 extension = { Repost: repost };
+            } else if (featureRequest) {
+                extension = "Feature";
             }
             const postId = await submitCallback(
                 value,
@@ -161,6 +168,16 @@ export const Form = ({
                     if (result && "Err" in result) {
                         alert(
                             `Post could be created, but the proposal creation failed: ${result.Err}`,
+                        );
+                    }
+                } else if (featureRequest) {
+                    let result: any = await window.api.call(
+                        "create_feature",
+                        postId,
+                    );
+                    if (result && "Err" in result) {
+                        alert(
+                            `Post could be created, but the feature request failed: ${result.Err}`,
                         );
                     }
                 }
@@ -291,20 +308,27 @@ export const Form = ({
 
     React.useEffect(() => {
         clearTimeout(timer);
+        const { poll_cost, feature_cost } = window.backendCache.config;
+        const extraCost = poll ? poll_cost : featureRequest ? feature_cost : 0;
         timer = setTimeout(async () => {
-            setTotalCosts((await costs(value, !!poll)) || totalCosts);
+            setTotalCosts((await costs(value, extraCost)) || totalCosts);
         }, 1000);
     }, [value, poll]);
+
     React.useEffect(() => {
         if (urls) setTmpUrls(urls);
     }, [urls]);
+
     React.useEffect(() => setRealm(realmArg), [realmArg]);
+
     React.useEffect(() => {
         const effContent = content || localStorage.getItem(draftKey) || "";
         setValue(effContent);
         setLines(effContent.split("\n").length + 2);
     }, [content]);
+
     React.useEffect(() => setFocus(), [showTextField, focus]);
+
     const ref = React.useRef();
 
     const self = document.getElementById(id);
@@ -520,36 +544,43 @@ export const Form = ({
                                     accept=".png, .jpg, .jpeg, .gif"
                                     onChange={dropHandler}
                                 />
-                                {isRootPost && !isRepost && !proposalForm && (
-                                    <IconToggleButton
-                                        testId="poll-button"
-                                        classNameArg="left_half_spaced"
-                                        icon={<Bars />}
-                                        pressed={!!poll}
-                                        onClick={() => {
-                                            setPoll(
-                                                poll &&
-                                                    confirm("Delete the poll?")
-                                                    ? undefined
-                                                    : {
-                                                          options: [
-                                                              "Option 1",
-                                                              "Option 2",
-                                                              "...",
-                                                          ],
-                                                          votes: {},
-                                                          voters: [],
-                                                          deadline: 24,
-                                                          weighted_by_karma: {},
-                                                          weighted_by_tokens:
-                                                              {},
-                                                      },
-                                            );
-                                        }}
-                                    />
-                                )}
+                                {isRootPost &&
+                                    !isRepost &&
+                                    !proposalCreation &&
+                                    !featureRequest && (
+                                        <IconToggleButton
+                                            testId="poll-button"
+                                            classNameArg="left_half_spaced"
+                                            icon={<Bars />}
+                                            pressed={!!poll}
+                                            onClick={() => {
+                                                setPoll(
+                                                    poll &&
+                                                        confirm(
+                                                            "Delete the poll?",
+                                                        )
+                                                        ? undefined
+                                                        : {
+                                                              options: [
+                                                                  "Option 1",
+                                                                  "Option 2",
+                                                                  "...",
+                                                              ],
+                                                              votes: {},
+                                                              voters: [],
+                                                              deadline: 24,
+                                                              weighted_by_karma:
+                                                                  {},
+                                                              weighted_by_tokens:
+                                                                  {},
+                                                          },
+                                                );
+                                            }}
+                                        />
+                                    )}
                                 {!comment &&
-                                    !proposalForm &&
+                                    !proposalCreation &&
+                                    !featureRequest &&
                                     user.realms.length > 0 &&
                                     (!realm || user.realms.includes(realm)) && (
                                         <select
@@ -572,7 +603,7 @@ export const Form = ({
                             </div>
                         </div>
                     )}
-                    {proposalForm && (
+                    {proposalCreation && (
                         <>
                             <div className="top_spaced row_container vcentered">
                                 <span className="right_spaced">
@@ -688,15 +719,15 @@ let timer: any = null;
 let tagCache: any[] = [];
 let tagCosts: number = 0;
 
-const costs = async (value: string, poll: boolean) => {
+const costs = async (value: string, extraCost: number) => {
     const tags = getTokens("#$", value);
     if (tags.toString() != tagCache.toString()) {
         tagCosts = (await window.api.query("tags_cost", tags)) || 0;
         tagCache = tags;
     }
     const images = (value.match(/\(\/blob\/.+\)/g) || []).length;
-    const { post_cost, blob_cost, poll_cost } = window.backendCache.config;
-    return post_cost + tagCosts + images * blob_cost + (poll ? poll_cost : 0);
+    const { post_cost, blob_cost } = window.backendCache.config;
+    return post_cost + tagCosts + images * blob_cost + extraCost;
 };
 
 export const loadFile = (file: any): Promise<ArrayBuffer> => {

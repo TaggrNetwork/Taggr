@@ -37,6 +37,8 @@ import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
 import { populateUserNameCacheSpeculatively } from "./user_resolve";
+import { Roadmap } from "./roadmap";
+import { LinksPage } from "./links";
 
 const { hash, pathname } = location;
 
@@ -182,8 +184,12 @@ const App = () => {
         content = <Dashboard />;
     } else if (handler == "search") {
         content = <Search initQuery={param} />;
+    } else if (handler == "links") {
+        content = <LinksPage />;
     } else if (handler == "distribution") {
         content = <Distribution />;
+    } else if (handler == "roadmap") {
+        content = <Roadmap />;
     } else if (handler == "bookmarks") {
         content = auth(
             <PostFeed
@@ -357,8 +363,6 @@ const Footer = ({}) => (
             &#10045; <a href="#/post/0">2021</a>
             <span className="left_half_spaced right_half_spaced">&middot;</span>
             <a href={location.origin}>{location.host.toLowerCase()}</a>
-            <span className="left_half_spaced right_half_spaced">&middot;</span>
-            <a href="https://github.com/TaggrNetwork/taggr">GitHub</a>
         </>
     </footer>
 );

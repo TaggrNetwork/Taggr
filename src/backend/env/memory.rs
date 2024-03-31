@@ -2,7 +2,10 @@ use ic_cdk::api::stable::{stable64_grow, stable64_read, stable64_size, stable64_
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{cell::RefCell, collections::BTreeMap, fmt::Display, rc::Rc};
 
-use super::post::{Post, PostId};
+use super::{
+    features::Feature,
+    post::{Post, PostId},
+};
 
 #[derive(Serialize, Deserialize)]
 pub struct Api {
@@ -38,6 +41,8 @@ impl Default for Api {
 pub struct Memory {
     api: Api,
     pub posts: ObjectManager<PostId, Post>,
+    #[serde(default)]
+    pub features: ObjectManager<PostId, Feature>,
     #[serde(skip)]
     api_ref: Rc<RefCell<Api>>,
 }

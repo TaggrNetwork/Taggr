@@ -2,7 +2,19 @@ import * as React from "react";
 import { PostFeed } from "./post_feed";
 import { Search } from "./search";
 import { bigScreen, currentRealm, Loading } from "./common";
-import { New, User, Bars, Gem, Balloon, Document, Fire, Realm } from "./icons";
+import {
+    New,
+    User,
+    Bars,
+    Gem,
+    Balloon,
+    Document,
+    Fire,
+    Realm,
+    Link,
+    Roadmap,
+    CashCoin,
+} from "./icons";
 import { PostId } from "./types";
 
 export const Landing = () => {
@@ -192,6 +204,19 @@ export const Links = ({}) => {
             </a>
             <a title="REALMS" className="icon_link" href={`/#/realms`}>
                 <Realm /> REALMS
+            </a>
+            <a title="LINK" className="icon_link" href="/#/links">
+                <Link /> LINKS
+            </a>
+            <a
+                title="DISTRIBUTION"
+                className="icon_link"
+                href="/#/distribution"
+            >
+                <CashCoin /> DISTRIBUTION
+            </a>
+            <a title="ROADMAP" className="icon_link" href="/#/roadmap">
+                <Roadmap /> ROADMAP
             </a>
         </div>
     );

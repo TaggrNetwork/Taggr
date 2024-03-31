@@ -439,7 +439,7 @@ path {
 }
 
 .dynamic_table.tripple {
-    grid-template-columns: auto auto auto;
+    grid-template-columns: 33% 33% 33%;
 }
 
 .two_columns_grid {

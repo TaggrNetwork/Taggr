@@ -48,6 +48,7 @@ pub enum Extension {
     Poll(Poll),
     Proposal(u32),
     Repost(PostId),
+    Feature,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -314,6 +315,8 @@ impl Post {
             + blobs as Credits * CONFIG.blob_cost
             + if matches!(self.extension, Some(Extension::Poll(_))) {
                 CONFIG.poll_cost
+            } else if matches!(self.extension, Some(Extension::Feature)) {
+                CONFIG.feature_cost
             } else {
                 0
             }

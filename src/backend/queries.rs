@@ -57,6 +57,20 @@ fn migration_pending() {
     });
 }
 
+#[export_name = "canister_query features"]
+fn features() {
+    read(|state| {
+        let ids: Vec<PostId> = parse(&arg_data_raw());
+        reply(
+            features::features(state, ids)
+                .map(|(post_id, tokens, feature)| {
+                    Post::get(state, &post_id).map(|post| (post.with_meta(state), tokens, feature))
+                })
+                .collect::<Vec<_>>(),
+        )
+    });
+}
+
 #[export_name = "canister_query distribution"]
 fn distribution() {
     read(|state| {

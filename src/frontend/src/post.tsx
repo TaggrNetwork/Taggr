@@ -43,7 +43,7 @@ import {
     More,
 } from "./icons";
 import { ProposalView } from "./proposals";
-import { BlogTitle, Post, PostId, Realm, UserId } from "./types";
+import { BlogTitle, Feature, Post, PostId, Realm, UserId } from "./types";
 import { MAINNET_MODE } from "./env";
 import { UserLink, UserList, populateUserNameCache } from "./user_resolve";
 
@@ -323,25 +323,32 @@ export const PostView = ({
                         goInside={goInside}
                     />
                 )}
-                {showExtension && "Poll" in post.extension && (
-                    <PollView
-                        poll={post.extension.Poll}
-                        post_id={post.id}
-                        created={postCreated}
-                    />
+                {showExtension && post.extension == "Feature" && (
+                    <FeatureView id={post.id} />
                 )}
-                {showExtension && "Repost" in post.extension && (
-                    <PostView
-                        id={post.extension.Repost}
-                        repost={true}
-                        classNameArg="post_extension repost"
-                    />
-                )}
-                {showExtension && "Proposal" in post.extension && (
-                    <ProposalView
-                        postId={post.id}
-                        id={post.extension.Proposal}
-                    />
+                {showExtension && typeof post.extension == "object" && (
+                    <>
+                        {"Poll" in post.extension && (
+                            <PollView
+                                poll={post.extension.Poll}
+                                post_id={post.id}
+                                created={postCreated}
+                            />
+                        )}
+                        {"Repost" in post.extension && (
+                            <PostView
+                                id={post.extension.Repost}
+                                repost={true}
+                                classNameArg="post_extension repost"
+                            />
+                        )}
+                        {"Proposal" in post.extension && (
+                            <ProposalView
+                                postId={post.id}
+                                id={post.extension.Proposal}
+                            />
+                        )}
+                    </>
                 )}
                 {!repost && (
                     <PostBar
@@ -1153,3 +1160,62 @@ function bucket_image_url(bucket_id: string, offset: number, len: number) {
         (MAINNET_MODE ? "" : `&canisterId=${bucket_id}`)
     );
 }
+
+const FeatureView = ({ id }: { id: PostId }) => {
+    const [feature, setFeature] = React.useState<Feature>();
+    const [vp, setVP] = React.useState(0);
+
+    const loadData = async () => {
+        const features = await window.api.query<[Post, number, Feature][]>(
+            "features",
+            [id],
+        );
+        if (!features || features.length < 1) return;
+        setFeature(features[0][2]);
+        setVP(features[0][1]);
+    };
+
+    React.useEffect(() => {
+        loadData();
+    }, []);
+
+    if (!feature) return <Loading />;
+    const user = window.user;
+
+    return (
+        <div className="post_extension">
+            <h3>Feature Request</h3>
+            <h4>
+                Status:{" "}
+                <code className={feature.status == 0 ? "accent" : ""}>
+                    {feature.status == 0 ? "REQUESTED" : "IMPLEMENTED"}
+                </code>
+            </h4>
+            {feature.supporters.length > 0 && (
+                <>
+                    <hr />
+                    Supporters: <UserList ids={feature.supporters} />
+                </>
+            )}
+            <hr />
+            Total voting power support:{" "}
+            <code>{tokens(vp, window.backendCache.config.token_decimals)}</code>
+            {user && (
+                <div className="row_container top_spaced">
+                    <ButtonWithLoading
+                        classNameArg="max_width_col"
+                        label={
+                            feature.supporters.includes(user.id)
+                                ? "REMOVE SUPPORT"
+                                : "SUPPORT"
+                        }
+                        onClick={async () => {
+                            await window.api.call("toggle_feature_support", id);
+                            await loadData();
+                        }}
+                    />
+                </div>
+            )}
+        </div>
+    );
+};
