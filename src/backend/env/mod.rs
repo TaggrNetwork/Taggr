@@ -2532,6 +2532,12 @@ impl State {
             Some(Extension::Poll(_)) => {
                 self.pending_polls.remove(&post_id);
             }
+            Some(Extension::Feature) => {
+                self.memory
+                    .features
+                    .remove(&post_id)
+                    .expect("couldn't delete feature");
+            }
             _ => {}
         };
 
@@ -2540,11 +2546,6 @@ impl State {
             Ok(())
         })
         .expect("couldn't delete post");
-
-        self.memory
-            .features
-            .remove(&post_id)
-            .expect("couldn't delete feature");
 
         if has_open_report {
             self.denotify_users(&|u| u.stalwart);
