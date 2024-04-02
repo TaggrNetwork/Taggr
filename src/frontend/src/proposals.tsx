@@ -304,7 +304,7 @@ export const ProposalView = ({
                 );
                 if (!data) return;
             }
-            if ("Reward" in proposal.payload) {
+            if ("Rewards" in proposal.payload) {
                 const { max_funding_amount, token_symbol } =
                     window.backendCache.config;
                 const cap = token(
