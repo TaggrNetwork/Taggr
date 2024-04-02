@@ -57,7 +57,7 @@ pub struct Meta<'a> {
     author_filters: UserFilter,
     viewer_blocked: bool,
     realm_color: Option<&'a str>,
-    nsfw: bool,
+    pub nsfw: bool,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]

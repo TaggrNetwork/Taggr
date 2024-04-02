@@ -572,9 +572,13 @@ impl State {
         filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
-            .last_posts(realm, offset, 0, false)
-            .filter(|post| !matches!(post.extension, Some(Extension::Proposal(_))))
-            .filter(|post| filter.map(|f| f(post)).unwrap_or(true))
+            .last_posts(realm.clone(), offset, 0, false)
+            .filter(|post| {
+                // we exclude NSFW posts unless the query comes for the realm of the post
+                (!post.with_meta(self).1.nsfw || post.realm.as_ref() == realm.as_ref())
+                    && !matches!(post.extension, Some(Extension::Proposal(_)))
+                    && filter.map(|f| f(post)).unwrap_or(true)
+            })
             .take(1000)
             .collect::<Vec<_>>();
         hot_posts.sort_unstable_by_key(|post| Reverse(post.heat()));
