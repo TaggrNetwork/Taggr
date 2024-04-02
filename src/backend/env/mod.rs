@@ -2593,9 +2593,7 @@ impl State {
         // downvotes + credits and rewards of the author
         if delta < 0 {
             if user_controversial {
-                return Err(
-                    "no downvotes for users with pending reports or negative reward balance".into(),
-                );
+                return Err("no downvotes for users with pending or confirmed reports".into());
             }
             if user.total_balance() < token::base() {
                 return Err("no downvotes for users with low token balance".into());
