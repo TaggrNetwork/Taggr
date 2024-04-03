@@ -177,7 +177,7 @@ impl Proposal {
                     reward.minted = tokens_to_mint;
                 }
                 Payload::AddRealmController(realm_id, user_id) => {
-                    if let Some(realm) = state.realms.get_mut(realm_id) {
+                    if let Some(realm) = state.realms.get_mut(&realm_id.to_uppercase()) {
                         realm.controllers.insert(*user_id);
                         state.logger.info(format!(
                             "User `{}` was added via proposal execution to the realm /{}",

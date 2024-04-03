@@ -79,7 +79,17 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        // Compensate for the executed by failed proposal #/post/1159871
+        state
+            .realms
+            .get_mut("RUGANG")
+            .unwrap()
+            .controllers
+            .insert(1277);
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
