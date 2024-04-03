@@ -1576,19 +1576,21 @@ impl State {
             )
         });
 
-        let log_time = |state: &mut State, frequency| {
-            state.logger.debug(format!(
-                "{} routine finished after `{}` ms.",
-                frequency,
-                (time() - now) / MILLISECOND
-            ))
+        let log_time = |state: &mut State, frequency, threshold_millis| {
+            let millis = (time() - now) / MILLISECOND;
+            if millis > threshold_millis {
+                state.logger.debug(format!(
+                    "{} routine finished after `{}` ms.",
+                    frequency, millis
+                ))
+            }
         };
 
         if last_weekly_chores + WEEK < now {
             State::weekly_chores(now).await;
             mutate(|state| {
                 state.last_weekly_chores += WEEK;
-                log_time(state, "Weekly");
+                log_time(state, "Weekly", 0);
             });
         }
 
@@ -1602,7 +1604,7 @@ impl State {
                     state.pending_polls.len(),
                     state.migrations.len(),
                 ));
-                log_time(state, "Daily");
+                log_time(state, "Daily", 60000);
             });
         }
 
@@ -1610,6 +1612,7 @@ impl State {
             State::hourly_chores(now).await;
             mutate(|state| {
                 state.last_hourly_chores += HOUR;
+                log_time(state, "Hourly", 0);
             });
         }
     }
