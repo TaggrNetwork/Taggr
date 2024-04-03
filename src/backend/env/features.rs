@@ -85,6 +85,10 @@ pub fn create_feature(caller: Principal, post_id: PostId) -> Result<(), String> 
             return Err("no post with a feature found".into());
         };
 
+        if state.memory.features.get(&post_id).is_some() {
+            return Err("feature already exists".into());
+        }
+
         state
             .memory
             .features

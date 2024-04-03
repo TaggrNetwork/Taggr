@@ -40,7 +40,7 @@ export const Roadmap = () => {
                     </>
                 }
             />
-            <div className="outstanding vertically_spaced">
+            <div className="outstanding vertically_spaced spaced">
                 This is the community driven roadmap for{" "}
                 {window.backendCache.config.name}. Any user can add a new
                 feature requests for{" "}
