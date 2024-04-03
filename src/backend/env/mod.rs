@@ -1602,6 +1602,7 @@ impl State {
                     state.pending_polls.len(),
                     state.migrations.len(),
                 ));
+                log_time(state, "Daily");
             });
         }
 
@@ -1609,7 +1610,6 @@ impl State {
             State::hourly_chores(now).await;
             mutate(|state| {
                 state.last_hourly_chores += HOUR;
-                log_time(state, "Hourly");
             });
         }
     }
