@@ -95,9 +95,17 @@ impl PartialEq for Post {
     }
 }
 
+impl Eq for Post {}
+
 impl PartialOrd for Post {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.id.cmp(&other.id))
+    }
+}
+
+impl Ord for Post {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.id.cmp(&other.id)
     }
 }
 
@@ -526,9 +534,10 @@ impl Post {
         let user_id = user.id;
         let controversial = user.controversial();
         let user_balance = user.balance;
+        let tags = tags(CONFIG.max_tag_length, &body);
         let mut post = Post::new(
             user_id,
-            tags(CONFIG.max_tag_length, &body),
+            tags.iter().map(|tag| tag.to_lowercase()).collect(),
             body,
             timestamp,
             parent,
@@ -586,9 +595,22 @@ impl Post {
             }
             realm.last_update = timestamp;
         }
-        if !post.tags.is_empty() {
-            state.posts_with_tags.push(post.id)
+
+        if post.parent.is_none() {
+            for tag in &tags {
+                let index = state.tag_indexes.entry(tag.to_lowercase()).or_default();
+                index.posts.push_front(post.id);
+                while index.posts.len() > 1000 {
+                    index.posts.pop_back();
+                }
+                state.recent_tags.push_back(tag.clone());
+            }
         }
+
+        while state.recent_tags.len() > 5000 {
+            state.recent_tags.pop_front();
+        }
+
         if let Some(parent_id) = post.parent {
             let result = Post::mutate(state, &parent_id, |parent_post| {
                 parent_post.children.push(id);
@@ -871,9 +893,7 @@ fn notify_about(state: &mut State, post: &Post) {
 
 // Extracts hashtags from a string.
 fn tags(max_tag_length: usize, input: &str) -> BTreeSet<String> {
-    tokens(max_tag_length, input, &['#', '$'])
-        .map(|tag| tag.to_lowercase())
-        .collect()
+    tokens(max_tag_length, input, &['#', '$']).collect()
 }
 
 // Extracts user names from a string.
@@ -1057,17 +1077,17 @@ mod tests {
         };
         assert_eq!(tags("This is a string without hashtags!"), "");
         assert_eq!(tags("This is a #string with hashtags!"), "string");
-        assert_eq!(tags("#This is a #string with two hashtags!"), "string this");
+        assert_eq!(tags("#This is a #string with two hashtags!"), "This string");
         assert_eq!(tags("This string has no tags.#bug"), "");
-        assert_eq!(tags("This is $TOKEN symbol"), "token");
+        assert_eq!(tags("This is $TOKEN symbol"), "TOKEN");
         assert_eq!(
             tags("#This is a #string with $333 hashtags!"),
-            "string this"
+            "This string"
         );
         assert_eq!(tags("#year2021"), "year2021");
         assert_eq!(tags("#year2021 #year2021 #"), "year2021");
-        assert_eq!(tags("#Ta1 #ta2"), "ta1 ta2");
-        assert_eq!(tags("#Tag #tag"), "tag");
+        assert_eq!(tags("#Ta1 #ta2"), "Ta1 ta2");
+        assert_eq!(tags("#Tag #tag"), "Tag tag");
         assert_eq!(tags("Ой у #лузі червона #калина"), "калина лузі");
         assert_eq!(tags("This is a #feature-request"), "feature-request");
         assert_eq!(tags("Support #under_score"), "under_score");
@@ -1085,12 +1105,24 @@ mod tests {
         p.tags = ["world"].iter().map(|x| x.to_string()).collect();
         assert_eq!(p.costs(&state, 0), CONFIG.post_cost);
 
-        state.tag_subscribers.insert("world".into(), 3);
+        state.tag_indexes.insert(
+            "world".into(),
+            TagIndex {
+                subscribers: 3,
+                ..Default::default()
+            },
+        );
         // tag with subscribers
         p.tags = ["world"].iter().map(|x| x.to_string()).collect();
         assert_eq!(p.costs(&state, 0), CONFIG.post_cost + 3);
 
-        state.tag_subscribers.insert("hello".into(), 10);
+        state.tag_indexes.insert(
+            "hello".into(),
+            TagIndex {
+                subscribers: 10,
+                ..Default::default()
+            },
+        );
 
         // two tags
         p.tags = ["hello", "world"].iter().map(|x| x.to_string()).collect();

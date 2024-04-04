@@ -81,22 +81,11 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
-        let now = time();
         // create indexes for all tags of active subscribers
         state.tag_indexes = state.users.values().fold(HashMap::new(), |mut acc, user| {
-            if !user.active_within_weeks(now, 1) {
-                return acc;
-            }
             for tag in user.feeds.iter().flatten() {
-                acc.entry(tag.clone())
-                    .and_modify(|val| {
-                        val.subscribers += 1;
-                    })
-                    .or_insert(TagIndex {
-                        spellings: Default::default(),
-                        subscribers: 1,
-                        posts: Default::default(),
-                    });
+                let index = acc.entry(tag.clone()).or_default();
+                index.subscribers += 1;
             }
             acc
         });
@@ -111,7 +100,6 @@ fn sync_post_upgrade_fixtures() {
             .into_iter()
         {
             let entry = state.tag_indexes.entry(tag.clone()).or_default();
-            entry.spellings.insert(tag.clone());
             entry.posts.push_front(post_id);
             while entry.posts.len() > 1000 {
                 entry.posts.pop_back();
@@ -514,12 +502,20 @@ fn toggle_following_user() {
 fn toggle_following_feed() {
     mutate(|state| {
         let tags: Vec<String> = parse(&arg_data_raw());
-        reply(
-            state
-                .principal_to_user_mut(caller())
-                .map(|user| user.toggle_following_feed(tags))
-                .unwrap_or_default(),
-        )
+        let result = state
+            .principal_to_user_mut(caller())
+            .map(|user| user.toggle_following_feed(&tags))
+            .unwrap_or_default();
+        for tag in tags {
+            if let Some(index) = state.tag_indexes.get_mut(&tag) {
+                if result {
+                    index.subscribers += 1
+                } else {
+                    index.subscribers = index.subscribers.saturating_sub(1)
+                }
+            }
+        }
+        reply(result)
     })
 }
 

@@ -34,7 +34,7 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
         [hashtag] if hashtag.starts_with('#') => {
             let tag = &hashtag[1..].to_lowercase();
             state
-                .posts_with_tags(None, 0, true)
+                .posts_by_tags_and_users(None, 0, &[tag.clone()], Default::default(), true)
                 .filter_map(
                     |Post {
                          id,
