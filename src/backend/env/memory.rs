@@ -89,6 +89,7 @@ impl Memory {
     fn unpack(&mut self) {
         self.api_ref = Rc::new(RefCell::new(self.api.clone()));
         self.posts.api = Rc::clone(&self.api_ref);
+        self.features.api = Rc::clone(&self.api_ref);
     }
 
     #[allow(clippy::type_complexity)]
