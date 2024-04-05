@@ -872,14 +872,16 @@ fn notify_about(state: &mut State, post: &Post) {
 // Extracts hashtags from a string.
 fn tags(max_tag_length: usize, input: &str) -> BTreeSet<String> {
     tokens(max_tag_length, input, &['#', '$'])
+        .map(|tag| tag.to_lowercase())
+        .collect()
 }
 
 // Extracts user names from a string.
 fn user_handles(max_tag_length: usize, input: &str) -> BTreeSet<String> {
-    tokens(max_tag_length, input, &['@'])
+    tokens(max_tag_length, input, &['@']).collect()
 }
 
-fn tokens(max_tag_length: usize, input: &str, tokens: &[char]) -> BTreeSet<String> {
+fn tokens(max_tag_length: usize, input: &str, tokens: &[char]) -> impl Iterator<Item = String> {
     use std::iter::FromIterator;
     let mut tags = Vec::new();
     let mut tag = Vec::new();
@@ -906,12 +908,10 @@ fn tokens(max_tag_length: usize, input: &str, tokens: &[char]) -> BTreeSet<Strin
         whitespace_seen = c == ' ' || c == '\n' || c == '\t';
     }
     tags.push(String::from_iter(tag));
-    tags.into_iter()
-        .filter(|tag| {
-            let l = tag.chars().count();
-            l > 0 && l <= max_tag_length
-        })
-        .collect::<BTreeSet<_>>()
+    tags.into_iter().filter(move |tag| {
+        let l = tag.chars().count();
+        l > 0 && l <= max_tag_length
+    })
 }
 
 #[cfg(test)]
@@ -1057,17 +1057,17 @@ mod tests {
         };
         assert_eq!(tags("This is a string without hashtags!"), "");
         assert_eq!(tags("This is a #string with hashtags!"), "string");
-        assert_eq!(tags("#This is a #string with two hashtags!"), "This string");
+        assert_eq!(tags("#This is a #string with two hashtags!"), "string this");
         assert_eq!(tags("This string has no tags.#bug"), "");
-        assert_eq!(tags("This is $TOKEN symbol"), "TOKEN");
+        assert_eq!(tags("This is $TOKEN symbol"), "token");
         assert_eq!(
             tags("#This is a #string with $333 hashtags!"),
-            "This string"
+            "string this"
         );
         assert_eq!(tags("#year2021"), "year2021");
         assert_eq!(tags("#year2021 #year2021 #"), "year2021");
-        assert_eq!(tags("#Ta1 #ta2"), "Ta1 ta2");
-        assert_eq!(tags("#Tag #tag"), "Tag tag");
+        assert_eq!(tags("#Ta1 #ta2"), "ta1 ta2");
+        assert_eq!(tags("#Tag #tag"), "tag");
         assert_eq!(tags("Ой у #лузі червона #калина"), "калина лузі");
         assert_eq!(tags("This is a #feature-request"), "feature-request");
         assert_eq!(tags("Support #under_score"), "under_score");
