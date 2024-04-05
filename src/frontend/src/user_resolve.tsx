@@ -24,16 +24,28 @@ export const populateUserNameCache = async (
     );
 };
 
-export const userNameToIds = async (names: string[]) =>
-    (
+export const userNameToIds = async (names: string[]) => {
+    if (names.length == 0) return [];
+    names = names.map((name) => name.trim().replace("@", ""));
+    const cachedNames = Object.entries(USER_CACHE).reduce(
+        (acc, [id, name]) => {
+            acc[name] = Number(id);
+            return acc;
+        },
+        {} as { [name: string]: UserId },
+    );
+    return (
         await Promise.all(
-            names
-                .map((name) => name.trim().replace("@", ""))
-                .map((name) => window.api.query<User>("user", [name])),
+            names.map((name) =>
+                name in cachedNames
+                    ? { id: cachedNames[name] }
+                    : window.api.query<User>("user", [name]),
+            ),
         )
     )
         .map((user) => user?.id)
         .filter((user) => user != undefined);
+};
 
 export const UserLink = ({
     id,
