@@ -306,7 +306,7 @@ impl User {
     }
 
     pub fn toggle_following_feed(&mut self, tags: &[String]) -> bool {
-        let tags = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
+        let tags = tags.iter().map(|tag| tag.to_lowercase()).collect();
         if let Some(i) = covered_by_feeds(&self.feeds, &tags, true) {
             self.feeds.remove(i);
             return false;
@@ -335,7 +335,7 @@ impl User {
             iterators.push(state.posts_by_tags_and_users(
                 None,
                 offset,
-                feed.into_iter().cloned().collect::<Vec<_>>().as_slice(),
+                feed.iter().cloned().collect::<Vec<_>>().as_slice(),
                 Default::default(),
                 false,
             ))

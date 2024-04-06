@@ -1965,7 +1965,7 @@ impl State {
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         Box::new(
             IteratorMerger::new(
-                tags.into_iter()
+                tags.iter()
                     .map(|tag| {
                         let iterator: Box<dyn Iterator<Item = &PostId>> =
                             match self.tag_indexes.get(tag) {

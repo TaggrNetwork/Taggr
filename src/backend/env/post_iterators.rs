@@ -28,7 +28,8 @@ impl<'a, T> DelayedIterator<'a, T> {
 
 impl<'a, T: Eq> PartialEq for DelayedIterator<'a, T> {
     fn eq(&self, other: &Self) -> bool {
-        self.peek() == other.peek()
+        // We can only compare empty iterators
+        self.peek().is_none() && other.peek().is_none()
     }
 }
 
@@ -36,7 +37,11 @@ impl<'a, T: Eq> Eq for DelayedIterator<'a, T> {}
 
 impl<'a, T: Ord> Ord for DelayedIterator<'a, T> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.peek().cmp(&other.peek())
+        match (self.peek(), &other.peek()) {
+            // We can't compare iterators by the head value only
+            (Some(a), Some(b)) if &a == b => Ordering::Less,
+            (a, b) => a.cmp(b),
+        }
     }
 }
 
@@ -77,6 +82,45 @@ impl<'a, T: Clone + Ord> Iterator for IteratorMerger<'a, T> {
         if let Some(more) = next.advance() {
             self.values.insert(more);
         }
+        // Remove all equal elements from all iterators
+        while let Some(next) = self.values.pop_last() {
+            // If the next value is smaller, there is nothing to do.
+            if next.peek() < value {
+                self.values.insert(next);
+                break;
+            }
+            // If the next value is not larger, then we either have duplicates, or non sorted iterators, we
+            // have to skip these values.
+            else {
+                if let Some(more) = next.advance() {
+                    self.values.insert(more);
+                }
+            }
+        }
         value
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_merged_iterators() {
+        let v1 = vec![9, 7, 4];
+        let v2 = vec![11, 10, 5];
+        let v3 = vec![8, 7, 6, 0];
+        let v4 = vec![11, 3, 3, 3, 2, 1];
+        let iterator = IteratorMerger::new(vec![
+            Box::new(v1.iter()),
+            Box::new(v2.iter()),
+            Box::new(v3.iter()),
+            Box::new(v4.iter()),
+        ]);
+
+        assert_eq!(
+            iterator.collect::<Vec<_>>(),
+            vec![&11, &10, &9, &8, &7, &6, &5, &4, &3, &2, &1, &0]
+        );
     }
 }
