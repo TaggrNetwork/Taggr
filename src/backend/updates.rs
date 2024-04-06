@@ -79,7 +79,46 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        let now = time();
+        // create indexes for all tags of active subscribers
+        state.tag_indexes = state.users.values().fold(HashMap::new(), |mut acc, user| {
+            if !user.active_within_weeks(now, 1) {
+                return acc;
+            }
+            for tag in user.feeds.iter().flatten() {
+                acc.entry(tag.clone())
+                    .and_modify(|val| {
+                        val.subscribers += 1;
+                    })
+                    .or_insert(TagIndex {
+                        spellings: Default::default(),
+                        subscribers: 1,
+                        posts: Default::default(),
+                    });
+            }
+            acc
+        });
+
+        // create indexes for all tags
+        for (post_id, tag) in state
+            .posts_with_tags
+            .iter()
+            .filter_map(|id| Post::get(state, id))
+            .flat_map(|post| post.tags.iter().map(move |tag| (post.id, tag.clone())))
+            .collect::<Vec<_>>()
+            .into_iter()
+        {
+            let entry = state.tag_indexes.entry(tag.clone()).or_default();
+            entry.spellings.insert(tag.clone());
+            entry.posts.push_front(post_id);
+            while entry.posts.len() > 1000 {
+                entry.posts.pop_back();
+            }
+        }
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}

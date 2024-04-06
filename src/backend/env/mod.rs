@@ -124,6 +124,14 @@ pub struct Realm {
 }
 
 #[derive(Default, Serialize, Deserialize)]
+pub struct TagIndex {
+    pub spellings: HashSet<String>,
+    pub subscribers: usize,
+    // Last 1000 posts
+    pub posts: VecDeque<PostId>,
+}
+
+#[derive(Default, Serialize, Deserialize)]
 pub struct Summary {
     pub title: String,
     description: String,
@@ -190,13 +198,19 @@ pub struct State {
 
     last_revenues: VecDeque<u64>,
 
+    // TODO: delete
+    #[serde(skip)]
     pub tag_subscribers: HashMap<String, usize>,
 
     pub distribution_reports: Vec<Summary>,
 
     migrations: BTreeSet<UserId>,
 
+    // TODO: delete
     pub posts_with_tags: Vec<PostId>,
+
+    #[serde(default)]
+    pub tag_indexes: HashMap<String, TagIndex>,
 
     // Indicates whether the end of the stable memory contains a valid heap snapshot.
     #[serde(skip)]
