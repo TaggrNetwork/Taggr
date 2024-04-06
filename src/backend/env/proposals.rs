@@ -927,7 +927,7 @@ pub mod tests {
 
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "30000"),
-                Err("reward amount is higher than the configured maximum of 10000 tokens".into())
+                Err("reward amount is higher than the configured maximum of 20000 tokens".into())
             );
 
             assert_eq!(state.active_voting_power(time()), 140000);
@@ -974,7 +974,7 @@ pub mod tests {
 
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "30000"),
-                Err("reward amount is higher than the configured maximum of 10000 tokens".into())
+                Err("reward amount is higher than the configured maximum of 20000 tokens".into())
             );
 
             // 200 tokens vote for reward of size 1000
@@ -1017,7 +1017,7 @@ pub mod tests {
 
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "30000"),
-                Err("reward amount is higher than the configured maximum of 10000 tokens".into())
+                Err("reward amount is higher than the configured maximum of 20000 tokens".into())
             );
 
             // 200 tokens vote for reward of size 1000
