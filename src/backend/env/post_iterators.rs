@@ -51,16 +51,28 @@ impl<'a, T: Ord> PartialOrd for DelayedIterator<'a, T> {
     }
 }
 
+pub enum MergeStrategy {
+    // Returns all values that appear in at least one iterator exactly once.
+    OR,
+    // Returns only values appearing in all iterators at least once.
+    AND,
+}
+
 /// Merges all given iterators by ordering of their consumption according to the ordering of their
 /// elements. It is currently used to merge many post iterators and to return the newest posts no
 /// matter from which iterator they are served.
 pub struct IteratorMerger<'a, T> {
     values: BTreeSet<DelayedIterator<'a, T>>,
+    strategy: MergeStrategy,
 }
 
 impl<'a, T: Ord + Eq> IteratorMerger<'a, T> {
-    pub fn new(iterators: Vec<Box<dyn Iterator<Item = &'a T> + 'a>>) -> Self {
+    pub fn new(
+        strategy: MergeStrategy,
+        iterators: Vec<Box<dyn Iterator<Item = &'a T> + 'a>>,
+    ) -> Self {
         IteratorMerger {
+            strategy,
             values: iterators
                 .into_iter()
                 .map(|iterator| DelayedIterator::new(iterator))
@@ -69,11 +81,12 @@ impl<'a, T: Ord + Eq> IteratorMerger<'a, T> {
     }
 }
 
-impl<'a, T: Clone + Ord> Iterator for IteratorMerger<'a, T> {
-    type Item = &'a T;
+impl<'a, T: Clone + Ord> IteratorMerger<'a, T> {
+    fn next_and(&mut self) -> Option<&'a T> {
+        unimplemented!()
+    }
 
-    // Returns the largest value from all iterators
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next_or(&mut self) -> Option<&'a T> {
         if self.values.is_empty() {
             return None;
         }
@@ -101,6 +114,18 @@ impl<'a, T: Clone + Ord> Iterator for IteratorMerger<'a, T> {
     }
 }
 
+impl<'a, T: Clone + Ord> Iterator for IteratorMerger<'a, T> {
+    type Item = &'a T;
+
+    // Returns the largest value from all iterators
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.strategy {
+            MergeStrategy::OR => self.next_or(),
+            MergeStrategy::AND => self.next_and(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -111,12 +136,15 @@ mod tests {
         let v2 = vec![11, 10, 5];
         let v3 = vec![8, 7, 6, 0];
         let v4 = vec![11, 3, 3, 3, 2, 1];
-        let iterator = IteratorMerger::new(vec![
-            Box::new(v1.iter()),
-            Box::new(v2.iter()),
-            Box::new(v3.iter()),
-            Box::new(v4.iter()),
-        ]);
+        let iterator = IteratorMerger::new(
+            MergeStrategy::OR,
+            vec![
+                Box::new(v1.iter()),
+                Box::new(v2.iter()),
+                Box::new(v3.iter()),
+                Box::new(v4.iter()),
+            ],
+        );
 
         assert_eq!(
             iterator.collect::<Vec<_>>(),

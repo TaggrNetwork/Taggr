@@ -342,7 +342,7 @@ impl User {
         }
 
         Box::new(
-            IteratorMerger::new(iterators.into_iter().collect())
+            IteratorMerger::new(MergeStrategy::OR, iterators.into_iter().collect())
                 .filter(move |post| {
                     self.followees.contains(&post.user)
                         || !post.matches_filters(&self.filters)

@@ -1,7 +1,7 @@
 use self::canisters::{icrc_transfer, upgrade_main_canister, NNSVote};
 use self::invoices::{Invoice, USER_ICP_SUBACCOUNT};
 use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
-use self::post_iterators::IteratorMerger;
+use self::post_iterators::{IteratorMerger, MergeStrategy};
 use self::proposals::{Payload, Status};
 use self::reports::Report;
 use self::token::{account, TransferArgs};
@@ -1965,6 +1965,7 @@ impl State {
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         Box::new(
             IteratorMerger::new(
+                MergeStrategy::AND,
                 tags.iter()
                     .map(|tag| {
                         let iterator: Box<dyn Iterator<Item = &PostId>> =
