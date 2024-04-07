@@ -1073,7 +1073,10 @@ mod tests {
     fn test_hashtag_extraction() {
         let tags = |body| {
             let c = CONFIG;
-            let mut t: Vec<_> = tags(c.max_tag_length, body).into_iter().collect();
+            let mut t: Vec<_> = tags(c.max_tag_length, body)
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect();
             t.sort_unstable();
             t.join(" ")
         };

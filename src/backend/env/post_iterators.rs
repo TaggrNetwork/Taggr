@@ -53,9 +53,9 @@ impl<'a, T: Ord> PartialOrd for DelayedIterator<'a, T> {
 
 pub enum MergeStrategy {
     // Returns all values that appear in at least one iterator exactly once.
-    OR,
+    Or,
     // Returns only values appearing in all iterators at least once.
-    AND,
+    And,
 }
 
 /// Merges all given iterators by ordering of their consumption according to the ordering of their
@@ -131,10 +131,8 @@ impl<'a, T: Clone + Ord> IteratorMerger<'a, T> {
             }
             // If the next value is not larger, then we either have duplicates, or non sorted iterators, we
             // have to skip these values.
-            else {
-                if let Some(more) = next.advance() {
-                    self.values.insert(more);
-                }
+            else if let Some(more) = next.advance() {
+                self.values.insert(more);
             }
         }
         value
@@ -147,8 +145,8 @@ impl<'a, T: Clone + Ord> Iterator for IteratorMerger<'a, T> {
     // Returns the largest value from all iterators
     fn next(&mut self) -> Option<Self::Item> {
         match self.strategy {
-            MergeStrategy::OR => self.next_or(),
-            MergeStrategy::AND => self.next_and(),
+            MergeStrategy::Or => self.next_or(),
+            MergeStrategy::And => self.next_and(),
         }
     }
 }
@@ -159,12 +157,12 @@ mod tests {
 
     #[test]
     fn test_merged_or_iterators_1() {
-        let v1 = vec![9, 7, 4];
-        let v2 = vec![11, 10, 5];
-        let v3 = vec![8, 7, 6, 0];
-        let v4 = vec![11, 3, 3, 3, 2, 1];
+        let v1 = [9, 7, 4];
+        let v2 = [11, 10, 5];
+        let v3 = [8, 7, 6, 0];
+        let v4 = [11, 3, 3, 3, 2, 1];
         let iterator = IteratorMerger::new(
-            MergeStrategy::OR,
+            MergeStrategy::Or,
             vec![
                 Box::new(v1.iter()),
                 Box::new(v2.iter()),
@@ -181,12 +179,12 @@ mod tests {
 
     #[test]
     fn test_merged_or_iterators_2() {
-        let v1 = vec![9, 7, 4];
-        let v2 = vec![11, 10, 5];
-        let v3 = vec![];
-        let v4 = vec![11, 3, 3, 3, 2, 1];
+        let v1 = [9, 7, 4];
+        let v2 = [11, 10, 5];
+        let v3 = [];
+        let v4 = [11, 3, 3, 3, 2, 1];
         let iterator = IteratorMerger::new(
-            MergeStrategy::OR,
+            MergeStrategy::Or,
             vec![
                 Box::new(v1.iter()),
                 Box::new(v2.iter()),
@@ -197,18 +195,18 @@ mod tests {
 
         assert_eq!(
             iterator.collect::<Vec<_>>(),
-            vec![&11, &10, &9, &7, &5, &4, &3, &2, &1]
+            [&11, &10, &9, &7, &5, &4, &3, &2, &1]
         );
     }
 
     #[test]
     fn test_merged_and_iterators_1() {
-        let v1 = vec![9, 7, 4];
-        let v2 = vec![11, 10, 9, 5];
-        let v3 = vec![9, 8, 7, 6, 0];
-        let v4 = vec![12, 11, 9, 3, 3, 3, 2, 1];
+        let v1 = [9, 7, 4];
+        let v2 = [11, 10, 9, 5];
+        let v3 = [9, 8, 7, 6, 0];
+        let v4 = [12, 11, 9, 3, 3, 3, 2, 1];
         let iterator = IteratorMerger::new(
-            MergeStrategy::AND,
+            MergeStrategy::And,
             vec![
                 Box::new(v1.iter()),
                 Box::new(v2.iter()),
@@ -222,12 +220,12 @@ mod tests {
 
     #[test]
     fn test_merged_and_iterators_2() {
-        let v1 = vec![9, 7, 4, 3];
-        let v2 = vec![11, 10, 9, 5, 3];
-        let v3 = vec![9, 8, 7, 6, 3, 0];
-        let v4 = vec![12, 11, 9, 3, 3, 3, 2, 1];
+        let v1 = [9, 7, 4, 3];
+        let v2 = [11, 10, 9, 5, 3];
+        let v3 = [9, 8, 7, 6, 3, 0];
+        let v4 = [12, 11, 9, 3, 3, 3, 2, 1];
         let iterator = IteratorMerger::new(
-            MergeStrategy::AND,
+            MergeStrategy::And,
             vec![
                 Box::new(v1.iter()),
                 Box::new(v2.iter()),
@@ -241,12 +239,12 @@ mod tests {
 
     #[test]
     fn test_merged_and_iterators_3() {
-        let v1 = vec![4, 3, 2, 1];
-        let v2 = vec![4, 3, 2, 1];
-        let v3 = vec![4, 3, 2, 1];
-        let v4 = vec![4, 3, 2, 1];
+        let v1 = [4, 3, 2, 1];
+        let v2 = [4, 3, 2, 1];
+        let v3 = [4, 3, 2, 1];
+        let v4 = [4, 3, 2, 1];
         let iterator = IteratorMerger::new(
-            MergeStrategy::AND,
+            MergeStrategy::And,
             vec![
                 Box::new(v1.iter()),
                 Box::new(v2.iter()),
