@@ -82,14 +82,41 @@ impl<'a, T: Ord + Eq> IteratorMerger<'a, T> {
 }
 
 impl<'a, T: Clone + Ord> IteratorMerger<'a, T> {
+    // Returns the next value appearing in all iterators.
     fn next_and(&mut self) -> Option<&'a T> {
-        unimplemented!()
+        let candidate = self.values.last()?.peek()?;
+
+        // If the candidate value appears in all iterators, we need advance them to the next value.
+        if self
+            .values
+            .iter()
+            .all(|iterator| iterator.peek() == Some(candidate))
+        {
+            // Advance iterators until they all have smaller values.
+            while self.values.last().and_then(|iter| iter.peek()) == Some(candidate) {
+                if let Some(iter) = self.values.pop_last() {
+                    if let Some(more) = iter.advance() {
+                        self.values.insert(more);
+                        continue;
+                    }
+                }
+                // If we're here, we exhausted at least one iterator, so we're done.
+                self.values.clear();
+                break;
+            }
+            return Some(candidate);
+        }
+
+        // If there are values not equal to the largest ones, then we need to remove it and repeat
+        // the search.
+        let iter = self.values.pop_last()?;
+        let more = iter.advance()?;
+        self.values.insert(more);
+
+        return self.next_and();
     }
 
     fn next_or(&mut self) -> Option<&'a T> {
-        if self.values.is_empty() {
-            return None;
-        }
         let next = self.values.pop_last()?;
         let value = next.peek();
         if let Some(more) = next.advance() {
@@ -131,7 +158,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_merged_iterators() {
+    fn test_merged_or_iterators_1() {
         let v1 = vec![9, 7, 4];
         let v2 = vec![11, 10, 5];
         let v3 = vec![8, 7, 6, 0];
@@ -150,5 +177,84 @@ mod tests {
             iterator.collect::<Vec<_>>(),
             vec![&11, &10, &9, &8, &7, &6, &5, &4, &3, &2, &1, &0]
         );
+    }
+
+    #[test]
+    fn test_merged_or_iterators_2() {
+        let v1 = vec![9, 7, 4];
+        let v2 = vec![11, 10, 5];
+        let v3 = vec![];
+        let v4 = vec![11, 3, 3, 3, 2, 1];
+        let iterator = IteratorMerger::new(
+            MergeStrategy::OR,
+            vec![
+                Box::new(v1.iter()),
+                Box::new(v2.iter()),
+                Box::new(v3.iter()),
+                Box::new(v4.iter()),
+            ],
+        );
+
+        assert_eq!(
+            iterator.collect::<Vec<_>>(),
+            vec![&11, &10, &9, &7, &5, &4, &3, &2, &1]
+        );
+    }
+
+    #[test]
+    fn test_merged_and_iterators_1() {
+        let v1 = vec![9, 7, 4];
+        let v2 = vec![11, 10, 9, 5];
+        let v3 = vec![9, 8, 7, 6, 0];
+        let v4 = vec![12, 11, 9, 3, 3, 3, 2, 1];
+        let iterator = IteratorMerger::new(
+            MergeStrategy::AND,
+            vec![
+                Box::new(v1.iter()),
+                Box::new(v2.iter()),
+                Box::new(v3.iter()),
+                Box::new(v4.iter()),
+            ],
+        );
+
+        assert_eq!(iterator.collect::<Vec<_>>(), vec![&9]);
+    }
+
+    #[test]
+    fn test_merged_and_iterators_2() {
+        let v1 = vec![9, 7, 4, 3];
+        let v2 = vec![11, 10, 9, 5, 3];
+        let v3 = vec![9, 8, 7, 6, 3, 0];
+        let v4 = vec![12, 11, 9, 3, 3, 3, 2, 1];
+        let iterator = IteratorMerger::new(
+            MergeStrategy::AND,
+            vec![
+                Box::new(v1.iter()),
+                Box::new(v2.iter()),
+                Box::new(v3.iter()),
+                Box::new(v4.iter()),
+            ],
+        );
+
+        assert_eq!(iterator.collect::<Vec<_>>(), vec![&9, &3]);
+    }
+
+    #[test]
+    fn test_merged_and_iterators_3() {
+        let v1 = vec![4, 3, 2, 1];
+        let v2 = vec![4, 3, 2, 1];
+        let v3 = vec![4, 3, 2, 1];
+        let v4 = vec![4, 3, 2, 1];
+        let iterator = IteratorMerger::new(
+            MergeStrategy::AND,
+            vec![
+                Box::new(v1.iter()),
+                Box::new(v2.iter()),
+                Box::new(v3.iter()),
+                Box::new(v4.iter()),
+            ],
+        );
+
+        assert_eq!(iterator.collect::<Vec<_>>(), vec![&4, &3, &2, &1]);
     }
 }
