@@ -1969,7 +1969,7 @@ impl State {
                 tags.iter()
                     .map(|tag| {
                         let iterator: Box<dyn Iterator<Item = &PostId>> =
-                            match self.tag_indexes.get(tag) {
+                            match self.tag_indexes.get(&tag.to_lowercase()) {
                                 Some(index) => Box::new(index.posts.iter()),
                                 None => Box::new(std::iter::empty()),
                             };

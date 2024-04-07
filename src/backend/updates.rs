@@ -95,7 +95,11 @@ fn sync_post_upgrade_fixtures() {
             .posts_with_tags
             .iter()
             .filter_map(|id| Post::get(state, id))
-            .flat_map(|post| post.tags.iter().map(move |tag| (post.id, tag.clone())))
+            .flat_map(|post| {
+                post.tags
+                    .iter()
+                    .map(move |tag| (post.id, tag.to_lowercase()))
+            })
             .collect::<Vec<_>>()
             .into_iter()
         {

@@ -425,7 +425,7 @@ impl Post {
                 }
             }
             let user_id = user.id;
-            post.tags = tags(CONFIG.max_tag_length, &body);
+            post.tags = tags(CONFIG.max_tag_length, &body).collect();
             post.body = body;
             post.valid(&blobs)?;
             let old_blob_ids = post
@@ -534,10 +534,12 @@ impl Post {
         let user_id = user.id;
         let controversial = user.controversial();
         let user_balance = user.balance;
-        let tags = tags(CONFIG.max_tag_length, &body);
+        let tags = tags(CONFIG.max_tag_length, &body)
+            .map(|tag| tag.to_lowercase())
+            .collect::<BTreeSet<_>>();
         let mut post = Post::new(
             user_id,
-            tags.iter().map(|tag| tag.to_lowercase()).collect(),
+            tags.clone(),
             body,
             timestamp,
             parent,
@@ -892,8 +894,8 @@ fn notify_about(state: &mut State, post: &Post) {
 }
 
 // Extracts hashtags from a string.
-fn tags(max_tag_length: usize, input: &str) -> BTreeSet<String> {
-    tokens(max_tag_length, input, &['#', '$']).collect()
+fn tags(max_tag_length: usize, input: &str) -> impl Iterator<Item = String> {
+    tokens(max_tag_length, input, &['#', '$'])
 }
 
 // Extracts user names from a string.
