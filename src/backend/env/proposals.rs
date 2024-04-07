@@ -345,6 +345,7 @@ pub fn create_proposal(
         Predicate::Proposal(post_id),
     );
     Post::mutate(state, &post_id, |post| {
+        assert_eq!(proposer, post.user, "post author differs from the proposer");
         assert!(post.extension.is_none(), "post cannot have any extensions");
         post.extension = Some(Extension::Proposal(id));
         Ok(())
