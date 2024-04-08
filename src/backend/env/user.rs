@@ -87,7 +87,7 @@ pub struct User {
     pub cold_wallet: Option<Principal>,
     cycles: Credits,
     rewards: i64,
-    pub feeds: Vec<BTreeSet<String>>,
+    pub feeds: Vec<Vec<String>>,
     pub followees: BTreeSet<UserId>,
     pub followers: BTreeSet<UserId>,
     pub timestamp: u64,
@@ -332,13 +332,7 @@ impl User {
             .collect();
 
         for feed in self.feeds.iter() {
-            iterators.push(state.posts_by_tags_and_users(
-                None,
-                offset,
-                feed.iter().cloned().collect::<Vec<_>>().as_slice(),
-                Default::default(),
-                false,
-            ))
+            iterators.push(state.posts_by_tags_and_users(None, offset, &feed, false))
         }
 
         Box::new(

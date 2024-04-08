@@ -1966,32 +1966,59 @@ impl State {
         &'a self,
         realm_id: Option<RealmId>,
         offset: PostId,
-        tags: &[String],
-        users: HashSet<UserId>,
+        tags_and_users: &'a [String],
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+        let filter = move |post: &Post| {
+            !post.is_deleted()
+                && (with_comments || post.parent.is_none())
+                && (realm_id.is_none() || post.realm == realm_id)
+        };
+
+        let tags = tags_and_users
+            .iter()
+            .filter(|token| !token.starts_with("@"))
+            .collect::<Vec<_>>();
+        let users = tags_and_users
+            .iter()
+            .filter(|word| word.starts_with("@"))
+            .filter_map(|word| self.user(&word[1..]))
+            .map(|user| user.id)
+            .collect::<Vec<_>>();
+
+        // If no users were provided, we simply return merged iterators over all tags.
+        if users.is_empty() {
+            return Box::new(
+                IteratorMerger::new(
+                    MergeStrategy::And,
+                    tags.iter()
+                        .map(|tag| {
+                            let iterator: Box<dyn Iterator<Item = &PostId>> =
+                                match self.tag_indexes.get(&tag.to_lowercase()) {
+                                    Some(index) => Box::new(index.posts.iter()),
+                                    None => Box::new(std::iter::empty()),
+                                };
+                            iterator
+                        })
+                        .collect(),
+                )
+                .skip_while(move |post_id| offset > 0 && *post_id > &offset)
+                .filter_map(move |post_id| Post::get(self, post_id))
+                .filter(move |post| filter(post)),
+            );
+        };
+
+        // If users were provided, we or-merge their feeds and filter for tags.
         Box::new(
             IteratorMerger::new(
-                MergeStrategy::And,
-                tags.iter()
-                    .map(|tag| {
-                        let iterator: Box<dyn Iterator<Item = &PostId>> =
-                            match self.tag_indexes.get(&tag.to_lowercase()) {
-                                Some(index) => Box::new(index.posts.iter()),
-                                None => Box::new(std::iter::empty()),
-                            };
-                        iterator
-                    })
+                MergeStrategy::Or,
+                users
+                    .into_iter()
+                    .filter_map(|user_id| self.users.get(&user_id))
+                    .map(|user| user.posts(self, offset, with_comments))
                     .collect(),
             )
-            .skip_while(move |post_id| offset > 0 && *post_id > &offset)
-            .filter_map(move |i| Post::get(self, i))
-            .filter(move |post| {
-                !post.is_deleted()
-                    && (with_comments || post.parent.is_none())
-                    && (realm_id.is_none() || post.realm == realm_id)
-                    && (users.is_empty() || users.contains(&post.user))
-            }),
+            .filter(move |post| filter(post) && tags.iter().all(|tag| post.tags.contains(*tag))),
         )
     }
 
@@ -2811,11 +2838,7 @@ impl State {
 
 // Checks if any feed represents the superset for the given tag set.
 // The `strict` option requires the sets to be equal.
-fn covered_by_feeds(
-    feeds: &[BTreeSet<String>],
-    tags: &BTreeSet<String>,
-    strict: bool,
-) -> Option<usize> {
+fn covered_by_feeds(feeds: &[Vec<String>], tags: &BTreeSet<String>, strict: bool) -> Option<usize> {
     for (i, feed) in feeds.iter().enumerate() {
         if strict && tags.len() != feed.len() {
             continue;
@@ -4010,40 +4033,41 @@ pub(crate) mod tests {
     #[test]
     fn test_covered_by_feed() {
         let m = |v: Vec<&str>| v.into_iter().map(|v| v.to_string()).collect();
+        let m2 = |v: Vec<&str>| v.into_iter().map(|v| v.to_string()).collect();
         let tests = vec![
             (
                 vec![m(vec!["tag1", "tag2"]), m(vec!["tag2", "tag3"])],
-                m(vec!["tag1"]),
+                m2(vec!["tag1"]),
                 true,
                 None,
             ),
             (
                 vec![m(vec!["tag1", "tag2"]), m(vec!["tag2", "tag3"])],
-                m(vec!["tag1", "tag2"]),
+                m2(vec!["tag1", "tag2"]),
                 false,
                 Some(0),
             ),
             (
                 vec![m(vec!["tag1", "tag2"]), m(vec!["tag2", "tag3"])],
-                m(vec!["tag1", "tag2"]),
+                m2(vec!["tag1", "tag2"]),
                 true,
                 Some(0),
             ),
             (
                 vec![m(vec!["tag1", "tag2"]), m(vec!["tag2", "tag3"])],
-                m(vec!["tag1", "tag2", "tag3"]),
+                m2(vec!["tag1", "tag2", "tag3"]),
                 true,
                 None,
             ),
             (
                 vec![m(vec!["tag1", "tag2"]), m(vec!["tag2", "tag3"])],
-                m(vec!["tag1", "tag2", "tag3"]),
+                m2(vec!["tag1", "tag2", "tag3"]),
                 false,
                 Some(0),
             ),
             (
                 vec![m(vec!["tag1", "tag2"]), m(vec!["tag2", "tag3"])],
-                m(vec!["tagX", "tag2", "tag3"]),
+                m2(vec!["tagX", "tag2", "tag3"]),
                 false,
                 Some(1),
             ),

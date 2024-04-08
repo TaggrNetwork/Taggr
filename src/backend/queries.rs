@@ -1,5 +1,5 @@
+use std::cmp::Reverse;
 use std::collections::BTreeMap;
-use std::{cmp::Reverse, collections::HashSet};
 
 use crate::env::{proposals::Payload, token::Token, user::UserFilter};
 
@@ -478,12 +478,12 @@ fn last_posts() {
 
 #[export_name = "canister_query posts_by_tags"]
 fn posts_by_tags() {
-    let (realm, tags, users, page, offset): (String, Vec<String>, HashSet<UserId>, usize, PostId) =
+    let (realm, tags_and_users, page, offset): (String, Vec<String>, usize, PostId) =
         parse(&arg_data_raw());
     read(|state| {
         reply(
             state
-                .posts_by_tags_and_users(optional(realm), offset, &tags, users, false)
+                .posts_by_tags_and_users(optional(realm), offset, &tags_and_users, false)
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
                 .map(|post| post.with_meta(state))

@@ -3,7 +3,6 @@ import { currentRealm, HeadBar, setTitle } from "./common";
 import { ToggleButton } from "./common";
 import { PostFeed } from "./post_feed";
 import { PostId } from "./types";
-import { userNameToIds } from "./user_resolve";
 
 export const Feed = ({ params }: { params: string[] }) => {
     const [filter, setFilter] = React.useState(params);
@@ -13,17 +12,10 @@ export const Feed = ({ params }: { params: string[] }) => {
             <FeedBar params={params} callback={setFilter} />
             <PostFeed
                 feedLoader={async (page: number, offset: PostId) => {
-                    const tags: string[] = [],
-                        users: string[] = [];
-                    filter.forEach((token) => {
-                        if (token.startsWith("@")) users.push(token.slice(1));
-                        else tags.push(token);
-                    });
                     return await window.api.query(
                         "posts_by_tags",
                         currentRealm(),
-                        tags,
-                        await userNameToIds(users),
+                        filter,
                         page,
                         offset,
                     );
