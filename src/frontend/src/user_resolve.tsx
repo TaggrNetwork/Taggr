@@ -68,7 +68,7 @@ export const UserLink = ({
     };
 
     React.useEffect(() => {
-        loadUserName();
+        if (id != undefined) loadUserName();
     }, []);
 
     if (loading) return <Loading spaced={false} />;

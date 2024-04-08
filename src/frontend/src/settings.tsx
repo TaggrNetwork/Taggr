@@ -62,7 +62,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             .query<any>("validate_username", name)
                             .then((result) =>
                                 setLabel(
-                                    "Err" in result ? result.Err : "free!",
+                                    "Err" in result ? result.Err : "available!",
                                 ),
                             ),
                     300,

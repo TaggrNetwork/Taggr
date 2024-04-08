@@ -57,6 +57,7 @@ pub struct Meta<'a> {
     author_filters: UserFilter,
     viewer_blocked: bool,
     realm_color: Option<&'a str>,
+    pub nsfw: bool,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -166,6 +167,7 @@ impl Post {
                 .map(|viewer| user.blacklist.contains(&viewer.id))
                 .unwrap_or_default(),
             realm_color: realm.map(|realm| realm.label_color.as_str()),
+            nsfw: realm.map(|realm| realm.adult_content).unwrap_or_default(),
         };
         (self, meta)
     }

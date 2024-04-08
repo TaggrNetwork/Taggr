@@ -1,5 +1,5 @@
 import * as React from "react";
-import { bigScreen, Loading, NotFound, ShareButton } from "./common";
+import { bigScreen, Loading, NotFound, setTitle, ShareButton } from "./common";
 import { Content } from "./content";
 import { PostFeed } from "./post_feed";
 import { PostId, User } from "./types";
@@ -14,6 +14,7 @@ export const Journal = ({ handle }: { handle: string }) => {
         window.api.query<User>("user", [handle]).then((profile) => {
             if (profile) {
                 setProfile(profile);
+                setTitle(`${profile.name}'s profile`);
                 setStatus(1);
             } else {
                 setStatus(-1);
