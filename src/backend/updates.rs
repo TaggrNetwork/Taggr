@@ -80,6 +80,38 @@ fn post_upgrade() {
 
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
+    // Fills new data structures with data
+    mutate(|state| {
+        // create indexes for all tags of active subscribers
+        state.tag_indexes = state.users.values().fold(HashMap::new(), |mut acc, user| {
+            for tag in user.feeds.iter().flatten() {
+                let index = acc.entry(tag.clone()).or_default();
+                index.subscribers += 1;
+            }
+            acc
+        });
+
+        // create indexes for all tags
+        for (post_id, tag) in state
+            .posts_with_tags
+            .iter()
+            .filter_map(|id| Post::get(state, id))
+            .flat_map(|post| {
+                post.tags
+                    .iter()
+                    .map(move |tag| (post.id, tag.to_lowercase()))
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+        {
+            let entry = state.tag_indexes.entry(tag.clone()).or_default();
+            entry.posts.push_front(post_id);
+            while entry.posts.len() > 1000 {
+                entry.posts.pop_back();
+            }
+        }
+    });
+
     // Restore features and corrupted posts
     #[cfg(not(any(feature = "dev", feature = "staging")))]
     {
@@ -118,13 +150,12 @@ fn sync_post_upgrade_fixtures() {
             .for_each(|(author, post_id)| features::create_feature(author, post_id).unwrap());
     }
 
-  // Compensate for the executed by failed proposal #/post/1159871
-  mutate(|state| {
+    // Compensate for the executed by failed proposal #/post/1159871
+    mutate(|state| {
         if let Some(realm) = state.realms.get_mut("RUGANG") {
             realm.controllers.insert(1277);
         }
     })
-
 }
 
 #[allow(clippy::all)]
@@ -521,12 +552,20 @@ fn toggle_following_user() {
 fn toggle_following_feed() {
     mutate(|state| {
         let tags: Vec<String> = parse(&arg_data_raw());
-        reply(
-            state
-                .principal_to_user_mut(caller())
-                .map(|user| user.toggle_following_feed(tags))
-                .unwrap_or_default(),
-        )
+        let result = state
+            .principal_to_user_mut(caller())
+            .map(|user| user.toggle_following_feed(&tags))
+            .unwrap_or_default();
+        for tag in tags {
+            if let Some(index) = state.tag_indexes.get_mut(&tag) {
+                if result {
+                    index.subscribers += 1
+                } else {
+                    index.subscribers = index.subscribers.saturating_sub(1)
+                }
+            }
+        }
+        reply(result)
     })
 }
 

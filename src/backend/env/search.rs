@@ -32,32 +32,16 @@ pub fn search(state: &State, mut query: String) -> Vec<SearchResult> {
 
     match terms.as_slice() {
         [hashtag] if hashtag.starts_with('#') => {
-            let tag = &hashtag[1..].to_lowercase();
+            let query = &hashtag[1..].to_lowercase();
             state
-                .posts_with_tags(None, 0, true)
-                .filter_map(
-                    |Post {
-                         id,
-                         user,
-                         tags,
-                         body,
-                         ..
-                     }| {
-                        if tags.contains(tag) {
-                            let search_body = body.to_lowercase();
-                            if let Some(i) = search_body.find(hashtag) {
-                                return Some(SearchResult {
-                                    id: *id,
-                                    user_id: *user,
-                                    relevant: snippet(body, i),
-                                    result: "post".to_string(),
-                                    ..Default::default()
-                                });
-                            }
-                        }
-                        None
-                    },
-                )
+                .tag_indexes
+                .keys()
+                .filter(|tag| tag.starts_with(query))
+                .map(|tag| SearchResult {
+                    relevant: tag.clone(),
+                    result: "tag".to_string(),
+                    ..Default::default()
+                })
                 .take(MAX_RESULTS)
                 .collect()
         }

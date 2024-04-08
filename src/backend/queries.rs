@@ -478,12 +478,14 @@ fn last_posts() {
 
 #[export_name = "canister_query posts_by_tags"]
 fn posts_by_tags() {
-    let (realm, tags, users, page, offset): (String, Vec<String>, Vec<UserId>, usize, PostId) =
+    let (realm, tags_and_users, page, offset): (String, Vec<String>, usize, PostId) =
         parse(&arg_data_raw());
     read(|state| {
         reply(
             state
-                .posts_by_tags(optional(realm), tags, users, page, offset)
+                .posts_by_tags_and_users(optional(realm), offset, &tags_and_users, false)
+                .skip(page * CONFIG.feed_page_size)
+                .take(CONFIG.feed_page_size)
                 .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         )

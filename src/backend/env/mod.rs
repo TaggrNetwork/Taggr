@@ -1,6 +1,7 @@
 use self::canisters::{icrc_transfer, upgrade_main_canister, NNSVote};
 use self::invoices::{Invoice, USER_ICP_SUBACCOUNT};
 use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
+use self::post_iterators::{IteratorMerger, MergeStrategy};
 use self::proposals::{Payload, Status};
 use self::reports::Report;
 use self::token::{account, TransferArgs};
@@ -29,6 +30,7 @@ pub mod features;
 pub mod invoices;
 pub mod memory;
 pub mod post;
+pub mod post_iterators;
 pub mod proposals;
 pub mod reports;
 pub mod search;
@@ -124,6 +126,12 @@ pub struct Realm {
 }
 
 #[derive(Default, Serialize, Deserialize)]
+pub struct TagIndex {
+    pub subscribers: usize,
+    pub posts: VecDeque<PostId>,
+}
+
+#[derive(Default, Serialize, Deserialize)]
 pub struct Summary {
     pub title: String,
     description: String,
@@ -190,13 +198,22 @@ pub struct State {
 
     last_revenues: VecDeque<u64>,
 
+    // TODO: delete
+    #[serde(skip)]
     pub tag_subscribers: HashMap<String, usize>,
 
     pub distribution_reports: Vec<Summary>,
 
     migrations: BTreeSet<UserId>,
 
+    // TODO: delete
     pub posts_with_tags: Vec<PostId>,
+
+    #[serde(default)]
+    pub recent_tags: VecDeque<String>,
+
+    #[serde(default)]
+    pub tag_indexes: HashMap<String, TagIndex>,
 
     // Indicates whether the end of the stable memory contains a valid heap snapshot.
     #[serde(skip)]
@@ -260,9 +277,9 @@ impl State {
     pub fn tags_cost(&self, tags: Box<dyn Iterator<Item = &'_ String> + '_>) -> Credits {
         tags.fold(0, |acc, tag| {
             acc + self
-                .tag_subscribers
+                .tag_indexes
                 .get(tag.to_lowercase().as_str())
-                .copied()
+                .map(|index| index.subscribers)
                 .unwrap_or_default()
         }) as Credits
     }
@@ -1375,22 +1392,6 @@ impl State {
         }
     }
 
-    pub fn compute_tag_subscribers(&mut self, now: Time) {
-        self.tag_subscribers.clear();
-        for user in self
-            .users
-            .values_mut()
-            .filter(|user| user.active_within_weeks(now, 1))
-        {
-            for tag in user.feeds.iter().flatten() {
-                self.tag_subscribers
-                    .entry(tag.clone())
-                    .and_modify(|subscribers| *subscribers += 1)
-                    .or_insert(1);
-            }
-        }
-    }
-
     async fn daily_chores(now: Time) {
         mutate(|state| {
             for proposal_id in state
@@ -1417,8 +1418,6 @@ impl State {
                     *timestamp + CONFIG.downvote_counting_period_days * DAY >= now
                 });
             }
-
-            state.compute_tag_subscribers(now);
         });
 
         export_token_supply(token::icrc1_total_supply());
@@ -1963,48 +1962,63 @@ impl State {
         Ok(())
     }
 
-    pub fn posts_by_tags(
-        &self,
-        realm: Option<RealmId>,
-        tags: Vec<String>,
-        users: Vec<UserId>,
-        page: usize,
-        offset: PostId,
-    ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
-        let query: HashSet<_> = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
-        Box::new(
-            self.posts_with_tags(realm, offset, true)
-                .filter(move |post| {
-                    (users.is_empty() || users.contains(&post.user))
-                        && post
-                            .tags
-                            .iter()
-                            .map(|tag| tag.to_lowercase())
-                            .collect::<HashSet<_>>()
-                            .is_superset(&query)
-                })
-                .skip(page * CONFIG.feed_page_size)
-                .take(CONFIG.feed_page_size),
-        )
-    }
-
-    fn posts_with_tags<'a>(
+    pub fn posts_by_tags_and_users<'a>(
         &'a self,
         realm_id: Option<RealmId>,
         offset: PostId,
+        tags_and_users: &'a [String],
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        Box::new(
-            self.posts_with_tags
-                .iter()
-                .rev()
+        let filter = move |post: &Post| {
+            !post.is_deleted()
+                && (with_comments || post.parent.is_none())
+                && (realm_id.is_none() || post.realm == realm_id)
+        };
+
+        let tags = tags_and_users
+            .iter()
+            .filter(|token| !token.starts_with("@"))
+            .collect::<Vec<_>>();
+        let users = tags_and_users
+            .iter()
+            .filter(|word| word.starts_with("@"))
+            .filter_map(|word| self.user(&word[1..]))
+            .map(|user| user.id)
+            .collect::<Vec<_>>();
+
+        // If no users were provided, we simply return merged iterators over all tags.
+        if users.is_empty() {
+            return Box::new(
+                IteratorMerger::new(
+                    MergeStrategy::And,
+                    tags.iter()
+                        .map(|tag| {
+                            let iterator: Box<dyn Iterator<Item = &PostId>> =
+                                match self.tag_indexes.get(&tag.to_lowercase()) {
+                                    Some(index) => Box::new(index.posts.iter()),
+                                    None => Box::new(std::iter::empty()),
+                                };
+                            iterator
+                        })
+                        .collect(),
+                )
                 .skip_while(move |post_id| offset > 0 && *post_id > &offset)
-                .filter_map(move |i| Post::get(self, i))
-                .filter(move |post| {
-                    !post.is_deleted()
-                        && (with_comments || post.parent.is_none())
-                        && (realm_id.is_none() || post.realm == realm_id)
-                }),
+                .filter_map(move |post_id| Post::get(self, post_id))
+                .filter(move |post| filter(post)),
+            );
+        };
+
+        // If users were provided, we or-merge their feeds and filter for tags.
+        Box::new(
+            IteratorMerger::new(
+                MergeStrategy::Or,
+                users
+                    .into_iter()
+                    .filter_map(|user_id| self.users.get(&user_id))
+                    .map(|user| user.posts(self, offset, with_comments))
+                    .collect(),
+            )
+            .filter(move |post| filter(post) && tags.iter().all(|tag| post.tags.contains(*tag))),
         )
     }
 
@@ -2051,11 +2065,11 @@ impl State {
         )
     }
 
-    pub fn recent_tags(&self, realm: Option<RealmId>, n: u64) -> Vec<(String, u64)> {
+    pub fn recent_tags(&self, realm_id: Option<RealmId>, n: u64) -> Vec<(String, u64)> {
         let mut tags: HashMap<String, u64> = Default::default();
         let mut tags_found = 0;
         'OUTER: for post in self
-            .posts_with_tags(realm, 0, true)
+            .last_posts(realm_id, 0, 0, false)
             .take_while(|post| !post.archived)
         {
             for tag in &post.tags {
@@ -2824,11 +2838,7 @@ impl State {
 
 // Checks if any feed represents the superset for the given tag set.
 // The `strict` option requires the sets to be equal.
-fn covered_by_feeds(
-    feeds: &[BTreeSet<String>],
-    tags: &BTreeSet<String>,
-    strict: bool,
-) -> Option<usize> {
+fn covered_by_feeds(feeds: &[Vec<String>], tags: &BTreeSet<String>, strict: bool) -> Option<usize> {
     for (i, feed) in feeds.iter().enumerate() {
         if strict && tags.len() != feed.len() {
             continue;
@@ -4023,40 +4033,41 @@ pub(crate) mod tests {
     #[test]
     fn test_covered_by_feed() {
         let m = |v: Vec<&str>| v.into_iter().map(|v| v.to_string()).collect();
+        let m2 = |v: Vec<&str>| v.into_iter().map(|v| v.to_string()).collect();
         let tests = vec![
             (
                 vec![m(vec!["tag1", "tag2"]), m(vec!["tag2", "tag3"])],
-                m(vec!["tag1"]),
+                m2(vec!["tag1"]),
                 true,
                 None,
             ),
             (
                 vec![m(vec!["tag1", "tag2"]), m(vec!["tag2", "tag3"])],
-                m(vec!["tag1", "tag2"]),
+                m2(vec!["tag1", "tag2"]),
                 false,
                 Some(0),
             ),
             (
                 vec![m(vec!["tag1", "tag2"]), m(vec!["tag2", "tag3"])],
-                m(vec!["tag1", "tag2"]),
+                m2(vec!["tag1", "tag2"]),
                 true,
                 Some(0),
             ),
             (
                 vec![m(vec!["tag1", "tag2"]), m(vec!["tag2", "tag3"])],
-                m(vec!["tag1", "tag2", "tag3"]),
+                m2(vec!["tag1", "tag2", "tag3"]),
                 true,
                 None,
             ),
             (
                 vec![m(vec!["tag1", "tag2"]), m(vec!["tag2", "tag3"])],
-                m(vec!["tag1", "tag2", "tag3"]),
+                m2(vec!["tag1", "tag2", "tag3"]),
                 false,
                 Some(0),
             ),
             (
                 vec![m(vec!["tag1", "tag2"]), m(vec!["tag2", "tag3"])],
-                m(vec!["tagX", "tag2", "tag3"]),
+                m2(vec!["tagX", "tag2", "tag3"]),
                 false,
                 Some(1),
             ),
@@ -4205,11 +4216,9 @@ pub(crate) mod tests {
 
             // now we follow a feed #post+#tags
             let user = state.users.get_mut(&user_id).unwrap();
-            assert!(user.toggle_following_feed(
-                vec!["post".to_owned(), "tags".to_owned()]
-                    .into_iter()
-                    .collect()
-            ));
+            assert!(
+                user.toggle_following_feed(vec!["post".to_owned(), "tags".to_owned()].as_slice())
+            );
 
             // make sure the feed still contains the same post
             let feed = state
@@ -4279,7 +4288,7 @@ pub(crate) mod tests {
             // now we follow a feed "post"
             let user = state.users.get_mut(&user_id).unwrap();
             let tags: Vec<_> = vec!["post".to_string()].into_iter().collect();
-            assert!(user.toggle_following_feed(tags.clone()));
+            assert!(user.toggle_following_feed(&tags));
             // make sure the feed contains the new post
             let feed = state
                 .users
@@ -4295,7 +4304,7 @@ pub(crate) mod tests {
 
             // Make sure we can unsubscribe and the feed gets back to 2 posts
             let user = state.users.get_mut(&user_id).unwrap();
-            assert!(!user.toggle_following_feed(tags));
+            assert!(!user.toggle_following_feed(&tags));
             let feed = state
                 .users
                 .get(&user_id)
@@ -4609,10 +4618,10 @@ pub(crate) mod tests {
                 .collect();
             let tags2: Vec<_> = vec!["tag1".to_owned()].into_iter().collect();
             let user = state.users.get_mut(&id).unwrap();
-            assert!(user.toggle_following_feed(tags.clone()));
-            assert!(user.toggle_following_feed(tags2.clone()));
-            assert!(!user.toggle_following_feed(tags));
-            assert!(!user.toggle_following_feed(tags2));
+            assert!(user.toggle_following_feed(&tags));
+            assert!(user.toggle_following_feed(&tags2));
+            assert!(!user.toggle_following_feed(&tags));
+            assert!(!user.toggle_following_feed(&tags2));
         })
     }
 

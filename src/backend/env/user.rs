@@ -1,4 +1,4 @@
-use super::{reports::Report, *};
+use super::{post_iterators::IteratorMerger, reports::Report, *};
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT};
 use serde::{Deserialize, Serialize};
 
@@ -87,7 +87,7 @@ pub struct User {
     pub cold_wallet: Option<Principal>,
     cycles: Credits,
     rewards: i64,
-    pub feeds: Vec<BTreeSet<String>>,
+    pub feeds: Vec<Vec<String>>,
     pub followees: BTreeSet<UserId>,
     pub followers: BTreeSet<UserId>,
     pub timestamp: u64,
@@ -305,8 +305,8 @@ impl User {
         });
     }
 
-    pub fn toggle_following_feed(&mut self, tags: Vec<String>) -> bool {
-        let tags = tags.into_iter().map(|tag| tag.to_lowercase()).collect();
+    pub fn toggle_following_feed(&mut self, tags: &[String]) -> bool {
+        let tags = tags.iter().map(|tag| tag.to_lowercase()).collect();
         if let Some(i) = covered_by_feeds(&self.feeds, &tags, true) {
             self.feeds.remove(i);
             return false;
@@ -324,25 +324,29 @@ impl User {
         page: usize,
         offset: PostId,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+        let mut iterators: Vec<Box<dyn Iterator<Item = &'a Post> + 'a>> = self
+            .followees
+            .iter()
+            .filter_map(move |id| state.users.get(id))
+            .map(|user| user.posts(state, 0, false))
+            .collect();
+
+        for feed in self.feeds.iter() {
+            iterators.push(state.posts_by_tags_and_users(None, offset, &feed, false))
+        }
+
         Box::new(
-            state
-                .last_posts(None, offset, self.timestamp, false)
+            IteratorMerger::new(MergeStrategy::Or, iterators.into_iter().collect())
                 .filter(move |post| {
-                    !post.matches_filters(&self.filters)
-                        && post
-                            .realm
-                            .as_ref()
-                            .map(|realm_id| {
-                                self.show_posts_in_realms || self.realms.contains(realm_id)
-                            })
-                            .unwrap_or(true)
-                })
-                .filter(move |post| {
-                    if self.followees.contains(&post.user) {
-                        return true;
-                    }
-                    let lc_tags: BTreeSet<_> = post.tags.iter().map(|t| t.to_lowercase()).collect();
-                    covered_by_feeds(&self.feeds, &lc_tags, false).is_some()
+                    self.followees.contains(&post.user)
+                        || !post.matches_filters(&self.filters)
+                            && post
+                                .realm
+                                .as_ref()
+                                .map(|realm_id| {
+                                    self.show_posts_in_realms || self.realms.contains(realm_id)
+                                })
+                                .unwrap_or(true)
                 })
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size),
