@@ -448,6 +448,7 @@ pub mod tests {
     #[should_panic(expected = "couldn't take post 2: not found")]
     fn test_wrong_post_id_in_proposal() {
         mutate(|state| {
+            state.memory.unpack_for_testing();
             create_user(state, pr(1));
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
             create_proposal(state, pr(1), 2, Payload::Noop, 0).unwrap();

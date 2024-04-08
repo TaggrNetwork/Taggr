@@ -88,8 +88,8 @@ impl Memory {
 
     fn unpack(&mut self) {
         self.api_ref = Rc::new(RefCell::new(self.api.clone()));
-        self.posts.api = Rc::clone(&self.api_ref);
-        self.features.api = Rc::clone(&self.api_ref);
+        self.posts.init(Rc::clone(&self.api_ref));
+        self.features.init(Rc::clone(&self.api_ref));
     }
 
     #[allow(clippy::type_complexity)]
@@ -114,7 +114,13 @@ impl Memory {
             read_bytes: Some(read_bytes),
         };
         self.api_ref = Rc::new(RefCell::new(test_api));
-        self.posts.api = Rc::clone(&self.api_ref);
+        self.posts.init(Rc::clone(&self.api_ref));
+        self.features.init(Rc::clone(&self.api_ref));
+    }
+
+    #[cfg(test)]
+    pub fn unpack_for_testing(&mut self) {
+        self.unpack();
     }
 }
 
@@ -313,6 +319,8 @@ impl Allocator {
 pub struct ObjectManager<K: Ord + Eq, T: Serialize + DeserializeOwned> {
     index: BTreeMap<K, (u64, u64)>,
     #[serde(skip)]
+    initialized: bool,
+    #[serde(skip)]
     api: Rc<RefCell<Api>>,
     #[serde(skip)]
     phantom: std::marker::PhantomData<T>,
@@ -323,7 +331,20 @@ impl<K: Eq + Ord + Clone + Copy + Display, T: Serialize + DeserializeOwned> Obje
         self.index.len()
     }
 
+    // TODO: delete after restoring data
+    pub fn reset(&mut self) {
+        self.index.clear()
+    }
+
+    // TODO: delete after restoring data
+    pub fn reinsert(&mut self, id: K, value: T) {
+        assert!(self.initialized, "allocator uninitialized");
+        self.index
+            .insert(id, self.api.borrow_mut().write(&value).unwrap());
+    }
+
     pub fn insert(&mut self, id: K, value: T) -> Result<(), String> {
+        assert!(self.initialized, "allocator uninitialized");
         if self.index.contains_key(&id) {
             self.remove(&id)?;
         }
@@ -349,10 +370,16 @@ impl<K: Eq + Ord + Clone + Copy + Display, T: Serialize + DeserializeOwned> Obje
     }
 
     pub fn remove(&mut self, id: &K) -> Result<T, String> {
+        assert!(self.initialized, "allocator uninitialized");
         let (offset, len) = self.index.remove(id).ok_or("not found")?;
         let value = self.api.borrow().read(offset, len);
         self.api.borrow_mut().remove(offset, len)?;
         Ok(value)
+    }
+
+    pub fn init(&mut self, api: Rc<RefCell<Api>>) {
+        self.initialized = true;
+        self.api = api;
     }
 }
 
