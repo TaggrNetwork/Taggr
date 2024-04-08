@@ -177,7 +177,7 @@ impl Proposal {
                     reward.minted = tokens_to_mint;
                 }
                 Payload::AddRealmController(realm_id, user_id) => {
-                    if let Some(realm) = state.realms.get_mut(realm_id) {
+                    if let Some(realm) = state.realms.get_mut(&realm_id.to_uppercase()) {
                         realm.controllers.insert(*user_id);
                         state.logger.info(format!(
                             "User `{}` was added via proposal execution to the realm /{}",
@@ -345,6 +345,7 @@ pub fn create_proposal(
         Predicate::Proposal(post_id),
     );
     Post::mutate(state, &post_id, |post| {
+        assert_eq!(proposer, post.user, "post author differs from the proposer");
         assert!(post.extension.is_none(), "post cannot have any extensions");
         post.extension = Some(Extension::Proposal(id));
         Ok(())
@@ -927,7 +928,7 @@ pub mod tests {
 
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "30000"),
-                Err("reward amount is higher than the configured maximum of 10000 tokens".into())
+                Err("reward amount is higher than the configured maximum of 20000 tokens".into())
             );
 
             assert_eq!(state.active_voting_power(time()), 140000);
@@ -974,7 +975,7 @@ pub mod tests {
 
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "30000"),
-                Err("reward amount is higher than the configured maximum of 10000 tokens".into())
+                Err("reward amount is higher than the configured maximum of 20000 tokens".into())
             );
 
             // 200 tokens vote for reward of size 1000
@@ -1017,7 +1018,7 @@ pub mod tests {
 
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "30000"),
-                Err("reward amount is higher than the configured maximum of 10000 tokens".into())
+                Err("reward amount is higher than the configured maximum of 20000 tokens".into())
             );
 
             // 200 tokens vote for reward of size 1000
