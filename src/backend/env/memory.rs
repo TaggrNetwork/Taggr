@@ -331,18 +331,6 @@ impl<K: Eq + Ord + Clone + Copy + Display, T: Serialize + DeserializeOwned> Obje
         self.index.len()
     }
 
-    // TODO: delete after restoring data
-    pub fn reset(&mut self) {
-        self.index.clear()
-    }
-
-    // TODO: delete after restoring data
-    pub fn reinsert(&mut self, id: K, value: T) {
-        assert!(self.initialized, "allocator uninitialized");
-        self.index
-            .insert(id, self.api.borrow_mut().write(&value).unwrap());
-    }
-
     pub fn insert(&mut self, id: K, value: T) -> Result<(), String> {
         assert!(self.initialized, "allocator uninitialized");
         if self.index.contains_key(&id) {

@@ -198,15 +198,12 @@ pub struct State {
 
     last_revenues: VecDeque<u64>,
 
-    // TODO: delete
-    #[serde(skip)]
-    pub tag_subscribers: HashMap<String, usize>,
-
     pub distribution_reports: Vec<Summary>,
 
     migrations: BTreeSet<UserId>,
 
     // TODO: delete
+    #[serde(skip)]
     pub posts_with_tags: Vec<PostId>,
 
     #[serde(default)]
