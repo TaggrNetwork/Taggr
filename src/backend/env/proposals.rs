@@ -425,12 +425,9 @@ pub(super) fn execute_proposal(
 pub mod tests {
 
     use super::*;
-    use crate::{
-        env::{
-            tests::{create_user, insert_balance, pr},
-            time,
-        },
-        STATE,
+    use crate::env::{
+        tests::{create_user, insert_balance, pr},
+        time,
     };
 
     pub fn propose(
@@ -478,10 +475,7 @@ pub mod tests {
 
     #[test]
     fn test_proposal_canceling() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             // create voters, make each of them earn some karma
             for i in 1..=2 {
                 let p = pr(i);
@@ -596,10 +590,7 @@ pub mod tests {
     fn test_proposal_voting() {
         let data = &"".to_string();
         let proposer = pr(1);
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             // create voters, make each of them earn some karma
             for i in 1..11 {
                 let p = pr(i);
@@ -735,10 +726,7 @@ pub mod tests {
     #[test]
     fn test_reducing_voting_power() {
         let data = &"".to_string();
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             // create voters, make each of them earn some karma
             for i in 1..=3 {
                 let p = pr(i);
@@ -781,10 +769,7 @@ pub mod tests {
 
     #[test]
     fn test_non_controversial_rejection() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             // create voters, make each of them earn some karma
             for i in 1..=5 {
                 let p = pr(i);
@@ -823,10 +808,7 @@ pub mod tests {
 
     #[test]
     fn test_funding_proposal() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             // create voters, make each of them earn some karma
             for i in 1..=2 {
                 let p = pr(i);
@@ -878,10 +860,7 @@ pub mod tests {
 
     #[test]
     fn test_reward_proposal() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             // create voters, make each of them earn some karma
             for i in 1..=3 {
                 let p = pr(i);

@@ -939,10 +939,7 @@ fn tokens(max_tag_length: usize, input: &str, tokens: &[char]) -> impl Iterator<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        env::tests::{create_user, pr},
-        STATE,
-    };
+    use crate::env::tests::{create_user, pr};
 
     #[test]
     fn test_post_archiving() {
@@ -972,14 +969,13 @@ mod tests {
                 *b = unsafe { MEMORY.as_ref().unwrap()[offset as usize + i] }
             }
         };
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            cell.borrow_mut().memory.set_test_api(
+        mutate(|state| {
+            state.memory.set_test_api(
                 Box::new(mem_grow),
                 Box::new(mem_end),
                 Box::new(writer),
                 Box::new(reader),
-            );
+            )
         });
 
         mutate(|state| {
