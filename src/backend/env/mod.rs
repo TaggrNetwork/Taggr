@@ -572,9 +572,13 @@ impl State {
         filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
-            .last_posts(realm, offset, 0, false)
-            .filter(|post| !matches!(post.extension, Some(Extension::Proposal(_))))
-            .filter(|post| filter.map(|f| f(post)).unwrap_or(true))
+            .last_posts(realm.clone(), offset, 0, false)
+            .filter(|post| {
+                // we exclude NSFW posts unless the query comes for the realm of the post
+                (!post.with_meta(self).1.nsfw || post.realm.as_ref() == realm.as_ref())
+                    && !matches!(post.extension, Some(Extension::Proposal(_)))
+                    && filter.map(|f| f(post)).unwrap_or(true)
+            })
             .take(1000)
             .collect::<Vec<_>>();
         hot_posts.sort_unstable_by_key(|post| Reverse(post.heat()));
@@ -1576,19 +1580,21 @@ impl State {
             )
         });
 
-        let log_time = |state: &mut State, frequency| {
-            state.logger.debug(format!(
-                "{} routine finished after `{}` ms.",
-                frequency,
-                (time() - now) / MILLISECOND
-            ))
+        let log_time = |state: &mut State, frequency, threshold_millis| {
+            let millis = (time() - now) / MILLISECOND;
+            if millis > threshold_millis {
+                state.logger.debug(format!(
+                    "{} routine finished after `{}` ms.",
+                    frequency, millis
+                ))
+            }
         };
 
         if last_weekly_chores + WEEK < now {
             State::weekly_chores(now).await;
             mutate(|state| {
                 state.last_weekly_chores += WEEK;
-                log_time(state, "Weekly");
+                log_time(state, "Weekly", 0);
             });
         }
 
@@ -1602,7 +1608,7 @@ impl State {
                     state.pending_polls.len(),
                     state.migrations.len(),
                 ));
-                log_time(state, "Daily");
+                log_time(state, "Daily", 60000);
             });
         }
 
@@ -1610,6 +1616,7 @@ impl State {
             State::hourly_chores(now).await;
             mutate(|state| {
                 state.last_hourly_chores += HOUR;
+                log_time(state, "Hourly", 0);
             });
         }
     }
@@ -2593,9 +2600,7 @@ impl State {
         // downvotes + credits and rewards of the author
         if delta < 0 {
             if user_controversial {
-                return Err(
-                    "no downvotes for users with pending reports or negative reward balance".into(),
-                );
+                return Err("no downvotes for users with pending or confirmed reports".into());
             }
             if user.total_balance() < token::base() {
                 return Err("no downvotes for users with low token balance".into());

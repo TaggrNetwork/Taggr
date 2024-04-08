@@ -80,6 +80,7 @@ fn post_upgrade() {
 
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
+    // Restore features and corrupted posts
     #[cfg(not(any(feature = "dev", feature = "staging")))]
     {
         mutate(|state| {
@@ -116,6 +117,14 @@ fn sync_post_upgrade_fixtures() {
             .into_iter()
             .for_each(|(author, post_id)| features::create_feature(author, post_id).unwrap());
     }
+
+  // Compensate for the executed by failed proposal #/post/1159871
+  mutate(|state| {
+        if let Some(realm) = state.realms.get_mut("RUGANG") {
+            realm.controllers.insert(1277);
+        }
+    })
+
 }
 
 #[allow(clippy::all)]
