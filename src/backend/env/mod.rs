@@ -2977,6 +2977,44 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn test_tag_indexes() {
+        mutate(|state| {
+            create_user_with_params(state, pr(1), "alice", 1000);
+            Post::create(
+                state,
+                "This is a #test message with #tags".to_string(),
+                &[],
+                pr(1),
+                0,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+            Post::create(
+                state,
+                "This is a test #message with #more #tags".to_string(),
+                &[],
+                pr(1),
+                0,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+
+            assert_eq!(
+                state.recent_tags.clone().into_iter().collect::<Vec<_>>(),
+                vec!["tags", "test", "message", "more", "tags"]
+            );
+            assert_eq!(state.tag_indexes.len(), 4);
+            assert!(state.tag_indexes.get("test").unwrap().posts.contains(&0));
+            assert!(state.tag_indexes.get("more").unwrap().posts.contains(&1));
+            assert_eq!(&state.tag_indexes.get("tags").unwrap().posts, &vec![1, 0]);
+        });
+    }
+
+    #[test]
     fn test_donated_rewards() {
         mutate(|state| {
             let user_0 = create_user_with_params(state, pr(0), "alice", 1000);
