@@ -205,7 +205,10 @@ export const PostView = ({
     const postCreated =
         post.patches.length > 0 ? post.patches[0][0] : post.timestamp;
     const isNSFW =
-        body.toLowerCase().includes("#nsfw") && isFeedItem && !safeToOpen;
+        isFeedItem &&
+        !safeToOpen &&
+        (body.toLowerCase().includes("#nsfw") ||
+            (post.meta.nsfw && post.realm != currentRealm()));
     const versionSpecified = version != undefined && !isNaN(version);
     version =
         !versionSpecified && post.patches.length > 0

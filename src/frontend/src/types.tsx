@@ -109,6 +109,7 @@ export type Meta = {
     author_filters: UserFilter;
     viewer_blocked: boolean;
     realm_color: string;
+    nsfw: boolean;
 };
 
 export type Post = {
