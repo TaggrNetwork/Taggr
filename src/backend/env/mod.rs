@@ -1977,11 +1977,11 @@ impl State {
 
         let tags = tags_and_users
             .iter()
-            .filter(|token| !token.starts_with("@"))
+            .filter(|token| !token.starts_with('@'))
             .collect::<Vec<_>>();
         let users = tags_and_users
             .iter()
-            .filter(|word| word.starts_with("@"))
+            .filter(|word| word.starts_with('@'))
             .filter_map(|word| self.user(&word[1..]))
             .map(|user| user.id)
             .collect::<Vec<_>>();

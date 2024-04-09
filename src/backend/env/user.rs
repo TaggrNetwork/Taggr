@@ -332,7 +332,7 @@ impl User {
             .collect();
 
         for feed in self.feeds.iter() {
-            iterators.push(state.posts_by_tags_and_users(None, offset, &feed, false))
+            iterators.push(state.posts_by_tags_and_users(None, offset, feed, false))
         }
 
         Box::new(
