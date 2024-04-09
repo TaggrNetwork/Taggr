@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
-/// Wraps a post iterator and implements `Ord` around the peeked element.
+/// Wraps an iterator and implements `Ord` around the head element.
 struct DelayedIterator<'a, T> {
     head: Option<&'a T>,
     iterator: Box<dyn Iterator<Item = &'a T> + 'a>,
@@ -52,15 +52,13 @@ impl<'a, T: Ord> PartialOrd for DelayedIterator<'a, T> {
 }
 
 pub enum MergeStrategy {
-    // Returns all values that appear in at least one iterator exactly once.
+    // Returns all values (exactly once) that appear in at least one iterator.
     Or,
-    // Returns only values appearing in all iterators at least once.
+    // Returns only values (exactly once) appearing in all iterators at least once.
     And,
 }
 
-/// Merges all given iterators by ordering of their consumption according to the ordering of their
-/// elements. It is currently used to merge many post iterators and to return the newest posts no
-/// matter from which iterator they are served.
+/// Merges all given (sorted!) iterators amd returns their values in a sorted order.
 pub struct IteratorMerger<'a, T> {
     values: BTreeSet<DelayedIterator<'a, T>>,
     strategy: MergeStrategy,
@@ -86,7 +84,7 @@ impl<'a, T: Clone + Ord> IteratorMerger<'a, T> {
     fn next_and(&mut self) -> Option<&'a T> {
         let candidate = self.values.last()?.peek()?;
 
-        // If the candidate value appears in all iterators, we need advance them to the next value.
+        // If the candidate value appears in all iterators, we need to advance them to the next value.
         if self
             .values
             .iter()
@@ -118,24 +116,24 @@ impl<'a, T: Clone + Ord> IteratorMerger<'a, T> {
 
     fn next_or(&mut self) -> Option<&'a T> {
         let next = self.values.pop_last()?;
-        let value = next.peek();
+        let candidate = next.peek();
         if let Some(more) = next.advance() {
             self.values.insert(more);
         }
         // Remove all equal elements from all iterators
         while let Some(next) = self.values.pop_last() {
             // If the next value is smaller, there is nothing to do.
-            if next.peek() < value {
+            if next.peek() < candidate {
                 self.values.insert(next);
                 break;
             }
-            // If the next value is not larger, then we either have duplicates, or non sorted iterators, we
-            // have to skip these values.
+            // If the next value is not larger, then we either have duplicates, or non-sorted iterators, we
+            // have to advance them to skip these values.
             else if let Some(more) = next.advance() {
                 self.values.insert(more);
             }
         }
-        value
+        candidate
     }
 }
 
@@ -254,5 +252,24 @@ mod tests {
         );
 
         assert_eq!(iterator.collect::<Vec<_>>(), vec![&4, &3, &2, &1]);
+    }
+
+    #[test]
+    fn test_merged_and_iterators_4() {
+        let v1 = [4, 3, 2, 1];
+        let v2 = [4, 3, 2, 1];
+        let v3 = [3, 2, 1];
+        let v4 = [2, 1];
+        let iterator = IteratorMerger::new(
+            MergeStrategy::And,
+            vec![
+                Box::new(v1.iter()),
+                Box::new(v2.iter()),
+                Box::new(v3.iter()),
+                Box::new(v4.iter()),
+            ],
+        );
+
+        assert_eq!(iterator.collect::<Vec<_>>(), vec![&2, &1]);
     }
 }
