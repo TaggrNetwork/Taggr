@@ -615,7 +615,7 @@ pub mod tests {
             // check error cases on voting
             assert_eq!(
                 propose(state, pr(111), "".into(), Payload::Noop, 0),
-                Err("no user with controller ttkg4-nqan4 found".to_string())
+                Err("no user with controller xax2h-iaaaa-aaaaa-aabxq found".to_string())
             );
             assert_eq!(
                 propose(state, proposer, "".into(), Payload::Noop, 0),

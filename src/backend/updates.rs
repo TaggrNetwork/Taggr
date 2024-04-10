@@ -296,6 +296,11 @@ fn create_invite() {
     mutate(|state| reply(state.create_invite(caller(), credits)));
 }
 
+#[export_name = "canister_update delay_weekly_chores"]
+fn delay_weekly_chores() {
+    reply(mutate(|state| state.delay_weekly_chores(caller())))
+}
+
 #[export_name = "canister_update create_proposal"]
 fn create_proposal() {
     let (post_id, payload): (PostId, Payload) = parse(&arg_data_raw());

@@ -187,7 +187,7 @@ mod tests {
             assert_eq!(user.rewards(), 100);
 
             for i in 1..20 {
-                let id = create_user(state, pr(i as u8));
+                let id = create_user(state, pr(i));
                 let user = state.users.get_mut(&id).unwrap();
                 user.stalwart = true;
             }

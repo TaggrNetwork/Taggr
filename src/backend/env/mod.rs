@@ -218,6 +218,9 @@ pub struct State {
 
     #[serde(default)]
     pub minting_power: HashMap<Principal, Token>,
+
+    #[serde(skip)]
+    pub weekly_chores_delay_votes: HashSet<UserId>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -271,6 +274,42 @@ pub enum Destination {
 }
 
 impl State {
+    pub fn delay_weekly_chores(&mut self, caller: Principal) -> bool {
+        let Some(user) = self
+            .principal_to_user(caller)
+            .and_then(|user| user.stalwart.then_some(user))
+        else {
+            return false;
+        };
+
+        // If we shifted already, exit.
+        if self.last_weekly_chores >= time() + WEEK {
+            return false;
+        }
+
+        self.weekly_chores_delay_votes.insert(user.id);
+
+        if self.weekly_chores_delay_votes.len() * 100
+            / self.users.values().filter(|user| user.stalwart).count()
+            >= CONFIG.report_confirmation_percentage as usize
+        {
+            self.last_weekly_chores += WEEK;
+            self.logger.info(format!(
+                "Minting was delayed by stalwarts: {:?}",
+                self.weekly_chores_delay_votes
+                    .iter()
+                    .map(|id| self
+                        .users
+                        .get(id)
+                        .map(|user| user.name.clone())
+                        .unwrap_or_default())
+                    .collect::<Vec<_>>()
+            ));
+        }
+
+        true
+    }
+
     pub fn tags_cost(&self, tags: Box<dyn Iterator<Item = &'_ String> + '_>) -> Credits {
         tags.fold(0, |acc, tag| {
             acc + self
@@ -2849,9 +2888,8 @@ pub(crate) mod tests {
     use super::*;
     use post::Post;
 
-    pub fn pr(n: u8) -> Principal {
-        let v = vec![0, n];
-        Principal::from_slice(&v)
+    pub fn pr(n: usize) -> Principal {
+        Principal::from_slice(&n.to_be_bytes())
     }
 
     fn create_realm(state: &mut State, user: Principal, name: String) -> Result<(), String> {
@@ -3119,7 +3157,7 @@ pub(crate) mod tests {
     fn test_new_rewards_collection() {
         mutate(|state| {
             for (i, rewards) in vec![125, -11, 0, 672].into_iter().enumerate() {
-                let id = create_user(state, pr(i as u8));
+                let id = create_user(state, pr(i));
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(rewards, "");
                 if i == 4 {
@@ -3167,7 +3205,7 @@ pub(crate) mod tests {
             .into_iter()
             .enumerate()
             {
-                let principal = pr(i as u8);
+                let principal = pr(i);
                 let id = create_user(state, principal);
                 let user = state.users.get_mut(&id).unwrap();
                 // remove first whatever rewards is there
@@ -4608,9 +4646,10 @@ pub(crate) mod tests {
                 .is_empty());
 
             let now = CONFIG.min_stalwart_account_age_weeks as u64 * WEEK;
+            let num_users = 255;
 
-            for i in 0..200 {
-                let id = create_user(state, pr(i as u8));
+            for i in 0..num_users {
+                let id = create_user(state, pr(i));
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(i as i64, "");
                 user.take_positive_rewards();
@@ -4632,8 +4671,8 @@ pub(crate) mod tests {
                 .controllers
                 .is_empty());
 
-            for i in 0..200 {
-                insert_balance(state, pr(i as u8), i * 100);
+            for i in 0..num_users {
+                insert_balance(state, pr(i), i as u64 * 100);
             }
 
             state.recompute_stalwarts(now + WEEK * 3);
@@ -4643,8 +4682,40 @@ pub(crate) mod tests {
                     .values()
                     .filter_map(|u| u.stalwart.then_some(u.id))
                     .collect::<Vec<UserId>>(),
-                vec![194, 196, 198]
+                vec![248, 250, 252, 254]
             );
+        })
+    }
+
+    #[test]
+    fn test_minting_delay() {
+        mutate(|state| {
+            state.load();
+
+            let num_users = 2000;
+
+            for i in 0..num_users {
+                let id = create_user(state, pr(i));
+                let user = state.users.get_mut(&id).unwrap();
+                if i < 60 {
+                    user.stalwart = true
+                }
+            }
+
+            // non-stalwart can't delay
+            assert!(!state.delay_weekly_chores(pr(61)));
+
+            // 9 stalwarts trigger the shifting (in tests, the threshold is 15%)
+            for i in 0..9 {
+                assert_eq!(state.last_weekly_chores, 0);
+                assert!(state.delay_weekly_chores(pr(i)));
+            }
+
+            // shifting happened
+            assert_eq!(state.last_weekly_chores, WEEK);
+
+            // more votes are rejected
+            assert!(!state.delay_weekly_chores(pr(10)));
         })
     }
 

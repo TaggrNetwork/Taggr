@@ -164,7 +164,7 @@ export const HeadBar = ({
     shareTitle?: string;
     button1?: JSX.Element;
     button2?: JSX.Element;
-    content?: JSX.Element;
+    content?: JSX.Element | false;
     menu?: boolean;
     styleArg?: any;
     burgerTestId?: any;
