@@ -321,6 +321,9 @@ impl Post {
 
     pub fn costs(&self, state: &State, blobs: usize) -> Credits {
         CONFIG.post_cost
+            // we charge each 1kb of the post content + diffs patches coming from edits
+            * ((self.body.len() + self.patches.iter().map(|p| p.1.len()).sum::<usize>()) / 1024 + 1)
+                as u64
             + state.tags_cost(Box::new(self.tags.iter()))
             + blobs as Credits * CONFIG.blob_cost
             + if matches!(self.extension, Some(Extension::Poll(_))) {

@@ -727,7 +727,12 @@ const costs = async (value: string, extraCost: number) => {
     }
     const images = (value.match(/\(\/blob\/.+\)/g) || []).length;
     const { post_cost, blob_cost } = window.backendCache.config;
-    return post_cost + tagCosts + images * blob_cost + extraCost;
+    return (
+        post_cost * (Math.floor(value.length / 1024) + 1) +
+        tagCosts +
+        images * blob_cost +
+        extraCost
+    );
 };
 
 export const loadFile = (file: any): Promise<ArrayBuffer> => {

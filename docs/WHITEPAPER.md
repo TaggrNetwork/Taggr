@@ -18,7 +18,7 @@ Below is a breakdown of costs.
 
 | Function                     |         credits 🔥 | Comments                                                                                                   |
 | :--------------------------- | -----------------: | :--------------------------------------------------------------------------------------------------------- |
-| New post or comment          |       `$post_cost` |                                                                                                            |
+| New post or comment          |       `$post_cost` | Per kilobyte.                                                                                              |
 | Hashtags                     | `T * followers(T)` | Each unique hashtag `T` is charged with the number of credits corresponding to the number of its followers |
 | On-chain pictures            |   `B * $blob_cost` | For `B` pictures in a post or comment                                                                      |
 | Poll                         |       `$poll_cost` | For adding a poll to a post or comment                                                                     |
