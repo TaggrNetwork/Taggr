@@ -536,9 +536,7 @@ impl Post {
         let user_id = user.id;
         let controversial = user.controversial();
         let user_balance = user.balance;
-        let tags = tags(CONFIG.max_tag_length, &body)
-            .map(|tag| tag.to_lowercase())
-            .collect::<BTreeSet<_>>();
+        let tags = tags(CONFIG.max_tag_length, &body).collect::<BTreeSet<_>>();
         let mut post = Post::new(
             user_id,
             tags.clone(),
@@ -602,7 +600,7 @@ impl Post {
 
         if post.parent.is_none() {
             for tag in &tags {
-                let index = state.tag_indexes.entry(tag.to_lowercase()).or_default();
+                let index = state.tag_indexes.entry(tag.clone()).or_default();
                 index.posts.push_front(post.id);
                 while index.posts.len() > 1000 {
                     index.posts.pop_back();
@@ -897,7 +895,7 @@ fn notify_about(state: &mut State, post: &Post) {
 
 // Extracts hashtags from a string.
 fn tags(max_tag_length: usize, input: &str) -> impl Iterator<Item = String> {
-    tokens(max_tag_length, input, &['#', '$'])
+    tokens(max_tag_length, input, &['#', '$']).map(|tag| tag.to_lowercase())
 }
 
 // Extracts user names from a string.
@@ -1084,17 +1082,17 @@ mod tests {
         };
         assert_eq!(tags("This is a string without hashtags!"), "");
         assert_eq!(tags("This is a #string with hashtags!"), "string");
-        assert_eq!(tags("#This is a #string with two hashtags!"), "This string");
+        assert_eq!(tags("#This is a #string with two hashtags!"), "string this");
         assert_eq!(tags("This string has no tags.#bug"), "");
-        assert_eq!(tags("This is $TOKEN symbol"), "TOKEN");
+        assert_eq!(tags("This is $TOKEN symbol"), "token");
         assert_eq!(
             tags("#This is a #string with $333 hashtags!"),
-            "This string"
+            "string this"
         );
         assert_eq!(tags("#year2021"), "year2021");
         assert_eq!(tags("#year2021 #year2021 #"), "year2021");
-        assert_eq!(tags("#Ta1 #ta2"), "Ta1 ta2");
-        assert_eq!(tags("#Tag #tag"), "Tag tag");
+        assert_eq!(tags("#Ta1 #ta2"), "ta1 ta2");
+        assert_eq!(tags("#Tag #tag"), "tag");
         assert_eq!(tags("Ой у #лузі червона #калина"), "калина лузі");
         assert_eq!(tags("This is a #feature-request"), "feature-request");
         assert_eq!(tags("Support #under_score"), "under_score");
