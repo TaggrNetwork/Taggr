@@ -80,38 +80,6 @@ fn post_upgrade() {
 
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
-    // Fills new data structures with data
-    mutate(|state| {
-        // create indexes for all tags of active subscribers
-        state.tag_indexes = state.users.values().fold(HashMap::new(), |mut acc, user| {
-            for tag in user.feeds.iter().flatten() {
-                let index = acc.entry(tag.clone()).or_default();
-                index.subscribers += 1;
-            }
-            acc
-        });
-
-        // create indexes for all tags
-        for (post_id, tag) in state
-            .posts_with_tags
-            .iter()
-            .filter_map(|id| Post::get(state, id))
-            .flat_map(|post| {
-                post.tags
-                    .iter()
-                    .map(move |tag| (post.id, tag.to_lowercase()))
-            })
-            .collect::<Vec<_>>()
-            .into_iter()
-        {
-            let entry = state.tag_indexes.entry(tag.clone()).or_default();
-            entry.posts.push_front(post_id);
-            while entry.posts.len() > 1000 {
-                entry.posts.pop_back();
-            }
-        }
-    });
-
     // Restore features and corrupted posts
     #[cfg(not(any(feature = "dev", feature = "staging")))]
     {
@@ -149,6 +117,38 @@ fn sync_post_upgrade_fixtures() {
             .into_iter()
             .for_each(|(author, post_id)| features::create_feature(author, post_id).unwrap());
     }
+
+    // Fills new data structures with data
+    mutate(|state| {
+        // create indexes for all tags of active subscribers
+        state.tag_indexes = state.users.values().fold(HashMap::new(), |mut acc, user| {
+            for tag in user.feeds.iter().flatten() {
+                let index = acc.entry(tag.clone()).or_default();
+                index.subscribers += 1;
+            }
+            acc
+        });
+
+        // create indexes for all tags
+        for (post_id, tag) in state
+            .posts_with_tags
+            .iter()
+            .filter_map(|id| Post::get(state, id))
+            .flat_map(|post| {
+                post.tags
+                    .iter()
+                    .map(move |tag| (post.id, tag.to_lowercase()))
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+        {
+            let entry = state.tag_indexes.entry(tag.clone()).or_default();
+            entry.posts.push_front(post_id);
+            while entry.posts.len() > 1000 {
+                entry.posts.pop_back();
+            }
+        }
+    });
 
     // Compensate for the executed by failed proposal #/post/1159871
     mutate(|state| {
