@@ -1621,33 +1621,20 @@ impl State {
         mutate(|state| {
             state.distribution_reports.clear();
             state.distribute_realm_revenue(now);
+
+            state.minting_mode = true;
+            state.mint();
+            state.minting_mode = false;
         });
-
-        // We only mint and distribute if no open proposals exists
-        if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
-            mutate(|state| {
-                state.minting_mode = true;
-                state.mint();
-                state.minting_mode = false;
-            });
-            State::distribute_icp().await;
-            mutate(|state| {
-                for summary in &state.distribution_reports {
-                    state.logger.info(format!(
-                        "{}: {} [[details](#/distribution)]",
-                        summary.title, summary.description
-                    ));
-                }
-            });
-        } else {
-            mutate(|state| {
-                state
-                    .logger
-                    .info("Skipping minting & distributions due to open proposals")
-            });
-        }
-
+        State::distribute_icp().await;
         mutate(|state| {
+            for summary in &state.distribution_reports {
+                state.logger.info(format!(
+                    "{}: {} [[details](#/distribution)]",
+                    summary.title, summary.description
+                ));
+            }
+
             state.clean_up(now);
             state.charge_for_inactivity(now);
         });
