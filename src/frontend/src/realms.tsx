@@ -775,6 +775,18 @@ export const Realms = () => {
                                         <div className="max_width_col">
                                             {name}
                                         </div>
+                                        {realm.adult_content && (
+                                            <span
+                                                className="padded_rounded vcentered small_text left_half_spaced"
+                                                style={{
+                                                    background: "black",
+                                                    color: "red",
+                                                    border: "1px solid red",
+                                                }}
+                                            >
+                                                NSFW
+                                            </span>
+                                        )}
                                         {user && user.realms.includes(name) && (
                                             <span
                                                 className="padded_rounded vcentered small_text left_half_spaced"
