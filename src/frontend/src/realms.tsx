@@ -228,7 +228,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         value={adult_content.toString()}
                         className="bottom_spaced"
                         onChange={(e) => {
-                            realm.adult_content = Boolean(e.target.value);
+                            realm.adult_content = e.target.value == "true";
                             setRealm({ ...realm });
                         }}
                     >
