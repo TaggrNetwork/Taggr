@@ -79,7 +79,22 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        // Resetting the report of @KeydaKorven (/post/1219744)
+        {
+            let _ = Post::mutate(state, &1180586, |post| {
+                post.report.take();
+                Ok(())
+            });
+            let Some(user) = state.users.get_mut(&3750) else {
+                return;
+            };
+            let _ = user.change_credits(1000, user::CreditsDelta::Plus, "report cancellation");
+            state.burned_cycles -= 1000;
+        }
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
