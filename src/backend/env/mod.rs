@@ -4716,6 +4716,7 @@ pub(crate) mod tests {
 
             // more votes are rejected
             assert!(!state.delay_weekly_chores(pr(10)));
+            assert!(!state.delay_weekly_chores(pr(11)));
         })
     }
 
