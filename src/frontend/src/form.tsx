@@ -458,7 +458,7 @@ export const Form = ({
                                 {formButton(<Quote />, (v) => `> ${v}`)}
                                 {formButton(<Link />, (v) => {
                                     const link = prompt("URL:");
-                                    if (!link) return "";
+                                    if (!link) return v;
                                     return `[${v}](${link})`;
                                 })}
                                 {formButton(<Pic />, () => {
