@@ -456,7 +456,7 @@ impl Post {
 
             // After we validated the new edited copy of the post, charged the user, we should remove the
             // old post, and insert the edited one.
-            Post::take(state, &id);
+            Post::take(state, &id).expect("couldn't remove old post");
             Post::save(state, post);
 
             if current_realm != picked_realm {
@@ -694,14 +694,14 @@ impl Post {
     }
 
     // Takes the post from cold or hot memory
-    fn take(state: &mut State, post_id: &PostId) -> Post {
+    fn take(state: &mut State, post_id: &PostId) -> Result<Post, String> {
         cache().remove(post_id);
         state
             .posts
             .remove(post_id)
             .ok_or("no post found".to_string())
             .or_else(|_| state.memory.posts.remove(post_id))
-            .unwrap_or_else(|err| panic!("couldn't take post {}: {}", post_id, err))
+            .map_err(|err| format!("couldn't take post {}: {}", post_id, err))
     }
 
     // Takes the post from hot or cold memory, mutates and inserts into the hot memory
@@ -709,7 +709,7 @@ impl Post {
     where
         F: FnOnce(&mut Post) -> Result<T, String>,
     {
-        let mut post = Post::take(state, post_id);
+        let mut post = Post::take(state, post_id)?;
         let result = f(&mut post);
         Post::save(state, post);
         result
