@@ -87,7 +87,7 @@ fn sync_post_upgrade_fixtures() {
                 post.report.take();
                 Ok(())
             });
-            let Some(user) = state.users.get_mut(&3750) else {
+            let Some(user) = state.users.get_mut(&3570) else {
                 return;
             };
             let _ = user.change_credits(1000, user::CreditsDelta::Plus, "report cancellation");
