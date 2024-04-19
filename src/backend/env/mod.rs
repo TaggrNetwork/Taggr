@@ -4208,7 +4208,7 @@ pub(crate) mod tests {
             assert!(state
                 .user(&user_id.to_string())
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .next()
                 .is_none());
 
@@ -4221,7 +4221,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 1);
@@ -4238,7 +4238,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 1);
@@ -4264,7 +4264,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -4291,7 +4291,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -4307,7 +4307,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 3);
@@ -4322,7 +4322,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -4336,7 +4336,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert!(feed.contains(&post_id));
@@ -4347,7 +4347,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert!(!feed.contains(&post_id));
