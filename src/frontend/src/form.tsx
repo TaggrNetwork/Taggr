@@ -419,8 +419,8 @@ export const Form = ({
             )}
             {showTextField && tooExpensive && (
                 <div className="banner vertically_spaced">
-                    You are low on credits! Please mint credits in{" "}
-                    <a href="#/wallet">your wallet</a> to create this post.
+                    You are low on credits! Please mint credits in your wallet
+                    to create this post.
                 </div>
             )}
             {showTextField && !tooExpensive && (
