@@ -480,20 +480,12 @@ fn toggle_following_user() {
 fn toggle_following_feed() {
     mutate(|state| {
         let tags: Vec<String> = parse(&arg_data_raw());
-        let result = state
-            .principal_to_user_mut(caller())
-            .map(|user| user.toggle_following_feed(&tags))
-            .unwrap_or_default();
-        for tag in tags {
-            if let Some(index) = state.tag_indexes.get_mut(&tag) {
-                if result {
-                    index.subscribers += 1
-                } else {
-                    index.subscribers = index.subscribers.saturating_sub(1)
-                }
-            }
-        }
-        reply(result)
+        reply(
+            state
+                .principal_to_user_mut(caller())
+                .map(|user| user.toggle_following_feed(&tags))
+                .unwrap_or_default(),
+        )
     })
 }
 

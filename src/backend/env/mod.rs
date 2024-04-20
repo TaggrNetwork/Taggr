@@ -1729,10 +1729,21 @@ impl State {
         self.distribution_reports.push(summary);
     }
 
+    // Refresh tag costs, mark inactive users as inactive
     fn clean_up(&mut self, now: Time) {
+        for tag in self.tag_indexes.values_mut() {
+            tag.subscribers = 0;
+        }
         for user in self.users.values_mut() {
             if user.active_within_weeks(now, 1) {
                 user.active_weeks += 1;
+
+                // Count this active user's subscriptions
+                for tag in user.feeds.iter().flat_map(|feed| feed.iter()) {
+                    if let Some(index) = self.tag_indexes.get_mut(tag) {
+                        index.subscribers += 1
+                    }
+                }
             } else {
                 user.deactivate();
             }
