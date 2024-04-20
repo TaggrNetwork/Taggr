@@ -202,10 +202,6 @@ pub struct State {
 
     migrations: BTreeSet<UserId>,
 
-    // TODO: delete
-    #[serde(skip)]
-    pub posts_with_tags: Vec<PostId>,
-
     #[serde(default)]
     pub recent_tags: VecDeque<String>,
 
