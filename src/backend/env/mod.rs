@@ -198,15 +198,12 @@ pub struct State {
 
     last_revenues: VecDeque<u64>,
 
-    // TODO: delete
-    #[serde(skip)]
-    pub tag_subscribers: HashMap<String, usize>,
-
     pub distribution_reports: Vec<Summary>,
 
     migrations: BTreeSet<UserId>,
 
     // TODO: delete
+    #[serde(skip)]
     pub posts_with_tags: Vec<PostId>,
 
     #[serde(default)]
@@ -221,6 +218,9 @@ pub struct State {
 
     #[serde(default)]
     pub minting_power: HashMap<Principal, Token>,
+
+    #[serde(skip)]
+    pub weekly_chores_delay_votes: HashSet<UserId>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -274,6 +274,42 @@ pub enum Destination {
 }
 
 impl State {
+    pub fn delay_weekly_chores(&mut self, caller: Principal) -> bool {
+        let Some(user) = self
+            .principal_to_user(caller)
+            .and_then(|user| user.stalwart.then_some(user))
+        else {
+            return false;
+        };
+
+        // If we shifted already, exit.
+        if self.last_weekly_chores >= time() + WEEK {
+            return false;
+        }
+
+        self.weekly_chores_delay_votes.insert(user.id);
+
+        if self.weekly_chores_delay_votes.len() * 100
+            / self.users.values().filter(|user| user.stalwart).count()
+            >= CONFIG.report_confirmation_percentage as usize
+        {
+            self.last_weekly_chores += WEEK;
+            self.logger.info(format!(
+                "Minting was delayed by stalwarts: {:?}",
+                self.weekly_chores_delay_votes
+                    .iter()
+                    .map(|id| self
+                        .users
+                        .get(id)
+                        .map(|user| user.name.clone())
+                        .unwrap_or_default())
+                    .collect::<Vec<_>>()
+            ));
+        }
+
+        true
+    }
+
     pub fn tags_cost(&self, tags: Box<dyn Iterator<Item = &'_ String> + '_>) -> Credits {
         tags.fold(0, |acc, tag| {
             acc + self
@@ -1624,33 +1660,20 @@ impl State {
         mutate(|state| {
             state.distribution_reports.clear();
             state.distribute_realm_revenue(now);
+
+            state.minting_mode = true;
+            state.mint();
+            state.minting_mode = false;
         });
-
-        // We only mint and distribute if no open proposals exists
-        if read(|state| state.proposals.iter().all(|p| p.status != Status::Open)) {
-            mutate(|state| {
-                state.minting_mode = true;
-                state.mint();
-                state.minting_mode = false;
-            });
-            State::distribute_icp().await;
-            mutate(|state| {
-                for summary in &state.distribution_reports {
-                    state.logger.info(format!(
-                        "{}: {} [[details](#/distribution)]",
-                        summary.title, summary.description
-                    ));
-                }
-            });
-        } else {
-            mutate(|state| {
-                state
-                    .logger
-                    .info("Skipping minting & distributions due to open proposals")
-            });
-        }
-
+        State::distribute_icp().await;
         mutate(|state| {
+            for summary in &state.distribution_reports {
+                state.logger.info(format!(
+                    "{}: {} [[details](#/distribution)]",
+                    summary.title, summary.description
+                ));
+            }
+
             state.clean_up(now);
             state.charge_for_inactivity(now);
         });
@@ -2863,12 +2886,10 @@ pub fn display_tokens(amount: u64, decimals: u32) -> String {
 pub(crate) mod tests {
 
     use super::*;
-    use crate::STATE;
     use post::Post;
 
-    pub fn pr(n: u8) -> Principal {
-        let v = vec![0, n];
-        Principal::from_slice(&v)
+    pub fn pr(n: usize) -> Principal {
+        Principal::from_slice(&n.to_be_bytes())
     }
 
     fn create_realm(state: &mut State, user: Principal, name: String) -> Result<(), String> {
@@ -2910,10 +2931,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_active_voting_power() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             for i in 0..3 {
                 create_user(state, pr(i));
                 insert_balance(state, pr(i), (((i + 1) as u64) << 2) * 10000);
@@ -2984,10 +3002,46 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn test_tag_indexes() {
+        mutate(|state| {
+            create_user_with_params(state, pr(1), "alice", 1000);
+            Post::create(
+                state,
+                "This is a #test message with #tags".to_string(),
+                &[],
+                pr(1),
+                0,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+            Post::create(
+                state,
+                "This is a test #message with #more #tags".to_string(),
+                &[],
+                pr(1),
+                0,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+
+            assert_eq!(
+                state.recent_tags.clone().into_iter().collect::<Vec<_>>(),
+                vec!["tags", "test", "message", "more", "tags"]
+            );
+            assert_eq!(state.tag_indexes.len(), 4);
+            assert!(state.tag_indexes.get("test").unwrap().posts.contains(&0));
+            assert!(state.tag_indexes.get("more").unwrap().posts.contains(&1));
+            assert_eq!(&state.tag_indexes.get("tags").unwrap().posts, &vec![1, 0]);
+        });
+    }
+
+    #[test]
     fn test_donated_rewards() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
+        mutate(|state| {
             let user_0 = create_user_with_params(state, pr(0), "alice", 1000);
             let user_1 = create_user_with_params(state, pr(1), "bob", 100);
             let user_2 = create_user_with_params(state, pr(2), "eve", 50);
@@ -3014,9 +3068,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_credit_transfer() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
+        mutate(|state| {
             let id1 = create_user_with_params(state, pr(0), "peter", 10000);
             let id2 = create_user_with_params(state, pr(1), "peter", 0);
 
@@ -3054,11 +3106,7 @@ pub(crate) mod tests {
 
     #[actix_rt::test]
     async fn test_name_change() {
-        let id = STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-            create_user_with_params(state, pr(0), "peter", 10000)
-        });
+        let id = mutate(|state| create_user_with_params(state, pr(0), "peter", 10000));
 
         read(|state| {
             let user = state.users.get(&id).unwrap();
@@ -3107,12 +3155,9 @@ pub(crate) mod tests {
 
     #[test]
     fn test_new_rewards_collection() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             for (i, rewards) in vec![125, -11, 0, 672].into_iter().enumerate() {
-                let id = create_user(state, pr(i as u8));
+                let id = create_user(state, pr(i));
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(rewards, "");
                 if i == 4 {
@@ -3146,9 +3191,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_revenue_collection() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
+        mutate(|state| {
             let now = WEEK * CONFIG.voting_power_activity_weeks;
 
             for (i, (balance, total_rewards, last_activity)) in vec![
@@ -3162,7 +3205,7 @@ pub(crate) mod tests {
             .into_iter()
             .enumerate()
             {
-                let principal = pr(i as u8);
+                let principal = pr(i);
                 let id = create_user(state, principal);
                 let user = state.users.get_mut(&id).unwrap();
                 // remove first whatever rewards is there
@@ -3184,10 +3227,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_minting() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             let insert_rewards = |state: &mut State, donor_id, user_id, rewards| {
                 state
                     .users
@@ -3264,10 +3304,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_minting_ratio() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             assert_eq!(state.minting_ratio(), 1);
 
             for (supply, ratio) in vec![
@@ -3294,10 +3331,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_poll_conclusion() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             // create users each having 25 + i*10, e.g.
             // user 1: 35, user 2: 45, user 3: 55, etc...
             for i in 1..11 {
@@ -3361,10 +3395,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_principal_change() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             for i in 1..3 {
                 let p = pr(i);
                 create_user(state, p);
@@ -3432,9 +3463,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_realm_whitelist() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
+        mutate(|state| {
             create_user(state, pr(0));
             create_user(state, pr(1));
             create_user(state, pr(2));
@@ -3480,9 +3509,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_realm_revenue() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
+        mutate(|state| {
             create_user(state, pr(0));
             create_user(state, pr(1));
             create_user(state, pr(2));
@@ -3534,9 +3561,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_realm_change() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
+        mutate(|state| {
             state.realms.insert("TEST".into(), Realm::default());
             state.realms.insert("TEST2".into(), Realm::default());
 
@@ -3607,10 +3632,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_post_deletion() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             let id = create_user_with_credits(state, pr(0), 2000);
             let user = state.users.get_mut(&id).unwrap();
             assert_eq!(user.rewards(), 0);
@@ -3718,9 +3740,7 @@ pub(crate) mod tests {
 
     #[actix_rt::test]
     async fn test_realms() {
-        let (p1, realm_name) = STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
+        let (p1, realm_name) = mutate(|state| {
             let p0 = pr(0);
             let p1 = pr(1);
             let _u0 = create_user_with_params(state, p0, "user1", 1000);
@@ -4083,10 +4103,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_user_by_handle() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             let u1 = create_user_with_params(state, pr(0), "user1", 1000);
             let u2 = create_user_with_params(state, pr(1), "user2", 1000);
             let u3 = create_user_with_params(state, pr(2), "user3", 1000);
@@ -4107,8 +4124,6 @@ pub(crate) mod tests {
 
     #[test]
     fn test_inverse_filter() {
-        STATE.with(|cell| cell.replace(Default::default()));
-
         mutate(|state| {
             // create a post author and one post for its principal
             let p = pr(0);
@@ -4171,8 +4186,6 @@ pub(crate) mod tests {
 
     #[test]
     fn test_personal_feed() {
-        STATE.with(|cell| cell.replace(Default::default()));
-
         mutate(|state| {
             // create a post author and one post for its principal
             let p = pr(0);
@@ -4195,7 +4208,7 @@ pub(crate) mod tests {
             assert!(state
                 .user(&user_id.to_string())
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .next()
                 .is_none());
 
@@ -4208,7 +4221,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 1);
@@ -4225,7 +4238,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 1);
@@ -4251,7 +4264,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -4278,7 +4291,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -4294,7 +4307,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 3);
@@ -4309,7 +4322,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -4323,7 +4336,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert!(feed.contains(&post_id));
@@ -4334,7 +4347,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0, 0)
+                .personal_feed(state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert!(!feed.contains(&post_id));
@@ -4343,7 +4356,6 @@ pub(crate) mod tests {
 
     #[test]
     fn test_clean_up() {
-        STATE.with(|cell| cell.replace(Default::default()));
         mutate(|state| {
             let inactive_id1 = create_user_with_credits(state, pr(1), 1500);
             let inactive_id2 = create_user_with_credits(state, pr(2), 1100);
@@ -4415,7 +4427,6 @@ pub(crate) mod tests {
 
     #[test]
     fn test_credits_accounting() {
-        STATE.with(|cell| cell.replace(Default::default()));
         mutate(|state| {
             let p0 = pr(0);
             let post_author_id = create_user_with_credits(state, p0, 2000);
@@ -4545,7 +4556,6 @@ pub(crate) mod tests {
 
     #[test]
     fn test_credits_accounting_reposts() {
-        STATE.with(|cell| cell.replace(Default::default()));
         mutate(|state| {
             create_user_with_credits(state, pr(0), 2000);
             create_user_with_credits(state, pr(1), 2000);
@@ -4577,10 +4587,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_following() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             let p = pr(0);
             let id = create_user(state, p);
 
@@ -4627,9 +4634,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_stalwarts() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
+        mutate(|state| {
             state.load();
 
             assert!(state.realms.contains_key(CONFIG.dao_realm));
@@ -4641,9 +4646,10 @@ pub(crate) mod tests {
                 .is_empty());
 
             let now = CONFIG.min_stalwart_account_age_weeks as u64 * WEEK;
+            let num_users = 255;
 
-            for i in 0..200 {
-                let id = create_user(state, pr(i as u8));
+            for i in 0..num_users {
+                let id = create_user(state, pr(i));
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(i as i64, "");
                 user.take_positive_rewards();
@@ -4665,8 +4671,8 @@ pub(crate) mod tests {
                 .controllers
                 .is_empty());
 
-            for i in 0..200 {
-                insert_balance(state, pr(i as u8), i * 100);
+            for i in 0..num_users {
+                insert_balance(state, pr(i), i as u64 * 100);
             }
 
             state.recompute_stalwarts(now + WEEK * 3);
@@ -4676,17 +4682,48 @@ pub(crate) mod tests {
                     .values()
                     .filter_map(|u| u.stalwart.then_some(u.id))
                     .collect::<Vec<UserId>>(),
-                vec![194, 196, 198]
+                vec![248, 250, 252, 254]
             );
+        })
+    }
+
+    #[test]
+    fn test_minting_delay() {
+        mutate(|state| {
+            state.load();
+
+            let num_users = 2000;
+
+            for i in 0..num_users {
+                let id = create_user(state, pr(i));
+                let user = state.users.get_mut(&id).unwrap();
+                if i < 60 {
+                    user.stalwart = true
+                }
+            }
+
+            // non-stalwart can't delay
+            assert!(!state.delay_weekly_chores(pr(61)));
+
+            // 9 stalwarts trigger the shifting (in tests, the threshold is 15%)
+            for i in 0..9 {
+                assert_eq!(state.last_weekly_chores, 0);
+                assert!(state.delay_weekly_chores(pr(i)));
+            }
+
+            // shifting happened
+            assert_eq!(state.last_weekly_chores, WEEK);
+
+            // more votes are rejected
+            assert!(!state.delay_weekly_chores(pr(10)));
+            assert!(!state.delay_weekly_chores(pr(11)));
         })
     }
 
     #[actix_rt::test]
     async fn test_invites() {
         let principal = pr(1);
-        let (id, code, prev_balance) = STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
+        let (id, code, prev_balance) = mutate(|state| {
             let id = create_user(state, principal);
 
             // use too many credits

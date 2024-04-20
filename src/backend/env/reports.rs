@@ -172,14 +172,11 @@ pub fn finalize_report(
 mod tests {
 
     use super::*;
-    use crate::{env::tests::*, mutate, STATE};
+    use crate::{env::tests::*, mutate};
 
     #[test]
     fn test_reporting() {
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            let state = &mut *cell.borrow_mut();
-
+        mutate(|state| {
             let p = pr(0);
             let u1 = create_user(state, p);
             let user = state.users.get_mut(&u1).unwrap();
@@ -190,7 +187,7 @@ mod tests {
             assert_eq!(user.rewards(), 100);
 
             for i in 1..20 {
-                let id = create_user(state, pr(i as u8));
+                let id = create_user(state, pr(i));
                 let user = state.users.get_mut(&id).unwrap();
                 user.stalwart = true;
             }

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HeadBar } from "./common";
+import { ButtonWithLoading, HeadBar } from "./common";
 import { Summary } from "./types";
 import { Content } from "./content";
 
@@ -19,7 +19,26 @@ export const Distribution = () => {
 
     return (
         <>
-            <HeadBar title="DISTRIBUTION" shareLink="distribution" />
+            <HeadBar
+                title="DISTRIBUTION"
+                shareLink="distribution"
+                content={
+                    window.user?.stalwart && (
+                        <ButtonWithLoading
+                            label="VOTE FOR DELAY"
+                            onClick={async () =>
+                                alert(
+                                    (await window.api.call(
+                                        "delay_weekly_chores",
+                                    ))
+                                        ? "Thanks! Your vote was accepted."
+                                        : "Minting is already delayed.",
+                                )
+                            }
+                        />
+                    )
+                }
+            />
             <div className="text_centered vertically_spaced">
                 {["minting", "rewards", "realm revenue"].map((id) => (
                     <button

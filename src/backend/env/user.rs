@@ -321,7 +321,6 @@ impl User {
     pub fn personal_feed<'a>(
         &'a self,
         state: &'a State,
-        page: usize,
         offset: PostId,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         let mut iterators: Vec<Box<dyn Iterator<Item = &'a Post> + 'a>> = self
@@ -336,8 +335,8 @@ impl User {
         }
 
         Box::new(
-            IteratorMerger::new(MergeStrategy::Or, iterators.into_iter().collect())
-                .filter(move |post| {
+            IteratorMerger::new(MergeStrategy::Or, iterators.into_iter().collect()).filter(
+                move |post| {
                     self.followees.contains(&post.user)
                         || !post.matches_filters(&self.filters)
                             && post
@@ -347,9 +346,8 @@ impl User {
                                     self.show_posts_in_realms || self.realms.contains(realm_id)
                                 })
                                 .unwrap_or(true)
-                })
-                .skip(page * CONFIG.feed_page_size)
-                .take(CONFIG.feed_page_size),
+                },
+            ),
         )
     }
 

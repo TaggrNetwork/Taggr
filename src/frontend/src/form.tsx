@@ -419,8 +419,8 @@ export const Form = ({
             )}
             {showTextField && tooExpensive && (
                 <div className="banner vertically_spaced">
-                    You are low on credits! Please mint credits in{" "}
-                    <a href="#/wallet">your wallet</a> to create this post.
+                    You are low on credits! Please mint credits in your wallet
+                    to create this post.
                 </div>
             )}
             {showTextField && !tooExpensive && (
@@ -458,7 +458,7 @@ export const Form = ({
                                 {formButton(<Quote />, (v) => `> ${v}`)}
                                 {formButton(<Link />, (v) => {
                                     const link = prompt("URL:");
-                                    if (!link) return "";
+                                    if (!link) return v;
                                     return `[${v}](${link})`;
                                 })}
                                 {formButton(<Pic />, () => {
@@ -727,7 +727,12 @@ const costs = async (value: string, extraCost: number) => {
     }
     const images = (value.match(/\(\/blob\/.+\)/g) || []).length;
     const { post_cost, blob_cost } = window.backendCache.config;
-    return post_cost + tagCosts + images * blob_cost + extraCost;
+    return (
+        post_cost * (Math.floor(value.length / 1024) + 1) +
+        tagCosts +
+        images * blob_cost +
+        extraCost
+    );
 };
 
 export const loadFile = (file: any): Promise<ArrayBuffer> => {

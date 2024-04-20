@@ -80,80 +80,18 @@ fn post_upgrade() {
 
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
-    // Restore features and corrupted posts
-    #[cfg(not(any(feature = "dev", feature = "staging")))]
-    {
-        mutate(|state| {
-            // Restore corrupted posts 2 & 3
-            use serde_json::json;
-            let post_2 = json!({"id":2,"body":"#hello everyone! I'm [X](#/user/0) the anonymous creator of #Taggr. I wanted to build Taggr for at least 15 years but there was no point to build it on #Web2 to compete with established social platforms. After I've learned about #SNS and #InternetComputer I realized that this is exactly the right moment and the right platform: a public #blockchain on a \"sovereign physical layer\". My main goal is to make #Taggr truly decentralized and make it operate fully autonomously. Then, as a community (if there will be one) we can figure out a sustainable development path for #Taggr.","user":0,"timestamp":1640952386200311995_u64,"children":[151],"parent":null,"watchers":[],"tags":["InternetComputer","SNS","Taggr","Web2","blockchain","hello"],"reactions":{"10":[18446744073709551614_u64,18446744073709551615_u64],"100":[18446744073709551615_u64]},"patches":[],"files":{},"tree_size":1,"tree_update":0,"report":null,"tips":[],"extension":null,"realm":null,"hashes":[],"reposts":[],"heat":0});
-            let post_3 = json!({"id":3,"body":"","user":0,"timestamp":1640954615975657983_i64,"children":[],"parent":null,"watchers":[],"tags":["HappyNewYear","story"],"reactions":{"10":[18446744073709551614_u64,18446744073709551615_u64]},"patches":[],"files":{},"tree_size":0,"tree_update":0,"report":null,"tips":[],"extension":null,"realm":null,"hashes":["c6687c165aaae7c71b08486bbb1e39fd41db0a2605783ebb10dc20d58094f03d"],"reposts":[],"heat":0});
-            state
-                .memory
-                .posts
-                .reinsert(2, serde_json::from_value(post_2).unwrap());
-            state
-                .memory
-                .posts
-                .reinsert(3, serde_json::from_value(post_3).unwrap());
-        });
-
-        // Restore features
-        mutate(|state| state.memory.features.reset());
-        let mut features = Vec::new();
-        read(|state| {
-            for post_id in 1136641..state.next_post_id {
-                if let Some(post) = Post::get(&state, &post_id) {
-                    if !matches!(post.extension, Some(Extension::Feature)) {
-                        continue;
-                    }
-                    let author = state.user(post.user.to_string().as_str()).unwrap();
-                    features.push((author.principal, post_id));
-                }
-            }
-        });
-
-        features
-            .into_iter()
-            .for_each(|(author, post_id)| features::create_feature(author, post_id).unwrap());
-    }
-
-    // Fills new data structures with data
     mutate(|state| {
-        // create indexes for all tags of active subscribers
-        state.tag_indexes = state.users.values().fold(HashMap::new(), |mut acc, user| {
-            for tag in user.feeds.iter().flatten() {
-                let index = acc.entry(tag.clone()).or_default();
-                index.subscribers += 1;
-            }
-            acc
-        });
-
-        // create indexes for all tags
-        for (post_id, tag) in state
-            .posts_with_tags
-            .iter()
-            .filter_map(|id| Post::get(state, id))
-            .flat_map(|post| {
-                post.tags
-                    .iter()
-                    .map(move |tag| (post.id, tag.to_lowercase()))
-            })
-            .collect::<Vec<_>>()
-            .into_iter()
+        // Resetting the report of @KeydaKorven (/post/1219744)
         {
-            let entry = state.tag_indexes.entry(tag.clone()).or_default();
-            entry.posts.push_front(post_id);
-            while entry.posts.len() > 1000 {
-                entry.posts.pop_back();
-            }
-        }
-    });
-
-    // Compensate for the executed by failed proposal #/post/1159871
-    mutate(|state| {
-        if let Some(realm) = state.realms.get_mut("RUGANG") {
-            realm.controllers.insert(1277);
+            let _ = Post::mutate(state, &1180586, |post| {
+                post.report.take();
+                Ok(())
+            });
+            let Some(user) = state.users.get_mut(&3570) else {
+                return;
+            };
+            let _ = user.change_credits(1000, user::CreditsDelta::Plus, "report cancellation");
+            state.burned_cycles -= 1000;
         }
     })
 }
@@ -371,6 +309,11 @@ fn mint_credits() {
 fn create_invite() {
     let credits: Credits = parse(&arg_data_raw());
     mutate(|state| reply(state.create_invite(caller(), credits)));
+}
+
+#[export_name = "canister_update delay_weekly_chores"]
+fn delay_weekly_chores() {
+    reply(mutate(|state| state.delay_weekly_chores(caller())))
 }
 
 #[export_name = "canister_update create_proposal"]

@@ -164,7 +164,7 @@ export const HeadBar = ({
     shareTitle?: string;
     button1?: JSX.Element;
     button2?: JSX.Element;
-    content?: JSX.Element;
+    content?: JSX.Element | false;
     menu?: boolean;
     styleArg?: any;
     burgerTestId?: any;
@@ -952,7 +952,6 @@ const pending_or_recently_confirmed = (report: Report | undefined) =>
             )));
 
 const controversialUser = (profile: User) =>
-    profile.rewards < 0 ||
     pending_or_recently_confirmed(profile.report) ||
     Object.values(profile.post_reports).some((timestamp) =>
         daysOld(
@@ -973,7 +972,7 @@ const checkUserFilterMatch = (
         return "account age is too low";
     }
     if (safe && controversialUser(user)) {
-        return `negative rewards or a report is pending or was confirmed in the last ${user_report_validity_days} days`;
+        return `a report is pending or was confirmed in the last ${user_report_validity_days} days`;
     }
     if (balance * tokenBase() > user.balance + user.cold_balance) {
         return "token balance too low";

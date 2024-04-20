@@ -499,7 +499,10 @@ fn personal_feed() {
         reply(match state.principal_to_user(caller()) {
             None => Default::default(),
             Some(user) => user
-                .personal_feed(state, page, offset)
+                .personal_feed(state, offset)
+                .filter(|post| personal_filter(state, Some(user), post))
+                .skip(page * CONFIG.feed_page_size)
+                .take(CONFIG.feed_page_size)
                 .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         })

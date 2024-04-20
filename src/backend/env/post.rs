@@ -321,6 +321,9 @@ impl Post {
 
     pub fn costs(&self, state: &State, blobs: usize) -> Credits {
         CONFIG.post_cost
+            // we charge each 1kb of the post content + diffs patches coming from edits
+            * ((self.body.len() + self.patches.iter().map(|p| p.1.len()).sum::<usize>()) / 1024 + 1)
+                as u64
             + state.tags_cost(Box::new(self.tags.iter()))
             + blobs as Credits * CONFIG.blob_cost
             + if matches!(self.extension, Some(Extension::Poll(_))) {
@@ -453,7 +456,7 @@ impl Post {
 
             // After we validated the new edited copy of the post, charged the user, we should remove the
             // old post, and insert the edited one.
-            Post::take(state, &id);
+            Post::take(state, &id).expect("couldn't remove old post");
             Post::save(state, post);
 
             if current_realm != picked_realm {
@@ -691,14 +694,14 @@ impl Post {
     }
 
     // Takes the post from cold or hot memory
-    fn take(state: &mut State, post_id: &PostId) -> Post {
+    fn take(state: &mut State, post_id: &PostId) -> Result<Post, String> {
         cache().remove(post_id);
         state
             .posts
             .remove(post_id)
             .ok_or("no post found".to_string())
             .or_else(|_| state.memory.posts.remove(post_id))
-            .unwrap_or_else(|err| panic!("couldn't take post {}: {}", post_id, err))
+            .map_err(|err| format!("couldn't take post {}: {}", post_id, err))
     }
 
     // Takes the post from hot or cold memory, mutates and inserts into the hot memory
@@ -706,7 +709,7 @@ impl Post {
     where
         F: FnOnce(&mut Post) -> Result<T, String>,
     {
-        let mut post = Post::take(state, post_id);
+        let mut post = Post::take(state, post_id)?;
         let result = f(&mut post);
         Post::save(state, post);
         result
@@ -939,10 +942,7 @@ fn tokens(max_tag_length: usize, input: &str, tokens: &[char]) -> impl Iterator<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        env::tests::{create_user, pr},
-        STATE,
-    };
+    use crate::env::tests::{create_user, pr};
 
     #[test]
     fn test_post_archiving() {
@@ -972,14 +972,13 @@ mod tests {
                 *b = unsafe { MEMORY.as_ref().unwrap()[offset as usize + i] }
             }
         };
-        STATE.with(|cell| {
-            cell.replace(Default::default());
-            cell.borrow_mut().memory.set_test_api(
+        mutate(|state| {
+            state.memory.set_test_api(
                 Box::new(mem_grow),
                 Box::new(mem_end),
                 Box::new(writer),
                 Box::new(reader),
-            );
+            )
         });
 
         mutate(|state| {

@@ -183,8 +183,9 @@ export const PostView = ({
         toggleInfo(commentIncoming);
     };
 
+    const isComment = !isRoot(post);
     const expanded =
-        !isCommentView && (focused || (!isFeedItem && !repost) || isThreadView);
+        !isComment && (focused || (!isFeedItem && !repost) || isThreadView);
     const costTable = reactionCosts();
     const isInactive =
         objectReduce(
@@ -196,7 +197,6 @@ export const PostView = ({
     const showReport =
         post.report && !post.report.closed && user && user.stalwart;
     const deleted = post.hashes.length > 0;
-    const isComment = !isRoot(post);
     const commentAsPost = isComment && !isCommentView;
     const realmPost =
         (!isComment || !isCommentView) &&
