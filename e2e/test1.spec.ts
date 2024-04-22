@@ -66,7 +66,7 @@ test.describe("Upgrades & token transfer flow", () => {
             .click();
         // React with a star
         await page
-            .locator('button[title="Reward points: 20"]')
+            .locator('button[title="Reward points: 10"]')
             .first()
             .click({ delay: 3000 });
         await page.waitForTimeout(4500);
@@ -83,7 +83,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.goto("/");
         await page.getByTestId("toggle-user-section").click();
 
-        await expect(page.getByTestId("token-balance")).toHaveText("20");
+        await expect(page.getByTestId("token-balance")).toHaveText("10");
 
         const transferExecuted = new Promise((resolve, _reject) => {
             page.on("dialog", async (dialog) => {
