@@ -11,6 +11,7 @@ import {
     tokens,
     hex,
     parseNumber,
+    commaSeparated,
 } from "./common";
 import * as React from "react";
 import { HourGlass } from "./icons";
@@ -75,6 +76,7 @@ export const ProposalMask = ({
     const [realmId, setRealmId] = React.useState("");
     const [binary, setBinary] = React.useState(new Uint8Array());
     const [commit, setCommit] = React.useState("");
+    const [features, setFeatures] = React.useState("");
 
     const validateAndSaveProposal = async () => {
         switch (proposalType) {
@@ -120,7 +122,14 @@ export const ProposalMask = ({
                 break;
             default:
                 saveProposal({
-                    ["Release"]: { commit, hash: "", binary },
+                    ["Release"]: {
+                        commit,
+                        hash: "",
+                        binary,
+                        closed_features: features
+                            .split(",")
+                            .map((token) => Number(token.trim())),
+                    },
                 });
         }
     };
@@ -233,12 +242,23 @@ export const ProposalMask = ({
             {proposalType == ProposalType.Release && (
                 <div className="spaced column_container">
                     <div className="vcentered bottom_half_spaced">
-                        COMMIT
+                        GIT COMMIT
                         <input
                             type="text"
                             className="left_spaced max_width_col"
                             onChange={async (ev) => {
                                 setCommit(ev.target.value);
+                            }}
+                        />
+                    </div>
+                    <div className="vcentered bottom_half_spaced">
+                        CLOSED FEATURES
+                        <input
+                            type="text"
+                            className="left_spaced max_width_col"
+                            placeholder="comma-separated ids"
+                            onChange={async (ev) => {
+                                setFeatures(ev.target.value);
                             }}
                         />
                     </div>
@@ -351,6 +371,10 @@ export const ProposalView = ({
     const open = proposal.status == "Open";
     const commit =
         "Release" in proposal.payload ? proposal.payload.Release.commit : null;
+    const closed_features =
+        "Release" in proposal.payload
+            ? proposal.payload.Release.closed_features
+            : [];
     const hash =
         "Release" in proposal.payload ? proposal.payload.Release.hash : null;
     const dailyDrop = proposal.voting_power / 100;
@@ -395,9 +419,9 @@ export const ProposalView = ({
                 <div className="bottom_spaced">
                     {commit && (
                         <div className="row_container bottom_half_spaced">
-                            COMMIT:
+                            COMMIT:&nbsp;
                             <a
-                                className="left_half_spaced breakable"
+                                className="breakable"
                                 href={
                                     open
                                         ? REPO_RELEASE
@@ -406,6 +430,16 @@ export const ProposalView = ({
                             >
                                 {commit}
                             </a>
+                        </div>
+                    )}
+                    {closed_features.length && (
+                        <div className="row_container bottom_half_spaced">
+                            CLOSES FEATURES:&nbsp;
+                            {commaSeparated(
+                                closed_features.map((id) => (
+                                    <a href={`#/post/${id}`}>{id}</a>
+                                )),
+                            )}
                         </div>
                     )}
                     {!open && (

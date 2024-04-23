@@ -310,7 +310,12 @@ fn create_proposal() {
 }
 
 #[update]
-fn propose_release(post_id: PostId, commit: String, binary: ByteBuf) -> Result<u32, String> {
+fn propose_release(
+    post_id: PostId,
+    commit: String,
+    features: Vec<PostId>,
+    binary: ByteBuf,
+) -> Result<u32, String> {
     mutate(|state| {
         proposals::create_proposal(
             state,
@@ -320,6 +325,7 @@ fn propose_release(post_id: PostId, commit: String, binary: ByteBuf) -> Result<u
                 commit,
                 binary: binary.to_vec(),
                 hash: Default::default(),
+                closed_features: features,
             }),
             time(),
         )

@@ -46,6 +46,7 @@ export type Backend = {
     propose_release: (
         postId: PostId,
         commit: string,
+        features: PostId[],
         blob: Uint8Array,
     ) => Promise<JsonValue | null>;
 
@@ -247,11 +248,12 @@ export const ApiGenerator = (
         propose_release: async (
             postId: PostId,
             commit: string,
+            features: PostId[],
             blob: Uint8Array,
         ): Promise<JsonValue | null> => {
             const arg = IDL.encode(
-                [IDL.Nat64, IDL.Text, IDL.Vec(IDL.Nat8)],
-                [postId, commit, blob],
+                [IDL.Nat64, IDL.Text, IDL.Vec(IDL.Nat64), IDL.Vec(IDL.Nat8)],
+                [postId, commit, features, blob],
             );
             const response = await call_raw(undefined, "propose_release", arg);
             if (!response) {

@@ -109,3 +109,14 @@ pub fn create_feature(caller: Principal, post_id: PostId) -> Result<(), String> 
         Ok(())
     })
 }
+
+pub fn close_feature(state: &mut State, post_id: PostId) -> Result<(), String> {
+    let mut feature = state.memory.features.remove(&post_id)?;
+    feature.status = 1;
+    state
+        .memory
+        .features
+        .insert(post_id, feature)
+        .expect("couldn't re-insert feature");
+    Ok(())
+}

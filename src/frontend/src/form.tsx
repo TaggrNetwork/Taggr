@@ -158,6 +158,7 @@ export const Form = ({
                             ? await window.api.propose_release(
                                   postId,
                                   proposal.Release.commit,
+                                  proposal.Release.closed_features,
                                   proposal.Release.binary,
                               )
                             : await window.api.call<any>(

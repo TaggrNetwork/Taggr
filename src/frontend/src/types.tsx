@@ -54,6 +54,7 @@ export type Release = {
     commit: string;
     hash: string;
     binary: Uint8Array;
+    closed_features: PostId[];
 };
 
 export type Payload =
