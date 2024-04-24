@@ -13,6 +13,7 @@ use crate::token::{Account, Token, Transaction};
 use crate::{assets, id, mutate, read, time};
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
+use ic_cdk::api::performance_counter;
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{self, canister_balance};
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
@@ -1611,12 +1612,13 @@ impl State {
             )
         });
 
-        let log_time = |state: &mut State, frequency, threshold_millis| {
+        let log = |state: &mut State, frequency, threshold_millis| {
+            let instructions = performance_counter(0) / 1000000000;
             let millis = (time() - now) / MILLISECOND;
             if millis > threshold_millis {
                 state.logger.debug(format!(
-                    "{} routine finished after `{}` ms.",
-                    frequency, millis
+                    "{} routine finished after `{}` ms and used `{}B` instructions.",
+                    frequency, millis, instructions
                 ))
             }
         };
@@ -1625,7 +1627,7 @@ impl State {
             State::weekly_chores(now).await;
             mutate(|state| {
                 state.last_weekly_chores += WEEK;
-                log_time(state, "Weekly", 0);
+                log(state, "Weekly", 0);
             });
         }
 
@@ -1639,7 +1641,7 @@ impl State {
                     state.pending_polls.len(),
                     state.migrations.len(),
                 ));
-                log_time(state, "Daily", 60000);
+                log(state, "Daily", 0);
             });
         }
 
@@ -1647,7 +1649,7 @@ impl State {
             State::hourly_chores(now).await;
             mutate(|state| {
                 state.last_hourly_chores += HOUR;
-                log_time(state, "Hourly", 0);
+                log(state, "Hourly", 60000);
             });
         }
     }
