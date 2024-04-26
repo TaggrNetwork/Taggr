@@ -266,7 +266,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             timer = setTimeout(async () => {
                                 // @ts-ignore
                                 realm.controllers = await userNameToIds(
-                                    input.split(","),
+                                    input.split(/[,\s]/),
                                 );
                                 setRealm({ ...realm });
                             }, 1500);
@@ -290,7 +290,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             timer = setTimeout(async () => {
                                 // @ts-ignore
                                 realm.whitelist = await userNameToIds(
-                                    input.split(","),
+                                    input.split(/[,\s]/),
                                 );
                                 setRealm({ ...realm });
                             }, 1500);

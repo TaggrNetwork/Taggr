@@ -66,7 +66,7 @@ test.describe("Upgrades & token transfer flow", () => {
             .click();
         // React with a star
         await page
-            .locator('button[title="Reward points: 20"]')
+            .locator('button[title="Reward points: 10"]')
             .first()
             .click({ delay: 3000 });
         await page.waitForTimeout(4500);
@@ -83,7 +83,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.goto("/");
         await page.getByTestId("toggle-user-section").click();
 
-        await expect(page.getByTestId("token-balance")).toHaveText("20");
+        await expect(page.getByTestId("token-balance")).toHaveText("10");
 
         const transferExecuted = new Promise((resolve, _reject) => {
             page.on("dialog", async (dialog) => {
@@ -108,7 +108,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
         await transferExecuted;
 
-        await expect(page.getByTestId("token-balance")).toHaveText("14.75");
+        await expect(page.getByTestId("token-balance")).toHaveText("4.75");
         await page.getByTestId("token-balance").click();
         await page.getByRole("link", { name: "6qfxa" }).click();
         await expect(
@@ -220,7 +220,11 @@ test.describe("Upgrades & token transfer flow", () => {
         await fileChooser.setFiles([binaryPath]);
         // Wait for async proposal validation
         await page.waitForTimeout(2000);
-        await page.locator("input[type=text]").fill("coffeecoffeecoffee");
+        await page
+            .locator("div")
+            .filter({ hasText: /^GIT COMMIT$/ })
+            .getByRole("textbox")
+            .fill("coffeecoffeecoffee");
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await expect(page.getByText(/STATUS.*OPEN/)).toBeVisible();
         await expect(page.getByText("TYPE: RELEASE")).toBeVisible();

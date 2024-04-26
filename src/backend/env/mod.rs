@@ -13,6 +13,7 @@ use crate::token::{Account, Token, Transaction};
 use crate::{assets, id, mutate, read, time};
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
+use ic_cdk::api::performance_counter;
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{self, canister_balance};
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
@@ -201,10 +202,6 @@ pub struct State {
     pub distribution_reports: Vec<Summary>,
 
     migrations: BTreeSet<UserId>,
-
-    // TODO: delete
-    #[serde(skip)]
-    pub posts_with_tags: Vec<PostId>,
 
     #[serde(default)]
     pub recent_tags: VecDeque<String>,
@@ -1615,12 +1612,13 @@ impl State {
             )
         });
 
-        let log_time = |state: &mut State, frequency, threshold_millis| {
+        let log = |state: &mut State, frequency, threshold_millis| {
+            let instructions = performance_counter(0) / 1000000000;
             let millis = (time() - now) / MILLISECOND;
             if millis > threshold_millis {
                 state.logger.debug(format!(
-                    "{} routine finished after `{}` ms.",
-                    frequency, millis
+                    "{} routine finished after `{}` ms and used `{}B` instructions.",
+                    frequency, millis, instructions
                 ))
             }
         };
@@ -1629,7 +1627,7 @@ impl State {
             State::weekly_chores(now).await;
             mutate(|state| {
                 state.last_weekly_chores += WEEK;
-                log_time(state, "Weekly", 0);
+                log(state, "Weekly", 0);
             });
         }
 
@@ -1643,7 +1641,7 @@ impl State {
                     state.pending_polls.len(),
                     state.migrations.len(),
                 ));
-                log_time(state, "Daily", 60000);
+                log(state, "Daily", 0);
             });
         }
 
@@ -1651,7 +1649,7 @@ impl State {
             State::hourly_chores(now).await;
             mutate(|state| {
                 state.last_hourly_chores += HOUR;
-                log_time(state, "Hourly", 0);
+                log(state, "Hourly", 60000);
             });
         }
     }
@@ -1733,10 +1731,21 @@ impl State {
         self.distribution_reports.push(summary);
     }
 
+    // Refresh tag costs, mark inactive users as inactive
     fn clean_up(&mut self, now: Time) {
+        for tag in self.tag_indexes.values_mut() {
+            tag.subscribers = 0;
+        }
         for user in self.users.values_mut() {
             if user.active_within_weeks(now, 1) {
                 user.active_weeks += 1;
+
+                // Count this active user's subscriptions
+                for tag in user.feeds.iter().flat_map(|feed| feed.iter()) {
+                    if let Some(index) = self.tag_indexes.get_mut(tag) {
+                        index.subscribers += 1
+                    }
+                }
             } else {
                 user.deactivate();
             }
@@ -3054,15 +3063,15 @@ pub(crate) mod tests {
 
             let user = state.users.get(&user_0).unwrap();
             assert_eq!(user.karma_donations.len(), 2);
-            assert_eq!(user.karma_donations.get(&user_1).unwrap(), &20);
-            assert_eq!(user.karma_donations.get(&user_2).unwrap(), &10);
+            assert_eq!(user.karma_donations.get(&user_1).unwrap(), &10);
+            assert_eq!(user.karma_donations.get(&user_2).unwrap(), &5);
 
             let post_2 =
                 Post::create(state, "B".to_string(), &[], pr(2), 0, None, None, None).unwrap();
             assert!(state.react(pr(0), post_2, 100, WEEK).is_ok());
             let user = state.users.get(&user_0).unwrap();
             assert_eq!(user.karma_donations.len(), 2);
-            assert_eq!(user.karma_donations.get(&user_2).unwrap(), &30);
+            assert_eq!(user.karma_donations.get(&user_2).unwrap(), &15);
         })
     }
 
@@ -3539,21 +3548,21 @@ pub(crate) mod tests {
             }
 
             assert_eq!(state.realms.values().next().unwrap().revenue, 200);
-            assert_eq!(state.principal_to_user(pr(0)).unwrap().rewards(), 1000);
-            assert_eq!(state.principal_to_user(pr(1)).unwrap().rewards(), 1000);
+            assert_eq!(state.principal_to_user(pr(0)).unwrap().rewards(), 500);
+            assert_eq!(state.principal_to_user(pr(1)).unwrap().rewards(), 500);
             assert_eq!(state.principal_to_user(pr(2)).unwrap().rewards(), 0);
-            assert_eq!(state.burned_cycles, 500);
+            assert_eq!(state.burned_cycles, 300);
             state.distribute_realm_revenue(WEEK + WEEK / 2);
             assert_eq!(state.realms.values().next().unwrap().revenue, 0);
             let expected_revenue = (200 / 100 * CONFIG.realm_revenue_percentage / 2) as i64;
-            assert_eq!(state.burned_cycles, 500 - 2 * expected_revenue);
+            assert_eq!(state.burned_cycles, 300 - 2 * expected_revenue);
             assert_eq!(
                 state.principal_to_user(pr(0)).unwrap().rewards(),
-                1000 + expected_revenue
+                500 + expected_revenue
             );
             assert_eq!(
                 state.principal_to_user(pr(1)).unwrap().rewards(),
-                1000 + expected_revenue
+                500 + expected_revenue
             );
             assert_eq!(state.principal_to_user(pr(2)).unwrap().rewards(), 0);
         })
@@ -3689,13 +3698,13 @@ pub(crate) mod tests {
 
             assert_eq!(
                 state.users.get(&id).unwrap().rewards() as Credits,
-                20 + 10 + 2 * CONFIG.response_reward
+                10 + 5 + 2 * CONFIG.response_reward
             );
 
             assert_eq!(
                 state.users.get_mut(&upvoter_id).unwrap().credits(),
                 // reward + fee + post creation
-                upvoter_credits - 20 - 3 - 2
+                upvoter_credits - 10 - 1 - 2
             );
 
             let versions = vec!["a".into(), "b".into()];
@@ -3709,7 +3718,7 @@ pub(crate) mod tests {
                 .unwrap();
             assert_eq!(
                 state.delete_post(pr(0), post_id, versions.clone()),
-                Err("not enough credits (this post requires 62 credits to be deleted)".into())
+                Err("not enough credits (this post requires 47 credits to be deleted)".into())
             );
 
             state
@@ -3727,7 +3736,7 @@ pub(crate) mod tests {
             assert_eq!(
                 state.users.get(&upvoter_id).unwrap().credits(),
                 // reward received back
-                upvoter_credits - 20 - 3 - 2 + 20
+                upvoter_credits - 10 - 1 - 2 + 10
             );
             assert_eq!(state.users.get(&id).unwrap().rewards(), 0);
 
@@ -4457,9 +4466,9 @@ pub(crate) mod tests {
             assert!(state.react(p, post_id, 50, 0).is_ok());
             assert!(state.react(p, post_id, 100, 0).is_err());
             assert!(state.react(p2, post_id, 100, 0).is_ok());
-            let reaction_costs_1 = 12;
-            let burned_credits_by_reactions = 2 + 3;
-            let mut rewards_from_reactions = 10 + 20;
+            let reaction_costs_1 = 6;
+            let burned_credits_by_reactions = 1 + 1;
+            let mut rewards_from_reactions = 5 + 10;
 
             // try to self upvote (should be a no-op)
             assert!(state.react(p0, post_id, 100, 0).is_err());
@@ -4536,6 +4545,13 @@ pub(crate) mod tests {
             lurker.change_credits(100, CreditsDelta::Plus, "").unwrap();
             let lurker_principal = lurker.principal;
             assert!(state.react(lurker_principal, id, 50, 0).is_ok());
+            assert_eq!(state.users.get(&user_id111).unwrap().rewards(), 5);
+
+            // another reaction on a new post
+            let id =
+                Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
+            assert!(state.react(lurker_principal, id, 50, 0).is_ok());
+
             assert_eq!(state.users.get(&user_id111).unwrap().rewards(), 10);
 
             // another reaction on a new post
@@ -4543,14 +4559,7 @@ pub(crate) mod tests {
                 Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
             assert!(state.react(lurker_principal, id, 50, 0).is_ok());
 
-            assert_eq!(state.users.get(&user_id111).unwrap().rewards(), 20);
-
-            // another reaction on a new post
-            let id =
-                Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
-            assert!(state.react(lurker_principal, id, 50, 0).is_ok());
-
-            assert_eq!(state.users.get(&user_id111).unwrap().rewards(), 30);
+            assert_eq!(state.users.get(&user_id111).unwrap().rewards(), 15);
         })
     }
 
@@ -4562,7 +4571,7 @@ pub(crate) mod tests {
             create_user(state, pr(2));
             let c = CONFIG;
 
-            for (reaction, total_fee) in &[(10, 1), (50, 2), (101, 3)] {
+            for (reaction, total_fee) in &[(10, 1), (50, 1), (101, 1)] {
                 state.burned_cycles = 0;
                 let post_id =
                     Post::create(state, "test".to_string(), &[], pr(0), 0, None, None, None)

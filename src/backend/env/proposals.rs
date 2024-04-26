@@ -2,7 +2,7 @@ use super::config::CONFIG;
 use super::post::{Extension, Post, PostId};
 use super::token::{self, account};
 use super::user::Predicate;
-use super::{invoices, RealmId, HOUR};
+use super::{features, invoices, RealmId, HOUR};
 use super::{user::UserId, State};
 use crate::mutate;
 use crate::token::Token;
@@ -28,6 +28,8 @@ pub struct Release {
     pub hash: String,
     #[serde(skip)]
     pub binary: Vec<u8>,
+    #[serde(default)]
+    pub closed_features: Vec<PostId>,
 }
 
 type ProposedReward = Token;
@@ -165,6 +167,15 @@ impl Proposal {
 
         if approvals * 100 >= voting_power * CONFIG.proposal_approval_threshold as u64 {
             match &mut self.payload {
+                Payload::Release(release) => {
+                    for feature_id in &release.closed_features {
+                        if let Err(err) = features::close_feature(state, *feature_id) {
+                            state
+                                .logger
+                                .error(format!("couldn't close feature: {}", err));
+                        }
+                    }
+                }
                 Payload::Funding(receiver, tokens) => mint_tokens(state, *receiver, *tokens)?,
                 Payload::Rewards(reward) => {
                     let total: Token = reward.votes.iter().map(|(vp, _)| vp).sum();
@@ -519,6 +530,7 @@ pub mod tests {
                     commit: "sdasd".into(),
                     hash: "".into(),
                     binary: vec![1],
+                    closed_features: vec![],
                 }),
                 0,
             )
@@ -570,6 +582,7 @@ pub mod tests {
                     commit: "sdasd".into(),
                     hash: "".into(),
                     binary: vec![1],
+                    closed_features: vec![],
                 }),
                 0,
             )

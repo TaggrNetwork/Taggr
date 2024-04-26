@@ -235,7 +235,7 @@ test.describe("Regular users flow", () => {
         // React with a star
         await page
             .locator(".feed_item", { hasText: /Hello world/ })
-            .locator('button[title="Reward points: 20"]')
+            .locator('button[title="Reward points: 10"]')
             .first()
             .click({ delay: 3000 });
         // comment on the first post

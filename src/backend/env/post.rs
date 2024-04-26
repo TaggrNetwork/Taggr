@@ -3,8 +3,8 @@ use std::cmp::{Ordering, PartialOrd};
 use super::reports::ReportState;
 use super::*;
 use super::{storage::Storage, user::UserId};
+use crate::mutate;
 use crate::reports::Report;
-use crate::{mutate, performance_counter};
 use ic_cdk::caller;
 use serde::{Deserialize, Serialize};
 
@@ -769,10 +769,9 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
     state.backup_exists = false;
 
     state.logger.debug(format!(
-        "`{}` posts archived (posts still in heap: `{}`, instructions used: `{}B`)",
+        "`{}` posts archived (posts still in heap: `{}`)",
         archived_posts,
         state.posts.len(),
-        performance_counter(0) / 1000000000
     ));
     Ok(())
 }

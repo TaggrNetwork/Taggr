@@ -79,22 +79,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    mutate(|state| {
-        // Resetting the report of @KeydaKorven (/post/1219744)
-        {
-            let _ = Post::mutate(state, &1180586, |post| {
-                post.report.take();
-                Ok(())
-            });
-            let Some(user) = state.users.get_mut(&3570) else {
-                return;
-            };
-            let _ = user.change_credits(1000, user::CreditsDelta::Plus, "report cancellation");
-            state.burned_cycles -= 1000;
-        }
-    })
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -325,7 +310,12 @@ fn create_proposal() {
 }
 
 #[update]
-fn propose_release(post_id: PostId, commit: String, binary: ByteBuf) -> Result<u32, String> {
+fn propose_release(
+    post_id: PostId,
+    commit: String,
+    features: Vec<PostId>,
+    binary: ByteBuf,
+) -> Result<u32, String> {
     mutate(|state| {
         proposals::create_proposal(
             state,
@@ -335,6 +325,7 @@ fn propose_release(post_id: PostId, commit: String, binary: ByteBuf) -> Result<u
                 commit,
                 binary: binary.to_vec(),
                 hash: Default::default(),
+                closed_features: features,
             }),
             time(),
         )
@@ -495,20 +486,12 @@ fn toggle_following_user() {
 fn toggle_following_feed() {
     mutate(|state| {
         let tags: Vec<String> = parse(&arg_data_raw());
-        let result = state
-            .principal_to_user_mut(caller())
-            .map(|user| user.toggle_following_feed(&tags))
-            .unwrap_or_default();
-        for tag in tags {
-            if let Some(index) = state.tag_indexes.get_mut(&tag) {
-                if result {
-                    index.subscribers += 1
-                } else {
-                    index.subscribers = index.subscribers.saturating_sub(1)
-                }
-            }
-        }
-        reply(result)
+        reply(
+            state
+                .principal_to_user_mut(caller())
+                .map(|user| user.toggle_following_feed(&tags))
+                .unwrap_or_default(),
+        )
     })
 }
 

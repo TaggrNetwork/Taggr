@@ -143,7 +143,7 @@ test.describe("Report and transfer to user", () => {
         });
         await feedItem.getByTestId("reaction-picker").click();
         await feedItem
-            .locator('button[title="Reward points: 20"]')
+            .locator('button[title="Reward points: 10"]')
             .first()
             .click({ delay: 3000 });
 
@@ -204,7 +204,7 @@ test.describe("Report and transfer to user", () => {
         await page.waitForTimeout(1000);
         await page.getByTestId("toggle-user-section").click();
 
-        await expect(page.getByTestId("token-balance")).toHaveText("20");
+        await expect(page.getByTestId("token-balance")).toHaveText("10");
 
         const transferExecuted = new Promise((resolve, _reject) => {
             page.on("dialog", async (dialog) => {
