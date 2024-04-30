@@ -1,9 +1,16 @@
 use candid::{CandidType, Deserialize, Principal};
-use ic_cdk::api::{
-    self,
-    call::{arg_data_raw, reply_raw},
-    canister_balance,
-    stable::*,
+use ic_cdk::{
+    api::{
+        self,
+        call::{arg_data_raw, reply_raw},
+        canister_balance,
+        management_canister::{
+            main::{canister_status, CanisterStatusResponse},
+            provisional::CanisterIdRecord,
+        },
+        stable::*,
+    },
+    id,
 };
 use serde::Serialize;
 use serde_bytes::ByteBuf;
@@ -59,6 +66,27 @@ fn post_upgrade() {
 #[ic_cdk_macros::query]
 fn balance() -> u64 {
     canister_balance()
+}
+
+#[ic_cdk_macros::update]
+async fn cycles() -> (u64, u64) {
+    let CanisterStatusResponse {
+        cycles,
+        idle_cycles_burned_per_day,
+        ..
+    } = canister_status(CanisterIdRecord { canister_id: id() })
+        .await
+        .map(|(val,)| val)
+        .expect("call failed");
+    (
+        cycles.0.to_u64_digits().last().copied().unwrap_or_default(),
+        idle_cycles_burned_per_day
+            .0
+            .to_u64_digits()
+            .last()
+            .copied()
+            .unwrap_or(1),
+    )
 }
 
 #[ic_cdk_macros::query]

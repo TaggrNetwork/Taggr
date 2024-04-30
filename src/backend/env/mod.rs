@@ -1040,36 +1040,44 @@ impl State {
         let children = read(|state| state.storage.buckets.keys().cloned().collect::<Vec<_>>());
 
         // top up the main canister
-        let balance = canister_balance();
-        let target_balance = CONFIG.main_canister_min_cycle_balance;
-        if balance < target_balance {
-            let xdrs = target_balance / ICP_CYCLES_PER_XDR;
-            // subtract weekly burned credits to reduce the revenue
-            mutate(|state| state.spend(xdrs * 1000, "canister top up"));
-            match invoices::topup_with_icp(&api::id(), xdrs).await {
-                Err(err) => mutate(|state| {
-                    state.critical(format!(
+        let main_canister_id = id();
+        match canisters::cycles(main_canister_id).await {
+            Ok((cycles, cycles_per_day)) => {
+                if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
+                    let xdrs =
+                        CONFIG.canister_survival_period_days * cycles_per_day / ICP_CYCLES_PER_XDR;
+                    // subtract weekly burned credits to reduce the revenue
+                    mutate(|state| state.spend(xdrs * 1000, "canister top up"));
+                    match invoices::topup_with_icp(&api::id(), xdrs).await {
+                        Err(err) => mutate(|state| {
+                            state.critical(format!(
                     "FAILED TO TOP UP THE MAIN CANISTER — {}'S FUNCTIONALITY IS ENDANGERED: {:?}",
                     CONFIG.name.to_uppercase(),
                     err
                 ))
-                }),
-                Ok(_credits) => mutate(|state| {
-                    state.logger.debug(format!(
+                        }),
+                        Ok(_credits) => mutate(|state| {
+                            state.logger.debug(format!(
                         "The main canister was topped up with credits (balance was `{}`, now `{}`).",
-                        balance,
+                        cycles,
                         canister_balance()
                     ))
-                }),
+                        }),
+                    }
+                }
             }
-        }
+            Err(err) => mutate(|state| {
+                state.logger.error(format!(
+                    "failed to fetch cycles from `{}`: {}",
+                    main_canister_id, err
+                ))
+            }),
+        };
 
         // top up all children canisters
         let mut topped_up = Vec::new();
         for canister_id in children {
-            match crate::canisters::top_up(canister_id, CONFIG.child_canister_min_cycle_balance)
-                .await
-            {
+            match crate::canisters::top_up(canister_id).await {
                 Ok(true) => topped_up.push(canister_id),
                 Err(err) => mutate(|state| state.critical(err)),
                 _ => {}
