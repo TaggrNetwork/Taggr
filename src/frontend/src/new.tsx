@@ -83,8 +83,8 @@ export const PostSubmissionForm = ({
                     in the corresponding tag-feed.
                 </li>
                 <li>
-                    For long posts, use three empty lines to separate the upper
-                    part of the post from the long body.
+                    For long posts, use three empty lines to separate the
+                    introductory part from the rest of the content.
                 </li>
                 <li>You can drag and drop images into the text area.</li>
                 <li>

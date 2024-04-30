@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Content } from "./content";
+import { CUT, Content } from "./content";
 import {
     bigScreen,
     blobToUrl,
@@ -63,6 +63,7 @@ export const Form = ({
     const [value, setValue] = React.useState("");
     const [realm, setRealm] = React.useState(realmArg);
     const [submitting, setSubmitting] = React.useState(false);
+    const [overflowBanner, setOverflowBanner] = React.useState(false);
     const [lines, setLines] = React.useState(3);
     const [totalCosts, setTotalCosts] = React.useState(0);
     const [proposalType, setProposalType] = React.useState<ProposalType>(
@@ -266,7 +267,17 @@ export const Form = ({
         const suggestedRealms = suggestTokens(cursor, value, realms, "/");
         setSuggestedRealms(suggestedRealms);
         setChoresTimer(
-            setTimeout(() => localStorage.setItem(draftKey, value), 1500),
+            setTimeout(() => {
+                localStorage.setItem(draftKey, value);
+                const article: any = articleRef.current;
+                // Show a banner notifying about a too long post if no cut is used.
+                setOverflowBanner(
+                    article &&
+                        !value.includes(CUT) &&
+                        article.clientHeight > 0 &&
+                        article.scrollHeight > article.clientHeight,
+                );
+            }, 1500),
         );
         if (writingCallback) writingCallback(value);
     };
@@ -330,7 +341,7 @@ export const Form = ({
 
     React.useEffect(() => setFocus(), [showTextField, focus]);
 
-    const ref = React.useRef();
+    const articleRef = React.useRef();
 
     const self = document.getElementById(id);
     if (self && self.clientHeight < self.scrollHeight) setLines(lines + 2);
@@ -355,8 +366,8 @@ export const Form = ({
 
     const preview = (
         <article
-            ref={ref as unknown as any}
-            className={`bottom_spaced max_width_col ${
+            ref={articleRef as unknown as any}
+            className={`bottom_spaced preview max_width_col ${
                 postId == null ? "prime" : ""
             } framed`}
         >
@@ -422,6 +433,13 @@ export const Form = ({
                 <div className="banner vertically_spaced">
                     You are low on credits! Please mint credits in your wallet
                     to create this post.
+                </div>
+            )}
+            {overflowBanner && (
+                <div className="banner vertically_spaced">
+                    Your post is too long and will be cut when displayed in
+                    feeds! Please, use three empty lines to separate the
+                    introductory part from the rest of the content.
                 </div>
             )}
             {showTextField && !tooExpensive && (
