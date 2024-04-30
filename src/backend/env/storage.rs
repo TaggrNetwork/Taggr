@@ -1,8 +1,9 @@
 use crate::{
-    canisters::{self, CanisterInstallMode},
+    canisters::{self},
     mutate, read,
 };
 use candid::Principal;
+use ic_cdk::api::management_canister::main::CanisterInstallMode;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

@@ -366,7 +366,7 @@ impl State {
     }
 
     pub async fn finalize_upgrade() {
-        let current_hash = canisters::settings(id())
+        let current_hash = canisters::status(id())
             .await
             .ok()
             .and_then(|s| s.module_hash.map(hex::encode))
@@ -1041,8 +1041,7 @@ impl State {
 
         // top up the main canister
         let balance = canister_balance();
-        let target_balance = CONFIG.main_canister_min_cycle_balance
-            + children.len() as u64 * CONFIG.child_canister_min_cycle_balance;
+        let target_balance = CONFIG.main_canister_min_cycle_balance;
         if balance < target_balance {
             let xdrs = target_balance / ICP_CYCLES_PER_XDR;
             // subtract weekly burned credits to reduce the revenue
