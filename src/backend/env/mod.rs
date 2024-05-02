@@ -1046,8 +1046,6 @@ impl State {
                 if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
                     let xdrs =
                         CONFIG.canister_survival_period_days * cycles_per_day / ICP_CYCLES_PER_XDR;
-                    // subtract weekly burned credits to reduce the revenue
-                    mutate(|state| state.spend(xdrs * 1000, "canister top up"));
                     match invoices::topup_with_icp(&api::id(), xdrs).await {
                         Err(err) => mutate(|state| {
                             state.critical(format!(
@@ -1056,7 +1054,9 @@ impl State {
                     err
                 ))
                         }),
-                        Ok(_credits) => mutate(|state| {
+                        Ok(_) => mutate(|state| {
+                            // subtract weekly burned credits to reduce the revenue
+                            state.spend(xdrs * 1000, "main canister top up");
                             state.logger.debug(format!(
                         "The main canister was topped up with credits (balance was `{}`, now `{}`).",
                         cycles,

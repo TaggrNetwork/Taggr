@@ -49,11 +49,11 @@ async fn check() {
 
 #[update]
 async fn clear_buckets() {
+    use ic_cdk::api::management_canister::{
+        main::{delete_canister, stop_canister},
+        provisional::CanisterIdRecord,
+    };
     for (canister_id, _) in mutate(|state| std::mem::take(&mut state.storage.buckets)) {
-        use ic_cdk::api::management_canister::{
-            main::{delete_canister, stop_canister},
-            provisional::CanisterIdRecord,
-        };
         let _: Result<(), _> = stop_canister(CanisterIdRecord { canister_id }).await;
         let _: Result<(), _> = delete_canister(CanisterIdRecord { canister_id }).await;
     }
