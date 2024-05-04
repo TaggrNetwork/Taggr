@@ -248,6 +248,7 @@ const markdownizer = (
                     return <p {...props}>{children}</p>;
                 },
                 img: ({ node, ...props }: any) => {
+                    props.src = props.src.replace(/&amp;/g, "&");
                     let srcUrl;
                     let id: string = props.src;
                     let internal = false;
