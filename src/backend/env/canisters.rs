@@ -174,7 +174,7 @@ pub async fn topup_with_cycles(canister_id: Principal, cycles: u128) -> Result<(
 }
 
 pub async fn top_up(canister_id: Principal) -> Result<bool, String> {
-    let (cycles_total, cycles_per_day): (u64, u64) = call_canister(canister_id, "cycles", ((),))
+    let (cycles_total, cycles_per_day): (u64, u64) = cycles(canister_id)
         .await
         .map_err(|err| format!("couldn't call child canister: {:?}", err))?;
     if cycles_total / cycles_per_day < CONFIG.canister_survival_period_days {
