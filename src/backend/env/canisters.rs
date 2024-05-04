@@ -9,21 +9,24 @@ use candid::{
     utils::{ArgumentDecoder, ArgumentEncoder},
     CandidType, Principal,
 };
-use ic_cdk::api::call::{CallResult, RejectionCode};
-use ic_cdk::id;
-use ic_cdk::{
-    api::{
-        call::call_with_payment,
-        call::{call, call_raw},
+use ic_cdk::api::{
+    call::CallResult,
+    management_canister::{
+        main::{
+            canister_status, create_canister, deposit_cycles, install_code, CanisterInstallMode,
+            CanisterStatusResponse, CreateCanisterArgument, InstallCodeArgument,
+        },
+        provisional::CanisterIdRecord,
     },
-    notify,
 };
+use ic_cdk::id;
+use ic_cdk::{api::call::call_raw, notify};
 use ic_ledger_types::MAINNET_GOVERNANCE_CANISTER_ID;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-const CYCLES_FOR_NEW_CANISTER: u64 = 1_000_000_000_000;
+const CYCLES_FOR_NEW_CANISTER: u128 = 1_000_000_000_000;
 
 thread_local! {
     static CALLS: RefCell<HashMap<String, i32>> = Default::default();
@@ -64,87 +67,47 @@ pub fn calls_open() -> usize {
     CALLS.with(|cell| cell.borrow().values().filter(|v| **v > 0).count())
 }
 
-#[derive(CandidType, Deserialize)]
-struct CanisterId {
-    canister_id: Principal,
-}
-
-#[derive(CandidType)]
-struct CanisterSettings {
-    pub controllers: Option<Vec<Principal>>,
-}
-
 pub async fn new() -> Result<Principal, String> {
     open_call("create_canister");
-    let result = call_with_payment(
-        Principal::management_canister(),
-        "create_canister",
-        (CanisterSettings { controllers: None },),
+    let result = create_canister(
+        CreateCanisterArgument { settings: None },
         CYCLES_FOR_NEW_CANISTER,
     )
     .await;
     close_call("create_canister");
 
-    let (response,): (CanisterId,) =
+    let (response,): (CanisterIdRecord,) =
         result.map_err(|err| format!("couldn't create a new canister: {:?}", err))?;
 
     Ok(response.canister_id)
 }
 
-#[derive(CandidType, Deserialize)]
-pub enum CanisterInstallMode {
-    #[serde(rename = "install")]
-    Install,
-    #[serde(rename = "reinstall")]
-    Reinstall,
-    #[serde(rename = "upgrade")]
-    Upgrade,
+/// Returns cycles in the canister and cycles burned per day.
+pub async fn cycles(canister_id: Principal) -> Result<(u64, u64), String> {
+    let CanisterStatusResponse {
+        cycles,
+        idle_cycles_burned_per_day,
+        ..
+    } = status(canister_id).await?;
+    Ok((
+        cycles.0.to_u64_digits().last().copied().unwrap_or_default(),
+        idle_cycles_burned_per_day
+            .0
+            .to_u64_digits()
+            .last()
+            .copied()
+            .unwrap_or(1),
+    ))
 }
 
-#[derive(Deserialize, CandidType)]
-pub struct Settings {
-    pub controllers: Vec<Principal>,
-}
+pub async fn status(canister_id: Principal) -> Result<CanisterStatusResponse, String> {
+    open_call("status");
+    let response = canister_status(CanisterIdRecord { canister_id }).await;
+    close_call("status");
 
-#[derive(Deserialize, CandidType)]
-pub struct StatusCallResult {
-    pub settings: Settings,
-    pub module_hash: Option<Vec<u8>>,
-}
-
-pub async fn settings(canister_id: Principal) -> Result<StatusCallResult, String> {
-    let result = management_canister_call(canister_id, "canister_status").await;
-    let (result,): (StatusCallResult,) =
-        result.map_err(|err| format!("couldn't get canister status: {:?}", err))?;
-    Ok(result)
-}
-
-pub async fn management_canister_call<T: for<'a> ArgumentDecoder<'a>>(
-    canister_id: Principal,
-    method: &str,
-) -> Result<T, (RejectionCode, String)> {
-    #[derive(CandidType)]
-    struct In {
-        canister_id: Principal,
-    }
-
-    open_call(method);
-    let result = call(
-        Principal::management_canister(),
-        method,
-        (In { canister_id },),
-    )
-    .await;
-    close_call(method);
-    result
-}
-
-#[derive(CandidType)]
-struct InstallCodeArgs<'a> {
-    pub mode: CanisterInstallMode,
-    pub canister_id: Principal,
-    pub wasm_module: &'a [u8],
-    pub arg: Vec<u8>,
+    response
+        .map(|(val,)| val)
+        .map_err(|err| format!("couldn't get canister status: {:?}", err))
 }
 
 pub async fn install(
@@ -152,25 +115,13 @@ pub async fn install(
     wasm_module: &[u8],
     mode: CanisterInstallMode,
 ) -> Result<(), String> {
-    #[derive(CandidType)]
-    struct InstallCodeArgs<'a> {
-        pub mode: CanisterInstallMode,
-        pub canister_id: Principal,
-        pub wasm_module: &'a [u8],
-        pub arg: Vec<u8>,
-    }
-
     open_call("install_code");
-    let result = call(
-        Principal::management_canister(),
-        "install_code",
-        (InstallCodeArgs {
-            mode,
-            canister_id,
-            wasm_module,
-            arg: ic_cdk::api::id().as_slice().to_vec(),
-        },),
-    )
+    let result = install_code(InstallCodeArgument {
+        mode,
+        canister_id,
+        wasm_module: wasm_module.to_vec(),
+        arg: ic_cdk::api::id().as_slice().to_vec(),
+    })
     .await;
     close_call("install_code");
 
@@ -200,42 +151,39 @@ pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: boo
     notify(
         Principal::management_canister(),
         "install_code",
-        (InstallCodeArgs {
+        (InstallCodeArgument {
             mode: CanisterInstallMode::Upgrade,
             canister_id: id(),
-            wasm_module,
+            wasm_module: wasm_module.to_vec(),
             arg: ic_cdk::api::id().as_slice().to_vec(),
         },),
     )
     .expect("self-upgrade failed");
 }
 
-pub async fn topup_with_cycles(canister_id: Principal, cycles: u64) -> Result<(), String> {
+pub async fn topup_with_cycles(canister_id: Principal, cycles: u128) -> Result<(), String> {
     #[derive(CandidType)]
     struct Args {
         pub canister_id: Principal,
     }
     open_call("deposit_cycles");
-    let result = call_with_payment(
-        Principal::management_canister(),
-        "deposit_cycles",
-        (Args { canister_id },),
-        cycles,
-    )
-    .await;
+    let result = deposit_cycles(CanisterIdRecord { canister_id }, cycles).await;
     close_call("deposit_cycles");
     result.map_err(|err| format!("couldn't deposit cycles: {:?}", err))?;
     Ok(())
 }
 
-pub async fn top_up(canister_id: Principal, min_cycle_balance: u64) -> Result<bool, String> {
-    let (response,): (u64,) = call_canister(canister_id, "balance", ((),))
+pub async fn top_up(canister_id: Principal) -> Result<bool, String> {
+    let (cycles_total, cycles_per_day): (u64, u64) = call_canister(canister_id, "cycles", ((),))
         .await
         .map_err(|err| format!("couldn't call child canister: {:?}", err))?;
-    if response < min_cycle_balance {
-        topup_with_cycles(canister_id, min_cycle_balance)
-            .await
-            .map_err(|err| format!("failed to top up canister {}: {:?}", canister_id, err))?;
+    if cycles_total / cycles_per_day < CONFIG.canister_survival_period_days {
+        topup_with_cycles(
+            canister_id,
+            CONFIG.canister_survival_period_days as u128 * cycles_per_day as u128,
+        )
+        .await
+        .map_err(|err| format!("failed to top up canister {}: {:?}", canister_id, err))?;
         return Ok(true);
     }
     Ok(false)

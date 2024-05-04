@@ -221,8 +221,9 @@ article {
     overflow: hidden;
 }
 
-.feed_item article {
-    max-height: 90vh;
+.feed_item article,
+article.preview {
+    max-height: 100vh;
     position: relative;
 }
 
@@ -232,20 +233,6 @@ article {
 
 .prime .post_extension article {
     max-height: 150vh;
-}
-
-.post_extension article.overflowing::after {
-    background: linear-gradient(to top, $light_background, transparent);
-}
-
-article.overflowing::after {
-    content: "";
-    height: 50px;
-    width: 100%;
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    background: linear-gradient(to top, $background, transparent);
 }
 
 .feed_item {

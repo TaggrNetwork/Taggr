@@ -79,10 +79,20 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        // Reset Keyda's report again (the last time missed `post_report`, see https://taggr.link/#/post/1273612)
+        if let Some(user) = state.users.get_mut(&3570) {
+            user.post_reports.clear();
+            user.report.take();
+        }
+    })
+}
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {}
+async fn async_post_upgrade_fixtures() {
+    storage::upgrade_buckets().await;
+}
 
 /*
  * UPDATES

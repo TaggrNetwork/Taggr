@@ -43,7 +43,7 @@ import {
     More,
 } from "./icons";
 import { ProposalView } from "./proposals";
-import { BlogTitle, Feature, Post, PostId, Realm, UserId } from "./types";
+import { Feature, Post, PostId, Realm, UserId } from "./types";
 import { MAINNET_MODE } from "./env";
 import { UserLink, UserList, populateUserNameCache } from "./user_resolve";
 
@@ -317,14 +317,16 @@ export const PostView = ({
                     </div>
                 )}
                 {!isNSFW && (
-                    <PostContent
-                        blogTitle={blogTitle}
-                        expanded={expanded}
-                        value={body}
-                        primeMode={isRoot(post) && !repost}
-                        urls={urls}
-                        goInside={goInside}
-                    />
+                    <article onClick={goInside}>
+                        <Content
+                            blogTitle={blogTitle}
+                            post={true}
+                            value={body}
+                            collapse={!expanded}
+                            primeMode={isRoot(post) && !repost}
+                            urls={urls}
+                        />
+                    </article>
                 )}
                 {showExtension && post.extension == "Feature" && (
                     <FeatureView id={post.id} />
@@ -434,74 +436,6 @@ const Comments = ({
                 </li>
             ))}
         </ul>
-    );
-};
-
-const PostContent = ({
-    goInside,
-    expanded,
-    blogTitle,
-    primeMode,
-    urls,
-    value,
-}: {
-    blogTitle?: BlogTitle;
-    primeMode: boolean;
-    expanded?: boolean;
-    goInside: any;
-    urls: { [id: string]: string };
-    value: string;
-}) => {
-    // All posts in non-prime mode should be collapsed if they are too long. The problem with
-    // deterministic collapsing is that the height of a DOM element is only known when this element
-    // is rendered. The rendering itself is asynchronous and transparent to the React framework.
-    // So there is a fundamental limitation to how much we can do from inside the React itself.
-    //
-    // To work around this limitation, we do the following. First, we render the container of
-    // the post and then, once we have the link to the DOM element, we make 10 attempts lasting at
-    // most 1s in total, where we try to measure the height of the container and the height of its
-    // content. If the content is longer that the container height, we mark the post as overflowing
-    // which displays the post with a gradient below.
-    //
-    // In the worst case (if the content takes longer than 1s to render), this post will be cut but
-    // not display the gradient.
-    //
-    // The reason why it needs to be delayed and implemented asynchronously is that
-    // the post content itself is rendered asynchronously as well: it takes non-zero time to render
-    // long posts, let alone to load and render an image. The markdown library we use does not provide
-    // any reliable callback mechanism notofying about the end of the rendering.
-    const [renderingAttempts, setRenderingAttempts] = React.useState(
-        expanded ? 0 : 15,
-    );
-    const refArticle = React.useRef();
-
-    React.useEffect(() => {
-        if (renderingAttempts <= 0) return;
-        setTimeout(() => {
-            const article: any = refArticle.current;
-            // The parent container or the child content was not rendered yet.
-            if (!article || article.clientHeight == 0) {
-                setRenderingAttempts(renderingAttempts - 1);
-                return;
-            }
-            if (article.scrollHeight > article.clientHeight) {
-                article.classList.add("overflowing");
-            }
-            setRenderingAttempts(0);
-        }, 100);
-    }, [renderingAttempts]);
-
-    return (
-        <article ref={refArticle as unknown as any} onClick={goInside}>
-            <Content
-                blogTitle={blogTitle}
-                post={true}
-                value={value}
-                collapse={!expanded}
-                primeMode={primeMode}
-                urls={urls}
-            />
-        </article>
     );
 };
 
