@@ -22,9 +22,10 @@ runs:
           echo "DFX restored from cache"
         else
           echo "DFX not restored from cache, running install script:"
-          DFX_VERSION=${{ env.dfx_version }} sh -ci "$(curl -fsSL https://sdk.dfinity.org/install.sh)"
+          DFXVM_INIT_YES=1 DFX_VERSION=${{ env.dfx_version }} sh -ci "$(curl -fsSL https://sdk.dfinity.org/install.sh)"
         fi
         echo "DFX version"
+        source "$HOME/.local/share/dfx/env"
         dfx --version
 
     - name: Configure DFX
