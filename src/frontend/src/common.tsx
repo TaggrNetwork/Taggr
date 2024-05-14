@@ -419,7 +419,8 @@ export const timeAgo = (
     }
 };
 
-const tokenBase = () => Math.pow(10, window.backendCache.config.token_decimals);
+export const tokenBase = () =>
+    Math.pow(10, window.backendCache.config.token_decimals);
 
 export const tokenBalance = (balance: number) =>
     (balance / tokenBase()).toLocaleString();
@@ -430,6 +431,9 @@ export const icpCode = (e8s: BigInt, decimals?: number, units = true) => (
         {units && " ICP"}
     </code>
 );
+
+export const shortenAccount = (account: string) =>
+    `${account.slice(0, 6)}..${account.substr(account.length - 6)}`;
 
 export const tokens = (n: number, decimals: number, hideDecimals?: boolean) => {
     let base = Math.pow(10, decimals);
@@ -554,10 +558,7 @@ export const blobToUrl = (blob: ArrayBuffer) =>
 
 export const isRoot = (post: Post) => post.parent == null;
 
-export const token = (n: number) =>
-    Math.ceil(
-        n / Math.pow(10, window.backendCache.config.token_decimals),
-    ).toLocaleString();
+export const token = (n: number) => Math.ceil(n / tokenBase()).toLocaleString();
 
 export const IconToggleButton = ({
     title,

@@ -1,7 +1,9 @@
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
-use crate::env::{proposals::Payload, token::Token, user::UserFilter};
+use crate::env::{
+    invoices::principal_to_subaccount, proposals::Payload, token::Token, user::UserFilter,
+};
 
 use super::*;
 use candid::Principal;
@@ -17,6 +19,7 @@ use ic_cdk::{
     caller,
 };
 use ic_cdk_macros::query;
+use ic_ledger_types::AccountIdentifier;
 use serde_bytes::ByteBuf;
 
 #[export_name = "canister_query check_invite"]
@@ -55,6 +58,17 @@ fn migration_pending() {
     read(|state| {
         reply(state.principal_change_requests.contains_key(&caller()));
     });
+}
+
+#[export_name = "canister_query auction"]
+fn auction() {
+    read(|state| {
+        reply((
+            &state.auction,
+            // user's canister subaccount for the ICP deposit
+            AccountIdentifier::new(&id(), &principal_to_subaccount(&caller())).to_string(),
+        ))
+    })
 }
 
 #[export_name = "canister_query features"]

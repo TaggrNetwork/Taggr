@@ -79,7 +79,9 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| state.auction.amount = CONFIG.weekly_auction_size_tokens)
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {
@@ -596,6 +598,19 @@ fn confirm_emergency_release() {
 #[update]
 fn force_emergency_upgrade() -> bool {
     mutate(|state| state.execute_pending_emergency_upgrade(true))
+}
+
+#[export_name = "canister_update create_bid"]
+fn create_bid() {
+    spawn(async {
+        let (amount, e8s_per_token): (u64, u64) = parse(&arg_data_raw());
+        reply(auction::create_bid(caller(), amount, e8s_per_token).await)
+    });
+}
+
+#[export_name = "canister_update cancel_bid"]
+fn cancel_bid() {
+    spawn(async { reply(auction::cancel_bid(caller()).await) });
 }
 
 fn caller() -> Principal {
