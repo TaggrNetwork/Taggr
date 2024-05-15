@@ -62,9 +62,28 @@ async fn clear_buckets() {
 #[update]
 fn replace_user_principal(principal: String, user_id: UserId) {
     mutate(|state| {
-        state
-            .principals
-            .insert(Principal::from_text(principal).unwrap(), user_id)
+        use crate::token::Account;
+        let principal = Principal::from_text(principal).unwrap();
+        state.principals.insert(principal, user_id);
+        let user_principal = state.principal_to_user(principal).unwrap().principal;
+        let balance = state
+            .balances
+            .remove(&Account {
+                owner: user_principal,
+                subaccount: None,
+            })
+            .unwrap();
+        state.balances.insert(
+            Account {
+                owner: principal,
+                subaccount: None,
+            },
+            balance,
+        );
+        let power = state.minting_power.remove(&user_principal).unwrap();
+        state.minting_power.insert(principal, power);
+        let user = state.principal_to_user_mut(principal).unwrap();
+        user.principal = principal;
     });
 }
 
