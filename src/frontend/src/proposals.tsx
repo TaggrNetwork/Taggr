@@ -128,6 +128,7 @@ export const ProposalMask = ({
                         binary,
                         closed_features: features
                             .split(",")
+                            .filter((v) => v.length > 0)
                             .map((token) => Number(token.trim())),
                     },
                 });
@@ -432,7 +433,7 @@ export const ProposalView = ({
                             </a>
                         </div>
                     )}
-                    {closed_features.length && (
+                    {closed_features.length > 0 && (
                         <div className="row_container bottom_half_spaced">
                             CLOSES FEATURES:&nbsp;
                             {commaSeparated(

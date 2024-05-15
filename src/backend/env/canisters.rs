@@ -173,22 +173,6 @@ pub async fn topup_with_cycles(canister_id: Principal, cycles: u128) -> Result<(
     Ok(())
 }
 
-pub async fn top_up(canister_id: Principal) -> Result<bool, String> {
-    let (cycles_total, cycles_per_day): (u64, u64) = call_canister(canister_id, "cycles", ((),))
-        .await
-        .map_err(|err| format!("couldn't call child canister: {:?}", err))?;
-    if cycles_total / cycles_per_day < CONFIG.canister_survival_period_days {
-        topup_with_cycles(
-            canister_id,
-            CONFIG.canister_survival_period_days as u128 * cycles_per_day as u128,
-        )
-        .await
-        .map_err(|err| format!("failed to top up canister {}: {:?}", canister_id, err))?;
-        return Ok(true);
-    }
-    Ok(false)
-}
-
 #[derive(CandidType, Debug, Serialize, Deserialize)]
 pub struct NeuronId {
     pub id: u64,

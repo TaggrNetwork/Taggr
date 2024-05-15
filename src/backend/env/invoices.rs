@@ -200,14 +200,13 @@ pub async fn get_xdr_in_e8s() -> Result<u64, String> {
     Ok((100_000_000.0 / xdr_permyriad_per_icp as f64) as u64 * 10_000)
 }
 
-pub async fn topup_with_icp(canister_id: &Principal, xdrs: u64) -> Result<u128, String> {
-    let e8s = xdrs * get_xdr_in_e8s().await?;
+pub async fn topup_with_icp(canister_id: &Principal, icp: Tokens) -> Result<u128, String> {
     let block_index = transfer(
         AccountIdentifier::new(
             &MAINNET_CYCLES_MINTING_CANISTER_ID,
             &principal_to_subaccount(canister_id),
         ),
-        Tokens::from_e8s(e8s),
+        icp,
         Memo(0x50555054),
         None,
     )

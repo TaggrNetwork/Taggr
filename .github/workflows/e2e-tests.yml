@@ -10,6 +10,9 @@ jobs:
   e2e_tests:
     runs-on: ubuntu-latest
     steps:
+      - name: Add dfx to PATH
+        run: echo "$HOME/.local/share/dfx/bin" >> $GITHUB_PATH
+
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-nodejs
       - uses: ./.github/actions/setup-dfx
