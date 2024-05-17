@@ -271,6 +271,17 @@ pub enum Destination {
 }
 
 impl State {
+    pub fn register_post_tags(&mut self, post_id: PostId, tags: &BTreeSet<String>) {
+        for tag in tags {
+            let index = self.tag_indexes.entry(tag.clone()).or_default();
+            index.posts.push_front(post_id);
+            while index.posts.len() > 1000 {
+                index.posts.pop_back();
+            }
+            self.recent_tags.push_back(tag.clone());
+        }
+    }
+
     pub fn delay_weekly_chores(&mut self, caller: Principal) -> bool {
         let Some(user) = self
             .principal_to_user(caller)
@@ -3027,8 +3038,8 @@ pub(crate) mod tests {
         assert_eq!(display_tokens(34544, 2), "345.44");
     }
 
-    #[test]
-    fn test_tag_indexes() {
+    #[actix_rt::test]
+    async fn test_tag_indexes() {
         mutate(|state| {
             create_user_with_params(state, pr(1), "alice", 1000);
             Post::create(
@@ -3062,6 +3073,24 @@ pub(crate) mod tests {
             assert!(state.tag_indexes.get("test").unwrap().posts.contains(&0));
             assert!(state.tag_indexes.get("more").unwrap().posts.contains(&1));
             assert_eq!(&state.tag_indexes.get("tags").unwrap().posts, &vec![1, 0]);
+            // No posts for this tag
+            assert!(state.tag_indexes.get("coffee").is_none());
+        });
+
+        Post::edit(
+            1,
+            "Now this post is about #coffee".into(),
+            vec![],
+            "".to_string(),
+            None,
+            pr(1),
+            time(),
+        )
+        .await
+        .unwrap();
+
+        read(|state| {
+            assert_eq!(&state.tag_indexes.get("coffee").unwrap().posts, &vec![1]);
         });
     }
 
