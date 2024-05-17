@@ -1404,11 +1404,26 @@ impl State {
             total_rewards += user_reward;
             total_revenue += user_revenue;
             items.push((e8s, user.name.clone()));
-            user.notify(format!(
-                "You received `{}` ICP as rewards and `{}` ICP as revenue! 💸",
-                display_tokens(user_reward, 8),
-                display_tokens(user_revenue, 8)
-            ));
+            if user_reward > 0 || user_revenue > 0 {
+                let mut notification = String::from("You received ");
+                if user_reward > 0 {
+                    notification.push_str(&format!(
+                        "`{}` ICP as rewards",
+                        display_tokens(user_reward, 8)
+                    ));
+                }
+                if user_revenue > 0 {
+                    if user_reward > 0 {
+                        notification.push_str(" and ");
+                    }
+                    notification.push_str(&format!(
+                        "`{}` ICP as revenue",
+                        display_tokens(user_revenue, 8)
+                    ));
+                }
+                notification.push_str("! 💸");
+                user.notify(notification);
+            }
         }
         if self.burned_cycles > 0 {
             self.spend(self.burned_cycles as Credits, "revenue distribution");
