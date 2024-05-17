@@ -229,7 +229,7 @@ export const PostView = ({
                   realm: post.realm,
                   created: postCreated,
                   length: body.length,
-                  background: realm_color ? realm_color[0] : "",
+                  background: realm_color,
               }
             : undefined;
 
