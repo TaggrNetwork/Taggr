@@ -1494,6 +1494,12 @@ impl State {
                     *timestamp + CONFIG.downvote_counting_period_days * DAY >= now
                 });
             }
+
+            if let Err(err) = state.archive_cold_data() {
+                state
+                    .logger
+                    .error(format!("couldn't archive cold data: {:?}", err));
+            }
         });
 
         export_token_supply(token::icrc1_total_supply());
@@ -1621,15 +1627,7 @@ impl State {
     }
 
     pub async fn hourly_chores(now: u64) {
-        mutate(|state| {
-            if let Err(err) = state.archive_cold_data() {
-                state
-                    .logger
-                    .error(format!("couldn't archive cold data: {:?}", err));
-            }
-
-            state.conclude_polls(now)
-        });
+        mutate(|state| state.conclude_polls(now));
 
         State::fetch_xdr_rate().await;
 
@@ -1684,7 +1682,7 @@ impl State {
                     state.pending_polls.len(),
                     state.migrations.len(),
                 ));
-                log(state, "Daily", 0);
+                log(state, "Daily", 1000);
             });
         }
 
