@@ -435,13 +435,6 @@ export const Form = ({
                     to create this post.
                 </div>
             )}
-            {overflowBanner && (
-                <div className="banner vertically_spaced">
-                    Your post is too long and will be cut when displayed in
-                    feeds! Please, use three empty lines to separate the
-                    introductory part from the rest of the content.
-                </div>
-            )}
             {showTextField && !tooExpensive && (
                 <form
                     ref={form as unknown as any}
@@ -700,7 +693,14 @@ export const Form = ({
                     Proposal validation failed: {proposalValidationError}
                 </div>
             )}
-            {!tooExpensive && (
+            {overflowBanner && (
+                <div className="banner vertically_spaced">
+                    Your post is too long and will be cut when displayed in
+                    feeds! Please, use three empty lines to separate the
+                    introductory part from the rest of the content.
+                </div>
+            )}
+            {!tooExpensive && !overflowBanner && (
                 <ButtonWithLoading
                     disabled={!!proposalValidationError}
                     classNameArg={
