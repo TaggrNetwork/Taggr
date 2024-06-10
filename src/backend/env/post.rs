@@ -430,7 +430,11 @@ impl Post {
                 }
             }
             let user_id = user.id;
-            post.tags = tags(CONFIG.max_tag_length, &body).collect();
+            let tags = tags(CONFIG.max_tag_length, &body).collect();
+            if post.parent.is_none() {
+                state.register_post_tags(post.id, &tags);
+            }
+            post.tags = tags;
             post.body = body;
             post.valid(&blobs)?;
             let old_blob_ids = post
@@ -602,14 +606,7 @@ impl Post {
         }
 
         if post.parent.is_none() {
-            for tag in &tags {
-                let index = state.tag_indexes.entry(tag.clone()).or_default();
-                index.posts.push_front(post.id);
-                while index.posts.len() > 1000 {
-                    index.posts.pop_back();
-                }
-                state.recent_tags.push_back(tag.clone());
-            }
+            state.register_post_tags(post.id, &tags);
         }
 
         while state.recent_tags.len() > 5000 {

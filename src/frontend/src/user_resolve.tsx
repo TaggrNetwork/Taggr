@@ -59,7 +59,7 @@ export const UserLink = ({
     profile?: boolean;
 }) => {
     const [loading, setLoading] = React.useState(false);
-    const [userName, setUserName] = React.useState<string>(USER_CACHE[id]);
+    const [userName, setUserName] = React.useState<string | null>(null);
 
     const loadUserName = async () => {
         if (name) USER_CACHE[id] = name;
@@ -70,6 +70,10 @@ export const UserLink = ({
     React.useEffect(() => {
         if (id != undefined) loadUserName();
     }, []);
+
+    React.useEffect(() => {
+        setUserName(USER_CACHE[id]);
+    }, [id]);
 
     if (loading) return <Loading spaced={false} />;
 
