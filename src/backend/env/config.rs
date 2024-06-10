@@ -165,7 +165,7 @@ pub const CONFIG: &Config = &Config {
     logo: include_str!("../../frontend/assets/logo.min.svg"),
     staging: "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io",
 
-    weekly_auction_size_tokens: 15000,
+    weekly_auction_size_tokens: 1500,
 
     #[cfg(not(feature = "staging"))]
     token_symbol: "TAGGR",
