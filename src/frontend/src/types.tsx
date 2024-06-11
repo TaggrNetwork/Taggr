@@ -10,6 +10,18 @@ export type ICP = {
     e8s: BigInt | number;
 };
 
+export type Bid = {
+    user: UserId;
+    amount: number;
+    e8s_per_token: number;
+    timestamp: number;
+};
+
+export type Auction = {
+    amount: number;
+    bids: Bid[];
+};
+
 export type Poll = {
     options: string[];
     votes: { [option: number]: UserId[] };

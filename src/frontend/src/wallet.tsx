@@ -1,4 +1,5 @@
 import {
+    shortenAccount,
     CopyToClipboard,
     HeadBar,
     Loading,
@@ -223,9 +224,6 @@ export const Welcome = () => {
         </>
     );
 };
-
-const shortenAccount = (account: string) =>
-    `${account.slice(0, 6)}..${account.substr(account.length - 6)}`;
 
 const shortenPrincipal = (principal: string) => {
     const parts = principal.split("-");

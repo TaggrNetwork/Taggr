@@ -1,19 +1,24 @@
 import {
     bigScreen,
+    ButtonWithLoading,
     CopyToClipboard,
     HeadBar,
     Loading,
     MoreButton,
     NotFound,
+    parseNumber,
     percentage,
+    shortenAccount,
     timeAgo,
     token,
     TokenBalance,
     tokenBalance,
+    tokenBase,
+    tokens,
     USD_PER_XDR,
 } from "./common";
 import * as React from "react";
-import { UserId, Transaction, User, Account } from "./types";
+import { UserId, Transaction, User, Account, Auction } from "./types";
 import { Principal } from "@dfinity/principal";
 import { decodeIcrcAccount, encodeIcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
@@ -227,6 +232,8 @@ export const Tokens = () => {
                 </table>
                 <MoreButton callback={async () => setBalPage(balPage + 1)} />
                 <hr />
+                <Auction />
+                <hr />
                 <h2>
                     Upcoming Minting (
                     {token(rewards.reduce((acc, [_, val]) => acc + val, 0))})
@@ -275,6 +282,155 @@ export const Tokens = () => {
                 <h2>Latest transactions</h2>
             </div>
             <TransactionsView />
+        </>
+    );
+};
+
+const Auction = ({}) => {
+    const [auction, setAuction] = React.useState<Auction>();
+    const [internalAccount, setInternalAccount] = React.useState("");
+    const [e8sPerToken, setE8sPerToken] = React.useState<string>("");
+    const [bidSize, setBidSize] = React.useState<string>("");
+    const [parsedE8sPerToken, setParsedE8sPerToken] = React.useState(0);
+    const [parsedBidSize, setParsedBidSize] = React.useState(0);
+    const [payment, setPayment] = React.useState(0);
+
+    const { token_symbol, token_decimals } = window.backendCache.config;
+
+    const loadData = async () => {
+        const [auction, account] =
+            (await window.api.query<[Auction, string]>("auction", [])) || [];
+        if (!auction) return;
+        auction.bids = auction.bids.reverse();
+        setAuction(auction);
+        setInternalAccount(account || "");
+    };
+
+    React.useEffect(() => {
+        const e8s = (parseNumber(e8sPerToken || "0", 8) || 0) / tokenBase();
+        const tokens = parseNumber(bidSize || "0", token_decimals) || 0;
+        const volume = e8s * tokens;
+        if (volume > 0) {
+            setPayment(volume);
+            setParsedBidSize(tokens);
+            setParsedE8sPerToken(e8s);
+        }
+    }, [e8sPerToken, bidSize]);
+
+    React.useEffect(() => {
+        loadData();
+    }, []);
+
+    if (!auction) return null;
+
+    return (
+        <>
+            <h2>Upcoming Auction</h2>
+            <p>
+                Amount: <code>{tokens(auction.amount, token_decimals)}</code>{" "}
+                {token_symbol}
+            </p>
+            <p>
+                This is the decentralized auction establishing the market price
+                of {token_symbol}.
+            </p>
+            <div className="stands_out padded_rounded">
+                To participate in the auction, create a bid here.
+                <div className="column_container top_spaced">
+                    <input
+                        type="text"
+                        value={e8sPerToken}
+                        onChange={(e) => setE8sPerToken(e.target.value)}
+                        placeholder={`ICP per 1 ${token_symbol}`}
+                    />
+                    <input
+                        type="text"
+                        value={bidSize}
+                        onChange={(e) => setBidSize(e.target.value)}
+                        className="top_half_spaced"
+                        placeholder={`Number of ${token_symbol} tokens`}
+                    />
+                    {payment > 0 && (
+                        <p className="top_spaced bottom_spaced">
+                            Please transfer <code>{tokens(payment, 8)}</code>{" "}
+                            ICP to
+                            <br />
+                            <br />
+                            <CopyToClipboard
+                                value={internalAccount}
+                                displayMap={(account) =>
+                                    bigScreen()
+                                        ? account
+                                        : shortenAccount(account)
+                                }
+                            />
+                            <br />
+                            <br />
+                            before creating a bid.
+                        </p>
+                    )}
+                    <div className="row_container">
+                        <ButtonWithLoading
+                            classNameArg="top_spaced max_width_col right_half_spaced"
+                            onClick={async () => {
+                                const response: any =
+                                    await window.api.call("cancel_bid");
+                                if (!response) {
+                                    alert("Error: call failed");
+                                    return;
+                                }
+                                if ("Err" in response) {
+                                    alert(`Error: ${response.Err}`);
+                                    return;
+                                }
+                                await loadData();
+                            }}
+                            label="CANCEL MY BID"
+                        />
+                        <ButtonWithLoading
+                            classNameArg="top_spaced active max_width_col left_half_spaced"
+                            onClick={async () => {
+                                const response: any = await window.api.call(
+                                    "create_bid",
+                                    parsedBidSize,
+                                    parsedE8sPerToken,
+                                );
+                                if (!response) {
+                                    alert("Error: call failed");
+                                    return;
+                                }
+                                if ("Err" in response) {
+                                    alert(`Error: ${response.Err}`);
+                                    return;
+                                }
+                                setE8sPerToken("");
+                                setBidSize("");
+                                await loadData();
+                            }}
+                            label="CREATE MY BID"
+                        />
+                    </div>
+                </div>
+            </div>
+            {auction.bids.length > 0 && (
+                <>
+                    <h3>Current bids</h3>
+                    <ul>
+                        {auction?.bids.map((bid) => (
+                            <li key={bid.user}>
+                                <code>
+                                    {tokens(bid.e8s_per_token * tokenBase(), 8)}
+                                </code>{" "}
+                                ICP per token for{" "}
+                                <code>
+                                    {tokens(bid.amount, token_decimals)}
+                                </code>{" "}
+                                {token_symbol} by <UserLink id={bid.user} />
+                            </li>
+                        ))}
+                    </ul>
+                </>
+            )}
         </>
     );
 };
