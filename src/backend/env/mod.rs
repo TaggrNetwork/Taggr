@@ -1712,6 +1712,8 @@ impl State {
             state.minting_mode = false;
         });
 
+        State::distribute_icp().await;
+
         let minting_price = State::close_auction().await;
         mutate(|state| {
             state.logger.info(format!(
@@ -1720,7 +1722,6 @@ impl State {
             ))
         });
 
-        State::distribute_icp().await;
         mutate(|state| {
             for summary in &state.distribution_reports {
                 state.logger.info(format!(
