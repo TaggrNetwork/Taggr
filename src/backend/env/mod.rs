@@ -1787,15 +1787,15 @@ impl State {
             }
             state.minting_mode = false;
 
-            // set token number for the next week
-            state.auction.amount = CONFIG.weekly_auction_size_tokens;
-
             // subtract the fee because we will move it to the treasury
             revenue = revenue.saturating_sub(icp_fee);
             state.burned_cycles +=
                 (revenue / state.e8s_for_one_xdr * CONFIG.credits_per_xdr) as i64;
 
             let minting_price = revenue / state.auction.amount;
+
+            // set token number for the next week
+            state.auction.amount = CONFIG.weekly_auction_size_tokens;
 
             (bids, revenue, minting_price)
         });

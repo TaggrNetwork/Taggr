@@ -79,14 +79,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    mutate(|state| {
-        state.timers.last_hourly = state.last_hourly_chores;
-        state.timers.last_daily = state.last_daily_chores;
-        // compensate for the bug introduced by 3 overlapping weekly routines
-        state.timers.last_weekly = state.last_weekly_chores - 2 * WEEK;
-    })
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {
