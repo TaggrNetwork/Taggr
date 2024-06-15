@@ -245,7 +245,6 @@ export type User = {
     cold_balance: number;
     cold_wallet: string;
     controllers: string[];
-    karma_donations: { [key: UserId]: number };
     downvotes: { [key: UserId]: number };
     filters: Filters;
     blacklist: UserId[];
@@ -290,7 +289,6 @@ declare global {
                 fees_burned: number;
                 volume_day: number;
                 volume_week: number;
-                minting_ratio: number;
                 users: number;
                 active_users: number;
                 users_online: number;
@@ -320,7 +318,6 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
-                difficulty_amplification: number;
                 user_report_validity_days: number;
                 downvote_counting_period_days: number;
                 max_report_length: number;

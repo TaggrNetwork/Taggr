@@ -29,19 +29,13 @@ type Balances = [Account, number, UserId][];
 
 export const Tokens = () => {
     const [status, setStatus] = React.useState(0);
-    const [rewards, setRewards] = React.useState<[UserId, number][]>([]);
-    const [donors, setDonors] = React.useState<[UserId, number][]>([]);
-    const [showAllRewards, setShowAllRewards] = React.useState(false);
-    const [showAllDonors, setShowAllDonors] = React.useState(false);
     const [balances, setBalances] = React.useState([] as Balances);
     const [balPage, setBalPage] = React.useState(0);
     const [holder, setHolder] = React.useState(-1);
 
     const loadData = async () => {
-        const [balances, rewards, donors] = await Promise.all([
+        const [balances] = await Promise.all([
             window.api.query<Balances>("balances"),
-            window.api.query<[UserId, number][]>("tokens_to_mint"),
-            window.api.query<[UserId, number][]>("donors"),
         ]);
 
         if (!balances || balances.length == 0) {
@@ -51,12 +45,6 @@ export const Tokens = () => {
         setStatus(1);
         balances.sort((a, b) => Number(b[1]) - Number(a[1]));
         setBalances(balances);
-        if (donors) setDonors(donors);
-        if (!rewards) return;
-        rewards.sort(
-            ([_id, balance1], [_id2, balance2]) => balance2 - balance1,
-        );
-        setRewards(rewards);
     };
 
     React.useEffect(() => {
@@ -71,12 +59,8 @@ export const Tokens = () => {
         (acc, [_0, balance, userId]) => (userId == null ? acc : acc + balance),
         0,
     );
-    const {
-        maximum_supply,
-        proposal_approval_threshold,
-        transaction_fee,
-        difficulty_amplification,
-    } = window.backendCache.config;
+    const { maximum_supply, proposal_approval_threshold, transaction_fee } =
+        window.backendCache.config;
     const uniqueUsers = balances.reduce(
         (acc, [_, balance, userId]) => {
             if (userId != null && !isNaN(userId))
@@ -132,14 +116,6 @@ export const Tokens = () => {
                                     Number(e8s_for_one_xdr)) *
                                 USD_PER_XDR
                             ).toLocaleString()}
-                        </code>
-                    </div>
-                    <div className="db_cell">
-                        MINING DIFFICULTY
-                        <code>
-                            {window.backendCache.stats.minting_ratio /
-                                difficulty_amplification}{" "}
-                            &#215; {difficulty_amplification}
                         </code>
                     </div>
                     <div className="db_cell">
@@ -233,49 +209,6 @@ export const Tokens = () => {
                 <MoreButton callback={async () => setBalPage(balPage + 1)} />
                 <hr />
                 <Auction />
-                <hr />
-                <h2>
-                    Upcoming Minting (
-                    {token(rewards.reduce((acc, [_, val]) => acc + val, 0))})
-                </h2>
-                <div
-                    className={`dynamic_table ${
-                        bigScreen() ? "" : "tripple"
-                    } bottom_spaced`}
-                >
-                    {(showAllRewards ? rewards : rewards.slice(0, 12)).map(
-                        ([userId, tokens]) => (
-                            <div key={userId} className="db_cell">
-                                <UserLink id={userId} />
-                                <code>{token(tokens)}</code>
-                            </div>
-                        ),
-                    )}
-                </div>
-                {!showAllRewards && (
-                    <MoreButton
-                        callback={async () => setShowAllRewards(true)}
-                    />
-                )}
-                <hr />
-                <h2>Largest Donors</h2>
-                <div
-                    className={`dynamic_table ${
-                        bigScreen() ? "" : "tripple"
-                    } bottom_spaced`}
-                >
-                    {(showAllDonors ? donors : donors.slice(0, 12)).map(
-                        ([userId, tokens]) => (
-                            <div key={userId} className="db_cell">
-                                <UserLink id={userId} />
-                                <code>{token(tokens)}</code>
-                            </div>
-                        ),
-                    )}
-                </div>
-                {!showAllDonors && (
-                    <MoreButton callback={async () => setShowAllDonors(true)} />
-                )}
             </div>
             <hr />
             <div className="spaced">

@@ -72,7 +72,6 @@ pub struct Event {
 
 #[derive(Serialize, Deserialize)]
 pub struct Stats {
-    minting_ratio: u64,
     e8s_revenue_per_1k: u64,
     e8s_for_one_xdr: u64,
     team_tokens: HashMap<UserId, Token>,
@@ -1160,168 +1159,6 @@ impl State {
             .collect()
     }
 
-    pub fn minting_ratio(&self) -> u64 {
-        let circulating_supply: Token = self.balances.values().sum();
-        let factor = (circulating_supply as f64 / CONFIG.maximum_supply as f64 * 10.0) as u64;
-        (1 << factor) * CONFIG.difficulty_amplification
-    }
-
-    pub fn tokens_to_mint(&self) -> BTreeMap<UserId, Token> {
-        let num_active_users = self
-            .users
-            .values()
-            .filter(|user| user.active_within_weeks(time(), 1))
-            .count();
-        let user_shares = 1.max(
-            (num_active_users as f32
-                * (CONFIG.active_user_share_for_minting_promille as f32 / 1000.0))
-                as u64,
-        );
-        let boostraping_mode =
-            self.balances.values().sum::<Token>() < CONFIG.boostrapping_threshold_tokens;
-        let mut tokens_to_mint: BTreeMap<UserId, Token> = Default::default();
-
-        for (user_id, tokens) in self
-            .users
-            .values()
-            .flat_map(|user| user.mintable_tokens(self, user_shares, boostraping_mode))
-        {
-            tokens_to_mint
-                .entry(user_id)
-                .and_modify(|balance| *balance += tokens)
-                .or_insert(tokens);
-        }
-
-        tokens_to_mint.retain(|user_id, _| {
-            self.users
-                .get(user_id)
-                .map(|user| user.eligible_for_minting())
-                .unwrap_or_default()
-        });
-
-        tokens_to_mint
-    }
-
-    pub fn mint(&mut self) {
-        let circulating_supply: Token = self.balances.values().sum();
-        if circulating_supply >= CONFIG.maximum_supply {
-            return;
-        }
-
-        let tokens_to_mint = self.tokens_to_mint();
-
-        let mut minted_tokens = 0;
-        let ratio = self.minting_ratio();
-        let mut summary = Summary {
-            title: "Token minting report".into(),
-            description: Default::default(),
-            items: Vec::default(),
-        };
-
-        let total_tokens_to_mint: u64 = tokens_to_mint.values().sum();
-
-        if ratio > 1
-            && total_tokens_to_mint * 100 / circulating_supply > CONFIG.minting_threshold_percentage
-        {
-            self.logger.warn(format!(
-                "Skipping minting: `{}` tokens exceed the configured threshold of `{}`% of existing supply.",
-                total_tokens_to_mint, CONFIG.minting_threshold_percentage
-            ));
-            return;
-        }
-
-        let mut items = Vec::default();
-        for (user_id, tokens) in tokens_to_mint {
-            // This is a circuit breaker to avoid unforeseen side-effects due to hacks or bugs.
-            if ratio > 1
-                && tokens * 100 / circulating_supply
-                    > CONFIG.individual_minting_threshold_percentage
-            {
-                self.logger.warn(format!(
-                    "Minting skipped: `{}` tokens for user_id=`{}` exceed the configured threshold of `{}`% of existing supply.",
-                    tokens, user_id, CONFIG.individual_minting_threshold_percentage
-                ));
-                continue;
-            }
-
-            let base = token::base();
-            if let Some(user) = self.users.get_mut(&user_id) {
-                let minted_fractional = tokens as f64 / base as f64;
-                user.notify(format!(
-                    "{} minted `{}` ${} tokens for you! 💎",
-                    CONFIG.name, minted_fractional, CONFIG.token_symbol,
-                ));
-                items.push((tokens, minted_fractional, user.name.clone()));
-                let acc = account(user.principal);
-                crate::token::mint(self, acc, tokens);
-                minted_tokens += tokens / base;
-            }
-        }
-
-        items.sort_unstable_by_key(|(minted, _, _)| Reverse(*minted));
-        for (_, minted, name) in &items {
-            summary.items.push(format!("`{}` to @{}", minted, name));
-        }
-
-        // Mint team tokens
-        for (user_id, user_name, user_principal, user_balance) in [0, 305]
-            .iter()
-            .filter_map(|id| {
-                self.users.get(id).map(|user| {
-                    (
-                        user.id,
-                        user.name.clone(),
-                        user.principal,
-                        user.total_balance(),
-                    )
-                })
-            })
-            .collect::<Vec<_>>()
-        {
-            let acc = account(user_principal);
-            let total_balance = user_balance;
-            let vested = match self.team_tokens.get_mut(&user_id) {
-                Some(balance) if *balance > 0 => {
-                    // 1% of circulating supply is vesting.
-                    let vested = (circulating_supply / 100).min(*balance);
-                    // We use 14% because 1% will vest and we want to stay below 15%.
-                    let cap = (circulating_supply * 14) / 100;
-                    // Vesting is allowed if the total voting power of the team member stays below
-                    // 15% of the current supply, or if 2/3 of total supply is minted.
-                    if total_balance <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
-                        *balance = balance.saturating_sub(vested);
-                        Some((vested, *balance))
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            };
-            if let Some((vested, remaining_balance)) = vested {
-                crate::token::mint(self, acc, vested);
-                self.logger.info(format!(
-                    "Minted `{}` team tokens for @{} (still vesting: `{}`).",
-                    vested / 100,
-                    user_name,
-                    remaining_balance / 100
-                ));
-            }
-        }
-
-        if summary.items.is_empty() {
-            self.logger.info("No tokens were minted".to_string());
-        } else {
-            summary.description = format!(
-                "{} minted `{}` ${} tokens 💎 from the earned reward at the ratio `{}:1`",
-                CONFIG.name, minted_tokens, CONFIG.token_symbol, ratio
-            );
-            self.distribution_reports.push(summary);
-            for user in self.users.values_mut() {
-                user.karma_donations.clear();
-            }
-        }
-    }
-
     pub fn collect_new_rewards(&mut self) -> HashMap<UserId, u64> {
         let mut payouts = HashMap::default();
 
@@ -1730,10 +1567,6 @@ impl State {
         mutate(|state| {
             state.distribution_reports.clear();
             state.distribute_realm_revenue(now);
-
-            state.minting_mode = true;
-            state.mint();
-            state.minting_mode = false;
         });
 
         State::distribute_icp().await;
@@ -2442,7 +2275,6 @@ impl State {
             fees_burned,
             volume_day,
             volume_week,
-            minting_ratio: self.minting_ratio(),
             e8s_for_one_xdr: self.e8s_for_one_xdr,
             e8s_revenue_per_1k: self.last_revenues.iter().sum::<u64>()
                 / self.last_revenues.len().max(1) as u64,
@@ -3396,110 +3228,6 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_minting() {
-        mutate(|state| {
-            let insert_rewards = |state: &mut State, donor_id, user_id, rewards| {
-                state
-                    .users
-                    .get_mut(&donor_id)
-                    .unwrap()
-                    .karma_donations
-                    .insert(user_id, rewards)
-            };
-
-            for i in 0..5 {
-                create_user(state, pr(i));
-                state.principal_to_user_mut(pr(i)).unwrap().mode = Mode::Mining;
-                insert_balance(state, pr(i), (((i + 1) as u64) << 2) * 10000);
-                for j in 0..5 {
-                    if i != j {
-                        insert_rewards(state, i as u64, j as u64, ((j + 1) * (i + 1)) as u64 * 100);
-                    }
-                }
-            }
-
-            let minting_acc = account(Principal::anonymous());
-            state
-                .balances
-                .insert(minting_acc.clone(), CONFIG.maximum_supply);
-
-            // no minting hapened due to max supply
-            assert_eq!(state.balances.get(&account(pr(0))).unwrap(), &40000);
-            state.minting_mode = true;
-            state.mint();
-            assert_eq!(state.balances.get(&account(pr(0))).unwrap(), &40000);
-
-            state.balances.remove(&minting_acc);
-
-            // user 3 switches to non-miner
-            state.principal_to_user_mut(pr(3)).unwrap().mode = Mode::Rewards;
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 160000);
-
-            state.minting_mode = true;
-            state.mint();
-
-            // we cleaned up all donations accounting
-            for u in state.users.values() {
-                assert!(u.karma_donations.is_empty());
-            }
-
-            assert_eq!(state.balances.len(), 5);
-            assert_eq!(*state.balances.get(&account(pr(0))).unwrap(), 95155);
-            assert_eq!(*state.balances.get(&account(pr(1))).unwrap(), 173510);
-            assert_eq!(*state.balances.get(&account(pr(2))).unwrap(), 249761);
-            // non-miner didn't get anything
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 160000);
-            assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 366688);
-
-            // increase minting ratio
-            assert_eq!(state.minting_ratio(), 1);
-            insert_balance(state, pr(4), 10000000);
-            assert_eq!(state.minting_ratio(), 2);
-
-            // Test circuit breaking
-            insert_rewards(state, 4, 3, 301);
-            insert_rewards(state, 4, 4, 60_000);
-
-            // Tokens were not minted to to circuit breaking
-            state.minting_mode = true;
-            state.mint();
-            assert_eq!(*state.balances.get(&account(pr(2))).unwrap(), 249761);
-            assert_eq!(*state.balances.get(&account(pr(3))).unwrap(), 160000);
-
-            // increase minting ratio to 512:1
-            state.balances.insert(account(pr(7)), 60000000);
-            assert_eq!(state.minting_ratio(), 128);
-        })
-    }
-
-    #[test]
-    fn test_minting_ratio() {
-        mutate(|state| {
-            assert_eq!(state.minting_ratio(), 1);
-
-            for (supply, ratio) in vec![
-                (1, 1),
-                (10000000, 2),
-                (20000000, 4),
-                (30000000, 8),
-                (40000000, 16),
-                (50000000, 32),
-                (60000000, 64),
-                (70000000, 128),
-                (80000000, 256),
-                (90000000, 512),
-            ]
-            .into_iter()
-            {
-                state
-                    .balances
-                    .insert(account(Principal::anonymous()), supply);
-                assert_eq!(state.minting_ratio(), ratio);
-            }
-        })
-    }
-
-    #[test]
     fn test_poll_conclusion() {
         mutate(|state| {
             // create users each having 25 + i*10, e.g.
@@ -3513,9 +3241,6 @@ pub(crate) mod tests {
                 // balances after minting
                 user.change_rewards(i as i64 * 10, "test");
             }
-
-            // mint tokens
-            state.mint();
 
             let post_id = Post::create(
                 state,
@@ -3573,10 +3298,6 @@ pub(crate) mod tests {
                 let user = state.principal_to_user_mut(pr(i)).unwrap();
                 user.change_rewards(i as i64 * 111, "test");
             }
-
-            // mint tokens
-            state.mint();
-            assert_eq!(*state.balances.get(&account(pr(1))).unwrap(), 11100);
 
             let user = state.principal_to_user_mut(pr(1)).unwrap();
             user.stalwart = true;
@@ -4573,25 +4294,6 @@ pub(crate) mod tests {
                 user.change_rewards(*rewards, "");
                 user.take_positive_rewards();
             }
-
-            state.balances.insert(account(pr(5)), 20000000);
-            assert_eq!(state.minting_ratio(), 4);
-
-            state
-                .users
-                .get_mut(&inactive_id1)
-                .unwrap()
-                .karma_donations
-                .insert(0, 1000);
-
-            assert!(!state
-                .users
-                .get_mut(&inactive_id1)
-                .unwrap()
-                .karma_donations
-                .is_empty());
-
-            state.clean_up(WEEK);
         })
     }
 
