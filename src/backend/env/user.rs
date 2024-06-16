@@ -86,7 +86,7 @@ pub struct User {
     pub settings: BTreeMap<String, String>,
     pub cold_wallet: Option<Principal>,
     cycles: Credits,
-    rewards: i64,
+    pub rewards: i64,
     pub feeds: Vec<Vec<String>>,
     pub followees: BTreeSet<UserId>,
     pub followers: BTreeSet<UserId>,

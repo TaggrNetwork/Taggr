@@ -31,7 +31,6 @@ pub struct Config {
 
     pub credits_per_xdr: u64,
 
-    pub individual_minting_threshold_percentage: u64,
     pub minting_threshold_percentage: u64,
 
     pub active_user_share_for_minting_promille: u32,
@@ -185,7 +184,6 @@ pub const CONFIG: &Config = &Config {
 
     min_treasury_balance_xdrs: 38, // ~$50
 
-    individual_minting_threshold_percentage: 1,
     minting_threshold_percentage: 1,
 
     active_user_share_for_minting_promille: 10,

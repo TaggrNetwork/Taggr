@@ -1159,16 +1159,144 @@ impl State {
             .collect()
     }
 
+    /// Takes the market_price (e8s per 1 token) and mints new tokens for all miners with positive
+    /// rewards according to the market price ratio.
+    pub fn mint(&mut self, market_price: u64) {
+        let mut summary = Summary {
+            title: "Token minting report".into(),
+            description: Default::default(),
+            items: Vec::default(),
+        };
+
+        let miner_rewards = self
+            .users
+            .values_mut()
+            .filter(|user| user.mode == Mode::Mining)
+            .fold(HashMap::new(), |mut acc, user| {
+                let rewards = user.take_positive_rewards();
+                if rewards == 0 {
+                    return acc;
+                }
+                acc.insert(user.id, rewards);
+                acc
+            });
+
+        // burn a corresponding amount credits to generate revenue
+        self.burned_cycles += miner_rewards.values().sum::<i64>();
+
+        let tokens_to_mint: HashMap<_, _> = miner_rewards
+            .into_iter()
+            .map(|(user_id, rewards)| {
+                let e8s_earned = (rewards as f64 / CONFIG.credits_per_xdr as f64
+                    * self.e8s_for_one_xdr as f64) as u64;
+                (user_id, e8s_earned / market_price)
+            })
+            .collect();
+        let total_tokens_to_mint: u64 = tokens_to_mint.values().sum();
+
+        if total_tokens_to_mint > CONFIG.max_funding_amount {
+            self.logger.warn(format!(
+                "Skipping minting: new tokens amount `{}` exceeds the configured threshold of `{}`.",
+                total_tokens_to_mint,
+                CONFIG.max_funding_amount / token::base()
+            ));
+            return;
+        }
+
+        let mut items = Vec::default();
+        let mut minted_tokens = 0;
+        for (user_id, tokens) in tokens_to_mint {
+            let base = token::base();
+            if let Some(user) = self.users.get_mut(&user_id) {
+                let minted_fractional = tokens as f64 / base as f64;
+                user.notify(format!(
+                    "{} minted `{}` ${} tokens for you! 💎",
+                    CONFIG.name, minted_fractional, CONFIG.token_symbol,
+                ));
+                items.push((tokens, minted_fractional, user.name.clone()));
+                let acc = account(user.principal);
+                crate::token::mint(self, acc, tokens);
+                minted_tokens += tokens / base;
+            }
+        }
+
+        items.sort_unstable_by_key(|(minted, _, _)| Reverse(*minted));
+        for (_, minted, name) in &items {
+            summary.items.push(format!("`{}` to @{}", minted, name));
+        }
+
+        // Mint team tokens
+        let circulating_supply: Token = self.balances.values().sum();
+        for (user_id, user_name, user_principal, user_balance) in [0]
+            .iter()
+            .filter_map(|id| {
+                self.users.get(id).map(|user| {
+                    (
+                        user.id,
+                        user.name.clone(),
+                        user.principal,
+                        user.total_balance(),
+                    )
+                })
+            })
+            .collect::<Vec<_>>()
+        {
+            let acc = account(user_principal);
+            let total_balance = user_balance;
+            let vested = match self.team_tokens.get_mut(&user_id) {
+                Some(balance) if *balance > 0 => {
+                    // 1% of circulating supply is vesting.
+                    let vested = (circulating_supply / 100).min(*balance);
+                    // We use 14% because 1% will vest and we want to stay below 15%.
+                    let cap = (circulating_supply * 14) / 100;
+                    // Vesting is allowed if the total voting power of the team member stays below
+                    // 15% of the current supply, or if 2/3 of total supply is minted.
+                    if total_balance <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
+                        *balance = balance.saturating_sub(vested);
+                        Some((vested, *balance))
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+            if let Some((vested, remaining_balance)) = vested {
+                crate::token::mint(self, acc, vested);
+                self.logger.info(format!(
+                    "Minted `{}` team tokens for @{} (still vesting: `{}`).",
+                    vested / 100,
+                    user_name,
+                    remaining_balance / 100
+                ));
+            }
+        }
+
+        if summary.items.is_empty() {
+            self.logger.info("No tokens were minted".to_string());
+        } else {
+            summary.description = format!(
+                "{} minted `{}` ${} tokens 💎 from the earned reward",
+                CONFIG.name, minted_tokens, CONFIG.token_symbol
+            );
+            self.distribution_reports.push(summary);
+        }
+    }
+
+    /// Returns all rewards that need to be paid out. Skips all miners.
     pub fn collect_new_rewards(&mut self) -> HashMap<UserId, u64> {
         let mut payouts = HashMap::default();
 
-        for user in self.users.values_mut() {
+        for user in self
+            .users
+            .values_mut()
+            .filter(|user| user.mode != Mode::Mining)
+        {
             let rewards = user.take_positive_rewards();
             if rewards == 0 {
                 continue;
             };
-            // All miner and normie rewards are burned.
-            if user.mode == Mode::Mining || user.mode == Mode::Credits {
+            // All normie rewards are burned.
+            if user.mode == Mode::Credits {
                 self.burned_cycles += rewards;
             } else {
                 payouts.insert(user.id, rewards as Credits);
@@ -1207,7 +1335,7 @@ impl State {
         {
             mutate(|state| {
                 state.logger.error(format!(
-                    "user ICPs couldn't be transferred from the treasury: {err}"
+                    "users' ICP couldn't be transferred from the treasury: {err}"
                 ))
             });
         }
@@ -1569,15 +1697,23 @@ impl State {
             state.distribute_realm_revenue(now);
         });
 
-        State::distribute_icp().await;
+        let circulating_supply: Token = read(|state| state.balances.values().sum());
+        // only if we're below the maximum supply, we close the auction
+        if circulating_supply < CONFIG.maximum_supply {
+            let market_price = State::close_auction().await;
+            mutate(|state| {
+                state.logger.info(format!(
+                    "Established market price: `{}` e8s per token",
+                    market_price
+                ));
 
-        let market_price = State::close_auction().await;
-        mutate(|state| {
-            state.logger.info(format!(
-                "Established market price: `{}` e8s per token",
-                market_price
-            ))
-        });
+                state.minting_mode = true;
+                state.mint(market_price);
+                state.minting_mode = false;
+            });
+        }
+
+        State::distribute_icp().await;
 
         mutate(|state| {
             for summary in &state.distribution_reports {
@@ -2688,21 +2824,6 @@ impl State {
                     log.clone(),
                     None,
                 )?;
-                // Only record a donation for users in non-credit mode, so that these users can
-                // switch to other modes any time.
-                if self
-                    .users
-                    .get(recipient)
-                    .map(|user| user.mode != Mode::Credits)
-                    .unwrap_or_default()
-                {
-                    self.principal_to_user_mut(principal)
-                        .expect("no user for principal found")
-                        .karma_donations
-                        .entry(*recipient)
-                        .and_modify(|donated| *donated = donated.saturating_add(delta))
-                        .or_insert(delta);
-                }
             }
         }
 
@@ -3042,33 +3163,6 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_donated_rewards() {
-        mutate(|state| {
-            let user_0 = create_user_with_params(state, pr(0), "alice", 1000);
-            let user_1 = create_user_with_params(state, pr(1), "bob", 100);
-            let user_2 = create_user_with_params(state, pr(2), "eve", 50);
-            let post_0 =
-                Post::create(state, "A".to_string(), &[], pr(1), 0, None, None, None).unwrap();
-            let post_1 =
-                Post::create(state, "A".to_string(), &[], pr(2), 0, None, None, None).unwrap();
-            assert!(state.react(pr(0), post_0, 100, WEEK).is_ok());
-            assert!(state.react(pr(0), post_1, 50, WEEK).is_ok());
-
-            let user = state.users.get(&user_0).unwrap();
-            assert_eq!(user.karma_donations.len(), 2);
-            assert_eq!(user.karma_donations.get(&user_1).unwrap(), &10);
-            assert_eq!(user.karma_donations.get(&user_2).unwrap(), &5);
-
-            let post_2 =
-                Post::create(state, "B".to_string(), &[], pr(2), 0, None, None, None).unwrap();
-            assert!(state.react(pr(0), post_2, 100, WEEK).is_ok());
-            let user = state.users.get(&user_0).unwrap();
-            assert_eq!(user.karma_donations.len(), 2);
-            assert_eq!(user.karma_donations.get(&user_2).unwrap(), &15);
-        })
-    }
-
-    #[test]
     fn test_credit_transfer() {
         mutate(|state| {
             let id1 = create_user_with_params(state, pr(0), "peter", 10000);
@@ -3225,6 +3319,54 @@ pub(crate) mod tests {
             assert_eq!(*revenue.get(&0).unwrap(), 1666666);
             assert_eq!(*revenue.get(&1).unwrap(), 3333333);
         });
+    }
+
+    #[test]
+    fn test_minting() {
+        mutate(|state| {
+            let insert_rewards = |state: &mut State, id: UserId| {
+                state.users.get_mut(&id).unwrap().rewards = (id * 1000) as i64;
+            };
+
+            for i in 0..5 {
+                create_user(state, pr(i));
+                state.principal_to_user_mut(pr(i)).unwrap().mode = Mode::Mining;
+                insert_rewards(state, i as UserId);
+            }
+
+            // credits earned
+            assert_eq!(state.user("0").unwrap().rewards(), 0);
+            assert_eq!(state.user("1").unwrap().rewards(), 1000);
+            assert_eq!(state.user("2").unwrap().rewards(), 2000);
+            assert_eq!(state.user("3").unwrap().rewards(), 3000);
+            assert_eq!(state.user("4").unwrap().rewards(), 4000);
+
+            // user 3 switches to non-miner
+            state.principal_to_user_mut(pr(3)).unwrap().mode = Mode::Rewards;
+
+            let market_price = 300313; // e8s per token (cent)
+            state.e8s_for_one_xdr = 14410000;
+
+            for i in 0..4 {
+                assert!(state.balances.get(&account(pr(i))).is_none());
+            }
+
+            state.minting_mode = true;
+            state.mint(market_price);
+
+            // User 0 (no rewards) and User 3 (miner) were excluded
+            assert_eq!(state.balances.len(), 3);
+
+            assert!(state.balances.get(&account(pr(0))).is_none());
+            assert!(state.balances.get(&account(pr(3))).is_none());
+
+            // uesr 1 earned 0.47 TAGGR
+            assert_eq!(*state.balances.get(&account(pr(1))).unwrap(), 47);
+            // uesr 2 earned 0.95 TAGGR
+            assert_eq!(*state.balances.get(&account(pr(2))).unwrap(), 95);
+            // uesr 4 earned 1.91 TAGGR
+            assert_eq!(*state.balances.get(&account(pr(4))).unwrap(), 191);
+        })
     }
 
     #[test]
@@ -4693,6 +4835,9 @@ pub(crate) mod tests {
 
             // For simplicity assume 100 e8s for 1 xdr
             state.e8s_for_one_xdr = 100;
+
+            // mint to burn miners rewards
+            state.mint(1);
 
             let payout = state.assign_rewards_and_revenue(now, 100000000);
 
