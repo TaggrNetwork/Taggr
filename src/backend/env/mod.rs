@@ -1571,11 +1571,11 @@ impl State {
 
         State::distribute_icp().await;
 
-        let minting_price = State::close_auction().await;
+        let market_price = State::close_auction().await;
         mutate(|state| {
             state.logger.info(format!(
-                "Established minting price: `{}` e8s per token",
-                minting_price
+                "Established market price: `{}` e8s per token",
+                market_price
             ))
         });
 
@@ -1596,7 +1596,7 @@ impl State {
     // If yes, mints the requested amount of tokens for each bidder and moves all funds to
     // treasury, converting them to revenue.
     async fn close_auction() -> u64 {
-        let (bids, revenue, minting_price) = mutate(|state| {
+        let (bids, revenue, market_price) = mutate(|state| {
             let bids = state.auction.get_bids();
             if bids.is_empty() {
                 state.logger.info("Auction skipped: not enough bids");
@@ -1625,16 +1625,16 @@ impl State {
             state.burned_cycles +=
                 (revenue / state.e8s_for_one_xdr * CONFIG.credits_per_xdr) as i64;
 
-            let minting_price = revenue / state.auction.amount;
+            let market_price = revenue / state.auction.amount;
 
             // set token number for the next week
             state.auction.amount = CONFIG.weekly_auction_size_tokens;
 
-            (bids, revenue, minting_price)
+            (bids, revenue, market_price)
         });
 
         if revenue == 0 {
-            return minting_price;
+            return market_price;
         }
 
         if let Err(err) = auction::move_to_treasury(revenue).await {
@@ -1650,7 +1650,7 @@ impl State {
             return 0;
         }
 
-        minting_price
+        market_price
     }
 
     fn distribute_realm_revenue(&mut self, now: Time) {
