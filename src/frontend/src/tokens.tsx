@@ -84,12 +84,8 @@ export const Tokens = () => {
     const { e8s_for_one_xdr, e8s_revenue_per_1k } = window.backendCache.stats;
     const holders = balances.length;
 
-    switch (status) {
-        case 0:
-            return <Loading />;
-        case -1:
-            return <NotFound />;
-    }
+    if (status == 0) return <Loading />;
+
     return (
         <>
             <HeadBar title="TOKENS" shareLink="tokens" />
@@ -267,84 +263,86 @@ const Auction = ({}) => {
                 This is the decentralized auction establishing the market price
                 of {token_symbol}.
             </p>
-            <div className="stands_out padded_rounded">
-                To participate in the auction, create a bid here.
-                <div className="column_container top_spaced">
-                    <input
-                        type="text"
-                        value={e8sPerToken}
-                        onChange={(e) => setE8sPerToken(e.target.value)}
-                        placeholder={`ICP per 1 ${token_symbol}`}
-                    />
-                    <input
-                        type="text"
-                        value={bidSize}
-                        onChange={(e) => setBidSize(e.target.value)}
-                        className="top_half_spaced"
-                        placeholder={`Number of ${token_symbol} tokens`}
-                    />
-                    {payment > 0 && (
-                        <p className="top_spaced bottom_spaced">
-                            Please transfer <code>{tokens(payment, 8)}</code>{" "}
-                            ICP to
-                            <br />
-                            <br />
-                            <CopyToClipboard
-                                value={internalAccount}
-                                displayMap={(account) =>
-                                    bigScreen()
-                                        ? account
-                                        : shortenAccount(account)
-                                }
+            {window.user && (
+                <div className="stands_out padded_rounded">
+                    To participate in the auction, create a bid here.
+                    <div className="column_container top_spaced">
+                        <input
+                            type="text"
+                            value={e8sPerToken}
+                            onChange={(e) => setE8sPerToken(e.target.value)}
+                            placeholder={`ICP per 1 ${token_symbol}`}
+                        />
+                        <input
+                            type="text"
+                            value={bidSize}
+                            onChange={(e) => setBidSize(e.target.value)}
+                            className="top_half_spaced"
+                            placeholder={`Number of ${token_symbol} tokens`}
+                        />
+                        {payment > 0 && (
+                            <p className="top_spaced bottom_spaced">
+                                Please transfer{" "}
+                                <code>{tokens(payment, 8)}</code> ICP to
+                                <br />
+                                <br />
+                                <CopyToClipboard
+                                    value={internalAccount}
+                                    displayMap={(account) =>
+                                        bigScreen()
+                                            ? account
+                                            : shortenAccount(account)
+                                    }
+                                />
+                                <br />
+                                <br />
+                                before creating a bid.
+                            </p>
+                        )}
+                        <div className="row_container">
+                            <ButtonWithLoading
+                                classNameArg="top_spaced max_width_col right_half_spaced"
+                                onClick={async () => {
+                                    const response: any =
+                                        await window.api.call("cancel_bid");
+                                    if (!response) {
+                                        alert("Error: call failed");
+                                        return;
+                                    }
+                                    if ("Err" in response) {
+                                        alert(`Error: ${response.Err}`);
+                                        return;
+                                    }
+                                    await loadData();
+                                }}
+                                label="CANCEL MY BID"
                             />
-                            <br />
-                            <br />
-                            before creating a bid.
-                        </p>
-                    )}
-                    <div className="row_container">
-                        <ButtonWithLoading
-                            classNameArg="top_spaced max_width_col right_half_spaced"
-                            onClick={async () => {
-                                const response: any =
-                                    await window.api.call("cancel_bid");
-                                if (!response) {
-                                    alert("Error: call failed");
-                                    return;
-                                }
-                                if ("Err" in response) {
-                                    alert(`Error: ${response.Err}`);
-                                    return;
-                                }
-                                await loadData();
-                            }}
-                            label="CANCEL MY BID"
-                        />
-                        <ButtonWithLoading
-                            classNameArg="top_spaced active max_width_col left_half_spaced"
-                            onClick={async () => {
-                                const response: any = await window.api.call(
-                                    "create_bid",
-                                    parsedBidSize,
-                                    parsedE8sPerToken,
-                                );
-                                if (!response) {
-                                    alert("Error: call failed");
-                                    return;
-                                }
-                                if ("Err" in response) {
-                                    alert(`Error: ${response.Err}`);
-                                    return;
-                                }
-                                setE8sPerToken("");
-                                setBidSize("");
-                                await loadData();
-                            }}
-                            label="CREATE MY BID"
-                        />
+                            <ButtonWithLoading
+                                classNameArg="top_spaced active max_width_col left_half_spaced"
+                                onClick={async () => {
+                                    const response: any = await window.api.call(
+                                        "create_bid",
+                                        parsedBidSize,
+                                        parsedE8sPerToken,
+                                    );
+                                    if (!response) {
+                                        alert("Error: call failed");
+                                        return;
+                                    }
+                                    if ("Err" in response) {
+                                        alert(`Error: ${response.Err}`);
+                                        return;
+                                    }
+                                    setE8sPerToken("");
+                                    setBidSize("");
+                                    await loadData();
+                                }}
+                                label="CREATE MY BID"
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
             {auction.bids.length > 0 && (
                 <>
                     <h3>Current bids</h3>

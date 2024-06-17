@@ -628,6 +628,9 @@ impl State {
         }
         self.last_upgrade = time();
         self.timers.last_hourly = time();
+        if self.auction.amount == 0 {
+            self.auction.amount = CONFIG.weekly_auction_size_tokens;
+        }
     }
 
     pub fn realms_posts(
@@ -1162,6 +1165,10 @@ impl State {
     /// Takes the market_price (e8s per 1 token) and mints new tokens for all miners with positive
     /// rewards according to the market price ratio.
     pub fn mint(&mut self, market_price: u64) {
+        if market_price == 0 {
+            return;
+        }
+
         let mut summary = Summary {
             title: "Token minting report".into(),
             description: Default::default(),

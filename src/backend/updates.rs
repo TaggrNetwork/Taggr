@@ -30,6 +30,7 @@ fn init() {
         state.timers.last_weekly = time();
         state.timers.last_daily = time();
         state.timers.last_hourly = time();
+        state.auction.amount = CONFIG.weekly_auction_size_tokens;
     });
     set_timer(Duration::from_millis(0), || {
         spawn(State::fetch_xdr_rate());
