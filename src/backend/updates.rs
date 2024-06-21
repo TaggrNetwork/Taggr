@@ -27,9 +27,9 @@ use std::time::Duration;
 fn init() {
     mutate(|state| {
         state.load();
-        state.last_weekly_chores = time();
-        state.last_daily_chores = time();
-        state.last_hourly_chores = time();
+        state.timers.last_weekly = time();
+        state.timers.last_daily = time();
+        state.timers.last_hourly = time();
     });
     set_timer(Duration::from_millis(0), || {
         spawn(State::fetch_xdr_rate());
@@ -80,7 +80,12 @@ fn post_upgrade() {
 
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
-    mutate(|state| state.auction.amount = CONFIG.weekly_auction_size_tokens)
+    mutate(|state| {
+        state.timers.last_hourly = state.last_hourly_chores;
+        state.timers.last_daily = state.last_daily_chores;
+        // compensate for the bug introduced by 3 overlapping weekly routines
+        state.timers.last_weekly = state.last_weekly_chores - 2 * WEEK;
+    })
 }
 
 #[allow(clippy::all)]

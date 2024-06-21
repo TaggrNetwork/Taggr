@@ -143,9 +143,19 @@ pub struct Summary {
     items: Vec<String>,
 }
 
+#[derive(Default, Clone, Serialize, Deserialize)]
+pub struct Timers {
+    pub last_weekly: Time,
+    pub last_daily: Time,
+    pub last_hourly: Time,
+
+    pub weekly_pending: bool,
+    pub daily_pending: bool,
+    pub hourly_pending: bool,
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct State {
-    #[serde(default)]
     pub auction: Auction,
 
     pub burned_cycles: i64,
@@ -156,9 +166,14 @@ pub struct State {
     pub next_user_id: UserId,
     pub accounting: Invoices,
     pub storage: storage::Storage,
+
+    // TODO: delete
     pub last_weekly_chores: u64,
+    // TODO: delete
     pub last_daily_chores: u64,
+    // TODO: delete
     pub last_hourly_chores: u64,
+
     pub logger: Logger,
     pub invites: BTreeMap<String, (UserId, Credits)>,
     pub realms: BTreeMap<RealmId, Realm>,
@@ -225,6 +240,9 @@ pub struct State {
 
     #[serde(skip)]
     pub weekly_chores_delay_votes: HashSet<UserId>,
+
+    #[serde(default)]
+    pub timers: Timers,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -297,8 +315,8 @@ impl State {
             return false;
         };
 
-        // If we shifted already, exit.
-        if self.last_weekly_chores >= time() + WEEK {
+        // If we shifted already or one is ongoing, exit.
+        if self.timers.last_weekly >= time() + WEEK || self.timers.weekly_pending {
             return false;
         }
 
@@ -308,7 +326,7 @@ impl State {
             / self.users.values().filter(|user| user.stalwart).count()
             >= CONFIG.report_confirmation_percentage as usize
         {
-            self.last_weekly_chores += WEEK;
+            self.timers.last_weekly += WEEK;
             self.logger.info(format!(
                 "Minting was delayed by stalwarts: {:?}",
                 self.weekly_chores_delay_votes
@@ -610,7 +628,7 @@ impl State {
             );
         }
         self.last_upgrade = time();
-        self.last_hourly_chores = time();
+        self.timers.last_hourly = time();
     }
 
     pub fn realms_posts(
@@ -1652,13 +1670,7 @@ impl State {
             return;
         }
 
-        let (last_hourly_chores, last_daily_chores, last_weekly_chores) = read(|state| {
-            (
-                state.last_hourly_chores,
-                state.last_daily_chores,
-                state.last_weekly_chores,
-            )
-        });
+        let timers = read(|state| state.timers.clone());
 
         let log = |state: &mut State, frequency, threshold_millis| {
             let instructions = performance_counter(0) / 1000000000;
@@ -1671,18 +1683,26 @@ impl State {
             }
         };
 
-        if last_weekly_chores + WEEK < now {
+        if timers.last_weekly + WEEK < now && !timers.weekly_pending {
+            mutate(|state| {
+                state.timers.weekly_pending = true;
+            });
             State::weekly_chores(now).await;
             mutate(|state| {
-                state.last_weekly_chores += WEEK;
+                state.timers.last_weekly += WEEK;
+                state.timers.weekly_pending = false;
                 log(state, "Weekly", 0);
             });
         }
 
-        if last_daily_chores + DAY < now {
+        if timers.last_daily + DAY < now && !timers.daily_pending {
+            mutate(|state| {
+                state.timers.daily_pending = true;
+            });
             State::daily_chores(now).await;
             mutate(|state| {
-                state.last_daily_chores += DAY;
+                state.timers.last_daily += DAY;
+                state.timers.daily_pending = false;
                 state.logger.debug(format!(
                     "Pending NNS proposals: `{}`, pending polls: `{}`, migrations: `{}`.",
                     state.pending_nns_proposals.len(),
@@ -1693,10 +1713,14 @@ impl State {
             });
         }
 
-        if last_hourly_chores + HOUR < now {
+        if timers.last_hourly + HOUR < now && !timers.hourly_pending {
+            mutate(|state| {
+                state.timers.hourly_pending = true;
+            });
             State::hourly_chores(now).await;
             mutate(|state| {
-                state.last_hourly_chores += HOUR;
+                state.timers.last_hourly += HOUR;
+                state.timers.hourly_pending = false;
                 log(state, "Hourly", 60000);
             });
         }
@@ -2427,9 +2451,9 @@ impl State {
             module_hash: self.module_hash.clone(),
             canister_id: ic_cdk::id(),
             last_upgrade: self.last_upgrade,
-            last_weekly_chores: self.last_weekly_chores,
-            last_daily_chores: self.last_daily_chores,
-            last_hourly_chores: self.last_hourly_chores,
+            last_weekly_chores: self.timers.last_weekly,
+            last_daily_chores: self.timers.last_daily,
+            last_hourly_chores: self.timers.last_hourly,
             canister_cycle_balance: canister_balance(),
             users: self.users.len(),
             posts,
@@ -4853,12 +4877,12 @@ pub(crate) mod tests {
 
             // 9 stalwarts trigger the shifting (in tests, the threshold is 15%)
             for i in 0..9 {
-                assert_eq!(state.last_weekly_chores, 0);
+                assert_eq!(state.timers.last_weekly, 0);
                 assert!(state.delay_weekly_chores(pr(i)));
             }
 
             // shifting happened
-            assert_eq!(state.last_weekly_chores, WEEK);
+            assert_eq!(state.timers.last_weekly, WEEK);
 
             // more votes are rejected
             assert!(!state.delay_weekly_chores(pr(10)));
