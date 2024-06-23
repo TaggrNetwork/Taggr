@@ -339,6 +339,20 @@ export const Form = ({
         setLines(effContent.split("\n").length + 2);
     }, [content]);
 
+    React.useEffect(() => {
+        const articleDOMelem = articleRef.current as unknown as HTMLElement;
+        const textareaDOMelem = textarea.current as unknown as HTMLElement;
+        if (
+            textareaDOMelem &&
+            articleDOMelem &&
+            articleDOMelem?.dataset?.synced != "true"
+        ) {
+            syncScrolling(articleDOMelem, textareaDOMelem);
+            syncScrolling(textareaDOMelem, articleDOMelem);
+            articleDOMelem.setAttribute("data-synced", "true");
+        }
+    }, [value]);
+
     React.useEffect(() => setFocus(), [showTextField, focus]);
 
     const articleRef = React.useRef();
@@ -875,3 +889,12 @@ const tableTemplate =
     "|-----|:---:|----:|\n" +
     "|  A  |  B  |  C  |\n" +
     "|  D  |  E  |  F  |\n";
+
+const syncScrolling = (elem1: HTMLElement, elem2: HTMLElement) => {
+    elem1.addEventListener("scroll", () => {
+        const scrollPercentage =
+            elem1.scrollTop / (elem1.scrollHeight - elem1.clientHeight);
+        elem2.scrollTop =
+            scrollPercentage * (elem2.scrollHeight - elem2.clientHeight);
+    });
+};

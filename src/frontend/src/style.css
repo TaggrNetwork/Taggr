@@ -30,6 +30,15 @@ code {
         sans-serif;
 }
 
+article.preview,
+textarea {
+    max-height: 80vh;
+}
+
+article.preview {
+    overflow: auto;
+}
+
 .db_cell {
     display: flex;
     flex-direction: column;
@@ -221,8 +230,7 @@ article {
     overflow: hidden;
 }
 
-.feed_item article,
-article.preview {
+.feed_item article {
     max-height: 100vh;
     position: relative;
 }
