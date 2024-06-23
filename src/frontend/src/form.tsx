@@ -892,9 +892,16 @@ const tableTemplate =
 
 const syncScrolling = (elem1: HTMLElement, elem2: HTMLElement) => {
     elem1.addEventListener("scroll", () => {
+        if (elem1.dataset?.scrolling == "0") {
+            return;
+        }
         const scrollPercentage =
             elem1.scrollTop / (elem1.scrollHeight - elem1.clientHeight);
+        // disable scrolling on the other element to avoid recursion
+        elem2.setAttribute("data-scrolling", "0");
         elem2.scrollTop =
             scrollPercentage * (elem2.scrollHeight - elem2.clientHeight);
+        // enable scrolling again
+        setTimeout(() => elem2.setAttribute("data-scrolling", "1"), 1000);
     });
 };
