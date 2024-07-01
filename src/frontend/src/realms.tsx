@@ -63,22 +63,19 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         const realm: Realm = result[0];
         if (existingName) setName(existingName);
         setRealm(realm);
+        setStrings(realm);
         if (realm.theme) setTheme(JSON.parse(realm.theme));
     };
 
-    const setStrings = async () => {
+    const setStrings = async (realm: Realm) => {
         await populateUserNameCache(realm.whitelist.concat(realm.controllers));
         setWhitelistString(
-            realm.whitelist.map((id) => `@${USER_CACHE[id]}`).join(", "),
+            realm.whitelist.map((id) => `${USER_CACHE[id]}`).join(", "),
         );
         setControllersString(
-            realm.controllers.map((id) => `@${USER_CACHE[id]}`).join(", "),
+            realm.controllers.map((id) => `${USER_CACHE[id]}`).join(", "),
         );
     };
-
-    React.useEffect(() => {
-        setStrings();
-    }, [realm]);
 
     React.useEffect(() => {
         if (editing) loadRealm();
@@ -269,9 +266,12 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                     input.split(/[,\s]/),
                                 );
                                 setRealm({ ...realm });
-                            }, 1500);
+                            }, 500);
                         }}
                     />
+                    <div className="top_half_spaced">
+                        Valid users: <UserList ids={realm.controllers} />
+                    </div>
                 </div>
                 <hr />
                 <h2>Realm contributor settings</h2>
@@ -293,9 +293,12 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                     input.split(/[,\s]/),
                                 );
                                 setRealm({ ...realm });
-                            }, 1500);
+                            }, 500);
                         }}
                     />
+                    <div className="top_half_spaced">
+                        Valid users: <UserList ids={realm.whitelist} />
+                    </div>
                 </div>
 
                 {whitelist.length == 0 && (

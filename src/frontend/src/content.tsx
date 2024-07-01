@@ -318,6 +318,7 @@ const Gallery = ({ children }: any) => {
                     {pictures.map((picture: JSX.Element) =>
                         React.cloneElement(picture, {
                             thumbnail: "true",
+                            gallery: urls,
                         }),
                     )}
                 </div>
