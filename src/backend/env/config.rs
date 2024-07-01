@@ -159,6 +159,9 @@ pub const CONFIG: &Config = &Config {
     logo: include_str!("../../frontend/assets/logo.min.svg"),
     staging: "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io",
 
+    #[cfg(not(any(feature = "dev", feature = "staging")))]
+    weekly_auction_size_tokens: 11500,
+    #[cfg(any(feature = "dev", feature = "staging"))]
     weekly_auction_size_tokens: 1500,
 
     #[cfg(not(feature = "staging"))]
