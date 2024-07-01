@@ -318,6 +318,7 @@ declare global {
                 stalwarts: UserId[];
             };
             config: {
+                weekly_auction_size_tokens: number;
                 user_report_validity_days: number;
                 downvote_counting_period_days: number;
                 max_report_length: number;

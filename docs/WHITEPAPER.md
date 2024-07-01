@@ -126,26 +126,15 @@ This will make the supply keep an equilibrium around the maximal supply.
 
 ### Distribution of mined tokens
 
-All eligible users receive newly minted `$token_symbol` tokens on a weekly basis.
-Eligible are users who opted for token mining, who have no pending reports or reports closed within the last `$user_report_validity_days`, who were active within `$voting_power_activity_weeks` weeks and have no negative rewards balance.
-The amount of minted tokens is computed according to the following algorithm:
+All users who opted for token minig (can be configured in settings), receive new `$token_symbol` tokens on a weekly basis.
+The amount of tokens that every user gets distributed is simply the result of collected ICP rewards during a week divided by the token market price.
 
-1. For every user `U` who rewarded others, determine the maximal amount of donatable tokens capped by `U`'s `$token_symbol` balance divided by the mining difficulty `R` (see below).
-2. Compute the maximum amount of tokens assignable from `U` to a single rewarded user by dividing `U`'s mintable tokens by `$active_user_share_for_minting_promille%` of all active users of the last week.
-3. Mint new tokens to users (rewarded by `U`) capped by the amount computed in the previous step and weighted by their share of received rewards and an additional factor `F` which depends on the receiver's `$token_symbol` balance:
+### Weekly auction
 
-| Receiver's $token_symbol balance | `F`    |
-| -------------------------------- | ------ |
-| Below `100`                      | `1.2`  |
-| Below `250`                      | `1.15` |
-| Below `500`                      | `1.1`  |
-| Above `500`                      | `1`    |
-
-The mining difficulty `R` is algorithmically computed by $name.
-It starts at `1` and remains at this level until `10%` of supply is mined.
-Then the difficulty doubles to `2` for the next `10%`, further doubling to `4`, and so on.
-Hence, the last `10%` of the supply will be mined with the difficulty of `512`.
-Additionally, the DAO can increase the difficulty by setting a _difficulty amplification_ factor (current value: `$difficulty_amplification`) if the mining velocity becomes misaligned with DAO's expectations.
+To determine a fair market price, $name auctions `$weekly_auction_size_tokens` tokens each week.
+Each user can create a bid by specifying the amount of tokens and the price in ICP they're willing to pay per 1 token.
+If all tokens can be sold, $name distributed the tokens to bidders according to the parameters of their bids.
+The price derived from these bids represnt the market price of one token.
 
 ### Founder's Tokens
 
