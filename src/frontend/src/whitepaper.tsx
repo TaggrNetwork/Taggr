@@ -1,4 +1,4 @@
-import { HeadBar, USD_PER_XDR, tokenBalance } from "./common";
+import { HeadBar, USD_PER_XDR, tokenBalance, tokenBase } from "./common";
 import { Content } from "./content";
 // @ts-ignore
 import template from "../../../docs/WHITEPAPER.md";
@@ -13,11 +13,12 @@ export const Whitepaper = () => {
             let { team_tokens } = window.backendCache.stats;
             // Remove decimals
             if (key == "maximum_supply")
-                value = (
-                    value /
-                    Math.pow(10, window.backendCache.config.token_decimals)
-                ).toLocaleString();
+                value = (value / tokenBase()).toLocaleString();
             else if (key == "usd_per_xdr") value = USD_PER_XDR;
+            else if (key == "weekly_auction_size_tokens")
+                value =
+                    window.backendCache.config.weekly_auction_size_tokens /
+                    tokenBase();
             else if (key == "vesting_tokens_x")
                 value = tokenBalance(team_tokens[0]);
             else if (key == "active_user_share_for_minting_promille")

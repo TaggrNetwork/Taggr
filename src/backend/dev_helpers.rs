@@ -12,7 +12,11 @@ use std::time::Duration;
 #[update]
 async fn reset() {
     clear_buckets().await;
-    STATE.with(|cell| cell.replace(Default::default()));
+    STATE.with(|cell| {
+        let mut state: State = Default::default();
+        state.load();
+        cell.replace(state);
+    });
     set_timer(Duration::from_millis(0), || {
         spawn(State::fetch_xdr_rate());
     });

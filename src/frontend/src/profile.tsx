@@ -295,8 +295,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             : null;
     const inviter = profile.invited_by;
 
-    const donations = Object.entries(profile.karma_donations);
-    donations.sort(([_, donation1], [_2, donation2]) => donation2 - donation1);
     const accountingList = (
         <>
             <h2>Rewards and Credits Accounting</h2>
@@ -327,24 +325,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     )}
                 </tbody>
             </table>
-        </>
-    );
-
-    const givenRewardsList = (
-        <>
-            <h2>Given Rewards</h2>
-            <div
-                className={`dynamic_table ${
-                    bigScreen() ? "" : "tripple"
-                } bottom_spaced`}
-            >
-                {donations.map(([userId, rewards]) => (
-                    <div key={userId} className="db_cell">
-                        <UserLink id={Number(userId)} />
-                        <code>{rewards}</code>
-                    </div>
-                ))}
-            </div>
         </>
     );
 
@@ -428,17 +408,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                             onClick={() => popUp(accountingList)}
                         >
                             {profile.accounting.length}
-                        </code>
-                    </div>
-                )}
-                {Object.keys(profile.karma_donations).length > 0 && (
-                    <div className="db_cell">
-                        GIVEN REWARDS
-                        <code
-                            className="clickable clickable_color"
-                            onClick={() => popUp(givenRewardsList)}
-                        >
-                            {Object.keys(profile.karma_donations).length}
                         </code>
                     </div>
                 )}

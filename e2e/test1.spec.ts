@@ -72,10 +72,18 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.waitForTimeout(4500);
     });
 
-    test("Trigger minting", async () => {
-        exec("dfx canister call taggr weekly_chores");
+    test("Create an auction bid, trigger minting", async ({}) => {
+        await page.goto("/#/tokens");
+        await page.getByPlaceholder("ICP per 1 TAGGR").fill("0.01");
+        await page.getByPlaceholder("Number of TAGGR tokens").fill("15");
+        exec(
+            "dfx --identity local-minter ledger transfer --amount 0.15 --memo 0 2e670a6cf5ec1a1387dc8e02da3279f8e9221c2191b6f7532f449bb439538f20",
+        );
+        await page.getByRole("button", { name: "CREATE MY BID" }).click();
         await page.waitForTimeout(1000);
-        await page.reload();
+
+        exec("dfx canister call taggr weekly_chores");
+        await page.waitForTimeout(1500);
     });
 
     test("Wallet", async () => {
@@ -83,7 +91,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.goto("/");
         await page.getByTestId("toggle-user-section").click();
 
-        await expect(page.getByTestId("token-balance")).toHaveText("10");
+        await expect(page.getByTestId("token-balance")).toHaveText("15");
 
         const transferExecuted = new Promise((resolve, _reject) => {
             page.on("dialog", async (dialog) => {
@@ -108,7 +116,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
         await transferExecuted;
 
-        await expect(page.getByTestId("token-balance")).toHaveText("4.75");
+        await expect(page.getByTestId("token-balance")).toHaveText("9.75");
         await page.getByTestId("token-balance").click();
         await page.getByRole("link", { name: "6qfxa" }).click();
         await expect(

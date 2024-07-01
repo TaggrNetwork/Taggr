@@ -120,7 +120,9 @@ test.describe("Report and transfer to user", () => {
         );
     });
 
-    test("Login and switch to minting", async ({ page }) => {
+    test("Switch to minting, create an auction bid, trigger minting", async ({
+        page,
+    }) => {
         await page.goto("/");
         await page.getByRole("button", { name: "CONNECT" }).click();
         await page.getByRole("button", { name: "PASSWORD" }).click();
@@ -131,21 +133,15 @@ test.describe("Report and transfer to user", () => {
         await page.goto("/#/settings");
         await page.getByTestId("mode-selector").selectOption("Mining");
         await page.getByRole("button", { name: "SAVE" }).click();
-    });
 
-    test("Reward user and trigger minting", async () => {
-        await page.reload();
-        await page.goto("/");
-        await page.locator("#logo").click();
-        // Find jane's post and react with a star
-        const feedItem = page.locator(".feed_item", {
-            hasText: /Good stuff/,
-        });
-        await feedItem.getByTestId("reaction-picker").click();
-        await feedItem
-            .locator('button[title="Reward points: 10"]')
-            .first()
-            .click({ delay: 3000 });
+        await page.goto("/#/tokens");
+        await page.getByPlaceholder("ICP per 1 TAGGR").fill("0.01");
+        await page.getByPlaceholder("Number of TAGGR tokens").fill("15");
+        exec(
+            "dfx --identity local-minter ledger transfer --amount 0.15 --memo 0 756c3ee29e97e7f0a4a9e5c153f88b9f3c12dd43394c4298bbc9f4de3fc84121",
+        );
+        await page.getByRole("button", { name: "CREATE MY BID" }).click();
+        await page.waitForTimeout(1000);
 
         exec("dfx canister call taggr weekly_chores");
         await page.waitForTimeout(1500);
@@ -204,7 +200,7 @@ test.describe("Report and transfer to user", () => {
         await page.waitForTimeout(1000);
         await page.getByTestId("toggle-user-section").click();
 
-        await expect(page.getByTestId("token-balance")).toHaveText("10");
+        await expect(page.getByTestId("token-balance")).toHaveText("15");
 
         const transferExecuted = new Promise((resolve, _reject) => {
             page.on("dialog", async (dialog) => {

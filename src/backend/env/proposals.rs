@@ -98,9 +98,8 @@ impl Proposal {
                 if receiver == &principal {
                     return Err("reward receivers can not vote".into());
                 }
-                let minting_ratio = state.minting_ratio();
                 let base = token::base();
-                let max_funding_amount = CONFIG.max_funding_amount / minting_ratio / base;
+                let max_funding_amount = CONFIG.max_funding_amount / base;
                 let tokens = if approve {
                     data.parse::<Token>()
                         .map_err(|err| format!("couldn't parse the token amount: {err}"))?
@@ -243,7 +242,6 @@ fn mint_tokens(state: &mut State, receiver: Principal, mut tokens: Token) -> Res
 
 impl Payload {
     pub fn validate(&self, state: &State) -> Result<(), String> {
-        let minting_ratio = state.minting_ratio();
         let current_supply: Token = state.balances.values().sum();
         match self {
             Payload::AddRealmController(realm_id, user_id) => {
@@ -268,7 +266,7 @@ impl Payload {
                         "no funding is allowed when the current supply is above maximum".into(),
                     );
                 }
-                let max_funding_amount = CONFIG.max_funding_amount / minting_ratio;
+                let max_funding_amount = CONFIG.max_funding_amount;
                 if *tokens > max_funding_amount {
                     return Err(format!(
                         "funding amount is higher than the configured maximum of {} tokens",
@@ -921,7 +919,7 @@ pub mod tests {
 
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "30000"),
-                Err("reward amount is higher than the configured maximum of 20000 tokens".into())
+                Err("reward amount is higher than the configured maximum of 1000 tokens".into())
             );
 
             assert_eq!(state.active_voting_power(time()), 140000);
@@ -968,7 +966,7 @@ pub mod tests {
 
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "30000"),
-                Err("reward amount is higher than the configured maximum of 20000 tokens".into())
+                Err("reward amount is higher than the configured maximum of 1000 tokens".into())
             );
 
             // 200 tokens vote for reward of size 1000
@@ -1011,7 +1009,7 @@ pub mod tests {
 
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "30000"),
-                Err("reward amount is higher than the configured maximum of 20000 tokens".into())
+                Err("reward amount is higher than the configured maximum of 1000 tokens".into())
             );
 
             // 200 tokens vote for reward of size 1000
