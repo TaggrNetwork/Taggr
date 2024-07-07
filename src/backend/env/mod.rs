@@ -1282,7 +1282,7 @@ impl State {
             self.logger.info("No tokens were minted".to_string());
         } else {
             summary.description = format!(
-                "{} minted `{}` ${} tokens 💎 from the earned reward",
+                "{} minted `{}` ${} tokens 💎 from earned rewards",
                 CONFIG.name, minted_tokens, CONFIG.token_symbol
             );
             self.distribution_reports.push(summary);
