@@ -1193,29 +1193,38 @@ impl State {
 
         let tokens_to_mint: HashMap<_, _> = miner_rewards
             .into_iter()
-            .map(|(user_id, rewards)| {
+            .filter_map(|(user_id, rewards)| {
                 let e8s_earned = (rewards as f64 / CONFIG.credits_per_xdr as f64
                     * self.e8s_for_one_xdr as f64) as u64;
-                (user_id, e8s_earned / market_price)
+                let tokens_earned = e8s_earned / market_price;
+                if tokens_earned == 0 {
+                    return None;
+                }
+                Some((user_id, tokens_earned))
             })
             .collect();
         let total_tokens_to_mint: u64 = tokens_to_mint.values().sum();
 
         if total_tokens_to_mint > CONFIG.max_funding_amount {
             self.logger.warn(format!(
-                "Skipping minting: new tokens amount `{}` exceeds the configured threshold of `{}`.",
+                "Skipping minting: new tokens amount `{}` exceeds the configured threshold of `{}`",
                 total_tokens_to_mint,
                 CONFIG.max_funding_amount / token::base()
             ));
             return;
         }
 
+        if total_tokens_to_mint == 0 {
+            self.logger.warn("Skipping minting: no new tokens to mint");
+            return;
+        }
+
         let mut items = Vec::default();
         let mut minted_tokens = 0;
+        let base = token::base();
         for (user_id, tokens) in tokens_to_mint {
-            let base = token::base();
+            let minted_fractional = tokens as f64 / base as f64;
             if let Some(user) = self.users.get_mut(&user_id) {
-                let minted_fractional = tokens as f64 / base as f64;
                 user.notify(format!(
                     "{} minted `{}` ${} tokens for you! 💎",
                     CONFIG.name, minted_fractional, CONFIG.token_symbol,
