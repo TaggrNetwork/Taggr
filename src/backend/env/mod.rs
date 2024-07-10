@@ -1166,6 +1166,7 @@ impl State {
     /// rewards according to the market price ratio.
     pub fn mint(&mut self, market_price: u64) {
         if market_price == 0 {
+            self.logger.warn("Skipping minting: no market price");
             return;
         }
 
@@ -1175,43 +1176,39 @@ impl State {
             items: Vec::default(),
         };
 
-        let miner_rewards = self
+        let mut tokens_to_mint = Vec::new();
+        let mut total_tokens_to_mint: u64 = 0;
+        let token_base = token::base();
+
+        for user in self
             .users
             .values_mut()
             .filter(|user| user.mode == Mode::Mining)
-            .fold(HashMap::new(), |mut acc, user| {
-                let rewards = user.take_positive_rewards();
-                if rewards == 0 {
-                    return acc;
-                }
-                acc.insert(user.id, rewards);
-                acc
-            });
-
-        // burn a corresponding amount credits to generate revenue
-        self.burned_cycles += miner_rewards.values().sum::<i64>();
-
-        let tokens_to_mint: HashMap<_, _> = miner_rewards
-            .into_iter()
-            .filter_map(|(user_id, rewards)| {
-                let e8s_earned = (rewards as f64 / CONFIG.credits_per_xdr as f64
-                    * self.e8s_for_one_xdr as f64) as u64;
-                let tokens_earned = e8s_earned / market_price;
-                if tokens_earned == 0 {
-                    return None;
-                }
-                Some((user_id, tokens_earned))
-            })
-            .collect();
-        let total_tokens_to_mint: u64 = tokens_to_mint.values().sum();
-
-        if total_tokens_to_mint > CONFIG.max_funding_amount {
-            self.logger.warn(format!(
-                "Skipping minting: new tokens amount `{}` exceeds the configured threshold of `{}`",
-                total_tokens_to_mint,
-                CONFIG.max_funding_amount / token::base()
+        {
+            let rewards = user.take_positive_rewards();
+            if rewards == 0 {
+                continue;
+            }
+            // burn a corresponding amount credits to generate revenue
+            self.burned_cycles += rewards;
+            let e8s_earned = (rewards as f64 / CONFIG.credits_per_xdr as f64
+                * self.e8s_for_one_xdr as f64) as u64;
+            let tokens_earned = e8s_earned / market_price;
+            if tokens_earned == 0 {
+                continue;
+            }
+            if total_tokens_to_mint + tokens_earned > CONFIG.max_funding_amount {
+                self.logger.warn(format!(
+                "Safety measure: stopping the minting because the amount of the newly minted tokens (`{}`) exceeds the configured weekly limit of `{}` (the remaining tokens will be minted during the next distribution)",
+                total_tokens_to_mint / token_base,
+                CONFIG.max_funding_amount / token_base
             ));
-            return;
+                user.change_rewards(rewards, "refund due to minting cancelation");
+                break;
+            }
+
+            tokens_to_mint.push((user.id, tokens_earned));
+            total_tokens_to_mint += tokens_earned;
         }
 
         if total_tokens_to_mint == 0 {
