@@ -1,9 +1,7 @@
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
-use crate::env::{
-    invoices::principal_to_subaccount, proposals::Payload, token::Token, user::UserFilter,
-};
+use crate::env::{invoices::principal_to_subaccount, proposals::Payload, user::UserFilter};
 
 use super::*;
 use candid::Principal;
@@ -26,31 +24,6 @@ use serde_bytes::ByteBuf;
 fn check_invite() {
     let code: String = parse(&arg_data_raw());
     read(|state| reply(state.invites.contains_key(&code)))
-}
-
-#[export_name = "canister_query donors"]
-fn donors() {
-    read(|state| {
-        let boostraping_mode =
-            state.balances.values().sum::<Token>() < CONFIG.boostrapping_threshold_tokens;
-        let mut donors = state
-            .users
-            .values()
-            .map(|user| {
-                (
-                    user.id,
-                    user.mintable_tokens(state, 1, boostraping_mode)
-                        .map(|(_, tokens)| tokens)
-                        .sum::<Token>(),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        donors.sort_unstable_by_key(move |(_, tokens)| Reverse(*tokens));
-        donors.truncate(100);
-
-        reply(donors);
-    });
 }
 
 #[export_name = "canister_query migration_pending"]
@@ -100,12 +73,7 @@ fn users_data() {
         let ids: Vec<UserId> = parse(&arg_data_raw());
         let iter: Box<dyn Iterator<Item = &UserId>> = if ids.is_empty() {
             match state.principal_to_user(caller()) {
-                Some(user) => Box::new(
-                    user.followees
-                        .iter()
-                        .chain(user.followers.iter())
-                        .chain(user.karma_donations.keys()),
-                ),
+                Some(user) => Box::new(user.followees.iter().chain(user.followers.iter())),
                 _ => Box::new(std::iter::empty()),
             }
         } else {
@@ -140,11 +108,6 @@ fn balances() {
                 .collect::<Vec<_>>(),
         );
     });
-}
-
-#[export_name = "canister_query tokens_to_mint"]
-fn tokens_to_mint() {
-    read(|state| reply(state.tokens_to_mint().into_iter().collect::<Vec<_>>()))
 }
 
 #[export_name = "canister_query transaction"]

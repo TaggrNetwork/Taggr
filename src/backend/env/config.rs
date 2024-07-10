@@ -23,11 +23,6 @@ pub struct Config {
     pub token_symbol: &'static str,
     pub maximum_supply: Token,
 
-    // This is a custom difficulty adjustment that can be set by the DAO in emergency cases
-    // when the speed of minting does not meet DAO's expectations. Currently, we consider this as a
-    // temporary measure to slow down the minting until the DAO agrees on a better approach.
-    pub difficulty_amplification: u64,
-
     pub weekly_auction_size_tokens: Token,
 
     pub max_age_hot_post_days: u64,
@@ -36,7 +31,6 @@ pub struct Config {
 
     pub credits_per_xdr: u64,
 
-    pub individual_minting_threshold_percentage: u64,
     pub minting_threshold_percentage: u64,
 
     pub active_user_share_for_minting_promille: u32,
@@ -165,6 +159,9 @@ pub const CONFIG: &Config = &Config {
     logo: include_str!("../../frontend/assets/logo.min.svg"),
     staging: "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io",
 
+    #[cfg(not(any(feature = "dev", feature = "staging")))]
+    weekly_auction_size_tokens: 11500,
+    #[cfg(any(feature = "dev", feature = "staging"))]
     weekly_auction_size_tokens: 1500,
 
     #[cfg(not(feature = "staging"))]
@@ -190,15 +187,9 @@ pub const CONFIG: &Config = &Config {
 
     min_treasury_balance_xdrs: 38, // ~$50
 
-    individual_minting_threshold_percentage: 1,
-    minting_threshold_percentage: 5,
+    minting_threshold_percentage: 1,
 
     active_user_share_for_minting_promille: 10,
-
-    #[cfg(any(test, feature = "dev"))]
-    difficulty_amplification: 1,
-    #[cfg(not(any(test, feature = "dev")))]
-    difficulty_amplification: 4,
 
     max_age_hot_post_days: 2,
 
@@ -254,11 +245,8 @@ pub const CONFIG: &Config = &Config {
 
     max_bucket_size: 1024 * 1024 * 1024 * 96, // 96Gb
 
-    #[cfg(any(test, feature = "dev"))]
-    max_posts_per_day: 150,
-    #[cfg(not(any(test, feature = "dev")))]
-    max_posts_per_day: 5,
-    max_comments_per_hour: 20,
+    max_posts_per_day: 50,
+    max_comments_per_hour: 100,
     excess_penalty: 5,
 
     feed_page_size: 30,
@@ -340,7 +328,7 @@ pub const CONFIG: &Config = &Config {
         (12, 1),
     ],
 
-    max_funding_amount: 2_000_000, // at ratio 1:1
+    max_funding_amount: 100000,
 
     neuron_id: 16737374299031693047,
 };

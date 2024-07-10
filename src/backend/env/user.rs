@@ -86,7 +86,7 @@ pub struct User {
     pub settings: BTreeMap<String, String>,
     pub cold_wallet: Option<Principal>,
     cycles: Credits,
-    rewards: i64,
+    pub rewards: i64,
     pub feeds: Vec<Vec<String>>,
     pub followees: BTreeSet<UserId>,
     pub followers: BTreeSet<UserId>,
@@ -109,6 +109,8 @@ pub struct User {
     #[serde(skip)]
     pub draft: Option<Draft>,
     pub filters: Filters,
+    // TODO: delete
+    #[serde(skip)]
     pub karma_donations: BTreeMap<UserId, Credits>,
     pub previous_names: Vec<String>,
     pub governance: bool,
@@ -117,7 +119,6 @@ pub struct User {
     pub show_posts_in_realms: bool,
     pub posts: Vec<PostId>,
     pub controlled_realms: HashSet<RealmId>,
-    #[serde(default)]
     pub mode: Mode,
 }
 
@@ -554,94 +555,12 @@ impl User {
             }
         })
     }
-
-    pub fn eligible_for_minting(&self) -> bool {
-        self.mode == Mode::Mining && !self.controversial() && self.rewards() > 0
-    }
-
-    pub fn mintable_tokens(
-        &self,
-        state: &State,
-        user_shares: u64,
-        boostraping_mode: bool,
-    ) -> Box<dyn Iterator<Item = (UserId, Token)> + '_> {
-        if self.controversial() {
-            return Box::new(std::iter::empty());
-        }
-        let ratio = state.minting_ratio();
-        let base = token::base();
-        let karma_donated_total: Credits = self.karma_donations.values().sum();
-        // we can donate only min(balance/ratio, donated_karma/ratio);
-        let donated_karma = karma_donated_total * base;
-        let spendable_tokens = if boostraping_mode {
-            // During the bootstrap period, use karma and not balances
-            donated_karma
-        } else {
-            let minting_power = state
-                .minting_power
-                .get(&self.principal)
-                .copied()
-                .unwrap_or_default();
-            self.total_balance()
-                .min(minting_power)
-                .min(donated_karma)
-                .min(CONFIG.max_spendable_tokens)
-        } / ratio;
-        let spendable_tokens_per_user = spendable_tokens / user_shares;
-
-        let priority_factor = |user_id| {
-            let balance = state
-                .users
-                .get(&user_id)
-                .map(|user| user.total_balance())
-                .unwrap_or_default()
-                / base;
-            if balance <= 100 {
-                1.2
-            } else if balance <= 250 {
-                1.15
-            } else if balance <= 500 {
-                1.1
-            } else {
-                1.0
-            }
-        };
-
-        let shares = self
-            .karma_donations
-            .iter()
-            .map(|(user_id, karma_donated)| {
-                (
-                    *user_id,
-                    (*karma_donated as f32 / karma_donated_total as f32
-                        * priority_factor(*user_id)
-                        * 100.0_f32) as u64,
-                )
-            })
-            .collect::<Vec<_>>();
-
-        let total = shares.iter().map(|(_, share)| share).sum::<u64>();
-
-        Box::new(
-            shares
-                .into_iter()
-                .map(move |(user_id, share)| {
-                    (
-                        user_id,
-                        spendable_tokens_per_user
-                            .min((share as f32 / total as f32 * spendable_tokens as f32) as Token),
-                    )
-                })
-                .filter(|(_, balance)| balance > &0),
-        )
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::env::tests::pr;
-    use crate::tests::{create_user, insert_balance};
 
     #[test]
     fn test_user_filters() {
@@ -740,118 +659,6 @@ mod tests {
     }
 
     #[test]
-    fn test_minted_tokens_cap() {
-        let state = &mut State::default();
-        let donor_id = create_user(state, pr(0));
-        let u1 = create_user(state, pr(1));
-        let u2 = create_user(state, pr(2));
-        let u3 = create_user(state, pr(3));
-        insert_balance(state, pr(0), 6000); // spendable tokens
-        assert_eq!(state.minting_ratio(), 1);
-
-        let donor = state.users.get_mut(&donor_id).unwrap();
-        donor.karma_donations.insert(u1, 330);
-        donor.karma_donations.insert(u2, 660);
-        donor.karma_donations.insert(u3, 990);
-        // Donate
-        let mintable_tokens = state
-            .users
-            .get(&donor_id)
-            .unwrap()
-            .mintable_tokens(state, 1, false)
-            .collect::<BTreeMap<_, _>>();
-        assert_eq!(mintable_tokens.len(), 3);
-
-        let donor = state.users.get_mut(&donor_id).unwrap();
-
-        // Assume the donor minted 6k tokens
-        assert_eq!(state.minting_power.get(&pr(0)).unwrap(), &6000);
-
-        // Simulate a tx to the cold wallet
-        donor.balance -= 5500;
-        donor.cold_balance += 5500;
-
-        // Ensure we mint as many tokens as before
-        assert_eq!(
-            mintable_tokens,
-            state
-                .users
-                .get(&donor_id)
-                .unwrap()
-                .mintable_tokens(state, 1, false)
-                .collect::<BTreeMap<_, _>>()
-        );
-
-        // Simulate an outflow of 50% from the cold wallet
-        let donor = state.users.get_mut(&donor_id).unwrap();
-        donor.cold_balance -= 3000;
-        let mintable_tokens_after_outflow = state
-            .users
-            .get(&donor_id)
-            .unwrap()
-            .mintable_tokens(state, 1, false)
-            .collect::<BTreeMap<_, _>>();
-
-        // Rewards have halved
-        for id in &[u1, u2, u3] {
-            assert_eq!(
-                *mintable_tokens.get(id).unwrap(),
-                mintable_tokens_after_outflow.get(id).unwrap() * 2,
-            );
-        }
-
-        // Simulate an inflow of 100%
-        let donor = state.users.get_mut(&donor_id).unwrap();
-        donor.balance += 6000;
-        let mintable_tokens_after_inflow = state
-            .users
-            .get(&donor_id)
-            .unwrap()
-            .mintable_tokens(state, 1, false)
-            .collect::<BTreeMap<_, _>>();
-
-        // Rewards are back to the minting levels, but not more!
-        for id in &[u1, u2, u3] {
-            assert_eq!(
-                mintable_tokens.get(id).unwrap(),
-                mintable_tokens_after_inflow.get(id).unwrap(),
-            );
-        }
-
-        // Simulate an outflow from all wallets
-        let donor = state.users.get_mut(&donor_id).unwrap();
-        donor.balance = 0;
-        donor.cold_balance = 0;
-        let mintable_tokens_after_selloff = state
-            .users
-            .get(&donor_id)
-            .unwrap()
-            .mintable_tokens(state, 1, false)
-            .collect::<BTreeMap<_, _>>();
-        assert!(mintable_tokens_after_selloff.is_empty());
-
-        // Simulate an inflow of 10% of the original minted balance
-        let donor = state.users.get_mut(&donor_id).unwrap();
-        assert_eq!(donor.balance, 0);
-        assert_eq!(donor.cold_balance, 0);
-        donor.balance += 600;
-        let mintable_tokens_after_buyback = state
-            .users
-            .get(&donor_id)
-            .unwrap()
-            .mintable_tokens(state, 1, false)
-            .collect::<BTreeMap<_, _>>();
-
-        // Rewards are back to the minting levels, but not more!
-        for id in &[u1, u2, u3] {
-            assert_eq!(
-                mintable_tokens.get(id).unwrap() / 10,
-                *mintable_tokens_after_buyback.get(id).unwrap(),
-            );
-        }
-    }
-
-    #[test]
     fn test_automatic_top_up() {
         let mut user = User::new(pr(0), 66, 0, Default::default());
         user.mode = Mode::Credits;
@@ -908,139 +715,6 @@ mod tests {
             .unwrap();
         assert_eq!(revenue, 0);
         assert_eq!(user.credits(), 646);
-    }
-
-    #[test]
-    // check that we cannot donate more tokens than rewards / ratio even if the balance would allow
-    fn test_mintable_tokens_with_balance_higher_than_karma() {
-        let state = &mut State::default();
-        let donor_id = create_user(state, pr(0));
-        let u1 = create_user(state, pr(1));
-        let u2 = create_user(state, pr(2));
-        let u3 = create_user(state, pr(3));
-        let u4 = create_user(state, pr(4));
-        insert_balance(state, pr(255), 20000000);
-        insert_balance(state, pr(0), 600000); // spendable tokens
-        insert_balance(state, pr(1), 9900);
-        insert_balance(state, pr(2), 24900);
-        insert_balance(state, pr(3), 49900);
-        insert_balance(state, pr(4), 100000);
-        assert_eq!(state.minting_ratio(), 4);
-        let bob = state.users.get_mut(&donor_id).unwrap();
-
-        bob.karma_donations.insert(u1, 330);
-        bob.karma_donations.insert(u2, 660);
-        bob.karma_donations.insert(u3, 990);
-        bob.karma_donations.insert(u4, 1020);
-        let mintable_tokens = state
-            .users
-            .get(&donor_id)
-            .unwrap()
-            .mintable_tokens(state, 1, false)
-            .collect::<BTreeMap<_, _>>();
-        assert_eq!(mintable_tokens.len(), 4);
-
-        assert_eq!(mintable_tokens.get(&u1).unwrap(), &9027);
-        assert_eq!(mintable_tokens.get(&u2).unwrap(), &17361);
-        assert_eq!(mintable_tokens.get(&u3).unwrap(), &25000);
-        assert_eq!(mintable_tokens.get(&u4).unwrap(), &23611);
-        assert_eq!(
-            mintable_tokens.values().sum::<u64>(),
-            300000 / state.minting_ratio() - 1
-        );
-
-        // test the mintable tokens cap
-        insert_balance(state, pr(0), 22000000);
-        let bob = state.users.get_mut(&donor_id).unwrap();
-
-        bob.karma_donations.clear();
-        bob.karma_donations.insert(u1, 15000000);
-        let mintable_tokens = state
-            .users
-            .get(&donor_id)
-            .unwrap()
-            .mintable_tokens(state, 1, false)
-            .collect::<BTreeMap<_, _>>();
-        assert_eq!(
-            mintable_tokens.get(&u1).unwrap(),
-            &(12000000 / state.minting_ratio())
-        );
-    }
-
-    #[test]
-    // check that we cannot donate more tokens than balance / ratio even if donated rewards was high
-    fn test_mintable_tokens_with_karma_higher_than_balance() {
-        let state = &mut State::default();
-        let donor_id = create_user(state, pr(0));
-        let u1 = create_user(state, pr(1));
-        let u2 = create_user(state, pr(2));
-        let u3 = create_user(state, pr(3));
-        let u4 = create_user(state, pr(4));
-        insert_balance(state, pr(255), 20000000);
-        insert_balance(state, pr(0), 60000); // spendable tokens
-        insert_balance(state, pr(1), 9900);
-        insert_balance(state, pr(2), 24900);
-        insert_balance(state, pr(3), 49900);
-        insert_balance(state, pr(4), 100000);
-        assert_eq!(state.minting_ratio(), 4);
-        let bob = state.users.get_mut(&donor_id).unwrap();
-
-        bob.karma_donations.insert(u1, 330);
-        bob.karma_donations.insert(u2, 660);
-        bob.karma_donations.insert(u3, 990);
-        bob.karma_donations.insert(u4, 1020);
-        let mintable_tokens = state
-            .users
-            .get(&donor_id)
-            .unwrap()
-            .mintable_tokens(state, 1, false)
-            .collect::<BTreeMap<_, _>>();
-        assert_eq!(mintable_tokens.len(), 4);
-
-        assert_eq!(mintable_tokens.get(&u1).unwrap(), &1805);
-        assert_eq!(mintable_tokens.get(&u2).unwrap(), &3472);
-        assert_eq!(mintable_tokens.get(&u3).unwrap(), &5000);
-        assert_eq!(mintable_tokens.get(&u4).unwrap(), &4722);
-
-        assert_eq!(
-            mintable_tokens.values().sum::<u64>(),
-            60000 / state.minting_ratio() - 1
-        );
-    }
-
-    #[test]
-    fn test_mintable_tokens_with_user_share() {
-        let state = &mut State::default();
-        let donor_id = create_user(state, pr(0));
-        let u1 = create_user(state, pr(1));
-        let u2 = create_user(state, pr(2));
-        let u3 = create_user(state, pr(3));
-        let u4 = create_user(state, pr(4));
-        insert_balance(state, pr(255), 20000000);
-        insert_balance(state, pr(0), 600000); // spendable tokens
-        insert_balance(state, pr(1), 9900);
-        insert_balance(state, pr(2), 24900);
-        insert_balance(state, pr(3), 49900);
-        insert_balance(state, pr(4), 100000);
-        assert_eq!(state.minting_ratio(), 4);
-        let bob = state.users.get_mut(&donor_id).unwrap();
-
-        bob.karma_donations.insert(u1, 330);
-        bob.karma_donations.insert(u2, 660);
-        bob.karma_donations.insert(u3, 990);
-        bob.karma_donations.insert(u4, 1020);
-        let mintable_tokens = state
-            .users
-            .get(&donor_id)
-            .unwrap()
-            .mintable_tokens(state, 10, false)
-            .collect::<BTreeMap<_, _>>();
-        assert_eq!(mintable_tokens.len(), 4);
-
-        assert_eq!(mintable_tokens.get(&u1).unwrap(), &7500);
-        assert_eq!(mintable_tokens.get(&u2).unwrap(), &7500);
-        assert_eq!(mintable_tokens.get(&u3).unwrap(), &7500);
-        assert_eq!(mintable_tokens.get(&u4).unwrap(), &7500);
     }
 
     #[test]
