@@ -185,7 +185,7 @@ export const PostView = ({
 
     const isComment = !isRoot(post);
     const expanded =
-        !isComment && (focused || (!isFeedItem && !repost) || isThreadView);
+        isComment || focused || (!isFeedItem && !repost) || isThreadView;
     const costTable = reactionCosts();
     const isInactive =
         objectReduce(
