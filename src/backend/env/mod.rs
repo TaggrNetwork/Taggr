@@ -167,10 +167,13 @@ pub struct State {
     pub storage: storage::Storage,
 
     // TODO: delete
+    #[serde(skip)]
     pub last_weekly_chores: u64,
     // TODO: delete
+    #[serde(skip)]
     pub last_daily_chores: u64,
     // TODO: delete
+    #[serde(skip)]
     pub last_hourly_chores: u64,
 
     pub logger: Logger,
