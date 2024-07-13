@@ -23,7 +23,8 @@ pub struct Config {
     pub token_symbol: &'static str,
     pub maximum_supply: Token,
 
-    pub weekly_auction_size_tokens: Token,
+    pub weekly_auction_size_tokens_min: Token,
+    pub weekly_auction_size_tokens_max: Token,
 
     pub max_age_hot_post_days: u64,
 
@@ -159,10 +160,8 @@ pub const CONFIG: &Config = &Config {
     logo: include_str!("../../frontend/assets/logo.min.svg"),
     staging: "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io",
 
-    #[cfg(not(any(feature = "dev", feature = "staging")))]
-    weekly_auction_size_tokens: 11500,
-    #[cfg(any(feature = "dev", feature = "staging"))]
-    weekly_auction_size_tokens: 1500,
+    weekly_auction_size_tokens_min: 1500,
+    weekly_auction_size_tokens_max: 100000,
 
     #[cfg(not(feature = "staging"))]
     token_symbol: "TAGGR",

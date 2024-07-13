@@ -30,6 +30,7 @@ test.describe("Report and transfer to user", () => {
         await page.getByPlaceholder("alphanumeric").fill("joe");
         await page.getByRole("button", { name: "SAVE" }).click();
         exec("dfx canister call taggr make_stalwart '(\"joe\")'");
+        await page.waitForTimeout(500);
     });
 
     test("Create two invites", async () => {

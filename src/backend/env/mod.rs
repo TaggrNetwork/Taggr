@@ -17,9 +17,7 @@ use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::performance_counter;
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{self, canister_balance};
-use ic_ledger_types::{
-    AccountIdentifier, Tokens, DEFAULT_FEE, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID,
-};
+use ic_ledger_types::{AccountIdentifier, Tokens, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
 use invoices::Invoices;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -46,6 +44,7 @@ pub mod user;
 pub type Credits = u64;
 pub type Blob = ByteBuf;
 pub type Time = u64;
+pub type E8s = u64;
 
 pub const MILLISECOND: u64 = 1_000_000_u64;
 pub const SECOND: u64 = 1000 * MILLISECOND;
@@ -631,9 +630,6 @@ impl State {
         }
         self.last_upgrade = time();
         self.timers.last_hourly = time();
-        if self.auction.amount == 0 {
-            self.auction.amount = CONFIG.weekly_auction_size_tokens;
-        }
     }
 
     pub fn realms_posts(
@@ -1751,38 +1747,18 @@ impl State {
     // treasury, converting them to revenue.
     async fn close_auction() -> u64 {
         let (bids, revenue, market_price) = mutate(|state| {
-            let bids = state.auction.get_bids();
+            let (bids, revenue, market_price) = state.auction.close();
             if bids.is_empty() {
                 state.logger.info("Auction skipped: not enough bids");
                 return (bids, 0, 0);
             }
 
-            let icp_fee = DEFAULT_FEE.e8s();
-            let mut revenue = 0;
-
             state.minting_mode = true;
             for bid in &bids {
                 let principal = state.users.get(&bid.user).expect("no user found").principal;
                 token::mint(state, account(principal), bid.amount);
-                revenue += bid
-                    .amount
-                    .checked_mul(bid.e8s_per_token)
-                    .expect("overflow")
-                    // subtract the fee because we do not charge it when a bid is created
-                    .checked_sub(icp_fee)
-                    .expect("underflow");
             }
             state.minting_mode = false;
-
-            // subtract the fee because we will move it to the treasury
-            revenue = revenue.saturating_sub(icp_fee);
-            state.burned_cycles +=
-                (revenue / state.e8s_for_one_xdr * CONFIG.credits_per_xdr) as i64;
-
-            let market_price = revenue / state.auction.amount;
-
-            // set token number for the next week
-            state.auction.amount = CONFIG.weekly_auction_size_tokens;
 
             (bids, revenue, market_price)
         });
