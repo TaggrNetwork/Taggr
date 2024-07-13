@@ -1717,8 +1717,10 @@ impl State {
             let market_price = State::close_auction().await;
             mutate(|state| {
                 state.logger.info(format!(
-                    "Established market price: `{}` e8s per token",
-                    market_price
+                    "Established market price: `{}` e8s per `1` {}; next auction size: `{}` tokens",
+                    market_price * token::base(),
+                    CONFIG.token_symbol,
+                    state.auction.amount
                 ));
 
                 state.minting_mode = true;
