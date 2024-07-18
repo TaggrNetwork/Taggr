@@ -8,10 +8,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     env::invoices::{self},
-    id, mutate, read, time,
+    id, mutate, read, time, E8s,
 };
 
 use super::{
+    config::CONFIG,
     invoices::{main_account, principal_to_subaccount},
     token::Token,
     user::UserId,
@@ -63,6 +64,8 @@ impl Ord for Bid {
 pub struct Auction {
     pub amount: Token,
     bids: BTreeSet<Bid>,
+    #[serde(default)]
+    pub last_auction_price_e8s: u64,
 }
 
 impl Auction {
@@ -103,6 +106,46 @@ impl Auction {
         }
 
         bids
+    }
+
+    /// Returns from the current auction the bids, the revenue and the computed market price.
+    /// As a side effect, it adjusts the auction size according to the price change as compared
+    /// to the previous auction.
+    pub fn close(&mut self) -> (Vec<Bid>, E8s, E8s) {
+        let bids = self.get_bids();
+        if bids.is_empty() {
+            return Default::default();
+        }
+
+        let icp_fee = DEFAULT_FEE.e8s();
+        let mut revenue = 0;
+
+        for bid in &bids {
+            revenue += bid
+                .amount
+                .checked_mul(bid.e8s_per_token)
+                .expect("overflow")
+                // subtract the fee because we do not charge it when a bid is created
+                .checked_sub(icp_fee)
+                .expect("underflow");
+        }
+
+        // subtract the fee because we will move it to the treasury
+        revenue = revenue.saturating_sub(icp_fee);
+
+        let market_price = revenue / self.amount;
+
+        // We compute the percentage of the price change since the last auction and apply this
+        // delta to the token amount of the next auction. Hence, a growing price will lead to
+        // more tokens getting auctioned and vice versa.
+        let price_delta = market_price as f64 / self.last_auction_price_e8s as f64;
+        let next_amount = (self.amount as f64 * price_delta) as u64;
+        self.amount = next_amount
+            .max(CONFIG.weekly_auction_size_tokens_min)
+            .min(CONFIG.weekly_auction_size_tokens_max);
+        self.last_auction_price_e8s = market_price;
+
+        (bids, revenue, market_price)
     }
 }
 
@@ -235,6 +278,7 @@ pub(crate) mod tests {
         env::{
             auction::Auction,
             tests::{create_user, pr},
+            token,
         },
         mutate,
     };
@@ -244,6 +288,8 @@ pub(crate) mod tests {
     #[test]
     fn test_auction() {
         mutate(|state| {
+            let one_icp = 100000000;
+
             for i in 0..3 {
                 create_user(state, pr(i));
             }
@@ -251,12 +297,11 @@ pub(crate) mod tests {
             state.auction = Auction {
                 amount: 15000,
                 bids: Default::default(),
+                last_auction_price_e8s: one_icp,
             };
 
             // wrong amount
             assert!(add_bid(state, pr(0), 0, 1, 0).is_err());
-
-            let one_icp = 100000000;
 
             // Bid 1 ICP for 100 TAGGR
             add_bid(state, pr(0), 10000, one_icp, 0).unwrap();
@@ -325,6 +370,8 @@ pub(crate) mod tests {
     #[test]
     fn test_bid_orders() {
         mutate(|state| {
+            let one_icp = 100000000;
+
             for i in 0..3 {
                 create_user(state, pr(i));
             }
@@ -332,9 +379,8 @@ pub(crate) mod tests {
             state.auction = Auction {
                 amount: 15000,
                 bids: Default::default(),
+                last_auction_price_e8s: one_icp,
             };
-
-            let one_icp = 100000000;
 
             // Bid 1 ICP for 100 TAGGR
             add_bid(state, pr(0), 10000, one_icp, 0).unwrap();
@@ -389,5 +435,106 @@ pub(crate) mod tests {
                 ]
             );
         });
+    }
+
+    #[test]
+    fn test_auction_size() {
+        mutate(|state| {
+            let one_icp = 100000000;
+
+            for i in 0..3 {
+                create_user(state, pr(i));
+            }
+
+            state.auction = Auction {
+                amount: 15000,
+                bids: Default::default(),
+                last_auction_price_e8s: one_icp,
+            };
+
+            // Bid 1 ICP for 100 TAGGR
+            add_bid(state, pr(0), 10000, one_icp, 0).unwrap();
+            assert!(!state.auction.sell_out());
+
+            // Bid 2 ICP for 30 TAGGR
+            add_bid(state, pr(1), 3000, 2 * one_icp, 0).unwrap();
+            assert!(!state.auction.sell_out());
+
+            // Bid 3 ICP for 22 TAGGR
+            add_bid(state, pr(2), 2200, 3 * one_icp, 0).unwrap();
+            assert!(state.auction.sell_out());
+
+            let (bids, revenue, market_price) = state.auction.close();
+
+            assert_eq!(bids.len(), 3);
+            let expected_revenue = one_icp * (3 * 22 + 2 * 30 + 98) * token::base()
+                - 3 * DEFAULT_FEE.e8s()
+                - DEFAULT_FEE.e8s();
+            assert_eq!(revenue, expected_revenue);
+            let expected_market_price = expected_revenue / 15000;
+            assert_eq!(market_price, expected_market_price);
+            // The expected market price is about 1.49 ICP, this is a 49% increase, so we expect
+            // the number of tokens to grow to about 150 * 1.49 = ~224 tokens.
+            assert_eq!(expected_market_price, 149333330);
+            assert_eq!(state.auction.amount, 22399);
+
+            // Let's run another auction with the price doing x1000
+            state.auction.bids.clear();
+            state.auction.amount = 15000;
+
+            // Bid 1k ICP for 100 TAGGR
+            add_bid(state, pr(0), 10000, one_icp * 1000, 0).unwrap();
+            assert!(!state.auction.sell_out());
+
+            // Bid 2k ICP for 30 TAGGR
+            add_bid(state, pr(1), 3000, 2 * one_icp * 1000, 0).unwrap();
+            assert!(!state.auction.sell_out());
+
+            // Bid 3k ICP for 22 TAGGR
+            add_bid(state, pr(2), 2200, 3 * one_icp * 1000, 0).unwrap();
+            assert!(state.auction.sell_out());
+
+            let (_, revenue, market_price) = state.auction.close();
+
+            let expected_revenue = 1000 * one_icp * (3 * 22 + 2 * 30 + 98) * token::base()
+                - 3 * DEFAULT_FEE.e8s()
+                - DEFAULT_FEE.e8s();
+            assert_eq!(revenue, expected_revenue);
+            let expected_market_price = expected_revenue / 15000;
+            assert_eq!(market_price, expected_market_price);
+            // We hit the ceiling and do not increase the auction size beyond the configured
+            // maximum
+            assert_eq!(expected_market_price, 149333333330);
+            assert_eq!(state.auction.amount, 100000);
+
+            // Let's run another auction with the price plummeting
+            state.auction.bids.clear();
+            state.auction.amount = 15000;
+
+            let e8s = 1000;
+            // Bid 1 E8 for 100 TAGGR
+            add_bid(state, pr(0), 10000, e8s, 0).unwrap();
+            assert!(!state.auction.sell_out());
+
+            // Bid 2 e8s for 30 TAGGR
+            add_bid(state, pr(1), 3000, 2 * e8s, 0).unwrap();
+            assert!(!state.auction.sell_out());
+
+            // Bid 3 e8s for 22 TAGGR
+            add_bid(state, pr(2), 2200, 3 * e8s, 0).unwrap();
+            assert!(state.auction.sell_out());
+
+            let (_, revenue, market_price) = state.auction.close();
+
+            let expected_revenue = e8s * (3 * 22 + 2 * 30 + 98) * token::base()
+                - 3 * DEFAULT_FEE.e8s()
+                - DEFAULT_FEE.e8s();
+            assert_eq!(revenue, expected_revenue);
+            let expected_market_price = expected_revenue / 15000;
+            assert_eq!(market_price, expected_market_price);
+            // We hit the floor and do not decrease the auction size below the configured minimum
+            assert_eq!(expected_market_price, 1490);
+            assert_eq!(state.auction.amount, 1500);
+        })
     }
 }

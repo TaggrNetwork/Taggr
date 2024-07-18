@@ -30,7 +30,7 @@ fn init() {
         state.timers.last_weekly = time();
         state.timers.last_daily = time();
         state.timers.last_hourly = time();
-        state.auction.amount = CONFIG.weekly_auction_size_tokens;
+        state.auction.amount = CONFIG.weekly_auction_size_tokens_max;
     });
     set_timer(Duration::from_millis(0), || {
         spawn(State::fetch_xdr_rate());
@@ -80,13 +80,18 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    // https://6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io/#/post/1372464
+    #[cfg(not(any(feature = "dev", feature = "staging")))]
+    mutate(|state| {
+        state.auction.amount = 11500;
+        // as established on July 12
+        state.auction.last_auction_price_e8s = 417980;
+    });
+}
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {
-    // We need to upgrade the buckets in this release.
-    storage::upgrade_buckets().await;
-}
+async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES
