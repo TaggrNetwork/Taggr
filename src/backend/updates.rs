@@ -85,9 +85,20 @@ fn sync_post_upgrade_fixtures() {
     #[cfg(not(any(feature = "dev", feature = "staging")))]
     mutate(|state| {
         state.auction.amount = 11500;
-        // as established on July 12
-        state.auction.last_auction_price_e8s = 417980;
+        // as established on July 20 vis ICPSwap
+        state.auction.last_auction_price_e8s = 656700;
     });
+
+    // https://taggr.link/#/post/1385053
+    mutate(|state| {
+        for u in state.users.values_mut() {
+            if let Some(report) = u.report.as_mut() {
+                if !report.closed {
+                    report.closed = true;
+                }
+            }
+        }
+    })
 }
 
 #[allow(clippy::all)]
