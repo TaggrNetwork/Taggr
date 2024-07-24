@@ -32,7 +32,7 @@ code {
 
 article.preview,
 textarea {
-    max-height: 80vh;
+    max-height: 150vh;
 }
 
 article.preview {
@@ -231,7 +231,7 @@ article {
 }
 
 .feed_item article {
-    max-height: 100vh;
+    max-height: 150vh;
     position: relative;
 }
 
@@ -635,7 +635,7 @@ p > img {
 
 article img {
     max-width: 100%;
-    max-height: 80vh;
+    max-height: 120vh;
     margin-left: auto;
     margin-right: auto;
     display: block;
