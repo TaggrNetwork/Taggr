@@ -80,26 +80,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    // https://6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io/#/post/1372464
-    #[cfg(not(any(feature = "dev", feature = "staging")))]
-    mutate(|state| {
-        state.auction.amount = 11500;
-        // as established on July 20 vis ICPSwap
-        state.auction.last_auction_price_e8s = 656700;
-    });
-
-    // https://taggr.link/#/post/1385053
-    mutate(|state| {
-        for u in state.users.values_mut() {
-            if let Some(report) = u.report.as_mut() {
-                if !report.closed {
-                    report.closed = true;
-                }
-            }
-        }
-    })
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
