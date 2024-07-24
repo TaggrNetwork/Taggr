@@ -220,7 +220,7 @@ pub fn transfer(
         }));
     }
 
-    if state.voted_on_pending_proposal(owner) {
+    if state.voted_on_emergency_proposal(owner) {
         return Err(TransferError::GenericError(GenericError {
             error_code: 1,
             message: "transfers locked: a vote on a pending proposal detected".to_string(),
@@ -398,8 +398,6 @@ pub fn balances_from_ledger(ledger: &[Transaction]) -> Result<HashMap<Account, T
 
 #[cfg(test)]
 mod tests {
-    use crate::env::proposals::{Proposal, Status};
-
     use super::*;
 
     fn pr(n: u8) -> Principal {
@@ -492,12 +490,7 @@ mod tests {
         state.balances.insert(account(pr(0)), 1000);
 
         // Create an open proposal with a pending vote
-        state.proposals.push(Proposal {
-            proposer: 0,
-            bulletins: vec![(0, true, 1)],
-            status: Status::Open,
-            ..Default::default()
-        });
+        state.emergency_votes.insert(pr(0), 1000);
 
         assert_eq!(
             transfer(
@@ -519,7 +512,7 @@ mod tests {
             })),
         );
 
-        state.proposals.clear();
+        state.emergency_votes.clear();
 
         assert_eq!(
             transfer(

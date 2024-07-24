@@ -165,16 +165,6 @@ pub struct State {
     pub accounting: Invoices,
     pub storage: storage::Storage,
 
-    // TODO: delete
-    #[serde(skip)]
-    pub last_weekly_chores: u64,
-    // TODO: delete
-    #[serde(skip)]
-    pub last_daily_chores: u64,
-    // TODO: delete
-    #[serde(skip)]
-    pub last_hourly_chores: u64,
-
     pub logger: Logger,
     pub invites: BTreeMap<String, (UserId, Credits)>,
     pub realms: BTreeMap<RealmId, Realm>,
@@ -373,7 +363,7 @@ impl State {
     }
 
     pub fn unlink_cold_wallet(&mut self, caller: Principal) -> Result<(), String> {
-        if self.voted_on_pending_proposal(caller) {
+        if self.voted_on_emergency_proposal(caller) {
             return Err("a vote on a pending proposal detected".into());
         }
         if let Some(user) = self.principal_to_user_mut(caller) {
@@ -386,20 +376,8 @@ impl State {
         Ok(())
     }
 
-    pub fn voted_on_pending_proposal(&self, principal: Principal) -> bool {
+    pub fn voted_on_emergency_proposal(&self, principal: Principal) -> bool {
         self.emergency_votes.contains_key(&principal)
-            || self
-                .principal_to_user(principal)
-                .map(|user| {
-                    self.proposals.iter().any(|proposal| {
-                        proposal.status == Status::Open
-                            && proposal
-                                .bulletins
-                                .iter()
-                                .any(|(user_id, _, _)| &user.id == user_id)
-                    })
-                })
-                .unwrap_or_default()
     }
 
     pub async fn finalize_upgrade() {
@@ -2267,7 +2245,7 @@ impl State {
             Some(value) => value,
             None => return Ok(false),
         };
-        if self.voted_on_pending_proposal(old_principal) {
+        if self.voted_on_emergency_proposal(old_principal) {
             return Err("pending proposal with the current principal as voter exists".into());
         }
         if new_principal == Principal::anonymous() {
@@ -2883,7 +2861,7 @@ impl State {
         principal: Principal,
         new_principal_str: String,
     ) -> Result<(), String> {
-        if self.voted_on_pending_proposal(principal) {
+        if self.voted_on_emergency_proposal(principal) {
             return Err("pending proposal with the current principal as voter exists".into());
         }
         let new_principal = Principal::from_text(new_principal_str).map_err(|e| e.to_string())?;
@@ -3061,22 +3039,13 @@ pub(crate) mod tests {
             let voters = state.active_voters(0).collect::<BTreeMap<_, _>>();
             assert_eq!(*voters.get(&1).unwrap(), (2 << 2) * 10000 + cold_balance);
 
-            state.proposals.push(Proposal {
-                id: 0,
-                proposer: 0,
-                timestamp: 0,
-                post_id: 0,
-                status: Status::Open,
-                payload: Payload::Noop,
-                bulletins: vec![(1, false, 1000)],
-                voting_power: 1000000,
-            });
+            state.emergency_votes.insert(pr(200), 1000);
             assert_eq!(
                 state.unlink_cold_wallet(pr(200)),
                 Err("a vote on a pending proposal detected".into())
             );
 
-            state.proposals[0].status = Status::Executed;
+            state.emergency_votes.clear();
             assert!(state.unlink_cold_wallet(pr(200)).is_ok(),);
             let user = state.principal_to_user(pr(1)).unwrap();
             assert_eq!(user.id, 1);
@@ -3440,19 +3409,6 @@ pub(crate) mod tests {
             let user = state.principal_to_user_mut(pr(1)).unwrap();
             user.stalwart = true;
             let user_id = user.id;
-            let proposal_id = proposals::tests::propose(
-                state,
-                pr(1),
-                "test".into(),
-                Payload::Rewards(proposals::Rewards {
-                    receiver: pr(2),
-                    votes: Default::default(),
-                    minted: 0,
-                }),
-                time(),
-            )
-            .expect("couldn't propose");
-            proposals::vote_on_proposal(state, 0, pr(1), proposal_id, false, "1").unwrap();
 
             let new_principal_str: String =
                 "yh4uw-lqajx-4dxcu-rwe6s-kgfyk-6dicz-yisbt-pjg7v-to2u5-morox-hae".into();
@@ -3460,6 +3416,7 @@ pub(crate) mod tests {
             assert_eq!(state.change_principal(new_principal), Ok(false));
             state.principal_change_requests.insert(new_principal, pr(1));
 
+            state.emergency_votes.insert(pr(1), 1);
             match state.change_principal(new_principal) {
                 Err(err)
                     if err
@@ -3467,8 +3424,8 @@ pub(crate) mod tests {
                 }
                 val => panic!("unexpected outcome: {:?}", val),
             };
+            state.emergency_votes.clear();
 
-            state.proposals.get_mut(0).unwrap().status = Status::Executed;
             state.principal_change_requests.insert(new_principal, pr(1));
 
             assert_eq!(state.principals.len(), 2);

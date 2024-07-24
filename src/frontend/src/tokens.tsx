@@ -303,6 +303,12 @@ const Auction = ({}) => {
                             <ButtonWithLoading
                                 classNameArg="top_spaced max_width_col right_half_spaced"
                                 onClick={async () => {
+                                    if (
+                                        !confirm(
+                                            "Your bid will be cancelled and the ICP funds will be moved to your wallet. Continue?",
+                                        )
+                                    )
+                                        return;
                                     const response: any =
                                         await window.api.call("cancel_bid");
                                     if (!response) {
