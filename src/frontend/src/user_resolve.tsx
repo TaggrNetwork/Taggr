@@ -85,7 +85,7 @@ export const UserLink = ({
             {userName}
         </a>
     ) : (
-        <span>N/A</span>
+        <span className={`${classNameArg} user_link`}>N/A</span>
     );
 };
 
