@@ -132,7 +132,10 @@ export const Inbox = () => {
             )}
             {fresh.map((id) => displayEntry(Number(id)))}
             {!showArchive && (
-                <MoreButton callback={async () => setShowArchive(true)} />
+                <MoreButton
+                    callback={async () => setShowArchive(true)}
+                    label="SHOW ARCHIVE"
+                />
             )}
             {showArchive && archived.length > 0 && (
                 <div style={{ opacity: 0.65 }}>
