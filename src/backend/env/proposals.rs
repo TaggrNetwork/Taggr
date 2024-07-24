@@ -122,6 +122,16 @@ impl Proposal {
     }
 
     fn execute(&mut self, state: &mut State, time: u64) -> Result<(), String> {
+        // Update the voting power on all bullet-ins because users might have
+        // transferred their tokens by now.
+        for (user_id, _, balance) in self.bulletins.iter_mut() {
+            *balance = state
+                .users
+                .get(user_id)
+                .expect("no user found")
+                .total_balance();
+        }
+
         let supply_of_users_total = state.active_voting_power(time);
         // decrease the total number according to the delay
         let delay =
@@ -434,9 +444,13 @@ pub(super) fn execute_proposal(
 pub mod tests {
 
     use super::*;
-    use crate::env::{
-        tests::{create_user, insert_balance, pr},
-        time,
+    use crate::{
+        env::{
+            tests::{create_user, insert_balance, pr},
+            time,
+            token::{transfer, TransferArgs},
+        },
+        read,
     };
 
     pub fn propose(
@@ -485,7 +499,7 @@ pub mod tests {
     #[test]
     fn test_proposal_canceling() {
         mutate(|state| {
-            // create voters, make each of them earn some karma
+            // create voters, make each of them earn some rewards
             for i in 1..=2 {
                 let p = pr(i);
                 let id = create_user(state, p);
@@ -602,14 +616,14 @@ pub mod tests {
         let data = &"".to_string();
         let proposer = pr(1);
         mutate(|state| {
-            // create voters, make each of them earn some karma
+            // create voters, make each of them earn some rewards
             for i in 1..11 {
                 let p = pr(i);
                 create_user(state, p);
                 insert_balance(state, p, 1000 * 100);
             }
 
-            // make sure the karma accounting was correct
+            // make sure the rewards accounting was correct
             assert_eq!(state.principal_to_user(proposer).unwrap().rewards(), 1000);
 
             // make sure all got the right amount of minted tokens
@@ -738,7 +752,7 @@ pub mod tests {
     fn test_reducing_voting_power() {
         let data = &"".to_string();
         mutate(|state| {
-            // create voters, make each of them earn some karma
+            // create voters, make each of them earn some rewards
             for i in 1..=3 {
                 let p = pr(i);
                 let id = create_user(state, p);
@@ -781,7 +795,7 @@ pub mod tests {
     #[test]
     fn test_non_controversial_rejection() {
         mutate(|state| {
-            // create voters, make each of them earn some karma
+            // create voters, make each of them earn some rewards
             for i in 1..=5 {
                 let p = pr(i);
                 let id = create_user(state, p);
@@ -820,7 +834,7 @@ pub mod tests {
     #[test]
     fn test_funding_proposal() {
         mutate(|state| {
-            // create voters, make each of them earn some karma
+            // create voters, make each of them earn some rewards
             for i in 1..=2 {
                 let p = pr(i);
                 let id = create_user(state, p);
@@ -872,7 +886,7 @@ pub mod tests {
     #[test]
     fn test_reward_proposal() {
         mutate(|state| {
-            // create voters, make each of them earn some karma
+            // create voters, make each of them earn some rewards
             for i in 1..=3 {
                 let p = pr(i);
                 let id = create_user(state, p);
@@ -1054,6 +1068,115 @@ pub mod tests {
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "300"),
                 Err("reward receivers can not vote".into())
             );
+        })
+    }
+
+    #[actix_rt::test]
+    async fn test_balance_adjustments_on_bulletins() {
+        mutate(|state| {
+            state.load();
+
+            // create voters, make each of them earn some rewards
+            for i in 1..=3 {
+                let p = pr(i);
+                create_user(state, p);
+                insert_balance(state, p, (100 * (1 << i)) * 100);
+            }
+            // create one more user
+            create_user(state, pr(4));
+            state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
+
+            // Case 1: all agree
+            let prop_id = propose(
+                state,
+                pr(1),
+                "test".into(),
+                Payload::Rewards(Rewards {
+                    receiver: pr(4),
+                    votes: Default::default(),
+                    minted: 0,
+                }),
+                time(),
+            )
+            .expect("couldn't propose");
+
+            assert_eq!(state.active_voting_power(time()), 140000);
+
+            // 800 tokens vote for reward of size 500
+            assert_eq!(
+                vote_on_proposal(state, time(), pr(3), prop_id, true, "500"),
+                Ok(())
+            );
+            // User 3 transfers 600 tokens after voting
+            transfer(
+                state,
+                0,
+                pr(3),
+                TransferArgs {
+                    from_subaccount: None,
+                    to: account(pr(4)),
+                    amount: 60000,
+                    fee: Some(1),
+                    memo: None,
+                    created_at_time: None,
+                },
+            )
+            .unwrap();
+            assert_eq!(state.active_voting_power(time()), 140000  /* fee */ - 1);
+
+            // 200 tokens vote for reward of size 1000
+            assert_eq!(
+                vote_on_proposal(state, time(), pr(1), prop_id, true, "1000"),
+                Ok(())
+            );
+
+            // 400 tokens vote for reward of size 200
+            assert_eq!(
+                vote_on_proposal(state, time(), pr(2), prop_id, true, "200"),
+                Ok(())
+            );
+
+            let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
+            // Proposal cannot be executed anymore
+            if let Payload::Rewards(reward) = &proposal.payload {
+                assert_eq!(reward.minted, 0);
+                assert_eq!(proposal.status, Status::Open);
+            } else {
+                panic!("unexpected payload")
+            };
+
+            // User 4 transfers all tokens back to user 3.
+            transfer(
+                state,
+                0,
+                pr(4),
+                TransferArgs {
+                    from_subaccount: None,
+                    to: account(pr(3)),
+                    amount: 60000 - 1,
+                    fee: Some(1),
+                    memo: None,
+                    created_at_time: None,
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                state.active_voting_power(time()),
+                140000  /* fees */ - 1 - 1
+            );
+        });
+
+        // Simulate daily chores which are routinely trying to execute open proposals.
+        State::daily_chores(10000).await;
+
+        read(|state| {
+            let proposal = state.proposals.iter().find(|p| p.id == 0).unwrap();
+            if let Payload::Rewards(reward) = &proposal.payload {
+                assert_eq!(reward.minted, 48571);
+                assert_eq!(proposal.status, Status::Executed);
+            } else {
+                panic!("unexpected payload")
+            };
         })
     }
 }
