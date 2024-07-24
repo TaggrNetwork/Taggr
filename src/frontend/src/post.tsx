@@ -605,6 +605,7 @@ const PostInfo = ({
                                     parseNumber(
                                         prompt(
                                             `Tip @${post.meta.author_name} with ${token_symbol}:`,
+                                            "0.1",
                                         ) || "",
                                         token_decimals,
                                     ) || NaN;
