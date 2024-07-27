@@ -43,8 +43,6 @@ if [ "$CMD" == "restore" ]; then
     dfx canister call taggr stable_to_heap
     echo "Clearing buckets after restoring heap..."
     dfx canister call taggr clear_buckets '("")'
-    echo "Checking consistency..."
-    dfx canister call taggr check
     exit 0
 fi
 
