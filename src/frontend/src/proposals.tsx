@@ -104,7 +104,6 @@ export const ProposalMask = ({
                 saveProposal({
                     ["Rewards"]: {
                         receiver,
-                        votes: [],
                         minted: 0,
                     },
                 });

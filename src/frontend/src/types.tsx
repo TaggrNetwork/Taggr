@@ -58,7 +58,6 @@ export type Extension =
 
 export type Rewards = {
     receiver: string;
-    votes: [number, number][];
     minted: number;
 };
 

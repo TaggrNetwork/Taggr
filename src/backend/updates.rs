@@ -81,8 +81,8 @@ fn post_upgrade() {
 
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
-    // Distribute revenue from the last auction: https://dashboard.internetcomputer.org/transaction/6b959af7ad051d15f78d818bd27b53ccc51f84e825e0ee9a940582a20860be23?index=13096034
     mutate(|state| {
+        // Distribute revenue from the last auction: https://dashboard.internetcomputer.org/transaction/6b959af7ad051d15f78d818bd27b53ccc51f84e825e0ee9a940582a20860be23?index=13096034
         state.distribute_revenue_from_icp(6907960000);
     });
 }
