@@ -106,10 +106,6 @@ impl Proposal {
                 if receiver == &principal {
                     return Err("reward receivers can not vote".into());
                 }
-                let user_id = state
-                    .principal_to_user(principal)
-                    .ok_or("no user found")?
-                    .id;
                 let base = token::base();
                 let max_funding_amount = CONFIG.max_funding_amount / base;
                 let tokens = if approve {
@@ -124,7 +120,7 @@ impl Proposal {
                         max_funding_amount
                     ));
                 }
-                submissions.insert(user_id, tokens * base);
+                submissions.insert(user.id, tokens * base);
             }
             _ => {}
         }
