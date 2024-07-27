@@ -131,7 +131,7 @@ The amount of tokens that every user gets distributed is simply the result of co
 
 ### Weekly auction
 
-To determine a fair market price, $name auctions `$weekly_auction_size_tokens` tokens each week.
+To determine a fair market price, $name auctions between `$weekly_auction_size_tokens_min`  and  `$weekly_auction_size_tokens_max` tokens each week.
 Each user can create a bid by specifying the amount of tokens and the price in ICP they're willing to pay per 1 token.
 If all tokens can be sold, $name distributed the tokens to bidders according to the parameters of their bids.
 The price derived from these bids represnt the market price of one token.

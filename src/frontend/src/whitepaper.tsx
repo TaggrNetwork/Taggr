@@ -15,10 +15,9 @@ export const Whitepaper = () => {
             if (key == "maximum_supply")
                 value = (value / tokenBase()).toLocaleString();
             else if (key == "usd_per_xdr") value = USD_PER_XDR;
-            else if (key == "weekly_auction_size_tokens")
-                value =
-                    window.backendCache.config.weekly_auction_size_tokens /
-                    tokenBase();
+            else if (key.startsWith("weekly_auction_size_tokens"))
+                // @ts-ignore
+                value = window.backendCache.config[key] / tokenBase();
             else if (key == "vesting_tokens_x")
                 value = tokenBalance(team_tokens[0]);
             else if (key == "active_user_share_for_minting_promille")
