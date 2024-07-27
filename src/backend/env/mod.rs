@@ -1760,7 +1760,14 @@ impl State {
             return 0;
         }
 
+        mutate(|state| state.distribute_revenue_from_icp(revenue));
+
         market_price
+    }
+
+    pub fn distribute_revenue_from_icp(&mut self, e8s: u64) {
+        self.burned_cycles +=
+            (e8s as f64 / self.e8s_for_one_xdr as f64 * CONFIG.credits_per_xdr as f64) as i64;
     }
 
     fn distribute_realm_revenue(&mut self, now: Time) {
@@ -3006,6 +3013,18 @@ pub(crate) mod tests {
         state
             .new_user(p, 0, name.to_string(), Some(credits))
             .unwrap()
+    }
+
+    #[test]
+    fn test_revenue_from_icp() {
+        mutate(|state| {
+            state.e8s_for_one_xdr = 13510000;
+            assert_eq!(state.burned_cycles, 0);
+            // distribute 69 ICP
+            state.distribute_revenue_from_icp(6907960000);
+            // collect roughly 511k credits (6907960000/13510000)
+            assert_eq!(state.burned_cycles, 511321);
+        })
     }
 
     #[test]

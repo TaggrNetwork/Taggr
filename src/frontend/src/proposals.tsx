@@ -12,7 +12,6 @@ import {
     hex,
     parseNumber,
     commaSeparated,
-    tokenBase,
 } from "./common";
 import * as React from "react";
 import { HourGlass } from "./icons";
@@ -105,7 +104,6 @@ export const ProposalMask = ({
                 saveProposal({
                     ["Rewards"]: {
                         receiver,
-                        votes: [],
                         minted: 0,
                     },
                 });
@@ -329,7 +327,7 @@ export const ProposalView = ({
             if ("Rewards" in proposal.payload) {
                 const { max_funding_amount, token_symbol } =
                     window.backendCache.config;
-                const cap = token(max_funding_amount / tokenBase());
+                const cap = token(max_funding_amount);
                 data = prompt(
                     `Please enter the amount of ${token_symbol} tokens which would be an appropriate reward for the efforts described (max. ${cap} ${token_symbol}):`,
                 );

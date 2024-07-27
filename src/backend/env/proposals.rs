@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::config::CONFIG;
 use super::post::{Extension, Post, PostId};
 use super::token::{self, account};
@@ -37,7 +39,11 @@ type ProposedReward = Token;
 #[derive(Deserialize, Serialize)]
 pub struct Rewards {
     pub receiver: Principal,
+    // TODO: delete
+    #[serde(skip)]
     pub votes: Vec<(Token, ProposedReward)>,
+    #[serde(default)]
+    pub submissions: HashMap<UserId, ProposedReward>,
     pub minted: Token,
 }
 
@@ -93,7 +99,9 @@ impl Proposal {
                 }
             }
             Payload::Rewards(Rewards {
-                votes, receiver, ..
+                submissions,
+                receiver,
+                ..
             }) => {
                 if receiver == &principal {
                     return Err("reward receivers can not vote".into());
@@ -112,7 +120,7 @@ impl Proposal {
                         max_funding_amount
                     ));
                 }
-                votes.push((balance, tokens * base))
+                submissions.insert(user.id, tokens * base);
             }
             _ => {}
         }
@@ -187,13 +195,25 @@ impl Proposal {
                 }
                 Payload::Funding(receiver, tokens) => mint_tokens(state, *receiver, *tokens)?,
                 Payload::Rewards(reward) => {
-                    let total: Token = reward.votes.iter().map(|(vp, _)| vp).sum();
-                    let tokens_to_mint: Token =
-                        reward.votes.iter().fold(0.0, |acc, (vp, reward)| {
-                            acc + *vp as f32 / total as f32 * *reward as f32
-                        }) as Token;
+                    let votes = reward
+                        .submissions
+                        .iter()
+                        .map(|(user_id, proposed_reward)| {
+                            (
+                                state
+                                    .users
+                                    .get(user_id)
+                                    .expect("no user found")
+                                    .total_balance(),
+                                *proposed_reward,
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    let total: Token = votes.iter().map(|(vp, _)| vp).sum();
+                    let tokens_to_mint: Token = votes.iter().fold(0.0, |acc, (vp, reward)| {
+                        acc + *vp as f32 / total as f32 * *reward as f32
+                    }) as Token;
                     mint_tokens(state, reward.receiver, tokens_to_mint)?;
-                    reward.votes.clear();
                     reward.minted = tokens_to_mint;
                 }
                 Payload::AddRealmController(realm_id, user_id) => {
@@ -313,15 +333,11 @@ pub fn create_proposal(
     }
     payload.validate(state)?;
 
-    match &mut payload {
-        Payload::Release(release) => {
-            let mut hasher = Sha256::new();
-            hasher.update(&release.binary);
-            release.hash = format!("{:x}", hasher.finalize());
-        }
-        Payload::Rewards(rewards) => rewards.votes.clear(),
-        _ => {}
-    };
+    if let Payload::Release(release) = &mut payload {
+        let mut hasher = Sha256::new();
+        hasher.update(&release.binary);
+        release.hash = format!("{:x}", hasher.finalize());
+    }
 
     let user = state
         .principal_to_user_mut(caller)
@@ -855,6 +871,7 @@ pub mod tests {
                     Payload::Rewards(Rewards {
                         receiver: pr(4),
                         votes: Default::default(),
+                        submissions: Default::default(),
                         minted: 0,
                     }),
                     time(),
@@ -870,6 +887,7 @@ pub mod tests {
                 Payload::Rewards(Rewards {
                     receiver: pr(1),
                     votes: Default::default(),
+                    submissions: Default::default(),
                     minted: 0,
                 }),
                 time(),
@@ -909,6 +927,7 @@ pub mod tests {
                     Payload::Rewards(Rewards {
                         receiver: pr(4),
                         votes: Default::default(),
+                        submissions: Default::default(),
                         minted: 0,
                     }),
                     time(),
@@ -925,6 +944,7 @@ pub mod tests {
                 Payload::Rewards(Rewards {
                     receiver: pr(4),
                     votes: Default::default(),
+                    submissions: Default::default(),
                     minted: 0,
                 }),
                 time(),
@@ -972,6 +992,7 @@ pub mod tests {
                 Payload::Rewards(Rewards {
                     receiver: pr(111),
                     votes: Default::default(),
+                    submissions: Default::default(),
                     minted: 0,
                 }),
                 time(),
@@ -1015,6 +1036,7 @@ pub mod tests {
                 Payload::Rewards(Rewards {
                     receiver: pr(111),
                     votes: Default::default(),
+                    submissions: Default::default(),
                     minted: 0,
                 }),
                 time(),
@@ -1058,6 +1080,7 @@ pub mod tests {
                 Payload::Rewards(Rewards {
                     receiver: pr(1),
                     votes: Default::default(),
+                    submissions: Default::default(),
                     minted: 0,
                 }),
                 time(),
@@ -1094,6 +1117,7 @@ pub mod tests {
                 Payload::Rewards(Rewards {
                     receiver: pr(4),
                     votes: Default::default(),
+                    submissions: Default::default(),
                     minted: 0,
                 }),
                 time(),
