@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use std::convert::TryFrom;
 
 use super::config::CONFIG;
 use super::post::{Extension, Post, PostId};
 use super::token::{self, account};
 use super::user::Predicate;
-use super::{features, invoices, RealmId, HOUR};
+use super::{features, invoices, RealmId, Time, HOUR};
 use super::{user::UserId, State};
 use crate::mutate;
 use crate::token::Token;
@@ -22,6 +23,13 @@ pub enum Status {
     Rejected,
     Executed,
     Cancelled,
+}
+
+#[derive(Default, Serialize, Deserialize)]
+pub struct ReleaseInfo {
+    post_id: PostId,
+    timestamp: Time,
+    commit: String,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -59,12 +67,27 @@ pub enum Payload {
 pub struct Proposal {
     pub id: u32,
     pub proposer: UserId,
-    pub timestamp: u64,
+    pub timestamp: Time,
     pub post_id: PostId,
     pub status: Status,
     pub payload: Payload,
     pub bulletins: Vec<(UserId, bool, Token)>,
     pub voting_power: Token,
+}
+
+impl TryFrom<&Proposal> for ReleaseInfo {
+    type Error = String;
+
+    fn try_from(value: &Proposal) -> Result<Self, Self::Error> {
+        Ok(ReleaseInfo {
+            post_id: value.post_id,
+            timestamp: value.timestamp,
+            commit: match &value.payload {
+                Payload::Release(Release { commit, .. }) => commit.clone(),
+                _ => return Err("wrong proposal type".into()),
+            },
+        })
+    }
 }
 
 impl Proposal {

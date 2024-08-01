@@ -248,14 +248,17 @@ export const Dashboard = ({}) => {
                             <label>
                                 <Gear /> LAST UPGRADE
                             </label>
-                            <code>{timeAgo(stats.last_upgrade)}</code>
+                            <code>{timeAgo(stats.last_release.timestamp)}</code>
                         </div>
                         <div className="db_cell">
                             <label>
                                 <Binary /> VERSION
                             </label>
-                            <a className="xx_large_text" href="#/proposals">
-                                {(stats.module_hash || "").slice(0, 8)}
+                            <a
+                                className="xx_large_text"
+                                href={`#/post/${stats.last_release.post_id}`}
+                            >
+                                {stats.last_release.commit.slice(0, 8)}
                             </a>
                         </div>
                     </div>

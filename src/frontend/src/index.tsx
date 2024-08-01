@@ -264,12 +264,11 @@ const reloadCache = async () => {
         const frames = Array.from(stack.children);
         frames.forEach((frame) => frame.remove());
     };
+    const last_upgrade = window.backendCache.stats.last_release.timestamp;
     if (window.lastSavedUpgrade == 0) {
-        window.lastSavedUpgrade = window.backendCache.stats.last_upgrade;
-    } else if (
-        window.lastSavedUpgrade != window.backendCache.stats.last_upgrade
-    ) {
-        window.lastSavedUpgrade = window.backendCache.stats.last_upgrade;
+        window.lastSavedUpgrade = last_upgrade;
+    } else if (window.lastSavedUpgrade != last_upgrade) {
+        window.lastSavedUpgrade = last_upgrade;
         const banner = document.getElementById("upgrade_banner") as HTMLElement;
         banner.innerHTML = "New app version is available! Click me to reload.";
         banner.onclick = () => {

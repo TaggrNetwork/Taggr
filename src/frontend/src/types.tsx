@@ -260,6 +260,12 @@ export type Report = {
     timestamp: bigint;
 };
 
+export type LastReleaseInfo = {
+    post_id: PostId;
+    timestamp: number;
+    commit: string;
+};
+
 export type Theme = { [name: string]: any };
 export type UserData = { [id: UserId]: string };
 
@@ -297,7 +303,7 @@ declare global {
                 total_rewards_shared: BigInt;
                 total_revenue_shared: BigInt;
                 canister_cycle_balance: BigInt;
-                module_hash: string;
+                last_release: LastReleaseInfo;
                 domains: string[];
                 bots: UserId[];
                 weekly_karma_leaders: [UserId, number][];
@@ -312,7 +318,6 @@ declare global {
                 e8s_revenue_per_1k: BigInt;
                 canister_id: string;
                 team_tokens: { [name: UserId]: number };
-                last_upgrade: number;
                 buckets: [string, number][];
                 stalwarts: UserId[];
             };

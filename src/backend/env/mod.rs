@@ -3,7 +3,7 @@ use self::canisters::{icrc_transfer, upgrade_main_canister, NNSVote};
 use self::invoices::{Invoice, USER_ICP_SUBACCOUNT};
 use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
 use self::post_iterators::{IteratorMerger, MergeStrategy};
-use self::proposals::{Payload, Status};
+use self::proposals::{Payload, ReleaseInfo, Status};
 use self::reports::Report;
 use self::token::{account, TransferArgs};
 use self::user::{Filters, Mode, Notification, Predicate, UserFilter};
@@ -24,6 +24,7 @@ use serde_bytes::ByteBuf;
 use sha2::{Digest, Sha256};
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
+use std::convert::TryFrom;
 use user::{User, UserId};
 
 pub mod auction;
@@ -93,8 +94,8 @@ pub struct Stats {
     invited_users: usize,
     buckets: Vec<(String, u64)>,
     users_online: usize,
-    last_upgrade: u64,
     module_hash: String,
+    last_release: ReleaseInfo,
     canister_id: Principal,
     circulating_supply: u64,
     meta: String,
@@ -2398,8 +2399,18 @@ impl State {
             team_tokens: self.team_tokens.clone(),
             meta: format!("Memory health: {}", self.memory.health("MB")),
             module_hash: self.module_hash.clone(),
+            last_release: self
+                .proposals
+                .iter()
+                .rev()
+                .find_map(|proposal| {
+                    if proposal.status == proposals::Status::Executed {
+                        return ReleaseInfo::try_from(proposal).ok();
+                    }
+                    None
+                })
+                .unwrap_or_default(),
             canister_id: ic_cdk::id(),
-            last_upgrade: self.last_upgrade,
             last_weekly_chores: self.timers.last_weekly,
             last_daily_chores: self.timers.last_daily,
             last_hourly_chores: self.timers.last_hourly,
