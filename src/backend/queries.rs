@@ -547,7 +547,19 @@ fn search() {
 #[export_name = "canister_query realm_search"]
 fn realm_search() {
     let query: String = parse(&arg_data_raw());
-    read(|state| reply(env::search::realm_search(state, query)));
+    // It's ok to mutate the data to avoid cloning, because we're in a query method.
+    mutate(|state| {
+        reply(
+            env::search::realm_search(state, query)
+                .into_iter()
+                .map(|(key, realm)| {
+                    realm.num_posts = realm.posts.len();
+                    realm.posts.clear();
+                    (key, realm)
+                })
+                .collect::<Vec<_>>(),
+        )
+    });
 }
 
 #[query]
