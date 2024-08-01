@@ -317,7 +317,7 @@ declare global {
                 e8s_for_one_xdr: BigInt;
                 e8s_revenue_per_1k: BigInt;
                 canister_id: string;
-                team_tokens: { [name: UserId]: number };
+                vesting_tokens_of_x: [number, number];
                 buckets: [string, number][];
                 stalwarts: UserId[];
             };

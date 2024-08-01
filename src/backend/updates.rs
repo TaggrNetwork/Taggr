@@ -80,7 +80,14 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        if let Some(amount_vested) = state.team_tokens.get(&0) {
+            let total_vesting = 18000000; // 18% of 1M (see white paper)
+            state.vesting_tokens_of_x = (total_vesting - amount_vested, total_vesting);
+        }
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}

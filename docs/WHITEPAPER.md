@@ -144,7 +144,7 @@ His tokens are minted weekly, by an amount equal to `1%` of the circulating supp
 -   His individual share is below `14%` of minted supply.
 -   `2/3` of the total supply has been minted.
 
-Currently vesting tokens: `$vesting_tokens_x`.
+Currently vesting tokens: `$vesting_tokens_of_x`.
 
 ## Autonomy
 

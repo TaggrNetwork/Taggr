@@ -74,7 +74,7 @@ pub struct Event {
 pub struct Stats {
     e8s_revenue_per_1k: u64,
     e8s_for_one_xdr: u64,
-    team_tokens: HashMap<UserId, Token>,
+    vesting_tokens_of_x: (Token, Token),
     users: usize,
     credits: Credits,
     canister_cycle_balance: u64,
@@ -183,6 +183,12 @@ pub struct State {
     pub proposals: Vec<Proposal>,
     pub ledger: Vec<Transaction>,
 
+    #[serde(default)]
+    // Contains the pair of two amounts (vested, total_vesting) describing
+    // the vesting progress of X (see "Founder's Tokens" in white paper)
+    pub vesting_tokens_of_x: (Token, Token),
+
+    // TODO: delete
     pub team_tokens: HashMap<UserId, Token>,
 
     pub memory: memory::Memory,
@@ -1219,50 +1225,7 @@ impl State {
         }
 
         // Mint team tokens
-        let circulating_supply: Token = self.balances.values().sum();
-        for (user_id, user_name, user_principal, user_balance) in [0]
-            .iter()
-            .filter_map(|id| {
-                self.users.get(id).map(|user| {
-                    (
-                        user.id,
-                        user.name.clone(),
-                        user.principal,
-                        user.total_balance(),
-                    )
-                })
-            })
-            .collect::<Vec<_>>()
-        {
-            let acc = account(user_principal);
-            let total_balance = user_balance;
-            let vested = match self.team_tokens.get_mut(&user_id) {
-                Some(balance) if *balance > 0 => {
-                    // 1% of circulating supply is vesting.
-                    let vested = (circulating_supply / 100).min(*balance);
-                    // We use 14% because 1% will vest and we want to stay below 15%.
-                    let cap = (circulating_supply * 14) / 100;
-                    // Vesting is allowed if the total voting power of the team member stays below
-                    // 15% of the current supply, or if 2/3 of total supply is minted.
-                    if total_balance <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
-                        *balance = balance.saturating_sub(vested);
-                        Some((vested, *balance))
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            };
-            if let Some((vested, remaining_balance)) = vested {
-                crate::token::mint(self, acc, vested);
-                self.logger.info(format!(
-                    "Minted `{}` team tokens for @{} (still vesting: `{}`).",
-                    vested / 100,
-                    user_name,
-                    remaining_balance / 100
-                ));
-            }
-        }
+        self.vest_tokens_of_x();
 
         if summary.items.is_empty() {
             self.logger.info("No tokens were minted".to_string());
@@ -1272,6 +1235,35 @@ impl State {
                 CONFIG.name, minted_tokens, CONFIG.token_symbol
             );
             self.distribution_reports.push(summary);
+        }
+    }
+
+    // See the section "Founder's Tokens" in the white paper.
+    fn vest_tokens_of_x(&mut self) {
+        let (vested, total_vesting) = &mut self.vesting_tokens_of_x;
+        let vesting_left = total_vesting.saturating_sub(*vested);
+        if vesting_left == 0 {
+            return;
+        }
+
+        let circulating_supply: Token = self.balances.values().sum();
+        // 1% of circulating supply is vesting.
+        let next_vesting = (circulating_supply / 100).min(vesting_left);
+        // We use 14% because 1% will vest and we want to stay below 15%.
+        let cap = (circulating_supply * 14) / 100;
+
+        // Vesting is allowed if the total voting power of the team member stays below
+        // 15% of the current supply, or if 2/3 of total supply is minted.
+        if *vested <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
+            *vested += next_vesting;
+            let new_vesting_left = *total_vesting - *vested;
+            let principal = self.users.get(&0).expect("user 0 doesn't exist").principal;
+            crate::token::mint(self, account(principal), next_vesting);
+            self.logger.info(format!(
+                "Minted `{}` team tokens for @X (still vesting: `{}`).",
+                next_vesting / 100,
+                new_vesting_left / 100
+            ));
         }
     }
 
@@ -2396,7 +2388,7 @@ impl State {
             e8s_for_one_xdr: self.e8s_for_one_xdr,
             e8s_revenue_per_1k: self.last_revenues.iter().sum::<u64>()
                 / self.last_revenues.len().max(1) as u64,
-            team_tokens: self.team_tokens.clone(),
+            vesting_tokens_of_x: self.vesting_tokens_of_x,
             meta: format!("Memory health: {}", self.memory.health("MB")),
             module_hash: self.module_hash.clone(),
             last_release: self
