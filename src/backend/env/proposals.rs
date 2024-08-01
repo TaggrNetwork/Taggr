@@ -39,9 +39,6 @@ type ProposedReward = Token;
 #[derive(Deserialize, Serialize)]
 pub struct Rewards {
     pub receiver: Principal,
-    // TODO: delete
-    #[serde(skip)]
-    pub votes: Vec<(Token, ProposedReward)>,
     #[serde(default)]
     pub submissions: HashMap<UserId, ProposedReward>,
     pub minted: Token,
@@ -870,7 +867,6 @@ pub mod tests {
                     "test".into(),
                     Payload::Rewards(Rewards {
                         receiver: pr(4),
-                        votes: Default::default(),
                         submissions: Default::default(),
                         minted: 0,
                     }),
@@ -886,7 +882,6 @@ pub mod tests {
                 "test".into(),
                 Payload::Rewards(Rewards {
                     receiver: pr(1),
-                    votes: Default::default(),
                     submissions: Default::default(),
                     minted: 0,
                 }),
@@ -926,7 +921,6 @@ pub mod tests {
                     "test".into(),
                     Payload::Rewards(Rewards {
                         receiver: pr(4),
-                        votes: Default::default(),
                         submissions: Default::default(),
                         minted: 0,
                     }),
@@ -943,7 +937,6 @@ pub mod tests {
                 "test".into(),
                 Payload::Rewards(Rewards {
                     receiver: pr(4),
-                    votes: Default::default(),
                     submissions: Default::default(),
                     minted: 0,
                 }),
@@ -991,7 +984,6 @@ pub mod tests {
                 "test".into(),
                 Payload::Rewards(Rewards {
                     receiver: pr(111),
-                    votes: Default::default(),
                     submissions: Default::default(),
                     minted: 0,
                 }),
@@ -1035,7 +1027,6 @@ pub mod tests {
                 "test".into(),
                 Payload::Rewards(Rewards {
                     receiver: pr(111),
-                    votes: Default::default(),
                     submissions: Default::default(),
                     minted: 0,
                 }),
@@ -1079,7 +1070,6 @@ pub mod tests {
                 "test".into(),
                 Payload::Rewards(Rewards {
                     receiver: pr(1),
-                    votes: Default::default(),
                     submissions: Default::default(),
                     minted: 0,
                 }),
@@ -1116,7 +1106,6 @@ pub mod tests {
                 "test".into(),
                 Payload::Rewards(Rewards {
                     receiver: pr(4),
-                    votes: Default::default(),
                     submissions: Default::default(),
                     minted: 0,
                 }),
