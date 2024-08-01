@@ -12,6 +12,7 @@ import {
     hex,
     parseNumber,
     commaSeparated,
+    REPO,
 } from "./common";
 import * as React from "react";
 import { HourGlass } from "./icons";
@@ -21,8 +22,8 @@ import { UserLink, UserList } from "./user_resolve";
 import { Form } from "./form";
 import { newPostCallback } from "./new";
 
-const REPO_RELEASE = "https://github.com/TaggrNetwork/taggr/releases/latest";
-const REPO_COMMIT = "https://github.com/TaggrNetwork/taggr/commit";
+const REPO_COMMIT = `${REPO}/commit`;
+const REPO_COMPARE = `${REPO}/compare`;
 
 let timer: any = null;
 
@@ -416,17 +417,27 @@ export const ProposalView = ({
                 <div className="bottom_spaced">
                     {commit && (
                         <div className="row_container bottom_half_spaced">
-                            COMMIT:&nbsp;
-                            <a
-                                className="breakable"
-                                href={
-                                    open
-                                        ? REPO_RELEASE
-                                        : `${REPO_COMMIT}/${proposal.payload.Release.commit}`
-                                }
-                            >
-                                {commit}
-                            </a>
+                            CODE LINKS:
+                            <ul>
+                                <li>
+                                    <a
+                                        className="breakable"
+                                        href={`${REPO_COMMIT}/${proposal.payload.Release.commit}`}
+                                    >
+                                        GIT COMMIT
+                                    </a>
+                                </li>
+                                {open && (
+                                    <li>
+                                        <a
+                                            className="breakable"
+                                            href={`${REPO_COMPARE}/${window.backendCache.stats.last_release.commit}..${commit}`}
+                                        >
+                                            DIFF WITH PREVIOUS RELEASE
+                                        </a>
+                                    </li>
+                                )}
+                            </ul>
                         </div>
                     )}
                     {closed_features.length > 0 && (

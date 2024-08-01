@@ -1,4 +1,4 @@
-import { HeadBar } from "./common";
+import { HeadBar, REPO } from "./common";
 
 export const LinksPage = ({}) => {
     const { token_symbol, domains } = window.backendCache.config;
@@ -38,8 +38,8 @@ export const LinksPage = ({}) => {
             <h2>Source Code Repositories</h2>
             <ul>
                 <li>
-                    <a href="https://github.com/TaggrNetwork/taggr">GitHub</a>{" "}
-                    (maintained by <a href="#/user/0">X</a>)
+                    <a href={REPO}>GitHub</a> (maintained by{" "}
+                    <a href="#/user/0">X</a>)
                 </li>
             </ul>
             <h2>Community maintained resources</h2>
