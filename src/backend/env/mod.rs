@@ -2403,12 +2403,9 @@ impl State {
                 .proposals
                 .iter()
                 .rev()
-                .find_map(|proposal| {
-                    if proposal.status == proposals::Status::Executed {
-                        return ReleaseInfo::try_from(proposal).ok();
-                    }
-                    None
-                })
+                .filter(|proposal| proposal.status == Status::Executed)
+                .find_map(|proposal| ReleaseInfo::try_from(proposal).ok())
+                .filter(|release_info| release_info.hash == self.module_hash)
                 .unwrap_or_default(),
             canister_id: ic_cdk::id(),
             last_weekly_chores: self.timers.last_weekly,

@@ -417,42 +417,43 @@ export const ProposalView = ({
                 <div className="bottom_spaced">
                     {commit && (
                         <div className="row_container bottom_half_spaced">
-                            CODE LINKS:
-                            <ul>
-                                <li>
+                            <span>CODE LINKS:</span>
+                            <a
+                                className="breakable left_half_spaced"
+                                href={`${REPO_COMMIT}/${proposal.payload.Release.commit}`}
+                            >
+                                GIT COMMIT
+                            </a>
+                            {open && (
+                                <>
+                                    <span className="left_half_spaced">
+                                        &middot;
+                                    </span>
                                     <a
-                                        className="breakable"
-                                        href={`${REPO_COMMIT}/${proposal.payload.Release.commit}`}
+                                        className="breakable left_half_spaced"
+                                        href={`${REPO_COMPARE}/${window.backendCache.stats.last_release.commit}..${commit}`}
                                     >
-                                        GIT COMMIT
+                                        DIFF WITH PREVIOUS RELEASE
                                     </a>
-                                </li>
-                                {open && (
-                                    <li>
-                                        <a
-                                            className="breakable"
-                                            href={`${REPO_COMPARE}/${window.backendCache.stats.last_release.commit}..${commit}`}
-                                        >
-                                            DIFF WITH PREVIOUS RELEASE
-                                        </a>
-                                    </li>
-                                )}
-                            </ul>
+                                </>
+                            )}
                         </div>
                     )}
                     {closed_features.length > 0 && (
                         <div className="row_container bottom_half_spaced">
-                            CLOSES FEATURES:&nbsp;
-                            {commaSeparated(
-                                closed_features.map((id) => (
-                                    <a href={`#/post/${id}`}>{id}</a>
-                                )),
-                            )}
+                            <span>CLOSES FEATURES:</span>
+                            <span className="left_half_spaced">
+                                {commaSeparated(
+                                    closed_features.map((id) => (
+                                        <a href={`#/post/${id}`}>{id}</a>
+                                    )),
+                                )}
+                            </span>
                         </div>
                     )}
                     {!open && (
                         <div className="row_container">
-                            <span>HASH:</span>
+                            <span>BUILD HASH:</span>
                             <code className="left_half_spaced breakable">
                                 {hash}
                             </code>

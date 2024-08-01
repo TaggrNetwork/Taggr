@@ -30,6 +30,7 @@ pub struct ReleaseInfo {
     post_id: PostId,
     timestamp: Time,
     commit: String,
+    pub hash: String,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -78,15 +79,16 @@ pub struct Proposal {
 impl TryFrom<&Proposal> for ReleaseInfo {
     type Error = String;
 
-    fn try_from(value: &Proposal) -> Result<Self, Self::Error> {
-        Ok(ReleaseInfo {
-            post_id: value.post_id,
-            timestamp: value.timestamp,
-            commit: match &value.payload {
-                Payload::Release(Release { commit, .. }) => commit.clone(),
-                _ => return Err("wrong proposal type".into()),
-            },
-        })
+    fn try_from(proposal: &Proposal) -> Result<Self, Self::Error> {
+        match &proposal.payload {
+            Payload::Release(Release { commit, hash, .. }) => Ok(ReleaseInfo {
+                post_id: proposal.post_id,
+                timestamp: proposal.timestamp,
+                commit: commit.clone(),
+                hash: hash.clone(),
+            }),
+            _ => Err("wrong proposal type".into()),
+        }
     }
 }
 
