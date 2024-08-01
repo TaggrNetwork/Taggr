@@ -159,7 +159,6 @@ fn proposal() {
 
 #[export_name = "canister_query proposals"]
 fn proposals() {
-    let page_size = 10;
     let page: usize = parse(&arg_data_raw());
     read(|state| {
         reply(
@@ -167,8 +166,8 @@ fn proposals() {
                 .proposals
                 .iter()
                 .rev()
-                .skip(page * page_size)
-                .take(page_size)
+                .skip(page * CONFIG.feed_page_size)
+                .take(CONFIG.feed_page_size)
                 .filter_map(|proposal| Post::get(state, &proposal.post_id))
                 .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
