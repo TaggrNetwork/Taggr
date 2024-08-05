@@ -82,9 +82,11 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
-        // Distribute revenue from the last auction: https://dashboard.internetcomputer.org/transaction/6b959af7ad051d15f78d818bd27b53ccc51f84e825e0ee9a940582a20860be23?index=13096034
-        state.distribute_revenue_from_icp(6907960000);
-    });
+        if let Some(amount_vested) = state.team_tokens.get(&0) {
+            let total_vesting = 18000000; // 18% of 1M (see white paper)
+            state.vesting_tokens_of_x = (total_vesting - amount_vested, total_vesting);
+        }
+    })
 }
 
 #[allow(clippy::all)]

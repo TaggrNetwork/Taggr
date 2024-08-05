@@ -109,9 +109,6 @@ pub struct User {
     #[serde(skip)]
     pub draft: Option<Draft>,
     pub filters: Filters,
-    // TODO: delete
-    #[serde(skip)]
-    pub karma_donations: BTreeMap<UserId, Credits>,
     pub previous_names: Vec<String>,
     pub governance: bool,
     pub notifications: BTreeMap<u64, (Notification, bool)>,
@@ -190,7 +187,6 @@ impl User {
             treasury_e8s: 0,
             draft: None,
             filters: Default::default(),
-            karma_donations: Default::default(),
             previous_names: Default::default(),
             rewards: 0,
             cold_wallet: None,

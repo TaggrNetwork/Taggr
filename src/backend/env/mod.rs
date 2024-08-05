@@ -3,7 +3,7 @@ use self::canisters::{icrc_transfer, upgrade_main_canister, NNSVote};
 use self::invoices::{Invoice, USER_ICP_SUBACCOUNT};
 use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
 use self::post_iterators::{IteratorMerger, MergeStrategy};
-use self::proposals::{Payload, Status};
+use self::proposals::{Payload, ReleaseInfo, Status};
 use self::reports::Report;
 use self::token::{account, TransferArgs};
 use self::user::{Filters, Mode, Notification, Predicate, UserFilter};
@@ -24,6 +24,7 @@ use serde_bytes::ByteBuf;
 use sha2::{Digest, Sha256};
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
+use std::convert::TryFrom;
 use user::{User, UserId};
 
 pub mod auction;
@@ -73,7 +74,7 @@ pub struct Event {
 pub struct Stats {
     e8s_revenue_per_1k: u64,
     e8s_for_one_xdr: u64,
-    team_tokens: HashMap<UserId, Token>,
+    vesting_tokens_of_x: (Token, Token),
     users: usize,
     credits: Credits,
     canister_cycle_balance: u64,
@@ -93,8 +94,8 @@ pub struct Stats {
     invited_users: usize,
     buckets: Vec<(String, u64)>,
     users_online: usize,
-    last_upgrade: u64,
     module_hash: String,
+    last_release: ReleaseInfo,
     canister_id: Principal,
     circulating_supply: u64,
     meta: String,
@@ -182,6 +183,12 @@ pub struct State {
     pub proposals: Vec<Proposal>,
     pub ledger: Vec<Transaction>,
 
+    #[serde(default)]
+    // Contains the pair of two amounts (vested, total_vesting) describing
+    // the vesting progress of X (see "Founder's Tokens" in white paper)
+    pub vesting_tokens_of_x: (Token, Token),
+
+    // TODO: delete
     pub team_tokens: HashMap<UserId, Token>,
 
     pub memory: memory::Memory,
@@ -1218,50 +1225,7 @@ impl State {
         }
 
         // Mint team tokens
-        let circulating_supply: Token = self.balances.values().sum();
-        for (user_id, user_name, user_principal, user_balance) in [0]
-            .iter()
-            .filter_map(|id| {
-                self.users.get(id).map(|user| {
-                    (
-                        user.id,
-                        user.name.clone(),
-                        user.principal,
-                        user.total_balance(),
-                    )
-                })
-            })
-            .collect::<Vec<_>>()
-        {
-            let acc = account(user_principal);
-            let total_balance = user_balance;
-            let vested = match self.team_tokens.get_mut(&user_id) {
-                Some(balance) if *balance > 0 => {
-                    // 1% of circulating supply is vesting.
-                    let vested = (circulating_supply / 100).min(*balance);
-                    // We use 14% because 1% will vest and we want to stay below 15%.
-                    let cap = (circulating_supply * 14) / 100;
-                    // Vesting is allowed if the total voting power of the team member stays below
-                    // 15% of the current supply, or if 2/3 of total supply is minted.
-                    if total_balance <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
-                        *balance = balance.saturating_sub(vested);
-                        Some((vested, *balance))
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            };
-            if let Some((vested, remaining_balance)) = vested {
-                crate::token::mint(self, acc, vested);
-                self.logger.info(format!(
-                    "Minted `{}` team tokens for @{} (still vesting: `{}`).",
-                    vested / 100,
-                    user_name,
-                    remaining_balance / 100
-                ));
-            }
-        }
+        self.vest_tokens_of_x();
 
         if summary.items.is_empty() {
             self.logger.info("No tokens were minted".to_string());
@@ -1271,6 +1235,35 @@ impl State {
                 CONFIG.name, minted_tokens, CONFIG.token_symbol
             );
             self.distribution_reports.push(summary);
+        }
+    }
+
+    // See the section "Founder's Tokens" in the white paper.
+    fn vest_tokens_of_x(&mut self) {
+        let (vested, total_vesting) = &mut self.vesting_tokens_of_x;
+        let vesting_left = total_vesting.saturating_sub(*vested);
+        if vesting_left == 0 {
+            return;
+        }
+
+        let circulating_supply: Token = self.balances.values().sum();
+        // 1% of circulating supply is vesting.
+        let next_vesting = (circulating_supply / 100).min(vesting_left);
+        // We use 14% because 1% will vest and we want to stay below 15%.
+        let cap = (circulating_supply * 14) / 100;
+
+        // Vesting is allowed if the total voting power of the team member stays below
+        // 15% of the current supply, or if 2/3 of total supply is minted.
+        if *vested <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
+            *vested += next_vesting;
+            let new_vesting_left = *total_vesting - *vested;
+            let principal = self.users.get(&0).expect("user 0 doesn't exist").principal;
+            crate::token::mint(self, account(principal), next_vesting);
+            self.logger.info(format!(
+                "Minted `{}` team tokens for @X (still vesting: `{}`).",
+                next_vesting / 100,
+                new_vesting_left / 100
+            ));
         }
     }
 
@@ -1691,8 +1684,8 @@ impl State {
 
         let circulating_supply: Token = read(|state| state.balances.values().sum());
         // only if we're below the maximum supply, we close the auction
-        if circulating_supply < CONFIG.maximum_supply {
-            let market_price = State::close_auction().await;
+        let auction_revenue = if circulating_supply < CONFIG.maximum_supply {
+            let (market_price, revenue) = State::close_auction().await;
             mutate(|state| {
                 state.logger.info(format!(
                     "Established market price: `{}` e8s per `1` {}; next auction size: `{}` tokens",
@@ -1705,11 +1698,16 @@ impl State {
                 state.mint(market_price);
                 state.minting_mode = false;
             });
-        }
+            revenue
+        } else {
+            0
+        };
 
         State::distribute_icp().await;
 
         mutate(|state| {
+            state.distribute_revenue_from_icp(auction_revenue);
+
             for summary in &state.distribution_reports {
                 state.logger.info(format!(
                     "{}: {} [[details](#/distribution)]",
@@ -1725,7 +1723,7 @@ impl State {
     // Checks if we could collect enough bids to close the auction.
     // If yes, mints the requested amount of tokens for each bidder and moves all funds to
     // treasury, converting them to revenue.
-    async fn close_auction() -> u64 {
+    async fn close_auction() -> (u64, u64) {
         let (bids, revenue, market_price) = mutate(|state| {
             let (bids, revenue, market_price) = state.auction.close();
             if bids.is_empty() {
@@ -1744,7 +1742,7 @@ impl State {
         });
 
         if revenue == 0 {
-            return market_price;
+            return (market_price, revenue);
         }
 
         if let Err(err) = auction::move_to_treasury(revenue).await {
@@ -1757,12 +1755,10 @@ impl State {
                     .logger
                     .error(format!("bids that were closed: {:?}", bids))
             });
-            return 0;
+            return (0, 0);
         }
 
-        mutate(|state| state.distribute_revenue_from_icp(revenue));
-
-        market_price
+        (market_price, revenue)
     }
 
     pub fn distribute_revenue_from_icp(&mut self, e8s: u64) {
@@ -2395,11 +2391,18 @@ impl State {
             e8s_for_one_xdr: self.e8s_for_one_xdr,
             e8s_revenue_per_1k: self.last_revenues.iter().sum::<u64>()
                 / self.last_revenues.len().max(1) as u64,
-            team_tokens: self.team_tokens.clone(),
+            vesting_tokens_of_x: self.vesting_tokens_of_x,
             meta: format!("Memory health: {}", self.memory.health("MB")),
             module_hash: self.module_hash.clone(),
+            last_release: self
+                .proposals
+                .iter()
+                .rev()
+                .filter(|proposal| proposal.status == Status::Executed)
+                .find_map(|proposal| ReleaseInfo::try_from(proposal).ok())
+                .filter(|release_info| release_info.hash == self.module_hash)
+                .unwrap_or_default(),
             canister_id: ic_cdk::id(),
-            last_upgrade: self.last_upgrade,
             last_weekly_chores: self.timers.last_weekly,
             last_daily_chores: self.timers.last_daily,
             last_hourly_chores: self.timers.last_hourly,

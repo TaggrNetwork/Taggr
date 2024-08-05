@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use std::convert::TryFrom;
 
 use super::config::CONFIG;
 use super::post::{Extension, Post, PostId};
 use super::token::{self, account};
 use super::user::Predicate;
-use super::{features, invoices, RealmId, HOUR};
+use super::{features, invoices, RealmId, Time, HOUR};
 use super::{user::UserId, State};
 use crate::mutate;
 use crate::token::Token;
@@ -24,6 +25,14 @@ pub enum Status {
     Cancelled,
 }
 
+#[derive(Default, Serialize, Deserialize)]
+pub struct ReleaseInfo {
+    post_id: PostId,
+    timestamp: Time,
+    commit: String,
+    pub hash: String,
+}
+
 #[derive(Deserialize, Serialize)]
 pub struct Release {
     pub commit: String,
@@ -39,9 +48,6 @@ type ProposedReward = Token;
 #[derive(Deserialize, Serialize)]
 pub struct Rewards {
     pub receiver: Principal,
-    // TODO: delete
-    #[serde(skip)]
-    pub votes: Vec<(Token, ProposedReward)>,
     #[serde(default)]
     pub submissions: HashMap<UserId, ProposedReward>,
     pub minted: Token,
@@ -62,12 +68,28 @@ pub enum Payload {
 pub struct Proposal {
     pub id: u32,
     pub proposer: UserId,
-    pub timestamp: u64,
+    pub timestamp: Time,
     pub post_id: PostId,
     pub status: Status,
     pub payload: Payload,
     pub bulletins: Vec<(UserId, bool, Token)>,
     pub voting_power: Token,
+}
+
+impl TryFrom<&Proposal> for ReleaseInfo {
+    type Error = String;
+
+    fn try_from(proposal: &Proposal) -> Result<Self, Self::Error> {
+        match &proposal.payload {
+            Payload::Release(Release { commit, hash, .. }) => Ok(ReleaseInfo {
+                post_id: proposal.post_id,
+                timestamp: proposal.timestamp,
+                commit: commit.clone(),
+                hash: hash.clone(),
+            }),
+            _ => Err("wrong proposal type".into()),
+        }
+    }
 }
 
 impl Proposal {
@@ -870,7 +892,6 @@ pub mod tests {
                     "test".into(),
                     Payload::Rewards(Rewards {
                         receiver: pr(4),
-                        votes: Default::default(),
                         submissions: Default::default(),
                         minted: 0,
                     }),
@@ -886,7 +907,6 @@ pub mod tests {
                 "test".into(),
                 Payload::Rewards(Rewards {
                     receiver: pr(1),
-                    votes: Default::default(),
                     submissions: Default::default(),
                     minted: 0,
                 }),
@@ -926,7 +946,6 @@ pub mod tests {
                     "test".into(),
                     Payload::Rewards(Rewards {
                         receiver: pr(4),
-                        votes: Default::default(),
                         submissions: Default::default(),
                         minted: 0,
                     }),
@@ -943,7 +962,6 @@ pub mod tests {
                 "test".into(),
                 Payload::Rewards(Rewards {
                     receiver: pr(4),
-                    votes: Default::default(),
                     submissions: Default::default(),
                     minted: 0,
                 }),
@@ -991,7 +1009,6 @@ pub mod tests {
                 "test".into(),
                 Payload::Rewards(Rewards {
                     receiver: pr(111),
-                    votes: Default::default(),
                     submissions: Default::default(),
                     minted: 0,
                 }),
@@ -1035,7 +1052,6 @@ pub mod tests {
                 "test".into(),
                 Payload::Rewards(Rewards {
                     receiver: pr(111),
-                    votes: Default::default(),
                     submissions: Default::default(),
                     minted: 0,
                 }),
@@ -1079,7 +1095,6 @@ pub mod tests {
                 "test".into(),
                 Payload::Rewards(Rewards {
                     receiver: pr(1),
-                    votes: Default::default(),
                     submissions: Default::default(),
                     minted: 0,
                 }),
@@ -1116,7 +1131,6 @@ pub mod tests {
                 "test".into(),
                 Payload::Rewards(Rewards {
                     receiver: pr(4),
-                    votes: Default::default(),
                     submissions: Default::default(),
                     minted: 0,
                 }),

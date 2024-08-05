@@ -12,6 +12,7 @@ import {
     hex,
     parseNumber,
     commaSeparated,
+    REPO,
 } from "./common";
 import * as React from "react";
 import { HourGlass } from "./icons";
@@ -21,8 +22,8 @@ import { UserLink, UserList } from "./user_resolve";
 import { Form } from "./form";
 import { newPostCallback } from "./new";
 
-const REPO_RELEASE = "https://github.com/TaggrNetwork/taggr/releases/latest";
-const REPO_COMMIT = "https://github.com/TaggrNetwork/taggr/commit";
+const REPO_COMMIT = `${REPO}/commit`;
+const REPO_COMPARE = `${REPO}/compare`;
 
 let timer: any = null;
 
@@ -416,32 +417,43 @@ export const ProposalView = ({
                 <div className="bottom_spaced">
                     {commit && (
                         <div className="row_container bottom_half_spaced">
-                            COMMIT:&nbsp;
+                            <span>CODE LINKS:</span>
                             <a
-                                className="breakable"
-                                href={
-                                    open
-                                        ? REPO_RELEASE
-                                        : `${REPO_COMMIT}/${proposal.payload.Release.commit}`
-                                }
+                                className="breakable left_half_spaced"
+                                href={`${REPO_COMMIT}/${proposal.payload.Release.commit}`}
                             >
-                                {commit}
+                                GIT COMMIT
                             </a>
+                            {open && (
+                                <>
+                                    <span className="left_half_spaced">
+                                        &middot;
+                                    </span>
+                                    <a
+                                        className="breakable left_half_spaced"
+                                        href={`${REPO_COMPARE}/${window.backendCache.stats.last_release.commit}..${commit}`}
+                                    >
+                                        DIFF WITH PREVIOUS RELEASE
+                                    </a>
+                                </>
+                            )}
                         </div>
                     )}
                     {closed_features.length > 0 && (
                         <div className="row_container bottom_half_spaced">
-                            CLOSES FEATURES:&nbsp;
-                            {commaSeparated(
-                                closed_features.map((id) => (
-                                    <a href={`#/post/${id}`}>{id}</a>
-                                )),
-                            )}
+                            <span>CLOSES FEATURES:</span>
+                            <span className="left_half_spaced">
+                                {commaSeparated(
+                                    closed_features.map((id) => (
+                                        <a href={`#/post/${id}`}>{id}</a>
+                                    )),
+                                )}
+                            </span>
                         </div>
                     )}
                     {!open && (
                         <div className="row_container">
-                            <span>HASH:</span>
+                            <span>BUILD HASH:</span>
                             <code className="left_half_spaced breakable">
                                 {hash}
                             </code>

@@ -10,7 +10,6 @@ export const Whitepaper = () => {
             const key = e.slice(1);
             // @ts-ignore
             let value = window.backendCache.config[key];
-            let { team_tokens } = window.backendCache.stats;
             // Remove decimals
             if (key == "maximum_supply")
                 value = (value / tokenBase()).toLocaleString();
@@ -18,9 +17,11 @@ export const Whitepaper = () => {
             else if (key.startsWith("weekly_auction_size_tokens"))
                 // @ts-ignore
                 value = window.backendCache.config[key] / tokenBase();
-            else if (key == "vesting_tokens_x")
-                value = tokenBalance(team_tokens[0]);
-            else if (key == "active_user_share_for_minting_promille")
+            else if (key == "vesting_tokens_of_x") {
+                const [vested, total] =
+                    window.backendCache.stats.vesting_tokens_of_x;
+                value = tokenBalance(total - vested);
+            } else if (key == "active_user_share_for_minting_promille")
                 value = value / 10;
             else if (key == "fee")
                 value = tokenBalance(

@@ -159,7 +159,6 @@ fn proposal() {
 
 #[export_name = "canister_query proposals"]
 fn proposals() {
-    let page_size = 10;
     let page: usize = parse(&arg_data_raw());
     read(|state| {
         reply(
@@ -167,8 +166,8 @@ fn proposals() {
                 .proposals
                 .iter()
                 .rev()
-                .skip(page * page_size)
-                .take(page_size)
+                .skip(page * CONFIG.feed_page_size)
+                .take(CONFIG.feed_page_size)
                 .filter_map(|proposal| Post::get(state, &proposal.post_id))
                 .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
@@ -547,7 +546,19 @@ fn search() {
 #[export_name = "canister_query realm_search"]
 fn realm_search() {
     let query: String = parse(&arg_data_raw());
-    read(|state| reply(env::search::realm_search(state, query)));
+    // It's ok to mutate the data to avoid cloning, because we're in a query method.
+    mutate(|state| {
+        reply(
+            env::search::realm_search(state, query)
+                .into_iter()
+                .map(|(key, realm)| {
+                    realm.num_posts = realm.posts.len();
+                    realm.posts.clear();
+                    (key, realm)
+                })
+                .collect::<Vec<_>>(),
+        )
+    });
 }
 
 #[query]
