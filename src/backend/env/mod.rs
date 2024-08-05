@@ -1684,8 +1684,8 @@ impl State {
 
         let circulating_supply: Token = read(|state| state.balances.values().sum());
         // only if we're below the maximum supply, we close the auction
-        if circulating_supply < CONFIG.maximum_supply {
-            let market_price = State::close_auction().await;
+        let auction_revenue = if circulating_supply < CONFIG.maximum_supply {
+            let (market_price, revenue) = State::close_auction().await;
             mutate(|state| {
                 state.logger.info(format!(
                     "Established market price: `{}` e8s per `1` {}; next auction size: `{}` tokens",
@@ -1698,11 +1698,16 @@ impl State {
                 state.mint(market_price);
                 state.minting_mode = false;
             });
-        }
+            revenue
+        } else {
+            0
+        };
 
         State::distribute_icp().await;
 
         mutate(|state| {
+            state.distribute_revenue_from_icp(auction_revenue);
+
             for summary in &state.distribution_reports {
                 state.logger.info(format!(
                     "{}: {} [[details](#/distribution)]",
@@ -1718,7 +1723,7 @@ impl State {
     // Checks if we could collect enough bids to close the auction.
     // If yes, mints the requested amount of tokens for each bidder and moves all funds to
     // treasury, converting them to revenue.
-    async fn close_auction() -> u64 {
+    async fn close_auction() -> (u64, u64) {
         let (bids, revenue, market_price) = mutate(|state| {
             let (bids, revenue, market_price) = state.auction.close();
             if bids.is_empty() {
@@ -1737,7 +1742,7 @@ impl State {
         });
 
         if revenue == 0 {
-            return market_price;
+            return (market_price, revenue);
         }
 
         if let Err(err) = auction::move_to_treasury(revenue).await {
@@ -1750,12 +1755,10 @@ impl State {
                     .logger
                     .error(format!("bids that were closed: {:?}", bids))
             });
-            return 0;
+            return (0, 0);
         }
 
-        mutate(|state| state.distribute_revenue_from_icp(revenue));
-
-        market_price
+        (market_price, revenue)
     }
 
     pub fn distribute_revenue_from_icp(&mut self, e8s: u64) {
