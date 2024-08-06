@@ -151,7 +151,6 @@ pub const CONFIG: &Config = &Config {
     domains: &[
         "taggr.link",
         "taggr.network",
-        "taggr.club",
         "taggr.blog",
         "taggr.wtf",
         "6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io",
