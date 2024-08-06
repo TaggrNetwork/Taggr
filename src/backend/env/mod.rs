@@ -189,6 +189,7 @@ pub struct State {
     pub vesting_tokens_of_x: (Token, Token),
 
     // TODO: delete
+    #[serde(skip)]
     pub team_tokens: HashMap<UserId, Token>,
 
     pub memory: memory::Memory,
@@ -1706,8 +1707,6 @@ impl State {
         State::distribute_icp().await;
 
         mutate(|state| {
-            state.distribute_revenue_from_icp(auction_revenue);
-
             for summary in &state.distribution_reports {
                 state.logger.info(format!(
                     "{}: {} [[details](#/distribution)]",
@@ -1716,6 +1715,9 @@ impl State {
             }
 
             state.clean_up(now);
+
+            // these burned credits go to the next week
+            state.distribute_revenue_from_icp(auction_revenue);
             state.charge_for_inactivity(now);
         });
     }
