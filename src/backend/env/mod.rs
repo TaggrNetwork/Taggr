@@ -15,7 +15,7 @@ use crate::{assets, id, mutate, read, time};
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::performance_counter;
-use ic_cdk::api::stable::stable64_size;
+use ic_cdk::api::stable::stable_size;
 use ic_cdk::api::{self, canister_balance};
 use ic_ledger_types::{AccountIdentifier, Tokens, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
 use invoices::Invoices;
@@ -2424,7 +2424,7 @@ impl State {
             users_online,
             stalwarts: stalwarts.into_iter().map(|u| u.id).collect(),
             bots,
-            state_size: stable64_size() << 16,
+            state_size: stable_size() << 16,
             invited_users,
             active_users,
             circulating_supply: self.balances.values().sum(),

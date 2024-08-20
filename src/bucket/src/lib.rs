@@ -47,7 +47,7 @@ fn assert_controller() {
 fn init() {
     let initial_offset: u64 = 8;
     grow_to_fit(initial_offset, 0);
-    api::stable::stable64_write(0, &initial_offset.to_be_bytes());
+    api::stable::stable_write(0, &initial_offset.to_be_bytes());
     set_controller();
 }
 
@@ -115,7 +115,7 @@ fn http_image(args: &str) -> HttpResponse {
 fn write() {
     assert_controller();
     let mut offset_bytes: [u8; 8] = Default::default();
-    api::stable::stable64_read(0, &mut offset_bytes);
+    api::stable::stable_read(0, &mut offset_bytes);
     let blob = arg_data_raw();
     write_at(u64::from_be_bytes(offset_bytes), &blob, true);
 }
@@ -130,21 +130,21 @@ fn write_at_offset() {
 
 fn write_at(offset: u64, blob: &[u8], update_pointer: bool) {
     grow_to_fit(offset, blob.len() as u64);
-    stable64_write(offset, blob);
+    stable_write(offset, blob);
     if update_pointer {
         let new_offset = offset + blob.len() as u64;
-        api::stable::stable64_write(0, &new_offset.to_be_bytes());
+        api::stable::stable_write(0, &new_offset.to_be_bytes());
     }
     reply_raw(&offset.to_be_bytes());
 }
 
 fn grow_to_fit(offset: u64, len: u64) {
-    if offset + len < (stable64_size() << 16) {
+    if offset + len < (stable_size() << 16) {
         return;
     }
     // amount of extra 64kb pages to reserve
     let extra_wasm_pages = 200;
-    if stable64_grow((len >> 16) + extra_wasm_pages).is_err() {
+    if stable_grow((len >> 16) + extra_wasm_pages).is_err() {
         panic!("couldn't grow stable memory");
     }
 }
@@ -156,7 +156,7 @@ fn bytes_to_u64(bytes: &[u8], offset: usize) -> u64 {
 }
 
 fn read_blob(offset: u64, len: u64) -> Result<Vec<u8>, &'static str> {
-    if offset.saturating_add(len) > (stable64_size() << 16) {
+    if offset.saturating_add(len) > (stable_size() << 16) {
         return Err("blob offset and length are invalid");
     }
     if len > MAX_BLOB_SIZE {
@@ -168,6 +168,6 @@ fn read_blob(offset: u64, len: u64) -> Result<Vec<u8>, &'static str> {
         // SAFETY: The length is equal to the capacity.
         buf.set_len(len as usize);
     }
-    stable64_read(offset, &mut buf);
+    stable_read(offset, &mut buf);
     Ok(buf)
 }

@@ -575,7 +575,7 @@ fn stable_mem_read(page: u64) -> Vec<(u64, Blob)> {
     unsafe {
         buf.set_len(chunk_size);
     }
-    api::stable::stable64_read(offset, &mut buf);
+    api::stable::stable_read(offset, &mut buf);
     vec![(page, ByteBuf::from(buf))]
 }
 
