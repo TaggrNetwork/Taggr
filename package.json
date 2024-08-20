@@ -2,7 +2,11 @@
     "name": "frontend",
     "version": "0.1.0",
     "description": "Internet Computer starter application",
-    "keywords": ["Internet Computer", "JavaScript", "Canister"],
+    "keywords": [
+        "Internet Computer",
+        "JavaScript",
+        "Canister"
+    ],
     "scripts": {
         "build": "webpack",
         "postbuild": "gzip -9n dist/frontend/index.js",
