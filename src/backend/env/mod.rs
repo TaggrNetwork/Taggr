@@ -1242,6 +1242,9 @@ impl State {
     // See the section "Founder's Tokens" in the white paper.
     fn vest_tokens_of_x(&mut self) {
         let (vested, total_vesting) = &mut self.vesting_tokens_of_x;
+        let user = self.users.get(&0).expect("user 0 doesn't exist");
+        let principal = user.principal;
+        let total_balance = user.total_balance();
         let vesting_left = total_vesting.saturating_sub(*vested);
         if vesting_left == 0 {
             return;
@@ -1253,12 +1256,13 @@ impl State {
         // We use 14% because 1% will vest and we want to stay below 15%.
         let cap = (circulating_supply * 14) / 100;
 
-        // Vesting is allowed if the total voting power of the team member stays below
-        // 15% of the current supply, or if 2/3 of total supply is minted.
-        if *vested <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
+        // Vesting is allowed if the vested tokens OR the total current balance
+        // of the founder stays below 15% of the current supply, or if 2/3 of total
+        // supply is minted.
+        let balance = total_balance.max(*vested);
+        if balance <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
             *vested += next_vesting;
             let new_vesting_left = *total_vesting - *vested;
-            let principal = self.users.get(&0).expect("user 0 doesn't exist").principal;
             crate::token::mint(self, account(principal), next_vesting);
             self.logger.info(format!(
                 "Minted `{}` team tokens for @X (still vesting: `{}`).",
