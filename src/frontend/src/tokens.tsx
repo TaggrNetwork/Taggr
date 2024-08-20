@@ -204,7 +204,7 @@ export const Tokens = () => {
                 </table>
                 <MoreButton callback={async () => setBalPage(balPage + 1)} />
                 <hr />
-                <Auction />
+                <AuctionCard />
             </div>
             <hr />
             <div className="spaced">
@@ -215,7 +215,7 @@ export const Tokens = () => {
     );
 };
 
-const Auction = ({}) => {
+const AuctionCard = ({}) => {
     const [auction, setAuction] = React.useState<Auction>();
     const [internalAccount, setInternalAccount] = React.useState("");
     const [e8sPerToken, setE8sPerToken] = React.useState<string>("");
@@ -631,10 +631,10 @@ const showPrincipal = ({ owner, subaccount }: Account, long?: string) => {
                     {principal in knownAddresses
                         ? knownAddresses[principal]
                         : principal == "2vxsx-fae"
-                        ? "🌱"
-                        : long
-                        ? principal
-                        : principal.split("-")[0]}
+                          ? "🌱"
+                          : long
+                            ? principal
+                            : principal.split("-")[0]}
                 </a>
             )}
         />

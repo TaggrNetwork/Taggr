@@ -15,7 +15,7 @@ use crate::{assets, id, mutate, read, time};
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::performance_counter;
-use ic_cdk::api::stable::stable64_size;
+use ic_cdk::api::stable::stable_size;
 use ic_cdk::api::{self, canister_balance};
 use ic_ledger_types::{AccountIdentifier, Tokens, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
 use invoices::Invoices;
@@ -189,6 +189,7 @@ pub struct State {
     pub vesting_tokens_of_x: (Token, Token),
 
     // TODO: delete
+    #[serde(skip)]
     pub team_tokens: HashMap<UserId, Token>,
 
     pub memory: memory::Memory,
@@ -392,7 +393,8 @@ impl State {
             .await
             .ok()
             .and_then(|s| s.module_hash.map(hex::encode))
-            .unwrap_or_default();
+            // For some reason, the hash is not returned on local replica anymore.
+            .unwrap_or_else(|| "deadbeef".to_string());
         mutate(|state| {
             state.module_hash = current_hash.clone();
             state.logger.debug(format!(
@@ -1241,6 +1243,9 @@ impl State {
     // See the section "Founder's Tokens" in the white paper.
     fn vest_tokens_of_x(&mut self) {
         let (vested, total_vesting) = &mut self.vesting_tokens_of_x;
+        let user = self.users.get(&0).expect("user 0 doesn't exist");
+        let principal = user.principal;
+        let total_balance = user.total_balance();
         let vesting_left = total_vesting.saturating_sub(*vested);
         if vesting_left == 0 {
             return;
@@ -1252,12 +1257,13 @@ impl State {
         // We use 14% because 1% will vest and we want to stay below 15%.
         let cap = (circulating_supply * 14) / 100;
 
-        // Vesting is allowed if the total voting power of the team member stays below
-        // 15% of the current supply, or if 2/3 of total supply is minted.
-        if *vested <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
+        // Vesting is allowed if the vested tokens OR the total current balance
+        // of the founder stays below 15% of the current supply, or if 2/3 of total
+        // supply is minted.
+        let balance = total_balance.max(*vested);
+        if balance <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
             *vested += next_vesting;
             let new_vesting_left = *total_vesting - *vested;
-            let principal = self.users.get(&0).expect("user 0 doesn't exist").principal;
             crate::token::mint(self, account(principal), next_vesting);
             self.logger.info(format!(
                 "Minted `{}` team tokens for @X (still vesting: `{}`).",
@@ -1706,8 +1712,6 @@ impl State {
         State::distribute_icp().await;
 
         mutate(|state| {
-            state.distribute_revenue_from_icp(auction_revenue);
-
             for summary in &state.distribution_reports {
                 state.logger.info(format!(
                     "{}: {} [[details](#/distribution)]",
@@ -1716,6 +1720,9 @@ impl State {
             }
 
             state.clean_up(now);
+
+            // these burned credits go to the next week
+            state.distribute_revenue_from_icp(auction_revenue);
             state.charge_for_inactivity(now);
         });
     }
@@ -2418,7 +2425,7 @@ impl State {
             users_online,
             stalwarts: stalwarts.into_iter().map(|u| u.id).collect(),
             bots,
-            state_size: stable64_size() << 16,
+            state_size: stable_size() << 16,
             invited_users,
             active_users,
             circulating_supply: self.balances.values().sum(),

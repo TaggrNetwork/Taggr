@@ -58,7 +58,8 @@ impl Storage {
 #[allow(dead_code)]
 pub async fn upgrade_buckets() {
     for id in read(|state| state.storage.buckets.keys().cloned().collect::<Vec<_>>()) {
-        if let Err(err) = canisters::install(id, BUCKET_WASM_GZ, CanisterInstallMode::Upgrade).await
+        if let Err(err) =
+            canisters::install(id, BUCKET_WASM_GZ, CanisterInstallMode::Upgrade(None)).await
         {
             mutate(|state| {
                 state

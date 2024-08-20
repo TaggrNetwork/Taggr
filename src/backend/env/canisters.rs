@@ -152,7 +152,7 @@ pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: boo
         Principal::management_canister(),
         "install_code",
         (InstallCodeArgument {
-            mode: CanisterInstallMode::Upgrade,
+            mode: CanisterInstallMode::Upgrade(None),
             canister_id: id(),
             wasm_module: wasm_module.to_vec(),
             arg: ic_cdk::api::id().as_slice().to_vec(),

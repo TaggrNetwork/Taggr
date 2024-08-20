@@ -1,4 +1,4 @@
-use ic_cdk::api::stable::{stable64_grow, stable64_read, stable64_size, stable64_write};
+use ic_cdk::api::stable::{stable_grow, stable_read, stable_size, stable_write};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{cell::RefCell, collections::BTreeMap, fmt::Display, rc::Rc};
 
@@ -31,8 +31,8 @@ impl Default for Api {
     fn default() -> Self {
         Self {
             allocator: Default::default(),
-            write_bytes: Some(Box::new(stable64_write)),
-            read_bytes: Some(Box::new(stable64_read)),
+            write_bytes: Some(Box::new(stable_write)),
+            read_bytes: Some(Box::new(stable_read)),
         }
     }
 }
@@ -129,20 +129,20 @@ pub fn heap_to_stable(state: &mut super::State) {
     let offset = state.memory.api.boundary();
     let bytes = serde_cbor::to_vec(&state).expect("couldn't serialize the state");
     let len = bytes.len() as u64;
-    if offset + len > (stable64_size() << 16) {
-        stable64_grow((len >> 16) + 1).expect("couldn't grow memory");
+    if offset + len > (stable_size() << 16) {
+        stable_grow((len >> 16) + 1).expect("couldn't grow memory");
     }
-    stable64_write(offset, &bytes);
-    stable64_write(0, &offset.to_be_bytes());
-    stable64_write(8, &len.to_be_bytes());
+    stable_write(offset, &bytes);
+    stable_write(0, &offset.to_be_bytes());
+    stable_write(8, &len.to_be_bytes());
 }
 
 pub fn heap_address() -> (u64, u64) {
     let mut offset_bytes: [u8; 8] = Default::default();
-    stable64_read(0, &mut offset_bytes);
+    stable_read(0, &mut offset_bytes);
     let offset = u64::from_be_bytes(offset_bytes);
     let mut len_bytes: [u8; 8] = Default::default();
-    stable64_read(8, &mut len_bytes);
+    stable_read(8, &mut len_bytes);
     let len = u64::from_be_bytes(len_bytes);
     (offset, len)
 }
@@ -186,10 +186,9 @@ impl Default for Allocator {
             block_size_bytes: 300,
             segments: Default::default(),
             boundary: INITIAL_OFFSET,
-            mem_size: Some(Box::new(|| stable64_size() << 16)),
+            mem_size: Some(Box::new(|| stable_size() << 16)),
             mem_grow: Some(Box::new(|n| {
-                stable64_grow((n >> 16) + 1)
-                    .map_err(|err| format!("couldn't grow memory: {:?}", err))
+                stable_grow((n >> 16) + 1).map_err(|err| format!("couldn't grow memory: {:?}", err))
             })),
         }
     }

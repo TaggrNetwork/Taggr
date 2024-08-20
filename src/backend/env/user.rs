@@ -127,6 +127,15 @@ impl User {
         self.draft.take();
     }
 
+    pub fn should_see(&self, state: &State, post: &Post) -> bool {
+        !post.matches_filters(&self.filters)
+            && state
+                .users
+                .get(&post.user)
+                .map(|author| self.accepts(post.user, &author.get_filter()))
+                .unwrap_or(true)
+    }
+
     pub fn accepts(&self, user_id: UserId, filter: &UserFilter) -> bool {
         !self.blacklist.contains(&user_id)
             && !self.filters.users.contains(&user_id)
@@ -250,7 +259,7 @@ impl User {
             },
             "tag" => {
                 if !self.filters.tags.remove(&value) {
-                    self.filters.tags.insert(value.clone());
+                    self.filters.tags.insert(value.to_lowercase());
                     self.feeds.retain(|feed| !feed.contains(&value));
                 }
                 Ok(())

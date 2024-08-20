@@ -338,15 +338,8 @@ fn invites() {
 }
 
 fn personal_filter(state: &State, user: Option<&User>, post: &Post) -> bool {
-    user.map(|user| {
-        !post.matches_filters(&user.filters)
-            && state
-                .users
-                .get(&post.user)
-                .map(|author| user.accepts(author.id, &author.get_filter()))
-                .unwrap_or(true)
-    })
-    .unwrap_or(true)
+    user.map(|user| user.should_see(state, post))
+        .unwrap_or(true)
 }
 
 #[export_name = "canister_query posts"]
@@ -575,7 +568,7 @@ fn stable_mem_read(page: u64) -> Vec<(u64, Blob)> {
     unsafe {
         buf.set_len(chunk_size);
     }
-    api::stable::stable64_read(offset, &mut buf);
+    api::stable::stable_read(offset, &mut buf);
     vec![(page, ByteBuf::from(buf))]
 }
 

@@ -36,9 +36,8 @@ export const PostFeed = ({
     const [offset, setOffset] = React.useState(0);
     const [posts, setPosts] = React.useState<Post[]>([]);
     const [loading, setLoading] = React.useState(false);
-    const [displayPageFlipper, setPageVlipperVisibility] = React.useState(
-        !thread,
-    );
+    const [displayPageFlipper, setPageVlipperVisibility] =
+        React.useState(!thread);
     const [refreshBeat, setRefreshBeat] = React.useState(0);
 
     React.useEffect(() => {
@@ -93,8 +92,8 @@ export const PostFeed = ({
                 !isRoot(post) && thread
                     ? "comment"
                     : firstItem && thread
-                    ? "prime"
-                    : "feed_item"
+                      ? "prime"
+                      : "feed_item"
             }`}
             focused={post.id == focusedPost}
             isCommentView={thread}
