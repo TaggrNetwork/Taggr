@@ -393,7 +393,8 @@ impl State {
             .await
             .ok()
             .and_then(|s| s.module_hash.map(hex::encode))
-            .unwrap_or_default();
+            // For some reason, the hash is not returned on local replica anymore.
+            .unwrap_or_else(|| "deadbeef".to_string());
         mutate(|state| {
             state.module_hash = current_hash.clone();
             state.logger.debug(format!(
