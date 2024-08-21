@@ -188,10 +188,6 @@ pub struct State {
     // the vesting progress of X (see "Founder's Tokens" in white paper)
     pub vesting_tokens_of_x: (Token, Token),
 
-    // TODO: delete
-    #[serde(skip)]
-    pub team_tokens: HashMap<UserId, Token>,
-
     pub memory: memory::Memory,
 
     // This runtime flag has to be set in order to mint new tokens.
@@ -234,7 +230,8 @@ pub struct State {
     #[serde(skip)]
     pub backup_exists: bool,
 
-    #[serde(default)]
+    // TODO: delete
+    #[serde(skip)]
     pub minting_power: HashMap<Principal, Token>,
 
     #[serde(skip)]
@@ -393,8 +390,7 @@ impl State {
             .await
             .ok()
             .and_then(|s| s.module_hash.map(hex::encode))
-            // For some reason, the hash is not returned on local replica anymore.
-            .unwrap_or_else(|| "deadbeef".to_string());
+            .unwrap_or_default();
         mutate(|state| {
             state.module_hash = current_hash.clone();
             state.logger.debug(format!(
