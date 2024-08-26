@@ -14,6 +14,7 @@ use crate::token::{Account, Token, Transaction};
 use crate::{assets, id, mutate, read, time};
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
+use ic_cdk::api::management_canister::main::raw_rand;
 use ic_cdk::api::performance_counter;
 use ic_cdk::api::stable::stable_size;
 use ic_cdk::api::{self, canister_balance};
@@ -25,6 +26,7 @@ use sha2::{Digest, Sha256};
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::convert::TryFrom;
+use token::base;
 use user::{User, UserId};
 
 pub mod auction;
@@ -131,7 +133,7 @@ pub struct Realm {
 #[derive(Default, Serialize, Deserialize)]
 pub struct TagIndex {
     pub subscribers: usize,
-    // This is a FIFO queue, which works with a BTreeSet and athe assumption that post ids are
+    // This is a FIFO queue, which works with a BTreeSet and the assumption that post ids are
     // strictly monotonic.
     pub posts: BTreeSet<PostId>,
 }
@@ -1681,13 +1683,15 @@ impl State {
             state.distribute_realm_revenue(now);
         });
 
+        State::random_reward().await;
+
         let circulating_supply: Token = read(|state| state.balances.values().sum());
         // only if we're below the maximum supply, we close the auction
         let auction_revenue = if circulating_supply < CONFIG.maximum_supply {
             let (market_price, revenue) = State::close_auction().await;
             mutate(|state| {
                 state.logger.info(format!(
-                    "Established market price: `{}` e8s per `1` {}; next auction size: `{}` tokens",
+                    "Established market price: `{}` e8s per `1` ${}; next auction size: `{}` tokens",
                     market_price * token::base(),
                     CONFIG.token_symbol,
                     state.auction.amount
@@ -1718,6 +1722,60 @@ impl State {
             state.distribute_revenue_from_icp(auction_revenue);
             state.charge_for_inactivity(now);
         });
+    }
+
+    // Rewards a random user with a fixed amount of minted tokens.
+    // Users have a winning chance proportional to their weekly credits spending.
+    async fn random_reward() {
+        if let Ok((randomness,)) = raw_rand().await {
+            use std::convert::TryInto;
+            let bytes: [u8; 8] = randomness[0..8]
+                .try_into()
+                .expect("couldn't convert bytes to array");
+            let mut random_number: u64 = u64::from_be_bytes(bytes);
+
+            mutate(|state| {
+                // Creating random distribution of users with segments proportional to credits
+                // spent within the last week. Segments are placed randomly.
+                let mut allocation = Vec::new();
+                let mut threshold = 0;
+                for user in state
+                    .users
+                    .values_mut()
+                    .filter(|user| user.active_within_weeks(time(), 1) && user.credits_burned() > 0)
+                {
+                    threshold += user.take_credits_burned();
+                    allocation.push((user.id, threshold));
+                }
+
+                if allocation.is_empty() {
+                    return;
+                }
+
+                // Truncate the random number so that every single user has a chance to win.
+                random_number %= threshold + 1;
+
+                let (user_id, _) = allocation
+                    .into_iter()
+                    .find(|(_, threshold)| threshold >= &random_number)
+                    .expect("no winner");
+
+                let winner = state.users.get(&user_id).expect("no user found");
+                state.logger.info(format!(
+                    "@{} is the lucky receiver of the random reward worth `{}` ${}! 🎲",
+                    winner.name,
+                    CONFIG.random_reward_amount / base(),
+                    CONFIG.token_symbol,
+                ));
+                state.minting_mode = true;
+                crate::token::mint(
+                    state,
+                    account(winner.principal),
+                    CONFIG.random_reward_amount,
+                );
+                state.minting_mode = false;
+            });
+        };
     }
 
     // Checks if we could collect enough bids to close the auction.

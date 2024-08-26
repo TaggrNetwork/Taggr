@@ -117,6 +117,9 @@ pub struct User {
     pub posts: Vec<PostId>,
     pub controlled_realms: HashSet<RealmId>,
     pub mode: Mode,
+    // Amount of credits burned per week; used for the random rewards only.
+    #[serde(default)]
+    credits_burned: Credits,
 }
 
 impl User {
@@ -175,6 +178,7 @@ impl User {
             account: AccountIdentifier::new(&principal, &DEFAULT_SUBACCOUNT).to_string(),
             settings: Default::default(),
             cycles: 0,
+            credits_burned: 0,
             timestamp,
             num_posts: 0,
             bookmarks: Default::default(),
@@ -415,6 +419,7 @@ impl User {
                     .cycles
                     .checked_sub(amount)
                     .ok_or("wrong negative delta amount")?;
+                self.credits_burned += amount;
             }
             self.add_accounting_log(
                 time(),
@@ -463,6 +468,14 @@ impl User {
 
     pub fn credits(&self) -> Credits {
         self.cycles
+    }
+
+    pub fn credits_burned(&self) -> Credits {
+        self.credits_burned
+    }
+
+    pub fn take_credits_burned(&mut self) -> Credits {
+        std::mem::take(&mut self.credits_burned)
     }
 
     pub fn top_up_credits_from_revenue(
@@ -728,8 +741,10 @@ mod tests {
         u.cycles = 100;
         assert!(u.change_credits(55, CreditsDelta::Plus, "").is_ok());
         assert_eq!(u.credits(), 155);
+        assert_eq!(u.credits_burned(), 0);
         assert!(u.change_credits(156, CreditsDelta::Minus, "").is_err());
         assert!(u.change_credits(155, CreditsDelta::Minus, "").is_ok());
+        assert_eq!(u.take_credits_burned(), 155);
         assert_eq!(u.credits(), 0);
     }
 }
