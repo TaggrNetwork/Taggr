@@ -1740,11 +1740,11 @@ impl State {
                 // spent within the last week. Segments are placed randomly.
                 let mut allocation = Vec::new();
                 let mut threshold = 0;
-                for user in state
-                    .users
-                    .values_mut()
-                    .filter(|user| user.active_within_weeks(time(), 1) && user.credits_burned() > 0)
-                {
+                for user in state.users.values_mut().filter(|user| {
+                    !user.controversial()
+                        && user.active_within_weeks(time(), 1)
+                        && user.credits_burned() > 0
+                }) {
                     threshold += user.take_credits_burned();
                     allocation.push((user.id, threshold));
                 }
