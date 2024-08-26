@@ -1,5 +1,5 @@
 start:
-	dfx start --background -qqqq
+	dfx start --background -qqqq 2> /dev/null
 
 staging_deploy:
 	NODE_ENV=production DFX_NETWORK=staging make fe
