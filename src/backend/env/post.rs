@@ -609,10 +609,6 @@ impl Post {
             state.register_post_tags(post.id, &tags);
         }
 
-        while state.recent_tags.len() > 5000 {
-            state.recent_tags.pop_front();
-        }
-
         if let Some(parent_id) = post.parent {
             let result = Post::mutate(state, &parent_id, |parent_post| {
                 parent_post.children.push(id);

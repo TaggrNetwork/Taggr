@@ -220,7 +220,8 @@ pub struct State {
 
     migrations: BTreeSet<UserId>,
 
-    #[serde(default)]
+    // TODO: delete
+    #[serde(skip)]
     pub recent_tags: VecDeque<String>,
 
     #[serde(default)]
@@ -299,7 +300,6 @@ impl State {
             while index.posts.len() > 1000 {
                 index.posts.pop_back();
             }
-            self.recent_tags.push_back(tag.clone());
         }
     }
 
@@ -3122,10 +3122,6 @@ pub(crate) mod tests {
             )
             .unwrap();
 
-            assert_eq!(
-                state.recent_tags.clone().into_iter().collect::<Vec<_>>(),
-                vec!["tags", "test", "message", "more", "tags"]
-            );
             assert_eq!(state.tag_indexes.len(), 4);
             assert!(state.tag_indexes.get("test").unwrap().posts.contains(&0));
             assert!(state.tag_indexes.get("more").unwrap().posts.contains(&1));
