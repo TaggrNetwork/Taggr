@@ -1683,6 +1683,7 @@ impl State {
             state.distribute_realm_revenue(now);
         });
 
+        #[cfg(not(feature = "dev"))] // don't create rewards in e2e tests
         State::random_reward().await;
 
         let circulating_supply: Token = read(|state| state.balances.values().sum());
