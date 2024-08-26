@@ -494,7 +494,7 @@ fn thread() {
 
 #[export_name = "canister_query recent_tags"]
 fn recent_tags() {
-    let (realm, n): (String, u64) = parse(&arg_data_raw());
+    let (realm, n): (String, usize) = parse(&arg_data_raw());
     read(|state| reply(state.recent_tags(optional(realm), n)));
 }
 

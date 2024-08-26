@@ -2189,29 +2189,28 @@ impl State {
         )
     }
 
-    pub fn recent_tags(&self, realm_id: Option<RealmId>, n: u64) -> Vec<(String, u64)> {
+    pub fn recent_tags(&self, realm_id: Option<RealmId>, n: usize) -> Vec<(String, u64)> {
         let mut tags: HashMap<String, u64> = Default::default();
-        let mut tags_found = 0;
-        'OUTER: for post in self
+        for post in self
             .last_posts(realm_id, 0, 0, false)
+            // We only count tags occurrences on root posts, if they have comments or reactions
+            .filter(|post| {
+                post.parent.is_none() && !post.reactions.is_empty() && !post.children.is_empty()
+            })
             .take_while(|post| !post.archived)
         {
             for tag in &post.tags {
-                let counter = tags.entry(tag.clone()).or_insert(0);
-                // We only count tags occurrences on root posts, if they have comments or reactions
-                if post.parent.is_some() || post.reactions.is_empty() && post.children.is_empty() {
-                    continue;
+                if !tags.contains_key(tag) {
+                    tags.insert(tag.clone(), 1);
                 }
+                let counter = tags.get_mut(tag.as_str()).expect("no tag");
                 *counter += 1;
-                if *counter == 2 {
-                    tags_found += 1;
-                }
             }
-            if tags_found >= n {
-                break 'OUTER;
+            if tags.len() >= n {
+                break;
             }
         }
-        tags.into_iter().filter(|(_, count)| *count > 1).collect()
+        tags.into_iter().collect()
     }
 
     /// Returns an iterator of posts from the root post to the post `id`.
