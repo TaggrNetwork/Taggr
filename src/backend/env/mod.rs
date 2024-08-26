@@ -125,14 +125,15 @@ pub struct Realm {
     pub created: Time,
     // Root posts assigned to the realm
     pub posts: Vec<PostId>,
-    #[serde(default)]
     pub adult_content: bool,
 }
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct TagIndex {
     pub subscribers: usize,
-    pub posts: VecDeque<PostId>,
+    // This is a FIFO queue, which works with a BTreeSet and athe assumption that post ids are
+    // strictly monotonic.
+    pub posts: BTreeSet<PostId>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -183,7 +184,6 @@ pub struct State {
     pub proposals: Vec<Proposal>,
     pub ledger: Vec<Transaction>,
 
-    #[serde(default)]
     // Contains the pair of two amounts (vested, total_vesting) describing
     // the vesting progress of X (see "Founder's Tokens" in white paper)
     pub vesting_tokens_of_x: (Token, Token),
@@ -209,7 +209,6 @@ pub struct State {
 
     pub last_nns_proposal: u64,
 
-    #[serde(default)]
     pub root_posts_index: Vec<PostId>,
 
     e8s_for_one_xdr: u64,
@@ -224,7 +223,6 @@ pub struct State {
     #[serde(skip)]
     pub recent_tags: VecDeque<String>,
 
-    #[serde(default)]
     pub tag_indexes: HashMap<String, TagIndex>,
 
     // Indicates whether the end of the stable memory contains a valid heap snapshot.
@@ -238,7 +236,6 @@ pub struct State {
     #[serde(skip)]
     pub weekly_chores_delay_votes: HashSet<UserId>,
 
-    #[serde(default)]
     pub timers: Timers,
 }
 
@@ -296,9 +293,9 @@ impl State {
     pub fn register_post_tags(&mut self, post_id: PostId, tags: &BTreeSet<String>) {
         for tag in tags {
             let index = self.tag_indexes.entry(tag.clone()).or_default();
-            index.posts.push_front(post_id);
+            index.posts.insert(post_id);
             while index.posts.len() > 1000 {
-                index.posts.pop_back();
+                index.posts.pop_first();
             }
         }
     }
@@ -2119,7 +2116,7 @@ impl State {
                         .map(|tag| {
                             let iterator: Box<dyn Iterator<Item = &PostId>> =
                                 match self.tag_indexes.get(&tag.to_lowercase()) {
-                                    Some(index) => Box::new(index.posts.iter()),
+                                    Some(index) => Box::new(index.posts.iter().rev()),
                                     None => Box::new(std::iter::empty()),
                                 };
                             iterator
@@ -3125,7 +3122,10 @@ pub(crate) mod tests {
             assert_eq!(state.tag_indexes.len(), 4);
             assert!(state.tag_indexes.get("test").unwrap().posts.contains(&0));
             assert!(state.tag_indexes.get("more").unwrap().posts.contains(&1));
-            assert_eq!(&state.tag_indexes.get("tags").unwrap().posts, &vec![1, 0]);
+            assert_eq!(
+                state.tag_indexes.get("tags").unwrap().posts.clone(),
+                vec![1, 0].into_iter().collect::<BTreeSet<_>>()
+            );
             // No posts for this tag
             assert!(state.tag_indexes.get("coffee").is_none());
         });
@@ -3143,7 +3143,10 @@ pub(crate) mod tests {
         .unwrap();
 
         read(|state| {
-            assert_eq!(&state.tag_indexes.get("coffee").unwrap().posts, &vec![1]);
+            assert_eq!(
+                state.tag_indexes.get("coffee").unwrap().posts.clone(),
+                vec![1].into_iter().collect()
+            );
         });
     }
 
