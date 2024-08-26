@@ -141,7 +141,7 @@ The price derived from these bids represnt the market price of one token.
 `18%` of tokens are allocated to @X, the founder of $name.
 His tokens are minted weekly, by an amount equal to `1%` of the circulating supply if and only if one of the following conditions are met:
 
--   His individual share is below `14%` of minted supply.
+-   The maximum of his current token balance and the amount of his tokens vested so far is below `14%` of minted supply.
 -   `2/3` of the total supply has been minted.
 
 Currently vesting tokens: `$vesting_tokens_of_x`.
