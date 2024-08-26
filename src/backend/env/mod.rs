@@ -2099,6 +2099,7 @@ impl State {
         let tags = tags_and_users
             .iter()
             .filter(|token| !token.starts_with('@'))
+            .map(|tag| tag.to_lowercase())
             .collect::<Vec<_>>();
         let users = tags_and_users
             .iter()
@@ -2115,7 +2116,7 @@ impl State {
                     tags.iter()
                         .map(|tag| {
                             let iterator: Box<dyn Iterator<Item = &PostId>> =
-                                match self.tag_indexes.get(&tag.to_lowercase()) {
+                                match self.tag_indexes.get(tag) {
                                     Some(index) => Box::new(index.posts.iter().rev()),
                                     None => Box::new(std::iter::empty()),
                                 };
@@ -2139,7 +2140,7 @@ impl State {
                     .map(|user| user.posts(self, offset, with_comments))
                     .collect(),
             )
-            .filter(move |post| filter(post) && tags.iter().all(|tag| post.tags.contains(*tag))),
+            .filter(move |post| filter(post) && tags.iter().all(|tag| post.tags.contains(tag))),
         )
     }
 
