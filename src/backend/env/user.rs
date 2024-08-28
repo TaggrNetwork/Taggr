@@ -419,7 +419,6 @@ impl User {
                     .cycles
                     .checked_sub(amount)
                     .ok_or("wrong negative delta amount")?;
-                self.credits_burned += amount;
             }
             self.add_accounting_log(
                 time(),
@@ -472,6 +471,10 @@ impl User {
 
     pub fn credits_burned(&self) -> Credits {
         self.credits_burned
+    }
+
+    pub fn add_burned_credits(&mut self, delta: Credits) {
+        self.credits_burned += delta
     }
 
     pub fn take_credits_burned(&mut self) -> Credits {

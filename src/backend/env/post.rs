@@ -595,6 +595,8 @@ impl Post {
                 user.realms.push(name.clone());
             }
         }
+        // We count credits spent on new content creation.
+        user.add_burned_credits(costs);
         user.last_activity = timestamp;
         let id = state.new_post_id();
         post.id = id;

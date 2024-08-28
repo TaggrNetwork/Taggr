@@ -2868,6 +2868,11 @@ impl State {
                     None,
                 )?;
             }
+
+            // We count credits spent on positive reactions.
+            self.principal_to_user_mut(principal)
+                .expect("no user for principal found")
+                .add_burned_credits(delta as Credits);
         }
 
         self.principal_to_user_mut(principal)
