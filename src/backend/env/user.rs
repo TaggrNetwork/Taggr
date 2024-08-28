@@ -747,7 +747,7 @@ mod tests {
         assert_eq!(u.credits_burned(), 0);
         assert!(u.change_credits(156, CreditsDelta::Minus, "").is_err());
         assert!(u.change_credits(155, CreditsDelta::Minus, "").is_ok());
-        assert_eq!(u.take_credits_burned(), 155);
+        assert_eq!(u.take_credits_burned(), 0);
         assert_eq!(u.credits(), 0);
     }
 }

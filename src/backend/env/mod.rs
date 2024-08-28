@@ -1749,29 +1749,28 @@ impl State {
                     allocation.push((user.id, threshold));
                 }
 
-                if allocation.is_empty() {
-                    return;
-                }
-
                 // Truncate the random number so that every single user has a chance to win.
                 random_number %= threshold + 1;
 
-                let (user_id, _) = allocation
+                let Some((winner_name, winner_principal)) = allocation
                     .into_iter()
                     .find(|(_, threshold)| threshold >= &random_number)
-                    .expect("no winner");
+                    .and_then(|(user_id, _)| state.users.get(&user_id))
+                    .map(|user| (user.name.clone(), user.principal))
+                else {
+                    return;
+                };
 
-                let winner = state.users.get(&user_id).expect("no user found");
                 state.logger.info(format!(
                     "@{} is the lucky receiver of the random reward worth `{}` ${}! 🎲",
-                    winner.name,
+                    winner_name,
                     CONFIG.random_reward_amount / base(),
                     CONFIG.token_symbol,
                 ));
                 state.minting_mode = true;
                 crate::token::mint(
                     state,
-                    account(winner.principal),
+                    account(winner_principal),
                     CONFIG.random_reward_amount,
                 );
                 state.minting_mode = false;
@@ -2869,10 +2868,10 @@ impl State {
                 )?;
             }
 
-            // We count credits spent on positive reactions.
+            // We only count actually burned credits from positive reactions.
             self.principal_to_user_mut(principal)
                 .expect("no user for principal found")
-                .add_burned_credits(delta as Credits);
+                .add_burned_credits(fee);
         }
 
         self.principal_to_user_mut(principal)
@@ -3725,6 +3724,9 @@ pub(crate) mod tests {
             let post_id =
                 Post::create(state, "Test".to_string(), &[], pr(0), 0, None, None, None).unwrap();
 
+            let post_author = state.principal_to_user(pr(0)).unwrap();
+            assert_eq!(post_author.credits_burned(), 2);
+
             // Create 2 comments
             let mut comment_id = 0;
             for i in 1..=2 {
@@ -3766,11 +3768,13 @@ pub(crate) mod tests {
                 10 + 5 + 2 * CONFIG.response_reward
             );
 
+            let upvoter = state.users.get_mut(&upvoter_id).unwrap();
             assert_eq!(
-                state.users.get_mut(&upvoter_id).unwrap().credits(),
+                upvoter.credits(),
                 // reward + fee + post creation
                 upvoter_credits - 10 - 1 - 2
             );
+            assert_eq!(upvoter.credits_burned(), 3);
 
             let versions = vec!["a".into(), "b".into()];
             assert_eq!(
