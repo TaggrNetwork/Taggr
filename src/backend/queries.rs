@@ -469,6 +469,7 @@ fn personal_feed() {
             None => Default::default(),
             Some(user) => user
                 .personal_feed(state, offset)
+                // TODO: pull it inside
                 .filter(|post| personal_filter(state, Some(user), post))
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
@@ -494,7 +495,7 @@ fn thread() {
 
 #[export_name = "canister_query recent_tags"]
 fn recent_tags() {
-    let (realm, n): (String, u64) = parse(&arg_data_raw());
+    let (realm, n): (String, usize) = parse(&arg_data_raw());
     read(|state| reply(state.recent_tags(optional(realm), n)));
 }
 

@@ -5,6 +5,8 @@ import { BellOff, Close } from "./icons";
 import { PostView } from "./post";
 import { Notification, PostId } from "./types";
 
+let timer: any = null;
+
 export const Inbox = () => {
     const [inbox, setInbox] = React.useState<{
         [key: string]: [Notification, boolean];
@@ -17,9 +19,10 @@ export const Inbox = () => {
         location.href = "#/";
     }
 
-    const closeNotifications = (k: number, callback?: () => void) => {
+    const closeNotification = (k: number, callback?: () => void) => {
+        clearTimeout(timer);
         setClosing(k);
-        setTimeout(() => {
+        timer = setTimeout(() => {
             window.api.call("clear_notifications", [k]);
             if (callback) callback();
             let inbox = window.user.notifications;
@@ -68,7 +71,7 @@ export const Inbox = () => {
                                 <button
                                     className="unselected"
                                     onClick={() =>
-                                        closeNotifications(k, () =>
+                                        closeNotification(k, () =>
                                             window.api.call(
                                                 "toggle_following_post",
                                                 id,
@@ -81,7 +84,7 @@ export const Inbox = () => {
                             )}
                             <button
                                 className="unselected right_half_spaced"
-                                onClick={() => closeNotifications(k)}
+                                onClick={() => closeNotification(k)}
                             >
                                 <Close classNameArg="action" />
                             </button>

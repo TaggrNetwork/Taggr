@@ -80,24 +80,10 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    mutate(|state| {
-        for user in state.users.values_mut() {
-            user.filters.tags = user
-                .filters
-                .tags
-                .clone()
-                .into_iter()
-                .map(|tag| tag.to_lowercase())
-                .collect();
-        }
-    })
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {
-    storage::upgrade_buckets().await;
-}
+async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES

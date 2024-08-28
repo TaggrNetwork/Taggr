@@ -14,6 +14,7 @@ use crate::token::{Account, Token, Transaction};
 use crate::{assets, id, mutate, read, time};
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
+use ic_cdk::api::management_canister::main::raw_rand;
 use ic_cdk::api::performance_counter;
 use ic_cdk::api::stable::stable_size;
 use ic_cdk::api::{self, canister_balance};
@@ -25,6 +26,7 @@ use sha2::{Digest, Sha256};
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::convert::TryFrom;
+use token::base;
 use user::{User, UserId};
 
 pub mod auction;
@@ -125,14 +127,15 @@ pub struct Realm {
     pub created: Time,
     // Root posts assigned to the realm
     pub posts: Vec<PostId>,
-    #[serde(default)]
     pub adult_content: bool,
 }
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct TagIndex {
     pub subscribers: usize,
-    pub posts: VecDeque<PostId>,
+    // This is a FIFO queue, which works with a BTreeSet and the assumption that post ids are
+    // strictly monotonic.
+    pub posts: BTreeSet<PostId>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -183,14 +186,9 @@ pub struct State {
     pub proposals: Vec<Proposal>,
     pub ledger: Vec<Transaction>,
 
-    #[serde(default)]
     // Contains the pair of two amounts (vested, total_vesting) describing
     // the vesting progress of X (see "Founder's Tokens" in white paper)
     pub vesting_tokens_of_x: (Token, Token),
-
-    // TODO: delete
-    #[serde(skip)]
-    pub team_tokens: HashMap<UserId, Token>,
 
     pub memory: memory::Memory,
 
@@ -213,7 +211,6 @@ pub struct State {
 
     pub last_nns_proposal: u64,
 
-    #[serde(default)]
     pub root_posts_index: Vec<PostId>,
 
     e8s_for_one_xdr: u64,
@@ -224,23 +221,23 @@ pub struct State {
 
     migrations: BTreeSet<UserId>,
 
-    #[serde(default)]
+    // TODO: delete
+    #[serde(skip)]
     pub recent_tags: VecDeque<String>,
 
-    #[serde(default)]
     pub tag_indexes: HashMap<String, TagIndex>,
 
     // Indicates whether the end of the stable memory contains a valid heap snapshot.
     #[serde(skip)]
     pub backup_exists: bool,
 
-    #[serde(default)]
+    // TODO: delete
+    #[serde(skip)]
     pub minting_power: HashMap<Principal, Token>,
 
     #[serde(skip)]
     pub weekly_chores_delay_votes: HashSet<UserId>,
 
-    #[serde(default)]
     pub timers: Timers,
 }
 
@@ -298,11 +295,10 @@ impl State {
     pub fn register_post_tags(&mut self, post_id: PostId, tags: &BTreeSet<String>) {
         for tag in tags {
             let index = self.tag_indexes.entry(tag.clone()).or_default();
-            index.posts.push_front(post_id);
+            index.posts.insert(post_id);
             while index.posts.len() > 1000 {
-                index.posts.pop_back();
+                index.posts.pop_first();
             }
-            self.recent_tags.push_back(tag.clone());
         }
     }
 
@@ -393,8 +389,7 @@ impl State {
             .await
             .ok()
             .and_then(|s| s.module_hash.map(hex::encode))
-            // For some reason, the hash is not returned on local replica anymore.
-            .unwrap_or_else(|| "deadbeef".to_string());
+            .unwrap_or_default();
         mutate(|state| {
             state.module_hash = current_hash.clone();
             state.logger.debug(format!(
@@ -1688,13 +1683,16 @@ impl State {
             state.distribute_realm_revenue(now);
         });
 
+        #[cfg(not(feature = "dev"))] // don't create rewards in e2e tests
+        State::random_reward().await;
+
         let circulating_supply: Token = read(|state| state.balances.values().sum());
         // only if we're below the maximum supply, we close the auction
         let auction_revenue = if circulating_supply < CONFIG.maximum_supply {
             let (market_price, revenue) = State::close_auction().await;
             mutate(|state| {
                 state.logger.info(format!(
-                    "Established market price: `{}` e8s per `1` {}; next auction size: `{}` tokens",
+                    "Established market price: `{}` e8s per `1` ${}; next auction size: `{}` tokens",
                     market_price * token::base(),
                     CONFIG.token_symbol,
                     state.auction.amount
@@ -1725,6 +1723,62 @@ impl State {
             state.distribute_revenue_from_icp(auction_revenue);
             state.charge_for_inactivity(now);
         });
+    }
+
+    // Rewards a random user with a fixed amount of minted tokens.
+    // Users have a winning chance proportional to their weekly credits spending.
+    async fn random_reward() {
+        if let Ok((randomness,)) = raw_rand().await {
+            use std::convert::TryInto;
+            let bytes: [u8; 8] = randomness[0..8]
+                .try_into()
+                .expect("couldn't convert bytes to array");
+            let mut random_number: u64 = u64::from_be_bytes(bytes);
+
+            mutate(|state| {
+                // Creating random distribution of users with segments proportional to credits
+                // spent within the last week. Segments are placed randomly.
+                let mut allocation = Vec::new();
+                let mut threshold = 0;
+                for user in state.users.values_mut().filter(|user| {
+                    !user.controversial()
+                        && user.active_within_weeks(time(), 1)
+                        && user.credits_burned() > 0
+                }) {
+                    threshold += user.take_credits_burned();
+                    allocation.push((user.id, threshold));
+                }
+                if threshold == 0 {
+                    return;
+                }
+
+                // Truncate the random number so that every single user has a chance to win.
+                random_number %= threshold;
+
+                let Some((winner_name, winner_principal)) = allocation
+                    .into_iter()
+                    .find(|(_, threshold)| threshold > &random_number)
+                    .and_then(|(user_id, _)| state.users.get(&user_id))
+                    .map(|user| (user.name.clone(), user.principal))
+                else {
+                    return;
+                };
+
+                state.logger.info(format!(
+                    "@{} is the lucky receiver of `{}` ${} as a weekly random reward! 🎲",
+                    winner_name,
+                    CONFIG.random_reward_amount / base(),
+                    CONFIG.token_symbol,
+                ));
+                state.minting_mode = true;
+                crate::token::mint(
+                    state,
+                    account(winner_principal),
+                    CONFIG.random_reward_amount,
+                );
+                state.minting_mode = false;
+            });
+        };
     }
 
     // Checks if we could collect enough bids to close the auction.
@@ -2106,6 +2160,7 @@ impl State {
         let tags = tags_and_users
             .iter()
             .filter(|token| !token.starts_with('@'))
+            .map(|tag| tag.to_lowercase())
             .collect::<Vec<_>>();
         let users = tags_and_users
             .iter()
@@ -2122,8 +2177,8 @@ impl State {
                     tags.iter()
                         .map(|tag| {
                             let iterator: Box<dyn Iterator<Item = &PostId>> =
-                                match self.tag_indexes.get(&tag.to_lowercase()) {
-                                    Some(index) => Box::new(index.posts.iter()),
+                                match self.tag_indexes.get(tag) {
+                                    Some(index) => Box::new(index.posts.iter().rev()),
                                     None => Box::new(std::iter::empty()),
                                 };
                             iterator
@@ -2146,7 +2201,7 @@ impl State {
                     .map(|user| user.posts(self, offset, with_comments))
                     .collect(),
             )
-            .filter(move |post| filter(post) && tags.iter().all(|tag| post.tags.contains(*tag))),
+            .filter(move |post| filter(post) && tags.iter().all(|tag| post.tags.contains(tag))),
         )
     }
 
@@ -2193,29 +2248,28 @@ impl State {
         )
     }
 
-    pub fn recent_tags(&self, realm_id: Option<RealmId>, n: u64) -> Vec<(String, u64)> {
+    pub fn recent_tags(&self, realm_id: Option<RealmId>, n: usize) -> Vec<(String, u64)> {
         let mut tags: HashMap<String, u64> = Default::default();
-        let mut tags_found = 0;
-        'OUTER: for post in self
+        for post in self
             .last_posts(realm_id, 0, 0, false)
+            // We only count tags occurrences on root posts, if they have comments or reactions
+            .filter(|post| {
+                post.parent.is_none() && !post.reactions.is_empty() && !post.children.is_empty()
+            })
             .take_while(|post| !post.archived)
         {
             for tag in &post.tags {
-                let counter = tags.entry(tag.clone()).or_insert(0);
-                // We only count tags occurrences on root posts, if they have comments or reactions
-                if post.parent.is_some() || post.reactions.is_empty() && post.children.is_empty() {
-                    continue;
+                if !tags.contains_key(tag) {
+                    tags.insert(tag.clone(), 1);
                 }
+                let counter = tags.get_mut(tag.as_str()).expect("no tag");
                 *counter += 1;
-                if *counter == 2 {
-                    tags_found += 1;
-                }
             }
-            if tags_found >= n {
-                break 'OUTER;
+            if tags.len() >= n {
+                break;
             }
         }
-        tags.into_iter().filter(|(_, count)| *count > 1).collect()
+        tags.into_iter().collect()
     }
 
     /// Returns an iterator of posts from the root post to the post `id`.
@@ -2816,6 +2870,11 @@ impl State {
                     None,
                 )?;
             }
+
+            // We only count actually burned credits from positive reactions.
+            self.principal_to_user_mut(principal)
+                .expect("no user for principal found")
+                .add_burned_credits(fee);
         }
 
         self.principal_to_user_mut(principal)
@@ -3127,14 +3186,13 @@ pub(crate) mod tests {
             )
             .unwrap();
 
-            assert_eq!(
-                state.recent_tags.clone().into_iter().collect::<Vec<_>>(),
-                vec!["tags", "test", "message", "more", "tags"]
-            );
             assert_eq!(state.tag_indexes.len(), 4);
             assert!(state.tag_indexes.get("test").unwrap().posts.contains(&0));
             assert!(state.tag_indexes.get("more").unwrap().posts.contains(&1));
-            assert_eq!(&state.tag_indexes.get("tags").unwrap().posts, &vec![1, 0]);
+            assert_eq!(
+                state.tag_indexes.get("tags").unwrap().posts.clone(),
+                vec![1, 0].into_iter().collect::<BTreeSet<_>>()
+            );
             // No posts for this tag
             assert!(state.tag_indexes.get("coffee").is_none());
         });
@@ -3152,7 +3210,10 @@ pub(crate) mod tests {
         .unwrap();
 
         read(|state| {
-            assert_eq!(&state.tag_indexes.get("coffee").unwrap().posts, &vec![1]);
+            assert_eq!(
+                state.tag_indexes.get("coffee").unwrap().posts.clone(),
+                vec![1].into_iter().collect()
+            );
         });
     }
 
@@ -3666,6 +3727,9 @@ pub(crate) mod tests {
             let post_id =
                 Post::create(state, "Test".to_string(), &[], pr(0), 0, None, None, None).unwrap();
 
+            let post_author = state.principal_to_user(pr(0)).unwrap();
+            assert_eq!(post_author.credits_burned(), 2);
+
             // Create 2 comments
             let mut comment_id = 0;
             for i in 1..=2 {
@@ -3707,11 +3771,13 @@ pub(crate) mod tests {
                 10 + 5 + 2 * CONFIG.response_reward
             );
 
+            let upvoter = state.users.get_mut(&upvoter_id).unwrap();
             assert_eq!(
-                state.users.get_mut(&upvoter_id).unwrap().credits(),
+                upvoter.credits(),
                 // reward + fee + post creation
                 upvoter_credits - 10 - 1 - 2
             );
+            assert_eq!(upvoter.credits_burned(), 3);
 
             let versions = vec!["a".into(), "b".into()];
             assert_eq!(

@@ -126,7 +126,7 @@ This will make the supply keep an equilibrium around the maximal supply.
 
 ### Distribution of mined tokens
 
-All users who opted for token minig (can be configured in settings), receive new `$token_symbol` tokens on a weekly basis.
+All users who opted for token mining (can be configured in settings), receive new `$token_symbol` tokens on a weekly basis.
 The amount of tokens that every user gets distributed is simply the result of collected ICP rewards during a week divided by the token market price.
 
 ### Weekly auction
@@ -134,14 +134,20 @@ The amount of tokens that every user gets distributed is simply the result of co
 To determine a fair market price, $name auctions between `$weekly_auction_size_tokens_min`  and  `$weekly_auction_size_tokens_max` tokens each week.
 Each user can create a bid by specifying the amount of tokens and the price in ICP they're willing to pay per 1 token.
 If all tokens can be sold, $name distributed the tokens to bidders according to the parameters of their bids.
-The price derived from these bids represnt the market price of one token.
+The price derived from these bids represent the market price of one token.
+
+### Random rewards
+
+An additional way to distribute tokens is a weekly random reward program.
+$name mints `$random_reward_amount` $token_symbol to a random active user.
+Chances for getting the reward are proportional to credits spent on new content and reaction fees burned while engaging with other users.
 
 ### Founder's Tokens
 
 `18%` of tokens are allocated to @X, the founder of $name.
 His tokens are minted weekly, by an amount equal to `1%` of the circulating supply if and only if one of the following conditions are met:
 
--   His individual share is below `14%` of minted supply.
+-   The maximum of his current token balance and the amount of his tokens vested so far is below `14%` of minted supply.
 -   `2/3` of the total supply has been minted.
 
 Currently vesting tokens: `$vesting_tokens_of_x`.

@@ -17,6 +17,8 @@ pub struct Config {
 
     pub nns_voting_enabled: bool,
 
+    pub random_reward_amount: Token,
+
     pub transaction_fee: u64,
     pub credit_transaction_fee: u64,
     pub token_decimals: u8,
@@ -208,6 +210,8 @@ pub const CONFIG: &Config = &Config {
     nns_voting_enabled: true,
     #[cfg(any(feature = "dev", feature = "staging"))]
     nns_voting_enabled: false,
+
+    random_reward_amount: 1000,
 
     dao_realm: "DAO",
 

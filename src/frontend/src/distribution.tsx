@@ -40,7 +40,7 @@ export const Distribution = () => {
                 }
             />
             <div className="text_centered vertically_spaced">
-                {["minting", "rewards", "realm revenue"].map((id) => (
+                {["mint", "DAO revenue", "realm revenue"].map((id) => (
                     <button
                         key={id}
                         onClick={() => setTab(id)}

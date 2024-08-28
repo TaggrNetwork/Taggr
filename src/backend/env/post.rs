@@ -595,6 +595,8 @@ impl Post {
                 user.realms.push(name.clone());
             }
         }
+        // We count credits spent on new content creation.
+        user.add_burned_credits(costs);
         user.last_activity = timestamp;
         let id = state.new_post_id();
         post.id = id;
@@ -607,10 +609,6 @@ impl Post {
 
         if post.parent.is_none() {
             state.register_post_tags(post.id, &tags);
-        }
-
-        while state.recent_tags.len() > 5000 {
-            state.recent_tags.pop_front();
         }
 
         if let Some(parent_id) = post.parent {
