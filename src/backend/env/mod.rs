@@ -1762,7 +1762,7 @@ impl State {
                 };
 
                 state.logger.info(format!(
-                    "@{} is the lucky receiver of the random reward worth `{}` ${}! 🎲",
+                    "@{} is the lucky receiver of `{}` ${} as a weekly random reward! 🎲",
                     winner_name,
                     CONFIG.random_reward_amount / base(),
                     CONFIG.token_symbol,
