@@ -14,7 +14,10 @@ export const Whitepaper = () => {
             if (key == "maximum_supply")
                 value = (value / tokenBase()).toLocaleString();
             else if (key == "usd_per_xdr") value = USD_PER_XDR;
-            else if (key.startsWith("weekly_auction_size_tokens"))
+            else if (
+                key.startsWith("weekly_auction_size_tokens") ||
+                key.startsWith("random_reward_amount")
+            )
                 // @ts-ignore
                 value = window.backendCache.config[key] / tokenBase();
             else if (key == "vesting_tokens_of_x") {
