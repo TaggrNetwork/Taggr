@@ -1748,13 +1748,16 @@ impl State {
                     threshold += user.take_credits_burned();
                     allocation.push((user.id, threshold));
                 }
+                if threshold == 0 {
+                    return;
+                }
 
                 // Truncate the random number so that every single user has a chance to win.
-                random_number %= threshold + 1;
+                random_number %= threshold;
 
                 let Some((winner_name, winner_principal)) = allocation
                     .into_iter()
-                    .find(|(_, threshold)| threshold >= &random_number)
+                    .find(|(_, threshold)| threshold > &random_number)
                     .and_then(|(user_id, _)| state.users.get(&user_id))
                     .map(|user| (user.name.clone(), user.principal))
                 else {
