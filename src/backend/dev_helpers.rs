@@ -89,8 +89,6 @@ fn replace_user_principal(principal: String, user_id: UserId) {
             },
             balance,
         );
-        let power = state.minting_power.remove(&user_principal).unwrap();
-        state.minting_power.insert(principal, power);
         let user = state.principal_to_user_mut(principal).unwrap();
         user.principal = principal;
     });

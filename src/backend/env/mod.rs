@@ -221,19 +221,11 @@ pub struct State {
 
     migrations: BTreeSet<UserId>,
 
-    // TODO: delete
-    #[serde(skip)]
-    pub recent_tags: VecDeque<String>,
-
     pub tag_indexes: HashMap<String, TagIndex>,
 
     // Indicates whether the end of the stable memory contains a valid heap snapshot.
     #[serde(skip)]
     pub backup_exists: bool,
-
-    // TODO: delete
-    #[serde(skip)]
-    pub minting_power: HashMap<Principal, Token>,
 
     #[serde(skip)]
     pub weekly_chores_delay_votes: HashSet<UserId>,
@@ -2329,11 +2321,6 @@ impl State {
             .remove(&old_principal)
             .ok_or("no principal found")?;
         self.principals.insert(new_principal, user_id);
-        let minting_power = self
-            .minting_power
-            .remove(&old_principal)
-            .unwrap_or_default();
-        self.minting_power.insert(new_principal, minting_power);
         let user = self.users.get_mut(&user_id).expect("no user found");
         assert_eq!(user.principal, old_principal);
         user.principal = new_principal;
