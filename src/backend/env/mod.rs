@@ -184,6 +184,7 @@ pub struct State {
     total_rewards_shared: u64,
 
     pub proposals: Vec<Proposal>,
+    // TODO: delete
     pub ledger: Vec<Transaction>,
 
     // Contains the pair of two amounts (vested, total_vesting) describing
@@ -199,6 +200,9 @@ pub struct State {
     pub module_hash: String,
     #[serde(skip)]
     pub last_upgrade: u64,
+
+    #[serde(skip)]
+    pub token_fees_burned: Token,
 
     #[serde(skip)]
     pub emergency_binary: Vec<u8>,
@@ -576,8 +580,8 @@ impl State {
 
     pub fn load(&mut self) {
         assets::load();
-        match token::balances_from_ledger(&self.ledger) {
-            Ok(balances) => {
+        match token::balances_from_ledger(&mut self.memory.ledger.iter().map(|(_, tx)| tx)) {
+            Ok((balances, total_fees)) => {
                 for user in self.users.values_mut() {
                     user.balance = balances
                         .get(&account(user.principal))
@@ -589,6 +593,7 @@ impl State {
                         .unwrap_or_default();
                 }
                 self.balances = balances;
+                self.token_fees_burned = total_fees;
             }
             Err(err) => self
                 .logger
@@ -2419,23 +2424,24 @@ impl State {
         stalwarts.sort_unstable_by_key(|u| u.id);
         let posts = self.root_posts_index.len();
         let volume_day = self
+            .memory
             .ledger
             .iter()
             .rev()
-            .take_while(|tx| tx.timestamp + DAY >= now)
-            .map(|tx| tx.amount)
+            .take_while(|(_, tx)| tx.timestamp + DAY >= now)
+            .map(|(_, tx)| tx.amount)
             .sum();
         let volume_week = self
+            .memory
             .ledger
             .iter()
             .rev()
-            .take_while(|tx| tx.timestamp + WEEK >= now)
-            .map(|tx| tx.amount)
+            .take_while(|(_, tx)| tx.timestamp + WEEK >= now)
+            .map(|(_, tx)| tx.amount)
             .sum();
-        let fees_burned = self.ledger.iter().map(|tx| tx.fee).sum();
 
         Stats {
-            fees_burned,
+            fees_burned: self.token_fees_burned,
             volume_day,
             volume_week,
             e8s_for_one_xdr: self.e8s_for_one_xdr,
@@ -3007,6 +3013,8 @@ pub(crate) mod tests {
     #[test]
     fn test_active_voting_power() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             for i in 0..3 {
                 create_user(state, pr(i));
                 insert_balance(state, pr(i), (((i + 1) as u64) << 2) * 10000);
@@ -3251,6 +3259,7 @@ pub(crate) mod tests {
     #[test]
     fn test_revenue_collection() {
         mutate(|state| {
+            state.memory.init_test_api();
             let now = WEEK * CONFIG.voting_power_activity_weeks;
 
             for (i, (balance, total_rewards, last_activity)) in vec![
@@ -3287,6 +3296,8 @@ pub(crate) mod tests {
     #[test]
     fn test_minting() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             let insert_rewards = |state: &mut State, id: UserId| {
                 state.users.get_mut(&id).unwrap().rewards = (id * 1000) as i64;
             };
@@ -3335,6 +3346,8 @@ pub(crate) mod tests {
     #[test]
     fn test_poll_conclusion() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             // create users each having 25 + i*10, e.g.
             // user 1: 35, user 2: 45, user 3: 55, etc...
             for i in 1..11 {
@@ -3396,6 +3409,8 @@ pub(crate) mod tests {
     #[test]
     fn test_principal_change() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             for i in 1..3 {
                 let p = pr(i);
                 create_user(state, p);
@@ -4398,6 +4413,8 @@ pub(crate) mod tests {
     #[test]
     fn test_credits_accounting() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             let p0 = pr(0);
             let post_author_id = create_user_with_credits(state, p0, 2000);
             let post_id =
@@ -4606,6 +4623,7 @@ pub(crate) mod tests {
     fn test_stalwarts() {
         mutate(|state| {
             state.load();
+            state.memory.init_test_api();
 
             assert!(state.realms.contains_key(CONFIG.dao_realm));
             assert!(state
@@ -4749,6 +4767,8 @@ pub(crate) mod tests {
     #[test]
     fn test_icp_distribution() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             let now = WEEK * 4;
             // Create 10 users with balances and rewards
             for i in 0..10 {

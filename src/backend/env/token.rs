@@ -29,7 +29,7 @@ pub struct TransferArgs {
     pub created_at_time: Option<Timestamp>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Transaction {
     pub timestamp: u64,
     pub from: Account,
@@ -295,15 +295,23 @@ pub fn transfer(
         update_user_balance(state, to.owner, updated_balance as Token);
     }
 
-    state.ledger.push(Transaction {
-        timestamp: now,
-        from,
-        to,
-        amount: amount as Token,
-        fee: effective_fee,
-        memo,
-    });
-    Ok(state.ledger.len().saturating_sub(1) as u128)
+    let id = state.memory.ledger.len() as u32;
+    state
+        .memory
+        .ledger
+        .insert(
+            id,
+            Transaction {
+                timestamp: now,
+                from,
+                to,
+                amount: amount as Token,
+                fee: effective_fee,
+                memo,
+            },
+        )
+        .expect("couldn't insert a new transaction");
+    Ok(id as u128)
 }
 
 fn update_user_balance(state: &mut State, principal: Principal, balance: Token) {
@@ -348,7 +356,10 @@ pub fn mint(state: &mut State, account: Account, tokens: Token) {
     );
 }
 
-pub fn balances_from_ledger(ledger: &[Transaction]) -> Result<HashMap<Account, Token>, String> {
+pub fn balances_from_ledger(
+    ledger: &mut dyn Iterator<Item = Transaction>,
+) -> Result<(HashMap<Account, Token>, Token), String> {
+    let mut total_fees = 0;
     let mut balances = HashMap::new();
     let minting_account = icrc1_minting_account().ok_or("no minting account found")?;
     for transaction in ledger {
@@ -380,8 +391,9 @@ pub fn balances_from_ledger(ledger: &[Transaction]) -> Result<HashMap<Account, T
                 )
                 .ok_or("wrong amount")?;
         }
+        total_fees += transaction.fee;
     }
-    Ok(balances)
+    Ok((balances, total_fees))
 }
 
 #[cfg(test)]
@@ -396,6 +408,7 @@ mod tests {
     #[test]
     fn test_transfers() {
         let mut state = State::default();
+        state.memory.init_test_api();
         env::tests::create_user(&mut state, pr(0));
 
         let memo = vec![0; 33];

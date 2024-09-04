@@ -654,6 +654,7 @@ pub mod tests {
         let data = &"".to_string();
         let proposer = pr(1);
         mutate(|state| {
+            state.memory.init_test_api();
             // create voters, make each of them earn some rewards
             for i in 1..11 {
                 let p = pr(i);
@@ -790,6 +791,7 @@ pub mod tests {
     fn test_reducing_voting_power() {
         let data = &"".to_string();
         mutate(|state| {
+            state.memory.init_test_api();
             // create voters, make each of them earn some rewards
             for i in 1..=3 {
                 let p = pr(i);
@@ -833,6 +835,7 @@ pub mod tests {
     #[test]
     fn test_non_controversial_rejection() {
         mutate(|state| {
+            state.memory.init_test_api();
             // create voters, make each of them earn some rewards
             for i in 1..=5 {
                 let p = pr(i);
@@ -872,6 +875,7 @@ pub mod tests {
     #[test]
     fn test_funding_proposal() {
         mutate(|state| {
+            state.memory.init_test_api();
             // create voters, make each of them earn some rewards
             for i in 1..=2 {
                 let p = pr(i);
@@ -924,6 +928,8 @@ pub mod tests {
     #[test]
     fn test_reward_proposal() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             // create voters, make each of them earn some rewards
             for i in 1..=3 {
                 let p = pr(i);
@@ -1113,6 +1119,7 @@ pub mod tests {
     async fn test_balance_adjustments_on_bulletins() {
         mutate(|state| {
             state.load();
+            state.memory.init_test_api();
 
             // create voters, make each of them earn some rewards
             for i in 1..=3 {

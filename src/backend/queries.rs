@@ -112,15 +112,15 @@ fn balances() {
 
 #[export_name = "canister_query transaction"]
 fn transaction() {
-    let id: usize = parse(&arg_data_raw());
-    read(|state| reply(state.ledger.get(id).ok_or("not found")));
+    let id: u32 = parse(&arg_data_raw());
+    read(|state| reply(state.memory.ledger.get(&id).ok_or("not found")));
 }
 
 #[export_name = "canister_query transactions"]
 fn transactions() {
     let (page, principal, subaccount): (usize, String, String) = parse(&arg_data_raw());
     read(|state| {
-        let iter = state.ledger.iter().enumerate();
+        let iter = state.memory.ledger.iter();
         let owner = Principal::from_text(principal).expect("invalid principal");
         let subaccount = hex::decode(subaccount).expect("invalid subaccount");
         let iter: Box<dyn DoubleEndedIterator<Item = _>> = if Principal::anonymous() == owner {
@@ -138,7 +138,7 @@ fn transactions() {
             iter.rev()
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
-                .collect::<Vec<(usize, _)>>(),
+                .collect::<Vec<(u32, _)>>(),
         );
     });
 }

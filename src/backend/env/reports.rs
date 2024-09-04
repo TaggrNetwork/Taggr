@@ -177,6 +177,8 @@ mod tests {
     #[test]
     fn test_reporting() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             let p = pr(0);
             let u1 = create_user(state, p);
             let user = state.users.get_mut(&u1).unwrap();
