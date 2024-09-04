@@ -339,7 +339,7 @@ pub fn base() -> Token {
     10_u64.pow(CONFIG.token_decimals as u32)
 }
 
-pub fn mint(state: &mut State, account: Account, tokens: Token) {
+pub fn mint(state: &mut State, account: Account, tokens: Token, memo: &str) {
     let now = time();
     let _result = transfer(
         state,
@@ -350,7 +350,7 @@ pub fn mint(state: &mut State, account: Account, tokens: Token) {
             to: account,
             amount: tokens as u128,
             fee: None,
-            memo: None,
+            memo: Some(memo.as_bytes().to_vec()),
             created_at_time: Some(now),
         },
     );

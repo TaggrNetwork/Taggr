@@ -276,7 +276,7 @@ impl Proposal {
 
 fn mint_tokens(state: &mut State, receiver: Principal, mut tokens: Token) -> Result<(), String> {
     state.minting_mode = true;
-    crate::token::mint(state, account(receiver), tokens);
+    crate::token::mint(state, account(receiver), tokens, "proposal execution");
     state.minting_mode = false;
     tokens /= token::base();
     state.logger.info(format!(

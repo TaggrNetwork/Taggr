@@ -1211,7 +1211,7 @@ impl State {
                 ));
                 items.push((tokens, minted_fractional, user.name.clone()));
                 let acc = account(user.principal);
-                crate::token::mint(self, acc, tokens);
+                crate::token::mint(self, acc, tokens, "weekly mint");
                 minted_tokens += tokens / base;
             }
         }
@@ -1259,7 +1259,7 @@ impl State {
         if balance <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
             *vested += next_vesting;
             let new_vesting_left = *total_vesting - *vested;
-            crate::token::mint(self, account(principal), next_vesting);
+            crate::token::mint(self, account(principal), next_vesting, "vesting");
             self.logger.info(format!(
                 "Minted `{}` team tokens for @X (still vesting: `{}`).",
                 next_vesting / 100,
@@ -1774,6 +1774,7 @@ impl State {
                     state,
                     account(winner_principal),
                     CONFIG.random_reward_amount,
+                    "random rewards",
                 );
                 state.minting_mode = false;
             });
@@ -1794,7 +1795,7 @@ impl State {
             state.minting_mode = true;
             for bid in &bids {
                 let principal = state.users.get(&bid.user).expect("no user found").principal;
-                token::mint(state, account(principal), bid.amount);
+                token::mint(state, account(principal), bid.amount, "auction bid");
             }
             state.minting_mode = false;
 
@@ -2980,7 +2981,7 @@ pub(crate) mod tests {
 
     pub fn insert_balance(state: &mut State, principal: Principal, amount: Token) {
         state.minting_mode = true;
-        token::mint(state, account(principal), amount);
+        token::mint(state, account(principal), amount, "");
         state.minting_mode = false;
         if let Some(user) = state.principal_to_user_mut(principal) {
             user.change_rewards((amount / token::base()) as i64, "");
