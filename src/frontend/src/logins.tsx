@@ -1,16 +1,8 @@
 import * as React from "react";
-import {
-    ButtonWithLoading,
-    HASH_ITERATIONS,
-    ICP_LEDGER_ID,
-    bigScreen,
-    hash,
-    popUp,
-} from "./common";
+import { ButtonWithLoading, HASH_ITERATIONS, bigScreen, hash } from "./common";
 import { Infinity, Incognito, Ticket } from "./icons";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
-import { II_URL, II_DERIVATION_URL, MAINNET_MODE, CANISTER_ID } from "./env";
-import { ApiGenerator } from "./api";
+import { II_URL, II_DERIVATION_URL, MAINNET_MODE } from "./env";
 
 const isSecurePassword = (password: string): boolean =>
     /^(?=.*?[A-Z])(?=.*?[0-9])(?=.*?[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(
@@ -69,10 +61,7 @@ export const authMethods = [
                     if (!password) return;
                     let seed = await hash(password, HASH_ITERATIONS);
                     let identity = Ed25519KeyIdentity.generate(seed);
-                    const result = await migrateIfNeeded(password);
-                    if (result) {
-                        identity = result;
-                    } else if (
+                    if (
                         !isSecurePassword(password) &&
                         !(await window.api.query("user", [
                             identity.getPrincipal().toString(),
@@ -191,88 +180,6 @@ export const SeedPhraseForm = ({
                 }}
                 label="JOIN"
             />
-        </div>
-    );
-};
-
-// Migrates users by asking for a new password, hashing it with many iterations
-// and then calling a corresponding canister function using the old principal.
-const migrateIfNeeded = async (password: string) => {
-    const oldSeed = await hash(password, 1);
-    const oldId = Ed25519KeyIdentity.generate(oldSeed);
-    const oldPrincipal = oldId.getPrincipal().toString();
-    if (!(await window.api.query("user", [oldPrincipal])))
-        // no user exists, so no migration is needed
-        return null;
-    if (
-        !confirm(
-            "Please note that the password login has been significantly improved. " +
-                "You are still using the old method, and your account will now be migrated. " +
-                "The only noticeable side-effect for you will be that your principal will change. " +
-                "Please refrain from using the old principal anymore.",
-        )
-    )
-        return oldId;
-    const accountBalance = await window.api.account_balance(ICP_LEDGER_ID, {
-        owner: oldId.getPrincipal(),
-    });
-    if (accountBalance > 0) {
-        alert(
-            "Your ICP balance is not empty. Please withdraw all funds before migrating.",
-        );
-        return oldId;
-    }
-    let newPassword = await popUp<string>(<MigrationPasswordMask />);
-    if (!newPassword) return oldId;
-    let seed = await hash(newPassword, HASH_ITERATIONS);
-    let identity = Ed25519KeyIdentity.generate(seed);
-    await ApiGenerator(MAINNET_MODE, CANISTER_ID, oldId).call(
-        "migrate",
-        identity.getPrincipal().toString(),
-    );
-    return identity;
-};
-
-const MigrationPasswordMask = ({
-    popUpCallback,
-}: {
-    popUpCallback?: (arg: any) => void;
-}) => {
-    const [password1, setPassword1] = React.useState("");
-    const [password2, setPassword2] = React.useState("");
-    return (
-        <div className="column_container stands_out">
-            <p>
-                Please specify a new secure password. A secure password should
-                contain at least 8 symbols such as uppercase and lowercase
-                letters, symbols and digits. Please use the password manager or
-                write down your password on paper and store securely. If you
-                forget your password, your account will be lost.{" "}
-                <strong>There is no password recovery.</strong>
-            </p>
-            <input
-                value={password1}
-                onChange={(e) => setPassword1(e.target.value)}
-                className="max_width_col"
-                type="password"
-                placeholder="Enter your password..."
-            />
-            <input
-                value={password2}
-                onChange={(e) => setPassword2(e.target.value)}
-                className="max_width_col top_spaced bottom_spaced"
-                type="password"
-                placeholder="Repeat your password..."
-            />
-            <button
-                className="max_width_col active fat"
-                onClick={() => {
-                    if (password1 != password2) alert("Passwords don't match!");
-                    else if (popUpCallback) popUpCallback(password1);
-                }}
-            >
-                CONTINUE
-            </button>
         </div>
     );
 };

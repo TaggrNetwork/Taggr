@@ -219,6 +219,9 @@ pub struct State {
 
     pub distribution_reports: Vec<Summary>,
 
+    // TODO: delete
+    #[allow(dead_code)]
+    #[serde(skip)]
     migrations: BTreeSet<UserId>,
 
     pub tag_indexes: HashMap<String, TagIndex>,
@@ -1647,10 +1650,9 @@ impl State {
                 state.timers.last_daily += DAY;
                 state.timers.daily_pending = false;
                 state.logger.debug(format!(
-                    "Pending NNS proposals: `{}`, pending polls: `{}`, migrations: `{}`.",
+                    "Pending NNS proposals: `{}`, pending polls: `{}`.",
                     state.pending_nns_proposals.len(),
                     state.pending_polls.len(),
-                    state.migrations.len(),
                 ));
                 log(state, "Daily", 1000);
             });
@@ -2917,87 +2919,6 @@ impl State {
             followee.followers.remove(&user_id);
         }
         added
-    }
-
-    pub fn migrate(
-        &mut self,
-        principal: Principal,
-        new_principal_str: String,
-    ) -> Result<(), String> {
-        if self.voted_on_emergency_proposal(principal) {
-            return Err("pending proposal with the current principal as voter exists".into());
-        }
-        let new_principal = Principal::from_text(new_principal_str).map_err(|e| e.to_string())?;
-        if new_principal == Principal::anonymous() {
-            return Err("wrong principal".into());
-        }
-        if self.principal_to_user(new_principal).is_some() {
-            return Err("principal already assigned to a user".into());
-        }
-        if self
-            .ledger
-            .iter()
-            .any(|tx| tx.to.owner == new_principal || tx.from.owner == new_principal)
-        {
-            return Err("this principal cannot be used".into());
-        }
-
-        let old_balance = self
-            .balances
-            .get(&account(principal))
-            .copied()
-            .unwrap_or_default();
-        let all_balances = self.balances.values().sum::<Token>();
-
-        let user_id = self
-            .principals
-            .remove(&principal)
-            .ok_or("no principal found")?;
-        if self.migrations.contains(&user_id) {
-            return Err("this user has migrated".into());
-        }
-
-        self.principals.insert(new_principal, user_id);
-
-        let user = self.users.get_mut(&user_id).expect("no user found");
-        assert_eq!(user.principal, principal, "unexpected old principal");
-
-        user.principal = new_principal;
-        user.account = AccountIdentifier::new(&new_principal, &DEFAULT_SUBACCOUNT).to_string();
-        for tx in &mut self.ledger {
-            if tx.to.owner == principal {
-                tx.to.owner = new_principal;
-            }
-            if tx.from.owner == principal {
-                tx.from.owner = new_principal;
-            }
-        }
-        match token::balances_from_ledger(&self.ledger) {
-            Ok(balances) => {
-                let user = self.users.get_mut(&user_id).expect("no user found");
-                user.balance = balances
-                    .get(&account(user.principal))
-                    .copied()
-                    .unwrap_or_default();
-                user.cold_balance = user
-                    .cold_wallet
-                    .and_then(|principal| balances.get(&account(principal)).copied())
-                    .unwrap_or_default();
-                self.balances = balances;
-            }
-            Err(err) => panic!("can't migrate: {:?}", err),
-        }
-
-        assert_eq!(
-            old_balance,
-            self.balances
-                .get(&account(new_principal))
-                .copied()
-                .unwrap_or_default()
-        );
-        assert_eq!(all_balances, self.balances.values().sum::<Token>());
-        self.migrations.insert(user_id);
-        Ok(())
     }
 }
 

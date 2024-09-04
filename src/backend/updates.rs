@@ -174,13 +174,6 @@ fn update_last_activity() {
     reply_raw(&[]);
 }
 
-// migration method from the password login to many iterations login
-#[export_name = "canister_update migrate"]
-fn migrate() {
-    let principal: String = parse(&arg_data_raw());
-    reply(mutate(|state| state.migrate(caller(), principal)));
-}
-
 #[export_name = "canister_update request_principal_change"]
 fn request_principal_change() {
     let principal: String = parse(&arg_data_raw());
