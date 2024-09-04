@@ -1664,7 +1664,7 @@ impl State {
             mutate(|state| {
                 state.timers.last_hourly += HOUR;
                 state.timers.hourly_pending = false;
-                log(state, "Hourly", 60000);
+                log(state, "Hourly", 3 * 60_000);
             });
         }
     }
