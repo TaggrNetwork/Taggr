@@ -834,7 +834,7 @@ impl State {
             TransferArgs {
                 from_subaccount: None,
                 to: account(author.principal),
-                fee: Some(1), // special tipping fee
+                fee: Some(0), // special tipping fee
                 amount: amount as u128,
                 memo: Some(format!("Tips on post {}", post_id).as_bytes().to_vec()),
                 created_at_time: None,
@@ -2320,10 +2320,6 @@ impl State {
         }
         let old_account = account(old_principal);
         let balance = self.balances.get(&old_account).copied().unwrap_or_default();
-        let fee = token::icrc1_fee();
-        if 0 < balance && balance <= fee as Token {
-            return Err("token balance is lower than the fee".to_string());
-        }
         let user_id = self
             .principals
             .remove(&old_principal)
@@ -2333,20 +2329,22 @@ impl State {
         assert_eq!(user.principal, old_principal);
         user.principal = new_principal;
         user.account = AccountIdentifier::new(&new_principal, &DEFAULT_SUBACCOUNT).to_string();
-        token::transfer(
-            self,
-            time(),
-            old_account.owner,
-            TransferArgs {
-                from_subaccount: old_account.subaccount.clone(),
-                to: account(new_principal),
-                amount: balance.saturating_sub(fee as Token) as u128,
-                fee: Some(fee),
-                memo: Default::default(),
-                created_at_time: None,
-            },
-        )
-        .expect("transfer failed");
+        if balance > 0 {
+            token::transfer(
+                self,
+                time(),
+                old_account.owner,
+                TransferArgs {
+                    from_subaccount: old_account.subaccount.clone(),
+                    to: account(new_principal),
+                    amount: balance as u128,
+                    fee: Some(0), // don't charge on principal change
+                    memo: Default::default(),
+                    created_at_time: None,
+                },
+            )
+            .expect("transfer failed");
+        }
         Ok(true)
     }
 
@@ -3448,10 +3446,7 @@ pub(crate) mod tests {
 
             assert_eq!(state.principal_to_user(new_principal).unwrap().id, user_id);
             assert!(state.balances.get(&account(pr(1))).is_none());
-            assert_eq!(
-                *state.balances.get(&account(new_principal)).unwrap(),
-                11100 - CONFIG.transaction_fee
-            );
+            assert_eq!(*state.balances.get(&account(new_principal)).unwrap(), 11100);
             let user = state.users.get(&user_id).unwrap();
             assert_eq!(user.principal, new_principal);
             assert_eq!(

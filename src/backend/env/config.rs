@@ -169,7 +169,7 @@ pub const CONFIG: &Config = &Config {
     #[cfg(feature = "staging")]
     token_symbol: "STAGG",
     token_decimals: 2,
-    transaction_fee: 25,
+    transaction_fee: 10,
     credit_transaction_fee: 1,
 
     credits_per_xdr: 1000,
