@@ -506,7 +506,7 @@ pub mod tests {
     #[should_panic(expected = "couldn't take post 2: not found")]
     fn test_wrong_post_id_in_proposal() {
         mutate(|state| {
-            state.memory.unpack_for_testing();
+            state.memory.init_test_api();
             create_user(state, pr(1));
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
             create_proposal(state, pr(1), 2, Payload::Noop, 0).unwrap();
@@ -1118,7 +1118,7 @@ pub mod tests {
     #[actix_rt::test]
     async fn test_balance_adjustments_on_bulletins() {
         mutate(|state| {
-            state.load();
+            state.init();
             state.memory.init_test_api();
 
             // create voters, make each of them earn some rewards

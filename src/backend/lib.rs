@@ -43,7 +43,7 @@ fn reply<T: serde::Serialize>(data: T) {
 
 fn stable_to_heap_core() {
     STATE.with(|cell| cell.replace(env::memory::stable_to_heap()));
-    mutate(|state| state.load());
+    mutate(|state| state.init());
 }
 
 fn optional(s: String) -> Option<String> {

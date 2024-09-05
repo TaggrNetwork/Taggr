@@ -26,7 +26,7 @@ use std::time::Duration;
 #[init]
 fn init() {
     mutate(|state| {
-        state.load();
+        state.memory.init();
         state.timers.last_weekly = time();
         state.timers.last_daily = time();
         state.timers.last_hourly = time();
@@ -56,7 +56,6 @@ fn post_upgrade() {
         }
     }
     stable_to_heap_core();
-    mutate(|state| state.load());
 
     set_timer_interval(Duration::from_secs(15 * 60), || {
         spawn(State::chores(api::time()))
@@ -80,18 +79,18 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
-
-#[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {
+fn sync_post_upgrade_fixtures() {
     // Move all transactions from the heap into the stable memory and reload the state
     mutate(|state| {
         for (id, tx) in state.ledger.iter().enumerate() {
             state.memory.ledger.insert(id as u32, tx.clone()).unwrap();
         }
-        state.load();
+        state.init();
     });
 }
+
+#[allow(clippy::all)]
+async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES

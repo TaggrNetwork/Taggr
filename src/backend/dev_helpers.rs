@@ -14,7 +14,8 @@ async fn reset() {
     clear_buckets().await;
     STATE.with(|cell| {
         let mut state: State = Default::default();
-        state.load();
+        state.init();
+        state.memory.init();
         // as expected in E2E tests
         {
             state.auction.amount = CONFIG.weekly_auction_size_tokens_min;

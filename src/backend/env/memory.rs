@@ -19,25 +19,6 @@ pub struct Api {
     read_bytes: Option<Box<dyn Fn(u64, &mut [u8])>>,
 }
 
-impl Clone for Api {
-    fn clone(&self) -> Self {
-        Self {
-            allocator: self.allocator.clone(),
-            ..Default::default()
-        }
-    }
-}
-
-impl Default for Api {
-    fn default() -> Self {
-        Self {
-            allocator: Default::default(),
-            write_bytes: Some(Box::new(stable_write)),
-            read_bytes: Some(Box::new(stable_read)),
-        }
-    }
-}
-
 #[derive(Default, Serialize, Deserialize)]
 pub struct Memory {
     api: Api,
@@ -53,6 +34,16 @@ pub struct Memory {
 const INITIAL_OFFSET: u64 = 16;
 
 impl Api {
+    fn init(&mut self) {
+        self.allocator.init();
+        if self.write_bytes.is_none() {
+            self.write_bytes = Some(Box::new(stable_write));
+        }
+        if self.read_bytes.is_none() {
+            self.read_bytes = Some(Box::new(stable_read));
+        }
+    }
+
     pub fn write<T: Serialize>(&mut self, value: &T) -> Result<(u64, u64), String> {
         let buffer: Vec<u8> = serde_cbor::to_vec(value).expect("couldn't serialize");
         let offset = self.allocator.alloc(buffer.len() as u64)?;
@@ -84,18 +75,19 @@ impl Memory {
         self.api_ref.as_ref().borrow().allocator.health(unit)
     }
 
-    fn pack(&mut self) {
-        self.api = (*self.api_ref.as_ref().borrow()).clone();
+    fn persist_allocator(&mut self) {
+        self.api = self.api_ref.as_ref().take();
     }
 
-    fn unpack(&mut self) {
-        self.api_ref = Rc::new(RefCell::new(self.api.clone()));
+    /// Initializes the memory allocator.
+    pub fn init(&mut self) {
+        self.api.init();
+        self.api_ref = Rc::new(RefCell::new(std::mem::take(&mut self.api)));
         self.posts.init(Rc::clone(&self.api_ref));
         self.features.init(Rc::clone(&self.api_ref));
         self.ledger.init(Rc::clone(&self.api_ref));
     }
 
-    #[allow(clippy::type_complexity)]
     #[cfg(test)]
     pub fn init_test_api(&mut self) {
         static mut MEM_END: u64 = 16;
@@ -131,25 +123,17 @@ impl Memory {
             mem_size: Some(Box::new(mem_end)),
             boundary: 16,
         };
-        let test_api = Api {
+        self.api = Api {
             allocator,
             write_bytes: Some(Box::new(writer)),
             read_bytes: Some(Box::new(reader)),
         };
-        self.api_ref = Rc::new(RefCell::new(test_api));
-        self.posts.init(Rc::clone(&self.api_ref));
-        self.features.init(Rc::clone(&self.api_ref));
-        self.ledger.init(Rc::clone(&self.api_ref));
-    }
-
-    #[cfg(test)]
-    pub fn unpack_for_testing(&mut self) {
-        self.unpack();
+        self.init();
     }
 }
 
 pub fn heap_to_stable(state: &mut super::State) {
-    state.memory.pack();
+    state.memory.persist_allocator();
     let offset = state.memory.api.boundary();
     let bytes = serde_cbor::to_vec(&state).expect("couldn't serialize the state");
     let len = bytes.len() as u64;
@@ -176,7 +160,7 @@ pub fn stable_to_heap() -> super::State {
     ic_cdk::println!("Reading heap from coordinates: {:?}", (offset, len));
     let api = Api::default();
     let mut state: super::State = api.read(offset, len);
-    state.memory.unpack();
+    state.memory.init();
     state
 }
 
@@ -194,31 +178,44 @@ struct Allocator {
     mem_size: Option<Box<dyn Fn() -> u64>>,
 }
 
-impl Clone for Allocator {
-    fn clone(&self) -> Self {
-        Self {
-            segments: self.segments.clone(),
-            boundary: self.boundary,
-            ..Default::default()
-        }
+impl Default for Api {
+    fn default() -> Self {
+        let mut instance = Self {
+            allocator: Default::default(),
+            write_bytes: None,
+            read_bytes: None,
+        };
+        instance.init();
+        instance
     }
 }
 
 impl Default for Allocator {
     fn default() -> Self {
-        Self {
+        let mut instance = Self {
             block_size_bytes: 300,
-            segments: Default::default(),
             boundary: INITIAL_OFFSET,
-            mem_size: Some(Box::new(|| stable_size() << 16)),
-            mem_grow: Some(Box::new(|n| {
-                stable_grow((n >> 16) + 1).map_err(|err| format!("couldn't grow memory: {:?}", err))
-            })),
-        }
+            segments: Default::default(),
+            mem_size: None,
+            mem_grow: None,
+        };
+        instance.init();
+        instance
     }
 }
 
 impl Allocator {
+    fn init(&mut self) {
+        if self.mem_size.is_none() {
+            self.mem_size = Some(Box::new(|| stable_size() << 16));
+        }
+        if self.mem_grow.is_none() {
+            self.mem_grow = Some(Box::new(|n| {
+                stable_grow((n >> 16) + 1).map_err(|err| format!("couldn't grow memory: {:?}", err))
+            }));
+        }
+    }
+
     fn get_allocation_length(&self, n: u64) -> u64 {
         let block_size = self.block_size_bytes.max(1);
         (n + block_size - 1) / block_size * block_size

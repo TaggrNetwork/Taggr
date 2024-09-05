@@ -578,7 +578,7 @@ impl State {
         result
     }
 
-    pub fn load(&mut self) {
+    pub fn init(&mut self) {
         assets::load();
         match token::balances_from_ledger(&mut self.memory.ledger.iter().map(|(_, tx)| tx)) {
             Ok((balances, total_fees)) => {
@@ -4622,7 +4622,7 @@ pub(crate) mod tests {
     #[test]
     fn test_stalwarts() {
         mutate(|state| {
-            state.load();
+            state.init();
             state.memory.init_test_api();
 
             assert!(state.realms.contains_key(CONFIG.dao_realm));
@@ -4678,7 +4678,7 @@ pub(crate) mod tests {
     #[test]
     fn test_minting_delay() {
         mutate(|state| {
-            state.load();
+            state.init();
 
             let num_users = 2000;
 
