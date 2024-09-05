@@ -1,7 +1,7 @@
 import { HeadBar, REPO } from "./common";
 
 export const LinksPage = ({}) => {
-    const { token_symbol, domains } = window.backendCache.config;
+    const { token_symbol, domains, staging } = window.backendCache.config;
     return (
         <div className="spaced">
             <HeadBar title="LINKS" shareLink="links" />
@@ -35,23 +35,18 @@ export const LinksPage = ({}) => {
                     <a href="https://beacondex.link">BEACON exchange</a>
                 </li>
             </ul>
-            <h2>Source Code Repositories</h2>
-            <ul>
-                <li>
-                    <a href={REPO}>GitHub</a> (maintained by{" "}
-                    <a href="#/user/0">X</a>)
-                </li>
-            </ul>
             <h2>Community maintained resources</h2>
             <ul>
                 <li>
-                    <a href="https://6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io/#/realm/000_WELCOME_TO_TAGGR">
+                    <a
+                        href={`https://${domains[0]}/#/realm/000_WELCOME_TO_TAGGR`}
+                    >
                         Welcome to Taggr Realm
                     </a>{" "}
                     (helpful for newbies)
                 </li>
                 <li>
-                    <a href="https://6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io/#/realm/HELP">
+                    <a href={`https://${domains[0]}/#/realm/HELP`}>
                         HELP Realm
                     </a>
                 </li>
@@ -63,6 +58,17 @@ export const LinksPage = ({}) => {
                     <a href="https://oc.app/community/zbg63-qqaaa-aaaar-atika-cai">
                         OpenChat Community
                     </a>
+                </li>
+            </ul>
+            <h2>Development</h2>
+            <ul>
+                <li>
+                    <a href={REPO}>Source code repository on GitHub</a>{" "}
+                    (maintained by <a href="#/user/0">X</a>)
+                </li>
+                <li>
+                    <a href={`https://${staging}`}>Staging environment</a>{" "}
+                    (maintained by <a href="#/user/0">X</a>)
                 </li>
             </ul>
         </div>
