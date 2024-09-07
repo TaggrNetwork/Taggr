@@ -1361,7 +1361,7 @@ impl State {
         let mut total_rewards = 0;
         let mut total_revenue = 0;
         let mut summary = Summary {
-            title: "Rewards report".into(),
+            title: "DAO revenue".into(),
             description: Default::default(),
             items: Vec::default(),
         };
