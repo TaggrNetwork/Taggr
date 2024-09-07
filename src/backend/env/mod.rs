@@ -1212,7 +1212,7 @@ impl State {
                 items.push((tokens, minted_fractional, user.name.clone()));
                 let acc = account(user.principal);
                 crate::token::mint(self, acc, tokens, "weekly mint");
-                minted_tokens += tokens / base;
+                minted_tokens += tokens;
             }
         }
 
@@ -1229,7 +1229,9 @@ impl State {
         } else {
             summary.description = format!(
                 "{} minted `{}` ${} tokens 💎 from earned rewards",
-                CONFIG.name, minted_tokens, CONFIG.token_symbol
+                CONFIG.name,
+                minted_tokens / base,
+                CONFIG.token_symbol
             );
             self.distribution_reports.push(summary);
         }
