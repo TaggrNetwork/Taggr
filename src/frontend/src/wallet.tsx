@@ -494,9 +494,7 @@ export const Wallet = () => {
                             transaction_fee,
                         );
                         if (typeof response == "string")
-                            alert(
-                                `Transfer failed. One reason might be that you voted on a proposal that is still open.`,
-                            );
+                            alert(`Error: ${JSON.stringify(response)}`);
                         await window.reloadUser();
                         setUser(window.user);
                     }}

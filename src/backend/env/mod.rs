@@ -184,6 +184,7 @@ pub struct State {
     total_rewards_shared: u64,
 
     pub proposals: Vec<Proposal>,
+    // TODO: delete
     pub ledger: Vec<Transaction>,
 
     // Contains the pair of two amounts (vested, total_vesting) describing
@@ -199,6 +200,9 @@ pub struct State {
     pub module_hash: String,
     #[serde(skip)]
     pub last_upgrade: u64,
+
+    #[serde(skip)]
+    pub token_fees_burned: Token,
 
     #[serde(skip)]
     pub emergency_binary: Vec<u8>,
@@ -219,21 +223,16 @@ pub struct State {
 
     pub distribution_reports: Vec<Summary>,
 
-    migrations: BTreeSet<UserId>,
-
     // TODO: delete
+    #[allow(dead_code)]
     #[serde(skip)]
-    pub recent_tags: VecDeque<String>,
+    migrations: BTreeSet<UserId>,
 
     pub tag_indexes: HashMap<String, TagIndex>,
 
     // Indicates whether the end of the stable memory contains a valid heap snapshot.
     #[serde(skip)]
     pub backup_exists: bool,
-
-    // TODO: delete
-    #[serde(skip)]
-    pub minting_power: HashMap<Principal, Token>,
 
     #[serde(skip)]
     pub weekly_chores_delay_votes: HashSet<UserId>,
@@ -579,10 +578,10 @@ impl State {
         result
     }
 
-    pub fn load(&mut self) {
+    pub fn init(&mut self) {
         assets::load();
-        match token::balances_from_ledger(&self.ledger) {
-            Ok(balances) => {
+        match token::balances_from_ledger(&mut self.memory.ledger.iter().map(|(_, tx)| tx)) {
+            Ok((balances, total_fees)) => {
                 for user in self.users.values_mut() {
                     user.balance = balances
                         .get(&account(user.principal))
@@ -594,6 +593,7 @@ impl State {
                         .unwrap_or_default();
                 }
                 self.balances = balances;
+                self.token_fees_burned = total_fees;
             }
             Err(err) => self
                 .logger
@@ -834,7 +834,7 @@ impl State {
             TransferArgs {
                 from_subaccount: None,
                 to: account(author.principal),
-                fee: Some(1), // special tipping fee
+                fee: Some(0), // special tipping fee
                 amount: amount as u128,
                 memo: Some(format!("Tips on post {}", post_id).as_bytes().to_vec()),
                 created_at_time: None,
@@ -1211,8 +1211,8 @@ impl State {
                 ));
                 items.push((tokens, minted_fractional, user.name.clone()));
                 let acc = account(user.principal);
-                crate::token::mint(self, acc, tokens);
-                minted_tokens += tokens / base;
+                crate::token::mint(self, acc, tokens, "weekly mint");
+                minted_tokens += tokens;
             }
         }
 
@@ -1229,7 +1229,9 @@ impl State {
         } else {
             summary.description = format!(
                 "{} minted `{}` ${} tokens 💎 from earned rewards",
-                CONFIG.name, minted_tokens, CONFIG.token_symbol
+                CONFIG.name,
+                minted_tokens / base,
+                CONFIG.token_symbol
             );
             self.distribution_reports.push(summary);
         }
@@ -1259,7 +1261,7 @@ impl State {
         if balance <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
             *vested += next_vesting;
             let new_vesting_left = *total_vesting - *vested;
-            crate::token::mint(self, account(principal), next_vesting);
+            crate::token::mint(self, account(principal), next_vesting, "vesting");
             self.logger.info(format!(
                 "Minted `{}` team tokens for @X (still vesting: `{}`).",
                 next_vesting / 100,
@@ -1359,7 +1361,7 @@ impl State {
         let mut total_rewards = 0;
         let mut total_revenue = 0;
         let mut summary = Summary {
-            title: "Rewards report".into(),
+            title: "DAO revenue".into(),
             description: Default::default(),
             items: Vec::default(),
         };
@@ -1655,10 +1657,9 @@ impl State {
                 state.timers.last_daily += DAY;
                 state.timers.daily_pending = false;
                 state.logger.debug(format!(
-                    "Pending NNS proposals: `{}`, pending polls: `{}`, migrations: `{}`.",
+                    "Pending NNS proposals: `{}`, pending polls: `{}`.",
                     state.pending_nns_proposals.len(),
                     state.pending_polls.len(),
-                    state.migrations.len(),
                 ));
                 log(state, "Daily", 1000);
             });
@@ -1672,7 +1673,7 @@ impl State {
             mutate(|state| {
                 state.timers.last_hourly += HOUR;
                 state.timers.hourly_pending = false;
-                log(state, "Hourly", 60000);
+                log(state, "Hourly", 3 * 60_000);
             });
         }
     }
@@ -1775,6 +1776,7 @@ impl State {
                     state,
                     account(winner_principal),
                     CONFIG.random_reward_amount,
+                    "random rewards",
                 );
                 state.minting_mode = false;
             });
@@ -1795,7 +1797,7 @@ impl State {
             state.minting_mode = true;
             for bid in &bids {
                 let principal = state.users.get(&bid.user).expect("no user found").principal;
-                token::mint(state, account(principal), bid.amount);
+                token::mint(state, account(principal), bid.amount, "auction bid");
             }
             state.minting_mode = false;
 
@@ -2320,38 +2322,31 @@ impl State {
         }
         let old_account = account(old_principal);
         let balance = self.balances.get(&old_account).copied().unwrap_or_default();
-        let fee = token::icrc1_fee();
-        if 0 < balance && balance <= fee as Token {
-            return Err("token balance is lower than the fee".to_string());
-        }
         let user_id = self
             .principals
             .remove(&old_principal)
             .ok_or("no principal found")?;
         self.principals.insert(new_principal, user_id);
-        let minting_power = self
-            .minting_power
-            .remove(&old_principal)
-            .unwrap_or_default();
-        self.minting_power.insert(new_principal, minting_power);
         let user = self.users.get_mut(&user_id).expect("no user found");
         assert_eq!(user.principal, old_principal);
         user.principal = new_principal;
         user.account = AccountIdentifier::new(&new_principal, &DEFAULT_SUBACCOUNT).to_string();
-        token::transfer(
-            self,
-            time(),
-            old_account.owner,
-            TransferArgs {
-                from_subaccount: old_account.subaccount.clone(),
-                to: account(new_principal),
-                amount: balance.saturating_sub(fee as Token) as u128,
-                fee: Some(fee),
-                memo: Default::default(),
-                created_at_time: None,
-            },
-        )
-        .expect("transfer failed");
+        if balance > 0 {
+            token::transfer(
+                self,
+                time(),
+                old_account.owner,
+                TransferArgs {
+                    from_subaccount: old_account.subaccount.clone(),
+                    to: account(new_principal),
+                    amount: balance as u128,
+                    fee: Some(0), // don't charge on principal change
+                    memo: Default::default(),
+                    created_at_time: None,
+                },
+            )
+            .expect("transfer failed");
+        }
         Ok(true)
     }
 
@@ -2430,23 +2425,24 @@ impl State {
         stalwarts.sort_unstable_by_key(|u| u.id);
         let posts = self.root_posts_index.len();
         let volume_day = self
+            .memory
             .ledger
             .iter()
             .rev()
-            .take_while(|tx| tx.timestamp + DAY >= now)
-            .map(|tx| tx.amount)
+            .take_while(|(_, tx)| tx.timestamp + DAY >= now)
+            .map(|(_, tx)| tx.amount)
             .sum();
         let volume_week = self
+            .memory
             .ledger
             .iter()
             .rev()
-            .take_while(|tx| tx.timestamp + WEEK >= now)
-            .map(|tx| tx.amount)
+            .take_while(|(_, tx)| tx.timestamp + WEEK >= now)
+            .map(|(_, tx)| tx.amount)
             .sum();
-        let fees_burned = self.ledger.iter().map(|tx| tx.fee).sum();
 
         Stats {
-            fees_burned,
+            fees_burned: self.token_fees_burned,
             volume_day,
             volume_week,
             e8s_for_one_xdr: self.e8s_for_one_xdr,
@@ -2931,87 +2927,6 @@ impl State {
         }
         added
     }
-
-    pub fn migrate(
-        &mut self,
-        principal: Principal,
-        new_principal_str: String,
-    ) -> Result<(), String> {
-        if self.voted_on_emergency_proposal(principal) {
-            return Err("pending proposal with the current principal as voter exists".into());
-        }
-        let new_principal = Principal::from_text(new_principal_str).map_err(|e| e.to_string())?;
-        if new_principal == Principal::anonymous() {
-            return Err("wrong principal".into());
-        }
-        if self.principal_to_user(new_principal).is_some() {
-            return Err("principal already assigned to a user".into());
-        }
-        if self
-            .ledger
-            .iter()
-            .any(|tx| tx.to.owner == new_principal || tx.from.owner == new_principal)
-        {
-            return Err("this principal cannot be used".into());
-        }
-
-        let old_balance = self
-            .balances
-            .get(&account(principal))
-            .copied()
-            .unwrap_or_default();
-        let all_balances = self.balances.values().sum::<Token>();
-
-        let user_id = self
-            .principals
-            .remove(&principal)
-            .ok_or("no principal found")?;
-        if self.migrations.contains(&user_id) {
-            return Err("this user has migrated".into());
-        }
-
-        self.principals.insert(new_principal, user_id);
-
-        let user = self.users.get_mut(&user_id).expect("no user found");
-        assert_eq!(user.principal, principal, "unexpected old principal");
-
-        user.principal = new_principal;
-        user.account = AccountIdentifier::new(&new_principal, &DEFAULT_SUBACCOUNT).to_string();
-        for tx in &mut self.ledger {
-            if tx.to.owner == principal {
-                tx.to.owner = new_principal;
-            }
-            if tx.from.owner == principal {
-                tx.from.owner = new_principal;
-            }
-        }
-        match token::balances_from_ledger(&self.ledger) {
-            Ok(balances) => {
-                let user = self.users.get_mut(&user_id).expect("no user found");
-                user.balance = balances
-                    .get(&account(user.principal))
-                    .copied()
-                    .unwrap_or_default();
-                user.cold_balance = user
-                    .cold_wallet
-                    .and_then(|principal| balances.get(&account(principal)).copied())
-                    .unwrap_or_default();
-                self.balances = balances;
-            }
-            Err(err) => panic!("can't migrate: {:?}", err),
-        }
-
-        assert_eq!(
-            old_balance,
-            self.balances
-                .get(&account(new_principal))
-                .copied()
-                .unwrap_or_default()
-        );
-        assert_eq!(all_balances, self.balances.values().sum::<Token>());
-        self.migrations.insert(user_id);
-        Ok(())
-    }
 }
 
 // Checks if any feed represents the superset for the given tag set.
@@ -3066,7 +2981,7 @@ pub(crate) mod tests {
 
     pub fn insert_balance(state: &mut State, principal: Principal, amount: Token) {
         state.minting_mode = true;
-        token::mint(state, account(principal), amount);
+        token::mint(state, account(principal), amount, "");
         state.minting_mode = false;
         if let Some(user) = state.principal_to_user_mut(principal) {
             user.change_rewards((amount / token::base()) as i64, "");
@@ -3099,6 +3014,8 @@ pub(crate) mod tests {
     #[test]
     fn test_active_voting_power() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             for i in 0..3 {
                 create_user(state, pr(i));
                 insert_balance(state, pr(i), (((i + 1) as u64) << 2) * 10000);
@@ -3343,6 +3260,7 @@ pub(crate) mod tests {
     #[test]
     fn test_revenue_collection() {
         mutate(|state| {
+            state.memory.init_test_api();
             let now = WEEK * CONFIG.voting_power_activity_weeks;
 
             for (i, (balance, total_rewards, last_activity)) in vec![
@@ -3379,6 +3297,8 @@ pub(crate) mod tests {
     #[test]
     fn test_minting() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             let insert_rewards = |state: &mut State, id: UserId| {
                 state.users.get_mut(&id).unwrap().rewards = (id * 1000) as i64;
             };
@@ -3427,6 +3347,8 @@ pub(crate) mod tests {
     #[test]
     fn test_poll_conclusion() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             // create users each having 25 + i*10, e.g.
             // user 1: 35, user 2: 45, user 3: 55, etc...
             for i in 1..11 {
@@ -3488,6 +3410,8 @@ pub(crate) mod tests {
     #[test]
     fn test_principal_change() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             for i in 1..3 {
                 let p = pr(i);
                 create_user(state, p);
@@ -3524,10 +3448,7 @@ pub(crate) mod tests {
 
             assert_eq!(state.principal_to_user(new_principal).unwrap().id, user_id);
             assert!(state.balances.get(&account(pr(1))).is_none());
-            assert_eq!(
-                *state.balances.get(&account(new_principal)).unwrap(),
-                11100 - CONFIG.transaction_fee
-            );
+            assert_eq!(*state.balances.get(&account(new_principal)).unwrap(), 11100);
             let user = state.users.get(&user_id).unwrap();
             assert_eq!(user.principal, new_principal);
             assert_eq!(
@@ -4490,6 +4411,8 @@ pub(crate) mod tests {
     #[test]
     fn test_credits_accounting() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             let p0 = pr(0);
             let post_author_id = create_user_with_credits(state, p0, 2000);
             let post_id =
@@ -4697,7 +4620,8 @@ pub(crate) mod tests {
     #[test]
     fn test_stalwarts() {
         mutate(|state| {
-            state.load();
+            state.init();
+            state.memory.init_test_api();
 
             assert!(state.realms.contains_key(CONFIG.dao_realm));
             assert!(state
@@ -4752,7 +4676,7 @@ pub(crate) mod tests {
     #[test]
     fn test_minting_delay() {
         mutate(|state| {
-            state.load();
+            state.init();
 
             let num_users = 2000;
 
@@ -4841,6 +4765,8 @@ pub(crate) mod tests {
     #[test]
     fn test_icp_distribution() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             let now = WEEK * 4;
             // Create 10 users with balances and rewards
             for i in 0..10 {

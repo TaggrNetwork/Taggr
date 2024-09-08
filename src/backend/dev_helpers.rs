@@ -14,7 +14,8 @@ async fn reset() {
     clear_buckets().await;
     STATE.with(|cell| {
         let mut state: State = Default::default();
-        state.load();
+        state.init();
+        state.memory.init();
         // as expected in E2E tests
         {
             state.auction.amount = CONFIG.weekly_auction_size_tokens_min;
@@ -89,8 +90,6 @@ fn replace_user_principal(principal: String, user_id: UserId) {
             },
             balance,
         );
-        let power = state.minting_power.remove(&user_principal).unwrap();
-        state.minting_power.insert(principal, power);
         let user = state.principal_to_user_mut(principal).unwrap();
         user.principal = principal;
     });

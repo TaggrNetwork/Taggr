@@ -116,7 +116,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
         await transferExecuted;
 
-        await expect(page.getByTestId("token-balance")).toHaveText("9.75");
+        await expect(page.getByTestId("token-balance")).toHaveText("9.9");
         await page.getByTestId("token-balance").click();
         await page.getByRole("link", { name: "6qfxa" }).click();
         await expect(

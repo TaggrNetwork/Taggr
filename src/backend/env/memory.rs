@@ -5,6 +5,7 @@ use std::{cell::RefCell, collections::BTreeMap, fmt::Display, rc::Rc};
 use super::{
     features::Feature,
     post::{Post, PostId},
+    token::Transaction,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -18,31 +19,13 @@ pub struct Api {
     read_bytes: Option<Box<dyn Fn(u64, &mut [u8])>>,
 }
 
-impl Clone for Api {
-    fn clone(&self) -> Self {
-        Self {
-            allocator: self.allocator.clone(),
-            ..Default::default()
-        }
-    }
-}
-
-impl Default for Api {
-    fn default() -> Self {
-        Self {
-            allocator: Default::default(),
-            write_bytes: Some(Box::new(stable_write)),
-            read_bytes: Some(Box::new(stable_read)),
-        }
-    }
-}
-
 #[derive(Default, Serialize, Deserialize)]
 pub struct Memory {
     api: Api,
     pub posts: ObjectManager<PostId, Post>,
-    #[serde(default)]
     pub features: ObjectManager<PostId, Feature>,
+    #[serde(default)]
+    pub ledger: ObjectManager<u32, Transaction>,
     #[serde(skip)]
     api_ref: Rc<RefCell<Api>>,
 }
@@ -51,6 +34,16 @@ pub struct Memory {
 const INITIAL_OFFSET: u64 = 16;
 
 impl Api {
+    fn init(&mut self) {
+        self.allocator.init();
+        if self.write_bytes.is_none() {
+            self.write_bytes = Some(Box::new(stable_write));
+        }
+        if self.read_bytes.is_none() {
+            self.read_bytes = Some(Box::new(stable_read));
+        }
+    }
+
     pub fn write<T: Serialize>(&mut self, value: &T) -> Result<(u64, u64), String> {
         let buffer: Vec<u8> = serde_cbor::to_vec(value).expect("couldn't serialize");
         let offset = self.allocator.alloc(buffer.len() as u64)?;
@@ -82,50 +75,65 @@ impl Memory {
         self.api_ref.as_ref().borrow().allocator.health(unit)
     }
 
-    fn pack(&mut self) {
-        self.api = (*self.api_ref.as_ref().borrow()).clone();
+    fn persist_allocator(&mut self) {
+        self.api = self.api_ref.as_ref().take();
     }
 
-    fn unpack(&mut self) {
-        self.api_ref = Rc::new(RefCell::new(self.api.clone()));
+    /// Initializes the memory allocator.
+    pub fn init(&mut self) {
+        self.api.init();
+        self.api_ref = Rc::new(RefCell::new(std::mem::take(&mut self.api)));
         self.posts.init(Rc::clone(&self.api_ref));
         self.features.init(Rc::clone(&self.api_ref));
+        self.ledger.init(Rc::clone(&self.api_ref));
     }
 
-    #[allow(clippy::type_complexity)]
     #[cfg(test)]
-    pub fn set_test_api(
-        &mut self,
-        mem_grow: Box<dyn FnMut(u64) -> Result<u64, String>>,
-        mem_end: Box<dyn Fn() -> u64>,
-        write_bytes: Box<dyn Fn(u64, &[u8])>,
-        read_bytes: Box<dyn Fn(u64, &mut [u8])>,
-    ) {
+    pub fn init_test_api(&mut self) {
+        static mut MEM_END: u64 = 16;
+        static mut MEMORY: Option<Vec<u8>> = None;
+        unsafe {
+            let size = 1024 * 512;
+            MEMORY = Some(Vec::with_capacity(size));
+            for _ in 0..size {
+                MEMORY.as_mut().unwrap().push(0);
+            }
+        };
+        let mem_grow = |n| unsafe {
+            MEM_END += n;
+            Ok(0)
+        };
+        fn mem_end() -> u64 {
+            unsafe { MEM_END }
+        }
+        let writer = |offset, buf: &[u8]| {
+            buf.iter().enumerate().for_each(|(i, byte)| unsafe {
+                MEMORY.as_mut().unwrap()[offset as usize + i] = *byte
+            });
+        };
+        let reader = |offset, buf: &mut [u8]| {
+            for (i, b) in buf.iter_mut().enumerate() {
+                *b = unsafe { MEMORY.as_ref().unwrap()[offset as usize + i] }
+            }
+        };
         let allocator = Allocator {
             block_size_bytes: 1,
             segments: Default::default(),
-            mem_grow: Some(mem_grow),
-            mem_size: Some(mem_end),
+            mem_grow: Some(Box::new(mem_grow)),
+            mem_size: Some(Box::new(mem_end)),
             boundary: 16,
         };
-        let test_api = Api {
+        self.api = Api {
             allocator,
-            write_bytes: Some(write_bytes),
-            read_bytes: Some(read_bytes),
+            write_bytes: Some(Box::new(writer)),
+            read_bytes: Some(Box::new(reader)),
         };
-        self.api_ref = Rc::new(RefCell::new(test_api));
-        self.posts.init(Rc::clone(&self.api_ref));
-        self.features.init(Rc::clone(&self.api_ref));
-    }
-
-    #[cfg(test)]
-    pub fn unpack_for_testing(&mut self) {
-        self.unpack();
+        self.init();
     }
 }
 
 pub fn heap_to_stable(state: &mut super::State) {
-    state.memory.pack();
+    state.memory.persist_allocator();
     let offset = state.memory.api.boundary();
     let bytes = serde_cbor::to_vec(&state).expect("couldn't serialize the state");
     let len = bytes.len() as u64;
@@ -152,7 +160,7 @@ pub fn stable_to_heap() -> super::State {
     ic_cdk::println!("Reading heap from coordinates: {:?}", (offset, len));
     let api = Api::default();
     let mut state: super::State = api.read(offset, len);
-    state.memory.unpack();
+    state.memory.init();
     state
 }
 
@@ -170,31 +178,44 @@ struct Allocator {
     mem_size: Option<Box<dyn Fn() -> u64>>,
 }
 
-impl Clone for Allocator {
-    fn clone(&self) -> Self {
-        Self {
-            segments: self.segments.clone(),
-            boundary: self.boundary,
-            ..Default::default()
-        }
+impl Default for Api {
+    fn default() -> Self {
+        let mut instance = Self {
+            allocator: Default::default(),
+            write_bytes: None,
+            read_bytes: None,
+        };
+        instance.init();
+        instance
     }
 }
 
 impl Default for Allocator {
     fn default() -> Self {
-        Self {
+        let mut instance = Self {
             block_size_bytes: 300,
-            segments: Default::default(),
             boundary: INITIAL_OFFSET,
-            mem_size: Some(Box::new(|| stable_size() << 16)),
-            mem_grow: Some(Box::new(|n| {
-                stable_grow((n >> 16) + 1).map_err(|err| format!("couldn't grow memory: {:?}", err))
-            })),
-        }
+            segments: Default::default(),
+            mem_size: None,
+            mem_grow: None,
+        };
+        instance.init();
+        instance
     }
 }
 
 impl Allocator {
+    fn init(&mut self) {
+        if self.mem_size.is_none() {
+            self.mem_size = Some(Box::new(|| stable_size() << 16));
+        }
+        if self.mem_grow.is_none() {
+            self.mem_grow = Some(Box::new(|n| {
+                stable_grow((n >> 16) + 1).map_err(|err| format!("couldn't grow memory: {:?}", err))
+            }));
+        }
+    }
+
     fn get_allocation_length(&self, n: u64) -> u64 {
         let block_size = self.block_size_bytes.max(1);
         (n + block_size - 1) / block_size * block_size
@@ -314,7 +335,7 @@ impl Allocator {
     }
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ObjectManager<K: Ord + Eq, T: Serialize + DeserializeOwned> {
     index: BTreeMap<K, (u64, u64)>,
     #[serde(skip)]
@@ -323,6 +344,17 @@ pub struct ObjectManager<K: Ord + Eq, T: Serialize + DeserializeOwned> {
     api: Rc<RefCell<Api>>,
     #[serde(skip)]
     phantom: std::marker::PhantomData<T>,
+}
+
+impl<K: Ord + Eq, T: Serialize + DeserializeOwned> Default for ObjectManager<K, T> {
+    fn default() -> Self {
+        Self {
+            phantom: Default::default(),
+            index: Default::default(),
+            api: Default::default(),
+            initialized: false,
+        }
+    }
 }
 
 impl<K: Eq + Ord + Clone + Copy + Display, T: Serialize + DeserializeOwned> ObjectManager<K, T> {
@@ -391,21 +423,8 @@ pub(crate) mod tests {
 
     #[test]
     fn test_leaks() {
-        static mut MEM_END: u64 = 16;
-        let mem_grow = |n| unsafe {
-            MEM_END += n;
-            Ok(0)
-        };
-        fn mem_end() -> u64 {
-            unsafe { MEM_END }
-        }
         let mut memory = Memory::default();
-        memory.set_test_api(
-            Box::new(mem_grow),
-            Box::new(mem_end),
-            Box::new(|_, _| { /* noop write */ }),
-            Box::new(|_, buf| serde_cbor::to_writer(buf, &Post::default()).unwrap()),
-        );
+        memory.init_test_api();
 
         memory.posts.insert(0, Post::default()).unwrap();
         memory.posts.insert(1, Post::default()).unwrap();

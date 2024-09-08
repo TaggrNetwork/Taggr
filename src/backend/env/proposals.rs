@@ -276,7 +276,7 @@ impl Proposal {
 
 fn mint_tokens(state: &mut State, receiver: Principal, mut tokens: Token) -> Result<(), String> {
     state.minting_mode = true;
-    crate::token::mint(state, account(receiver), tokens);
+    crate::token::mint(state, account(receiver), tokens, "proposal execution");
     state.minting_mode = false;
     tokens /= token::base();
     state.logger.info(format!(
@@ -506,7 +506,7 @@ pub mod tests {
     #[should_panic(expected = "couldn't take post 2: not found")]
     fn test_wrong_post_id_in_proposal() {
         mutate(|state| {
-            state.memory.unpack_for_testing();
+            state.memory.init_test_api();
             create_user(state, pr(1));
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
             create_proposal(state, pr(1), 2, Payload::Noop, 0).unwrap();
@@ -654,6 +654,7 @@ pub mod tests {
         let data = &"".to_string();
         let proposer = pr(1);
         mutate(|state| {
+            state.memory.init_test_api();
             // create voters, make each of them earn some rewards
             for i in 1..11 {
                 let p = pr(i);
@@ -790,6 +791,7 @@ pub mod tests {
     fn test_reducing_voting_power() {
         let data = &"".to_string();
         mutate(|state| {
+            state.memory.init_test_api();
             // create voters, make each of them earn some rewards
             for i in 1..=3 {
                 let p = pr(i);
@@ -833,6 +835,7 @@ pub mod tests {
     #[test]
     fn test_non_controversial_rejection() {
         mutate(|state| {
+            state.memory.init_test_api();
             // create voters, make each of them earn some rewards
             for i in 1..=5 {
                 let p = pr(i);
@@ -872,6 +875,7 @@ pub mod tests {
     #[test]
     fn test_funding_proposal() {
         mutate(|state| {
+            state.memory.init_test_api();
             // create voters, make each of them earn some rewards
             for i in 1..=2 {
                 let p = pr(i);
@@ -924,6 +928,8 @@ pub mod tests {
     #[test]
     fn test_reward_proposal() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             // create voters, make each of them earn some rewards
             for i in 1..=3 {
                 let p = pr(i);
@@ -1112,7 +1118,8 @@ pub mod tests {
     #[actix_rt::test]
     async fn test_balance_adjustments_on_bulletins() {
         mutate(|state| {
-            state.load();
+            state.init();
+            state.memory.init_test_api();
 
             // create voters, make each of them earn some rewards
             for i in 1..=3 {

@@ -177,6 +177,8 @@ mod tests {
     #[test]
     fn test_reporting() {
         mutate(|state| {
+            state.memory.init_test_api();
+
             let p = pr(0);
             let u1 = create_user(state, p);
             let user = state.users.get_mut(&u1).unwrap();
@@ -224,7 +226,7 @@ mod tests {
             );
 
             state.minting_mode = true;
-            token::mint(state, account(reporter), CONFIG.transaction_fee * 1000);
+            token::mint(state, account(reporter), CONFIG.transaction_fee * 1000, "");
             state.minting_mode = false;
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
             assert_eq!(reporter_user.balance, CONFIG.transaction_fee * 1000);
@@ -262,7 +264,7 @@ mod tests {
 
             // Another user cannot overwrite the report
             state.minting_mode = true;
-            token::mint(state, account(pr(8)), CONFIG.transaction_fee * 1000);
+            token::mint(state, account(pr(8)), CONFIG.transaction_fee * 1000, "");
             state.minting_mode = false;
             assert_eq!(
                 state.report(pr(8), "post".into(), post_id, String::new()),
