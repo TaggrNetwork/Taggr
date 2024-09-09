@@ -1554,7 +1554,7 @@ impl State {
                     proposal.proposer, proposal.summary
                 );
 
-                match mutate(|state| {
+                let result = mutate(|state| {
                     state.last_nns_proposal = state.last_nns_proposal.max(proposal.id);
                     Post::create(
                         state,
@@ -1570,7 +1570,9 @@ impl State {
                             ..Default::default()
                         })),
                     )
-                }) {
+                });
+
+                match result {
                     Ok(post_id) => {
                         mutate(|state| state.pending_nns_proposals.insert(proposal.id, post_id));
                         continue;
