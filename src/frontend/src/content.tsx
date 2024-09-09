@@ -111,17 +111,26 @@ export const Content = ({
         value.startsWith(pref),
     );
     const words = value.split(" ").length;
-    const lines = value.split("\n").length;
+    const lines = value.split("\n");
+    const linesNumber = lines.length;
     let className = classNameArg || "";
-    if (primeMode && lines < 10 && !complexPost) {
+    if (primeMode && linesNumber < 10 && !complexPost) {
         if (words < 50) className += " x_large_text";
         else if (words < 100) className += " enlarged_text";
     }
+    const multipleHeaders =
+        lines.filter((line) => line.startsWith("# ")).length > 1;
 
     return React.useMemo(
         () => (
             <>
-                {markdownizer(value, urls || {}, blogTitle, preview, className)}
+                {markdownizer(
+                    value,
+                    urls || {},
+                    multipleHeaders ? undefined : blogTitle,
+                    preview,
+                    className,
+                )}
                 {shortened &&
                     (collapse ? (
                         <ArrowDown />

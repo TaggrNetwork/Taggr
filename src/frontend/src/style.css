@@ -123,7 +123,7 @@ h5 {
 .prime .blog_title,
 .prime h2,
 .prime h3 {
-    border-bottom: 4px solid $light_background;
+    border-bottom: 2px solid $light_background;
     padding-bottom: 0.5em;
 }
 
@@ -975,6 +975,7 @@ label svg {
 }
 
 .post_box > article p,
+.post_box > article hr,
 .post_box > article h1,
 .post_box > article h2,
 .post_box > article h3,
