@@ -311,6 +311,7 @@ pub fn transfer(
             },
         )
         .expect("couldn't insert a new transaction");
+    state.token_fees_burned += effective_fee;
     Ok(id as u128)
 }
 
