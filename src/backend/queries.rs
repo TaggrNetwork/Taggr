@@ -49,7 +49,7 @@ fn features() {
     read(|state| {
         let ids: Vec<PostId> = parse(&arg_data_raw());
         reply(
-            features::features(state, ids)
+            features::features(state, &ids)
                 .map(|(post_id, tokens, feature)| {
                     Post::get(state, &post_id).map(|post| (post.with_meta(state), tokens, feature))
                 })
@@ -138,7 +138,7 @@ fn transactions() {
             iter.rev()
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
-                .collect::<Vec<(u32, _)>>(),
+                .collect::<Vec<(&u32, _)>>(),
         );
     });
 }

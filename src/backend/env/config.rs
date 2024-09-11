@@ -91,7 +91,7 @@ pub struct Config {
 
     pub poll_revote_deadline_hours: u64,
 
-    pub name_change_cost: Credits,
+    pub identity_change_cost: Credits,
 
     pub max_realm_name: usize,
     pub max_realm_logo_len: usize,
@@ -266,7 +266,7 @@ pub const CONFIG: &Config = &Config {
 
     poll_revote_deadline_hours: 4,
 
-    name_change_cost: 1000,
+    identity_change_cost: 1000,
 
     max_realm_name: 25,
     max_realm_logo_len: 16 * 1024,

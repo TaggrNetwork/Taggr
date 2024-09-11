@@ -22,6 +22,7 @@ use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
 use std::time::Duration;
+use user::PFP;
 
 #[init]
 fn init() {
@@ -79,7 +80,13 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        for user_id in &state.users.keys().cloned().collect::<Vec<_>>() {
+            state.set_pfp(*user_id, Default::default()).unwrap();
+        }
+    });
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -199,7 +206,7 @@ fn confirm_principal_change() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (new_name, about, principals, filter, governance, mode, show_posts_in_realms): (
+    let (new_name, about, principals, filter, governance, mode, show_posts_in_realms, pfp): (
         String,
         String,
         Vec<String>,
@@ -207,6 +214,7 @@ fn update_user() {
         bool,
         Mode,
         bool,
+        PFP,
     ) = parse(&arg_data_raw());
     reply(User::update(
         caller(),
@@ -217,6 +225,7 @@ fn update_user() {
         governance,
         mode,
         show_posts_in_realms,
+        pfp,
     ))
 }
 

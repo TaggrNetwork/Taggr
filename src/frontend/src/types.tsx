@@ -10,6 +10,13 @@ export type ICP = {
     e8s: BigInt | number;
 };
 
+export type PFP = {
+    nonce: number;
+    palette_nonce: number;
+    colors: number;
+    genesis: boolean;
+};
+
 export type Bid = {
     user: UserId;
     amount: number;
@@ -249,6 +256,7 @@ export type User = {
     blacklist: UserId[];
     notifications: { [key: number]: [Notification, boolean] };
     mode: Mode;
+    pfp: PFP;
 };
 
 export type Report = {
@@ -339,7 +347,7 @@ declare global {
                 poll_cost: number;
                 max_post_length: number;
                 max_blob_size_bytes: number;
-                name_change_cost: number;
+                identity_change_cost: number;
                 max_realm_name: number;
                 max_realm_logo_len: number;
                 post_cost: number;

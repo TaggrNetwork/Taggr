@@ -195,8 +195,19 @@ ul.comments {
     padding: 0;
 }
 
+.user_link {
+    display: inline-block;
+}
+
 .comments .post_head .user_link {
     margin-left: 0;
+}
+
+.user_link img {
+    border-radius: 3px;
+    vertical-align: middle;
+    height: 32px;
+    width: 32px;
 }
 
 .comments .post_head .user_link {
@@ -601,6 +612,8 @@ table {
 .centered {
     text-align: center;
     justify-content: center;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .text_centered {

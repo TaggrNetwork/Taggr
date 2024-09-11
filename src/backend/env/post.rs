@@ -941,8 +941,6 @@ mod tests {
     #[test]
     fn test_post_archiving() {
         mutate(|state| {
-            state.memory.init_test_api();
-
             for i in 0..10 {
                 create_user(state, pr(i));
                 let id = Post::create(

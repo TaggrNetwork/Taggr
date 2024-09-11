@@ -1,6 +1,6 @@
 import * as React from "react";
 import { UserId, UserData, User } from "./types";
-import { Loading, commaSeparated } from "./common";
+import { Loading, commaSeparated, pfpUrl } from "./common";
 
 export const USER_CACHE: UserData = {};
 
@@ -78,12 +78,10 @@ export const UserLink = ({
     if (loading) return <Loading spaced={false} />;
 
     return userName ? (
-        <a
-            className={`${classNameArg} user_link`}
-            href={`#/${profile ? "user" : "journal"}/${id}`}
-        >
-            {userName}
-        </a>
+        <span className={`${classNameArg} user_link no_wrap`}>
+            <img className="right_half_spaced" src={pfpUrl(id)} />
+            <a href={`#/${profile ? "user" : "journal"}/${id}`}>{userName}</a>
+        </span>
     ) : (
         <span className={`${classNameArg} user_link`}>N/A</span>
     );

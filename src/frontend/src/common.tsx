@@ -11,11 +11,21 @@ import {
     Share,
 } from "./icons";
 import { loadFile } from "./form";
-import { Meta, Post, PostId, Realm, Report, User, UserFilter } from "./types";
+import {
+    Meta,
+    Post,
+    PostId,
+    Realm,
+    Report,
+    User,
+    UserFilter,
+    UserId,
+} from "./types";
 import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
+import { MAINNET_MODE } from "./env";
 
 export const REPO = "https://github.com/TaggrNetwork/taggr";
 
@@ -1008,3 +1018,14 @@ export const ArrowDown = ({ onClick }: { onClick?: () => void }) => (
         <CarretDown classNameArg="action" />
     </div>
 );
+
+export function pfpUrl(userId: UserId) {
+    const canisterId = window.backendCache.stats.canister_id;
+    const host = MAINNET_MODE
+        ? `https://${canisterId}.raw.icp0.io`
+        : `http://127.0.0.1:8080`;
+    return (
+        `${host}/pfp/${userId}` +
+        (MAINNET_MODE ? "" : `?canisterId=${canisterId}`)
+    );
+}

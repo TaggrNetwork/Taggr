@@ -1,8 +1,29 @@
+use std::u64;
+
 use super::{post_iterators::IteratorMerger, reports::Report, *};
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT};
 use serde::{Deserialize, Serialize};
 
 pub type UserId = u64;
+
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct PFP {
+    pub nonce: u64,
+    pub palette_nonce: u64,
+    pub colors: u64,
+    pub genesis: bool,
+}
+
+impl Default for PFP {
+    fn default() -> Self {
+        Self {
+            nonce: 0,
+            palette_nonce: 2,
+            colors: 3,
+            genesis: true,
+        }
+    }
+}
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Filters {
@@ -118,8 +139,9 @@ pub struct User {
     pub controlled_realms: HashSet<RealmId>,
     pub mode: Mode,
     // Amount of credits burned per week; used for the random rewards only.
-    #[serde(default)]
     credits_burned: Credits,
+    #[serde(default)]
+    pub pfp: PFP,
 }
 
 impl User {
@@ -208,6 +230,7 @@ impl User {
             downvotes: Default::default(),
             show_posts_in_realms: true,
             mode: Mode::default(),
+            pfp: Default::default(),
         }
     }
 
@@ -527,6 +550,7 @@ impl User {
         governance: bool,
         mode: Mode,
         show_posts_in_realms: bool,
+        mut pfp: PFP,
     ) -> Result<(), String> {
         if read(|state| {
             state
@@ -548,32 +572,43 @@ impl User {
                 return Err("inputs too long".to_string());
             }
             let user_id = user.id;
-            let old_name = user.name.clone();
+            let current_name = user.name.clone();
+            let current_pfp = user.pfp.clone();
             if let Some(name) = &new_name {
                 state.validate_username(name)?;
-                state.charge(user_id, CONFIG.name_change_cost, "name change")?;
+                state.charge(user_id, CONFIG.identity_change_cost, "name change")?;
                 state
                     .logger
-                    .info(format!("@{} changed name to @{} 🪪", old_name, name));
+                    .info(format!("@{} changed name to @{} 🪪", current_name, name));
             }
-            if let Some(user) = state.principal_to_user_mut(caller) {
-                if user.rewards() > 0 && mode == Mode::Credits {
-                    return Err("switching to the credits mode is only possible when a user has no pending rewards".into());
-                }
-                user.about = about;
-                user.controllers = principals;
-                user.governance = governance;
-                user.mode = mode;
-                user.filters.noise = filter;
-                user.show_posts_in_realms = show_posts_in_realms;
-                if let Some(name) = new_name {
-                    user.previous_names.push(user.name.clone());
-                    user.name = name;
-                }
-                Ok(())
-            } else {
-                Err("no user found".into())
+            let pfp_changhed = current_pfp != pfp;
+            if pfp_changhed {
+                state.charge(user_id, CONFIG.identity_change_cost, "avataggr change")?;
+                state
+                    .logger
+                    .info(format!("@{} changed their avataggr 🎭", current_name));
+                pfp.genesis = false;
             }
+            let Some(user) = state.principal_to_user_mut(caller) else {
+                return Err("no user found".into());
+            };
+            if user.rewards() > 0 && mode == Mode::Credits {
+                return Err("switching to the credits mode is only possible when a user has no pending rewards".into());
+            }
+            user.about = about;
+            user.controllers = principals;
+            user.governance = governance;
+            user.mode = mode;
+            user.filters.noise = filter;
+            user.show_posts_in_realms = show_posts_in_realms;
+            if let Some(name) = new_name {
+                user.previous_names.push(user.name.clone());
+                user.name = name;
+            }
+            if pfp_changhed {
+                state.set_pfp(user_id, pfp)?;
+            }
+            Ok(())
         })
     }
 }

@@ -409,7 +409,6 @@ mod tests {
     #[test]
     fn test_transfers() {
         let mut state = State::default();
-        state.memory.init_test_api();
         env::tests::create_user(&mut state, pr(0));
 
         let memo = vec![0; 33];

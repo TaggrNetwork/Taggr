@@ -93,7 +93,9 @@ test.describe("Regular users flow", () => {
         await expect(
             page.locator("article", { hasText: /Hello world/ }),
         ).toBeVisible();
-        await expect(page.locator("img")).toBeVisible();
+        await expect(
+            page.getByRole("img", { name: "512x512, 2kb" }),
+        ).toBeVisible();
 
         // Edit the post
         await page.getByTestId("post-info-toggle").click();
@@ -113,7 +115,9 @@ test.describe("Regular users flow", () => {
                 hasText: "Hello world!\n" + "Edit: this is a post-scriptum",
             }),
         ).toBeVisible();
-        await expect(page.locator("img")).toBeVisible();
+        await expect(
+            page.getByRole("img", { name: "512x512, 2kb" }),
+        ).toBeVisible();
     });
 
     test("Wallet", async () => {
