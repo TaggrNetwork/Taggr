@@ -20,6 +20,7 @@ use ic_cdk::{
 };
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
+use icrc_ledger_types::icrc3::blocks::BlockWithId;
 use serde_bytes::ByteBuf;
 use std::time::Duration;
 use user::PFP;
@@ -82,9 +83,29 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
+        // Genearate pfp for all users
         for user_id in &state.users.keys().cloned().collect::<Vec<_>>() {
             state.set_pfp(*user_id, Default::default()).unwrap();
         }
+
+        // Update all TXs with id and parent hash in order to implement ICRC3
+        let mut parent_hash: [u8; 32] = Default::default();
+        for (id, tx) in state.ledger.iter_mut().enumerate() {
+            tx.id = id as u32;
+            tx.parent_hash = parent_hash.clone();
+            let icrc3_block: BlockWithId = tx.clone().into();
+            parent_hash = icrc3_block.block.hash();
+        }
+
+        // Move all txs to stable memory
+        for tx in state.ledger.iter() {
+            state
+                .memory
+                .ledger
+                .insert(tx.id as u32, tx.clone())
+                .unwrap();
+        }
+        state.init();
     });
 }
 

@@ -8,7 +8,7 @@ use std::collections::HashMap;
 pub type Headers = Vec<(String, String)>;
 
 const LABEL: &[u8] = b"http_assets";
-static mut ASSET_HASHES: Option<RbTree<Vec<u8>, Hash>> = None;
+pub static mut ASSET_HASHES: Option<RbTree<Vec<u8>, Hash>> = None;
 static mut ASSETS: Option<HashMap<String, (Headers, Vec<u8>)>> = None;
 
 fn asset_hashes<'a>() -> &'a mut RbTree<Vec<u8>, Hash> {
@@ -122,15 +122,24 @@ pub fn load() {
         domains.join("\n").as_bytes().to_vec(),
     );
 
-    set_certified_data(&labeled_hash(LABEL, &asset_hashes().root_hash()));
+    certify();
+}
+
+pub fn root_hash() -> [u8; 32] {
+    asset_hashes().root_hash()
 }
 
 #[allow(unused_variables)]
-pub fn set_certified_data(data: &[u8]) {
+pub fn certify() {
+    let value = &labeled_hash(LABEL, &asset_hashes().root_hash());
     #[cfg(test)]
     return;
     #[cfg(not(test))]
-    ic_cdk::api::set_certified_data(&labeled_hash(LABEL, &asset_hashes().root_hash()));
+    ic_cdk::api::set_certified_data(value)
+}
+
+pub fn add_value_to_certify(label: &str, hash: [u8; 32]) {
+    asset_hashes().insert(label.as_bytes().to_vec(), hash);
 }
 
 fn add_asset(paths: &[&str], headers: Headers, bytes: Vec<u8>) {
@@ -138,7 +147,7 @@ fn add_asset(paths: &[&str], headers: Headers, bytes: Vec<u8>) {
     hasher.update(&bytes);
     let hash = hasher.finalize().into();
     for path in paths {
-        asset_hashes().insert(path.as_bytes().to_vec(), hash);
+        add_value_to_certify(path, hash);
         assets().insert(path.to_string(), (headers.clone(), bytes.clone()));
     }
 }
@@ -167,7 +176,7 @@ pub fn export_token_supply(total_supply: u128) {
                 .to_vec(),
         )
     }
-    set_certified_data(&labeled_hash(LABEL, &asset_hashes().root_hash()));
+    certify();
 }
 
 fn certificate_header(path: &str) -> (String, String) {
