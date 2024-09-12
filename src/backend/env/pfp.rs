@@ -56,7 +56,7 @@ pub fn pfp(user_id: u64, nonce: u64, palette_nonce: u64, colors: u64, scale: u32
     for y in 0..(size / 2) {
         for x in 0..(size / 2) {
             rnd_val = xorshift64(rnd_val);
-            let (r, g, b) = palette[rnd_val as usize % palette.len()].clone();
+            let (r, g, b) = palette[rnd_val as usize % palette.len()];
 
             // Calculate index in RGBA array (4 bytes per pixel)
             let index = ((y * size + x) * 4) as usize;
@@ -84,7 +84,7 @@ pub fn pfp(user_id: u64, nonce: u64, palette_nonce: u64, colors: u64, scale: u32
         encoder.set_depth(png::BitDepth::Eight);
 
         let mut writer = encoder.write_header().unwrap();
-        writer.write_image_data(&final_pixmap.data()).unwrap();
+        writer.write_image_data(final_pixmap.data()).unwrap();
     }
 
     buffer

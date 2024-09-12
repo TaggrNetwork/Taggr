@@ -44,8 +44,8 @@ pub fn features<'a>(
     };
     if !ids.is_empty() {
         return Box::new(
-            ids.into_iter()
-                .filter_map(move |id| state.memory.features.get(&id).map(|feature| (id, feature)))
+            ids.iter()
+                .filter_map(move |id| state.memory.features.get(id).map(|feature| (id, feature)))
                 .map(count_support),
         );
     }

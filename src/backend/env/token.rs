@@ -270,11 +270,11 @@ fn icrc3_get_tip_certificate() -> Option<ICRC3DataCertificate> {
     })
 }
 
-impl Into<BlockWithId> for Transaction {
-    fn into(self) -> BlockWithId {
-        let btype = if self.from.owner == Principal::anonymous() {
+impl From<Transaction> for BlockWithId {
+    fn from(val: Transaction) -> Self {
+        let btype = if val.from.owner == Principal::anonymous() {
             "1mint"
-        } else if self.to.owner == Principal::anonymous() {
+        } else if val.to.owner == Principal::anonymous() {
             "1burn"
         } else {
             "1xfer"
@@ -282,42 +282,42 @@ impl Into<BlockWithId> for Transaction {
         .to_string();
 
         let tx_data = vec![
-            ("amt".into(), ICRC3Value::Nat(self.amount.into())),
+            ("amt".into(), ICRC3Value::Nat(val.amount.into())),
             (
                 "from".into(),
                 ICRC3Value::Array(vec![ICRC3Value::Blob(ByteBuf::from(
-                    serde_cbor::to_vec(&self.from).expect("couldn't serialize"),
+                    serde_cbor::to_vec(&val.from).expect("couldn't serialize"),
                 ))]),
             ),
             (
                 "to".into(),
                 ICRC3Value::Array(vec![ICRC3Value::Blob(ByteBuf::from(
-                    serde_cbor::to_vec(&self.to).expect("couldn't serialize"),
+                    serde_cbor::to_vec(&val.to).expect("couldn't serialize"),
                 ))]),
             ),
         ];
 
         let mut data = vec![
             ("btype".into(), ICRC3Value::Text(btype)),
-            ("ts".into(), ICRC3Value::Nat(self.timestamp.into())),
+            ("ts".into(), ICRC3Value::Nat(val.timestamp.into())),
             ("tx".into(), ICRC3Value::Map(tx_data.into_iter().collect())),
-            ("fee".into(), ICRC3Value::Nat(self.fee.into())),
+            ("fee".into(), ICRC3Value::Nat(val.fee.into())),
         ];
 
-        if let Some(memo) = self.memo {
+        if let Some(memo) = val.memo {
             data.push(("memo".into(), ICRC3Value::Blob(ByteBuf::from(memo))));
         }
 
         // If non-genesis block, push the hash to parent
-        if self.id > 0 {
+        if val.id > 0 {
             data.push((
                 "phash".into(),
-                ICRC3Value::Blob(ByteBuf::from(self.parent_hash)),
+                ICRC3Value::Blob(ByteBuf::from(val.parent_hash)),
             ));
         }
 
         BlockWithId {
-            id: self.id.into(),
+            id: val.id.into(),
             block: ICRC3GenericBlock::Map(data.into_iter().collect()),
         }
     }

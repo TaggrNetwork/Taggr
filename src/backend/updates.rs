@@ -23,7 +23,7 @@ use ic_cdk_timers::{set_timer, set_timer_interval};
 use icrc_ledger_types::icrc3::blocks::BlockWithId;
 use serde_bytes::ByteBuf;
 use std::time::Duration;
-use user::PFP;
+use user::Pfp;
 
 #[init]
 fn init() {
@@ -235,7 +235,7 @@ fn update_user() {
         bool,
         Mode,
         bool,
-        PFP,
+        Pfp,
     ) = parse(&arg_data_raw());
     reply(User::update(
         caller(),
@@ -666,10 +666,6 @@ fn check_candid_interface_compatibility() {
             }
         }
     }
-
-    use crate::http::{HttpRequest, HttpResponse};
-    use crate::token::{Account, Standard, TransferArgs, TransferError, Value};
-    candid::export_service!();
 
     let new_interface = __export_service();
 

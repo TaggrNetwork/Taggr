@@ -27,7 +27,7 @@ use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::convert::TryFrom;
 use token::base;
-use user::{User, UserId, PFP};
+use user::{Pfp, User, UserId};
 
 pub mod auction;
 pub mod canisters;
@@ -394,7 +394,7 @@ impl State {
             .and_then(|s| s.module_hash.map(hex::encode))
             .unwrap_or_default();
         mutate(|state| {
-            state.module_hash = current_hash.clone();
+            state.module_hash.clone_from(&current_hash);
             state.logger.debug(format!(
                 "Upgrade succeeded: new version is `{}`.",
                 &current_hash[0..8]
@@ -971,7 +971,7 @@ impl State {
     }
 
     /// Assigns a new Avataggr to the user.
-    pub fn set_pfp(&mut self, user_id: UserId, pfp: PFP) -> Result<(), String> {
+    pub fn set_pfp(&mut self, user_id: UserId, pfp: Pfp) -> Result<(), String> {
         let bytes = pfp::pfp(
             user_id,
             pfp.nonce,
@@ -3140,7 +3140,7 @@ pub(crate) mod tests {
                 vec![1, 0].into_iter().collect::<BTreeSet<_>>()
             );
             // No posts for this tag
-            assert!(state.tag_indexes.get("coffee").is_none());
+            assert!(!state.tag_indexes.contains_key("coffee"));
         });
 
         Post::edit(
@@ -3351,7 +3351,7 @@ pub(crate) mod tests {
             state.e8s_for_one_xdr = 14410000;
 
             for i in 0..4 {
-                assert!(state.balances.get(&account(pr(i))).is_none());
+                assert!(!state.balances.contains_key(&account(pr(i))));
             }
 
             state.minting_mode = true;
@@ -3360,8 +3360,8 @@ pub(crate) mod tests {
             // User 0 (no rewards) and User 3 (miner) were excluded
             assert_eq!(state.balances.len(), 3);
 
-            assert!(state.balances.get(&account(pr(0))).is_none());
-            assert!(state.balances.get(&account(pr(3))).is_none());
+            assert!(!state.balances.contains_key(&account(pr(0))));
+            assert!(!state.balances.contains_key(&account(pr(3))));
 
             // uesr 1 earned 0.47 TAGGR
             assert_eq!(*state.balances.get(&account(pr(1))).unwrap(), 47);
@@ -3471,7 +3471,7 @@ pub(crate) mod tests {
             assert_eq!(state.principals.len(), 2);
 
             assert_eq!(state.principal_to_user(new_principal).unwrap().id, user_id);
-            assert!(state.balances.get(&account(pr(1))).is_none());
+            assert!(!state.balances.contains_key(&account(pr(1))));
             assert_eq!(*state.balances.get(&account(new_principal)).unwrap(), 11100);
             let user = state.users.get(&user_id).unwrap();
             assert_eq!(user.principal, new_principal);

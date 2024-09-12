@@ -8,7 +8,7 @@ use std::collections::HashMap;
 pub type Headers = Vec<(String, String)>;
 
 const LABEL: &[u8] = b"http_assets";
-pub static mut ASSET_HASHES: Option<RbTree<Vec<u8>, Hash>> = None;
+static mut ASSET_HASHES: Option<RbTree<Vec<u8>, Hash>> = None;
 static mut ASSETS: Option<HashMap<String, (Headers, Vec<u8>)>> = None;
 
 fn asset_hashes<'a>() -> &'a mut RbTree<Vec<u8>, Hash> {

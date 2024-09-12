@@ -1,7 +1,7 @@
 use super::assets;
 use crate::assets::{index_html_headers, INDEX_HTML};
 use crate::post::Post;
-use crate::user::{UserId, PFP};
+use crate::user::{Pfp, UserId};
 use crate::{config::CONFIG, metadata::set_metadata};
 use crate::{pfp, read};
 use candid::CandidType;
@@ -86,7 +86,7 @@ fn http_request(req: HttpRequest) -> HttpResponse {
     use serde_json;
     use std::str::FromStr;
 
-    let mut parts = req.path().split("/").filter(|part| !part.is_empty());
+    let mut parts = req.path().split('/').filter(|part| !part.is_empty());
 
     match (parts.next(), parts.next(), parts.next()) {
         (Some("pfp"), Some(user_id_str), None) => {
@@ -95,7 +95,7 @@ fn http_request(req: HttpRequest) -> HttpResponse {
         }
         (Some("pfp_preview"), Some(user_id_str), Some(params)) => {
             let user_id = user_id_str.parse::<UserId>().unwrap_or_default();
-            let mut params = params.split("-");
+            let mut params = params.split('-');
             let parse = |s: Option<&str>| s.unwrap_or_default().parse::<u64>().unwrap_or_default();
             let colors = parse(params.next());
             let nonce = parse(params.next());
@@ -110,11 +110,7 @@ fn http_request(req: HttpRequest) -> HttpResponse {
                 .unwrap_or(1_000_usize);
             let end = (offset + limit).min(state.proposals.len());
 
-            let proposal_slice = if let Some(slice) = state.proposals.get(offset..end) {
-                slice
-            } else {
-                &[]
-            };
+            let proposal_slice = state.proposals.get(offset..end).unwrap_or_default();
             HttpResponse {
                 status_code: 200,
                 headers: vec![(
@@ -273,7 +269,7 @@ fn index(
 fn serve_pfp(user_id: UserId, scale: u32) -> HttpResponse {
     read(|state| {
         let user = state.users.get(&user_id).expect("no user found");
-        let PFP {
+        let Pfp {
             colors,
             nonce,
             palette_nonce,

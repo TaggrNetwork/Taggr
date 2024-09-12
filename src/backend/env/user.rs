@@ -1,5 +1,3 @@
-use std::u64;
-
 use super::{post_iterators::IteratorMerger, reports::Report, *};
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT};
 use serde::{Deserialize, Serialize};
@@ -7,14 +5,14 @@ use serde::{Deserialize, Serialize};
 pub type UserId = u64;
 
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct PFP {
+pub struct Pfp {
     pub nonce: u64,
     pub palette_nonce: u64,
     pub colors: u64,
     pub genesis: bool,
 }
 
-impl Default for PFP {
+impl Default for Pfp {
     fn default() -> Self {
         Self {
             nonce: 0,
@@ -141,7 +139,7 @@ pub struct User {
     // Amount of credits burned per week; used for the random rewards only.
     credits_burned: Credits,
     #[serde(default)]
-    pub pfp: PFP,
+    pub pfp: Pfp,
 }
 
 impl User {
@@ -550,7 +548,7 @@ impl User {
         governance: bool,
         mode: Mode,
         show_posts_in_realms: bool,
-        mut pfp: PFP,
+        mut pfp: Pfp,
     ) -> Result<(), String> {
         if read(|state| {
             state

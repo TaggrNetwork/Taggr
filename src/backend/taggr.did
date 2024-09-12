@@ -70,6 +70,7 @@ service : () -> {
     ) -> (Result);
   add_post_blob : (text, blob) -> (Result_1);
   add_post_data : (text, opt text, opt blob) -> ();
+  backup: () -> ();
   commit_post : () -> (Result);
   edit_post : (nat64, text, vec record { text; blob }, text, opt text) -> (
       Result_1,

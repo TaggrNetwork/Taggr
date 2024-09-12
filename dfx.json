@@ -9,8 +9,8 @@
             "metadata": [
                 {
                     "name": "candid:service",
-                    "networks": ["local", "ic"],
-                    "visibility": "public"
+                    "visibility": "public",
+                    "networks": ["local", "ic"]
                 }
             ]
         }
