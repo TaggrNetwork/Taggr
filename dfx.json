@@ -10,7 +10,7 @@
                 {
                     "name": "candid:service",
                     "visibility": "public",
-                    "networks": ["local", "ic"]
+                    "networks": ["local", "ic", "staging"]
                 }
             ]
         }

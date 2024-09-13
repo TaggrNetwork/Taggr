@@ -637,6 +637,16 @@ fn caller() -> Principal {
     caller
 }
 
+#[update]
+fn backup() {
+    mutate(|state| {
+        if !state.backup_exists {
+            env::memory::heap_to_stable(state);
+            state.backup_exists = true;
+        }
+    })
+}
+
 #[test]
 fn check_candid_interface_compatibility() {
     use candid_parser::utils::{service_equal, CandidSource};
@@ -667,6 +677,7 @@ fn check_candid_interface_compatibility() {
         }
     }
 
+    candid::export_service!();
     let new_interface = __export_service();
 
     // check the public interface against the actual one
@@ -679,14 +690,4 @@ fn check_candid_interface_compatibility() {
         "declared candid interface in taggr.did file",
         candid_parser::utils::CandidSource::File(old_interface.as_path()),
     );
-}
-
-#[update]
-fn backup() {
-    mutate(|state| {
-        if !state.backup_exists {
-            env::memory::heap_to_stable(state);
-            state.backup_exists = true;
-        }
-    })
 }
