@@ -1809,6 +1809,14 @@ impl State {
                     "random rewards",
                 );
                 state.minting_mode = false;
+                state
+                    .principal_to_user_mut(winner_principal)
+                    .expect("no user found")
+                    .notify(format!(
+                        "Congratulations! You received `{}` ${} as a weekly random reward! 🎲",
+                        CONFIG.random_reward_amount / base(),
+                        CONFIG.token_symbol,
+                    ));
             });
         };
     }
