@@ -206,7 +206,10 @@ fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
     }
     if args.fee.is_none() {
         args.fee = Some(icrc1_fee())
-    } else if args.fee != Some(icrc1_fee()) {
+    }
+    // We reject only smaller fees than expected, to stay backwards compatible in cases where we
+    // reduce the fees.
+    else if args.fee < Some(icrc1_fee()) {
         return Err(TransferError::BadFee(BadFee {
             expected_fee: icrc1_fee(),
         }));
@@ -346,10 +349,10 @@ pub fn transfer(
                 message: "minting invariant violation".into(),
             }));
         }
-    } else if fee.is_none() {
-        return Err(TransferError::GenericError(GenericError {
-            error_code: 3,
-            message: "only minting transactions are allowed without a fee".into(),
+    }
+    if fee.is_none() {
+        return Err(TransferError::BadFee(BadFee {
+            expected_fee: icrc1_fee(),
         }));
     }
 
@@ -501,7 +504,7 @@ pub fn mint(state: &mut State, account: Account, tokens: Token, memo: &str) {
             from_subaccount: None,
             to: account,
             amount: tokens as u128,
-            fee: None,
+            fee: Some(0),
             memo: Some(memo.as_bytes().to_vec()),
             created_at_time: Some(now),
         },
