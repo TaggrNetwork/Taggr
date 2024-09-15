@@ -79,15 +79,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    // Move all transactions from the heap into the stable memory and reload the state
-    mutate(|state| {
-        for (id, tx) in state.ledger.iter().enumerate() {
-            state.memory.ledger.insert(id as u32, tx.clone()).unwrap();
-        }
-        state.init();
-    });
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
