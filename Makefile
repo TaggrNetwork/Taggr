@@ -21,7 +21,7 @@ local_reinstall:
 build:
 	NODE_ENV=production make fe
 	./build.sh bucket
-	dfx build
+	./build.sh taggr
 
 test:
 	make e2e_build

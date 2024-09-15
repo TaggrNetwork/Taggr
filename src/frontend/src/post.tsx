@@ -276,6 +276,7 @@ export const PostView = ({
                             id={post.user}
                             name={post.meta.author_name}
                             profile={true}
+                            pfpSize={isComment ? undefined : 32}
                         />
                         <span className="right_half_spaced">&middot;</span>
                         <div className="no_wrap vcentered">

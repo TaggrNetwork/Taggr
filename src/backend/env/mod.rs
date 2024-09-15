@@ -227,11 +227,6 @@ pub struct State {
 
     pub distribution_reports: Vec<Summary>,
 
-    // TODO: delete
-    #[allow(dead_code)]
-    #[serde(skip)]
-    migrations: BTreeSet<UserId>,
-
     pub tag_indexes: HashMap<String, TagIndex>,
 
     // Indicates whether the end of the stable memory contains a valid heap snapshot.
@@ -1634,7 +1629,10 @@ impl State {
     }
 
     pub async fn hourly_chores(now: u64) {
-        mutate(|state| state.conclude_polls(now));
+        mutate(|state| {
+            state.backup_exists = false;
+            state.conclude_polls(now);
+        });
 
         State::fetch_xdr_rate().await;
 

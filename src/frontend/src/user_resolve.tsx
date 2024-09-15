@@ -52,11 +52,13 @@ export const UserLink = ({
     name,
     classNameArg,
     profile,
+    pfpSize = 20,
 }: {
     id: UserId;
     name?: string;
     classNameArg?: string;
     profile?: boolean;
+    pfpSize?: number;
 }) => {
     const [loading, setLoading] = React.useState(false);
     const [userName, setUserName] = React.useState<string | null>(null);
@@ -79,7 +81,12 @@ export const UserLink = ({
 
     return userName ? (
         <span className={`${classNameArg} user_link no_wrap`}>
-            <img className="right_half_spaced" src={pfpUrl(id)} />
+            <img
+                className="pfp"
+                src={pfpUrl(id)}
+                height={pfpSize}
+                width={pfpSize}
+            />
             <a href={`#/${profile ? "user" : "journal"}/${id}`}>{userName}</a>
         </span>
     ) : (

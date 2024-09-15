@@ -88,24 +88,26 @@ fn sync_post_upgrade_fixtures() {
             state.set_pfp(*user_id, Default::default()).unwrap();
         }
 
-        // Update all TXs with id and parent hash in order to implement ICRC3
-        let mut parent_hash: [u8; 32] = Default::default();
-        for (id, tx) in state.ledger.iter_mut().enumerate() {
-            tx.id = id as u32;
-            tx.parent_hash = parent_hash.clone();
-            let icrc3_block: BlockWithId = tx.clone().into();
-            parent_hash = icrc3_block.block.hash();
-        }
+        if state.memory.ledger.len() == 0 {
+            // Update all TXs with id and parent hash in order to implement ICRC3
+            let mut parent_hash: [u8; 32] = Default::default();
+            for (id, tx) in state.ledger.iter_mut().enumerate() {
+                tx.id = id as u32;
+                tx.parent_hash = parent_hash.clone();
+                let icrc3_block: BlockWithId = tx.clone().into();
+                parent_hash = icrc3_block.block.hash();
+            }
 
-        // Move all txs to stable memory
-        for tx in state.ledger.iter() {
-            state
-                .memory
-                .ledger
-                .insert(tx.id as u32, tx.clone())
-                .unwrap();
+            // Move all txs to stable memory
+            for tx in state.ledger.iter() {
+                state
+                    .memory
+                    .ledger
+                    .insert(tx.id as u32, tx.clone())
+                    .unwrap();
+            }
+            state.init();
         }
-        state.init();
     });
 }
 
@@ -685,7 +687,7 @@ fn check_candid_interface_compatibility() {
         std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("taggr.did");
 
     check_service_equal(
-        "actual ledger candid interface",
+        "actual candid interface",
         candid_parser::utils::CandidSource::Text(&new_interface),
         "declared candid interface in taggr.did file",
         candid_parser::utils::CandidSource::File(old_interface.as_path()),

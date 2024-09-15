@@ -342,13 +342,11 @@ pub fn transfer(
         ..
     } = args;
 
-    if owner == icrc1_minting_account().expect("no minting account").owner {
-        if !state.minting_mode {
-            return Err(TransferError::GenericError(GenericError {
-                error_code: 5,
-                message: "minting invariant violation".into(),
-            }));
-        }
+    if owner == icrc1_minting_account().expect("no minting account").owner && !state.minting_mode {
+        return Err(TransferError::GenericError(GenericError {
+            error_code: 5,
+            message: "minting invariant violation".into(),
+        }));
     }
     if fee.is_none() {
         return Err(TransferError::BadFee(BadFee {

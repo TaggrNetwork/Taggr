@@ -18,7 +18,6 @@
     "networks": {
         "staging": {
             "config": {
-                "FETCH_ROOT_KEY": true,
                 "API_HOST": "https://icp-api.io",
                 "STATIC_HOST": "https://icp0.io"
             },

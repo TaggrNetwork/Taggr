@@ -369,7 +369,7 @@ impl User {
             IteratorMerger::new(MergeStrategy::Or, iterators.into_iter().collect()).filter(
                 move |post| {
                     self.followees.contains(&post.user)
-                        || !post.matches_filters(&self.filters)
+                        || self.should_see(state, post)
                             && post
                                 .realm
                                 .as_ref()

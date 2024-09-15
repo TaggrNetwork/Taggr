@@ -201,19 +201,16 @@ ul.comments {
 
 .comments .post_head .user_link {
     margin-left: 0;
+    background: $frame;
+    border-radius: 10px;
+    border-radius: 10px;
+    padding: 0.5em;
 }
 
-.user_link img {
+img.pfp {
     border-radius: 3px;
     vertical-align: middle;
-    height: 32px;
-    width: 32px;
-}
-
-.comments .post_head .user_link {
-    background: $frame;
-    padding: 0.5em;
-    border-radius: 10px;
+    margin-right: 0.25em;
 }
 
 .comment .post_head,
@@ -640,7 +637,7 @@ p > img {
     border-radius: 10px;
 }
 
-.comment img {
+.comment article img {
     max-width: 70%;
     border-radius: 10px;
     margin: 1em;

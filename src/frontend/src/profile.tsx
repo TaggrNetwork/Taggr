@@ -84,7 +84,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                 title={
                     <span className="row_container vcentered">
                         <img
-                            className="right_half_spaced"
+                            className="pfp"
                             height="48"
                             width="48"
                             src={pfpUrl(profile.id)}

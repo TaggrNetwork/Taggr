@@ -469,8 +469,6 @@ fn personal_feed() {
             None => Default::default(),
             Some(user) => user
                 .personal_feed(state, offset)
-                // TODO: pull it inside
-                .filter(|post| personal_filter(state, Some(user), post))
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
                 .map(|post| post.with_meta(state))
