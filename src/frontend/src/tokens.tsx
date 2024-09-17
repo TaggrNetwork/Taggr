@@ -104,11 +104,11 @@ export const Tokens = () => {
                         HELD BY USERS<code>{token(heldByUsers)}</code>
                     </div>
                     <div className="db_cell">
-                        WEEKLY REVENUE / 10K
+                        WEEKLY REVENUE / 1K
                         <code>
                             $
                             {(
-                                ((Number(e8s_revenue_per_1k) * 10) /
+                                (Number(e8s_revenue_per_1k) /
                                     Number(e8s_for_one_xdr)) *
                                 USD_PER_XDR
                             ).toLocaleString()}
