@@ -27,7 +27,7 @@ use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::convert::TryFrom;
 use token::base;
-use user::{User, UserId};
+use user::{Pfp, User, UserId};
 
 pub mod auction;
 pub mod canisters;
@@ -35,6 +35,7 @@ pub mod config;
 pub mod features;
 pub mod invoices;
 pub mod memory;
+pub mod pfp;
 pub mod post;
 pub mod post_iterators;
 pub mod proposals;
@@ -193,6 +194,9 @@ pub struct State {
 
     pub memory: memory::Memory,
 
+    #[serde(default)]
+    pub pfps: HashSet<String>,
+
     // This runtime flag has to be set in order to mint new tokens.
     #[serde(skip)]
     pub minting_mode: bool,
@@ -222,11 +226,6 @@ pub struct State {
     last_revenues: VecDeque<u64>,
 
     pub distribution_reports: Vec<Summary>,
-
-    // TODO: delete
-    #[allow(dead_code)]
-    #[serde(skip)]
-    migrations: BTreeSet<UserId>,
 
     pub tag_indexes: HashMap<String, TagIndex>,
 
@@ -390,7 +389,7 @@ impl State {
             .and_then(|s| s.module_hash.map(hex::encode))
             .unwrap_or_default();
         mutate(|state| {
-            state.module_hash = current_hash.clone();
+            state.module_hash.clone_from(&current_hash);
             state.logger.debug(format!(
                 "Upgrade succeeded: new version is `{}`.",
                 &current_hash[0..8]
@@ -809,7 +808,7 @@ impl State {
         self.realms.insert(name.clone(), realm);
 
         self.logger.info(format!(
-            "@{} created realm [{1}](/#/realm/{1}) 🎭",
+            "@{} created realm [{1}](/#/realm/{1}) 🏰",
             user_name, name
         ));
 
@@ -825,6 +824,8 @@ impl State {
         let tipper = self.principal_to_user(principal).ok_or("no user found")?;
         let tipper_id = tipper.id;
         let tipper_name = tipper.name.clone();
+        // DoS protection
+        self.charge(tipper_id, CONFIG.tipping_cost, "tipping".to_string())?; // DoS protection
         let author_id = Post::get(self, &post_id).ok_or("post not found")?.user;
         let author = self.users.get(&author_id).ok_or("no user found")?;
         token::transfer(
@@ -882,6 +883,8 @@ impl State {
         }
         self.principals.insert(principal, user.id);
         self.users.insert(user.id, user);
+        self.set_pfp(id, Default::default())
+            .expect("couldn't set default pfp");
         Ok(id)
     }
 
@@ -962,6 +965,27 @@ impl State {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default()
+    }
+
+    /// Assigns a new Avataggr to the user.
+    pub fn set_pfp(&mut self, user_id: UserId, pfp: Pfp) -> Result<(), String> {
+        let bytes = pfp::pfp(
+            user_id,
+            pfp.nonce,
+            pfp.palette_nonce,
+            pfp.colors,
+            /* scale = */ 4,
+        );
+        let mut hasher = Sha256::new();
+        hasher.update(bytes.as_slice());
+        let hash = format!("{:x}", hasher.finalize())[..32].to_string();
+        // We ignore collisions on genesis (i.e. randomized) avatars.
+        if !pfp.genesis && self.pfps.contains(&hash) {
+            return Err("avataggr is not unique".into());
+        }
+        self.users.get_mut(&user_id).ok_or("no user found")?.pfp = pfp;
+        self.pfps.insert(hash);
+        Ok(())
     }
 
     pub fn create_invite(&mut self, principal: Principal, credits: Credits) -> Result<(), String> {
@@ -1607,7 +1631,10 @@ impl State {
     }
 
     pub async fn hourly_chores(now: u64) {
-        mutate(|state| state.conclude_polls(now));
+        mutate(|state| {
+            state.backup_exists = false;
+            state.conclude_polls(now);
+        });
 
         State::fetch_xdr_rate().await;
 
@@ -1730,6 +1757,7 @@ impl State {
 
     // Rewards a random user with a fixed amount of minted tokens.
     // Users have a winning chance proportional to their weekly credits spending.
+    #[allow(dead_code)]
     async fn random_reward() {
         if let Ok((randomness,)) = raw_rand().await {
             use std::convert::TryInto;
@@ -1781,6 +1809,14 @@ impl State {
                     "random rewards",
                 );
                 state.minting_mode = false;
+                state
+                    .principal_to_user_mut(winner_principal)
+                    .expect("no user found")
+                    .notify(format!(
+                        "Congratulations! You received `{}` ${} as a weekly random reward! 🎲",
+                        CONFIG.random_reward_amount / base(),
+                        CONFIG.token_symbol,
+                    ));
             });
         };
     }
@@ -2996,6 +3032,7 @@ pub(crate) mod tests {
         name: &str,
         credits: Credits,
     ) -> UserId {
+        state.memory.init_test_api();
         state
             .new_user(p, 0, name.to_string(), Some(credits))
             .unwrap()
@@ -3016,8 +3053,6 @@ pub(crate) mod tests {
     #[test]
     fn test_active_voting_power() {
         mutate(|state| {
-            state.memory.init_test_api();
-
             for i in 0..3 {
                 create_user(state, pr(i));
                 insert_balance(state, pr(i), (((i + 1) as u64) << 2) * 10000);
@@ -3113,7 +3148,7 @@ pub(crate) mod tests {
                 vec![1, 0].into_iter().collect::<BTreeSet<_>>()
             );
             // No posts for this tag
-            assert!(state.tag_indexes.get("coffee").is_none());
+            assert!(!state.tag_indexes.contains_key("coffee"));
         });
 
         Post::edit(
@@ -3193,7 +3228,8 @@ pub(crate) mod tests {
             Default::default(),
             false,
             Mode::Mining,
-            false
+            false,
+            Default::default(),
         )
         .is_err());
 
@@ -3206,7 +3242,8 @@ pub(crate) mod tests {
             Default::default(),
             false,
             Mode::Mining,
-            false
+            false,
+            Default::default(),
         )
         .is_ok());
 
@@ -3262,7 +3299,6 @@ pub(crate) mod tests {
     #[test]
     fn test_revenue_collection() {
         mutate(|state| {
-            state.memory.init_test_api();
             let now = WEEK * CONFIG.voting_power_activity_weeks;
 
             for (i, (balance, total_rewards, last_activity)) in vec![
@@ -3299,8 +3335,6 @@ pub(crate) mod tests {
     #[test]
     fn test_minting() {
         mutate(|state| {
-            state.memory.init_test_api();
-
             let insert_rewards = |state: &mut State, id: UserId| {
                 state.users.get_mut(&id).unwrap().rewards = (id * 1000) as i64;
             };
@@ -3325,7 +3359,7 @@ pub(crate) mod tests {
             state.e8s_for_one_xdr = 14410000;
 
             for i in 0..4 {
-                assert!(state.balances.get(&account(pr(i))).is_none());
+                assert!(!state.balances.contains_key(&account(pr(i))));
             }
 
             state.minting_mode = true;
@@ -3334,8 +3368,8 @@ pub(crate) mod tests {
             // User 0 (no rewards) and User 3 (miner) were excluded
             assert_eq!(state.balances.len(), 3);
 
-            assert!(state.balances.get(&account(pr(0))).is_none());
-            assert!(state.balances.get(&account(pr(3))).is_none());
+            assert!(!state.balances.contains_key(&account(pr(0))));
+            assert!(!state.balances.contains_key(&account(pr(3))));
 
             // uesr 1 earned 0.47 TAGGR
             assert_eq!(*state.balances.get(&account(pr(1))).unwrap(), 47);
@@ -3349,8 +3383,6 @@ pub(crate) mod tests {
     #[test]
     fn test_poll_conclusion() {
         mutate(|state| {
-            state.memory.init_test_api();
-
             // create users each having 25 + i*10, e.g.
             // user 1: 35, user 2: 45, user 3: 55, etc...
             for i in 1..11 {
@@ -3412,8 +3444,6 @@ pub(crate) mod tests {
     #[test]
     fn test_principal_change() {
         mutate(|state| {
-            state.memory.init_test_api();
-
             for i in 1..3 {
                 let p = pr(i);
                 create_user(state, p);
@@ -3449,7 +3479,7 @@ pub(crate) mod tests {
             assert_eq!(state.principals.len(), 2);
 
             assert_eq!(state.principal_to_user(new_principal).unwrap().id, user_id);
-            assert!(state.balances.get(&account(pr(1))).is_none());
+            assert!(!state.balances.contains_key(&account(pr(1))));
             assert_eq!(*state.balances.get(&account(new_principal)).unwrap(), 11100);
             let user = state.users.get(&user_id).unwrap();
             assert_eq!(user.principal, new_principal);
@@ -4413,8 +4443,6 @@ pub(crate) mod tests {
     #[test]
     fn test_credits_accounting() {
         mutate(|state| {
-            state.memory.init_test_api();
-
             let p0 = pr(0);
             let post_author_id = create_user_with_credits(state, p0, 2000);
             let post_id =
@@ -4623,7 +4651,6 @@ pub(crate) mod tests {
     fn test_stalwarts() {
         mutate(|state| {
             state.init();
-            state.memory.init_test_api();
 
             assert!(state.realms.contains_key(CONFIG.dao_realm));
             assert!(state
@@ -4767,8 +4794,6 @@ pub(crate) mod tests {
     #[test]
     fn test_icp_distribution() {
         mutate(|state| {
-            state.memory.init_test_api();
-
             let now = WEEK * 4;
             // Create 10 users with balances and rewards
             for i in 0..10 {

@@ -195,14 +195,22 @@ ul.comments {
     padding: 0;
 }
 
-.comments .post_head .user_link {
-    margin-left: 0;
+.user_link {
+    display: inline-block;
 }
 
 .comments .post_head .user_link {
+    margin-left: 0;
     background: $frame;
-    padding: 0.5em;
     border-radius: 10px;
+    border-radius: 10px;
+    padding: 0.5em;
+}
+
+img.pfp {
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 0.25em;
 }
 
 .comment .post_head,
@@ -601,6 +609,8 @@ table {
 .centered {
     text-align: center;
     justify-content: center;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .text_centered {
@@ -627,7 +637,7 @@ p > img {
     border-radius: 10px;
 }
 
-.comment img {
+.comment article img {
     max-width: 70%;
     border-radius: 10px;
     margin: 1em;

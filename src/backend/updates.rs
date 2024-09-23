@@ -20,8 +20,10 @@ use ic_cdk::{
 };
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
+use icrc_ledger_types::icrc3::blocks::BlockWithId;
 use serde_bytes::ByteBuf;
 use std::time::Duration;
+use user::Pfp;
 
 #[init]
 fn init() {
@@ -79,7 +81,35 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        // Genearate pfp for all users
+        for user_id in &state.users.keys().cloned().collect::<Vec<_>>() {
+            state.set_pfp(*user_id, Default::default()).unwrap();
+        }
+
+        if state.memory.ledger.len() == 0 {
+            // Update all TXs with id and parent hash in order to implement ICRC3
+            let mut parent_hash: [u8; 32] = Default::default();
+            for (id, tx) in state.ledger.iter_mut().enumerate() {
+                tx.id = id as u32;
+                tx.parent_hash = parent_hash.clone();
+                let icrc3_block: BlockWithId = tx.clone().into();
+                parent_hash = icrc3_block.block.hash();
+            }
+
+            // Move all txs to stable memory
+            for tx in state.ledger.iter() {
+                state
+                    .memory
+                    .ledger
+                    .insert(tx.id as u32, tx.clone())
+                    .unwrap();
+            }
+            state.init();
+        }
+    });
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -199,7 +229,7 @@ fn confirm_principal_change() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (new_name, about, principals, filter, governance, mode, show_posts_in_realms): (
+    let (new_name, about, principals, filter, governance, mode, show_posts_in_realms, pfp): (
         String,
         String,
         Vec<String>,
@@ -207,6 +237,7 @@ fn update_user() {
         bool,
         Mode,
         bool,
+        Pfp,
     ) = parse(&arg_data_raw());
     reply(User::update(
         caller(),
@@ -217,6 +248,7 @@ fn update_user() {
         governance,
         mode,
         show_posts_in_realms,
+        pfp,
     ))
 }
 
@@ -607,6 +639,16 @@ fn caller() -> Principal {
     caller
 }
 
+#[update]
+fn backup() {
+    mutate(|state| {
+        if !state.backup_exists {
+            env::memory::heap_to_stable(state);
+            state.backup_exists = true;
+        }
+    })
+}
+
 #[test]
 fn check_candid_interface_compatibility() {
     use candid_parser::utils::{service_equal, CandidSource};
@@ -637,10 +679,7 @@ fn check_candid_interface_compatibility() {
         }
     }
 
-    use crate::http::{HttpRequest, HttpResponse};
-    use crate::token::{Account, Standard, TransferArgs, TransferError, Value};
     candid::export_service!();
-
     let new_interface = __export_service();
 
     // check the public interface against the actual one
@@ -648,19 +687,9 @@ fn check_candid_interface_compatibility() {
         std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("taggr.did");
 
     check_service_equal(
-        "actual ledger candid interface",
+        "actual candid interface",
         candid_parser::utils::CandidSource::Text(&new_interface),
         "declared candid interface in taggr.did file",
         candid_parser::utils::CandidSource::File(old_interface.as_path()),
     );
-}
-
-#[update]
-fn backup() {
-    mutate(|state| {
-        if !state.backup_exists {
-            env::memory::heap_to_stable(state);
-            state.backup_exists = true;
-        }
-    })
 }

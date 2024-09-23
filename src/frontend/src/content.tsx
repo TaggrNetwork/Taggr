@@ -112,9 +112,8 @@ export const Content = ({
     );
     const words = value.split(" ").length;
     const lines = value.split("\n");
-    const linesNumber = lines.length;
     let className = classNameArg || "";
-    if (primeMode && linesNumber < 10 && !complexPost) {
+    if (primeMode && lines.length < 10 && !complexPost) {
         if (words < 50) className += " x_large_text";
         else if (words < 100) className += " enlarged_text";
     }

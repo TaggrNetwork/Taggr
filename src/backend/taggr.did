@@ -1,13 +1,40 @@
-type Account = record { owner : principal; subaccount : opt vec nat8 };
+type Account = record { owner : principal; subaccount : opt blob };
+type ArchivedBlocks = record {
+  args : vec GetBlocksRequest;
+  callback : func (vec GetBlocksRequest) -> (GetBlocksResult) query;
+};
 type BadFee = record { expected_fee : nat };
+type BlockWithId = record { id : nat; block : ICRC3Value };
 type CreatedInFuture = record { ledger_time : nat64 };
 type GenericError = record { message : text; error_code : nat };
+type GetArchivesArgs = record { from : opt principal };
+type GetBlocksArgs = record { start : nat64; length : nat64 };
+type GetBlocksRequest = record { start : nat; length : nat };
+type GetBlocksResult = record {
+  log_length : nat;
+  blocks : vec BlockWithId;
+  archived_blocks : vec ArchivedBlocks;
+};
 type HttpRequest = record { url : text; headers : vec record { text; text } };
 type HttpResponse = record {
-  body : vec nat8;
+  body : blob;
   headers : vec record { text; text };
   upgrade : opt bool;
   status_code : nat16;
+};
+type ICRC3ArchiveInfo = record {
+  end : nat;
+  canister_id : principal;
+  start : nat;
+};
+type ICRC3DataCertificate = record { certificate : blob; hash_tree : blob };
+type ICRC3Value = variant {
+  Int : int;
+  Map : vec record { text; ICRC3Value };
+  Nat : nat;
+  Blob : blob;
+  Text : text;
+  Array : vec ICRC3Value;
 };
 type InsufficientFunds = record { balance : nat };
 type Result = variant { Ok : nat64; Err : text };
@@ -16,11 +43,12 @@ type Result_2 = variant { Ok : text; Err : text };
 type Result_3 = variant { Ok : nat; Err : TransferError };
 type Result_4 = variant { Ok : nat32; Err : text };
 type Standard = record { url : text; name : text };
+type SupportedBlockType = record { url : text; block_type : text };
 type TransferArgs = record {
   to : Account;
   fee : opt nat;
-  memo : opt vec nat8;
-  from_subaccount : opt vec nat8;
+  memo : opt blob;
+  from_subaccount : opt blob;
   created_at_time : opt nat64;
   amount : nat;
 };
@@ -35,15 +63,16 @@ type Value = variant { Nat : nat; Text : text };
 service : () -> {
   add_post : (
       text,
-      vec record { text; vec nat8 },
+      vec record { text; blob },
       opt nat64,
       opt text,
-      opt vec nat8,
+      opt blob,
     ) -> (Result);
-  add_post_blob : (text, vec nat8) -> (Result_1);
-  add_post_data : (text, opt text, opt vec nat8) -> ();
+  add_post_blob : (text, blob) -> (Result_1);
+  add_post_data : (text, opt text, opt blob) -> ();
+  backup: () -> ();
   commit_post : () -> (Result);
-  edit_post : (nat64, text, vec record { text; vec nat8 }, text, opt text) -> (
+  edit_post : (nat64, text, vec record { text; blob }, text, opt text) -> (
       Result_1,
     );
   force_emergency_upgrade : () -> (bool);
@@ -60,10 +89,14 @@ service : () -> {
   icrc1_symbol : () -> (text) query;
   icrc1_total_supply : () -> (nat) query;
   icrc1_transfer : (TransferArgs) -> (Result_3);
+  icrc3_get_archives : (GetArchivesArgs) -> (vec ICRC3ArchiveInfo) query;
+  icrc3_get_blocks : (vec GetBlocksArgs) -> (GetBlocksResult) query;
+  icrc3_get_tip_certificate : () -> (opt ICRC3DataCertificate) query;
+  icrc3_supported_block_types : () -> (vec SupportedBlockType) query;
   link_cold_wallet : (nat64) -> (Result_1);
   prod_release : () -> (bool);
-  propose_release : (nat64, text, vec nat64, vec nat8) -> (Result_4);
-  set_emergency_release : (vec nat8) -> ();
-  stable_mem_read : (nat64) -> (vec record { nat64; vec nat8 }) query;
+  propose_release : (nat64, text, vec nat64, blob) -> (Result_4);
+  set_emergency_release : (blob) -> ();
+  stable_mem_read : (nat64) -> (vec record { nat64; blob }) query;
   unlink_cold_wallet : () -> (Result_1);
 }

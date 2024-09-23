@@ -90,6 +90,11 @@ impl Memory {
 
     #[cfg(test)]
     pub fn init_test_api(&mut self) {
+        // Skip if memory is initialized
+        if self.posts.initialized {
+            return;
+        }
+
         static mut MEM_END: u64 = 16;
         static mut MEMORY: Option<Vec<u8>> = None;
         unsafe {
@@ -357,7 +362,7 @@ impl<K: Ord + Eq, T: Serialize + DeserializeOwned> Default for ObjectManager<K, 
     }
 }
 
-impl<K: Eq + Ord + Clone + Copy + Display, T: Serialize + DeserializeOwned> ObjectManager<K, T> {
+impl<K: Eq + Ord + Clone + Display, T: Serialize + DeserializeOwned> ObjectManager<K, T> {
     pub fn len(&self) -> usize {
         self.index.len()
     }
@@ -377,14 +382,13 @@ impl<K: Eq + Ord + Clone + Copy + Display, T: Serialize + DeserializeOwned> Obje
             .map(|(offset, len)| self.api.borrow().read(*offset, *len))
     }
 
-    pub fn iter(&self) -> Box<dyn DoubleEndedIterator<Item = (K, T)> + '_> {
+    pub fn iter(&self) -> Box<dyn DoubleEndedIterator<Item = (&'_ K, T)> + '_> {
         Box::new(
             self.index
                 .keys()
-                .cloned()
                 .collect::<Vec<_>>()
                 .into_iter()
-                .map(move |id| (id, self.get(&id).expect("couldn't retrieve value"))),
+                .map(move |id| (id, self.get(id).expect("couldn't retrieve value"))),
         )
     }
 

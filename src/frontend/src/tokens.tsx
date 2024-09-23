@@ -104,11 +104,11 @@ export const Tokens = () => {
                         HELD BY USERS<code>{token(heldByUsers)}</code>
                     </div>
                     <div className="db_cell">
-                        WEEKLY REVENUE / 10K
+                        WEEKLY REVENUE / 1K
                         <code>
                             $
                             {(
-                                ((Number(e8s_revenue_per_1k) * 10) /
+                                (Number(e8s_revenue_per_1k) /
                                     Number(e8s_for_one_xdr)) *
                                 USD_PER_XDR
                             ).toLocaleString()}
@@ -457,6 +457,17 @@ export const TransactionsView = ({
                         shareLink={`transactions/${icrcAccount}`}
                     />
                     <div className="stands_out top_spaced">
+                        {identifiedUser && (
+                            <>
+                                <h3 className="larger_text ">
+                                    <UserLink
+                                        id={identifiedUser.id}
+                                        name={identifiedUser.name}
+                                    />
+                                </h3>
+                                <Content value={identifiedUser.about} />
+                            </>
+                        )}
                         {icrcAccount && (
                             <h2>
                                 BALANCE:{" "}
@@ -471,18 +482,6 @@ export const TransactionsView = ({
                                     />
                                 </code>
                             </h2>
-                        )}
-                        {identifiedUser && (
-                            <>
-                                <h3 className="larger_text ">
-                                    User{" "}
-                                    <UserLink
-                                        id={identifiedUser.id}
-                                        name={identifiedUser.name}
-                                    />
-                                </h3>
-                                <Content value={identifiedUser.about} />
-                            </>
                         )}
                     </div>
                 </>

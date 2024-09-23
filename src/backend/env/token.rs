@@ -1,9 +1,23 @@
 use super::MINUTE;
 use crate::*;
+use assets::{add_value_to_certify, certify, root_hash};
 use base64::{engine::general_purpose, Engine as _};
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk_macros::{query, update};
+use ic_certified_map::leaf_hash;
+use ic_ledger_types::GetBlocksArgs;
+use icrc_ledger_types::{
+    icrc::generic_value::ICRC3Value,
+    icrc3::{
+        archive::{GetArchivesArgs, GetArchivesResult},
+        blocks::{
+            BlockWithId, GetBlocksResult, ICRC3DataCertificate, ICRC3GenericBlock,
+            SupportedBlockType,
+        },
+    },
+};
 use serde::Serialize;
+use serde_bytes::ByteBuf;
 
 type Timestamp = u64;
 
@@ -37,6 +51,10 @@ pub struct Transaction {
     pub amount: Token,
     pub fee: Token,
     pub memo: Option<Memo>,
+    #[serde(default)]
+    pub parent_hash: [u8; 32],
+    #[serde(default)]
+    pub id: u32,
 }
 
 #[cfg_attr(test, derive(PartialEq))]
@@ -165,10 +183,16 @@ fn icrc1_balance_of(mut account: Account) -> u128 {
 
 #[query]
 fn icrc1_supported_standards() -> Vec<Standard> {
-    vec![Standard {
-        name: "ICRC-1".into(),
-        url: "https://github.com/dfinity/ICRC-1".into(),
-    }]
+    vec![
+        Standard {
+            name: "ICRC-1".into(),
+            url: "https://github.com/dfinity/ICRC-1/tree/main/standards/ICRC-1".into(),
+        },
+        Standard {
+            name: "ICRC-3".into(),
+            url: "https://github.com/dfinity/ICRC-1/tree/main/standards/ICRC-3".into(),
+        },
+    ]
 }
 
 #[update]
@@ -182,12 +206,124 @@ fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
     }
     if args.fee.is_none() {
         args.fee = Some(icrc1_fee())
-    } else if args.fee != Some(icrc1_fee()) {
+    }
+    // We reject only smaller fees than expected, to stay backwards compatible in cases where we
+    // reduce the fees.
+    else if args.fee < Some(icrc1_fee()) {
         return Err(TransferError::BadFee(BadFee {
             expected_fee: icrc1_fee(),
         }));
     }
     mutate(|state| transfer(state, time(), owner, args))
+}
+
+#[query]
+fn icrc3_get_blocks(args: Vec<GetBlocksArgs>) -> GetBlocksResult {
+    let mut blocks: Vec<BlockWithId> = Default::default();
+    read(|state| {
+        for arg in args {
+            for i in arg.start..(arg.start + arg.length) {
+                if let Some(tx) = state.memory.ledger.get(&(i as u32)) {
+                    blocks.push(tx.into());
+                }
+            }
+        }
+    });
+    GetBlocksResult {
+        log_length: blocks.len().into(),
+        blocks,
+        archived_blocks: Default::default(),
+    }
+}
+
+#[query]
+fn icrc3_get_archives(_: GetArchivesArgs) -> GetArchivesResult {
+    Default::default()
+}
+
+#[query]
+fn icrc3_supported_block_types() -> Vec<SupportedBlockType> {
+    vec![
+        SupportedBlockType {
+            block_type: "1mint".to_string(),
+            url: "https://github.com/dfinity/ICRC-1/blob/main/standards/ICRC-1/README.md"
+                .to_string(),
+        },
+        SupportedBlockType {
+            block_type: "1burn".to_string(),
+            url: "https://github.com/dfinity/ICRC-1/blob/main/standards/ICRC-1/README.md"
+                .to_string(),
+        },
+        SupportedBlockType {
+            block_type: "1xfer".to_string(),
+            url: "https://github.com/dfinity/ICRC-1/blob/main/standards/ICRC-1/README.md"
+                .to_string(),
+        },
+    ]
+}
+
+#[query]
+fn icrc3_get_tip_certificate() -> Option<ICRC3DataCertificate> {
+    let certificate = ByteBuf::from(ic_cdk::api::data_certificate()?);
+    let hash_tree = root_hash();
+    let tree_buf = serde_cbor::to_vec(&hash_tree).expect("couldn't serialize");
+    Some(ICRC3DataCertificate {
+        certificate,
+        hash_tree: ByteBuf::from(tree_buf),
+    })
+}
+
+impl From<Transaction> for BlockWithId {
+    fn from(val: Transaction) -> Self {
+        let btype = if val.from.owner == Principal::anonymous() {
+            "1mint"
+        } else if val.to.owner == Principal::anonymous() {
+            "1burn"
+        } else {
+            "1xfer"
+        }
+        .to_string();
+
+        let tx_data = vec![
+            ("amt".into(), ICRC3Value::Nat(val.amount.into())),
+            (
+                "from".into(),
+                ICRC3Value::Array(vec![ICRC3Value::Blob(ByteBuf::from(
+                    serde_cbor::to_vec(&val.from).expect("couldn't serialize"),
+                ))]),
+            ),
+            (
+                "to".into(),
+                ICRC3Value::Array(vec![ICRC3Value::Blob(ByteBuf::from(
+                    serde_cbor::to_vec(&val.to).expect("couldn't serialize"),
+                ))]),
+            ),
+        ];
+
+        let mut data = vec![
+            ("btype".into(), ICRC3Value::Text(btype)),
+            ("ts".into(), ICRC3Value::Nat(val.timestamp.into())),
+            ("tx".into(), ICRC3Value::Map(tx_data.into_iter().collect())),
+            ("fee".into(), ICRC3Value::Nat(val.fee.into())),
+        ];
+
+        if let Some(memo) = val.memo {
+            data.push(("memo".into(), ICRC3Value::Blob(ByteBuf::from(memo))));
+        }
+
+        // If non-genesis block, push the hash to parent
+        if val.id > 0 {
+            data.push((
+                "phash".into(),
+                ICRC3Value::Blob(ByteBuf::from(val.parent_hash)),
+            ));
+        }
+
+        BlockWithId {
+            id: val.id.into(),
+            block: ICRC3GenericBlock::Map(data.into_iter().collect()),
+        }
+    }
 }
 
 pub fn transfer(
@@ -206,17 +342,15 @@ pub fn transfer(
         ..
     } = args;
 
-    if owner == icrc1_minting_account().expect("no minting account").owner {
-        if !state.minting_mode {
-            return Err(TransferError::GenericError(GenericError {
-                error_code: 5,
-                message: "minting invariant violation".into(),
-            }));
-        }
-    } else if fee.is_none() {
+    if owner == icrc1_minting_account().expect("no minting account").owner && !state.minting_mode {
         return Err(TransferError::GenericError(GenericError {
-            error_code: 3,
-            message: "only minting transactions are allowed without a fee".into(),
+            error_code: 5,
+            message: "minting invariant violation".into(),
+        }));
+    }
+    if fee.is_none() {
+        return Err(TransferError::BadFee(BadFee {
+            expected_fee: icrc1_fee(),
         }));
     }
 
@@ -296,21 +430,40 @@ pub fn transfer(
     }
 
     let id = state.memory.ledger.len() as u32;
+
+    let mut parent_hash: [u8; 32] = Default::default();
+    if id > 0 {
+        let parent_tx: BlockWithId = state
+            .memory
+            .ledger
+            .get(&id.saturating_sub(1))
+            .expect("no transaction found")
+            .into();
+        parent_hash.copy_from_slice(parent_tx.block.hash().as_slice());
+    }
+
+    let tx = Transaction {
+        timestamp: now,
+        from,
+        to,
+        amount: amount as Token,
+        fee: effective_fee,
+        memo,
+        id,
+        parent_hash,
+    };
+    let icrc3_block: BlockWithId = tx.clone().into();
+
+    add_value_to_certify("last_block_index", leaf_hash(&id.to_be_bytes()));
+    add_value_to_certify("last_block_hash", leaf_hash(&icrc3_block.block.hash()));
+    certify();
+
     state
         .memory
         .ledger
-        .insert(
-            id,
-            Transaction {
-                timestamp: now,
-                from,
-                to,
-                amount: amount as Token,
-                fee: effective_fee,
-                memo,
-            },
-        )
+        .insert(id, tx)
         .expect("couldn't insert a new transaction");
+    state.token_fees_burned += effective_fee;
     Ok(id as u128)
 }
 
@@ -349,7 +502,7 @@ pub fn mint(state: &mut State, account: Account, tokens: Token, memo: &str) {
             from_subaccount: None,
             to: account,
             amount: tokens as u128,
-            fee: None,
+            fee: Some(0),
             memo: Some(memo.as_bytes().to_vec()),
             created_at_time: Some(now),
         },
@@ -408,7 +561,6 @@ mod tests {
     #[test]
     fn test_transfers() {
         let mut state = State::default();
-        state.memory.init_test_api();
         env::tests::create_user(&mut state, pr(0));
 
         let memo = vec![0; 33];

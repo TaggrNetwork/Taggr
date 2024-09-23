@@ -21,13 +21,13 @@ pub struct Feature {
 }
 
 /// Returns a list of all feature ids and current collective voting power of all supporters.
-pub fn features(
-    state: &State,
-    ids: Vec<PostId>,
-) -> Box<dyn DoubleEndedIterator<Item = (PostId, Token, Feature)> + '_> {
-    let count_support = move |(post_id, feature): (PostId, Feature)| {
+pub fn features<'a>(
+    state: &'a State,
+    ids: &'a [PostId],
+) -> Box<dyn DoubleEndedIterator<Item = (PostId, Token, Feature)> + 'a> {
+    let count_support = move |(post_id, feature): (&PostId, Feature)| {
         (
-            post_id,
+            *post_id,
             feature
                 .supporters
                 .iter()
@@ -44,8 +44,8 @@ pub fn features(
     };
     if !ids.is_empty() {
         return Box::new(
-            ids.into_iter()
-                .filter_map(move |id| state.memory.features.get(&id).map(|feature| (id, feature)))
+            ids.iter()
+                .filter_map(move |id| state.memory.features.get(id).map(|feature| (id, feature)))
                 .map(count_support),
         );
     }

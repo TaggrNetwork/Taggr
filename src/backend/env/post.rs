@@ -761,8 +761,6 @@ pub fn archive_cold_posts(state: &mut State, max_posts_in_heap: usize) -> Result
         })
         .expect("couldn't archive post");
 
-    state.backup_exists = false;
-
     state.logger.debug(format!(
         "`{}` posts archived (posts still in heap: `{}`)",
         archived_posts,
@@ -782,7 +780,7 @@ pub fn change_realm(state: &mut State, root_post_id: PostId, new_realm: Option<S
         };
         post_ids.extend_from_slice(&children);
         let root = Post::mutate(state, &post_id, |post| {
-            post.realm = new_realm.clone();
+            post.realm.clone_from(&new_realm);
             Ok(post.parent.is_none())
         })
         .expect("couldn't mutate post");
@@ -941,8 +939,6 @@ mod tests {
     #[test]
     fn test_post_archiving() {
         mutate(|state| {
-            state.memory.init_test_api();
-
             for i in 0..10 {
                 create_user(state, pr(i));
                 let id = Post::create(

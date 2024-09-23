@@ -167,12 +167,14 @@ export const ApiGenerator = (
                 console.error(`Call error: ${response.statusText}`);
                 return null;
             }
-            return await polling.pollForResponse(
-                agent,
-                canisterId,
-                requestId,
-                polling.defaultStrategy(),
-            );
+            return (
+                await polling.pollForResponse(
+                    agent,
+                    canisterId,
+                    requestId,
+                    polling.defaultStrategy(),
+                )
+            ).reply;
         } catch (error) {
             console.error(error);
             return null;

@@ -88,10 +88,11 @@ pub struct Config {
     pub blob_cost: Credits,
     pub poll_cost: Credits,
     pub realm_cost: Credits,
+    pub tipping_cost: Credits,
 
     pub poll_revote_deadline_hours: u64,
 
-    pub name_change_cost: Credits,
+    pub identity_change_cost: Credits,
 
     pub max_realm_name: usize,
     pub max_realm_logo_len: usize,
@@ -263,10 +264,11 @@ pub const CONFIG: &Config = &Config {
     blob_cost: 20,
     poll_cost: 3,
     realm_cost: 1000,
+    tipping_cost: 5,
 
     poll_revote_deadline_hours: 4,
 
-    name_change_cost: 1000,
+    identity_change_cost: 1000,
 
     max_realm_name: 25,
     max_realm_logo_len: 16 * 1024,

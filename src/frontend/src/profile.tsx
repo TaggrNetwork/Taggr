@@ -16,6 +16,7 @@ import {
     RealmList,
     noiseControlBanner,
     setTitle,
+    pfpUrl,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -80,7 +81,17 @@ export const Profile = ({ handle }: { handle: string }) => {
     return (
         <>
             <HeadBar
-                title={profile.name}
+                title={
+                    <span className="row_container vcentered">
+                        <img
+                            className="pfp"
+                            height="48"
+                            width="48"
+                            src={pfpUrl(profile.id)}
+                        />
+                        {profile.name}
+                    </span>
+                }
                 button1={
                     <button
                         title={`${profile.name}'s journal`}

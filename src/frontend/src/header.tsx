@@ -199,14 +199,12 @@ const UserSection = ({ user }: { user: UserType }) => {
         <div className="bottom_spaced stands_out">
             <div className="column_container centered">
                 {user && (
-                    <span className="xx_large_text bottom_spaced">
-                        <User classNameArg="right_half_spaced" />{" "}
-                        <UserLink
-                            profile={true}
-                            id={user.id}
-                            name={user.name}
-                        />
-                    </span>
+                    <UserLink
+                        classNameArg="centered xx_large_text bottom_spaced top_spaced"
+                        profile={true}
+                        id={user.id}
+                        name={user.name}
+                    />
                 )}
 
                 <div className="row_container icon_bar top_half_spaced">
