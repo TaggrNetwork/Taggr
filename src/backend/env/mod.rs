@@ -824,6 +824,8 @@ impl State {
         let tipper = self.principal_to_user(principal).ok_or("no user found")?;
         let tipper_id = tipper.id;
         let tipper_name = tipper.name.clone();
+        // DoS protection
+        self.charge(tipper_id, CONFIG.tipping_cost, "tipping".to_string())?; // DoS protection
         let author_id = Post::get(self, &post_id).ok_or("post not found")?.user;
         let author = self.users.get(&author_id).ok_or("no user found")?;
         token::transfer(

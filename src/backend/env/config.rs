@@ -88,6 +88,7 @@ pub struct Config {
     pub blob_cost: Credits,
     pub poll_cost: Credits,
     pub realm_cost: Credits,
+    pub tipping_cost: Credits,
 
     pub poll_revote_deadline_hours: u64,
 
@@ -263,6 +264,7 @@ pub const CONFIG: &Config = &Config {
     blob_cost: 20,
     poll_cost: 3,
     realm_cost: 1000,
+    tipping_cost: 5,
 
     poll_revote_deadline_hours: 4,
 
