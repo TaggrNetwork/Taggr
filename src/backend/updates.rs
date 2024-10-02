@@ -7,6 +7,7 @@ use super::*;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
+    invite::Invite,
     post::{Extension, Post, PostId},
     user::{Draft, User, UserId},
     State,
@@ -82,48 +83,17 @@ fn post_upgrade() {
 
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
-    // Restore consistency of user's controlled_realms hashset.
+    // Move all invites to new structure
     mutate(|state| {
-        let controllers = state
-            .realms
-            .iter()
-            .map(|(id, realm)| (id, realm.controllers.clone()))
-            .collect::<Vec<_>>();
-
-        for (realm_id, controllers) in controllers {
-            for user_id in controllers {
-                state
-                    .users
-                    .get_mut(&user_id)
-                    .unwrap()
-                    .controlled_realms
-                    .insert(realm_id.clone());
+        for (invite_code, (user_id, credits)) in state.invites.iter() {
+            if !state.invite_codes.contains_key(invite_code) {
+                state.invite_codes.insert(
+                    invite_code.clone(),
+                    Invite::new(credits.clone(), credits.clone(), None, user_id.clone()),
+                );
             }
         }
     });
-
-    // Send all tokens sent to the main canister back.
-    mutate(|state| {
-        let mut txs = Vec::new();
-        for (_, tx) in state.memory.ledger.iter() {
-            // If the onwer == canister id, we have a transfer to the canister.
-            if tx.to.owner == id() {
-                txs.push(tx.clone());
-            }
-        }
-
-        for tx in txs {
-            let args = TransferArgs {
-                from_subaccount: None,
-                to: tx.from,
-                amount: tx.amount as u128 - icrc1_fee(),
-                fee: Some(icrc1_fee()),
-                memo: None,
-                created_at_time: None,
-            };
-            token::transfer(state, time(), id(), args).unwrap();
-        }
-    })
 }
 
 #[allow(clippy::all)]
@@ -298,6 +268,9 @@ fn transfer_credits() {
     let (recipient, amount): (UserId, Credits) = parse(&arg_data_raw());
     reply(mutate(|state| {
         let sender = state.principal_to_user(caller()).expect("no user found");
+
+        sender.validate_send_credits(state)?;
+
         let recipient_name = &state.users.get(&recipient).expect("no user found").name;
         state.credit_transfer(
             sender.id,
@@ -332,8 +305,18 @@ fn mint_credits() {
 
 #[export_name = "canister_update create_invite"]
 fn create_invite() {
-    let credits: Credits = parse(&arg_data_raw());
-    mutate(|state| reply(state.create_invite(caller(), credits)));
+    let (credits, credits_per_user, realm_id): (Credits, Option<Credits>, Option<RealmId>) =
+        parse(&arg_data_raw());
+    mutate(|state| reply(state.create_invite(caller(), credits, credits_per_user, realm_id)));
+}
+
+#[export_name = "canister_update update_invite"]
+fn update_invite() {
+    let (invite_code, credits, realm_id): (String, Option<Credits>, Option<RealmId>) =
+        parse(&arg_data_raw());
+    let user_id = read(|state| state.principal_to_user(caller()).expect("no user found").id);
+
+    mutate(|state| reply(state.update_invite(user_id, invite_code, credits, realm_id)));
 }
 
 #[export_name = "canister_update delay_weekly_chores"]
