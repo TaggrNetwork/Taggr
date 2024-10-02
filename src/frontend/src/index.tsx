@@ -120,7 +120,10 @@ const App = () => {
         ) : (
             <WelcomeInvited />
         );
-    } else if (handler == "wallet" || (window.principalId && !window.user)) {
+    } else if (
+        (handler == "wallet" || (window.principalId && !window.user)) &&
+        !window.realm
+    ) {
         content = <Welcome />;
     } else if (handler == "post") {
         const id = parseInt(param);
