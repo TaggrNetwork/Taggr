@@ -7,6 +7,7 @@ use super::*;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
+    invite::Invite,
     post::{Extension, Post, PostId},
     user::{Draft, User, UserId},
     State,
@@ -82,31 +83,15 @@ fn post_upgrade() {
 
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
+    // Move all invites to new structure
     mutate(|state| {
-        // Genearate pfp for all users
-        for user_id in &state.users.keys().cloned().collect::<Vec<_>>() {
-            state.set_pfp(*user_id, Default::default()).unwrap();
-        }
-
-        if state.memory.ledger.len() == 0 {
-            // Update all TXs with id and parent hash in order to implement ICRC3
-            let mut parent_hash: [u8; 32] = Default::default();
-            for (id, tx) in state.ledger.iter_mut().enumerate() {
-                tx.id = id as u32;
-                tx.parent_hash = parent_hash.clone();
-                let icrc3_block: BlockWithId = tx.clone().into();
-                parent_hash = icrc3_block.block.hash();
+        for (invite_code, (user_id, credits)) in state.invites.iter() {
+            if !state.invite_codes.contains_key(invite_code) {
+                state.invite_codes.insert(
+                    invite_code.clone(),
+                    Invite::new(credits.clone(), credits.clone(), None, user_id.clone()),
+                );
             }
-
-            // Move all txs to stable memory
-            for tx in state.ledger.iter() {
-                state
-                    .memory
-                    .ledger
-                    .insert(tx.id as u32, tx.clone())
-                    .unwrap();
-            }
-            state.init();
         }
     });
 }
@@ -283,6 +268,9 @@ fn transfer_credits() {
     let (recipient, amount): (UserId, Credits) = parse(&arg_data_raw());
     reply(mutate(|state| {
         let sender = state.principal_to_user(caller()).expect("no user found");
+
+        sender.validate_send_credits(state)?;
+
         let recipient_name = &state.users.get(&recipient).expect("no user found").name;
         state.credit_transfer(
             sender.id,
@@ -317,8 +305,18 @@ fn mint_credits() {
 
 #[export_name = "canister_update create_invite"]
 fn create_invite() {
-    let credits: Credits = parse(&arg_data_raw());
-    mutate(|state| reply(state.create_invite(caller(), credits)));
+    let (credits, credits_per_user, realm_id): (Credits, Option<Credits>, Option<RealmId>) =
+        parse(&arg_data_raw());
+    mutate(|state| reply(state.create_invite(caller(), credits, credits_per_user, realm_id)));
+}
+
+#[export_name = "canister_update update_invite"]
+fn update_invite() {
+    let (invite_code, credits, realm_id): (String, Option<Credits>, Option<RealmId>) =
+        parse(&arg_data_raw());
+    let user_id = read(|state| state.principal_to_user(caller()).expect("no user found").id);
+
+    mutate(|state| reply(state.update_invite(user_id, invite_code, credits, realm_id)));
 }
 
 #[export_name = "canister_update delay_weekly_chores"]
