@@ -197,6 +197,7 @@ fn icrc1_supported_standards() -> Vec<Standard> {
 
 #[update]
 fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
+    panic!("transfers disabled");
     let owner = caller();
     if owner == Principal::anonymous() {
         return Err(TransferError::GenericError(GenericError {
