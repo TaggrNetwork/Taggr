@@ -644,6 +644,7 @@ fn backup() {
     mutate(|state| {
         if !state.backup_exists {
             env::memory::heap_to_stable(state);
+            state.memory.init();
             state.backup_exists = true;
         }
     })
