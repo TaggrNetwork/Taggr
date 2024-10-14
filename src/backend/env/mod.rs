@@ -174,7 +174,7 @@ pub struct State {
     pub invites: BTreeMap<String, (UserId, Credits)>,
     pub realms: BTreeMap<RealmId, Realm>,
 
-    #[serde(skip)]
+    #[serde(default)]
     pub balances: HashMap<Account, Token>,
 
     #[serde(skip)]
