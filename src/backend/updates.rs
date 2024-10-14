@@ -3,7 +3,7 @@ use crate::{
         proposals::{Payload, Release},
         user::{Mode, UserFilter},
     },
-    token::Token,
+    token::{account, Token},
 };
 
 use super::*;
@@ -103,6 +103,18 @@ fn sync_post_upgrade_fixtures() {
 
         for r in records {
             state.balances.insert(r.0, r.1);
+        }
+
+        let balances = state.balances.clone();
+        for user in state.users.values_mut() {
+            user.balance = balances
+                .get(&account(user.principal))
+                .copied()
+                .unwrap_or_default();
+            user.cold_balance = user
+                .cold_wallet
+                .and_then(|principal| balances.get(&account(principal)).copied())
+                .unwrap_or_default();
         }
 
         state.memory.api.fix();
