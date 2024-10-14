@@ -1,9 +1,13 @@
-use crate::env::{
-    proposals::{Payload, Release},
-    user::{Mode, UserFilter},
+use crate::{
+    env::{
+        proposals::{Payload, Release},
+        user::{Mode, UserFilter},
+    },
+    token::Token,
 };
 
 use super::*;
+use candid_parser::token::Token;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
@@ -83,7 +87,23 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
+        use sha2::{Digest, Sha256};
+
         let balances: &[u8] = include_bytes!("../../balances.json");
+        let mut hasher = Sha256::new();
+        hasher.update(balances);
+        let result = hasher.finalize();
+        assert_eq!(
+            format!("{:x}", result),
+            "7e3752fa3ca60e2af537e5bb81179128c9ef335270bd84fa13d3760f9a619c25"
+        );
+
+        let records: Vec<(Account, u64, Option<UserId>)> =
+            serde_json::from_slice(&balances).unwrap();
+
+        for r in records {
+            state.balances.insert(r.0, r.1);
+        }
     });
 }
 
