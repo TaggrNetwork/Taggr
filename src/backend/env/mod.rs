@@ -1669,7 +1669,7 @@ impl State {
             mutate(|state| {
                 state.timers.weekly_pending = true;
             });
-            State::weekly_chores(now).await;
+            // State::weekly_chores(now).await;
             mutate(|state| {
                 state.timers.last_weekly += WEEK;
                 state.timers.weekly_pending = false;
@@ -1681,7 +1681,7 @@ impl State {
             mutate(|state| {
                 state.timers.daily_pending = true;
             });
-            State::daily_chores(now).await;
+            // State::daily_chores(now).await;
             mutate(|state| {
                 state.timers.last_daily += DAY;
                 state.timers.daily_pending = false;
@@ -1698,7 +1698,7 @@ impl State {
             mutate(|state| {
                 state.timers.hourly_pending = true;
             });
-            State::hourly_chores(now).await;
+            // State::hourly_chores(now).await;
             mutate(|state| {
                 state.timers.last_hourly += HOUR;
                 state.timers.hourly_pending = false;
