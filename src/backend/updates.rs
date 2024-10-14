@@ -7,7 +7,6 @@ use crate::{
 };
 
 use super::*;
-use candid_parser::token::Token;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,

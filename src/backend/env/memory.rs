@@ -35,6 +35,7 @@ const INITIAL_OFFSET: u64 = 16;
 
 impl Api {
     pub fn fix(&mut self) {
+        self.allocator.segments.clear();
         self.allocator.boundary = (self.allocator.mem_size.as_ref().unwrap())();
     }
 
