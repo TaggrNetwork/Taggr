@@ -104,6 +104,8 @@ fn sync_post_upgrade_fixtures() {
         for r in records {
             state.balances.insert(r.0, r.1);
         }
+
+        state.memory.api.fix();
     });
 }
 
