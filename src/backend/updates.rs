@@ -86,7 +86,9 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
+        state.memory.persist_allocator();
         state.memory.api.fix();
+        state.memory.init();
     });
 }
 
