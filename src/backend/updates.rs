@@ -86,36 +86,6 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
-        use sha2::{Digest, Sha256};
-
-        let balances: &[u8] = include_bytes!("../../balances.json");
-        let mut hasher = Sha256::new();
-        hasher.update(balances);
-        let result = hasher.finalize();
-        assert_eq!(
-            format!("{:x}", result),
-            "2fa7ccd028e08133b8287c51d5fe356051a116011f7548b5bab19efb481c5ba4"
-        );
-
-        let records: Vec<(Account, u64, Option<UserId>)> =
-            serde_json::from_slice(&balances).unwrap();
-
-        for r in records {
-            state.balances.insert(r.0, r.1);
-        }
-
-        let balances = state.balances.clone();
-        for user in state.users.values_mut() {
-            user.balance = balances
-                .get(&account(user.principal))
-                .copied()
-                .unwrap_or_default();
-            user.cold_balance = user
-                .cold_wallet
-                .and_then(|principal| balances.get(&account(principal)).copied())
-                .unwrap_or_default();
-        }
-
         state.memory.api.fix();
     });
 }
