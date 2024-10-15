@@ -174,7 +174,7 @@ pub struct State {
     pub invites: BTreeMap<String, (UserId, Credits)>,
     pub realms: BTreeMap<RealmId, Realm>,
 
-    #[serde(skip)]
+    #[serde(default)]
     pub balances: HashMap<Account, Token>,
 
     #[serde(skip)]
@@ -579,25 +579,25 @@ impl State {
 
     pub fn init(&mut self) {
         assets::load();
-        match token::balances_from_ledger(&mut self.memory.ledger.iter().map(|(_, tx)| tx)) {
-            Ok((balances, total_fees)) => {
-                for user in self.users.values_mut() {
-                    user.balance = balances
-                        .get(&account(user.principal))
-                        .copied()
-                        .unwrap_or_default();
-                    user.cold_balance = user
-                        .cold_wallet
-                        .and_then(|principal| balances.get(&account(principal)).copied())
-                        .unwrap_or_default();
-                }
-                self.balances = balances;
-                self.token_fees_burned = total_fees;
-            }
-            Err(err) => self
-                .logger
-                .critical(format!("the token ledger is inconsistent: {}", err)),
-        }
+        // match token::balances_from_ledger(&mut self.memory.ledger.iter().map(|(_, tx)| tx)) {
+        //     Ok((balances, total_fees)) => {
+        //         for user in self.users.values_mut() {
+        //             user.balance = balances
+        //                 .get(&account(user.principal))
+        //                 .copied()
+        //                 .unwrap_or_default();
+        //             user.cold_balance = user
+        //                 .cold_wallet
+        //                 .and_then(|principal| balances.get(&account(principal)).copied())
+        //                 .unwrap_or_default();
+        //         }
+        //         self.balances = balances;
+        //         self.token_fees_burned = total_fees;
+        //     }
+        //     Err(err) => self
+        //         .logger
+        //         .critical(format!("the token ledger is inconsistent: {}", err)),
+        // }
         if !self.realms.contains_key(CONFIG.dao_realm) {
             self.realms.insert(
                 CONFIG.dao_realm.to_string(),
@@ -1497,11 +1497,11 @@ impl State {
                 });
             }
 
-            if let Err(err) = state.archive_cold_data() {
-                state
-                    .logger
-                    .error(format!("couldn't archive cold data: {:?}", err));
-            }
+            // if let Err(err) = state.archive_cold_data() {
+            //     state
+            //         .logger
+            //         .error(format!("couldn't archive cold data: {:?}", err));
+            // }
         });
 
         export_token_supply(token::icrc1_total_supply());
@@ -1669,7 +1669,7 @@ impl State {
             mutate(|state| {
                 state.timers.weekly_pending = true;
             });
-            State::weekly_chores(now).await;
+            // State::weekly_chores(now).await;
             mutate(|state| {
                 state.timers.last_weekly += WEEK;
                 state.timers.weekly_pending = false;
@@ -1681,7 +1681,7 @@ impl State {
             mutate(|state| {
                 state.timers.daily_pending = true;
             });
-            State::daily_chores(now).await;
+            // State::daily_chores(now).await;
             mutate(|state| {
                 state.timers.last_daily += DAY;
                 state.timers.daily_pending = false;
@@ -1698,7 +1698,7 @@ impl State {
             mutate(|state| {
                 state.timers.hourly_pending = true;
             });
-            State::hourly_chores(now).await;
+            // State::hourly_chores(now).await;
             mutate(|state| {
                 state.timers.last_hourly += HOUR;
                 state.timers.hourly_pending = false;
@@ -2462,27 +2462,27 @@ impl State {
         }
         stalwarts.sort_unstable_by_key(|u| u.id);
         let posts = self.root_posts_index.len();
-        let volume_day = self
-            .memory
-            .ledger
-            .iter()
-            .rev()
-            .take_while(|(_, tx)| tx.timestamp + DAY >= now)
-            .map(|(_, tx)| tx.amount)
-            .sum();
-        let volume_week = self
-            .memory
-            .ledger
-            .iter()
-            .rev()
-            .take_while(|(_, tx)| tx.timestamp + WEEK >= now)
-            .map(|(_, tx)| tx.amount)
-            .sum();
+        // let volume_day = self
+        //     .memory
+        //     .ledger
+        //     .iter()
+        //     .rev()
+        //     .take_while(|(_, tx)| tx.timestamp + DAY >= now)
+        //     .map(|(_, tx)| tx.amount)
+        //     .sum();
+        // let volume_week = self
+        //     .memory
+        //     .ledger
+        //     .iter()
+        //     .rev()
+        //     .take_while(|(_, tx)| tx.timestamp + WEEK >= now)
+        //     .map(|(_, tx)| tx.amount)
+        //     .sum();
 
         Stats {
             fees_burned: self.token_fees_burned,
-            volume_day,
-            volume_week,
+            volume_day: 0,
+            volume_week: 0,
             e8s_for_one_xdr: self.e8s_for_one_xdr,
             e8s_revenue_per_1k: self.last_revenues.iter().sum::<u64>()
                 / self.last_revenues.len().max(1) as u64,

@@ -21,7 +21,7 @@ pub struct Api {
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Memory {
-    api: Api,
+    pub api: Api,
     pub posts: ObjectManager<PostId, Post>,
     pub features: ObjectManager<PostId, Feature>,
     #[serde(default)]
@@ -34,6 +34,11 @@ pub struct Memory {
 const INITIAL_OFFSET: u64 = 16;
 
 impl Api {
+    pub fn fix(&mut self) {
+        self.allocator.segments.clear();
+        self.allocator.boundary = (self.allocator.mem_size.as_ref().unwrap())();
+    }
+
     fn init(&mut self) {
         self.allocator.init();
         if self.write_bytes.is_none() {

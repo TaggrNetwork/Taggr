@@ -1,6 +1,9 @@
-use crate::env::{
-    proposals::{Payload, Release},
-    user::{Mode, UserFilter},
+use crate::{
+    env::{
+        proposals::{Payload, Release},
+        user::{Mode, UserFilter},
+    },
+    token::{account, Token},
 };
 
 use super::*;
@@ -83,31 +86,37 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
-        // Genearate pfp for all users
-        for user_id in &state.users.keys().cloned().collect::<Vec<_>>() {
-            state.set_pfp(*user_id, Default::default()).unwrap();
+        use sha2::{Digest, Sha256};
+
+        let balances: &[u8] = include_bytes!("../../balances.json");
+        let mut hasher = Sha256::new();
+        hasher.update(balances);
+        let result = hasher.finalize();
+        assert_eq!(
+            format!("{:x}", result),
+            "7e3752fa3ca60e2af537e5bb81179128c9ef335270bd84fa13d3760f9a619c25"
+        );
+
+        let records: Vec<(Account, u64, Option<UserId>)> =
+            serde_json::from_slice(&balances).unwrap();
+
+        for r in records {
+            state.balances.insert(r.0, r.1);
         }
 
-        if state.memory.ledger.len() == 0 {
-            // Update all TXs with id and parent hash in order to implement ICRC3
-            let mut parent_hash: [u8; 32] = Default::default();
-            for (id, tx) in state.ledger.iter_mut().enumerate() {
-                tx.id = id as u32;
-                tx.parent_hash = parent_hash.clone();
-                let icrc3_block: BlockWithId = tx.clone().into();
-                parent_hash = icrc3_block.block.hash();
-            }
-
-            // Move all txs to stable memory
-            for tx in state.ledger.iter() {
-                state
-                    .memory
-                    .ledger
-                    .insert(tx.id as u32, tx.clone())
-                    .unwrap();
-            }
-            state.init();
+        let balances = state.balances.clone();
+        for user in state.users.values_mut() {
+            user.balance = balances
+                .get(&account(user.principal))
+                .copied()
+                .unwrap_or_default();
+            user.cold_balance = user
+                .cold_wallet
+                .and_then(|principal| balances.get(&account(principal)).copied())
+                .unwrap_or_default();
         }
+
+        state.memory.api.fix();
     });
 }
 
@@ -644,6 +653,7 @@ fn backup() {
     mutate(|state| {
         if !state.backup_exists {
             env::memory::heap_to_stable(state);
+            state.memory.init();
             state.backup_exists = true;
         }
     })
