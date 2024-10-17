@@ -87,13 +87,25 @@ fn post_upgrade() {
 fn sync_post_upgrade_fixtures() {
     assert_memory_restored();
     remove_corrupted_posts();
+    remove_corrupted_features();
 }
 
-#[update]
-fn check_feats() {
-    read(|state| {
-        for (id, feat) in state.memory.features.iter() {
-            ic_cdk::println!("feat_id={}, status={}", id, feat.status)
+fn remove_corrupted_features() {
+    // This function was used to detect corrupted features
+    // #[update]
+    // fn check_feats() {
+    //     read(|state| {
+    //         for (id, feat) in state.memory.features.safe_iter() {
+    //             ic_cdk::println!("feat_id={}, status={:?}", id, feat.map(|v| v.status))
+    //         }
+    //     })
+    // }
+    let ids = [1333906, 1390916];
+
+    mutate(|state| {
+        for id in ids {
+            assert!(state.memory.features.get_safe(&id).is_none());
+            let _ = state.memory.features.remove_index(&id);
         }
     })
 }
@@ -169,7 +181,7 @@ fn remove_corrupted_posts() {
         for post_id in posts {
             assert!(Post::get(state, &post_id).is_none());
             state.posts.remove(&post_id);
-            state.memory.posts.remove_index(&post_id).unwrap();
+            let _ = state.memory.posts.remove_index(&post_id);
         }
     })
 }

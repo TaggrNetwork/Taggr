@@ -420,6 +420,16 @@ impl<K: Eq + Ord + Clone + Display, T: Serialize + DeserializeOwned> ObjectManag
         )
     }
 
+    pub fn safe_iter(&self) -> Box<dyn DoubleEndedIterator<Item = (&'_ K, Option<T>)> + '_> {
+        Box::new(
+            self.index
+                .keys()
+                .collect::<Vec<_>>()
+                .into_iter()
+                .map(move |id| (id, self.get_safe(id))),
+        )
+    }
+
     pub fn remove_index(&mut self, id: &K) -> Result<(), String> {
         assert!(self.initialized, "allocator uninitialized");
         self.index.remove(id).ok_or("not found")?;
