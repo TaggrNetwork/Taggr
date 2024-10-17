@@ -60,6 +60,16 @@ impl Api {
         self.allocator.free(offset, len)
     }
 
+    pub fn read_safe<T: DeserializeOwned>(&self, offset: u64, len: u64) -> Result<T, &str> {
+        let mut bytes = Vec::with_capacity(len as usize);
+        bytes.spare_capacity_mut();
+        unsafe {
+            bytes.set_len(len as usize);
+        }
+        (self.read_bytes.as_ref().expect("no reader"))(offset, &mut bytes);
+        serde_cbor::from_slice(&bytes).map_err(|_| "serialization error")
+    }
+
     pub fn read<T: DeserializeOwned>(&self, offset: u64, len: u64) -> T {
         let mut bytes = Vec::with_capacity(len as usize);
         bytes.spare_capacity_mut();
@@ -381,6 +391,19 @@ impl<K: Eq + Ord + Clone + Display, T: Serialize + DeserializeOwned> ObjectManag
         Ok(())
     }
 
+    pub fn get_safe(&self, id: &K) -> Option<T> {
+        self.index.get(id).and_then(|(offset, len)| {
+            self.api
+                .borrow()
+                .read_safe(*offset, *len)
+                .map_err(|err| {
+                    ic_cdk::println!("key {} can't be deserialized", id);
+                    err
+                })
+                .ok()
+        })
+    }
+
     pub fn get(&self, id: &K) -> Option<T> {
         self.index
             .get(id)
@@ -395,6 +418,12 @@ impl<K: Eq + Ord + Clone + Display, T: Serialize + DeserializeOwned> ObjectManag
                 .into_iter()
                 .map(move |id| (id, self.get(id).expect("couldn't retrieve value"))),
         )
+    }
+
+    pub fn remove_index(&mut self, id: &K) -> Result<(), String> {
+        assert!(self.initialized, "allocator uninitialized");
+        self.index.remove(id).ok_or("not found")?;
+        Ok(())
     }
 
     pub fn remove(&mut self, id: &K) -> Result<T, String> {
