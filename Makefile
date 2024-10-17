@@ -1,5 +1,4 @@
 start:
-	ulimit -n 65000
 	dfx start --background -qqqq 2>&1 | grep -v sgymv &
 
 staging_deploy:

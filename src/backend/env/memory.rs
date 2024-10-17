@@ -392,16 +392,9 @@ impl<K: Eq + Ord + Clone + Display, T: Serialize + DeserializeOwned> ObjectManag
     }
 
     pub fn get_safe(&self, id: &K) -> Option<T> {
-        self.index.get(id).and_then(|(offset, len)| {
-            self.api
-                .borrow()
-                .read_safe(*offset, *len)
-                .map_err(|err| {
-                    ic_cdk::println!("key {} can't be deserialized", id);
-                    err
-                })
-                .ok()
-        })
+        self.index
+            .get(id)
+            .and_then(|(offset, len)| self.api.borrow().read_safe(*offset, *len).ok())
     }
 
     pub fn get(&self, id: &K) -> Option<T> {

@@ -88,6 +88,176 @@ fn sync_post_upgrade_fixtures() {
     assert_memory_restored();
     remove_corrupted_posts();
     remove_corrupted_features();
+    reconcile_leder();
+}
+
+fn reconcile_leder() {
+    // This function was used to find the last valid transaction
+    // #[update]
+    // fn check_txs() {
+    //     read(|state| {
+    //         for (id, val) in state.memory.ledger.safe_iter() {
+    //             match val {
+    //                 None => {
+    //                     ic_cdk::println!("tx {} is last one", id);
+    //                     return;
+    //                 }
+    //                 Some(tx) => {
+    //                     if *id > 0 {
+    //                         let parent_tx: BlockWithId = state
+    //                             .memory
+    //                             .ledger
+    //                             .get(&id.saturating_sub(1))
+    //                             .expect("no transaction found")
+    //                             .into();
+    //                         if tx.parent_hash != parent_tx.block.hash() {
+    //                             ic_cdk::println!("tx {} is last one with broken hash", id);
+    //                             return;
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     })
+    // }
+
+    let first_corrupt_tx = 51953;
+
+    mutate(|state| {
+        let source_of_truth_balances = state.balances.clone();
+        let total_supply: Token = source_of_truth_balances.values().sum();
+
+        // First delete all transactions above the last valid one
+        let mut txs = 0;
+        for id in first_corrupt_tx..state.memory.ledger.len() {
+            let _ = state.memory.ledger.remove_index(&(id as u32));
+            txs += 1;
+        }
+        ic_cdk::println!("corrupt txs removed: {}", txs);
+
+        let mut txs = state.memory.ledger.len();
+        ic_cdk::println!("txs found in stable = {}", txs);
+        // Assert we have more txs in stable memory than in the heap, so we don't need to use the
+        // heap transaction ledger.
+        assert!(state.memory.ledger.len() > state.ledger.len());
+
+        // Restore user balances from the valid transactions in stable memory
+        let balances =
+            match token::balances_from_ledger(&mut state.memory.ledger.iter().map(|(_, tx)| tx)) {
+                Ok((balances, _)) => balances,
+                Err(err) => panic!("the token ledger is inconsistent: {}", err),
+            };
+
+        // Reconcile with the in-memory balances by burning / minting the differences
+        state.minting_mode = true;
+        let mut total_burned = 0;
+        let mut total_minted = 0;
+
+        // First reconcile all recorded balances
+        for (acc, recorded_balance) in balances {
+            let source_of_truth = source_of_truth_balances
+                .get(&acc)
+                .copied()
+                .unwrap_or_default();
+            if source_of_truth == recorded_balance {
+                continue;
+            }
+            if source_of_truth > recorded_balance {
+                // Account has more balance than recorded, so we need to mint the difference
+                let diff = source_of_truth - recorded_balance;
+                token::mint(state, acc, diff as u64, "reconciliation");
+                total_minted += diff;
+            } else {
+                // Account has less balance, than recorded, so we need to burn the difference
+                let diff = recorded_balance - source_of_truth;
+                // Since we're using the existing transfer logic, that operates on balances in the
+                // heap to decide if user has funds or not, for accounts who have to get a burn
+                // record, the corresponding amount has to be added to their balance first, so that
+                // it can be subtracted during the burn and a ledger entry can be created.
+                state
+                    .balances
+                    .entry(acc.clone())
+                    .and_modify(|bal| *bal += diff)
+                    .or_insert(diff);
+                token::burn(state, acc, diff, "reconciliation");
+                total_burned += diff;
+            }
+            txs += 1;
+            // Make sure we added the expected amount of transactions
+            assert_eq!(txs, state.memory.ledger.len());
+        }
+
+        // Now we reconcile all new balances that were never recorded before
+        let balances =
+            match token::balances_from_ledger(&mut state.memory.ledger.iter().map(|(_, tx)| tx)) {
+                Ok((balances, _)) => balances,
+                Err(err) => panic!("the token ledger is inconsistent: {}", err),
+            };
+        for (acc, source_of_truth) in &source_of_truth_balances {
+            // Skip all recorded positive balances
+            if balances.get(&acc).copied().unwrap_or_default() > 0 {
+                continue;
+            }
+            // Account has some balance that is not recorded, so we need to mint it
+            let diff = *source_of_truth;
+            token::mint(state, acc.clone(), diff as u64, "reconciliation");
+            total_minted += diff;
+            txs += 1;
+            // Make sure we added the expected amount of transactions
+            assert_eq!(txs, state.memory.ledger.len());
+        }
+        state.minting_mode = false;
+
+        // Now recompute the balances from ledger and make sure they all match the source of truth.
+        let balances =
+            match token::balances_from_ledger(&mut state.memory.ledger.iter().map(|(_, tx)| tx)) {
+                Ok((balances, _)) => balances,
+                Err(err) => panic!("the token ledger is inconsistent: {}", err),
+            };
+
+        assert_eq!(
+            balances.values().filter(|bal| **bal > 0).count(),
+            source_of_truth_balances
+                .values()
+                .filter(|bal| **bal > 0)
+                .count(),
+        );
+
+        let mut matched = 0;
+        for (acc, tokens) in &balances {
+            let expected = source_of_truth_balances
+                .get(&acc)
+                .copied()
+                .unwrap_or_default();
+            if *tokens != expected {
+                panic!(
+                    "acc={:?} diverged: {} <> {} (matched={})",
+                    acc.owner.to_text(),
+                    expected,
+                    &tokens,
+                    matched
+                );
+            }
+            matched += 1;
+        }
+
+        // Make sure we didn't change the total supply
+        assert_eq!(
+            source_of_truth_balances.values().sum::<Token>(),
+            total_supply
+        );
+        assert_eq!(balances.values().sum::<Token>(), total_supply);
+
+        // Restore the balances to the original value.
+        state.balances = source_of_truth_balances;
+
+        let msg = format!(
+            "ledger reconiliation: total_burned={}, total_minted={}",
+            total_burned, total_minted
+        );
+        ic_cdk::println!("{}", &msg);
+        state.logger.debug(msg);
+    })
 }
 
 fn remove_corrupted_features() {
@@ -107,6 +277,10 @@ fn remove_corrupted_features() {
             assert!(state.memory.features.get_safe(&id).is_none());
             let _ = state.memory.features.remove_index(&id);
         }
+        state.logger.debug(format!(
+            "{} features removed due to memory corruption",
+            ids.len()
+        ));
     })
 }
 
@@ -183,6 +357,10 @@ fn remove_corrupted_posts() {
             state.posts.remove(&post_id);
             let _ = state.memory.posts.remove_index(&post_id);
         }
+        state.logger.debug(format!(
+            "{} posts removed due to memory corruption",
+            posts.len()
+        ));
     })
 }
 
