@@ -131,6 +131,9 @@ fn stable_mem_write(input: Vec<(u64, ByteBuf)>) {
         use sha2::{Digest, Sha256};
         let hash = format!("{:x}", result);
         ic_cdk::println!("/* {} */ \"{}\",", page, hash);
+        if *page == 0 {
+            ic_cdk::println!("{:?}", &buffer[..16])
+        }
         let offset = page * BACKUP_PAGE_SIZE as u64;
         let current_size = stable::stable_size();
         let needed_size = ((offset + buffer.len() as u64) >> 16) + 1;
