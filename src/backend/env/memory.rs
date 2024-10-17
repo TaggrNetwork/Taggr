@@ -86,6 +86,41 @@ impl Api {
 }
 
 impl Memory {
+    // Restore all free segments.
+    pub fn fix(&mut self) {
+        use std::collections::BTreeSet;
+
+        let (start, end) = (16, self.api.allocator.boundary);
+
+        let mut allocated_segments = self
+            .posts
+            .index
+            .values()
+            .chain(self.features.index.values())
+            .chain(self.ledger.index.values())
+            .map(|(offset, length)| (*offset, self.api.allocator.get_allocation_length(*length)))
+            .collect::<Vec<_>>();
+
+        allocated_segments.sort_by_key(|&(offset, _)| offset);
+
+        let mut free_segments = BTreeSet::new();
+        let mut current_start = start;
+
+        for &(offset, length) in allocated_segments.iter() {
+            if offset > current_start {
+                free_segments.insert((current_start, offset - current_start));
+            }
+            current_start = offset + length;
+        }
+
+        if current_start < end {
+            free_segments.insert((current_start, end - current_start));
+        }
+
+        self.api.allocator.segments = free_segments.into_iter().collect();
+        ic_cdk::println!("free segments found: {}", self.api.allocator.segments.len());
+    }
+
     pub fn health(&self, unit: &str) -> String {
         self.api_ref.as_ref().borrow().allocator.health(unit)
     }

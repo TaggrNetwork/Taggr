@@ -89,6 +89,11 @@ fn sync_post_upgrade_fixtures() {
     remove_corrupted_posts();
     remove_corrupted_features();
     reconcile_leder();
+    mutate(|state| {
+        state.memory.persist_allocator();
+        state.memory.fix();
+        state.memory.init();
+    })
 }
 
 fn reconcile_leder() {
@@ -133,7 +138,9 @@ fn reconcile_leder() {
             let _ = state.memory.ledger.remove_index(&(id as u32));
             txs += 1;
         }
-        ic_cdk::println!("corrupt txs removed: {}", txs);
+        state
+            .logger
+            .debug(format!("Corrupt transactions removed: {}", txs));
 
         let mut txs = state.memory.ledger.len();
         ic_cdk::println!("txs found in stable = {}", txs);
