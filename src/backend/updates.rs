@@ -295,12 +295,15 @@ fn remove_corrupted_features() {
 fn remove_corrupted_posts() {
     // This function was used to find all corrupted posts
     // #[update]
-    // fn fix_posts(from: usize, to: usize) {
+    // fn find_posts() -> String {
     //     read(|state| {
-    //         let last_id = state.next_post_id.saturating_sub(1);
-    //         for id in from..to.min(last_id as usize) {
-    //             let _ = Post::get(state, &(id as u64));
+    //         let mut result = Vec::new();
+    //         for (id, val) in state.memory.posts.safe_iter() {
+    //             if val.is_none() {
+    //                 result.push(id);
+    //             }
     //         }
+    //         format!("{:?}", result)
     //     })
     // }
     let posts = [
