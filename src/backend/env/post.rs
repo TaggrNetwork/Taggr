@@ -677,12 +677,16 @@ impl Post {
     pub fn get<'a>(state: &'a State, post_id: &PostId) -> Option<&'a Post> {
         state.posts.get(post_id).or_else(|| {
             let boxed = cache().get(post_id).or_else(|| {
-                state.memory.posts.get(post_id).and_then(|mut post: Post| {
-                    let cache = cache();
-                    post.archived = true;
-                    cache.insert(*post_id, Box::new(post));
-                    cache.get(post_id)
-                })
+                state
+                    .memory
+                    .posts
+                    .get_safe(post_id)
+                    .and_then(|mut post: Post| {
+                        let cache = cache();
+                        post.archived = true;
+                        cache.insert(*post_id, Box::new(post));
+                        cache.get(post_id)
+                    })
             });
             boxed.map(|ptr| &**ptr)
         })

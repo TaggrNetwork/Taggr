@@ -497,9 +497,27 @@ pub fn base() -> Token {
     10_u64.pow(CONFIG.token_decimals as u32)
 }
 
+pub fn burn(state: &mut State, account: Account, tokens: Token, memo: &str) {
+    let now = time();
+    transfer(
+        state,
+        now,
+        account.owner,
+        TransferArgs {
+            from_subaccount: account.subaccount,
+            to: icrc1_minting_account().expect("no minting account"),
+            amount: tokens as u128,
+            fee: Some(0),
+            memo: Some(memo.as_bytes().to_vec()),
+            created_at_time: Some(now),
+        },
+    )
+    .unwrap();
+}
+
 pub fn mint(state: &mut State, account: Account, tokens: Token, memo: &str) {
     let now = time();
-    let _result = transfer(
+    transfer(
         state,
         now,
         icrc1_minting_account().expect("no minting account").owner,
@@ -511,7 +529,8 @@ pub fn mint(state: &mut State, account: Account, tokens: Token, memo: &str) {
             memo: Some(memo.as_bytes().to_vec()),
             created_at_time: Some(now),
         },
-    );
+    )
+    .unwrap();
 }
 
 pub fn balances_from_ledger(

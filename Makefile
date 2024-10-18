@@ -55,13 +55,6 @@ release:
 	docker run --rm -v $(shell pwd)/release-artifacts:/target/wasm32-unknown-unknown/release taggr
 	make hashes
 
-podman_release:
-	podman build -t taggr .
-	mkdir -p $(shell pwd)/release-artifacts
-	podman run --rm -v $(shell pwd)/release-artifacts:/target/wasm32-unknown-unknown/release taggr
-	make hashes
-
-
 hashes:
 	git rev-parse HEAD
 	shasum -a 256 $(shell pwd)/release-artifacts/taggr.wasm.gz  | cut -d ' ' -f 1

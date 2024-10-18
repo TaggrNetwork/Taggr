@@ -1700,6 +1700,7 @@ impl State {
             });
             // State::hourly_chores(now).await;
             mutate(|state| {
+                state.backup_exists = false;
                 state.timers.last_hourly += HOUR;
                 state.timers.hourly_pending = false;
                 log(state, "Hourly", 3 * 60_000);
