@@ -86,8 +86,24 @@ impl Api {
 }
 
 impl Memory {
+    // Fill free segemtns and restore all objects to prove the free segments do not break anything
+    // pub fn fill_free_segments(&mut self) {
+    //     for (offset, len) in self.api.allocator.segments.iter() {
+    //         let mut bytes = Vec::with_capacity(*len as usize);
+    //         bytes.spare_capacity_mut();
+    //         unsafe {
+    //             bytes.set_len(*len as usize);
+    //         }
+    //         for i in 0..(*len as usize) {
+    //             bytes[i] = 1;
+    //         }
+    //         ic_cdk::println!("filled {} bytes", len);
+    //         (self.api.write_bytes.as_ref().unwrap())(*offset, &bytes)
+    //     }
+    // }
+
     // Restore all free segments.
-    pub fn fix(&mut self) {
+    pub fn restore_free_segments(&mut self) {
         use std::collections::BTreeSet;
 
         let (start, end) = (16, self.api.allocator.boundary);

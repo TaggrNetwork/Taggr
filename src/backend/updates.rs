@@ -91,8 +91,23 @@ fn sync_post_upgrade_fixtures() {
     reconcile_leder();
     mutate(|state| {
         state.memory.persist_allocator();
-        state.memory.fix();
+        // This code was used to verifify that the found free segments are correct.
+        // state.memory.fill_free_segments();
+        state.memory.restore_free_segments();
         state.memory.init();
+
+        // Prove that all objects can be deserialized.
+        assert!(state
+            .memory
+            .ledger
+            .safe_iter()
+            .all(|(_, val)| val.is_some()));
+        assert!(state
+            .memory
+            .features
+            .safe_iter()
+            .all(|(_, val)| val.is_some()));
+        assert!(state.memory.posts.safe_iter().all(|(_, val)| val.is_some()));
     })
 }
 
