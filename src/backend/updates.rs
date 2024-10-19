@@ -296,6 +296,7 @@ fn remove_corrupted_features() {
 
     mutate(|state| {
         for id in ids {
+            // Assert feature doesn't exist
             assert!(state.memory.features.get_safe(&id).is_none());
             let _ = state.memory.features.remove_index(&id);
         }
@@ -378,6 +379,7 @@ fn remove_corrupted_posts() {
 
     mutate(|state| {
         for post_id in posts {
+            // Assert post doesn't exist
             assert!(Post::get(state, &post_id).is_none());
             state.posts.remove(&post_id);
             let _ = state.memory.posts.remove_index(&post_id);
