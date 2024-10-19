@@ -87,7 +87,7 @@ fn post_upgrade() {
 fn sync_post_upgrade_fixtures() {
     assert_memory_restored();
     remove_corrupted_posts();
-    remove_corrupted_features();
+    restore_corrupted_features();
     reconcile_leder();
     mutate(|state| {
         state.memory.persist_allocator();
@@ -282,7 +282,7 @@ fn reconcile_leder() {
     })
 }
 
-fn remove_corrupted_features() {
+fn restore_corrupted_features() {
     // This function was used to detect corrupted features
     // #[update]
     // fn check_feats() {
@@ -298,10 +298,15 @@ fn remove_corrupted_features() {
         for id in ids {
             // Assert feature doesn't exist
             assert!(state.memory.features.get_safe(&id).is_none());
-            let _ = state.memory.features.remove_index(&id);
+            state.memory.features.remove_index(&id).unwrap();
+            state
+                .memory
+                .features
+                .insert(id, Default::default())
+                .unwrap();
         }
         state.logger.debug(format!(
-            "{} features removed due to memory corruption",
+            "features restored from memory corruption: {}",
             ids.len()
         ));
     })
