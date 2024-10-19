@@ -390,7 +390,7 @@ fn remove_corrupted_posts() {
             let _ = state.memory.posts.remove_index(&post_id);
         }
         state.logger.debug(format!(
-            "{} posts removed due to memory corruption",
+            "Posts removed due to memory corruption: {}",
             posts.len()
         ));
     })
