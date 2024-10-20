@@ -581,7 +581,9 @@ impl User {
             }
             let pfp_changhed = current_pfp != pfp;
             if pfp_changhed {
-                state.charge(user_id, CONFIG.identity_change_cost, "avataggr change")?;
+                if !current_pfp.genesis {
+                    state.charge(user_id, CONFIG.identity_change_cost, "avataggr change")?;
+                }
                 state
                     .logger
                     .info(format!("@{} changed their avataggr 🎭", current_name));

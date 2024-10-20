@@ -174,7 +174,7 @@ pub struct State {
     pub invites: BTreeMap<String, (UserId, Credits)>,
     pub realms: BTreeMap<RealmId, Realm>,
 
-    #[serde(default)]
+    #[serde(skip)]
     pub balances: HashMap<Account, Token>,
 
     #[serde(skip)]
@@ -186,6 +186,7 @@ pub struct State {
 
     pub proposals: Vec<Proposal>,
     // TODO: delete
+    #[serde(skip)]
     pub ledger: Vec<Transaction>,
 
     // Contains the pair of two amounts (vested, total_vesting) describing
@@ -579,25 +580,25 @@ impl State {
 
     pub fn init(&mut self) {
         assets::load();
-        // match token::balances_from_ledger(&mut self.memory.ledger.iter().map(|(_, tx)| tx)) {
-        //     Ok((balances, total_fees)) => {
-        //         for user in self.users.values_mut() {
-        //             user.balance = balances
-        //                 .get(&account(user.principal))
-        //                 .copied()
-        //                 .unwrap_or_default();
-        //             user.cold_balance = user
-        //                 .cold_wallet
-        //                 .and_then(|principal| balances.get(&account(principal)).copied())
-        //                 .unwrap_or_default();
-        //         }
-        //         self.balances = balances;
-        //         self.token_fees_burned = total_fees;
-        //     }
-        //     Err(err) => self
-        //         .logger
-        //         .critical(format!("the token ledger is inconsistent: {}", err)),
-        // }
+        match token::balances_from_ledger(&mut self.memory.ledger.iter().map(|(_, tx)| tx)) {
+            Ok((balances, total_fees)) => {
+                for user in self.users.values_mut() {
+                    user.balance = balances
+                        .get(&account(user.principal))
+                        .copied()
+                        .unwrap_or_default();
+                    user.cold_balance = user
+                        .cold_wallet
+                        .and_then(|principal| balances.get(&account(principal)).copied())
+                        .unwrap_or_default();
+                }
+                self.balances = balances;
+                self.token_fees_burned = total_fees;
+            }
+            Err(err) => self
+                .logger
+                .critical(format!("the token ledger is inconsistent: {}", err)),
+        }
         if !self.realms.contains_key(CONFIG.dao_realm) {
             self.realms.insert(
                 CONFIG.dao_realm.to_string(),
@@ -821,45 +822,44 @@ impl State {
         post_id: PostId,
         amount: u64,
     ) -> Result<(), String> {
-        return Err("disabled".into());
-        // let tipper = self.principal_to_user(principal).ok_or("no user found")?;
-        // let tipper_id = tipper.id;
-        // let tipper_name = tipper.name.clone();
-        // // DoS protection
-        // self.charge(tipper_id, CONFIG.tipping_cost, "tipping".to_string())?; // DoS protection
-        // let author_id = Post::get(self, &post_id).ok_or("post not found")?.user;
-        // let author = self.users.get(&author_id).ok_or("no user found")?;
-        // token::transfer(
-        //     self,
-        //     time(),
-        //     principal,
-        //     TransferArgs {
-        //         from_subaccount: None,
-        //         to: account(author.principal),
-        //         fee: Some(0), // special tipping fee
-        //         amount: amount as u128,
-        //         memo: Some(format!("Tips on post {}", post_id).as_bytes().to_vec()),
-        //         created_at_time: None,
-        //     },
-        // )
-        // .map_err(|err| format!("tip transfer failed: {:?}", err))?;
-        // Post::mutate(self, &post_id, |post| {
-        //     post.tips.push((tipper_id, amount));
-        //     Ok(())
-        // })?;
-        // self.users
-        //     .get_mut(&author_id)
-        //     .expect("user not found")
-        //     .notify_about_post(
-        //         format!(
-        //             "@{} tipped you with `{}` {} for your post",
-        //             tipper_name,
-        //             display_tokens(amount, CONFIG.token_decimals as u32),
-        //             CONFIG.token_symbol
-        //         ),
-        //         post_id,
-        //     );
-        // Ok(())
+        let tipper = self.principal_to_user(principal).ok_or("no user found")?;
+        let tipper_id = tipper.id;
+        let tipper_name = tipper.name.clone();
+        // DoS protection
+        self.charge(tipper_id, CONFIG.tipping_cost, "tipping".to_string())?; // DoS protection
+        let author_id = Post::get(self, &post_id).ok_or("post not found")?.user;
+        let author = self.users.get(&author_id).ok_or("no user found")?;
+        token::transfer(
+            self,
+            time(),
+            principal,
+            TransferArgs {
+                from_subaccount: None,
+                to: account(author.principal),
+                fee: Some(0), // special tipping fee
+                amount: amount as u128,
+                memo: Some(format!("Tips on post {}", post_id).as_bytes().to_vec()),
+                created_at_time: None,
+            },
+        )
+        .map_err(|err| format!("tip transfer failed: {:?}", err))?;
+        Post::mutate(self, &post_id, |post| {
+            post.tips.push((tipper_id, amount));
+            Ok(())
+        })?;
+        self.users
+            .get_mut(&author_id)
+            .expect("user not found")
+            .notify_about_post(
+                format!(
+                    "@{} tipped you with `{}` {} for your post",
+                    tipper_name,
+                    display_tokens(amount, CONFIG.token_decimals as u32),
+                    CONFIG.token_symbol
+                ),
+                post_id,
+            );
+        Ok(())
     }
 
     fn new_user(
@@ -1498,11 +1498,11 @@ impl State {
                 });
             }
 
-            // if let Err(err) = state.archive_cold_data() {
-            //     state
-            //         .logger
-            //         .error(format!("couldn't archive cold data: {:?}", err));
-            // }
+            if let Err(err) = state.archive_cold_data() {
+                state
+                    .logger
+                    .error(format!("couldn't archive cold data: {:?}", err));
+            }
         });
 
         export_token_supply(token::icrc1_total_supply());
@@ -1670,7 +1670,7 @@ impl State {
             mutate(|state| {
                 state.timers.weekly_pending = true;
             });
-            // State::weekly_chores(now).await;
+            State::weekly_chores(now).await;
             mutate(|state| {
                 state.timers.last_weekly += WEEK;
                 state.timers.weekly_pending = false;
@@ -1682,7 +1682,7 @@ impl State {
             mutate(|state| {
                 state.timers.daily_pending = true;
             });
-            // State::daily_chores(now).await;
+            State::daily_chores(now).await;
             mutate(|state| {
                 state.timers.last_daily += DAY;
                 state.timers.daily_pending = false;
@@ -1699,9 +1699,8 @@ impl State {
             mutate(|state| {
                 state.timers.hourly_pending = true;
             });
-            // State::hourly_chores(now).await;
+            State::hourly_chores(now).await;
             mutate(|state| {
-                state.backup_exists = false;
                 state.timers.last_hourly += HOUR;
                 state.timers.hourly_pending = false;
                 log(state, "Hourly", 3 * 60_000);
@@ -2464,27 +2463,27 @@ impl State {
         }
         stalwarts.sort_unstable_by_key(|u| u.id);
         let posts = self.root_posts_index.len();
-        // let volume_day = self
-        //     .memory
-        //     .ledger
-        //     .iter()
-        //     .rev()
-        //     .take_while(|(_, tx)| tx.timestamp + DAY >= now)
-        //     .map(|(_, tx)| tx.amount)
-        //     .sum();
-        // let volume_week = self
-        //     .memory
-        //     .ledger
-        //     .iter()
-        //     .rev()
-        //     .take_while(|(_, tx)| tx.timestamp + WEEK >= now)
-        //     .map(|(_, tx)| tx.amount)
-        //     .sum();
+        let volume_day = self
+            .memory
+            .ledger
+            .iter()
+            .rev()
+            .take_while(|(_, tx)| tx.timestamp + DAY >= now)
+            .map(|(_, tx)| tx.amount)
+            .sum();
+        let volume_week = self
+            .memory
+            .ledger
+            .iter()
+            .rev()
+            .take_while(|(_, tx)| tx.timestamp + WEEK >= now)
+            .map(|(_, tx)| tx.amount)
+            .sum();
 
         Stats {
             fees_burned: self.token_fees_burned,
-            volume_day: 0,
-            volume_week: 0,
+            volume_day,
+            volume_week,
             e8s_for_one_xdr: self.e8s_for_one_xdr,
             e8s_revenue_per_1k: self.last_revenues.iter().sum::<u64>()
                 / self.last_revenues.len().max(1) as u64,

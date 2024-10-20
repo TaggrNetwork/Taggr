@@ -21,7 +21,7 @@ pub struct Api {
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Memory {
-    pub api: Api,
+    api: Api,
     pub posts: ObjectManager<PostId, Post>,
     pub features: ObjectManager<PostId, Feature>,
     #[serde(default)]
@@ -34,11 +34,6 @@ pub struct Memory {
 const INITIAL_OFFSET: u64 = 16;
 
 impl Api {
-    pub fn fix(&mut self) {
-        self.allocator.segments.clear();
-        self.allocator.boundary = (self.allocator.mem_size.as_ref().unwrap())();
-    }
-
     fn init(&mut self) {
         self.allocator.init();
         if self.write_bytes.is_none() {
@@ -60,16 +55,6 @@ impl Api {
         self.allocator.free(offset, len)
     }
 
-    pub fn read_safe<T: DeserializeOwned>(&self, offset: u64, len: u64) -> Result<T, &str> {
-        let mut bytes = Vec::with_capacity(len as usize);
-        bytes.spare_capacity_mut();
-        unsafe {
-            bytes.set_len(len as usize);
-        }
-        (self.read_bytes.as_ref().expect("no reader"))(offset, &mut bytes);
-        serde_cbor::from_slice(&bytes).map_err(|_| "serialization error")
-    }
-
     pub fn read<T: DeserializeOwned>(&self, offset: u64, len: u64) -> T {
         let mut bytes = Vec::with_capacity(len as usize);
         bytes.spare_capacity_mut();
@@ -86,62 +71,11 @@ impl Api {
 }
 
 impl Memory {
-    // Fill free segemtns and restore all objects to prove the free segments do not break anything
-    // pub fn fill_free_segments(&mut self) {
-    //     for (offset, len) in self.api.allocator.segments.iter() {
-    //         let mut bytes = Vec::with_capacity(*len as usize);
-    //         bytes.spare_capacity_mut();
-    //         unsafe {
-    //             bytes.set_len(*len as usize);
-    //         }
-    //         for i in 0..(*len as usize) {
-    //             bytes[i] = 1;
-    //         }
-    //         ic_cdk::println!("filled {} bytes", len);
-    //         (self.api.write_bytes.as_ref().unwrap())(*offset, &bytes)
-    //     }
-    // }
-
-    // Restore all free segments.
-    pub fn restore_free_segments(&mut self) {
-        use std::collections::BTreeSet;
-
-        let (start, end) = (16, self.api.allocator.boundary);
-
-        let mut allocated_segments = self
-            .posts
-            .index
-            .values()
-            .chain(self.features.index.values())
-            .chain(self.ledger.index.values())
-            .map(|(offset, length)| (*offset, self.api.allocator.get_allocation_length(*length)))
-            .collect::<Vec<_>>();
-
-        allocated_segments.sort_by_key(|&(offset, _)| offset);
-
-        let mut free_segments = BTreeSet::new();
-        let mut current_start = start;
-
-        for &(offset, length) in allocated_segments.iter() {
-            if offset > current_start {
-                free_segments.insert((current_start, offset - current_start));
-            }
-            current_start = offset + length;
-        }
-
-        if current_start < end {
-            free_segments.insert((current_start, end - current_start));
-        }
-
-        self.api.allocator.segments = free_segments.into_iter().collect();
-        ic_cdk::println!("free segments found: {}", self.api.allocator.segments.len());
-    }
-
     pub fn health(&self, unit: &str) -> String {
         self.api_ref.as_ref().borrow().allocator.health(unit)
     }
 
-    pub fn persist_allocator(&mut self) {
+    fn persist_allocator(&mut self) {
         self.api = self.api_ref.as_ref().take();
     }
 
@@ -442,12 +376,6 @@ impl<K: Eq + Ord + Clone + Display, T: Serialize + DeserializeOwned> ObjectManag
         Ok(())
     }
 
-    pub fn get_safe(&self, id: &K) -> Option<T> {
-        self.index
-            .get(id)
-            .and_then(|(offset, len)| self.api.borrow().read_safe(*offset, *len).ok())
-    }
-
     pub fn get(&self, id: &K) -> Option<T> {
         self.index
             .get(id)
@@ -462,22 +390,6 @@ impl<K: Eq + Ord + Clone + Display, T: Serialize + DeserializeOwned> ObjectManag
                 .into_iter()
                 .map(move |id| (id, self.get(id).expect("couldn't retrieve value"))),
         )
-    }
-
-    pub fn safe_iter(&self) -> Box<dyn DoubleEndedIterator<Item = (&'_ K, Option<T>)> + '_> {
-        Box::new(
-            self.index
-                .keys()
-                .collect::<Vec<_>>()
-                .into_iter()
-                .map(move |id| (id, self.get_safe(id))),
-        )
-    }
-
-    pub fn remove_index(&mut self, id: &K) -> Result<(), String> {
-        assert!(self.initialized, "allocator uninitialized");
-        self.index.remove(id).ok_or("not found")?;
-        Ok(())
     }
 
     pub fn remove(&mut self, id: &K) -> Result<T, String> {

@@ -1,5 +1,5 @@
 start:
-	dfx start --background -qqqq 2>&1 | grep -v sgymv &
+	ulimit -n 65000 && dfx start --background -qqqq 2>&1 | grep -v sgymv &
 
 staging_deploy:
 	NODE_ENV=production DFX_NETWORK=staging make fe

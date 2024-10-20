@@ -72,43 +72,42 @@ pub fn toggle_feature_support(caller: Principal, post_id: PostId) -> Result<(), 
 }
 
 pub fn create_feature(caller: Principal, post_id: PostId) -> Result<(), String> {
-    return Err("disabled".into());
-    // mutate(|state| {
-    //     let user = state.principal_to_user(caller).ok_or("no user found")?;
-    //     let user_name = user.name.clone();
+    mutate(|state| {
+        let user = state.principal_to_user(caller).ok_or("no user found")?;
+        let user_name = user.name.clone();
 
-    //     if !Post::get(state, &post_id)
-    //         .map(|post| {
-    //             post.user == user.id && matches!(post.extension.as_ref(), Some(&Extension::Feature))
-    //         })
-    //         .unwrap_or_default()
-    //     {
-    //         return Err("no post with a feature found".into());
-    //     };
+        if !Post::get(state, &post_id)
+            .map(|post| {
+                post.user == user.id && matches!(post.extension.as_ref(), Some(&Extension::Feature))
+            })
+            .unwrap_or_default()
+        {
+            return Err("no post with a feature found".into());
+        };
 
-    //     if state.memory.features.get(&post_id).is_some() {
-    //         return Err("feature already exists".into());
-    //     }
+        if state.memory.features.get(&post_id).is_some() {
+            return Err("feature already exists".into());
+        }
 
-    //     state
-    //         .memory
-    //         .features
-    //         .insert(
-    //             post_id,
-    //             Feature {
-    //                 supporters: Default::default(),
-    //                 status: 0,
-    //             },
-    //         )
-    //         .expect("couldn't persist feature");
+        state
+            .memory
+            .features
+            .insert(
+                post_id,
+                Feature {
+                    supporters: Default::default(),
+                    status: 0,
+                },
+            )
+            .expect("couldn't persist feature");
 
-    //     state.logger.info(format!(
-    //         "@{} created a [new feature](#/post/{})",
-    //         user_name, post_id
-    //     ));
+        state.logger.info(format!(
+            "@{} created a [new feature](#/post/{})",
+            user_name, post_id
+        ));
 
-    //     Ok(())
-    // })
+        Ok(())
+    })
 }
 
 pub fn close_feature(state: &mut State, post_id: PostId) -> Result<(), String> {

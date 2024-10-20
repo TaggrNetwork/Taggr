@@ -197,11 +197,6 @@ fn icrc1_supported_standards() -> Vec<Standard> {
 
 #[update]
 fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
-    return Err(TransferError::GenericError(GenericError {
-        error_code: 911,
-        message: "transfers disabled".into(),
-    }));
-
     let owner = caller();
     if owner == Principal::anonymous() {
         return Err(TransferError::GenericError(GenericError {
@@ -434,19 +429,7 @@ pub fn transfer(
         update_user_balance(state, to.owner, updated_balance as Token);
     }
 
-    let id = state.memory.ledger.len() as u32;
-
-    let mut parent_hash: [u8; 32] = Default::default();
-    if id > 0 {
-        let parent_tx: BlockWithId = state
-            .memory
-            .ledger
-            .get(&id.saturating_sub(1))
-            .expect("no transaction found")
-            .into();
-        parent_hash.copy_from_slice(parent_tx.block.hash().as_slice());
-    }
-
+    state.token_fees_burned += effective_fee;
     let tx = Transaction {
         timestamp: now,
         from,
@@ -454,9 +437,29 @@ pub fn transfer(
         amount: amount as Token,
         fee: effective_fee,
         memo,
-        id,
-        parent_hash,
+        id: Default::default(),
+        parent_hash: Default::default(),
     };
+
+    Ok(append_to_ledger(state, tx))
+}
+
+// Takes a transaction and appends to the ledger, after updating the id and the parent hash.
+pub fn append_to_ledger(state: &mut State, mut tx: Transaction) -> u128 {
+    let id = state.memory.ledger.len() as u32;
+
+    if let Some(parent_tx) = state
+        .memory
+        .ledger
+        .get(&id.saturating_sub(1))
+        .map(BlockWithId::from)
+    {
+        tx.parent_hash
+            .copy_from_slice(parent_tx.block.hash().as_slice());
+    }
+
+    tx.id = id;
+
     let icrc3_block: BlockWithId = tx.clone().into();
 
     add_value_to_certify("last_block_index", leaf_hash(&id.to_be_bytes()));
@@ -468,8 +471,8 @@ pub fn transfer(
         .ledger
         .insert(id, tx)
         .expect("couldn't insert a new transaction");
-    state.token_fees_burned += effective_fee;
-    Ok(id as u128)
+
+    id as u128
 }
 
 fn update_user_balance(state: &mut State, principal: Principal, balance: Token) {
@@ -497,27 +500,9 @@ pub fn base() -> Token {
     10_u64.pow(CONFIG.token_decimals as u32)
 }
 
-pub fn burn(state: &mut State, account: Account, tokens: Token, memo: &str) {
-    let now = time();
-    transfer(
-        state,
-        now,
-        account.owner,
-        TransferArgs {
-            from_subaccount: account.subaccount,
-            to: icrc1_minting_account().expect("no minting account"),
-            amount: tokens as u128,
-            fee: Some(0),
-            memo: Some(memo.as_bytes().to_vec()),
-            created_at_time: Some(now),
-        },
-    )
-    .unwrap();
-}
-
 pub fn mint(state: &mut State, account: Account, tokens: Token, memo: &str) {
     let now = time();
-    transfer(
+    let _result = transfer(
         state,
         now,
         icrc1_minting_account().expect("no minting account").owner,
@@ -529,8 +514,7 @@ pub fn mint(state: &mut State, account: Account, tokens: Token, memo: &str) {
             memo: Some(memo.as_bytes().to_vec()),
             created_at_time: Some(now),
         },
-    )
-    .unwrap();
+    );
 }
 
 pub fn balances_from_ledger(

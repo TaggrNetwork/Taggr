@@ -17,7 +17,7 @@ use ic_cdk::{
     caller,
 };
 use ic_cdk_macros::query;
-use ic_ledger_types::{AccountIdentifier, Transaction};
+use ic_ledger_types::AccountIdentifier;
 use serde_bytes::ByteBuf;
 
 #[export_name = "canister_query check_invite"]
@@ -120,26 +120,25 @@ fn transaction() {
 fn transactions() {
     let (page, principal, subaccount): (usize, String, String) = parse(&arg_data_raw());
     read(|state| {
-        // let iter = state.memory.ledger.iter();
-        // let owner = Principal::from_text(principal).expect("invalid principal");
-        // let subaccount = hex::decode(subaccount).expect("invalid subaccount");
-        // let iter: Box<dyn DoubleEndedIterator<Item = _>> = if Principal::anonymous() == owner {
-        //     Box::new(iter)
-        // } else {
-        //     Box::new(iter.filter(|(_, t)| {
-        //         t.to.owner == owner
-        //             && (t.to.subaccount.is_none() || t.to.subaccount.as_ref() == Some(&subaccount))
-        //             || t.from.owner == owner
-        //                 && (t.from.subaccount.is_none()
-        //                     || t.from.subaccount.as_ref() == Some(&subaccount))
-        //     }))
-        // };
-        let v: Vec<(u32, Transaction)> = Default::default();
+        let iter = state.memory.ledger.iter();
+        let owner = Principal::from_text(principal).expect("invalid principal");
+        let subaccount = hex::decode(subaccount).expect("invalid subaccount");
+        let iter: Box<dyn DoubleEndedIterator<Item = _>> = if Principal::anonymous() == owner {
+            Box::new(iter)
+        } else {
+            Box::new(iter.filter(|(_, t)| {
+                t.to.owner == owner
+                    && (t.to.subaccount.is_none() || t.to.subaccount.as_ref() == Some(&subaccount))
+                    || t.from.owner == owner
+                        && (t.from.subaccount.is_none()
+                            || t.from.subaccount.as_ref() == Some(&subaccount))
+            }))
+        };
         reply(
-            v, // iter.rev()
-              //     .skip(page * CONFIG.feed_page_size)
-              //     .take(CONFIG.feed_page_size)
-              //     .collect::<Vec<(&u32, _)>>(),
+            iter.rev()
+                .skip(page * CONFIG.feed_page_size)
+                .take(CONFIG.feed_page_size)
+                .collect::<Vec<(&u32, _)>>(),
         );
     });
 }
