@@ -1,5 +1,5 @@
 start:
-	dfx start --background -qqqq 2>&1 | grep -v sgymv &
+	ulimit -n 65000 && dfx start --background -qqqq 2>&1 | grep -v sgymv &
 
 staging_deploy:
 	NODE_ENV=production DFX_NETWORK=staging make fe
@@ -54,13 +54,6 @@ release:
 	mkdir -p $(shell pwd)/release-artifacts
 	docker run --rm -v $(shell pwd)/release-artifacts:/target/wasm32-unknown-unknown/release taggr
 	make hashes
-
-podman_release:
-	podman build -t taggr .
-	mkdir -p $(shell pwd)/release-artifacts
-	podman run --rm -v $(shell pwd)/release-artifacts:/target/wasm32-unknown-unknown/release taggr
-	make hashes
-
 
 hashes:
 	git rev-parse HEAD
