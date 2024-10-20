@@ -53,11 +53,13 @@ export const UserLink = ({
     classNameArg,
     profile,
     pfpSize = 20,
+    pfp = true,
 }: {
     id: UserId;
     name?: string;
     classNameArg?: string;
     profile?: boolean;
+    pfp?: boolean;
     pfpSize?: number;
 }) => {
     const [loading, setLoading] = React.useState(false);
@@ -81,12 +83,14 @@ export const UserLink = ({
 
     return userName ? (
         <span className={`${classNameArg} user_link no_wrap`}>
-            <img
-                className="pfp"
-                src={pfpUrl(id)}
-                height={pfpSize}
-                width={pfpSize}
-            />
+            {pfp && (
+                <img
+                    className="pfp"
+                    src={pfpUrl(id)}
+                    height={pfpSize}
+                    width={pfpSize}
+                />
+            )}
             <a href={`#/${profile ? "user" : "journal"}/${id}`}>{userName}</a>
         </span>
     ) : (
@@ -97,9 +101,11 @@ export const UserLink = ({
 export const UserList = ({
     ids = [],
     profile,
+    showPfps,
 }: {
     ids: UserId[];
     profile?: boolean;
+    showPfps?: boolean;
 }) => {
     const [loaded, setLoaded] = React.useState(false);
 
@@ -116,7 +122,9 @@ export const UserList = ({
         <Loading spaced={false} />
     ) : (
         commaSeparated(
-            ids.map((id) => <UserLink key={id} id={id} profile={profile} />),
+            ids.map((id) => (
+                <UserLink key={id} id={id} profile={profile} pfp={!!showPfps} />
+            )),
         )
     );
 };
