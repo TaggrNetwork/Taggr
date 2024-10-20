@@ -448,13 +448,12 @@ pub fn transfer(
 pub fn append_to_ledger(state: &mut State, mut tx: Transaction) -> u128 {
     let id = state.memory.ledger.len() as u32;
 
-    if id > 0 {
-        let parent_tx: BlockWithId = state
-            .memory
-            .ledger
-            .get(&id.saturating_sub(1))
-            .expect("no transaction found")
-            .into();
+    if let Some(parent_tx) = state
+        .memory
+        .ledger
+        .get(&id.saturating_sub(1))
+        .map(BlockWithId::from)
+    {
         tx.parent_hash
             .copy_from_slice(parent_tx.block.hash().as_slice());
     }
