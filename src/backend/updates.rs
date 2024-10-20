@@ -20,7 +20,6 @@ use ic_cdk::{
 };
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
-use icrc_ledger_types::icrc3::blocks::BlockWithId;
 use serde_bytes::ByteBuf;
 use std::time::Duration;
 use user::Pfp;
@@ -81,7 +80,51 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    clean_up_reconciled_transactions();
+}
+
+// During the reconciliation, some empty transactions were created that do not
+// carry any ledger side-effects. It's better to remove them.
+fn clean_up_reconciled_transactions() {
+    mutate(|state| {
+        // The first reconciliation transaction: see the reconciliation PR.
+        let from_tx = 51953;
+        let mut non_empty_tx = vec![];
+        let total_txs = state.memory.ledger.len() as u32;
+
+        for id in from_tx..total_txs {
+            let tx = state.memory.ledger.remove(&id).unwrap();
+            // Only if both amount and fee are empty, skip the transaction.
+            if tx.amount != 0 || tx.fee != 0 {
+                non_empty_tx.push(tx);
+            }
+        }
+
+        state.minting_mode = true;
+        for tx in non_empty_tx {
+            token::append_to_ledger(state, tx);
+        }
+        state.minting_mode = false;
+
+        // Prove that balances are unaffected
+        let (balances, _) =
+            token::balances_from_ledger(&mut state.memory.ledger.iter().map(|(_, tx)| tx)).unwrap();
+
+        // Same amount of non-empty balances.
+        assert_eq!(balances.len(), state.balances.len());
+
+        // Each balances matches the exact amount in the state
+        for (acc, bal) in balances {
+            assert_eq!(state.balances.get(&acc).unwrap(), &bal);
+        }
+
+        ic_cdk::println!(
+            "Removed empty TXS: {}",
+            total_txs - state.memory.ledger.len() as u32
+        );
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
