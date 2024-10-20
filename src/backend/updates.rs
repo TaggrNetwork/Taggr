@@ -94,7 +94,7 @@ fn sync_post_upgrade_fixtures() {
         let result = hasher.finalize();
         assert_eq!(
             format!("{:x}", result),
-            "2fa7ccd028e08133b8287c51d5fe356051a116011f7548b5bab19efb481c5ba4"
+            "7e3752fa3ca60e2af537e5bb81179128c9ef335270bd84fa13d3760f9a619c25"
         );
 
         let records: Vec<(Account, u64, Option<UserId>)> =
