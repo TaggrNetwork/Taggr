@@ -119,10 +119,18 @@ fn clean_up_reconciled_transactions() {
             assert_eq!(state.balances.get(&acc).unwrap(), &bal);
         }
 
-        ic_cdk::println!(
-            "Removed empty TXS: {}",
+        state.logger.debug(format!(
+            "Removed empty transactions: {}",
             total_txs - state.memory.ledger.len() as u32
-        );
+        ));
+
+        // Double-checking: prove that all objects can be deserialized.
+        state.logger.debug(format!(
+            "Safety-check: transactions={}, features={}, posts={}",
+            state.memory.ledger.iter().count(),
+            state.memory.features.iter().count(),
+            state.memory.posts.iter().count(),
+        ));
     })
 }
 
