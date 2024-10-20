@@ -80,7 +80,7 @@ impl Memory {
         self.api_ref.as_ref().borrow().allocator.health(unit)
     }
 
-    pub fn persist_allocator(&mut self) {
+    fn persist_allocator(&mut self) {
         self.api = self.api_ref.as_ref().take();
     }
 
