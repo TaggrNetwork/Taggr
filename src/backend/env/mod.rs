@@ -186,6 +186,7 @@ pub struct State {
 
     pub proposals: Vec<Proposal>,
     // TODO: delete
+    #[serde(skip)]
     pub ledger: Vec<Transaction>,
 
     // Contains the pair of two amounts (vested, total_vesting) describing
