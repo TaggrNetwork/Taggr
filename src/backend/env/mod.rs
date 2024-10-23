@@ -10,7 +10,7 @@ use self::user::{Filters, Mode, Notification, Predicate, UserFilter};
 use crate::assets::export_token_supply;
 use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
-use crate::token::{Account, Token};
+use crate::token::{Account, Token, Transaction};
 use crate::{assets, id, mutate, read, time};
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
@@ -185,6 +185,9 @@ pub struct State {
     total_rewards_shared: u64,
 
     pub proposals: Vec<Proposal>,
+    // TODO: delete
+    #[serde(skip)]
+    pub ledger: Vec<Transaction>,
 
     // Contains the pair of two amounts (vested, total_vesting) describing
     // the vesting progress of X (see "Founder's Tokens" in white paper)
@@ -1506,6 +1509,10 @@ impl State {
     }
 
     fn archive_cold_data(&mut self) -> Result<(), String> {
+        // Since cold archiving can potentially write data to the end of the heap, we set this flag to false
+        // because otherwise the backups pulled from the canister will be corrupted. Setting the flag back to
+        // false will lead to dumping the heap to the stable memory again.
+        self.backup_exists = false;
         let max_posts_in_heap = 10_000;
         archive_cold_posts(self, max_posts_in_heap)
     }
