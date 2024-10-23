@@ -7,6 +7,7 @@ use super::*;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
+    invite::Invite,
     post::{Extension, Post, PostId},
     user::{Draft, User, UserId},
     State,
@@ -81,57 +82,17 @@ fn post_upgrade() {
 
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
-    clean_up_reconciled_transactions();
-}
-
-// During the reconciliation, some empty transactions were created that do not
-// carry any ledger side-effects. It's better to remove them.
-fn clean_up_reconciled_transactions() {
+    // Move all invites to new structure
     mutate(|state| {
-        // The first reconciliation transaction: see the reconciliation PR.
-        let from_tx = 51953;
-        let mut non_empty_tx = vec![];
-        let total_txs = state.memory.ledger.len() as u32;
-
-        for id in from_tx..total_txs {
-            let tx = state.memory.ledger.remove(&id).unwrap();
-            // Only if both amount and fee are empty, skip the transaction.
-            if tx.amount != 0 || tx.fee != 0 {
-                non_empty_tx.push(tx);
+        for (invite_code, (user_id, credits)) in state.invites.iter() {
+            if !state.invite_codes.contains_key(invite_code) {
+                state.invite_codes.insert(
+                    invite_code.clone(),
+                    Invite::new(credits.clone(), credits.clone(), None, user_id.clone()),
+                );
             }
         }
-
-        state.minting_mode = true;
-        for tx in non_empty_tx {
-            token::append_to_ledger(state, tx);
-        }
-        state.minting_mode = false;
-
-        // Prove that balances are unaffected
-        let (balances, _) =
-            token::balances_from_ledger(&mut state.memory.ledger.iter().map(|(_, tx)| tx)).unwrap();
-
-        // Same amount of non-empty balances.
-        assert_eq!(balances.len(), state.balances.len());
-
-        // Each balances matches the exact amount in the state
-        for (acc, bal) in balances {
-            assert_eq!(state.balances.get(&acc).unwrap(), &bal);
-        }
-
-        state.logger.debug(format!(
-            "Removed empty transactions: {}",
-            total_txs - state.memory.ledger.len() as u32
-        ));
-
-        // Double-checking: prove that all objects can be deserialized.
-        state.logger.debug(format!(
-            "Safety-check: transactions={}, features={}, posts={}",
-            state.memory.ledger.iter().count(),
-            state.memory.features.iter().count(),
-            state.memory.posts.iter().count(),
-        ));
-    })
+    });
 }
 
 #[allow(clippy::all)]
@@ -306,6 +267,9 @@ fn transfer_credits() {
     let (recipient, amount): (UserId, Credits) = parse(&arg_data_raw());
     reply(mutate(|state| {
         let sender = state.principal_to_user(caller()).expect("no user found");
+
+        sender.validate_send_credits(state)?;
+
         let recipient_name = &state.users.get(&recipient).expect("no user found").name;
         state.credit_transfer(
             sender.id,
@@ -340,8 +304,18 @@ fn mint_credits() {
 
 #[export_name = "canister_update create_invite"]
 fn create_invite() {
-    let credits: Credits = parse(&arg_data_raw());
-    mutate(|state| reply(state.create_invite(caller(), credits)));
+    let (credits, credits_per_user, realm_id): (Credits, Option<Credits>, Option<RealmId>) =
+        parse(&arg_data_raw());
+    mutate(|state| reply(state.create_invite(caller(), credits, credits_per_user, realm_id)));
+}
+
+#[export_name = "canister_update update_invite"]
+fn update_invite() {
+    let (invite_code, credits, realm_id): (String, Option<Credits>, Option<RealmId>) =
+        parse(&arg_data_raw());
+    let user_id = read(|state| state.principal_to_user(caller()).expect("no user found").id);
+
+    mutate(|state| reply(state.update_invite(user_id, invite_code, credits, realm_id)));
 }
 
 #[export_name = "canister_update delay_weekly_chores"]
