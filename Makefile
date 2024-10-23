@@ -58,3 +58,11 @@ release:
 hashes:
 	git rev-parse HEAD
 	shasum -a 256 $(shell pwd)/release-artifacts/taggr.wasm.gz  | cut -d ' ' -f 1
+
+backup:
+	cd backup && cargo build --release
+	./backup.sh $(DIR)
+
+.PHONY: backup
+
+

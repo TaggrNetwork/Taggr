@@ -4,7 +4,7 @@ DIR=$1
 echo "Using directory $DIR"
 CMD=$2
 # This script is based on https://forum.dfinity.org/t/canister-backup/11777/26
-QU=../qu/target/release/qu
+BACKUP=./backup/target/release/backup
 
 set -e
 
@@ -22,7 +22,7 @@ size() {
 restore() {
     FILE="$1"
     echo "Restoring $FILE..."
-    $QU raw $(cat .dfx/local/canister_ids.json | jq -r ".taggr.local") "stable_mem_write" --args-file "$FILE" | $QU send --yes --raw - > /dev/null
+    $BACKUP raw $(cat .dfx/local/canister_ids.json | jq -r ".taggr.local") "stable_mem_write" --args-file "$FILE" | $BACKUP send --yes - > /dev/null
 }
 
 if [ "$CMD" == "restore" ]; then
@@ -48,8 +48,8 @@ fi
 
 fetch() {
     FILE="$1"
-    $QU raw "6qfxa-ryaaa-aaaai-qbhsq-cai" "stable_mem_read" --args "($PAGE:nat64)" --query |\
-        $QU send --yes --raw - > $FILE
+    $BACKUP raw "6qfxa-ryaaa-aaaai-qbhsq-cai" "stable_mem_read" --args "($PAGE:nat64)" --query |\
+        $BACKUP send --yes - > $FILE
 }
 
 git rev-parse HEAD > $DIR/commit.txt
