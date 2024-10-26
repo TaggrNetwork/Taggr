@@ -1020,7 +1020,7 @@ export const ArrowDown = ({ onClick }: { onClick?: () => void }) => (
 );
 
 export function pfpUrl(userId: UserId) {
-    const canisterId = window.backendCache.stats.canister_id;
+    const canisterId = window.backendCache?.stats?.canister_id;
     const host = MAINNET_MODE
         ? `https://${canisterId}.raw.icp0.io`
         : `http://127.0.0.1:8080`;

@@ -32,7 +32,7 @@ import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
 import { MAINNET_MODE, CANISTER_ID } from "./env";
-import { PostId, User } from "./types";
+import { Config, PostId, User, Stats } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
@@ -251,20 +251,22 @@ const reloadCache = async () => {
     window.backendCache = window.backendCache || { users: [], recent_tags: [] };
     const [recent_tags, stats, config] = await Promise.all([
         window.api.query<[string, any][]>("recent_tags", "", 500),
-        window.api.query<any>("stats"),
-        window.api.query<any>("config"),
+        window.api.query<Stats>("stats"),
+        window.api.query<Config>("config"),
     ]);
+    if (!config) console.error("Config wasn't loaded!");
+    if (!stats) console.error("Stats weren't loaded!");
     window.backendCache = {
         recent_tags: (recent_tags || []).map(([tag, _]) => tag),
-        stats,
-        config,
+        stats: stats || ({} as Stats),
+        config: config || ({} as Config),
     };
     window.resetUI = () => {
         window.uiInitialized = false;
         const frames = Array.from(stack.children);
         frames.forEach((frame) => frame.remove());
     };
-    const last_upgrade = window.backendCache.stats.last_release.timestamp;
+    const last_upgrade = window.backendCache.stats?.last_release?.timestamp;
     if (window.lastSavedUpgrade == 0) {
         window.lastSavedUpgrade = last_upgrade;
     } else if (window.lastSavedUpgrade != last_upgrade) {

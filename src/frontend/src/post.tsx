@@ -1087,7 +1087,7 @@ export const filesToUrls = (files: { [id: string]: [number, number] }) =>
 
 function bucket_image_url(bucket_id: string, offset: number, len: number) {
     // Fall back to the mainnet if the local config doesn't contain the bucket.
-    let fallback_to_mainnet = !window.backendCache.stats.buckets.find(
+    let fallback_to_mainnet = !window.backendCache.stats?.buckets?.find(
         ([id, _y]) => id == bucket_id,
     );
     let host =
