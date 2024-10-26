@@ -291,6 +291,16 @@ pub enum Destination {
 }
 
 impl State {
+    pub fn create_backup(&mut self) {
+        if self.backup_exists {
+            return;
+        }
+        memory::heap_to_stable(self);
+        self.memory.init();
+        self.backup_exists = true;
+        self.logger.debug("Backup requested");
+    }
+
     pub fn register_post_tags(&mut self, post_id: PostId, tags: &BTreeSet<String>) {
         for tag in tags {
             let index = self.tag_indexes.entry(tag.clone()).or_default();

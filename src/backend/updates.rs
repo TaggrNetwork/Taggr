@@ -612,13 +612,7 @@ fn caller() -> Principal {
 
 #[update]
 fn backup() {
-    mutate(|state| {
-        if !state.backup_exists {
-            env::memory::heap_to_stable(state);
-            state.memory.init();
-            state.backup_exists = true;
-        }
-    })
+    mutate(|state| state.create_backup())
 }
 
 #[test]
