@@ -1941,6 +1941,16 @@ impl State {
         for tag in self.tag_indexes.values_mut() {
             tag.subscribers = 0;
         }
+
+        let inactive_realm_ids = self
+            .realms
+            .iter()
+            .filter_map(|(id, realm)| {
+                (realm.last_update + CONFIG.realm_inactivity_timeout_days * DAY < now).then_some(id)
+            })
+            .cloned()
+            .collect::<HashSet<_>>();
+
         for user in self.users.values_mut() {
             if user.active_within_weeks(now, 1) {
                 user.active_weeks += 1;
@@ -1956,19 +1966,19 @@ impl State {
             }
             user.post_reports
                 .retain(|_, timestamp| *timestamp + CONFIG.user_report_validity_days * DAY >= now);
+            user.realms
+                .retain(|realm_id| !inactive_realm_ids.contains(realm_id));
         }
+
         self.accounting.clean_up();
 
-        let inactive_realm_ids = self
-            .realms
-            .iter()
-            .filter_map(|(id, realm)| {
-                (realm.last_update + CONFIG.realm_inactivity_timeout_days * DAY < now).then_some(id)
-            })
-            .cloned()
-            .collect::<Vec<_>>();
         for realm_id in inactive_realm_ids {
             let realm = self.realms.remove(&realm_id).expect("no realm found");
+            for controller_id in &realm.controllers {
+                if let Some(user) = self.users.get_mut(&controller_id) {
+                    user.controlled_realms.remove(&realm_id);
+                }
+            }
             self.logger.info(format!(
                 "Realm {} controlled by @{} removed due to inactivity during `{}` days",
                 realm_id,
