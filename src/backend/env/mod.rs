@@ -291,10 +291,6 @@ pub enum Destination {
 }
 
 impl State {
-    fn close_realm(&mut self, realm_id: RealmId) {
-        self.realms.remove(&realm_id).expect("no realm found");
-    }
-
     pub fn create_backup(&mut self) {
         if self.backup_exists {
             return;
@@ -1972,10 +1968,21 @@ impl State {
             .cloned()
             .collect::<Vec<_>>();
         for realm_id in inactive_realm_ids {
-            self.realms.remove(&realm_id);
+            let realm = self.realms.remove(&realm_id).expect("no realm found");
             self.logger.info(format!(
-                "Realm {} removed due to inactivity during `{}` days",
-                realm_id, CONFIG.realm_inactivity_timeout_days,
+                "Realm {} controlled by @{} removed due to inactivity during `{}` days",
+                realm_id,
+                realm
+                    .controllers
+                    .iter()
+                    .map(|user_id| self
+                        .users
+                        .get(user_id)
+                        .map(|v| v.name.clone())
+                        .unwrap_or_default())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                CONFIG.realm_inactivity_timeout_days,
             ));
         }
     }

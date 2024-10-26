@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::token::Token;
 
-use super::{Credits, DAY};
+use super::Credits;
 use candid::CandidType;
 use serde::Serialize;
 
