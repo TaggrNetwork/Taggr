@@ -291,6 +291,10 @@ pub enum Destination {
 }
 
 impl State {
+    fn close_realm(&mut self, realm_id: RealmId) {
+        self.realms.remove(&realm_id).expect("no realm found");
+    }
+
     pub fn create_backup(&mut self) {
         if self.backup_exists {
             return;
@@ -1936,7 +1940,7 @@ impl State {
         self.distribution_reports.push(summary);
     }
 
-    // Refresh tag costs, mark inactive users as inactive
+    // Refresh tag costs, mark inactive users as inactive, close inactive realms
     fn clean_up(&mut self, now: Time) {
         for tag in self.tag_indexes.values_mut() {
             tag.subscribers = 0;
@@ -1958,6 +1962,22 @@ impl State {
                 .retain(|_, timestamp| *timestamp + CONFIG.user_report_validity_days * DAY >= now);
         }
         self.accounting.clean_up();
+
+        let inactive_realm_ids = self
+            .realms
+            .iter()
+            .filter_map(|(id, realm)| {
+                (realm.last_update + CONFIG.realm_inactivity_timeout_days * DAY < now).then_some(id)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        for realm_id in inactive_realm_ids {
+            self.realms.remove(&realm_id);
+            self.logger.info(format!(
+                "Realm {} removed due to inactivity during `{}` days",
+                realm_id, CONFIG.realm_inactivity_timeout_days,
+            ));
+        }
     }
 
     fn charge_for_inactivity(&mut self, now: u64) {

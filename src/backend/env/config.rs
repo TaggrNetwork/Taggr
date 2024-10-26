@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::token::Token;
 
-use super::Credits;
+use super::{Credits, DAY};
 use candid::CandidType;
 use serde::Serialize;
 
@@ -65,6 +65,8 @@ pub struct Config {
     pub max_realm_cleanup_penalty: Credits,
 
     pub realm_revenue_percentage: u32,
+
+    pub realm_inactivity_timeout_days: u64,
 
     pub canister_survival_period_days: u64,
 
@@ -217,6 +219,8 @@ pub const CONFIG: &Config = &Config {
     dao_realm: "DAO",
 
     realm_revenue_percentage: 5,
+
+    realm_inactivity_timeout_days: 365,
 
     #[cfg(feature = "dev")]
     proposal_approval_threshold: 1,
