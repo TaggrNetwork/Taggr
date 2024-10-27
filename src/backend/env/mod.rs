@@ -2517,22 +2517,19 @@ impl State {
         }
         stalwarts.sort_unstable_by_key(|u| u.id);
         let posts = self.root_posts_index.len();
-        let volume_day = self
-            .memory
-            .ledger
-            .iter()
-            .rev()
-            .take_while(|(_, tx)| tx.timestamp + DAY >= now)
-            .map(|(_, tx)| tx.amount)
-            .sum();
-        let volume_week = self
+        let last_week_txs = self
             .memory
             .ledger
             .iter()
             .rev()
             .take_while(|(_, tx)| tx.timestamp + WEEK >= now)
+            .collect::<Vec<_>>();
+        let volume_day = last_week_txs
+            .iter()
+            .take_while(|(_, tx)| tx.timestamp + DAY >= now)
             .map(|(_, tx)| tx.amount)
             .sum();
+        let volume_week = last_week_txs.into_iter().map(|(_, tx)| tx.amount).sum();
 
         Stats {
             fees_burned: self.token_fees_burned,
