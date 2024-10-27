@@ -298,7 +298,7 @@ impl State {
         memory::heap_to_stable(self);
         self.memory.init();
         self.backup_exists = true;
-        self.logger.debug("Backup requested");
+        self.logger.debug("Backup created");
     }
 
     pub fn register_post_tags(&mut self, post_id: PostId, tags: &BTreeSet<String>) {
@@ -1519,9 +1519,9 @@ impl State {
     }
 
     fn archive_cold_data(&mut self) -> Result<(), String> {
-        // Since cold archiving can potentially write data to the end of the heap, we set this flag to false
-        // because otherwise the backups pulled from the canister will be corrupted. Setting the flag back to
-        // false will lead to dumping the heap to the stable memory again.
+        // Since cold archiving can potentially write data to the end of the stable memory, we set this flag to false
+        // because the space used might hold the latest heap and the backups pulled from the canister will be corrupted.
+        // Setting the flag back to false will lead to re-creating of the heap upon the next backup request.
         self.backup_exists = false;
         let max_posts_in_heap = 10_000;
         archive_cold_posts(self, max_posts_in_heap)
