@@ -1129,13 +1129,16 @@ impl State {
         };
 
         // For any child canister that is below the safety threshold,
-        // top up with cycles for at least one day.
+        // top up with cycles for at least `CONFIG.canister_survival_period_days` days.
         for canister_id in read(|state| state.storage.buckets.keys().cloned().collect::<Vec<_>>()) {
             match canisters::cycles(canister_id).await {
                 Ok((cycles, cycles_per_day)) => {
                     if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
-                        let result =
-                            canisters::topup_with_cycles(canister_id, cycles_per_day as u128).await;
+                        let result = canisters::topup_with_cycles(
+                            canister_id,
+                            (CONFIG.canister_survival_period_days * cycles_per_day) as u128,
+                        )
+                        .await;
                         mutate(|state| match result {
                             Ok(_) => state.logger.debug(format!(
                                 "The canister {} was topped up (balance was `{}`, now `{}`).",
