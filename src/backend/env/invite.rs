@@ -8,8 +8,7 @@ pub struct Invite {
     pub credits_per_user: Credits,
     pub joined_user_ids: BTreeSet<UserId>,
     pub realm_id: Option<RealmId>,
-    /// Owner id
-    pub user_id: UserId,
+    pub inviter_user_id: UserId,
 }
 
 impl Invite {
@@ -17,7 +16,7 @@ impl Invite {
         credits: Credits,
         credits_per_user: Credits,
         realm_id: Option<RealmId>,
-        user_id: UserId,
+        inviter_user_id: UserId,
     ) -> Self {
         // Convert empty realm_id to None
         let converted_relm_id: Option<RealmId> = realm_id.filter(|id| !id.is_empty());
@@ -27,20 +26,20 @@ impl Invite {
             credits_per_user,
             joined_user_ids: BTreeSet::new(),
             realm_id: converted_relm_id,
-            user_id,
+            inviter_user_id,
         }
     }
 
     pub fn consume(&mut self, joined_user_id: UserId) -> Result<(), String> {
+        if self.joined_user_ids.contains(&joined_user_id) {
+            return Err("User already credited".into());
+        }
+
         let new_credits = self
             .credits
             .checked_sub(self.credits_per_user)
             .ok_or("Invite credits too low")?;
         self.credits = new_credits;
-
-        if self.joined_user_ids.contains(&joined_user_id) {
-            return Err("User already credited".into());
-        }
 
         self.joined_user_ids.insert(joined_user_id);
 
@@ -53,11 +52,18 @@ impl Invite {
         realm_id: Option<RealmId>,
         user_id: UserId,
     ) -> Result<(), String> {
-        if self.user_id != user_id {
+        if self.inviter_user_id != user_id {
             return Err("Owner does not match".into());
         }
 
         if let Some(new_credits) = credits {
+            if new_credits % self.credits_per_user != 0 {
+                return Err(format!(
+                    "Credits per user are not a multiple of credits {} {}",
+                    new_credits, self.credits_per_user
+                ));
+            }
+
             self.credits = new_credits;
         }
 
@@ -80,13 +86,16 @@ pub fn invites_by_principal(state: &State, principal: Principal) -> Vec<(String,
             state
                 .invite_codes
                 .iter()
-                .filter(|(_, invite)| invite.user_id == user.id)
+                .filter(|(_, invite)| invite.inviter_user_id == user.id)
                 .map(|(code, invite)| (code.clone(), invite.clone()))
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default()
 }
 
+/**
+ * Check allocated credits in invites do not exceed user's credits balance
+ */
 pub fn validate_user_invites_credits(
     state: &State,
     user: &User,
@@ -100,38 +109,22 @@ pub fn validate_user_invites_credits(
     let total_invites_credits: Credits = state
         .invite_codes
         .values()
-        .filter(|invite| invite.user_id == user.id)
+        .filter(|invite| invite.inviter_user_id == user.id)
         .map(|invite| invite.credits)
         .sum();
 
     let total_with_diff = total_invites_credits
         .checked_add(new_credits)
         .ok_or("Invite credits overflow")?
-        .checked_sub(old_credits.unwrap_or_default());
+        .checked_sub(old_credits.unwrap_or_default())
+        .ok_or("Invite credits overflow")?;
 
-    match total_with_diff {
-        Some(total_with_diff) => {
-            if total_with_diff > user.credits() {
-                return Err(format!(
-                    "You don't have enough credits to support invites {} , {}",
-                    user.credits(),
-                    total_with_diff
-                ));
-            }
-        }
-        None => {
-            return Err("Invite credits overflow".into());
-        }
-    }
-
-    Ok(())
-}
-
-pub fn validate_realm_id(state: &State, realm_id: Option<&RealmId>) -> Result<(), String> {
-    if let Some(id) = realm_id {
-        if !id.is_empty() && !state.realms.contains_key(id) {
-            return Err(format!("Realm {} not found", id.clone()));
-        };
+    if total_with_diff > user.credits() {
+        return Err(format!(
+            "You don't have enough credits to support invites {} , {}",
+            user.credits(),
+            total_with_diff
+        ));
     }
 
     Ok(())

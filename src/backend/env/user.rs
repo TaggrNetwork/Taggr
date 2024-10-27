@@ -615,10 +615,10 @@ impl User {
     pub fn validate_send_credits(&self, state: &State) -> Result<(), String> {
         if let Some(invited_by) = self.invited_by {
             let invite = state.invite_codes.values().find(|invite| {
-                invited_by == invite.user_id && invite.joined_user_ids.contains(&self.id)
+                invited_by == invite.inviter_user_id && invite.joined_user_ids.contains(&self.id)
             });
             if let Some(invite) = invite {
-                if self.credits_burned() < invite.credits_per_user && self.credits() < 1000 {
+                if self.credits_burned() < invite.credits_per_user {
                     return Err("You are not allowed to send credits acquired in invite".into());
                 }
             }

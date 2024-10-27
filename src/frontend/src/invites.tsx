@@ -13,8 +13,7 @@ interface Invite {
     credits_per_user: number;
     joined_user_ids: number[];
     realm_id?: string | null | undefined;
-    /** Owner id */
-    user_id: number;
+    inviter_user_id: number;
 }
 
 export const Invites = () => {
@@ -56,7 +55,7 @@ export const Invites = () => {
                     : null,
             )
             .then((response) => {
-                if ("Err" in response) alert(`Error: ${response.Err}`);
+                if ("Err" in (response || {})) alert(`Error: ${response.Err}`);
             });
     };
 

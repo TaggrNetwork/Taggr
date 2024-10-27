@@ -928,7 +928,7 @@ impl State {
                     let invite = state.invite_codes.get(&code)?;
                     Some((
                         invite.credits_per_user,
-                        invite.user_id,
+                        invite.inviter_user_id,
                         code,
                         invite.realm_id.clone(),
                     ))
@@ -1020,7 +1020,7 @@ impl State {
     ) -> Result<(), String> {
         let credits_per_user = credits_per_user_opt.unwrap_or(credits);
         if credits % credits_per_user != 0 {
-            return Err("Credits per user are not a multiplier of credits".into());
+            return Err("Credits per user are not a multiple of credits".into());
         }
         let min_credits = CONFIG.min_credits_for_inviting;
         let user = self.principal_to_user(principal).ok_or("no user found")?;
@@ -1031,7 +1031,7 @@ impl State {
             ));
         }
 
-        invite::validate_realm_id(self, realm_id.as_ref())?;
+        self.validate_realm_id(realm_id.as_ref())?;
         invite::validate_user_invites_credits(self, user, credits, None)?;
 
         let mut hasher = Sha256::new();
@@ -1059,11 +1059,10 @@ impl State {
             return Err("User not found".into());
         };
 
-        invite::validate_realm_id(self, realm_id.as_ref())?;
+        self.validate_realm_id(realm_id.as_ref())?;
 
         let Invite {
             credits: invite_credits,
-            credits_per_user,
             ..
         } = self
             .invite_codes
@@ -1071,13 +1070,6 @@ impl State {
             .ok_or(format!("Invite '{}' not found", invite_code))?;
         if let Some(credits) = credits {
             invite::validate_user_invites_credits(self, user, credits, Some(*invite_credits))?;
-
-            if credits % credits_per_user != 0 {
-                return Err(format!(
-                    "Credits per user are not a multiplier of credits {} {}",
-                    credits, credits_per_user
-                ));
-            }
         }
 
         self.invite_codes
@@ -3097,6 +3089,16 @@ impl State {
             followee.followers.remove(&user_id);
         }
         added
+    }
+
+    fn validate_realm_id(&self, realm_id: Option<&RealmId>) -> Result<(), String> {
+        if let Some(id) = realm_id {
+            if !id.is_empty() && !self.realms.contains_key(id) {
+                return Err(format!("Realm {} not found", id.clone()));
+            };
+        }
+
+        Ok(())
     }
 }
 
