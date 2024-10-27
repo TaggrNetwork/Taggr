@@ -116,7 +116,7 @@ pub struct User {
     pub controllers: Vec<String>,
     pub invited_by: Option<UserId>,
     pub accounting: VecDeque<(Time, String, i64, String)>,
-    pub realms: Vec<String>,
+    pub realms: Vec<RealmId>,
     pub balance: Token,
     pub cold_balance: Token,
     pub active_weeks: u32,

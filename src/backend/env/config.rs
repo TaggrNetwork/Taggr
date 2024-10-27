@@ -66,6 +66,8 @@ pub struct Config {
 
     pub realm_revenue_percentage: u32,
 
+    pub realm_inactivity_timeout_days: u64,
+
     pub canister_survival_period_days: u64,
 
     pub max_bucket_size: u64,
@@ -217,6 +219,8 @@ pub const CONFIG: &Config = &Config {
     dao_realm: "DAO",
 
     realm_revenue_percentage: 5,
+
+    realm_inactivity_timeout_days: 365,
 
     #[cfg(feature = "dev")]
     proposal_approval_threshold: 1,

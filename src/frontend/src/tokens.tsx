@@ -73,11 +73,12 @@ export const Tokens = () => {
         Number(balance),
     );
     balanceAmounts.sort((a, b) => b - a);
+    const userTokens = balanceAmounts.reduce((sum, value) => sum + value, 0);
     const balancesTotal = balanceAmounts.length;
     let vp = 0;
     while (
         balanceAmounts.length > 0 &&
-        (vp / mintedSupply) * 100 < proposal_approval_threshold
+        (vp / userTokens) * 100 < proposal_approval_threshold
     ) {
         vp += balanceAmounts.shift() || 0;
     }

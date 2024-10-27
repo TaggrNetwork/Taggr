@@ -379,34 +379,39 @@ export const Form = ({
     const showPreview = value || isRepost;
 
     const preview = (
-        <article
-            ref={articleRef as unknown as any}
-            className={`bottom_spaced preview max_width_col ${
-                postId == null ? "prime" : ""
-            } framed`}
-        >
-            <Content
-                post={true}
-                urls={tmpUrls}
-                value={value}
-                preview={true}
-                primeMode={postId == null}
-            />
-            {poll && (
-                <PollView poll={poll} created={Number(new Date()) * 1000000} />
-            )}
+        <div className="max_width_col framed">
+            <article
+                ref={articleRef as unknown as any}
+                className={`bottom_spaced preview max_width_col ${
+                    postId == null ? "prime" : ""
+                }`}
+            >
+                <Content
+                    post={true}
+                    urls={tmpUrls}
+                    value={value}
+                    preview={true}
+                    primeMode={postId == null}
+                />
+                {poll && (
+                    <PollView
+                        poll={poll}
+                        created={Number(new Date()) * 1000000}
+                    />
+                )}
+            </article>
             {isRepost &&
                 React.useMemo(
                     () => (
                         <PostView
                             id={repost}
                             repost={true}
-                            classNameArg="repost"
+                            classNameArg="post_extension repost"
                         />
                     ),
                     [repost],
                 )}
-        </article>
+        </div>
     );
 
     const formButton = (content: JSX.Element, map: (arg: string) => string) => (

@@ -47,18 +47,20 @@ export const RealmList = ({
 }) => {
     if (ids.length == 0) return null;
     const [realmsData, setRealmsData] = React.useState<Realm[]>([]);
+    const [loaded, setLoaded] = React.useState(false);
 
     const loadData = async () => {
         setRealmsData((await window.api.query("realms", ids)) || []);
+        setLoaded(true);
     };
 
     React.useEffect(() => {
         loadData();
     }, []);
 
-    return realmsData.length == 0 ? (
-        <Loading />
-    ) : (
+    if (!loaded) return <Loading />;
+
+    return (
         <div
             className={`row_container ${classNameArg || ""}`}
             style={{ alignItems: "center" }}
@@ -1020,7 +1022,7 @@ export const ArrowDown = ({ onClick }: { onClick?: () => void }) => (
 );
 
 export function pfpUrl(userId: UserId) {
-    const canisterId = window.backendCache.stats.canister_id;
+    const canisterId = window.backendCache?.stats?.canister_id;
     const host = MAINNET_MODE
         ? `https://${canisterId}.raw.icp0.io`
         : `http://127.0.0.1:8080`;

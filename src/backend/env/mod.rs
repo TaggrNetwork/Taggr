@@ -291,6 +291,16 @@ pub enum Destination {
 }
 
 impl State {
+    pub fn create_backup(&mut self) {
+        if self.backup_exists {
+            return;
+        }
+        memory::heap_to_stable(self);
+        self.memory.init();
+        self.backup_exists = true;
+        self.logger.debug("Backup created");
+    }
+
     pub fn register_post_tags(&mut self, post_id: PostId, tags: &BTreeSet<String>) {
         for tag in tags {
             let index = self.tag_indexes.entry(tag.clone()).or_default();
@@ -1119,13 +1129,16 @@ impl State {
         };
 
         // For any child canister that is below the safety threshold,
-        // top up with cycles for at least one day.
+        // top up with cycles for at least `CONFIG.canister_survival_period_days` days.
         for canister_id in read(|state| state.storage.buckets.keys().cloned().collect::<Vec<_>>()) {
             match canisters::cycles(canister_id).await {
                 Ok((cycles, cycles_per_day)) => {
                     if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
-                        let result =
-                            canisters::topup_with_cycles(canister_id, cycles_per_day as u128).await;
+                        let result = canisters::topup_with_cycles(
+                            canister_id,
+                            (CONFIG.canister_survival_period_days * cycles_per_day) as u128,
+                        )
+                        .await;
                         mutate(|state| match result {
                             Ok(_) => state.logger.debug(format!(
                                 "The canister {} was topped up (balance was `{}`, now `{}`).",
@@ -1509,6 +1522,10 @@ impl State {
     }
 
     fn archive_cold_data(&mut self) -> Result<(), String> {
+        // Since cold archiving can potentially write data to the end of the stable memory, we set this flag to false
+        // because the space used might hold the latest heap and the backups pulled from the canister will be corrupted.
+        // Setting the flag back to false will lead to re-creating of the heap upon the next backup request.
+        self.backup_exists = false;
         let max_posts_in_heap = 10_000;
         archive_cold_posts(self, max_posts_in_heap)
     }
@@ -1723,10 +1740,10 @@ impl State {
             let (market_price, revenue) = State::close_auction().await;
             mutate(|state| {
                 state.logger.info(format!(
-                    "Established market price: `{}` e8s per `1` ${}; next auction size: `{}` tokens",
-                    market_price * token::base(),
+                    "Established market price: `{}` ICP per `1` ${}; next auction size: `{}` tokens",
+                    display_tokens(market_price * token::base(), 8),
                     CONFIG.token_symbol,
-                    state.auction.amount
+                    state.auction.amount / token::base()
                 ));
 
                 state.minting_mode = true;
@@ -1922,11 +1939,21 @@ impl State {
         self.distribution_reports.push(summary);
     }
 
-    // Refresh tag costs, mark inactive users as inactive
+    // Refresh tag costs, mark inactive users as inactive, close inactive realms
     fn clean_up(&mut self, now: Time) {
         for tag in self.tag_indexes.values_mut() {
             tag.subscribers = 0;
         }
+
+        let inactive_realm_ids = self
+            .realms
+            .iter()
+            .filter_map(|(id, realm)| {
+                (realm.last_update + CONFIG.realm_inactivity_timeout_days * DAY < now).then_some(id)
+            })
+            .cloned()
+            .collect::<HashSet<_>>();
+
         for user in self.users.values_mut() {
             if user.active_within_weeks(now, 1) {
                 user.active_weeks += 1;
@@ -1942,8 +1969,35 @@ impl State {
             }
             user.post_reports
                 .retain(|_, timestamp| *timestamp + CONFIG.user_report_validity_days * DAY >= now);
+            user.realms
+                .retain(|realm_id| !inactive_realm_ids.contains(realm_id));
         }
+
         self.accounting.clean_up();
+
+        for realm_id in inactive_realm_ids {
+            let realm = self.realms.remove(&realm_id).expect("no realm found");
+            for controller_id in &realm.controllers {
+                if let Some(user) = self.users.get_mut(controller_id) {
+                    user.controlled_realms.remove(&realm_id);
+                }
+            }
+            self.logger.info(format!(
+                "Realm {} controlled by @{} removed due to inactivity during `{}` days",
+                realm_id,
+                realm
+                    .controllers
+                    .iter()
+                    .map(|user_id| self
+                        .users
+                        .get(user_id)
+                        .map(|v| v.name.clone())
+                        .unwrap_or_default())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                CONFIG.realm_inactivity_timeout_days,
+            ));
+        }
     }
 
     fn charge_for_inactivity(&mut self, now: u64) {
@@ -2463,22 +2517,19 @@ impl State {
         }
         stalwarts.sort_unstable_by_key(|u| u.id);
         let posts = self.root_posts_index.len();
-        let volume_day = self
-            .memory
-            .ledger
-            .iter()
-            .rev()
-            .take_while(|(_, tx)| tx.timestamp + DAY >= now)
-            .map(|(_, tx)| tx.amount)
-            .sum();
-        let volume_week = self
+        let last_week_txs = self
             .memory
             .ledger
             .iter()
             .rev()
             .take_while(|(_, tx)| tx.timestamp + WEEK >= now)
+            .collect::<Vec<_>>();
+        let volume_day = last_week_txs
+            .iter()
+            .take_while(|(_, tx)| tx.timestamp + DAY >= now)
             .map(|(_, tx)| tx.amount)
             .sum();
+        let volume_week = last_week_txs.into_iter().map(|(_, tx)| tx.amount).sum();
 
         Stats {
             fees_burned: self.token_fees_burned,
