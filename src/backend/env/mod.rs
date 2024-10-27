@@ -1740,10 +1740,10 @@ impl State {
             let (market_price, revenue) = State::close_auction().await;
             mutate(|state| {
                 state.logger.info(format!(
-                    "Established market price: `{}` e8s per `1` ${}; next auction size: `{}` tokens",
-                    market_price * token::base(),
+                    "Established market price: `{}` ICP per `1` ${}; next auction size: `{}` tokens",
+                    display_tokens(market_price * token::base(), 8),
                     CONFIG.token_symbol,
-                    state.auction.amount
+                    state.auction.amount / token::base()
                 ));
 
                 state.minting_mode = true;
