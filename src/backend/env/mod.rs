@@ -185,9 +185,6 @@ pub struct State {
     total_rewards_shared: u64,
 
     pub proposals: Vec<Proposal>,
-    // TODO: delete
-    #[serde(skip)]
-    pub ledger: Vec<Transaction>,
 
     // Contains the pair of two amounts (vested, total_vesting) describing
     // the vesting progress of X (see "Founder's Tokens" in white paper)
