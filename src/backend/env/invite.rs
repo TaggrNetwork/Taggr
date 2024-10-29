@@ -79,18 +79,24 @@ impl Invite {
     }
 }
 
-pub fn invites_by_principal(state: &State, principal: Principal) -> Vec<(String, Invite)> {
-    state
+pub fn invites_by_principal<'a>(
+    state: &'a State,
+    principal: Principal,
+) -> Vec<(&'a String, &'a Invite)> {
+    let invites = state
         .principal_to_user(principal)
-        .map(|user| {
+        .ok_or("Principal not found")
+        .map(|user| user.id)
+        .map(|user_id| {
             state
                 .invite_codes
                 .iter()
-                .filter(|(_, invite)| invite.inviter_user_id == user.id)
-                .map(|(code, invite)| (code.clone(), invite.clone()))
-                .collect::<Vec<_>>()
+                .filter(|(_, invite)| invite.inviter_user_id == user_id)
+                .collect()
         })
-        .unwrap_or_default()
+        .expect("Failed to filter invites");
+
+    invites
 }
 
 /**

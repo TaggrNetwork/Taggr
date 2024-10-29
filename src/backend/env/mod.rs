@@ -4890,8 +4890,8 @@ pub(crate) mod tests {
             let invite = invite::invites_by_principal(state, principal);
             assert_eq!(invite.len(), 1);
             let (code, Invite { credits, .. }) = invite.first().unwrap().clone();
-            assert_eq!(credits, 111);
-            (id, code, prev_balance)
+            assert_eq!(*credits, 111);
+            (id, code.to_string(), prev_balance)
         });
 
         // use the invite
@@ -4908,8 +4908,8 @@ pub(crate) mod tests {
             assert_eq!(state.create_invite(principal, 222, None, None), Ok(()));
             let invites = invite::invites_by_principal(state, principal);
             let (code, Invite { credits, .. }) = invites.first().unwrap().clone();
-            assert_eq!(credits, 222);
-            (id, code, prev_balance)
+            assert_eq!(*credits, 222);
+            (id, code.to_string(), prev_balance)
         });
 
         let prev_revenue = read(|state| state.burned_cycles);
@@ -4942,7 +4942,7 @@ pub(crate) mod tests {
 
             let code = invite::invites_by_principal(state, principal)
                 .first()
-                .map(|(code, _)| code.clone())
+                .map(|(code, _)| code.to_string())
                 .unwrap();
 
             code
@@ -4951,7 +4951,7 @@ pub(crate) mod tests {
         // New user should be joined to realm
         let new_principal = pr(5);
         assert_eq!(
-            State::create_user(new_principal, "name".to_string(), Some(invite_code.clone())).await,
+            State::create_user(new_principal, "name".to_string(), Some(invite_code)).await,
             Ok(Some(realm_id.clone()))
         );
         read(|state| {
