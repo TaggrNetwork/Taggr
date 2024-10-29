@@ -4889,7 +4889,7 @@ pub(crate) mod tests {
             assert_eq!(new_balance, prev_balance);
             let invite = invite::invites_by_principal(state, principal);
             assert_eq!(invite.len(), 1);
-            let (code, Invite { credits, .. }) = invite.first().unwrap().clone();
+            let (code, Invite { credits, .. }) = *invite.first().unwrap();
             assert_eq!(*credits, 111);
             (id, code.to_string(), prev_balance)
         });
@@ -4907,7 +4907,7 @@ pub(crate) mod tests {
             let prev_balance = user.credits();
             assert_eq!(state.create_invite(principal, 222, None, None), Ok(()));
             let invites = invite::invites_by_principal(state, principal);
-            let (code, Invite { credits, .. }) = invites.first().unwrap().clone();
+            let (code, Invite { credits, .. }) = *invites.first().unwrap();
             assert_eq!(*credits, 222);
             (id, code.to_string(), prev_balance)
         });

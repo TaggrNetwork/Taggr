@@ -79,10 +79,7 @@ impl Invite {
     }
 }
 
-pub fn invites_by_principal<'a>(
-    state: &'a State,
-    principal: Principal,
-) -> Vec<(&'a String, &'a Invite)> {
+pub fn invites_by_principal(state: &State, principal: Principal) -> Vec<(&String, &Invite)> {
     let invites = state
         .principal_to_user(principal)
         .ok_or("Principal not found")
