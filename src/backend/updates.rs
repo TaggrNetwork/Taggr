@@ -22,6 +22,7 @@ use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
 use std::time::Duration;
+use token::icrc1_fee;
 use user::Pfp;
 
 #[init]
@@ -80,7 +81,30 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    // Send all tokens sent to the main canister back.
+    mutate(|state| {
+        let mut txs = Vec::new();
+        for (_, tx) in state.memory.ledger.iter() {
+            // If the onwer == canister id, we have a transfer to the canister.
+            if tx.to.owner == id() {
+                txs.push(tx.clone());
+            }
+        }
+
+        for tx in txs {
+            let args = TransferArgs {
+                from_subaccount: None,
+                to: tx.from,
+                amount: tx.amount as u128 - icrc1_fee(),
+                fee: Some(icrc1_fee()),
+                memo: None,
+                created_at_time: None,
+            };
+            token::transfer(state, time(), id(), args).unwrap();
+        }
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}

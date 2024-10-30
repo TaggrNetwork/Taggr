@@ -10,7 +10,7 @@ use self::user::{Filters, Mode, Notification, Predicate, UserFilter};
 use crate::assets::export_token_supply;
 use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
-use crate::token::{Account, Token, Transaction};
+use crate::token::{Account, Token};
 use crate::{assets, id, mutate, read, time};
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
@@ -1976,9 +1976,9 @@ impl State {
                     && realm
                         .controllers
                         .iter()
-                        .all(|controller_id| inactive_users.contains(&controller_id))
-                    && realm.posts.len() == 0)
-                    .then_some(id)
+                        .all(|controller_id| inactive_users.contains(controller_id))
+                    && realm.posts.is_empty())
+                .then_some(id)
             })
             .cloned()
             .collect::<HashSet<_>>();

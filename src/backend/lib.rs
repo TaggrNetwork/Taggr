@@ -62,7 +62,8 @@ pub fn performance_counter(_n: u32) -> u64 {
 }
 pub fn id() -> Principal {
     #[cfg(test)]
-    return Principal::anonymous();
+    // Mocked Id for tests.
+    return Principal::from_text("6qfxa-ryaaa-aaaai-qbhsq-cai").expect("parsing failed");
     #[cfg(not(test))]
     ic_cdk::id()
 }
