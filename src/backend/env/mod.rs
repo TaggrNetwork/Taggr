@@ -1942,14 +1942,7 @@ impl State {
             tag.subscribers = 0;
         }
 
-        let inactive_realm_ids = self
-            .realms
-            .iter()
-            .filter_map(|(id, realm)| {
-                (realm.last_update + CONFIG.realm_inactivity_timeout_days * DAY < now).then_some(id)
-            })
-            .cloned()
-            .collect::<HashSet<_>>();
+        let mut inactive_users = Vec::new();
 
         for user in self.users.values_mut() {
             if user.active_within_weeks(now, 1) {
@@ -1963,14 +1956,37 @@ impl State {
                 }
             } else {
                 user.deactivate();
+                inactive_users.push(user.id);
             }
             user.post_reports
                 .retain(|_, timestamp| *timestamp + CONFIG.user_report_validity_days * DAY >= now);
-            user.realms
-                .retain(|realm_id| !inactive_realm_ids.contains(realm_id));
         }
 
         self.accounting.clean_up();
+
+        let inactive_realm_ids = self
+            .realms
+            .iter()
+            // Find all realms that:
+            // - have no activity for `CONFIG.realm_inactivity_timeout_days` days
+            // - have all controllers inactive
+            // - have no posts
+            .filter_map(|(id, realm)| {
+                (realm.last_update + CONFIG.realm_inactivity_timeout_days * DAY < now
+                    && realm
+                        .controllers
+                        .iter()
+                        .all(|controller_id| inactive_users.contains(&controller_id))
+                    && realm.posts.len() == 0)
+                    .then_some(id)
+            })
+            .cloned()
+            .collect::<HashSet<_>>();
+
+        for user in self.users.values_mut() {
+            user.realms
+                .retain(|realm_id| !inactive_realm_ids.contains(realm_id));
+        }
 
         for realm_id in inactive_realm_ids {
             let realm = self.realms.remove(&realm_id).expect("no realm found");
