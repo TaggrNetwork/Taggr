@@ -4887,9 +4887,9 @@ pub(crate) mod tests {
             let new_balance = state.users.get(&id).unwrap().credits();
             // no charging yet
             assert_eq!(new_balance, prev_balance);
-            let invite = invite::invites_by_principal(state, principal);
-            assert_eq!(invite.len(), 1);
-            let (code, Invite { credits, .. }) = *invite.first().unwrap();
+            let invites = invite::invites_by_principal(state, principal);
+            assert_eq!(invites.len(), 1);
+            let (code, Invite { credits, .. }) = *invites.first().unwrap();
             assert_eq!(*credits, 111);
             (id, code.to_string(), prev_balance)
         });
@@ -4955,13 +4955,14 @@ pub(crate) mod tests {
             Ok(Some(realm_id.clone()))
         );
         read(|state| {
-            assert_eq!(
-                state
-                    .principal_to_user(new_principal)
-                    .and_then(|u| u.realms.first())
-                    .cloned(),
-                Some(realm_id.clone())
-            );
+            let user = state.principal_to_user(new_principal).unwrap();
+            assert_eq!(user.credits(), 50); // Invite gives 50 credits
+            assert_eq!(user.realms.first().cloned(), Some(realm_id));
+
+            let (_, invite) = *invite::invites_by_principal(state, principal)
+                .first()
+                .unwrap();
+            assert_eq!(invite.credits, 150);
         });
     }
 
