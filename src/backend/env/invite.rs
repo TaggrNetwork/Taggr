@@ -79,7 +79,10 @@ impl Invite {
     }
 }
 
-pub fn invites_by_principal(state: &State, principal: Principal) -> Vec<(&String, &Invite)> {
+pub fn invites_by_principal(
+    state: &State,
+    principal: Principal,
+) -> Box<impl Iterator<Item = (&String, &Invite)>> {
     let invites = state
         .principal_to_user(principal)
         .ok_or("Principal not found")
@@ -88,16 +91,17 @@ pub fn invites_by_principal(state: &State, principal: Principal) -> Vec<(&String
             state
                 .invite_codes
                 .iter()
-                .filter(|(_, invite)| invite.inviter_user_id == user_id)
-                .collect()
+                .filter(move |(_, invite)| invite.inviter_user_id == user_id)
         })
         .expect("Failed to filter invites");
 
-    invites
+    Box::new(invites)
 }
 
 /**
  * Check allocated credits in invites do not exceed user's credits balance
+ *
+ * Protects against creating infinite number of invites
  */
 pub fn validate_user_invites_credits(
     state: &State,

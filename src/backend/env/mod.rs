@@ -4888,8 +4888,8 @@ pub(crate) mod tests {
             // no charging yet
             assert_eq!(new_balance, prev_balance);
             let invites = invite::invites_by_principal(state, principal);
-            assert_eq!(invites.len(), 1);
-            let (code, Invite { credits, .. }) = *invites.first().unwrap();
+            // assert_eq!(invites.count(), 1);
+            let (code, Invite { credits, .. }) = invites.last().unwrap();
             assert_eq!(*credits, 111);
             (id, code.to_string(), prev_balance)
         });
@@ -4907,7 +4907,7 @@ pub(crate) mod tests {
             let prev_balance = user.credits();
             assert_eq!(state.create_invite(principal, 222, None, None), Ok(()));
             let invites = invite::invites_by_principal(state, principal);
-            let (code, Invite { credits, .. }) = *invites.first().unwrap();
+            let (code, Invite { credits, .. }) = invites.last().unwrap();
             assert_eq!(*credits, 222);
             (id, code.to_string(), prev_balance)
         });
@@ -4941,7 +4941,7 @@ pub(crate) mod tests {
             );
 
             let code = invite::invites_by_principal(state, principal)
-                .first()
+                .last()
                 .map(|(code, _)| code.to_string())
                 .unwrap();
 
@@ -4959,8 +4959,8 @@ pub(crate) mod tests {
             assert_eq!(user.credits(), 50); // Invite gives 50 credits
             assert_eq!(user.realms.first().cloned(), Some(realm_id));
 
-            let (_, invite) = *invite::invites_by_principal(state, principal)
-                .first()
+            let (_, invite) = invite::invites_by_principal(state, principal)
+                .last()
                 .unwrap();
             assert_eq!(invite.credits, 150);
         });

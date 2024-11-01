@@ -334,7 +334,7 @@ fn tags_cost() {
 
 #[export_name = "canister_query invites"]
 fn invites() {
-    read(|state| reply(invite::invites_by_principal(state, caller())));
+    read(|state| reply(invite::invites_by_principal(state, caller()).collect::<Vec<_>>()));
 }
 
 fn personal_filter(state: &State, user: Option<&User>, post: &Post) -> bool {

@@ -612,6 +612,7 @@ impl User {
         })
     }
 
+    /** Protect against invite phishing */
     pub fn validate_send_credits(&self, state: &State) -> Result<(), String> {
         if let Some(invited_by) = self.invited_by {
             let invite = state.invite_codes.values().find(|invite| {
