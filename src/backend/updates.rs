@@ -82,6 +82,26 @@ fn post_upgrade() {
 
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
+    // Restore consistency of user's controlled_realms hashset.
+    mutate(|state| {
+        let controllers = state
+            .realms
+            .iter()
+            .map(|(id, realm)| (id, realm.controllers.clone()))
+            .collect::<Vec<_>>();
+
+        for (realm_id, controllers) in controllers {
+            for user_id in controllers {
+                state
+                    .users
+                    .get_mut(&user_id)
+                    .unwrap()
+                    .controlled_realms
+                    .insert(realm_id.clone());
+            }
+        }
+    });
+
     // Send all tokens sent to the main canister back.
     mutate(|state| {
         let mut txs = Vec::new();
