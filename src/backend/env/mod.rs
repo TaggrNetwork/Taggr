@@ -10,7 +10,7 @@ use self::user::{Filters, Mode, Notification, Predicate, UserFilter};
 use crate::assets::export_token_supply;
 use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
-use crate::token::{Account, Token, Transaction};
+use crate::token::{Account, Token};
 use crate::{assets, id, mutate, read, time};
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
@@ -185,9 +185,6 @@ pub struct State {
     total_rewards_shared: u64,
 
     pub proposals: Vec<Proposal>,
-    // TODO: delete
-    #[serde(skip)]
-    pub ledger: Vec<Transaction>,
 
     // Contains the pair of two amounts (vested, total_vesting) describing
     // the vesting progress of X (see "Founder's Tokens" in white paper)
@@ -1586,8 +1583,8 @@ impl State {
             .into_iter()
             .filter(|proposal| proposal.id > last_known_proposal_id)
         {
-            // Vote only on proposals with topics network economics, governance, SNS & replica-management.
-            if [3, 4, 13, 14].contains(&proposal.topic) {
+            // Vote only on proposals with topics governance, SNS & replica-management.
+            if [4, 14].contains(&proposal.topic) {
                 let post = format!(
                     "# #NNS-Proposal [{0}](https://dashboard.internetcomputer.org/proposal/{0})\n## {1}\n",
                     proposal.id, proposal.title,
@@ -1945,14 +1942,7 @@ impl State {
             tag.subscribers = 0;
         }
 
-        let inactive_realm_ids = self
-            .realms
-            .iter()
-            .filter_map(|(id, realm)| {
-                (realm.last_update + CONFIG.realm_inactivity_timeout_days * DAY < now).then_some(id)
-            })
-            .cloned()
-            .collect::<HashSet<_>>();
+        let mut inactive_users = Vec::new();
 
         for user in self.users.values_mut() {
             if user.active_within_weeks(now, 1) {
@@ -1966,14 +1956,37 @@ impl State {
                 }
             } else {
                 user.deactivate();
+                inactive_users.push(user.id);
             }
             user.post_reports
                 .retain(|_, timestamp| *timestamp + CONFIG.user_report_validity_days * DAY >= now);
-            user.realms
-                .retain(|realm_id| !inactive_realm_ids.contains(realm_id));
         }
 
         self.accounting.clean_up();
+
+        let inactive_realm_ids = self
+            .realms
+            .iter()
+            // Find all realms that:
+            // - have no activity for `CONFIG.realm_inactivity_timeout_days` days
+            // - have all controllers inactive
+            // - have no posts
+            .filter_map(|(id, realm)| {
+                (realm.last_update + CONFIG.realm_inactivity_timeout_days * DAY < now
+                    && realm
+                        .controllers
+                        .iter()
+                        .all(|controller_id| inactive_users.contains(controller_id))
+                    && realm.posts.is_empty())
+                .then_some(id)
+            })
+            .cloned()
+            .collect::<HashSet<_>>();
+
+        for user in self.users.values_mut() {
+            user.realms
+                .retain(|realm_id| !inactive_realm_ids.contains(realm_id));
+        }
 
         for realm_id in inactive_realm_ids {
             let realm = self.realms.remove(&realm_id).expect("no realm found");

@@ -348,6 +348,16 @@ pub fn transfer(
             message: "minting invariant violation".into(),
         }));
     }
+
+    // Some people mistakenly send tokens to the ledger canister directly.
+    // There is no good reason to allow it.
+    if to.owner == id() {
+        return Err(TransferError::GenericError(GenericError {
+            error_code: 69,
+            message: "ledger canister does not accept transfers".into(),
+        }));
+    }
+
     if fee.is_none() {
         return Err(TransferError::BadFee(BadFee {
             expected_fee: icrc1_fee(),
