@@ -1583,7 +1583,7 @@ impl State {
             .into_iter()
             .filter(|proposal| proposal.id > last_known_proposal_id)
         {
-            // Vote only on proposals with topics network economics, governance, SNS & replica-management.
+            // Vote only on proposals with topics governance, SNS & replica-management.
             if [4, 14].contains(&proposal.topic) {
                 let post = format!(
                     "# #NNS-Proposal [{0}](https://dashboard.internetcomputer.org/proposal/{0})\n## {1}\n",
