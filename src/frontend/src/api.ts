@@ -1,6 +1,13 @@
 import { Principal } from "@dfinity/principal";
-import { HttpAgent, HttpAgentOptions, Identity, polling } from "@dfinity/agent";
-import { IDL, JsonValue } from "@dfinity/candid";
+import {
+    Certificate,
+    HttpAgent,
+    HttpAgentOptions,
+    Identity,
+    lookupResultToBuffer,
+    polling,
+} from "@dfinity/agent";
+import { bufFromBufLike, IDL, JsonValue } from "@dfinity/candid";
 import { CANISTER_ID } from "./env";
 import { ICP_DEFAULT_FEE, ICP_LEDGER_ID } from "./common";
 import {
@@ -160,13 +167,45 @@ export const ApiGenerator = (
         try {
             let { response, requestId } = await agent.call(
                 canisterId,
-                { methodName, arg },
+                { methodName, arg, callSync: true },
                 identity,
             );
             if (!response.ok) {
                 console.error(`Call error: ${response.statusText}`);
                 return null;
             }
+
+            let certificate: Certificate | undefined;
+            if (response.body && "certificate" in response.body) {
+                const cert = response.body.certificate;
+                certificate = await Certificate.create({
+                    certificate: bufFromBufLike(cert),
+                    rootKey: agent.rootKey,
+                    canisterId: Principal.from(canisterId),
+                });
+                const path = [
+                    new TextEncoder().encode("request_status"),
+                    requestId,
+                ];
+                const status = new TextDecoder().decode(
+                    lookupResultToBuffer(
+                        certificate.lookup([...path, "status"]),
+                    ),
+                );
+
+                switch (status) {
+                    case "replied":
+                        return (
+                            lookupResultToBuffer(
+                                certificate.lookup([...path, "reply"]),
+                            ) || null
+                        );
+                    case "rejected":
+                        console.error(`Call rejected: ${response.statusText}`);
+                        return null;
+                }
+            }
+
             return (
                 await polling.pollForResponse(
                     agent,
