@@ -55,7 +55,14 @@ export const Invites = () => {
                     : null,
             )
             .then((response) => {
-                if ("Err" in (response || {})) alert(`Error: ${response.Err}`);
+                if ("Err" in (response || {})) {
+                    alert(`Error: ${response.Err}`);
+                    setBusy(true);
+                    setTimeout(() => {
+                        loadInvites(); // Set back to prior state
+                        setBusy(false);
+                    }, 0);
+                }
             });
     };
 
@@ -105,7 +112,7 @@ export const Invites = () => {
                         The invite will not work if your invite budget or credit
                         balance drops below the amount attached to the invite.
                     </li>
-                    <li>Invites are not cancelable.</li>
+                    <li>Invites can be canceled by setting the credits to 0.</li>
                 </ul>
                 <div className="vcentered">
                     Credits:
