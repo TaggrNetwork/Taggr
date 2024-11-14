@@ -23,7 +23,6 @@ use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
 use std::time::Duration;
-use token::icrc1_fee;
 use user::Pfp;
 
 #[init]
