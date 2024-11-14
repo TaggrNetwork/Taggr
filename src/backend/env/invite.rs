@@ -64,6 +64,11 @@ impl Invite {
                 ));
             }
 
+            // Protect against creating invite and setting to 0 without usage
+            if new_credits == 0 && self.joined_user_ids.is_empty() {
+                return Err("Cannot set credits to 0 as it has never been used".into());
+            }
+
             self.credits = new_credits;
         }
 
