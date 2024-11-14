@@ -112,7 +112,9 @@ export const Invites = () => {
                         The invite will not work if your invite budget or credit
                         balance drops below the amount attached to the invite.
                     </li>
-                    <li>Invites can be canceled by setting the credits to 0.</li>
+                    <li>
+                        Invites can be canceled by setting the credits to 0.
+                    </li>
                 </ul>
                 <div className="vcentered">
                     Credits:
