@@ -54,14 +54,12 @@ export const Invites = () => {
                     ? updatedInvite.realm_id
                     : null,
             )
-            .then((response) => {
+            .then(async (response) => {
                 if ("Err" in (response || {})) {
                     alert(`Error: ${response.Err}`);
                     setBusy(true);
-                    setTimeout(() => {
-                        loadInvites(); // Set back to prior state
-                        setBusy(false);
-                    }, 0);
+                    await loadInvites(); // Set back to prior state
+                    setBusy(false);
                 }
             });
     };
