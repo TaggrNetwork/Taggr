@@ -19,13 +19,13 @@ impl Invite {
         inviter_user_id: UserId,
     ) -> Self {
         // Convert empty realm_id to None
-        let converted_relm_id: Option<RealmId> = realm_id.filter(|id| !id.is_empty());
+        let converted_realm_id: Option<RealmId> = realm_id.filter(|id| !id.is_empty());
 
         Self {
             credits,
             credits_per_user,
             joined_user_ids: BTreeSet::new(),
-            realm_id: converted_relm_id,
+            realm_id: converted_realm_id,
             inviter_user_id,
         }
     }
@@ -59,8 +59,8 @@ impl Invite {
         if let Some(new_credits) = credits {
             if new_credits % self.credits_per_user != 0 {
                 return Err(format!(
-                    "Credits per user are not a multiple of credits {} {}",
-                    new_credits, self.credits_per_user
+                    "Credits per user {} are not a multiple of new credits {}",
+                    self.credits_per_user, new_credits,
                 ));
             }
 
@@ -87,27 +87,20 @@ impl Invite {
 pub fn invites_by_principal(
     state: &State,
     principal: Principal,
-) -> Box<impl Iterator<Item = (&String, &Invite)>> {
-    let invites = state
-        .principal_to_user(principal)
-        .ok_or("Principal not found")
-        .map(|user| user.id)
-        .map(|user_id| {
-            state
-                .invite_codes
-                .iter()
-                .filter(move |(_, invite)| invite.inviter_user_id == user_id)
-        })
-        .expect("Failed to filter invites");
-
-    Box::new(invites)
+) -> Box<dyn Iterator<Item = (&'_ String, &'_ Invite)> + '_> {
+    match state.principal_to_user(principal).map(|user| {
+        state
+            .invite_codes
+            .iter()
+            .filter(move |(_, invite)| invite.inviter_user_id == user.id)
+    }) {
+        Some(iter) => Box::new(iter),
+        _ => Box::new(std::iter::empty()),
+    }
 }
 
-/**
- * Check allocated credits in invites do not exceed user's credits balance
- *
- * Protects against creating infinite number of invites
- */
+/// Check allocated credits in invites do not exceed user's credits balance.
+/// Protects against creating infinite number of invites.
 pub fn validate_user_invites_credits(
     state: &State,
     user: &User,
@@ -133,7 +126,7 @@ pub fn validate_user_invites_credits(
 
     if total_with_diff > user.credits() {
         return Err(format!(
-            "You don't have enough credits to support invites {} , {}",
+            "not enough credits available: {} (needed for all open invites: {})",
             user.credits(),
             total_with_diff
         ));

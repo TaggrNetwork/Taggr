@@ -314,9 +314,8 @@ fn create_invite() {
 fn update_invite() {
     let (invite_code, credits, realm_id): (String, Option<Credits>, Option<RealmId>) =
         parse(&arg_data_raw());
-    let user_id = read(|state| state.principal_to_user(caller()).expect("no user found").id);
 
-    mutate(|state| reply(state.update_invite(user_id, invite_code, credits, realm_id)));
+    mutate(|state| reply(state.update_invite(caller(), invite_code, credits, realm_id)));
 }
 
 #[export_name = "canister_update delay_weekly_chores"]

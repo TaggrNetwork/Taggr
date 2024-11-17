@@ -925,13 +925,14 @@ impl State {
             }
             if let Some((credits_per_user, inviter_id, code, realm_id)) =
                 invite_code.and_then(|code| {
-                    let invite = state.invite_codes.get(&code)?;
-                    Some((
-                        invite.credits_per_user,
-                        invite.inviter_user_id,
-                        code,
-                        invite.realm_id.clone(),
-                    ))
+                    state.invite_codes.get(&code).map(|invite| {
+                        (
+                            invite.credits_per_user,
+                            invite.inviter_user_id,
+                            code,
+                            invite.realm_id.clone(),
+                        )
+                    })
                 })
             {
                 let inviter = state.users.get_mut(&inviter_id).ok_or("no user found")?;
@@ -1047,7 +1048,7 @@ impl State {
 
     pub fn update_invite(
         &mut self,
-        user_id: UserId,
+        principal: Principal,
         invite_code: String,
         credits: Option<Credits>,
         realm_id: Option<RealmId>,
@@ -1055,9 +1056,8 @@ impl State {
         if credits.is_none() && realm_id.is_none() {
             return Err("Update is empty".into());
         }
-        let Some(user) = self.users.get(&user_id) else {
-            return Err("User not found".into());
-        };
+        let user = self.principal_to_user(principal).ok_or("user not found")?;
+        let user_id = user.id;
 
         self.validate_realm_id(realm_id.as_ref())?;
 

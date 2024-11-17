@@ -35,6 +35,19 @@ export const Invites = () => {
         loadInvites();
     }, []);
 
+    const create = async () => {
+        setBusy(true);
+        const result = await window.api.call<any>(
+            "create_invite",
+            credits,
+            credits_per_user,
+            inviteRealm,
+        );
+        if ("Err" in result) alert(`Failed: ${result.Err}`);
+        else loadInvites();
+        setBusy(false);
+    };
+
     const update = async (code: string) => {
         const updatedInvite = updatedInvites.find(
             ({ code: inviteCode }) => code === inviteCode,
@@ -140,26 +153,11 @@ export const Invites = () => {
                         className="max_width_col"
                         onChange={(event) => setInviteRealm(event.target.value)}
                     />
-                    {!busy && (
-                        <button
-                            className="vertically_spaced active"
-                            onClick={async () => {
-                                setBusy(true);
-                                const result = await window.api.call<any>(
-                                    "create_invite",
-                                    credits,
-                                    credits_per_user,
-                                    inviteRealm,
-                                );
-                                if ("Err" in result)
-                                    alert(`Failed: ${result.Err}`);
-                                else loadInvites();
-                                setBusy(false);
-                            }}
-                        >
-                            CREATE
-                        </button>
-                    )}
+                    <ButtonWithLoading
+                        classNameArg="vertically_spaced active"
+                        onClick={create}
+                        label="CREATE"
+                    />
                 </div>
                 {invites.length > 0 && <h3>Your invites</h3>}
                 {busy && <Loading />}
