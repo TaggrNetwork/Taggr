@@ -32,13 +32,13 @@ impl Invite {
 
     pub fn consume(&mut self, joined_user_id: UserId) -> Result<(), String> {
         if self.joined_user_ids.contains(&joined_user_id) {
-            return Err("User already credited".into());
+            return Err("user already credited".into());
         }
 
         let new_credits = self
             .credits
             .checked_sub(self.credits_per_user)
-            .ok_or("Invite credits too low")?;
+            .ok_or("invite credits too low")?;
         self.credits = new_credits;
 
         self.joined_user_ids.insert(joined_user_id);
@@ -53,20 +53,20 @@ impl Invite {
         user_id: UserId,
     ) -> Result<(), String> {
         if self.inviter_user_id != user_id {
-            return Err("Owner does not match".into());
+            return Err("owner does not match".into());
         }
 
         if let Some(new_credits) = credits {
             if new_credits % self.credits_per_user != 0 {
                 return Err(format!(
-                    "Credits per user {} are not a multiple of new credits {}",
+                    "credits per user {} are not a multiple of new credits {}",
                     self.credits_per_user, new_credits,
                 ));
             }
 
             // Protect against creating invite and setting to 0 without usage
             if new_credits == 0 && self.joined_user_ids.is_empty() {
-                return Err("Cannot set credits to 0 as it has never been used".into());
+                return Err("cannot set credits to 0 as it has never been used".into());
             }
 
             self.credits = new_credits;
@@ -120,9 +120,9 @@ pub fn validate_user_invites_credits(
 
     let total_with_diff = total_invites_credits
         .checked_add(new_credits)
-        .ok_or("Invite credits overflow")?
+        .ok_or("invite credits overflow")?
         .checked_sub(old_credits.unwrap_or_default())
-        .ok_or("Invite credits overflow")?;
+        .ok_or("invite credits overflow")?;
 
     if total_with_diff > user.credits() {
         return Err(format!(

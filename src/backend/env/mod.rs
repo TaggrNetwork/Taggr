@@ -942,7 +942,7 @@ impl State {
                     state
                         .invite_codes
                         .get_mut(&code)
-                        .ok_or("Invite not found")?
+                        .ok_or("invite not found")?
                         .consume(new_user_id)?;
 
                     state
@@ -1021,7 +1021,7 @@ impl State {
     ) -> Result<(), String> {
         let credits_per_user = credits_per_user_opt.unwrap_or(credits);
         if credits % credits_per_user != 0 {
-            return Err("Credits per user are not a multiple of credits".into());
+            return Err("credits per user are not a multiple of credits".into());
         }
         let min_credits = CONFIG.min_credits_for_inviting;
         let user = self.principal_to_user(principal).ok_or("no user found")?;
@@ -1054,7 +1054,7 @@ impl State {
         realm_id: Option<RealmId>,
     ) -> Result<(), String> {
         if credits.is_none() && realm_id.is_none() {
-            return Err("Update is empty".into());
+            return Err("update is empty".into());
         }
         let user = self.principal_to_user(principal).ok_or("user not found")?;
         let user_id = user.id;
@@ -1067,14 +1067,14 @@ impl State {
         } = self
             .invite_codes
             .get(&invite_code)
-            .ok_or(format!("Invite '{}' not found", invite_code))?;
+            .ok_or(format!("invite '{}' not found", invite_code))?;
         if let Some(credits) = credits {
             invite::validate_user_invites_credits(self, user, credits, Some(*invite_credits))?;
         }
 
         self.invite_codes
             .get_mut(&invite_code)
-            .ok_or(format!("Invite '{}' not found", invite_code))?
+            .ok_or(format!("invite '{}' not found", invite_code))?
             .update(credits, realm_id, user_id)?;
         Ok(())
     }
