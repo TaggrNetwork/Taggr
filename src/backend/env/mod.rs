@@ -3094,7 +3094,7 @@ impl State {
     fn validate_realm_id(&self, realm_id: Option<&RealmId>) -> Result<(), String> {
         if let Some(id) = realm_id {
             if !id.is_empty() && !self.realms.contains_key(id) {
-                return Err(format!("Realm {} not found", id.clone()));
+                return Err(format!("realm {} not found", id.clone()));
             };
         }
 

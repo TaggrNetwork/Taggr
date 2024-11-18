@@ -620,7 +620,7 @@ impl User {
             });
             if let Some(invite) = invite {
                 if self.credits_burned() < invite.credits_per_user {
-                    return Err("You are not allowed to send credits acquired in invite".into());
+                    return Err("you are not allowed to send credits acquired in invite".into());
                 }
             }
         }
