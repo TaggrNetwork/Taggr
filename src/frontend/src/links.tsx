@@ -38,17 +38,13 @@ export const LinksPage = ({}) => {
             <h2>Community maintained resources</h2>
             <ul>
                 <li>
-                    <a
-                        href={`https://${domains[0]}/#/realm/000_WELCOME_TO_TAGGR`}
-                    >
+                    <a href={`#/realm/000_WELCOME_TO_TAGGR`}>
                         Welcome to Taggr Realm
                     </a>{" "}
                     (helpful for newbies)
                 </li>
                 <li>
-                    <a href={`https://${domains[0]}/#/realm/HELP`}>
-                        HELP Realm
-                    </a>
+                    <a href={`#/realm/HELP`}>HELP Realm</a>
                 </li>
                 <li>
                     <a href="#/feed/@mntyetti+finn">Explanatory material</a> by{" "}
