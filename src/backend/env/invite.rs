@@ -38,7 +38,7 @@ impl Invite {
         let new_credits = self
             .credits
             .checked_sub(self.credits_per_user)
-            .ok_or("invite credits too low")?;
+            .expect("invite credits too low");
         self.credits = new_credits;
 
         self.joined_user_ids.insert(joined_user_id);
