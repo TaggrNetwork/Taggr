@@ -923,10 +923,11 @@ impl State {
             if let Some(user) = state.principal_to_user(principal) {
                 return Err(format!("principal already assigned to user @{}", user.name));
             }
-            if let Some((credits_per_user, inviter_id, code, realm_id)) =
-                invite_code.and_then(|code| {
+            if let Some((credits, credits_per_user, inviter_id, code, realm_id)) = invite_code
+                .and_then(|code| {
                     state.invite_codes.get(&code).map(|invite| {
                         (
+                            invite.credits,
                             invite.credits_per_user,
                             invite.inviter_user_id,
                             code,
@@ -935,6 +936,10 @@ impl State {
                     })
                 })
             {
+                // Return gracefully before any updates
+                if credits < credits_per_user {
+                    return Err("invite has not enough credits".into());
+                }
                 let inviter = state.users.get_mut(&inviter_id).ok_or("no user found")?;
                 let new_user_id = if inviter.credits() > credits_per_user {
                     let new_user_id = state.new_user(principal, time(), name.clone(), None)?;
@@ -942,7 +947,7 @@ impl State {
                     state
                         .invite_codes
                         .get_mut(&code)
-                        .ok_or("invite not found")?
+                        .expect("invite not found") // Revert newly created user in an edge case
                         .consume(new_user_id)?;
 
                     state
