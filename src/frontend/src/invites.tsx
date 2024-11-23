@@ -101,63 +101,76 @@ export const Invites = () => {
     return (
         <>
             <HeadBar title="INVITES" shareLink="invites" />
-            <div className="spaced">
-                <h2>Create an invite</h2>
-                <ul>
-                    <li>
-                        You can invite new users to{" "}
-                        {window.backendCache.config.name} by creating invites
-                        for them.
-                    </li>
-                    <li>
-                        Every invite is a funded by at least{" "}
-                        <code>
-                            {
-                                window.backendCache.config
-                                    .min_credits_for_inviting
+            <div className="spaced bottom_spaced">
+                <div className="stands_out">
+                    <h2>Invite creation</h2>
+                    <ul>
+                        <li>
+                            You can invite new users to{" "}
+                            {window.backendCache.config.name} by creating
+                            invites for them.
+                        </li>
+                        <li>
+                            Every invite is a pre-charged with at least{" "}
+                            <code>
+                                {
+                                    window.backendCache.config
+                                        .min_credits_for_inviting
+                                }
+                            </code>{" "}
+                            credits: you will be charged once the invite is
+                            used.
+                        </li>
+                        <li>
+                            One invite can be used by multiple users, each
+                            receiving a pre-defined amount of credits.
+                        </li>
+                        <li>
+                            The invite will not work if your credit balance
+                            drops below the amount attached to the invite.
+                        </li>
+                        <li>
+                            In an invite specifies a realm, users joining via
+                            this invite will automartically join the realm.
+                        </li>
+                        <li>
+                            Invites can be canceled by setting the credits to 0.
+                        </li>
+                    </ul>
+                    <div className="column_container">
+                        Total credits
+                        <input
+                            type="number"
+                            value={credits}
+                            className="max_width_col top_spaced bottom_spaced"
+                            onChange={(event) =>
+                                setCredits(parseInt(event.target.value))
                             }
-                        </code>{" "}
-                        credits: you will be charged once the invite is used.
-                    </li>
-                    <li>
-                        The invite will not work if your invite budget or credit
-                        balance drops below the amount attached to the invite.
-                    </li>
-                    <li>
-                        Invites can be canceled by setting the credits to 0.
-                    </li>
-                </ul>
-                <div className="vcentered">
-                    Credits:
-                    <input
-                        type="number"
-                        value={credits}
-                        className="max_width_col"
-                        onChange={(event) =>
-                            setCredits(parseInt(event.target.value))
-                        }
-                    />
-                    Per user:
-                    <input
-                        type="number"
-                        value={credits_per_user}
-                        className="max_width_col"
-                        onChange={(event) =>
-                            setCreditsPerUser(parseInt(event.target.value))
-                        }
-                    />
-                    Realm:
-                    <input
-                        type="text"
-                        value={inviteRealm}
-                        className="max_width_col"
-                        onChange={(event) => setInviteRealm(event.target.value)}
-                    />
-                    <ButtonWithLoading
-                        classNameArg="vertically_spaced active"
-                        onClick={create}
-                        label="CREATE"
-                    />
+                        />
+                        Spend per user
+                        <input
+                            type="number"
+                            value={credits_per_user}
+                            className="max_width_col top_spaced bottom_spaced"
+                            onChange={(event) =>
+                                setCreditsPerUser(parseInt(event.target.value))
+                            }
+                        />
+                        Realm (optional)
+                        <input
+                            type="text"
+                            value={inviteRealm}
+                            className="max_width_col top_spaced bottom_spaced"
+                            onChange={(event) =>
+                                setInviteRealm(event.target.value)
+                            }
+                        />
+                        <ButtonWithLoading
+                            classNameArg="active"
+                            onClick={create}
+                            label="CREATE"
+                        />
+                    </div>
                 </div>
                 {invites.length > 0 && <h3>Your invites</h3>}
                 {busy && <Loading />}
