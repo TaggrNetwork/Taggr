@@ -15,6 +15,7 @@ interface Invite {
     joined_user_ids: number[];
     realm_id?: string | null | undefined;
     inviter_user_id: number;
+    dirty: boolean;
 }
 
 export const Invites = () => {
@@ -49,53 +50,40 @@ export const Invites = () => {
         setBusy(false);
     };
 
-    const update = async (code: string) => {
-        const updatedInvite = updatedInvites.find(
-            ({ code: inviteCode }) => code === inviteCode,
-        );
-        if (!updatedInvite) {
-            return;
-        }
-        return window.api
-            .call<any>(
+    const saveInvites = async () => {
+        for (const i in invites) {
+            const [code, invite] = invites[i];
+            if (!invite.dirty) continue;
+            const response = await window.api.call<any>(
                 "update_invite",
                 code,
-                updatedInvite.credits !== undefined &&
-                    updatedInvite.credits >= 0
-                    ? updatedInvite.credits
+                invite.credits !== undefined && invite.credits >= 0
+                    ? invite.credits
                     : null,
-                updatedInvite.realm_id !== undefined
-                    ? updatedInvite.realm_id
-                    : null,
-            )
-            .then(async (response) => {
-                if ("Err" in (response || {})) {
-                    alert(`Error: ${response.Err}`);
-                    setBusy(true);
-                    await loadInvites(); // Set back to prior state
-                    setBusy(false);
-                }
-            });
+                invite.realm_id !== undefined ? invite.realm_id : null,
+            );
+            if ("Err" in (response || {})) {
+                alert(`Error: ${response.Err}`);
+                setBusy(true);
+                await loadInvites(); // Set back to prior state
+                setBusy(false);
+                return;
+            }
+        }
     };
 
-    const updatedInvites: {
-        code: string;
-        credits?: number;
-        realm_id?: string;
-    }[] = [];
-
-    const updateInviteValue = (
-        code: string,
+    const updateInvite = (
+        id: string,
         field: "credits" | "realm_id",
         value: any,
     ) => {
-        const updatedInvite = updatedInvites.find(
-            ({ code: inviteCode }) => code === inviteCode,
-        );
-        if (updatedInvite) {
-            updatedInvite[field] = value;
-        } else {
-            updatedInvites.push({ code, [field]: value });
+        for (const i in invites) {
+            const [code, invite] = invites[i];
+            if (code != id) continue;
+            // @ts-ignore
+            invite[field] = value;
+            invite.dirty = true;
+            return;
         }
     };
 
@@ -214,7 +202,7 @@ export const Invites = () => {
                                                 style={{ width: "100px" }}
                                                 defaultValue={credits}
                                                 onBlur={(event) =>
-                                                    updateInviteValue(
+                                                    updateInvite(
                                                         code,
                                                         "credits",
                                                         +event.target.value,
@@ -231,7 +219,7 @@ export const Invites = () => {
                                                 style={{ width: "100px" }}
                                                 defaultValue={realm_id || ""}
                                                 onBlur={(event) =>
-                                                    updateInviteValue(
+                                                    updateInvite(
                                                         code,
                                                         "realm_id",
                                                         event.target.value
@@ -265,7 +253,7 @@ export const Invites = () => {
                                         <td align="right">
                                             <ButtonWithLoading
                                                 classNameArg="active"
-                                                onClick={() => update(code)}
+                                                onClick={saveInvites}
                                                 label="SAVE"
                                             />
                                         </td>
