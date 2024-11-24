@@ -1,3 +1,5 @@
+use crate::optional;
+
 use super::{user::UserId, Credits, Principal, RealmId, State, User};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -72,13 +74,7 @@ impl Invite {
             self.credits = new_credits;
         }
 
-        if let Some(id) = realm_id {
-            if id.is_empty() {
-                self.realm_id = None;
-            } else {
-                self.realm_id = Some(id);
-            }
-        }
+        self.realm_id = optional(realm_id.unwrap_or_default());
 
         Ok(())
     }
