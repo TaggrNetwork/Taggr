@@ -4883,7 +4883,7 @@ pub(crate) mod tests {
             // use too many credits
             assert_eq!(
                 state.create_invite(principal, 1111, None, None),
-                Err("not enough credits".to_string())
+                Err("not enough credits available: 1000 (needed for invites: 1111)".into())
             );
 
             // use enough credits and make sure they were deducted
