@@ -131,6 +131,8 @@ pub struct Realm {
     // Root posts assigned to the realm
     pub posts: Vec<PostId>,
     pub adult_content: bool,
+    #[serde(default)]
+    pub comments_filtering: bool,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -710,6 +712,7 @@ impl State {
             filter,
             cleanup_penalty,
             adult_content,
+            comments_filtering,
             ..
         } = realm;
         let user = self.principal_to_user(principal).ok_or("no user found")?;
@@ -753,6 +756,7 @@ impl State {
         realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty);
         realm.last_setting_update = time();
         realm.adult_content = adult_content;
+        realm.comments_filtering = comments_filtering;
         if description_change {
             self.notify_with_filter(
                 &|user| user.realms.contains(&realm_id),

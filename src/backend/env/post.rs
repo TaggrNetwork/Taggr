@@ -518,8 +518,9 @@ impl Post {
             }
             if let Some(realm) = state.realms.get(realm_id) {
                 let whitelist = &realm.whitelist;
-                if !whitelist.is_empty() && !whitelist.contains(&user.id)
-                    || whitelist.is_empty() && !user.get_filter().passes(&realm.filter)
+                if (parent.is_some() && realm.comments_filtering || parent.is_none())
+                    && (!whitelist.is_empty() && !whitelist.contains(&user.id)
+                        || whitelist.is_empty() && !user.get_filter().passes(&realm.filter))
                 {
                     return Err(format!(
                         "{} realm is gated and you are not allowed to post to this realm",

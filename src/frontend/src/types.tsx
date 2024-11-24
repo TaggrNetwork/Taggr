@@ -105,6 +105,7 @@ export type Proposal = {
 };
 
 export type Realm = {
+    comments_filtering: boolean;
     adult_content: boolean;
     created: number;
     cleanup_penalty: number;
