@@ -7,6 +7,7 @@ import {
     Loading,
 } from "./common";
 import { Credits } from "./icons";
+import { UserList } from "./user_resolve";
 
 interface Invite {
     credits: number;
@@ -244,17 +245,7 @@ export const Invites = () => {
                                             />
                                         </td>
                                         <td align="right">
-                                            {joined_user_ids.map((userId) => (
-                                                <a
-                                                    key={
-                                                        userId + "_joined_user"
-                                                    }
-                                                    target="_blank"
-                                                    href={`#/user/${userId}`}
-                                                >
-                                                    {userId}&nbsp;
-                                                </a>
-                                            ))}
+                                            <UserList ids={joined_user_ids} />
                                         </td>
                                         <td align="right">
                                             <CopyToClipboard
@@ -275,7 +266,7 @@ export const Invites = () => {
                                             <ButtonWithLoading
                                                 classNameArg="active"
                                                 onClick={() => update(code)}
-                                                label="EDIT"
+                                                label="SAVE"
                                             />
                                         </td>
                                     </tr>
