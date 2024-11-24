@@ -103,10 +103,6 @@ pub fn validate_user_invites_credits(
     new_credits: Credits,
     old_credits: Option<Credits>,
 ) -> Result<(), String> {
-    if user.credits() < new_credits {
-        return Err("not enough credits".into());
-    }
-
     let total_invites_credits: Credits = state
         .invite_codes
         .values()
@@ -118,15 +114,65 @@ pub fn validate_user_invites_credits(
         .checked_add(new_credits)
         .ok_or("invite credits overflow")?
         .checked_sub(old_credits.unwrap_or_default())
-        .ok_or("invite credits overflow")?;
+        .ok_or("invite credits underflow")?;
 
     if total_with_diff > user.credits() {
         return Err(format!(
-            "not enough credits available: {} (needed for all open invites: {})",
+            "not enough credits available: {} (needed for invites: {})",
             user.credits(),
             total_with_diff
         ));
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use crate::{
+        mutate,
+        tests::{create_user, pr},
+    };
+
+    use super::*;
+
+    #[test]
+    fn test_invite_validation() {
+        mutate(|state| {
+            let user_id = create_user(state, pr(0));
+
+            state.invite_codes.insert(
+                "foo".into(),
+                Invite {
+                    credits: 500,
+                    ..Default::default()
+                },
+            );
+            state.invite_codes.insert(
+                "bar".into(),
+                Invite {
+                    credits: 490,
+                    ..Default::default()
+                },
+            );
+
+            let user = state.users.get(&user_id).unwrap();
+            assert_eq!(user.credits(), 1000);
+
+            assert_eq!(
+                validate_user_invites_credits(state, user, 1100, None),
+                Err("not enough credits available: 1000 (needed for invites: 2090)".into())
+            );
+
+            assert_eq!(
+                validate_user_invites_credits(state, user, 100, Some(2000)),
+                Err("invite credits underflow".into())
+            );
+
+            assert_eq!(
+                validate_user_invites_credits(state, user, 100, Some(1)),
+                Err("not enough credits available: 1000 (needed for invites: 1089)".into())
+            );
+        })
+    }
 }
