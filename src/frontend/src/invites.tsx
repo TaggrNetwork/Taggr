@@ -70,6 +70,7 @@ export const Invites = () => {
                 return;
             }
         }
+        await loadInvites();
     };
 
     const updateInvite = (
@@ -83,6 +84,7 @@ export const Invites = () => {
             // @ts-ignore
             invite[field] = value;
             invite.dirty = true;
+            setInvites([...invites]);
             return;
         }
     };
@@ -168,100 +170,106 @@ export const Invites = () => {
                 {invites.length > 0 && <h3>Your invites</h3>}
                 {busy && <Loading />}
                 {!busy && invites.length > 0 && (
-                    <table style={{ width: "100%" }}>
-                        <thead>
-                            <tr>
-                                <th align="left">
-                                    <Credits />
-                                </th>
-                                <th align="left">
-                                    <Credits /> Per User
-                                </th>
-                                <th align="left">Realm</th>
-                                <th align="right">Users</th>
-                                <th align="right">CODE</th>
-                                <th align="right">URL</th>
-                                <th align="left">EDIT</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {invites.map(
-                                ([
-                                    code,
-                                    {
-                                        credits,
-                                        credits_per_user,
-                                        joined_user_ids,
-                                        realm_id,
-                                    },
-                                ]) => (
-                                    <tr key={code}>
-                                        <td align="left">
-                                            <input
-                                                type="number"
-                                                style={{ width: "100px" }}
-                                                defaultValue={credits}
-                                                onBlur={(event) =>
-                                                    updateInvite(
-                                                        code,
-                                                        "credits",
-                                                        +event.target.value,
-                                                    )
-                                                }
-                                            />
-                                        </td>
-                                        <td align="left">
-                                            <code>{credits_per_user}</code>
-                                        </td>
-                                        <td align="left">
-                                            <input
-                                                type="text"
-                                                style={{ width: "100px" }}
-                                                defaultValue={realm_id || ""}
-                                                onBlur={(event) =>
-                                                    updateInvite(
-                                                        code,
-                                                        "realm_id",
-                                                        event.target.value
-                                                            .toUpperCase()
-                                                            .replaceAll(
-                                                                "/",
-                                                                "",
-                                                            ),
-                                                    )
-                                                }
-                                            />
-                                        </td>
-                                        <td align="right">
-                                            <UserList ids={joined_user_ids} />
-                                        </td>
-                                        <td align="right">
-                                            <CopyToClipboard
-                                                value={code.toUpperCase()}
-                                            />
-                                        </td>
-                                        <td align="right">
-                                            <CopyToClipboard
-                                                value={`${location.protocol}//${location.host}/#/welcome/${code}`}
-                                                displayMap={(url) =>
-                                                    bigScreen()
-                                                        ? url
-                                                        : "<too long>"
-                                                }
-                                            />
-                                        </td>
-                                        <td align="right">
-                                            <ButtonWithLoading
-                                                classNameArg="active"
-                                                onClick={saveInvites}
-                                                label="SAVE"
-                                            />
-                                        </td>
-                                    </tr>
-                                ),
-                            )}
-                        </tbody>
-                    </table>
+                    <div className="column_container">
+                        <table style={{ width: "100%" }}>
+                            <thead>
+                                <tr>
+                                    <th align="left">
+                                        <Credits />
+                                    </th>
+                                    <th align="left">
+                                        <Credits /> Per User
+                                    </th>
+                                    <th align="left">Realm</th>
+                                    <th align="right">Users</th>
+                                    <th align="right">CODE</th>
+                                    <th align="right">URL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {invites.map(
+                                    ([
+                                        code,
+                                        {
+                                            credits,
+                                            credits_per_user,
+                                            joined_user_ids,
+                                            realm_id,
+                                        },
+                                    ]) => (
+                                        <tr key={code}>
+                                            <td align="left">
+                                                <input
+                                                    type="number"
+                                                    style={{ width: "100px" }}
+                                                    defaultValue={credits}
+                                                    onBlur={(event) =>
+                                                        updateInvite(
+                                                            code,
+                                                            "credits",
+                                                            +event.target.value,
+                                                        )
+                                                    }
+                                                />
+                                            </td>
+                                            <td align="left">
+                                                <code>{credits_per_user}</code>
+                                            </td>
+                                            <td align="left">
+                                                <input
+                                                    type="text"
+                                                    style={{ width: "100px" }}
+                                                    defaultValue={
+                                                        realm_id || ""
+                                                    }
+                                                    onBlur={(event) =>
+                                                        updateInvite(
+                                                            code,
+                                                            "realm_id",
+                                                            event.target.value
+                                                                .toUpperCase()
+                                                                .replaceAll(
+                                                                    "/",
+                                                                    "",
+                                                                ),
+                                                        )
+                                                    }
+                                                />
+                                            </td>
+                                            <td align="right">
+                                                <UserList
+                                                    ids={joined_user_ids}
+                                                />
+                                            </td>
+                                            <td align="right">
+                                                <CopyToClipboard
+                                                    value={code.toUpperCase()}
+                                                />
+                                            </td>
+                                            <td align="right">
+                                                <CopyToClipboard
+                                                    value={`${location.protocol}//${location.host}/#/welcome/${code}`}
+                                                    displayMap={(url) =>
+                                                        bigScreen()
+                                                            ? url
+                                                            : "<too long>"
+                                                    }
+                                                />
+                                            </td>
+                                        </tr>
+                                    ),
+                                )}
+                            </tbody>
+                        </table>
+                        <ButtonWithLoading
+                            classNameArg="active"
+                            onClick={saveInvites}
+                            label="SAVE"
+                            disabled={
+                                !invites.some(([_, invite]) => invite.dirty)
+                            }
+                        />{" "}
+                    </div>
                 )}
             </div>
         </>
