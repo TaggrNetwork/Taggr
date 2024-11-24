@@ -229,7 +229,12 @@ export const Invites = () => {
                                                     updateInviteValue(
                                                         code,
                                                         "realm_id",
-                                                        event.target.value,
+                                                        event.target.value
+                                                            .toUpperCase()
+                                                            .replaceAll(
+                                                                "/",
+                                                                "",
+                                                            ),
                                                     )
                                                 }
                                             />

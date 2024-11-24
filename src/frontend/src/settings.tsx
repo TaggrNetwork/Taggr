@@ -143,11 +143,12 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 return;
             }
         }
-        if (registrationFlow)
+        if (registrationFlow) {
             location.href = registrationRealmId
                 ? `/#/realm/${registrationRealmId}`
                 : "/";
-        else if (nameChange) location.href = "/";
+            location.reload();
+        } else if (nameChange) location.href = "/";
         else if (uiRefresh) {
             await window.reloadUser();
             window.uiInitialized = false;
