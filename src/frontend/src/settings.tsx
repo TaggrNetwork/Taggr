@@ -144,10 +144,10 @@ export const Settings = ({ invite }: { invite?: string }) => {
             }
         }
         if (registrationFlow) {
+            await window.reloadUser();
             location.href = registrationRealmId
                 ? `/#/realm/${registrationRealmId}`
                 : "/";
-            location.reload();
         } else if (nameChange) location.href = "/";
         else if (uiRefresh) {
             await window.reloadUser();

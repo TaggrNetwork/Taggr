@@ -162,7 +162,11 @@ export const Invites = () => {
                             value={inviteRealm}
                             className="max_width_col top_spaced bottom_spaced"
                             onChange={(event) =>
-                                setInviteRealm(event.target.value)
+                                setInviteRealm(
+                                    event.target.value
+                                        .replaceAll("/", "")
+                                        .toUpperCase(),
+                                )
                             }
                         />
                         <ButtonWithLoading
