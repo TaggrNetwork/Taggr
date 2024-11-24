@@ -3,8 +3,8 @@ use super::{
     token::{Account, Subaccount, TransferArgs, TransferError},
     Logger, MINUTE,
 };
-use crate::env::config::CONFIG;
 use crate::env::NNSProposal;
+use crate::{env::config::CONFIG, id};
 use candid::{
     utils::{ArgumentDecoder, ArgumentEncoder},
     CandidType, Principal,
@@ -13,13 +13,13 @@ use ic_cdk::api::{
     call::CallResult,
     management_canister::{
         main::{
-            canister_status, create_canister, deposit_cycles, install_code, CanisterInstallMode,
-            CanisterStatusResponse, CreateCanisterArgument, InstallCodeArgument,
+            canister_status, create_canister, deposit_cycles, install_code, update_settings,
+            CanisterInstallMode, CanisterSettings, CanisterStatusResponse, CreateCanisterArgument,
+            InstallCodeArgument, LogVisibility, UpdateSettingsArgument,
         },
         provisional::CanisterIdRecord,
     },
 };
-use ic_cdk::id;
 use ic_cdk::{api::call::call_raw, notify};
 use ic_ledger_types::MAINNET_GOVERNANCE_CANISTER_ID;
 use serde::{Deserialize, Serialize};
@@ -98,6 +98,21 @@ pub async fn cycles(canister_id: Principal) -> Result<(u64, u64), String> {
             .copied()
             .unwrap_or(1),
     ))
+}
+
+// TODO: delete
+pub async fn enable_logging() -> bool {
+    open_call("logging");
+    let response = update_settings(UpdateSettingsArgument {
+        canister_id: id(),
+        settings: CanisterSettings {
+            log_visibility: Some(LogVisibility::Public),
+            ..Default::default()
+        },
+    })
+    .await;
+    close_call("logging");
+    response.is_ok()
 }
 
 pub async fn status(canister_id: Principal) -> Result<CanisterStatusResponse, String> {

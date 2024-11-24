@@ -96,7 +96,10 @@ fn sync_post_upgrade_fixtures() {
 }
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {}
+async fn async_post_upgrade_fixtures() {
+    // Enables public canister logging: https://internetcomputer.org/docs/current/developer-docs/smart-contracts/maintain/logs
+    assert!(canisters::enable_logging().await);
+}
 
 /*
  * UPDATES
