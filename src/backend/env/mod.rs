@@ -3133,6 +3133,7 @@ pub fn display_tokens(amount: u64, decimals: u32) -> String {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use invite::tests::create_invite_with_realm;
     use post::Post;
 
     pub fn pr(n: usize) -> Principal {
@@ -4933,25 +4934,7 @@ pub(crate) mod tests {
     #[actix_rt::test]
     async fn test_invites_with_realm() {
         let principal = pr(4);
-        let realm_id = "realm-invite-test".to_string();
-        let invite_code = mutate(|state| {
-            // Create user with 2000 credits
-            create_user_with_credits(state, principal, 2000);
-
-            let _ = create_realm(state, principal, realm_id.clone());
-
-            assert_eq!(
-                state.create_invite(principal, 200, Some(50), Some(realm_id.clone())),
-                Ok(())
-            );
-
-            let code = invite::invites_by_principal(state, principal)
-                .last()
-                .map(|(code, _)| code.to_string())
-                .unwrap();
-
-            code
-        });
+        let (_, invite_code, realm_id) = mutate(|state| create_invite_with_realm(state, principal));
 
         // New user should be joined to realm
         let new_principal = pr(5);

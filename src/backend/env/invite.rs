@@ -131,10 +131,42 @@ pub fn validate_user_invites_credits(
 pub(crate) mod tests {
     use crate::{
         mutate,
-        tests::{create_user, pr},
+        tests::{create_user, create_user_with_credits, pr},
+        Realm,
     };
 
     use super::*;
+
+    /// Creates invite with 200 credits, "test" realm, 50 credits per user
+    pub fn create_invite_with_realm(
+        state: &mut State,
+        principal: Principal,
+    ) -> (UserId, String, RealmId) {
+        let id = create_user_with_credits(state, principal, 2000);
+        state
+            .create_realm(
+                principal,
+                "test".into(),
+                Realm {
+                    controllers: vec![id].into_iter().collect(),
+                    ..Default::default()
+                },
+            )
+            .expect("realm creation failed");
+        state
+            .create_invite(principal, 200, Some(50), Some("test".to_string()))
+            .expect("invite creation failed");
+
+        (
+            id,
+            invites_by_principal(state, principal)
+                .last()
+                .expect("invite not found")
+                .0
+                .clone(),
+            "test".to_string(),
+        )
+    }
 
     #[test]
     fn test_invite_validation() {
@@ -174,5 +206,95 @@ pub(crate) mod tests {
                 Err("not enough credits available: 1000 (needed for invites: 1089)".into())
             );
         })
+    }
+
+    #[test]
+    fn test_update() {
+        let (user_id, code, realm_id) = mutate(|state| create_invite_with_realm(state, pr(1)));
+
+        // Update credits and realm
+        mutate(|state| {
+            let invite = state.invite_codes.get_mut(&code).expect("invite not found");
+            // Unset realm
+            assert_eq!(invite.update(None, Some("".to_string()), user_id), Ok(()));
+            assert_eq!(invite.credits, 200);
+            assert_eq!(invite.realm_id, None);
+            // Set different credits and realm
+            assert_eq!(
+                invite.update(Some(250), Some(realm_id.clone()), user_id),
+                Ok(())
+            );
+            assert_eq!(invite.credits, 250);
+            assert_eq!(invite.realm_id, Some(realm_id.clone()));
+        });
+
+        // Unset to 0 is not allowed unless it was used at least once
+        mutate(|state| {
+            let invite = state.invite_codes.get_mut(&code).expect("invite not found");
+            assert_eq!(
+                invite.update(Some(0), None, user_id),
+                Err("cannot set credits to 0 as it has never been used".into())
+            );
+
+            invite.joined_user_ids.insert(101); // Mock
+            assert_eq!(invite.update(Some(0), None, user_id), Ok(())); // Pass
+        });
+
+        // Credits per user have to be mutliple of credits
+        mutate(|state| {
+            let invite = state.invite_codes.get_mut(&code).expect("invite not found");
+            assert_eq!(
+                invite.update(Some(140), None, user_id),
+                Err("credits per user 50 are not a multiple of new credits 140".into())
+            );
+        });
+
+        // Owner does not match
+        let other_user = mutate(|state| create_user(state, pr(5)));
+        mutate(|state| {
+            let invite = state.invite_codes.get_mut(&code).expect("invite not found");
+            assert_eq!(
+                invite.update(Some(200), None, other_user),
+                Err("owner does not match".into())
+            );
+        });
+    }
+
+    #[test]
+    fn test_consume() {
+        let (_, code, invitee_id_1) = mutate(|state| {
+            let (user_id, code, _) = create_invite_with_realm(state, pr(6));
+            let invitee_id_1 = create_user(state, pr(7));
+            (user_id, code, invitee_id_1)
+        });
+
+        mutate(|state| {
+            let invite = state.invite_codes.get_mut(&code).expect("invite not found");
+            // Consume credits
+            assert_eq!(invite.consume(invitee_id_1), Ok(()));
+            assert_eq!(invite.credits, 150);
+            // Already credited
+            assert_eq!(
+                invite.consume(invitee_id_1),
+                Err("user already credited".into())
+            );
+        });
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_consume_panic() {
+        let (_, code, invitee_id_1) = mutate(|state| {
+            let (user_id, code, _) = create_invite_with_realm(state, pr(8));
+            let invitee_id_1 = create_user(state, pr(9));
+            (user_id, code, invitee_id_1)
+        });
+
+        let _ = mutate(|state| {
+            let invite = state.invite_codes.get_mut(&code).expect("invite not found");
+            // Credits too low
+            invite.credits = 10;
+            invite.consume(invitee_id_1)
+        });
     }
 }
