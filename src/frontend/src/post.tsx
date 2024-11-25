@@ -500,6 +500,7 @@ const PostInfo = ({
             );
         else if (
             realmData &&
+            realmData.comments_filtering &&
             realmData.whitelist.length > 0 &&
             !realmData.whitelist.includes(user.id)
         )
@@ -508,7 +509,7 @@ const PostInfo = ({
                     This realm is gated by a whitelist.
                 </div>
             );
-        else if (realmData)
+        else if (realmData && realmData.comments_filtering)
             realmAccessError = noiseControlBanner(
                 "realm",
                 realmData.filter,

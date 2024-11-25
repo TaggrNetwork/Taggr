@@ -23,7 +23,6 @@ use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
 use std::time::Duration;
-use token::icrc1_fee;
 use user::Pfp;
 
 #[init]
@@ -97,7 +96,10 @@ fn sync_post_upgrade_fixtures() {
 }
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {}
+async fn async_post_upgrade_fixtures() {
+    // Enables public canister logging: https://internetcomputer.org/docs/current/developer-docs/smart-contracts/maintain/logs
+    assert!(canisters::enable_logging().await);
+}
 
 /*
  * UPDATES

@@ -53,6 +53,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         created: 0,
         posts: [],
         adult_content: false,
+        comments_filtering: true,
     });
     const [controllersString, setControllersString] = React.useState("");
     const [whitelistString, setWhitelistString] = React.useState("");
@@ -90,6 +91,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         label_color,
         cleanup_penalty,
         adult_content,
+        comments_filtering,
     } = realm;
 
     const valid = name && description && controllers.length > 0;
@@ -183,11 +185,14 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         />
                     </div>
                 )}
-                <div className="bottom_spaced" style={{ position: "relative" }}>
-                    Label Color
-                    <br />
+                <div
+                    className="bottom_spaced vcentered"
+                    style={{ position: "relative" }}
+                >
+                    <div className="max_width_col">Label Color</div>
                     <input
                         type="color"
+                        className="top_half_spaced"
                         value={label_color}
                         onChange={(ev) => {
                             realm.label_color = ev.target.value;
@@ -245,7 +250,6 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             realm.cleanup_penalty = Number(e.target.value);
                             setRealm({ ...realm });
                         }}
-                        id="own_theme"
                     />
                 </div>
                 <div className="column_container bottom_spaced">
@@ -312,11 +316,11 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                         realm.filter.safe = !filter.safe;
                                         setRealm({ ...realm });
                                     }}
-                                    id="own_theme"
+                                    id="safe"
                                 />
                                 <label
                                     className="left_half_spaced"
-                                    htmlFor="own_theme"
+                                    htmlFor="safe"
                                 >
                                     Non-controversial users (without reports and
                                     many downvotes)
@@ -339,7 +343,6 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                     );
                                     setRealm({ ...realm });
                                 }}
-                                id="own_theme"
                             />
                         </div>
                         <div className="column_container bottom_spaced">
@@ -356,7 +359,6 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                     );
                                     setRealm({ ...realm });
                                 }}
-                                id="own_theme"
                             />
                         </div>
                         <div className="column_container bottom_spaced">
@@ -373,7 +375,6 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                     );
                                     setRealm({ ...realm });
                                 }}
-                                id="own_theme"
                             />
                         </div>
                         <div className="column_container bottom_spaced">
@@ -395,11 +396,30 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                     );
                                     setRealm({ ...realm });
                                 }}
-                                id="own_theme"
                             />
                         </div>
                     </>
                 )}
+                <div className="column_container bottom_spaced">
+                    <div className="vcentered">
+                        <input
+                            type="checkbox"
+                            checked={!comments_filtering}
+                            onChange={() => {
+                                realm.comments_filtering =
+                                    !realm.comments_filtering;
+                                setRealm({ ...realm });
+                            }}
+                            id="comments_filtering"
+                        />
+                        <label
+                            className="left_half_spaced"
+                            htmlFor="comments_filtering"
+                        >
+                            Allow commenting to everyone
+                        </label>
+                    </div>
+                </div>
                 <hr />
 
                 <h2>Color Theme</h2>
