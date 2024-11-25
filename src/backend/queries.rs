@@ -23,7 +23,7 @@ use serde_bytes::ByteBuf;
 #[export_name = "canister_query check_invite"]
 fn check_invite() {
     let code: String = parse(&arg_data_raw());
-    read(|state| reply(state.invites.contains_key(&code)))
+    read(|state| reply(state.invite_codes.contains_key(&code)))
 }
 
 #[export_name = "canister_query migration_pending"]
@@ -334,7 +334,7 @@ fn tags_cost() {
 
 #[export_name = "canister_query invites"]
 fn invites() {
-    read(|state| reply(state.invites(caller())));
+    read(|state| reply(invite::invites_by_principal(state, caller()).collect::<Vec<_>>()));
 }
 
 fn personal_filter(state: &State, user: Option<&User>, post: &Post) -> bool {

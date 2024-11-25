@@ -353,8 +353,10 @@ export const ButtonWithLoading = ({
             title={title}
             disabled={disabled || loading}
             className={`fat ${
-                loading ? classNameArg?.replaceAll("active", "") : classNameArg
-            }`}
+                loading || disabled
+                    ? classNameArg?.replaceAll("active", "")
+                    : classNameArg
+            } ${disabled ? "inactive" : ""}`}
             style={styleArg || null}
             data-testid={testId}
             onClick={async (e) => {

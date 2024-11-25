@@ -81,6 +81,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
 
     const submit = async () => {
         const registrationFlow = !user;
+        let registrationRealmId: string | undefined;
         if (registrationFlow) {
             let response = await window.api.call<any>(
                 "create_user",
@@ -90,6 +91,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
             if ("Err" in response) {
                 return alert(`Error: ${response.Err}`);
             }
+            registrationRealmId = response?.Ok;
         }
 
         const nameChange = !registrationFlow && user.name != name;
@@ -141,7 +143,12 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 return;
             }
         }
-        if (registrationFlow || nameChange) location.href = "/";
+        if (registrationFlow) {
+            await window.reloadUser();
+            location.href = registrationRealmId
+                ? `/#/realm/${registrationRealmId}`
+                : "/";
+        } else if (nameChange) location.href = "/";
         else if (uiRefresh) {
             await window.reloadUser();
             window.uiInitialized = false;

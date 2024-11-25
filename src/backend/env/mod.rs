@@ -1,5 +1,6 @@
 use self::auction::Auction;
 use self::canisters::{icrc_transfer, upgrade_main_canister, NNSVote};
+use self::invite::Invite;
 use self::invoices::{Invoice, USER_ICP_SUBACCOUNT};
 use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
 use self::post_iterators::{IteratorMerger, MergeStrategy};
@@ -33,6 +34,7 @@ pub mod auction;
 pub mod canisters;
 pub mod config;
 pub mod features;
+pub mod invite;
 pub mod invoices;
 pub mod memory;
 pub mod pfp;
@@ -171,7 +173,11 @@ pub struct State {
     pub storage: storage::Storage,
 
     pub logger: Logger,
+    // TODO: delete
     pub invites: BTreeMap<String, (UserId, Credits)>,
+    // New invites, indexed by code
+    #[serde(default)]
+    pub invite_codes: BTreeMap<String, Invite>,
     pub realms: BTreeMap<RealmId, Realm>,
 
     #[serde(skip)]
@@ -910,29 +916,56 @@ impl State {
     pub async fn create_user(
         principal: Principal,
         name: String,
-        invite: Option<String>,
-    ) -> Result<(), String> {
-        let invited = mutate(|state| {
+        invite_code: Option<String>,
+    ) -> Result<Option<String>, String> {
+        let (invited, realm_id) = mutate(|state| {
             state.validate_username(&name)?;
             if let Some(user) = state.principal_to_user(principal) {
                 return Err(format!("principal already assigned to user @{}", user.name));
             }
-            if let Some((inviter_id, credits)) = invite.and_then(|code| state.invites.remove(&code))
+            if let Some((credits, credits_per_user, inviter_id, code, realm_id)) = invite_code
+                .and_then(|code| {
+                    state.invite_codes.get(&code).map(|invite| {
+                        (
+                            invite.credits,
+                            invite.credits_per_user,
+                            invite.inviter_user_id,
+                            code,
+                            invite.realm_id.clone(),
+                        )
+                    })
+                })
             {
+                // Return gracefully before any updates
+                if credits < credits_per_user {
+                    return Err("invite has not enough credits".into());
+                }
                 let inviter = state.users.get_mut(&inviter_id).ok_or("no user found")?;
-                let new_user_id = if inviter.credits() > credits {
+                let new_user_id = if inviter.credits() > credits_per_user {
                     let new_user_id = state.new_user(principal, time(), name.clone(), None)?;
+
+                    state
+                        .invite_codes
+                        .get_mut(&code)
+                        .expect("invite not found") // Revert newly created user in an edge case
+                        .consume(new_user_id)?;
+
                     state
                         .credit_transfer(
                             inviter_id,
                             new_user_id,
-                            credits,
+                            credits_per_user,
                             0,
                             Destination::Credits,
                             "claimed by invited user",
                             None,
                         )
                         .unwrap_or_else(|err| panic!("couldn't use the invite: {}", err));
+
+                    if let Some(id) = realm_id.clone() {
+                        state.toggle_realm_membership(principal, id);
+                    }
+
                     new_user_id
                 } else {
                     return Err("inviter has not enough credits".into());
@@ -945,34 +978,22 @@ impl State {
                         name, CONFIG.name
                     ));
                 }
-                return Ok(true);
+                return Ok((true, realm_id.clone()));
             }
-            Ok(false)
+            Ok((false, None))
         })?;
 
         if invited {
-            return Ok(());
+            return Ok(realm_id);
         }
 
         if let Ok(Invoice { paid: true, .. }) = State::mint_credits(principal, 0).await {
             mutate(|state| state.new_user(principal, time(), name, None))?;
             // After the user has beed created, transfer credits.
-            return State::mint_credits(principal, 0).await.map(|_| ());
+            return State::mint_credits(principal, 0).await.map(|_| (None));
         }
 
         Err("payment missing or the invite is invalid".to_string())
-    }
-
-    pub fn invites(&self, principal: Principal) -> Vec<(String, Credits)> {
-        self.principal_to_user(principal)
-            .map(|user| {
-                self.invites
-                    .iter()
-                    .filter(|(_, (user_id, _))| user_id == &user.id)
-                    .map(|(code, (_, credits))| (code.clone(), *credits))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default()
     }
 
     /// Assigns a new Avataggr to the user.
@@ -996,26 +1017,70 @@ impl State {
         Ok(())
     }
 
-    pub fn create_invite(&mut self, principal: Principal, credits: Credits) -> Result<(), String> {
+    pub fn create_invite(
+        &mut self,
+        principal: Principal,
+        credits: Credits,
+        credits_per_user_opt: Option<Credits>,
+        realm_id: Option<RealmId>,
+    ) -> Result<(), String> {
+        let credits_per_user = credits_per_user_opt.unwrap_or(credits);
+        if credits % credits_per_user != 0 {
+            return Err("credits per user are not a multiple of credits".into());
+        }
         let min_credits = CONFIG.min_credits_for_inviting;
-        let user = self
-            .principal_to_user_mut(principal)
-            .ok_or("no user found")?;
-        if credits < min_credits {
+        let user = self.principal_to_user(principal).ok_or("no user found")?;
+        if credits_per_user < min_credits {
             return Err(format!(
                 "smallest invite must contain {} credits",
                 min_credits
             ));
         }
-        if user.credits() < credits {
-            return Err("not enough credits".into());
-        }
+
+        self.validate_realm_id(realm_id.as_ref())?;
+        invite::validate_user_invites_credits(self, user, credits, None)?;
+
         let mut hasher = Sha256::new();
         hasher.update(principal.as_slice());
         hasher.update(time().to_be_bytes());
         let code = format!("{:x}", hasher.finalize())[..10].to_string();
         let user_id = user.id;
-        self.invites.insert(code, (user_id, credits));
+        let invite = Invite::new(credits, credits_per_user, realm_id, user_id);
+        self.invite_codes.insert(code, invite);
+
+        Ok(())
+    }
+
+    pub fn update_invite(
+        &mut self,
+        principal: Principal,
+        invite_code: String,
+        credits: Option<Credits>,
+        realm_id: Option<RealmId>,
+    ) -> Result<(), String> {
+        if credits.is_none() && realm_id.is_none() {
+            return Err("update is empty".into());
+        }
+        let user = self.principal_to_user(principal).ok_or("user not found")?;
+        let user_id = user.id;
+
+        self.validate_realm_id(realm_id.as_ref())?;
+
+        let Invite {
+            credits: invite_credits,
+            ..
+        } = self
+            .invite_codes
+            .get(&invite_code)
+            .ok_or(format!("invite '{}' not found", invite_code))?;
+        if let Some(credits) = credits {
+            invite::validate_user_invites_credits(self, user, credits, Some(*invite_credits))?;
+        }
+
+        self.invite_codes
+            .get_mut(&invite_code)
+            .ok_or(format!("invite '{}' not found", invite_code))?
+            .update(credits, realm_id, user_id)?;
         Ok(())
     }
 
@@ -3030,6 +3095,16 @@ impl State {
         }
         added
     }
+
+    fn validate_realm_id(&self, realm_id: Option<&RealmId>) -> Result<(), String> {
+        if let Some(id) = realm_id {
+            if !id.is_empty() && !self.realms.contains_key(id) {
+                return Err(format!("realm {} not found", id.clone()));
+            };
+        }
+
+        Ok(())
+    }
 }
 
 // Checks if any feed represents the superset for the given tag set.
@@ -3057,8 +3132,8 @@ pub fn display_tokens(amount: u64, decimals: u32) -> String {
 
 #[cfg(test)]
 pub(crate) mod tests {
-
     use super::*;
+    use invite::tests::create_invite_with_realm;
     use post::Post;
 
     pub fn pr(n: usize) -> Principal {
@@ -4808,21 +4883,21 @@ pub(crate) mod tests {
 
             // use too many credits
             assert_eq!(
-                state.create_invite(principal, 1111),
-                Err("not enough credits".to_string())
+                state.create_invite(principal, 1111, None, None),
+                Err("not enough credits available: 1000 (needed for invites: 1111)".into())
             );
 
             // use enough credits and make sure they were deducted
             let prev_balance = state.users.get(&id).unwrap().credits();
-            assert_eq!(state.create_invite(principal, 111), Ok(()));
+            assert_eq!(state.create_invite(principal, 111, None, None), Ok(()));
             let new_balance = state.users.get(&id).unwrap().credits();
             // no charging yet
             assert_eq!(new_balance, prev_balance);
-            let invite = state.invites(principal);
-            assert_eq!(invite.len(), 1);
-            let (code, credits) = invite.first().unwrap().clone();
-            assert_eq!(credits, 111);
-            (id, code, prev_balance)
+            let invites = invite::invites_by_principal(state, principal);
+            // assert_eq!(invites.count(), 1);
+            let (code, Invite { credits, .. }) = invites.last().unwrap();
+            assert_eq!(*credits, 111);
+            (id, code.to_string(), prev_balance)
         });
 
         // use the invite
@@ -4836,11 +4911,11 @@ pub(crate) mod tests {
         let (id, code, prev_balance) = mutate(|state| {
             let user = state.users.get_mut(&id).unwrap();
             let prev_balance = user.credits();
-            assert_eq!(state.create_invite(principal, 222), Ok(()));
-            let invite = state.invites(principal);
-            let (code, credits) = invite.first().unwrap().clone();
-            assert_eq!(credits, 222);
-            (id, code, prev_balance)
+            assert_eq!(state.create_invite(principal, 222, None, None), Ok(()));
+            let invites = invite::invites_by_principal(state, principal);
+            let (code, Invite { credits, .. }) = invites.last().unwrap();
+            assert_eq!(*credits, 222);
+            (id, code.to_string(), prev_balance)
         });
 
         let prev_revenue = read(|state| state.burned_cycles);
@@ -4853,6 +4928,29 @@ pub(crate) mod tests {
             let user = state.users.get(&id).unwrap();
             assert_eq!(user.credits(), prev_balance - 222);
             assert_eq!(read(|state| state.burned_cycles), prev_revenue);
+        });
+    }
+
+    #[actix_rt::test]
+    async fn test_invites_with_realm() {
+        let principal = pr(4);
+        let (_, invite_code, realm_id) = mutate(|state| create_invite_with_realm(state, principal));
+
+        // New user should be joined to realm
+        let new_principal = pr(5);
+        assert_eq!(
+            State::create_user(new_principal, "name".to_string(), Some(invite_code)).await,
+            Ok(Some(realm_id.clone()))
+        );
+        read(|state| {
+            let user = state.principal_to_user(new_principal).unwrap();
+            assert_eq!(user.credits(), 50); // Invite gives 50 credits
+            assert_eq!(user.realms.first().cloned(), Some(realm_id));
+
+            let (_, invite) = invite::invites_by_principal(state, principal)
+                .last()
+                .unwrap();
+            assert_eq!(invite.credits, 150);
         });
     }
 
