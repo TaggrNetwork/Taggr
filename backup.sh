@@ -3,6 +3,7 @@
 DIR=$1
 echo "Using directory $DIR"
 CMD=$2
+PAGE_START=${3:-0}
 # This script is based on https://forum.dfinity.org/t/canister-backup/11777/26
 BACKUP=./backup/target/release/backup
 
@@ -55,7 +56,7 @@ fetch() {
 git rev-parse HEAD > $DIR/commit.txt
 dfx canister --network ic call taggr backup
 
-PAGE=0
+PAGE=$PAGE_START
 while true; do
     for _ in {1..10}; do
         FILE="$DIR/page$PAGE.bin"
@@ -64,6 +65,6 @@ while true; do
         PAGE=$((PAGE + 1))
     done
     wait
-    if [ "$(size $FILE)" == "18" ]; then break; fi
+    if [ "$(size $FILE)" == "18" ] || [ "$PAGE_START" -ne "0" ]; then break; fi
 done
 
