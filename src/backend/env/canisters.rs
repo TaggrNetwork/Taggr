@@ -100,21 +100,6 @@ pub async fn cycles(canister_id: Principal) -> Result<(u64, u64), String> {
     ))
 }
 
-// TODO: delete
-pub async fn enable_logging() -> bool {
-    open_call("logging");
-    let response = update_settings(UpdateSettingsArgument {
-        canister_id: id(),
-        settings: CanisterSettings {
-            log_visibility: Some(LogVisibility::Public),
-            ..Default::default()
-        },
-    })
-    .await;
-    close_call("logging");
-    response.is_ok()
-}
-
 pub async fn status(canister_id: Principal) -> Result<CanisterStatusResponse, String> {
     open_call("status");
     let response = canister_status(CanisterIdRecord { canister_id }).await;

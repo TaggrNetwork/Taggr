@@ -176,9 +176,8 @@ pub struct State {
 
     pub logger: Logger,
     // TODO: delete
+    #[serde(skip)]
     pub invites: BTreeMap<String, (UserId, Credits)>,
-    // New invites, indexed by code
-    #[serde(default)]
     pub invite_codes: BTreeMap<String, Invite>,
     pub realms: BTreeMap<RealmId, Realm>,
 

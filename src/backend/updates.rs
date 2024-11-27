@@ -81,25 +81,10 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    // Move all invites to new structure
-    mutate(|state| {
-        for (invite_code, (user_id, credits)) in state.invites.iter() {
-            if !state.invite_codes.contains_key(invite_code) {
-                state.invite_codes.insert(
-                    invite_code.clone(),
-                    Invite::new(credits.clone(), credits.clone(), None, user_id.clone()),
-                );
-            }
-        }
-    });
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {
-    // Enables public canister logging: https://internetcomputer.org/docs/current/developer-docs/smart-contracts/maintain/logs
-    assert!(canisters::enable_logging().await);
-}
+async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES
