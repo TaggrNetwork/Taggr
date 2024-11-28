@@ -7,7 +7,6 @@ use super::*;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
-    invite::Invite,
     post::{Extension, Post, PostId},
     user::{Draft, User, UserId},
     State,
@@ -144,6 +143,20 @@ fn link_cold_wallet(user_id: UserId) -> Result<(), String> {
 #[update]
 fn unlink_cold_wallet() -> Result<(), String> {
     mutate(|state| state.unlink_cold_wallet(caller()))
+}
+
+#[export_name = "canister_update siwe_nonce"]
+fn siwe_nonce() {
+    spawn(async {
+        let delegator: Principal = parse(&arg_data_raw());
+        reply(siwe::new_session(delegator, raw_caller()).await)
+    })
+}
+
+#[export_name = "canister_update siwe_verify_message"]
+fn siwe_verify_message() {
+    let (message, signature): (String, String) = parse(&arg_data_raw());
+    reply(siwe::confirm_session(raw_caller(), message, signature))
 }
 
 #[export_name = "canister_update withdraw_rewards"]
@@ -617,9 +630,17 @@ fn cancel_bid() {
     spawn(async { reply(auction::cancel_bid(caller()).await) });
 }
 
-fn caller() -> Principal {
+fn raw_caller() -> Principal {
     let caller = ic_cdk::caller();
     assert_ne!(caller, Principal::anonymous(), "authentication required");
+    caller
+}
+
+fn caller() -> Principal {
+    let caller = raw_caller();
+    if let Some(delegator) = siwe::get_delegator_for(&caller) {
+        return delegator;
+    }
     caller
 }
 

@@ -17,9 +17,10 @@ import {
     ICP_DEFAULT_FEE,
     HASH_ITERATIONS,
     hash,
+    logout,
 } from "./common";
 import * as React from "react";
-import { LoginMasks, logout, SeedPhraseForm } from "./logins";
+import { LoginMasks, SeedPhraseForm } from "./logins";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { Principal } from "@dfinity/principal";
 import { CANISTER_ID } from "./env";
@@ -72,7 +73,7 @@ export const Welcome = () => {
                                     Ed25519KeyIdentity.generate(seed);
                                 if (
                                     identity.getPrincipal().toString() !=
-                                    window.principalId
+                                    window.getPrincipalId()
                                 ) {
                                     alert(
                                         "The seed phrase does not match! Please log-out and try again.",
@@ -91,7 +92,7 @@ export const Welcome = () => {
                                 Your {window.backendCache.config.name}{" "}
                                 principal:{" "}
                                 <CopyToClipboard
-                                    value={window.principalId}
+                                    value={window.getPrincipalId()}
                                     displayMap={(principal) =>
                                         bigScreen()
                                             ? principal

@@ -23,15 +23,14 @@ import {
     currentRealm,
     loadFeed,
     expandMeta,
+    instantiateApiFromIdentity,
 } from "./common";
 import { Settings } from "./settings";
-import { ApiGenerator } from "./api";
 import { Welcome, WelcomeInvited } from "./wallet";
 import { Proposals } from "./proposals";
 import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
-import { MAINNET_MODE, CANISTER_ID } from "./env";
 import { Config, PostId, User, Stats } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
@@ -86,7 +85,7 @@ const renderFrame = (content: React.ReactNode) => {
 const App = () => {
     window.lastActivity = new Date();
     const auth = (content: React.ReactNode) =>
-        window.principalId ? content : <Unauthorized />;
+        window.getPrincipalId() ? content : <Unauthorized />;
     const [handler = "", param, param2] = parseHash();
     let subtle = false;
     let inboxMode = false;
@@ -114,14 +113,14 @@ const App = () => {
     } else if (handler == "settings") {
         content = auth(<Settings />);
     } else if (handler == "welcome") {
-        subtle = !window.principalId;
-        content = window.principalId ? (
+        subtle = !window.getPrincipalId();
+        content = window.getPrincipalId() ? (
             <Settings invite={param} />
         ) : (
             <WelcomeInvited />
         );
     } else if (
-        (handler == "wallet" || (window.principalId && !window.user)) &&
+        (handler == "wallet" || (window.getPrincipalId() && !window.user)) &&
         !window.realm
     ) {
         content = <Welcome />;
@@ -296,9 +295,8 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                 identity = Ed25519KeyIdentity.fromJSON(serializedIdentity);
             }
         }
-        const api = ApiGenerator(MAINNET_MODE, CANISTER_ID, identity);
-        if (identity) window.principalId = identity.getPrincipal().toString();
-        window.api = api;
+        instantiateApiFromIdentity(identity);
+        const api = window.api;
 
         /*
          *  RECOVERY SHORTCUT
@@ -312,7 +310,6 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
 
         window.lastSavedUpgrade = 0;
         window.lastVisit = BigInt(0);
-        window.mainnet_api = ApiGenerator(true, CANISTER_ID, identity);
         window.reloadCache = reloadCache;
         window.setUI = setUI;
         await reloadCache();
@@ -351,7 +348,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
 
 const confirmPrincipalChange = async () => {
     if (
-        !window.principalId ||
+        !window.getPrincipalId() ||
         !(await window.api.query<boolean>("migration_pending"))
     )
         return;
@@ -413,3 +410,5 @@ const updateDoc = () => {
         App();
     });
 };
+
+window.getPrincipalId = () => "";

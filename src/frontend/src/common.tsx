@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Ed25519KeyIdentity } from "@dfinity/identity";
 // @ts-ignore
 import DiffMatchPatch from "diff-match-patch";
 import {
@@ -25,7 +26,9 @@ import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
-import { MAINNET_MODE } from "./env";
+import { CANISTER_ID, MAINNET_MODE } from "./env";
+import { ApiGenerator } from "./api";
+import { Identity } from "@dfinity/agent";
 
 export const REPO = "https://github.com/TaggrNetwork/taggr";
 
@@ -1033,3 +1036,53 @@ export function pfpUrl(userId: UserId) {
         (MAINNET_MODE ? "" : `?canisterId=${canisterId}`)
     );
 }
+
+export const instantiateApiFromIdentity = (identity?: Identity) => {
+    const api = ApiGenerator(MAINNET_MODE, CANISTER_ID, identity);
+    if (identity)
+        window._delegatePrincipalId = identity.getPrincipal().toString();
+    window.api = api;
+    window.mainnet_api = ApiGenerator(true, CANISTER_ID, identity);
+    window.getPrincipalId = () =>
+        localStorage.getItem("delegator") || window._delegatePrincipalId;
+};
+
+export const createIdentityFromSeed = async (
+    method: string,
+    password: string,
+    complexityCheck?: boolean,
+) => {
+    const isSecurePassword = (password: string): boolean =>
+        /^(?=.*?[A-Z])(?=.*?[0-9])(?=.*?[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(
+            password,
+        ) || !MAINNET_MODE;
+
+    if (!password) return;
+    let seed = await hash(password, HASH_ITERATIONS);
+    let identity = Ed25519KeyIdentity.generate(seed);
+    if (
+        complexityCheck &&
+        !isSecurePassword(password) &&
+        !(await window.api.query("user", [
+            identity.getPrincipal().toString(),
+        ])) &&
+        !confirm(
+            "Your password is insecure and will eventually be guessed. " +
+                "A secure password should contain at least 8 symbols such as " +
+                "uppercase and lowercase letters, symbols and digits. " +
+                "Do you want to continue with an insecure password?",
+        )
+    ) {
+        return;
+    }
+    let serializedIdentity = JSON.stringify(identity.toJSON());
+    localStorage.setItem("IDENTITY", serializedIdentity);
+    localStorage.setItem(method, "true");
+    return identity;
+};
+
+export const logout = () => {
+    location.href = "/";
+    localStorage.clear();
+    window.authClient.logout();
+};

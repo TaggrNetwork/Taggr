@@ -5,8 +5,9 @@ import {
     IconToggleButton,
     RealmList,
     ToggleButton,
+    logout,
 } from "./common";
-import { LoginMasks, logout } from "./logins";
+import { LoginMasks } from "./logins";
 import {
     Bell,
     Gear,
@@ -114,7 +115,7 @@ export const Header = ({
                                     testId="toggle-realms"
                                 />
                             )}
-                            {window.principalId && (
+                            {window.getPrincipalId() && (
                                 <IconToggleButton
                                     pressed={showUserSection}
                                     onClick={() => {
@@ -154,7 +155,7 @@ export const Header = ({
                                     POST
                                 </button>
                             )}
-                            {!window.principalId && (
+                            {!window.getPrincipalId() && (
                                 <ToggleButton
                                     classNameArg={
                                         showLogins ? undefined : "active"

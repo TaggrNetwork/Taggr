@@ -1,18 +1,65 @@
 import * as React from "react";
-import { ButtonWithLoading, HASH_ITERATIONS, bigScreen, hash } from "./common";
-import { Infinity, Incognito, Ticket } from "./icons";
-import { Ed25519KeyIdentity } from "@dfinity/identity";
-import { II_URL, II_DERIVATION_URL, MAINNET_MODE } from "./env";
-
-const isSecurePassword = (password: string): boolean =>
-    /^(?=.*?[A-Z])(?=.*?[0-9])(?=.*?[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(
-        password,
-    ) || !MAINNET_MODE;
+import { ButtonWithLoading, bigScreen, createIdentityFromSeed } from "./common";
+import { Infinity, Incognito, Ticket, Wallet as WalletIcon } from "./icons";
+import { II_URL, II_DERIVATION_URL } from "./env";
+import { BrowserProvider } from "ethers";
+import { createSiweMessage, getNonce, verifyMessage } from "./siwe";
 
 export const authMethods = [
     {
+        icon: <WalletIcon />,
+        label: "Browser Wallet",
+        description:
+            "An open source protocol that allows you to connect your crypto wallet to decentralized applications on the web.",
+        login: async () => {
+            // @ts-ignore
+            const provider = new BrowserProvider(window.ethereum);
+
+            const connectWallet = async () =>
+                await provider
+                    .send("eth_requestAccounts", [])
+                    .catch(() => console.log("user rejected request"));
+
+            async function signInWithEthereum() {
+                const signer = await provider.getSigner();
+                const nonce: string = await getNonce(signer.address);
+                const message = createSiweMessage(
+                    signer.address,
+                    window.backendCache.config.siwe_statement,
+                    nonce,
+                );
+                const signature = await signer.signMessage(message);
+                await verifyMessage(message, signature);
+            }
+
+            await connectWallet();
+
+            await signInWithEthereum();
+        },
+    },
+    {
+        icon: <Incognito />,
+        label: "Password",
+        description:
+            "This authentication method works on any device and only requires you to memorize one password.",
+        login: async (confirmationRequired?: boolean): Promise<JSX.Element> => (
+            <SeedPhraseForm
+                classNameArg="spaced"
+                callback={async (seed) => {
+                    await createIdentityFromSeed(
+                        "SEED_PHRASE",
+                        seed,
+                        /* complexityCheck = */ true,
+                    );
+                    location.reload();
+                }}
+                confirmationRequired={confirmationRequired}
+            />
+        ),
+    },
+    {
         icon: <Ticket />,
-        label: "INVITE",
+        label: "Invite",
         description: "Start here if you got an invite code!",
         login: async () => {
             const code = prompt("Enter your invite code:")?.toLowerCase();
@@ -26,7 +73,7 @@ export const authMethods = [
     },
     {
         icon: <Infinity />,
-        label: "INTERNET IDENTITY",
+        label: "Internet Identity",
         description:
             "This authentication method is provided by the Internet Computer protocol and works well with any modern device supporting a biometric authentication.",
         login: () => {
@@ -49,48 +96,7 @@ export const authMethods = [
             return null;
         },
     },
-    {
-        icon: <Incognito />,
-        label: "PASSWORD",
-        description:
-            "This authentication method works on any device and only requires you to memorize one password.",
-        login: async (confirmationRequired?: boolean): Promise<JSX.Element> => (
-            <SeedPhraseForm
-                classNameArg="spaced"
-                callback={async (password: string) => {
-                    if (!password) return;
-                    let seed = await hash(password, HASH_ITERATIONS);
-                    let identity = Ed25519KeyIdentity.generate(seed);
-                    if (
-                        !isSecurePassword(password) &&
-                        !(await window.api.query("user", [
-                            identity.getPrincipal().toString(),
-                        ])) &&
-                        !confirm(
-                            "Your password is insecure and will eventually be guessed. " +
-                                "A secure password should contain at least 8 symbols such as " +
-                                "uppercase and lowercase letters, symbols and digits. " +
-                                "Do you want to continue with an insecure password?",
-                        )
-                    ) {
-                        return;
-                    }
-                    let serializedIdentity = JSON.stringify(identity.toJSON());
-                    localStorage.setItem("IDENTITY", serializedIdentity);
-                    localStorage.setItem("SEED_PHRASE", "true");
-                    location.reload();
-                }}
-                confirmationRequired={confirmationRequired}
-            />
-        ),
-    },
 ];
-
-export const logout = () => {
-    location.href = "/";
-    localStorage.clear();
-    window.authClient.logout();
-};
 
 export const LoginMasks = ({
     confirmationRequired,
@@ -100,7 +106,9 @@ export const LoginMasks = ({
     const [mask, setMask] = React.useState<JSX.Element>();
     if (mask) return mask;
     const inviteMode = confirmationRequired;
-    const methods = inviteMode ? authMethods.slice(1) : authMethods;
+    const methods = inviteMode
+        ? authMethods.filter((method) => method.label != "Invite")
+        : authMethods;
     return (
         <div
             className={`vertically_spaced text_centered ${
@@ -109,16 +117,21 @@ export const LoginMasks = ({
         >
             {methods.map((method, i) => (
                 <div key={i} className="column_container stands_out">
-                    <button
-                        className="large_text active left_half_spaced right_half_spaced"
+                    <ButtonWithLoading
+                        classNameArg="large_text left_half_spaced right_half_spaced"
                         onClick={async () => {
                             let mask = await method.login(confirmationRequired);
                             if (mask) setMask(mask);
                         }}
-                    >
-                        {method.icon} {`${method.label}`}
-                    </button>
-                    <label className="top_spaced">{method.description}</label>
+                        label={
+                            <>
+                                {method.icon} {method.label}
+                            </>
+                        }
+                    />
+                    <label className="top_spaced small_text">
+                        {method.description}
+                    </label>
                 </div>
             ))}
         </div>

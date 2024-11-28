@@ -12,7 +12,7 @@ use crate::assets::export_token_supply;
 use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
 use crate::token::{Account, Token};
-use crate::{assets, id, mutate, read, time};
+use crate::{assets, id, mutate, read, time, SESSIONS};
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::management_canister::main::raw_rand;
@@ -43,6 +43,7 @@ pub mod post_iterators;
 pub mod proposals;
 pub mod reports;
 pub mod search;
+pub mod siwe;
 pub mod storage;
 pub mod token;
 pub mod user;
@@ -1724,6 +1725,8 @@ impl State {
         State::top_up().await;
 
         State::handle_nns_proposals(now).await;
+
+        SESSIONS.with_borrow_mut(|cell| cell.retain(|_, session| !session.expired(now)))
     }
 
     pub async fn chores(now: u64) {

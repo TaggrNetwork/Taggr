@@ -13,9 +13,8 @@ use ic_cdk::api::{
     call::CallResult,
     management_canister::{
         main::{
-            canister_status, create_canister, deposit_cycles, install_code, update_settings,
-            CanisterInstallMode, CanisterSettings, CanisterStatusResponse, CreateCanisterArgument,
-            InstallCodeArgument, LogVisibility, UpdateSettingsArgument,
+            canister_status, create_canister, deposit_cycles, install_code, CanisterInstallMode,
+            CanisterStatusResponse, CreateCanisterArgument, InstallCodeArgument,
         },
         provisional::CanisterIdRecord,
     },

@@ -8,7 +8,7 @@ import { MAINNET_MODE } from "./env";
 
 export const Settings = ({ invite }: { invite?: string }) => {
     const user = window.user;
-    const [principal, setPrincipal] = React.useState(window.principalId);
+    const [principal, setPrincipal] = React.useState(window.getPrincipalId());
     const [name, setName] = React.useState("");
     const [pfp, setPfp] = React.useState<PFP>({
         nonce: 0,
@@ -476,7 +476,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                         {
                             <ButtonWithLoading
                                 classNameArg={
-                                    principal != window.principalId
+                                    principal != window.getPrincipalId()
                                         ? ""
                                         : "inactive"
                                 }
