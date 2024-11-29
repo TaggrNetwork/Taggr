@@ -145,18 +145,10 @@ fn unlink_cold_wallet() -> Result<(), String> {
     mutate(|state| state.unlink_cold_wallet(caller()))
 }
 
-#[export_name = "canister_update siwe_nonce"]
-fn siwe_nonce() {
-    spawn(async {
-        let delegator: Principal = parse(&arg_data_raw());
-        reply(siwe::new_session(delegator, raw_caller()).await)
-    })
-}
-
-#[export_name = "canister_update siwe_verify_message"]
-fn siwe_verify_message() {
+#[export_name = "canister_update siwe_session"]
+fn siwe_session() {
     let (message, signature): (String, String) = parse(&arg_data_raw());
-    reply(siwe::confirm_session(raw_caller(), message, signature))
+    reply(siwe::create_session(raw_caller(), message, signature))
 }
 
 #[export_name = "canister_update withdraw_rewards"]

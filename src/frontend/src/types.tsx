@@ -1,6 +1,7 @@
 import { Backend } from "./api";
 import { Root } from "react-dom/client";
 import { AuthClient } from "@dfinity/auth-client";
+import { Ed25519KeyIdentity } from "@dfinity/identity";
 
 export type PostId = number;
 export type UserId = number;
@@ -367,7 +368,10 @@ declare global {
         api: Backend;
         mainnet_api: Backend;
         getPrincipalId: () => string;
+        // Holds the principal of the delegate signing key (used for SIWE only)
         _delegatePrincipalId: string;
+        // Holds the delegate signing key (used for SIWE only)
+        _delegateIdentity: Ed25519KeyIdentity;
         realm: string;
         user: User;
         scrollUpButton: HTMLElement;

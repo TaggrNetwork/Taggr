@@ -956,7 +956,7 @@ a.accent,
     background: $frame;
 }
 
-.active {
+button.active {
     background: $accent;
     color: #111111;
 }

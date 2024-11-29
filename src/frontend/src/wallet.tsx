@@ -18,9 +18,10 @@ import {
     HASH_ITERATIONS,
     hash,
     logout,
+    SeedPhraseForm,
 } from "./common";
 import * as React from "react";
-import { LoginMasks, SeedPhraseForm } from "./logins";
+import { LoginMasks } from "./logins";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { Principal } from "@dfinity/principal";
 import { CANISTER_ID } from "./env";

@@ -59,6 +59,7 @@ module.exports = {
     output: {
         filename: "index.js",
         path: path.join(__dirname, "dist", frontendDirectory),
+        chunkFormat: false,
         clean: true,
     },
 
@@ -69,8 +70,23 @@ module.exports = {
     // tutorial, uncomment the following lines:
     module: {
         rules: [
-            // { test: /\.css$/, use: ['style-loader','css-loader'] },
-            { test: /\.(ts|tsx|jsx)$/, loader: "ts-loader" },
+            {
+                test: /\.js\.map$/,
+                loader: "ignore-loader",
+            },
+            {
+                test: /\.d\.ts\.map$/,
+                loader: "ignore-loader",
+            },
+            {
+                test: /\.d\.ts$/,
+                loader: "ignore-loader",
+            },
+            {
+                test: /\.(ts|tsx|jsx)$/,
+                loader: "ts-loader",
+                exclude: [/node_modules/],
+            },
             { test: /\.(md|css|svg)/i, use: "raw-loader" },
         ],
     },

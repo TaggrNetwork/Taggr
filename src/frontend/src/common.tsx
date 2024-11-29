@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Ed25519KeyIdentity } from "@dfinity/identity";
 // @ts-ignore
 import DiffMatchPatch from "diff-match-patch";
 import {
@@ -26,7 +25,7 @@ import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
-import { CANISTER_ID, MAINNET_MODE } from "./env";
+import { MAINNET_MODE } from "./env";
 import { ApiGenerator } from "./api";
 import { Identity } from "@dfinity/agent";
 
@@ -1038,51 +1037,77 @@ export function pfpUrl(userId: UserId) {
 }
 
 export const instantiateApiFromIdentity = (identity?: Identity) => {
-    const api = ApiGenerator(MAINNET_MODE, CANISTER_ID, identity);
+    const api = ApiGenerator(MAINNET_MODE, identity);
     if (identity)
         window._delegatePrincipalId = identity.getPrincipal().toString();
     window.api = api;
-    window.mainnet_api = ApiGenerator(true, CANISTER_ID, identity);
+    window.mainnet_api = ApiGenerator(true, identity);
     window.getPrincipalId = () =>
         localStorage.getItem("delegator") || window._delegatePrincipalId;
-};
-
-export const createIdentityFromSeed = async (
-    method: string,
-    password: string,
-    complexityCheck?: boolean,
-) => {
-    const isSecurePassword = (password: string): boolean =>
-        /^(?=.*?[A-Z])(?=.*?[0-9])(?=.*?[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(
-            password,
-        ) || !MAINNET_MODE;
-
-    if (!password) return;
-    let seed = await hash(password, HASH_ITERATIONS);
-    let identity = Ed25519KeyIdentity.generate(seed);
-    if (
-        complexityCheck &&
-        !isSecurePassword(password) &&
-        !(await window.api.query("user", [
-            identity.getPrincipal().toString(),
-        ])) &&
-        !confirm(
-            "Your password is insecure and will eventually be guessed. " +
-                "A secure password should contain at least 8 symbols such as " +
-                "uppercase and lowercase letters, symbols and digits. " +
-                "Do you want to continue with an insecure password?",
-        )
-    ) {
-        return;
-    }
-    let serializedIdentity = JSON.stringify(identity.toJSON());
-    localStorage.setItem("IDENTITY", serializedIdentity);
-    localStorage.setItem(method, "true");
-    return identity;
 };
 
 export const logout = () => {
     location.href = "/";
     localStorage.clear();
+    sessionStorage.clear();
     window.authClient.logout();
+};
+
+export const SeedPhraseForm = ({
+    callback,
+    confirmationRequired,
+    classNameArg,
+}: {
+    callback: (arg: string) => Promise<void>;
+    confirmationRequired?: boolean;
+    classNameArg?: string;
+}) => {
+    const [value, setValue] = React.useState("");
+    const [confirmedValue, setConfirmedValue] = React.useState("");
+    const field = React.useRef<HTMLInputElement>();
+    React.useEffect(() => {
+        let current = field.current;
+        current?.focus();
+    }, []);
+    return (
+        <div
+            className={`${classNameArg} ${
+                confirmationRequired ? "column_container" : "row_container"
+            } vertically_spaced`}
+        >
+            <input
+                ref={field as unknown as any}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyPress={async (e) => {
+                    if (!confirmationRequired && e.charCode == 13) {
+                        let button = document.getElementById("login-button");
+                        button?.click();
+                    }
+                }}
+                className="max_width_col"
+                type="password"
+                placeholder="Enter your password..."
+            />
+            {confirmationRequired && (
+                <input
+                    onChange={(e) => setConfirmedValue(e.target.value)}
+                    className="max_width_col top_spaced bottom_spaced"
+                    type="password"
+                    placeholder="Repeat your password..."
+                />
+            )}
+            <ButtonWithLoading
+                id="login-button"
+                classNameArg="active"
+                onClick={async () => {
+                    if (confirmationRequired && value != confirmedValue) {
+                        alert("Passwords do not match.");
+                        return;
+                    }
+                    await callback(value);
+                }}
+                label="JOIN"
+            />
+        </div>
+    );
 };
