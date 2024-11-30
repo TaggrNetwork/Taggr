@@ -283,69 +283,6 @@ const reloadCache = async () => {
     }
 };
 
-AuthClient.create({ idleOptions: { disableIdle: true } }).then(
-    async (authClient) => {
-        window.authClient = authClient;
-        let identity;
-        if (await authClient.isAuthenticated()) {
-            identity = authClient.getIdentity();
-        } else if (localStorage.getItem("IDENTITY")) {
-            const serializedIdentity = localStorage.getItem("IDENTITY");
-            if (serializedIdentity) {
-                identity = Ed25519KeyIdentity.fromJSON(serializedIdentity);
-            }
-        }
-        instantiateApiFromIdentity(identity);
-        const api = window.api;
-
-        /*
-         *  RECOVERY SHORTCUT
-         */
-        if (window.location.href.includes("recovery")) {
-            document.getElementById("logo_container")?.remove();
-            renderFrame(<React.StrictMode>{<Recovery />}</React.StrictMode>);
-            window.user = await api.query<any>("user", []);
-            return;
-        }
-
-        window.lastSavedUpgrade = 0;
-        window.lastVisit = BigInt(0);
-        window.reloadCache = reloadCache;
-        window.setUI = setUI;
-        await reloadCache();
-
-        if (api) {
-            window.reloadUser = async () => {
-                let data = await api.query<User>("user", []);
-                if (data) {
-                    populateUserNameCacheSpeculatively();
-                    window.user = data;
-                    window.user.realms.reverse();
-                    if (600000 < microSecsSince(window.user.last_activity)) {
-                        window.lastVisit = window.user.last_activity;
-                        api.call("update_last_activity");
-                    } else if (window.lastVisit == BigInt(0))
-                        window.lastVisit = window.user.last_activity;
-                }
-            };
-            setInterval(async () => {
-                await window.reloadUser();
-                await reloadCache();
-            }, REFRESH_RATE_SECS * 1000);
-            await confirmPrincipalChange();
-            await window.reloadUser();
-        }
-        updateDoc();
-        App();
-
-        footerRoot.render(
-            <React.StrictMode>
-                <Footer />
-            </React.StrictMode>,
-        );
-    },
-);
-
 const confirmPrincipalChange = async () => {
     if (
         !window.getPrincipalId() ||
@@ -412,3 +349,80 @@ const updateDoc = () => {
 };
 
 window.getPrincipalId = () => "";
+
+export const startApp = () => {
+    const { display } = document.body.style;
+    location.href = "#/home";
+    headerRoot.render(<></>);
+    footerRoot.render(<></>);
+    document.body.style.display = display;
+
+    AuthClient.create({ idleOptions: { disableIdle: true } }).then(
+        async (authClient) => {
+            window.authClient = authClient;
+            let identity;
+            if (await authClient.isAuthenticated()) {
+                identity = authClient.getIdentity();
+            } else if (localStorage.getItem("IDENTITY")) {
+                const serializedIdentity = localStorage.getItem("IDENTITY");
+                if (serializedIdentity) {
+                    identity = Ed25519KeyIdentity.fromJSON(serializedIdentity);
+                }
+            }
+            instantiateApiFromIdentity(identity);
+            const api = window.api;
+
+            /*
+             *  RECOVERY SHORTCUT
+             */
+            if (window.location.href.includes("recovery")) {
+                document.getElementById("logo_container")?.remove();
+                renderFrame(
+                    <React.StrictMode>{<Recovery />}</React.StrictMode>,
+                );
+                window.user = await api.query<any>("user", []);
+                return;
+            }
+
+            window.lastSavedUpgrade = 0;
+            window.lastVisit = BigInt(0);
+            window.reloadCache = reloadCache;
+            window.setUI = setUI;
+            await reloadCache();
+
+            if (api) {
+                window.reloadUser = async () => {
+                    let data = await api.query<User>("user", []);
+                    if (data) {
+                        populateUserNameCacheSpeculatively();
+                        window.user = data;
+                        window.user.realms.reverse();
+                        if (
+                            600000 < microSecsSince(window.user.last_activity)
+                        ) {
+                            window.lastVisit = window.user.last_activity;
+                            api.call("update_last_activity");
+                        } else if (window.lastVisit == BigInt(0))
+                            window.lastVisit = window.user.last_activity;
+                    }
+                };
+                setInterval(async () => {
+                    await window.reloadUser();
+                    await reloadCache();
+                }, REFRESH_RATE_SECS * 1000);
+                await confirmPrincipalChange();
+                await window.reloadUser();
+            }
+            updateDoc();
+            App();
+
+            footerRoot.render(
+                <React.StrictMode>
+                    <Footer />
+                </React.StrictMode>,
+            );
+        },
+    );
+};
+
+startApp();

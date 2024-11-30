@@ -2,6 +2,7 @@ import { HASH_ITERATIONS, SeedPhraseForm, hash } from "./common";
 import { Infinity, Incognito, Ticket } from "./icons";
 import { II_URL, II_DERIVATION_URL, MAINNET_MODE } from "./env";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
+import { startApp } from ".";
 
 export const authMethods = [
     {
@@ -36,7 +37,7 @@ export const authMethods = [
                     let serializedIdentity = JSON.stringify(identity.toJSON());
                     localStorage.setItem("IDENTITY", serializedIdentity);
                     localStorage.setItem("SEED_PHRASE", "true");
-                    location.reload();
+                    startApp();
                 }}
                 confirmationRequired={confirmationRequired}
             />
@@ -70,7 +71,7 @@ export const authMethods = [
                 return null;
             }
             window.authClient.login({
-                onSuccess: () => location.reload(),
+                onSuccess: startApp,
                 identityProvider: II_URL,
                 maxTimeToLive: BigInt(30 * 24 * 3600000000000),
                 derivationOrigin: II_DERIVATION_URL,

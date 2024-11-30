@@ -20,6 +20,7 @@ import { Globe } from "./icons";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { ApiGenerator } from "./api";
 import { MAINNET_MODE } from "./env";
+import { startApp } from ".";
 
 export function createMessage({
     address,
@@ -62,7 +63,7 @@ export const verifyMessage = async ({
             "IDENTITY",
             JSON.stringify(window._delegateIdentity.toJSON()),
         );
-        location.reload();
+        startApp();
         return true;
     }
     alert(`Error: ${response.Err}`);
