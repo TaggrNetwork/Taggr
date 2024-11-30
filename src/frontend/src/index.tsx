@@ -26,7 +26,7 @@ import {
     instantiateApiFromIdentity,
 } from "./common";
 import { Settings } from "./settings";
-import { Welcome, WelcomeInvited } from "./wallet";
+import { Welcome, WelcomeInvited } from "./welcome";
 import { Proposals } from "./proposals";
 import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
@@ -263,11 +263,6 @@ const reloadCache = async () => {
         stats: stats || ({} as Stats),
         config: config || ({} as Config),
     };
-    window.resetUI = () => {
-        window.uiInitialized = false;
-        const frames = Array.from(stack.children);
-        frames.forEach((frame) => frame.remove());
-    };
     const last_upgrade = window.backendCache.stats?.last_release?.timestamp;
     if (window.lastSavedUpgrade == 0) {
         window.lastSavedUpgrade = last_upgrade;
@@ -348,80 +343,70 @@ const updateDoc = () => {
     });
 };
 
-export const startApp = () => {
-    const { display } = document.body.style;
-    document.body.style.display = "none";
-    location.href = "#/home";
-    headerRoot.render(<></>);
-    footerRoot.render(<></>);
-    document.body.style.display = display;
+AuthClient.create({ idleOptions: { disableIdle: true } }).then(
+    async (authClient) => {
+        window.authClient = authClient;
+        let identity;
+        if (await authClient.isAuthenticated()) {
+            identity = authClient.getIdentity();
+        } else if (localStorage.getItem("IDENTITY")) {
+            const serializedIdentity = localStorage.getItem("IDENTITY");
+            if (serializedIdentity) {
+                identity = Ed25519KeyIdentity.fromJSON(serializedIdentity);
+            }
+        }
+        instantiateApiFromIdentity(identity);
+        const api = window.api;
 
-    AuthClient.create({ idleOptions: { disableIdle: true } }).then(
-        async (authClient) => {
-            window.authClient = authClient;
-            let identity;
-            if (await authClient.isAuthenticated()) {
-                identity = authClient.getIdentity();
-            } else if (localStorage.getItem("IDENTITY")) {
-                const serializedIdentity = localStorage.getItem("IDENTITY");
-                if (serializedIdentity) {
-                    identity = Ed25519KeyIdentity.fromJSON(serializedIdentity);
+        /*
+         *  RECOVERY SHORTCUT
+         */
+        if (window.location.href.includes("recovery")) {
+            document.getElementById("logo_container")?.remove();
+            renderFrame(<React.StrictMode>{<Recovery />}</React.StrictMode>);
+            window.user = await api.query<any>("user", []);
+            return;
+        }
+
+        window.lastSavedUpgrade = 0;
+        window.lastVisit = BigInt(0);
+        window.reloadCache = reloadCache;
+        window.setUI = setUI;
+        window.resetUI = () => {
+            window.uiInitialized = false;
+            const frames = Array.from(stack.children);
+            frames.forEach((frame) => frame.remove());
+        };
+        await reloadCache();
+
+        if (api) {
+            window.reloadUser = async () => {
+                let data = await api.query<User>("user", []);
+                if (data) {
+                    populateUserNameCacheSpeculatively();
+                    window.user = data;
+                    window.user.realms.reverse();
+                    if (600000 < microSecsSince(window.user.last_activity)) {
+                        window.lastVisit = window.user.last_activity;
+                        api.call("update_last_activity");
+                    } else if (window.lastVisit == BigInt(0))
+                        window.lastVisit = window.user.last_activity;
                 }
-            }
-            instantiateApiFromIdentity(identity);
-            const api = window.api;
-
-            /*
-             *  RECOVERY SHORTCUT
-             */
-            if (window.location.href.includes("recovery")) {
-                document.getElementById("logo_container")?.remove();
-                renderFrame(
-                    <React.StrictMode>{<Recovery />}</React.StrictMode>,
-                );
-                window.user = await api.query<any>("user", []);
-                return;
-            }
-
-            window.lastSavedUpgrade = 0;
-            window.lastVisit = BigInt(0);
-            window.reloadCache = reloadCache;
-            window.setUI = setUI;
-            await reloadCache();
-
-            if (api) {
-                window.reloadUser = async () => {
-                    let data = await api.query<User>("user", []);
-                    if (data) {
-                        populateUserNameCacheSpeculatively();
-                        window.user = data;
-                        window.user.realms.reverse();
-                        if (
-                            600000 < microSecsSince(window.user.last_activity)
-                        ) {
-                            window.lastVisit = window.user.last_activity;
-                            api.call("update_last_activity");
-                        } else if (window.lastVisit == BigInt(0))
-                            window.lastVisit = window.user.last_activity;
-                    }
-                };
-                setInterval(async () => {
-                    await window.reloadUser();
-                    await reloadCache();
-                }, REFRESH_RATE_SECS * 1000);
-                await confirmPrincipalChange();
+            };
+            setInterval(async () => {
                 await window.reloadUser();
-            }
-            updateDoc();
-            App();
+                await reloadCache();
+            }, REFRESH_RATE_SECS * 1000);
+            await confirmPrincipalChange();
+            await window.reloadUser();
+        }
+        updateDoc();
+        App();
 
-            footerRoot.render(
-                <React.StrictMode>
-                    <Footer />
-                </React.StrictMode>,
-            );
-        },
-    );
-};
-
-startApp();
+        footerRoot.render(
+            <React.StrictMode>
+                <Footer />
+            </React.StrictMode>,
+        );
+    },
+);

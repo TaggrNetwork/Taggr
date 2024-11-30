@@ -13,6 +13,7 @@ import {
     ButtonWithLoading,
     hash,
     instantiateApiFromIdentity,
+    restartApp,
     signOut,
 } from "./common";
 import { Address } from "viem";
@@ -20,7 +21,8 @@ import { Globe } from "./icons";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { ApiGenerator } from "./api";
 import { MAINNET_MODE } from "./env";
-import { startApp } from ".";
+
+let siweModalSetOpen = (_: boolean) => {};
 
 export function createMessage({
     address,
@@ -56,6 +58,7 @@ export const verifyMessage = async ({
 }) => {
     const api = ApiGenerator(MAINNET_MODE, window._delegateIdentity);
     const response: any = await api.call("siwe_session", message, signature);
+    siweModalSetOpen(false);
     if ("Ok" in response) {
         localStorage.setItem("delegator", response.Ok);
         instantiateApiFromIdentity(window._delegateIdentity);
@@ -63,7 +66,7 @@ export const verifyMessage = async ({
             "IDENTITY",
             JSON.stringify(window._delegateIdentity.toJSON()),
         );
-        startApp();
+        restartApp();
         return true;
     }
     alert(`Error: ${response.Err}`);
@@ -101,7 +104,7 @@ export const SignWithEthereum = ({}) => {
             <QueryClientProvider client={queryClient}>
                 <SIWEProvider {...siweConfig}>
                     <ConnectKitProvider>
-                        <CustomButton />
+                        <Button />
                     </ConnectKitProvider>
                 </SIWEProvider>
             </QueryClientProvider>
@@ -109,7 +112,7 @@ export const SignWithEthereum = ({}) => {
     );
 };
 
-const CustomButton = ({}) => {
+const Button = ({}) => {
     const { setOpen } = useModal();
     return (
         <ButtonWithLoading
@@ -123,7 +126,8 @@ const CustomButton = ({}) => {
                     window._delegateIdentity = Ed25519KeyIdentity.generate(
                         await hash(seed, 1),
                     );
-                setOpen(true);
+                siweModalSetOpen = setOpen;
+                siweModalSetOpen(true);
             }}
             classNameArg="active large_text vertically_spaced left_spaced right_spaced"
             label={

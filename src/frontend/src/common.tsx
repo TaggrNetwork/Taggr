@@ -28,7 +28,6 @@ import { Content } from "./content";
 import { MAINNET_MODE } from "./env";
 import { ApiGenerator } from "./api";
 import { Identity } from "@dfinity/agent";
-import { startApp } from ".";
 
 export const REPO = "https://github.com/TaggrNetwork/taggr";
 
@@ -872,7 +871,7 @@ export function popUp<T>(content: JSX.Element): null | Promise<T | null> {
                     </div>
                 </div>
                 {React.cloneElement(content, {
-                    popUpCallback: (arg: T) => {
+                    parentCallback: (arg: T) => {
                         closePreview(arg);
                     },
                 })}
@@ -1056,7 +1055,7 @@ export const signOut = async () => {
     sessionStorage.clear();
     window.authClient.logout();
     window._delegatePrincipalId = "";
-    startApp();
+    restartApp();
     return true;
 };
 
@@ -1077,49 +1076,63 @@ export const SeedPhraseForm = ({
         current?.focus();
     }, []);
     return (
-        <div
-            className={`${classNameArg} ${
-                confirmationRequired ? "column_container" : "row_container"
-            } vertically_spaced`}
-        >
-            <input
-                ref={field as unknown as any}
-                onChange={(e) => setValue(e.target.value)}
-                onKeyPress={async (e) => {
-                    if (!confirmationRequired && e.charCode == 13) {
-                        let button = document.getElementById("login-button");
-                        button?.click();
-                    }
-                }}
-                className="max_width_col"
-                type="password"
-                placeholder="Enter your password..."
-            />
-            {confirmationRequired && (
+        <>
+            <p>
+                Please enter your password{" "}
+                {confirmationRequired && <>and confirm it</>}
+            </p>
+            <div
+                className={`${classNameArg} ${
+                    confirmationRequired ? "column_container" : "row_container"
+                } vertically_spaced`}
+            >
                 <input
-                    onChange={(e) => setConfirmedValue(e.target.value)}
-                    className="max_width_col top_spaced bottom_spaced"
-                    type="password"
-                    placeholder="Repeat your password..."
-                />
-            )}
-            <div className="row_container">
-                <ButtonWithLoading
-                    id="login-button"
-                    classNameArg="active left_half_spaced right_half_spaced"
-                    onClick={async () => {
-                        if (confirmationRequired && value != confirmedValue) {
-                            alert("Passwords do not match.");
-                            return;
+                    ref={field as unknown as any}
+                    onChange={(e) => setValue(e.target.value)}
+                    onKeyPress={async (e) => {
+                        if (!confirmationRequired && e.charCode == 13) {
+                            let button =
+                                document.getElementById("login-button");
+                            button?.click();
                         }
-                        await callback(value);
                     }}
-                    label="JOIN"
+                    className="max_width_col"
+                    type="password"
+                    placeholder="Enter your password..."
                 />
-                {window.getPrincipalId() && (
-                    <ButtonWithLoading onClick={signOut} label="SIGN OUT" />
+                {confirmationRequired && (
+                    <input
+                        onChange={(e) => setConfirmedValue(e.target.value)}
+                        className="max_width_col top_spaced bottom_spaced"
+                        type="password"
+                        placeholder="Repeat your password..."
+                    />
                 )}
+                <div className="row_container">
+                    {window.getPrincipalId() && (
+                        <ButtonWithLoading onClick={signOut} label="SIGN OUT" />
+                    )}
+                    <ButtonWithLoading
+                        id="login-button"
+                        classNameArg="active left_half_spaced right_half_spaced"
+                        onClick={async () => {
+                            if (
+                                confirmationRequired &&
+                                value != confirmedValue
+                            ) {
+                                alert("Passwords do not match.");
+                                return;
+                            }
+                            await callback(value);
+                        }}
+                        label="JOIN"
+                    />
+                </div>
             </div>
-        </div>
+        </>
     );
+};
+
+export const restartApp = async () => {
+    location.reload();
 };

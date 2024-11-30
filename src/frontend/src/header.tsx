@@ -158,13 +158,17 @@ export const Header = ({
                             />
                         </>
                     )}
-                    {!window.getPrincipalId() && (
-                        <ButtonWithLoading
-                            classNameArg="active"
-                            onClick={async () => await popUp(<LoginMasks />)}
-                            label="CONNECT"
-                        />
-                    )}
+                    {!window.getPrincipalId() &&
+                        // Don't show connect button on invite links
+                        !location.href.includes("welcome") && (
+                            <ButtonWithLoading
+                                classNameArg="active"
+                                onClick={async () =>
+                                    await popUp(<LoginMasks />)
+                                }
+                                label="CONNECT"
+                            />
+                        )}
                 </div>
             </header>
             {showUserSection && <UserSection user={user} />}

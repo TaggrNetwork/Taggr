@@ -1,11 +1,10 @@
 import * as React from "react";
-import { ButtonWithLoading } from "./common";
+import { ButtonWithLoading, restartApp } from "./common";
 import { SignWithEthereum } from "./siwe";
 import { HASH_ITERATIONS, SeedPhraseForm, hash } from "./common";
 import { Infinity, Incognito, Ticket } from "./icons";
 import { II_URL, II_DERIVATION_URL, MAINNET_MODE } from "./env";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
-import { startApp } from ".";
 
 export const authMethods = [
     {
@@ -40,7 +39,7 @@ export const authMethods = [
                     let serializedIdentity = JSON.stringify(identity.toJSON());
                     localStorage.setItem("IDENTITY", serializedIdentity);
                     localStorage.setItem("SEED_PHRASE", "true");
-                    startApp();
+                    restartApp();
                 }}
                 confirmationRequired={confirmationRequired}
             />
@@ -74,7 +73,7 @@ export const authMethods = [
                 return null;
             }
             window.authClient.login({
-                onSuccess: startApp,
+                onSuccess: restartApp,
                 identityProvider: II_URL,
                 maxTimeToLive: BigInt(30 * 24 * 3600000000000),
                 derivationOrigin: II_DERIVATION_URL,
@@ -86,11 +85,12 @@ export const authMethods = [
 
 export const LoginMasks = ({
     confirmationRequired,
+    parentCallback,
 }: {
     confirmationRequired?: boolean;
+    parentCallback?: () => void;
 }) => {
     const [mask, setMask] = React.useState<JSX.Element>();
-    if (mask) return mask;
     const inviteMode = confirmationRequired;
     const methods = inviteMode
         ? authMethods.filter((method) => method.label != "Invite")
@@ -98,11 +98,13 @@ export const LoginMasks = ({
 
     React.useEffect(() => {
         const logo = document.getElementById("connect_logo");
-        if (!logo) return;
+        if (!logo || !parentCallback) return;
         logo.innerHTML = window.backendCache.config.logo;
     }, []);
 
-    return (
+    return mask ? (
+        mask
+    ) : (
         <div className="vertically_spaced text_centered column_container">
             <span id="connect_logo"></span>
             <SignWithEthereum />
@@ -112,7 +114,9 @@ export const LoginMasks = ({
                     classNameArg="large_text left_spaced right_spaced bottom_spaced"
                     onClick={async () => {
                         let mask = await method.login(confirmationRequired);
-                        if (mask) setMask(mask);
+                        if (mask) {
+                            setMask(mask);
+                        }
                     }}
                     label={
                         <>
