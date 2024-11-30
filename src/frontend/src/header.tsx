@@ -4,8 +4,9 @@ import {
     currentRealm,
     IconToggleButton,
     RealmList,
-    ToggleButton,
     signOut,
+    popUp,
+    ButtonWithLoading,
 } from "./common";
 import { LoginMasks } from "./authentication";
 import {
@@ -37,9 +38,6 @@ export const Header = ({
     inboxMode: boolean;
 }) => {
     const user = window.user;
-    const [showLogins, setShowLogins] = React.useState(
-        !user && location.href.includes("?join"),
-    );
     const [showUserSection, toggleUserSection] = React.useState(false);
     const [showRealms, toggleRealms] = React.useState(false);
     const [showLinks, toggleLinks] = React.useState(false);
@@ -161,17 +159,14 @@ export const Header = ({
                         </>
                     )}
                     {!window.getPrincipalId() && (
-                        <ToggleButton
-                            classNameArg={showLogins ? undefined : "active"}
-                            toggler={() => setShowLogins(!showLogins)}
-                            currState={() => showLogins}
-                            onLabel="CLOSE"
-                            offLabel="CONNECT"
+                        <ButtonWithLoading
+                            classNameArg="active"
+                            onClick={async () => await popUp(<LoginMasks />)}
+                            label="CONNECT"
                         />
                     )}
                 </div>
             </header>
-            {showLogins && <LoginMasks />}
             {showUserSection && <UserSection user={user} />}
             {showLinks && <Links />}
             {showRealms && (

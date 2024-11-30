@@ -96,8 +96,15 @@ export const LoginMasks = ({
         ? authMethods.filter((method) => method.label != "Invite")
         : authMethods;
 
+    React.useEffect(() => {
+        const logo = document.getElementById("connect_logo");
+        if (!logo) return;
+        logo.innerHTML = window.backendCache.config.logo;
+    }, []);
+
     return (
         <div className="vertically_spaced text_centered column_container">
+            <span id="connect_logo"></span>
             <SignWithEthereum />
             {methods.map((method) => (
                 <ButtonWithLoading

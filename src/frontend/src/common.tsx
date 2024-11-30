@@ -834,7 +834,7 @@ export const ReportBanner = ({
     );
 };
 
-export function popUp<T>(content: JSX.Element): null | Promise<T> {
+export function popUp<T>(content: JSX.Element): null | Promise<T | null> {
     const preview = document.getElementById("preview");
     if (!preview) return null;
     while (preview.hasChildNodes()) {
@@ -844,23 +844,28 @@ export function popUp<T>(content: JSX.Element): null | Promise<T> {
     preview.style.display = "flex";
     preview.style.flexDirection = "column";
     preview.style.justifyContent = "center";
-    const closePreview = () => (preview.style.display = "none");
 
-    preview.onclick = (event) => {
-        let target: any = event.target;
-        if (target?.id == "preview") preview.style.display = "none";
-    };
     const root = document.createElement("div");
     root.className = "popup_body";
     preview.appendChild(root);
 
-    const promise = new Promise((resolve: (arg: T) => void) => {
+    const promise = new Promise((resolve: (arg: T | null) => void) => {
+        const closePreview = (arg: T | null) => {
+            preview.style.display = "none";
+            resolve(arg);
+        };
+
+        preview.onclick = (event) => {
+            let target: any = event.target;
+            if (target?.id == "preview") closePreview(null);
+        };
+
         createRoot(root).render(
             <>
                 <div
                     data-testid="popup-close-button"
                     className="clickable row_container bottom_spaced"
-                    onClick={closePreview}
+                    onClick={() => closePreview(null)}
                 >
                     <div style={{ marginLeft: "auto" }}>
                         <Close classNameArg="action" size={18} />
@@ -868,8 +873,7 @@ export function popUp<T>(content: JSX.Element): null | Promise<T> {
                 </div>
                 {React.cloneElement(content, {
                     popUpCallback: (arg: T) => {
-                        closePreview();
-                        resolve(arg);
+                        closePreview(arg);
                     },
                 })}
             </>,
