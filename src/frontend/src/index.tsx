@@ -348,10 +348,9 @@ const updateDoc = () => {
     });
 };
 
-window.getPrincipalId = () => "";
-
 export const startApp = () => {
     const { display } = document.body.style;
+    document.body.style.display = "none";
     location.href = "#/home";
     headerRoot.render(<></>);
     footerRoot.render(<></>);

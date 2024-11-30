@@ -48,7 +48,7 @@ test.describe("Regular users flow", () => {
 
         // Logout
         await page.getByTestId("toggle-user-section").click();
-        await page.getByRole("link", { name: /.*LOGOUT.*/ }).click();
+        await page.getByRole("link", { name: /.*SIGN OUT.*/ }).click();
     });
 
     test("Login and post", async () => {
@@ -214,7 +214,7 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "CREATE" }).click();
         inviteLink = await page.getByText(/.*#\/welcome.*/).textContent();
         await page.getByTestId("toggle-user-section").click();
-        await page.getByRole("link", { name: /.*LOGOUT.*/ }).click();
+        await page.getByRole("link", { name: /.*SIGN OUT.*/ }).click();
     });
 
     test("Registration by invite", async () => {

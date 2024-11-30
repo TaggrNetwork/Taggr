@@ -1,6 +1,6 @@
 import * as React from "react";
 import { ButtonWithLoading, FileUploadInput, HeadBar } from "./common";
-import { LoginMasks } from "./logins";
+import { LoginMasks } from "./authentication";
 import { User } from "./types";
 
 export const Recovery = () => {

@@ -1,3 +1,6 @@
+import * as React from "react";
+import { ButtonWithLoading } from "./common";
+import { SignWithEthereum } from "./siwe";
 import { HASH_ITERATIONS, SeedPhraseForm, hash } from "./common";
 import { Infinity, Incognito, Ticket } from "./icons";
 import { II_URL, II_DERIVATION_URL, MAINNET_MODE } from "./env";
@@ -80,3 +83,37 @@ export const authMethods = [
         },
     },
 ];
+
+export const LoginMasks = ({
+    confirmationRequired,
+}: {
+    confirmationRequired?: boolean;
+}) => {
+    const [mask, setMask] = React.useState<JSX.Element>();
+    if (mask) return mask;
+    const inviteMode = confirmationRequired;
+    const methods = inviteMode
+        ? authMethods.filter((method) => method.label != "Invite")
+        : authMethods;
+
+    return (
+        <div className="vertically_spaced text_centered column_container">
+            <SignWithEthereum />
+            {methods.map((method) => (
+                <ButtonWithLoading
+                    key={method.label}
+                    classNameArg="large_text left_spaced right_spaced bottom_spaced"
+                    onClick={async () => {
+                        let mask = await method.login(confirmationRequired);
+                        if (mask) setMask(mask);
+                    }}
+                    label={
+                        <>
+                            {method.icon} {method.label}
+                        </>
+                    }
+                />
+            ))}
+        </div>
+    );
+};

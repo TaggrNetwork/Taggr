@@ -13,7 +13,7 @@ import {
     ButtonWithLoading,
     hash,
     instantiateApiFromIdentity,
-    logout,
+    signOut,
 } from "./common";
 import { Address } from "viem";
 import { Globe } from "./icons";
@@ -67,7 +67,7 @@ export const verifyMessage = async ({
         return true;
     }
     alert(`Error: ${response.Err}`);
-    logout();
+    signOut();
     return false;
 };
 
@@ -77,10 +77,7 @@ export const SignWithEthereum = ({}) => {
         createMessage,
         verifyMessage,
         getSession: async () => null,
-        signOut: async () => {
-            logout();
-            return true;
-        },
+        signOut,
     };
     const queryClient = new QueryClient();
 

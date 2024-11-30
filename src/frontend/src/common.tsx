@@ -28,6 +28,7 @@ import { Content } from "./content";
 import { MAINNET_MODE } from "./env";
 import { ApiGenerator } from "./api";
 import { Identity } from "@dfinity/agent";
+import { startApp } from ".";
 
 export const REPO = "https://github.com/TaggrNetwork/taggr";
 
@@ -1046,11 +1047,13 @@ export const instantiateApiFromIdentity = (identity?: Identity) => {
         localStorage.getItem("delegator") || window._delegatePrincipalId;
 };
 
-export const logout = () => {
-    location.href = "/";
+export const signOut = async () => {
     localStorage.clear();
     sessionStorage.clear();
     window.authClient.logout();
+    window._delegatePrincipalId = "";
+    startApp();
+    return true;
 };
 
 export const SeedPhraseForm = ({
@@ -1096,18 +1099,23 @@ export const SeedPhraseForm = ({
                     placeholder="Repeat your password..."
                 />
             )}
-            <ButtonWithLoading
-                id="login-button"
-                classNameArg="active"
-                onClick={async () => {
-                    if (confirmationRequired && value != confirmedValue) {
-                        alert("Passwords do not match.");
-                        return;
-                    }
-                    await callback(value);
-                }}
-                label="JOIN"
-            />
+            <div className="row_container">
+                <ButtonWithLoading
+                    id="login-button"
+                    classNameArg="active left_half_spaced right_half_spaced"
+                    onClick={async () => {
+                        if (confirmationRequired && value != confirmedValue) {
+                            alert("Passwords do not match.");
+                            return;
+                        }
+                        await callback(value);
+                    }}
+                    label="JOIN"
+                />
+                {window.getPrincipalId() && (
+                    <ButtonWithLoading onClick={signOut} label="SIGN OUT" />
+                )}
+            </div>
         </div>
     );
 };

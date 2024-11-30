@@ -5,9 +5,9 @@ import {
     IconToggleButton,
     RealmList,
     ToggleButton,
-    logout,
+    signOut,
 } from "./common";
-import { LoginMasks } from "./logins";
+import { LoginMasks } from "./authentication";
 import {
     Bell,
     Gear,
@@ -101,9 +101,9 @@ export const Header = ({
                     data-testid="home-page-link"
                 ></a>
                 <div className="vcentered max_width_col flex_ended">
-                    {!subtle && (
+                    {!subtle && user && (
                         <>
-                            {user && user.realms.length > 0 && !subtle && (
+                            {user.realms.length > 0 && !subtle && (
                                 <IconToggleButton
                                     pressed={showRealms}
                                     onClick={() => {
@@ -115,69 +115,59 @@ export const Header = ({
                                     testId="toggle-realms"
                                 />
                             )}
-                            {window.getPrincipalId() && (
-                                <IconToggleButton
-                                    pressed={showUserSection}
-                                    onClick={() => {
-                                        toggleUserSection(!showUserSection);
-                                        toggleRealms(false);
-                                        toggleLinks(false);
-                                    }}
-                                    icon={<User />}
-                                    testId="toggle-user-section"
-                                />
-                            )}
-                            {user && (
-                                <IconToggleButton
-                                    title="Inbox"
-                                    pressed={location.href.includes("inbox")}
-                                    classNameArg="right_half_spaced"
-                                    onClick={() => (location.href = "#/inbox")}
-                                    icon={
-                                        <>
-                                            <Bell
-                                                classNameArg={
-                                                    messages > 0
-                                                        ? "accent right_half_spaced"
-                                                        : undefined
-                                                }
-                                            />
-                                            {messages > 0 && messages}
-                                        </>
-                                    }
-                                />
-                            )}
-                            {user && (
-                                <button
-                                    className={"active"}
-                                    onClick={() => (location.href = "#/new")}
-                                >
-                                    POST
-                                </button>
-                            )}
-                            {!window.getPrincipalId() && (
-                                <ToggleButton
-                                    classNameArg={
-                                        showLogins ? undefined : "active"
-                                    }
-                                    toggler={() => setShowLogins(!showLogins)}
-                                    currState={() => showLogins}
-                                    onLabel="CLOSE"
-                                    offLabel="CONNECT"
-                                />
-                            )}
-                            {user && (
-                                <BurgerButton
-                                    pressed={showLinks}
-                                    onClick={() => {
-                                        toggleRealms(false);
-                                        toggleUserSection(false);
-                                        toggleLinks(!showLinks);
-                                    }}
-                                    testId="toggle-links"
-                                />
-                            )}
+                            <IconToggleButton
+                                pressed={showUserSection}
+                                onClick={() => {
+                                    toggleUserSection(!showUserSection);
+                                    toggleRealms(false);
+                                    toggleLinks(false);
+                                }}
+                                icon={<User />}
+                                testId="toggle-user-section"
+                            />
+                            <IconToggleButton
+                                title="Inbox"
+                                pressed={location.href.includes("inbox")}
+                                classNameArg="right_half_spaced"
+                                onClick={() => (location.href = "#/inbox")}
+                                icon={
+                                    <>
+                                        <Bell
+                                            classNameArg={
+                                                messages > 0
+                                                    ? "accent right_half_spaced"
+                                                    : undefined
+                                            }
+                                        />
+                                        {messages > 0 && messages}
+                                    </>
+                                }
+                            />
+                            <button
+                                className={"active"}
+                                onClick={() => (location.href = "#/new")}
+                            >
+                                POST
+                            </button>
+                            <BurgerButton
+                                pressed={showLinks}
+                                onClick={() => {
+                                    toggleRealms(false);
+                                    toggleUserSection(false);
+                                    toggleLinks(!showLinks);
+                                }}
+                                testId="toggle-links"
+                            />
                         </>
+                    )}
+                    {!window.getPrincipalId() && (
+                        <ToggleButton
+                            classNameArg={showLogins ? undefined : "active"}
+                            toggler={() => setShowLogins(!showLogins)}
+                            currState={() => showLogins}
+                            onLabel="CLOSE"
+                            offLabel="CONNECT"
+                        />
                     )}
                 </div>
             </header>
@@ -242,12 +232,12 @@ const UserSection = ({ user }: { user: UserType }) => {
                         </>
                     )}
                     <a
-                        title="LOGOUT"
+                        title="SIGN OUT"
                         className="icon_link"
                         href=""
-                        onClick={logout}
+                        onClick={signOut}
                     >
-                        <Logout /> LOGOUT
+                        <Logout /> SIGN OUT
                     </a>
                 </div>
             </div>

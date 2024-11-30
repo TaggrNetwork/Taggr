@@ -17,11 +17,11 @@ import {
     ICP_DEFAULT_FEE,
     HASH_ITERATIONS,
     hash,
-    logout,
+    signOut,
     SeedPhraseForm,
 } from "./common";
 import * as React from "react";
-import { LoginMasks } from "./logins";
+import { LoginMasks } from "./authentication";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { Principal } from "@dfinity/principal";
 import { CANISTER_ID } from "./env";
@@ -49,8 +49,8 @@ export const Welcome = () => {
     const passwordConfirmationRequired =
         !!localStorage.getItem("SEED_PHRASE") && !seedPhraseConfirmed;
     const logOutButton = (
-        <button className="right_spaced" onClick={() => logout()}>
-            LOGOUT
+        <button className="right_spaced" onClick={signOut}>
+            SIGN OUT
         </button>
     );
 
