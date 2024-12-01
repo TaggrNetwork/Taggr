@@ -43,7 +43,7 @@ pub fn create_session(
     let issued_at = get_timestamp(&message).ok_or("no timestamp")?;
 
     if issued_at + MINUTE < time() || time() + MINUTE < issued_at {
-        return Err("signature has expired of too far in the future".into());
+        return Err("signature has expired or too far in the future".into());
     }
 
     let sig = EthSignature::new(&signature)
