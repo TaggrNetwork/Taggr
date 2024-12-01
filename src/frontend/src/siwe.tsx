@@ -101,6 +101,11 @@ export const SignWithEthereum = ({}) => {
             swaps: false,
         },
         coinbasePreference: "eoaOnly",
+        featuredWalletIds: [
+            "ecc4036f814562b41a5268adc86270fba1365471402006302e70169465b7ac18",
+            "fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa",
+            "c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96",
+        ],
     });
 
     return (
