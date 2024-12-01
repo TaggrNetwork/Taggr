@@ -1,22 +1,18 @@
 import {
-    SIWEProvider,
-    SIWEConfig,
-    ConnectKitProvider,
-    getDefaultConfig,
-    useSIWE,
-    useModal,
-} from "connectkit";
-import { mainnet } from "wagmi/chains";
-import { WagmiProvider, createConfig } from "wagmi";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { SiweMessage } from "siwe";
+    type SIWECreateMessageArgs,
+    createSIWEConfig,
+    formatMessage,
+} from "@reown/appkit-siwe";
+import { createAppKit } from "@reown/appkit";
+import { mainnet } from "@reown/appkit/networks";
+import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import {
     ButtonWithLoading,
     hash,
     instantiateApiFromIdentity,
+    restartApp,
     signOut,
 } from "./common";
-import { Address } from "viem";
 import { Globe } from "./icons";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { ApiGenerator } from "./api";
@@ -24,41 +20,20 @@ import { MAINNET_MODE } from "./env";
 
 let delegateIdentity: Ed25519KeyIdentity | null = null;
 
-export function createMessage({
-    address,
-    chainId,
-    nonce,
-}: {
-    nonce: string;
-    address: Address;
-    chainId: number;
-}) {
-    const message = new SiweMessage({
-        nonce,
-        address,
-        statement: window.backendCache.config.siwe_statement,
-        uri: origin,
-        domain: window.location.host,
-        chainId,
-        version: "1",
-    });
-    return message.prepareMessage();
-}
-
 // Creates a session nonce for the delegator using the delegate identity.
-export const getNonce = async () => {
+const getNonce = async () => {
     if (!delegateIdentity) throw Error("getNonce: no delegate identity");
     return delegateIdentity?.getPrincipal().toString().replaceAll("-", "");
 };
 
-export const verifyMessage = async ({
+const verifyMessage = async ({
     message,
     signature,
 }: {
     message: string;
     signature: string;
 }) => {
-    if (!delegateIdentity) throw Error("verifyMessage: no delegate identity");
+    if (!delegateIdentity) throw Error("verify: no delegate identity");
     const api = ApiGenerator(MAINNET_MODE, delegateIdentity);
     const response: any = await api.call("siwe_session", message, signature);
     if ("Ok" in response) {
@@ -76,56 +51,62 @@ export const verifyMessage = async ({
 };
 
 export const SignWithEthereum = ({}) => {
-    const siweConfig: SIWEConfig = {
-        getNonce,
-        createMessage,
-        verifyMessage,
-        getSession: async () => null,
-        signOut,
-    };
-    const queryClient = new QueryClient();
-
-    const config = createConfig(
-        getDefaultConfig({
-            appName: window.backendCache.config.name,
-            appDescription: "Decentralized Social Network",
-            appUrl: window.location.origin,
-            appIcon:
-                "https://6qfxa-ryaaa-aaaai-qbhsq-cai.raw.ic0.app/_/raw/apple-touch-icon.png",
-
-            chains: [mainnet],
-
-            coinbaseWalletPreference: "eoaOnly",
-
-            walletConnectProjectId: "d4f461cc66e814f25f08579c747def31",
+    const siweConfig = createSIWEConfig({
+        getMessageParams: async () => ({
+            domain: window.location.host,
+            uri: window.location.origin,
+            chains: [mainnet.id],
+            statement: window.backendCache.config.siwe_statement,
         }),
-    );
+        createMessage: ({ address, ...args }: SIWECreateMessageArgs) =>
+            formatMessage(args, address),
 
-    return (
-        <WagmiProvider config={config}>
-            <QueryClientProvider client={queryClient}>
-                <SIWEProvider {...siweConfig}>
-                    <ConnectKitProvider>
-                        <Button />
-                    </ConnectKitProvider>
-                </SIWEProvider>
-            </QueryClientProvider>
-        </WagmiProvider>
-    );
-};
-
-const Button = ({}) => {
-    const {} = useSIWE({
-        onSignIn: () => {
-            throw Error("signed in!");
-        },
+        getNonce,
+        getSession: async () => null,
+        verifyMessage,
+        signOut,
+        onSignIn: restartApp,
     });
-    const { setOpen } = useModal();
+
+    const projectId = "d4f461cc66e814f25f08579c747def31";
+
+    const modal = createAppKit({
+        adapters: [
+            new WagmiAdapter({
+                projectId,
+                networks: [mainnet],
+            }),
+        ],
+        projectId,
+        networks: [mainnet],
+        defaultNetwork: mainnet,
+        siweConfig,
+        metadata: {
+            name: window.backendCache.config.name,
+            description: "Decentralized Social Network",
+            url: window.location.origin,
+            icons: [
+                "https://6qfxa-ryaaa-aaaai-qbhsq-cai.raw.ic0.app/_/raw/apple-touch-icon.png",
+            ],
+        },
+        features: {
+            legalCheckbox: false,
+            email: false,
+            socials: [],
+            emailShowWallets: false,
+            onramp: false,
+            swaps: false,
+        },
+        coinbasePreference: "eoaOnly",
+        includeWalletIds: [
+            "fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa",
+        ],
+    });
+
     return (
         <ButtonWithLoading
             onClick={async () => {
                 if (!delegateIdentity) {
-                    console.log("create delegation");
                     const randomBytes = new Uint8Array(32);
                     window.crypto.getRandomValues(randomBytes);
                     const seed = Array.from(randomBytes)
@@ -135,9 +116,7 @@ const Button = ({}) => {
                         await hash(seed, 1),
                     );
                 }
-
-                // if (isConnected) signIn({ address, chainId: mainnet.id });
-                setOpen(true);
+                await modal.open();
             }}
             classNameArg="active large_text vertically_spaced left_spaced right_spaced"
             label={
