@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap};
 
 use candid::Principal;
 use env::{config::CONFIG, user::User, State, *};
-use ic_cdk::{api::call::reply_raw, caller, export_candid};
+use ic_cdk::{api::call::reply_raw, export_candid};
 use siwe::SIWESessions;
 
 mod assets;

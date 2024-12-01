@@ -628,7 +628,7 @@ fn raw_caller() -> Principal {
     caller
 }
 
-fn caller() -> Principal {
+pub fn caller() -> Principal {
     let caller = raw_caller();
     if let Some(delegator) = siwe::get_delegator_for(&caller) {
         return delegator;
