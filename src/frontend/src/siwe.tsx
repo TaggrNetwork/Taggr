@@ -85,7 +85,7 @@ export const SignWithEthereum = ({}) => {
         defaultNetwork: mainnet,
         siweConfig,
         metadata: {
-            name: window.backendCache.config.name,
+            name: window.backendCache?.config?.name,
             description: "Decentralized Social Network",
             url: window.location.origin,
             icons: [

@@ -357,6 +357,8 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
         }
         instantiateApiFromIdentity(identity);
         const api = window.api;
+        window.getPrincipalId = () =>
+            localStorage.getItem("delegator") || window._delegatePrincipalId;
 
         /*
          *  RECOVERY SHORTCUT
@@ -368,8 +370,6 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
             return;
         }
 
-        window.getPrincipalId = () =>
-            localStorage.getItem("delegator") || window._delegatePrincipalId;
         window.lastSavedUpgrade = 0;
         window.lastVisit = BigInt(0);
         window.reloadCache = reloadCache;
