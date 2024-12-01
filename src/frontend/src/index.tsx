@@ -368,6 +368,8 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
             return;
         }
 
+        window.getPrincipalId = () =>
+            localStorage.getItem("delegator") || window._delegatePrincipalId;
         window.lastSavedUpgrade = 0;
         window.lastVisit = BigInt(0);
         window.reloadCache = reloadCache;

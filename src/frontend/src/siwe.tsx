@@ -3,6 +3,7 @@ import {
     SIWEConfig,
     ConnectKitProvider,
     getDefaultConfig,
+    useSIWE,
     useModal,
 } from "connectkit";
 import { mainnet } from "wagmi/chains";
@@ -13,7 +14,6 @@ import {
     ButtonWithLoading,
     hash,
     instantiateApiFromIdentity,
-    restartApp,
     signOut,
 } from "./common";
 import { Address } from "viem";
@@ -22,7 +22,7 @@ import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { ApiGenerator } from "./api";
 import { MAINNET_MODE } from "./env";
 
-let siweModalSetOpen = (_: boolean) => {};
+let delegateIdentity: Ed25519KeyIdentity | null = null;
 
 export function createMessage({
     address,
@@ -46,8 +46,10 @@ export function createMessage({
 }
 
 // Creates a session nonce for the delegator using the delegate identity.
-export const getNonce = async () =>
-    window._delegateIdentity.getPrincipal().toString().replaceAll("-", "");
+export const getNonce = async () => {
+    if (!delegateIdentity) throw Error("getNonce: no delegate identity");
+    return delegateIdentity?.getPrincipal().toString().replaceAll("-", "");
+};
 
 export const verifyMessage = async ({
     message,
@@ -56,17 +58,16 @@ export const verifyMessage = async ({
     message: string;
     signature: string;
 }) => {
-    const api = ApiGenerator(MAINNET_MODE, window._delegateIdentity);
+    if (!delegateIdentity) throw Error("verifyMessage: no delegate identity");
+    const api = ApiGenerator(MAINNET_MODE, delegateIdentity);
     const response: any = await api.call("siwe_session", message, signature);
-    siweModalSetOpen(false);
     if ("Ok" in response) {
         localStorage.setItem("delegator", response.Ok);
-        instantiateApiFromIdentity(window._delegateIdentity);
+        instantiateApiFromIdentity(delegateIdentity);
         localStorage.setItem(
             "IDENTITY",
-            JSON.stringify(window._delegateIdentity.toJSON()),
+            JSON.stringify(delegateIdentity.toJSON()),
         );
-        restartApp();
         return true;
     }
     alert(`Error: ${response.Err}`);
@@ -86,16 +87,17 @@ export const SignWithEthereum = ({}) => {
 
     const config = createConfig(
         getDefaultConfig({
-            chains: [mainnet],
-
-            walletConnectProjectId: "d4f461cc66e814f25f08579c747def31",
-
             appName: window.backendCache.config.name,
-
             appDescription: "Decentralized Social Network",
             appUrl: window.location.origin,
             appIcon:
                 "https://6qfxa-ryaaa-aaaai-qbhsq-cai.raw.ic0.app/_/raw/apple-touch-icon.png",
+
+            chains: [mainnet],
+
+            coinbaseWalletPreference: "eoaOnly",
+
+            walletConnectProjectId: "d4f461cc66e814f25f08579c747def31",
         }),
     );
 
@@ -113,21 +115,29 @@ export const SignWithEthereum = ({}) => {
 };
 
 const Button = ({}) => {
+    const {} = useSIWE({
+        onSignIn: () => {
+            throw Error("signed in!");
+        },
+    });
     const { setOpen } = useModal();
     return (
         <ButtonWithLoading
             onClick={async () => {
-                const randomBytes = new Uint8Array(32);
-                window.crypto.getRandomValues(randomBytes);
-                const seed = Array.from(randomBytes)
-                    .map((b) => b.toString(16).padStart(2, "0"))
-                    .join("");
-                if (!window._delegateIdentity)
-                    window._delegateIdentity = Ed25519KeyIdentity.generate(
+                if (!delegateIdentity) {
+                    console.log("create delegation");
+                    const randomBytes = new Uint8Array(32);
+                    window.crypto.getRandomValues(randomBytes);
+                    const seed = Array.from(randomBytes)
+                        .map((b) => b.toString(16).padStart(2, "0"))
+                        .join("");
+                    delegateIdentity = Ed25519KeyIdentity.generate(
                         await hash(seed, 1),
                     );
-                siweModalSetOpen = setOpen;
-                siweModalSetOpen(true);
+                }
+
+                // if (isConnected) signIn({ address, chainId: mainnet.id });
+                setOpen(true);
             }}
             classNameArg="active large_text vertically_spaced left_spaced right_spaced"
             label={

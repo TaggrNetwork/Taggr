@@ -1046,8 +1046,6 @@ export const instantiateApiFromIdentity = (identity?: Identity) => {
         window._delegatePrincipalId = identity.getPrincipal().toString();
     window.api = api;
     window.mainnet_api = ApiGenerator(true, identity);
-    window.getPrincipalId = () =>
-        localStorage.getItem("delegator") || window._delegatePrincipalId;
 };
 
 export const signOut = async () => {
