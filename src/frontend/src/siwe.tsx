@@ -57,6 +57,9 @@ export const SignWithEthereum = ({}) => {
             uri: window.location.origin,
             chains: [mainnet.id],
             statement: window.backendCache.config.siwe_statement,
+            resources: [
+                "urn:recap:eyJhdHQiOnsiZWlwMTU1Ijp7InJlcXVlc3QvZXRoX3NpZ25UeXBlZERhdGFfdjQiOlt7fV0sInJlcXVlc3QvcGVyc29uYWxfc2lnbiI6W3t9XX19fQ==",
+            ],
         }),
         createMessage: ({ address, ...args }: SIWECreateMessageArgs) =>
             formatMessage(args, address),
