@@ -46,7 +46,8 @@ pub fn create_session(
         return Err("signature has expired of too far in the future".into());
     }
 
-    let sig = EthSignature::new(&signature).map_err(|_| "signature parsing failed")?;
+    let sig = EthSignature::new(&signature)
+        .map_err(|err| format!("signature parsing failed: {}", err))?;
     // Recover the public key of the ECDSA signature.
     let address = recover_eth_address(&message, &sig)
         .map_err(|err| format!("address recovery failed: {:?}", err))?
