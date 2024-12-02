@@ -26,8 +26,6 @@ import { Principal } from "@dfinity/principal";
 import { IcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
 import { MAINNET_MODE } from "./env";
-import { ApiGenerator } from "./api";
-import { Identity } from "@dfinity/agent";
 
 export const REPO = "https://github.com/TaggrNetwork/taggr";
 
@@ -1039,14 +1037,6 @@ export function pfpUrl(userId: UserId) {
         (MAINNET_MODE ? "" : `?canisterId=${canisterId}`)
     );
 }
-
-export const instantiateApiFromIdentity = (identity?: Identity) => {
-    const api = ApiGenerator(MAINNET_MODE, identity);
-    if (identity)
-        window._delegatePrincipalId = identity.getPrincipal().toString();
-    window.api = api;
-    window.mainnet_api = ApiGenerator(true, identity);
-};
 
 export const signOut = async () => {
     localStorage.clear();

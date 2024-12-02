@@ -23,7 +23,6 @@ import {
     currentRealm,
     loadFeed,
     expandMeta,
-    instantiateApiFromIdentity,
 } from "./common";
 import { Settings } from "./settings";
 import { Welcome, WelcomeInvited } from "./welcome";
@@ -38,6 +37,8 @@ import { Distribution } from "./distribution";
 import { populateUserNameCacheSpeculatively } from "./user_resolve";
 import { Roadmap } from "./roadmap";
 import { LinksPage } from "./links";
+import { ApiGenerator } from "./api";
+import { MAINNET_MODE } from "./env";
 
 const { hash, pathname } = location;
 
@@ -355,8 +356,10 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                 identity = Ed25519KeyIdentity.fromJSON(serializedIdentity);
             }
         }
-        instantiateApiFromIdentity(identity);
-        const api = window.api;
+        const api = ApiGenerator(MAINNET_MODE, identity);
+        if (identity)
+            window._delegatePrincipalId = identity.getPrincipal().toString();
+        window.api = api;
         window.getPrincipalId = () =>
             localStorage.getItem("delegator") || window._delegatePrincipalId;
 
@@ -370,6 +373,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
             return;
         }
 
+        window.mainnet_api = ApiGenerator(true, identity);
         window.lastSavedUpgrade = 0;
         window.lastVisit = BigInt(0);
         window.reloadCache = reloadCache;

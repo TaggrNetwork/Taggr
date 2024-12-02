@@ -6,13 +6,7 @@ import {
 import { createAppKit } from "@reown/appkit";
 import { mainnet } from "@reown/appkit/networks";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
-import {
-    ButtonWithLoading,
-    hash,
-    instantiateApiFromIdentity,
-    restartApp,
-    signOut,
-} from "./common";
+import { ButtonWithLoading, hash, restartApp, signOut } from "./common";
 import { Globe } from "./icons";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { ApiGenerator } from "./api";
@@ -38,7 +32,6 @@ const verifyMessage = async ({
     const response: any = await api.call("siwe_session", message, signature);
     if ("Ok" in response) {
         localStorage.setItem("delegator", response.Ok);
-        instantiateApiFromIdentity(delegateIdentity);
         localStorage.setItem(
             "IDENTITY",
             JSON.stringify(delegateIdentity.toJSON()),
