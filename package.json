@@ -2,14 +2,10 @@
     "name": "taggr",
     "version": "0.1.0",
     "description": "Internet Computer starter application",
-    "keywords": [
-        "Internet Computer",
-        "JavaScript",
-        "Canister"
-    ],
+    "keywords": ["JavaScript", "Canister"],
     "scripts": {
         "build": "webpack",
-        "postbuild": "gzip -9n dist/frontend/index.js",
+        "postbuild": "./postbuild.sh",
         "start": "webpack serve --mode development --env development",
         "test:e2e": "playwright test",
         "install:e2e": "playwright install chromium --with-deps",
@@ -28,9 +24,11 @@
         "prettier": "^3.3.3",
         "process": "0.11.10",
         "raw-loader": "4.0.2",
+        "terser-webpack-plugin": "^5.3.10",
         "ts-loader": "9.5.0",
         "typescript": "5.5.4",
         "webpack": "^5.96.1",
+        "webpack-bundle-analyzer": "^4.10.2",
         "webpack-cli": "5.1.4",
         "webpack-dev-server": "^5.1.0"
     },

@@ -74,7 +74,7 @@ export const Landing = () => {
                 <div className="spaced vertically_spaced text_centered">
                     <h1>WELCOME ABOARD</h1>
                     <span>
-                        To the Future of Decentralized Social Networking.
+                        To the future of decentralized social networking.
                     </span>
                 </div>
             )}
