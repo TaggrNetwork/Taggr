@@ -54,7 +54,7 @@ export const SignWithEthereum = ({}) => {
                     );
                 }
                 const { name, siwe_statement } = window.backendCache.config;
-                const module = await lazyLoadSiwe();
+                const module = await import("./siwe_connect");
                 await module.openModal({
                     name,
                     statement: siwe_statement,
@@ -73,5 +73,3 @@ export const SignWithEthereum = ({}) => {
         />
     );
 };
-
-const lazyLoadSiwe = () => import("./siwe_connect");
