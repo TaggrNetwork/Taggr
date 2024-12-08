@@ -45,7 +45,7 @@ impl HttpRequest {
     }
 }
 
-#[derive(Debug, CandidType, Serialize)]
+#[derive(Debug, Default, CandidType, Serialize)]
 pub struct HttpResponse {
     status_code: u16,
     headers: Headers,
@@ -63,7 +63,10 @@ fn http_request_update(req: HttpRequest) -> HttpResponse {
             body,
             upgrade: None,
         })
-        .unwrap_or_else(|| panic!("no assets for {}", path))
+        .unwrap_or_else(|| HttpResponse {
+            status_code: 400,
+            ..Default::default()
+        })
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]

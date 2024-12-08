@@ -1,6 +1,5 @@
 use png::Encoder;
 use std::{io::Cursor, num::Wrapping};
-use tiny_skia::Pixmap;
 
 fn generate_palette(seed: u64, palette_nonce: u64, num_colors: u64) -> Vec<(u8, u8, u8)> {
     // Every odd palette is an inverse of the previous one.
@@ -44,38 +43,31 @@ fn generate_palette(seed: u64, palette_nonce: u64, num_colors: u64) -> Vec<(u8, 
 pub fn pfp(user_id: u64, nonce: u64, palette_nonce: u64, colors: u64, scale: u32) -> Vec<u8> {
     let seed = u64::MAX - user_id;
     let size = 8;
-    let mut pixmap = Pixmap::new(size, size).unwrap();
+    let mut pixels = vec![0u8; (size * size * 4) as usize];
     let palette = generate_palette(seed, palette_nonce, colors.max(1));
     let mut rnd_val = seed ^ nonce;
-
-    // Access the underlying pixel data (RGBA, each pixel is 4 bytes)
-    let pixel_data = pixmap.data_mut();
-    let alpha = 255;
 
     // Generate pixels for one half of the image and mirror it for symmetry
     for y in 0..(size / 2) {
         for x in 0..(size / 2) {
             rnd_val = xorshift64(rnd_val);
             let (r, g, b) = palette[rnd_val as usize % palette.len()];
+            let alpha = 255;
 
-            // Calculate index in RGBA array (4 bytes per pixel)
-            let index = ((y * size + x) * 4) as usize;
-            let mirrored_x_index = ((y * size + (size - x - 1)) * 4) as usize;
-            let mirrored_y_index = (((size - y - 1) * size + x) * 4) as usize;
-            let mirrored_xy_index = (((size - y - 1) * size + (size - x - 1)) * 4) as usize;
-
-            // Set the color pixel (R, G, B, A)
-            pixel_data[index..index + 4].copy_from_slice(&[r, g, b, alpha]);
-
-            // Mirror pixels
-            pixel_data[mirrored_x_index..mirrored_x_index + 4].copy_from_slice(&[r, g, b, alpha]);
-            pixel_data[mirrored_y_index..mirrored_y_index + 4].copy_from_slice(&[r, g, b, alpha]);
-            pixel_data[mirrored_xy_index..mirrored_xy_index + 4].copy_from_slice(&[r, g, b, alpha]);
+            // Set pixels in all four quadrants
+            for &(px, py) in &[
+                (x, y),
+                (size - 1 - x, y),
+                (x, size - 1 - y),
+                (size - 1 - x, size - 1 - y),
+            ] {
+                let idx = ((py * size + px) * 4) as usize;
+                pixels[idx..idx + 4].copy_from_slice(&[r, g, b, alpha]);
+            }
         }
     }
 
-    let final_pixmap = scale_pixmap(&pixmap, scale);
-
+    let scaled = scale_pixels(&pixels, size, size, scale);
     let mut buffer = Vec::new();
     {
         let scaled_size = size * scale;
@@ -84,45 +76,34 @@ pub fn pfp(user_id: u64, nonce: u64, palette_nonce: u64, colors: u64, scale: u32
         encoder.set_depth(png::BitDepth::Eight);
 
         let mut writer = encoder.write_header().unwrap();
-        writer.write_image_data(final_pixmap.data()).unwrap();
+        writer.write_image_data(&scaled).unwrap();
     }
 
     buffer
 }
 
-fn scale_pixmap(pixmap: &Pixmap, factor: u32) -> Pixmap {
-    let (orig_width, orig_height) = (pixmap.width(), pixmap.height());
-    let (new_width, new_height) = (orig_width * factor, orig_height * factor);
+fn scale_pixels(pixels: &[u8], width: u32, height: u32, factor: u32) -> Vec<u8> {
+    let new_width = width * factor;
+    let new_height = height * factor;
+    let mut scaled = vec![0u8; (new_width * new_height * 4) as usize];
 
-    // Create a new Pixmap with the scaled size
-    let mut scaled_pixmap = Pixmap::new(new_width, new_height).unwrap();
+    for y in 0..height {
+        for x in 0..width {
+            let src_idx = ((y * width + x) * 4) as usize;
+            let rgba = &pixels[src_idx..src_idx + 4];
 
-    // Get the original pixmap data (RGBA channels, 4 bytes per pixel)
-    let original_data = pixmap.data();
-    let scaled_data = scaled_pixmap.data_mut();
-
-    // Iterate through each pixel in the original pixmap
-    for y in 0..orig_height {
-        for x in 0..orig_width {
-            // Get the RGBA color data of the current pixel (4 bytes per pixel)
-            let pixel_offset = ((y * orig_width + x) * 4) as usize;
-            let rgba = &original_data[pixel_offset..pixel_offset + 4];
-
-            // Scale the current pixel into a factor x factor block in the new pixmap
             for dy in 0..factor {
                 for dx in 0..factor {
                     let new_x = x * factor + dx;
                     let new_y = y * factor + dy;
-                    let new_pixel_offset = ((new_y * new_width + new_x) * 4) as usize;
-
-                    // Copy the RGBA values to the new scaled location
-                    scaled_data[new_pixel_offset..new_pixel_offset + 4].copy_from_slice(rgba);
+                    let dst_idx = ((new_y * new_width + new_x) * 4) as usize;
+                    scaled[dst_idx..dst_idx + 4].copy_from_slice(rgba);
                 }
             }
         }
     }
 
-    scaled_pixmap
+    scaled
 }
 
 fn xorshift64(seed: u64) -> u64 {

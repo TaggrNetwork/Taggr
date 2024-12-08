@@ -7,6 +7,8 @@ use std::collections::HashMap;
 
 pub type Headers = Vec<(String, String)>;
 
+mod generated;
+
 const LABEL: &[u8] = b"http_assets";
 static mut ASSET_HASHES: Option<RbTree<Vec<u8>, Hash>> = None;
 static mut ASSETS: Option<HashMap<String, (Headers, Vec<u8>)>> = None;
@@ -19,7 +21,7 @@ fn assets<'a>() -> &'a mut HashMap<String, (Headers, Vec<u8>)> {
     unsafe { ASSETS.as_mut().expect("uninitialized") }
 }
 
-pub static INDEX_HTML: &[u8] = include_bytes!("../../dist/frontend/index.html");
+pub static INDEX_HTML: &[u8] = include_bytes!("../../../dist/frontend/index.html");
 pub fn index_html_headers() -> Headers {
     vec![(
         "Content-Type".to_string(),
@@ -45,7 +47,7 @@ pub fn load() {
             ("Content-Type".to_string(), "text/javascript".to_string()),
             ("Content-Encoding".to_string(), "gzip".to_string()),
         ],
-        include_bytes!("../../dist/frontend/index.js.gz").to_vec(),
+        include_bytes!("../../../dist/frontend/index.js.gz").to_vec(),
     );
 
     add_asset(
@@ -57,7 +59,7 @@ pub fn load() {
             ),
             ("Cache-Control".to_string(), "public".to_string()),
         ],
-        include_bytes!("../../dist/frontend/favicon.ico").to_vec(),
+        include_bytes!("../../../dist/frontend/favicon.ico").to_vec(),
     );
 
     add_asset(
@@ -66,7 +68,7 @@ pub fn load() {
             ("Content-Type".to_string(), "image/png".to_string()),
             ("Cache-Control".to_string(), "public".to_string()),
         ],
-        include_bytes!("../../dist/frontend/apple-touch-icon.png").to_vec(),
+        include_bytes!("../../../dist/frontend/apple-touch-icon.png").to_vec(),
     );
 
     add_asset(
@@ -75,7 +77,7 @@ pub fn load() {
             ("Content-Type".to_string(), "image/jpeg".to_string()),
             ("Cache-Control".to_string(), "public".to_string()),
         ],
-        include_bytes!("../../dist/frontend/social-image.jpg").to_vec(),
+        include_bytes!("../../../dist/frontend/social-image.jpg").to_vec(),
     );
 
     add_asset(
@@ -84,7 +86,7 @@ pub fn load() {
             "Content-Type".to_string(),
             "application/font-woff2".to_string(),
         )],
-        include_bytes!("../../dist/frontend/font-regular.woff2").to_vec(),
+        include_bytes!("../../../dist/frontend/font-regular.woff2").to_vec(),
     );
 
     add_asset(
@@ -93,7 +95,7 @@ pub fn load() {
             "Content-Type".to_string(),
             "application/font-woff2".to_string(),
         )],
-        include_bytes!("../../dist/frontend/font-bold.woff2").to_vec(),
+        include_bytes!("../../../dist/frontend/font-bold.woff2").to_vec(),
     );
 
     let domains = Vec::from(CONFIG.domains);
@@ -121,6 +123,8 @@ pub fn load() {
         Default::default(),
         domains.join("\n").as_bytes().to_vec(),
     );
+
+    generated::load();
 
     certify();
 }

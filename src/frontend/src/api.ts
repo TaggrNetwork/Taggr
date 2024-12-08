@@ -104,10 +104,9 @@ export type Backend = {
 
 export const ApiGenerator = (
     mainnetMode: boolean,
-    defaultCanisterId: string,
     identity?: Identity,
 ): Backend => {
-    let defaultPrincipal = Principal.fromText(defaultCanisterId);
+    const defaultPrincipal = Principal.fromText(CANISTER_ID);
     const options: HttpAgentOptions = { identity };
     if (mainnetMode) options.host = `https://${CANISTER_ID}.ic0.app`;
     const agent = new HttpAgent(options);
@@ -120,7 +119,7 @@ export const ApiGenerator = (
         });
 
     const query_raw = async (
-        canisterId = defaultCanisterId,
+        canisterId = CANISTER_ID,
         methodName: string,
         arg = new ArrayBuffer(0),
     ): Promise<ArrayBuffer | null> => {

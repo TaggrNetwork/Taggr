@@ -2,7 +2,8 @@ use std::{cell::RefCell, collections::HashMap};
 
 use candid::Principal;
 use env::{config::CONFIG, user::User, State, *};
-use ic_cdk::{api::call::reply_raw, caller, export_candid};
+use ic_cdk::{api::call::reply_raw, export_candid};
+use siwe::SIWESessions;
 
 mod assets;
 #[cfg(feature = "dev")]
@@ -17,6 +18,7 @@ const BACKUP_PAGE_SIZE: u32 = 1024 * 1024;
 
 thread_local! {
     static STATE: RefCell<State> = Default::default();
+    static SESSIONS: RefCell<SIWESessions> = Default::default();
 }
 
 pub fn read<F, R>(f: F) -> R

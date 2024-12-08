@@ -13,9 +13,8 @@ use ic_cdk::api::{
     call::CallResult,
     management_canister::{
         main::{
-            canister_status, create_canister, deposit_cycles, install_code, update_settings,
-            CanisterInstallMode, CanisterSettings, CanisterStatusResponse, CreateCanisterArgument,
-            InstallCodeArgument, LogVisibility, UpdateSettingsArgument,
+            canister_status, create_canister, deposit_cycles, install_code, CanisterInstallMode,
+            CanisterStatusResponse, CreateCanisterArgument, InstallCodeArgument,
         },
         provisional::CanisterIdRecord,
     },
@@ -98,21 +97,6 @@ pub async fn cycles(canister_id: Principal) -> Result<(u64, u64), String> {
             .copied()
             .unwrap_or(1),
     ))
-}
-
-// TODO: delete
-pub async fn enable_logging() -> bool {
-    open_call("logging");
-    let response = update_settings(UpdateSettingsArgument {
-        canister_id: id(),
-        settings: CanisterSettings {
-            log_visibility: Some(LogVisibility::Public),
-            ..Default::default()
-        },
-    })
-    .await;
-    close_call("logging");
-    response.is_ok()
 }
 
 pub async fn status(canister_id: Principal) -> Result<CanisterStatusResponse, String> {

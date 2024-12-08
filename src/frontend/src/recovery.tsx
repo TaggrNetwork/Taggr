@@ -1,6 +1,6 @@
 import * as React from "react";
 import { ButtonWithLoading, FileUploadInput, HeadBar } from "./common";
-import { LoginMasks } from "./logins";
+import { LoginMasks } from "./authentication";
 import { User } from "./types";
 
 export const Recovery = () => {
@@ -36,7 +36,7 @@ export const Recovery = () => {
     return (
         <>
             <HeadBar title="RECOVERY" />
-            Your principal id: {window.principalId}
+            Your principal id: {window.getPrincipalId()}
             <div className="spaced">
                 <h2>Status</h2>
                 <code data-testid="status">{status}</code>

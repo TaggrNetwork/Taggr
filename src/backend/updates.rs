@@ -7,7 +7,6 @@ use super::*;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
-    invite::Invite,
     post::{Extension, Post, PostId},
     user::{Draft, User, UserId},
     State,
@@ -81,25 +80,10 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    // Move all invites to new structure
-    mutate(|state| {
-        for (invite_code, (user_id, credits)) in state.invites.iter() {
-            if !state.invite_codes.contains_key(invite_code) {
-                state.invite_codes.insert(
-                    invite_code.clone(),
-                    Invite::new(credits.clone(), credits.clone(), None, user_id.clone()),
-                );
-            }
-        }
-    });
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {
-    // Enables public canister logging: https://internetcomputer.org/docs/current/developer-docs/smart-contracts/maintain/logs
-    assert!(canisters::enable_logging().await);
-}
+async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES
@@ -159,6 +143,12 @@ fn link_cold_wallet(user_id: UserId) -> Result<(), String> {
 #[update]
 fn unlink_cold_wallet() -> Result<(), String> {
     mutate(|state| state.unlink_cold_wallet(caller()))
+}
+
+#[export_name = "canister_update siwe_session"]
+fn siwe_session() {
+    let (message, signature): (String, String) = parse(&arg_data_raw());
+    reply(siwe::create_session(raw_caller(), message, signature))
 }
 
 #[export_name = "canister_update withdraw_rewards"]
@@ -632,9 +622,17 @@ fn cancel_bid() {
     spawn(async { reply(auction::cancel_bid(caller()).await) });
 }
 
-fn caller() -> Principal {
+fn raw_caller() -> Principal {
     let caller = ic_cdk::caller();
     assert_ne!(caller, Principal::anonymous(), "authentication required");
+    caller
+}
+
+pub fn caller() -> Principal {
+    let caller = raw_caller();
+    if let Some(delegator) = siwe::get_delegator_for(&caller) {
+        return delegator;
+    }
     caller
 }
 

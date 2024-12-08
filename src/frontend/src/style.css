@@ -63,11 +63,15 @@ input[type="color"] {
     max-height: 90vh;
 }
 
-.journal,
-.popup_body {
+.journal {
     margin-left: auto;
     margin-right: auto;
     width: 60%;
+}
+.popup_body {
+    margin-left: auto;
+    margin-right: auto;
+    width: 30%;
 }
 
 .db_cell code,
@@ -956,7 +960,7 @@ a.accent,
     background: $frame;
 }
 
-.active {
+button.active {
     background: $accent;
     color: #111111;
 }

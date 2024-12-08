@@ -9,8 +9,8 @@
         "isolatedModules": true,
         "moduleResolution": "node",
         "resolveJsonModule": true,
-        "lib": ["dom", "dom.iterable", "esnext"],
-        "allowJs": true,
+        "lib": ["dom", "esnext"],
+        "allowJs": false,
         "checkJs": false,
         "skipLibCheck": true,
         "strict": true,
@@ -21,7 +21,14 @@
         "noImplicitReturns": true,
         "noImplicitThis": true,
         "noUnusedLocals": true,
-        "noUnusedParameters": true
+        "noUnusedParameters": true,
+        "removeComments": true,
+        "declaration": false,
+        "sourceMap": false,
+        "inlineSourceMap": false,
+        "inlineSources": false,
+        "emitDecoratorMetadata": false,
+        "experimentalDecorators": false
     },
     "include": ["src/frontend/**/*"]
 }

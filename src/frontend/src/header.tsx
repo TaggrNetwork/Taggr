@@ -4,9 +4,11 @@ import {
     currentRealm,
     IconToggleButton,
     RealmList,
-    ToggleButton,
+    signOut,
+    popUp,
+    ButtonWithLoading,
 } from "./common";
-import { LoginMasks, logout } from "./logins";
+import { LoginMasks } from "./authentication";
 import {
     Bell,
     Gear,
@@ -36,9 +38,6 @@ export const Header = ({
     inboxMode: boolean;
 }) => {
     const user = window.user;
-    const [showLogins, setShowLogins] = React.useState(
-        !user && location.href.includes("?join"),
-    );
     const [showUserSection, toggleUserSection] = React.useState(false);
     const [showRealms, toggleRealms] = React.useState(false);
     const [showLinks, toggleLinks] = React.useState(false);
@@ -100,9 +99,9 @@ export const Header = ({
                     data-testid="home-page-link"
                 ></a>
                 <div className="vcentered max_width_col flex_ended">
-                    {!subtle && (
+                    {!subtle && user && (
                         <>
-                            {user && user.realms.length > 0 && !subtle && (
+                            {user.realms.length > 0 && !subtle && (
                                 <IconToggleButton
                                     pressed={showRealms}
                                     onClick={() => {
@@ -114,73 +113,64 @@ export const Header = ({
                                     testId="toggle-realms"
                                 />
                             )}
-                            {window.principalId && (
-                                <IconToggleButton
-                                    pressed={showUserSection}
-                                    onClick={() => {
-                                        toggleUserSection(!showUserSection);
-                                        toggleRealms(false);
-                                        toggleLinks(false);
-                                    }}
-                                    icon={<User />}
-                                    testId="toggle-user-section"
-                                />
-                            )}
-                            {user && (
-                                <IconToggleButton
-                                    title="Inbox"
-                                    pressed={location.href.includes("inbox")}
-                                    classNameArg="right_half_spaced"
-                                    onClick={() => (location.href = "#/inbox")}
-                                    icon={
-                                        <>
-                                            <Bell
-                                                classNameArg={
-                                                    messages > 0
-                                                        ? "accent right_half_spaced"
-                                                        : undefined
-                                                }
-                                            />
-                                            {messages > 0 && messages}
-                                        </>
-                                    }
-                                />
-                            )}
-                            {user && (
-                                <button
-                                    className={"active"}
-                                    onClick={() => (location.href = "#/new")}
-                                >
-                                    POST
-                                </button>
-                            )}
-                            {!window.principalId && (
-                                <ToggleButton
-                                    classNameArg={
-                                        showLogins ? undefined : "active"
-                                    }
-                                    toggler={() => setShowLogins(!showLogins)}
-                                    currState={() => showLogins}
-                                    onLabel="CLOSE"
-                                    offLabel="CONNECT"
-                                />
-                            )}
-                            {user && (
-                                <BurgerButton
-                                    pressed={showLinks}
-                                    onClick={() => {
-                                        toggleRealms(false);
-                                        toggleUserSection(false);
-                                        toggleLinks(!showLinks);
-                                    }}
-                                    testId="toggle-links"
-                                />
-                            )}
+                            <IconToggleButton
+                                pressed={showUserSection}
+                                onClick={() => {
+                                    toggleUserSection(!showUserSection);
+                                    toggleRealms(false);
+                                    toggleLinks(false);
+                                }}
+                                icon={<User />}
+                                testId="toggle-user-section"
+                            />
+                            <IconToggleButton
+                                title="Inbox"
+                                pressed={location.href.includes("inbox")}
+                                classNameArg="right_half_spaced"
+                                onClick={() => (location.href = "#/inbox")}
+                                icon={
+                                    <>
+                                        <Bell
+                                            classNameArg={
+                                                messages > 0
+                                                    ? "accent right_half_spaced"
+                                                    : undefined
+                                            }
+                                        />
+                                        {messages > 0 && messages}
+                                    </>
+                                }
+                            />
+                            <button
+                                className={"active"}
+                                onClick={() => (location.href = "#/new")}
+                            >
+                                POST
+                            </button>
+                            <BurgerButton
+                                pressed={showLinks}
+                                onClick={() => {
+                                    toggleRealms(false);
+                                    toggleUserSection(false);
+                                    toggleLinks(!showLinks);
+                                }}
+                                testId="toggle-links"
+                            />
                         </>
                     )}
+                    {!window.getPrincipalId() &&
+                        // Don't show connect button on invite links
+                        !location.href.includes("welcome") && (
+                            <ButtonWithLoading
+                                classNameArg="active"
+                                onClick={async () =>
+                                    await popUp(<LoginMasks />)
+                                }
+                                label="CONNECT"
+                            />
+                        )}
                 </div>
             </header>
-            {showLogins && <LoginMasks />}
             {showUserSection && <UserSection user={user} />}
             {showLinks && <Links />}
             {showRealms && (
@@ -241,12 +231,12 @@ const UserSection = ({ user }: { user: UserType }) => {
                         </>
                     )}
                     <a
-                        title="LOGOUT"
+                        title="SIGN OUT"
                         className="icon_link"
                         href=""
-                        onClick={logout}
+                        onClick={signOut}
                     >
-                        <Logout /> LOGOUT
+                        <Logout /> SIGN OUT
                     </a>
                 </div>
             </div>
