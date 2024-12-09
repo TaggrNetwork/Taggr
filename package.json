@@ -2,13 +2,10 @@
     "name": "taggr",
     "version": "0.1.0",
     "description": "Decentralized Social Network",
-    "keywords": [
-        "TypeScript",
-        "Canister"
-    ],
+    "keywords": ["TypeScript", "Canister"],
     "scripts": {
         "build": "webpack",
-        "postbuild": "./postbuild.sh",
+        "postbuild": "find dist/frontend -name '*.js' -exec gzip -9n {} +",
         "start": "webpack serve --mode development --env development",
         "test:e2e": "playwright test",
         "install:e2e": "playwright install chromium --with-deps",
@@ -18,7 +15,7 @@
     "devDependencies": {
         "@playwright/test": "1.46.1",
         "@types/isomorphic-fetch": "0.0.39",
-        "@types/react-dom": "18.2.15",
+        "@types/react-dom": "18.3.1",
         "buffer": "6.0.3",
         "copy-webpack-plugin": "11.0.0",
         "html-webpack-plugin": "5.5.3",
@@ -27,6 +24,9 @@
         "prettier": "^3.3.3",
         "process": "0.11.10",
         "raw-loader": "4.0.2",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-markdown": "9.0.1",
         "terser-webpack-plugin": "^5.3.10",
         "ts-loader": "9.5.0",
         "typescript": "5.5.4",
@@ -51,9 +51,6 @@
         "@reown/appkit": "^1.5.3",
         "@reown/appkit-adapter-wagmi": "^1.5.3",
         "diff-match-patch": "1.0.5",
-        "react": "18.3.1",
-        "react-dom": "18.3.1",
-        "react-markdown": "9.0.1",
         "remark-gfm": "4.0.0"
     }
 }

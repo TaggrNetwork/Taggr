@@ -1,3 +1,4 @@
+import * as React from "react";
 import { ButtonWithLoading, hash, restartApp, signOut } from "./common";
 import { Globe } from "./icons";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
@@ -40,6 +41,13 @@ export const SignWithEthereum = ({}) => {
         return false;
     };
 
+    React.useEffect(() => {
+        if ("siweModal" in window) return;
+        const script = document.createElement("script");
+        script.src = "/siwe.js";
+        document.body.appendChild(script);
+    }, []);
+
     return (
         <ButtonWithLoading
             onClick={async () => {
@@ -54,15 +62,17 @@ export const SignWithEthereum = ({}) => {
                     );
                 }
                 const { name, siwe_statement } = window.backendCache.config;
-                const module = await import("./siwe_connect");
-                await module.openModal({
-                    name,
-                    statement: siwe_statement,
-                    getNonce,
-                    verifyMessage,
-                    onSignIn: restartApp,
-                    signOut,
-                });
+
+                if ("siweModal" in window)
+                    // @ts-ignore
+                    await window.siweModal({
+                        name,
+                        statement: siwe_statement,
+                        getNonce,
+                        verifyMessage,
+                        onSignIn: restartApp,
+                        signOut,
+                    });
             }}
             classNameArg="active large_text vertically_spaced left_spaced right_spaced"
             label={

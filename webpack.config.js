@@ -41,7 +41,10 @@ const asset_entry = path.join("src", frontendDirectory, "src", "index.html");
 module.exports = {
     target: "web",
     mode: isDevelopment ? "development" : "production",
-    entry: path.join(__dirname, asset_entry).replace(/\.html$/, ".tsx"),
+    entry: {
+        index: path.join(__dirname, asset_entry).replace(/\.html$/, ".tsx"),
+        siwe: "./src/frontend/src/siwe_connect.ts",
+    },
     devtool: isDevelopment ? "source-map" : false,
     optimization: {
         minimize: !isDevelopment,
@@ -68,9 +71,9 @@ module.exports = {
         },
     },
     output: {
-        filename: "index.js",
-        chunkFilename: "[name].chunk.js",
+        filename: "[name].js",
         path: path.join(__dirname, "dist", frontendDirectory),
+        chunkFormat: false,
         clean: true,
     },
     module: {
@@ -94,6 +97,7 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: path.join(__dirname, asset_entry),
             cache: false,
+            chunks: ["index"],
             minify: isDevelopment
                 ? false
                 : {

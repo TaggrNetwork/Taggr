@@ -9,7 +9,8 @@ import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 
 const projectId = "d4f461cc66e814f25f08579c747def31";
 
-export const openModal = async ({
+// @ts-ignore
+window.siweModal = async ({
     name,
     statement,
     getNonce,
