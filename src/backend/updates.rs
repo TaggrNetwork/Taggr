@@ -145,12 +145,6 @@ fn unlink_cold_wallet() -> Result<(), String> {
     mutate(|state| state.unlink_cold_wallet(caller()))
 }
 
-#[export_name = "canister_update siwe_session"]
-fn siwe_session() {
-    let (message, signature): (String, String) = parse(&arg_data_raw());
-    reply(siwe::create_session(raw_caller(), message, signature))
-}
-
 #[export_name = "canister_update withdraw_rewards"]
 fn withdraw_rewards() {
     spawn(async {
@@ -622,17 +616,9 @@ fn cancel_bid() {
     spawn(async { reply(auction::cancel_bid(caller()).await) });
 }
 
-fn raw_caller() -> Principal {
+pub fn caller() -> Principal {
     let caller = ic_cdk::caller();
     assert_ne!(caller, Principal::anonymous(), "authentication required");
-    caller
-}
-
-pub fn caller() -> Principal {
-    let caller = raw_caller();
-    if let Some(delegator) = siwe::get_delegator_for(&caller) {
-        return delegator;
-    }
     caller
 }
 

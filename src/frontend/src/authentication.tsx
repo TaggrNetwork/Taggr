@@ -1,6 +1,5 @@
 import * as React from "react";
 import { ButtonWithLoading, restartApp } from "./common";
-import { SignWithEthereum } from "./siwe";
 import { HASH_ITERATIONS, SeedPhraseForm, hash } from "./common";
 import { Infinity, Incognito, Ticket } from "./icons";
 import { II_URL, II_DERIVATION_URL, MAINNET_MODE } from "./env";
@@ -107,7 +106,6 @@ export const LoginMasks = ({
     ) : (
         <div className="vertically_spaced text_centered column_container">
             <span id="connect_logo"></span>
-            <SignWithEthereum />
             {methods.map((method) => (
                 <ButtonWithLoading
                     key={method.label}

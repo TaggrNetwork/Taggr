@@ -43,7 +43,6 @@ module.exports = {
     mode: isDevelopment ? "development" : "production",
     entry: {
         index: path.join(__dirname, asset_entry).replace(/\.html$/, ".tsx"),
-        siwe: "./src/frontend/src/siwe_connect.ts",
     },
     devtool: isDevelopment ? "source-map" : false,
     optimization: {

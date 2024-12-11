@@ -12,7 +12,10 @@ use env::{
     user::UserId,
     State,
 };
-use ic_cdk::api::{self, call::arg_data_raw};
+use ic_cdk::{
+    api::{self, call::arg_data_raw},
+    caller,
+};
 use ic_cdk_macros::query;
 use ic_ledger_types::AccountIdentifier;
 use serde_bytes::ByteBuf;
@@ -573,12 +576,4 @@ fn resolve_handle<'a>(state: &'a State, handle: Option<&'a String>) -> Option<&'
         Some(handle) => state.user(handle),
         None => Some(state.principal_to_user(caller())?),
     }
-}
-
-fn caller() -> Principal {
-    let caller = ic_cdk::caller();
-    if let Some(delegator) = siwe::get_delegator_for(&caller) {
-        return delegator;
-    }
-    caller
 }

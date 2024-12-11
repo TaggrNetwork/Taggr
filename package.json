@@ -2,7 +2,10 @@
     "name": "taggr",
     "version": "0.1.0",
     "description": "Decentralized Social Network",
-    "keywords": ["TypeScript", "Canister"],
+    "keywords": [
+        "TypeScript",
+        "Canister"
+    ],
     "scripts": {
         "build": "webpack",
         "postbuild": "find dist/frontend -name '*.js' -exec gzip -9n {} +",
@@ -48,8 +51,6 @@
         "@dfinity/identity": "2.1.3",
         "@dfinity/ledger-icrc": "2.5.0",
         "@dfinity/principal": "2.1.3",
-        "@reown/appkit": "^1.5.3",
-        "@reown/appkit-adapter-wagmi": "^1.5.3",
         "diff-match-patch": "1.0.5",
         "remark-gfm": "4.0.0"
     }

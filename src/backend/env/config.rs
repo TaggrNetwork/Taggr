@@ -136,8 +136,6 @@ pub struct Config {
 
     #[serde(with = "string")]
     pub neuron_id: u64,
-
-    pub siwe_statement: &'static str,
 }
 
 mod string {
@@ -344,8 +342,6 @@ pub const CONFIG: &Config = &Config {
     max_funding_amount: 100000,
 
     neuron_id: 16737374299031693047,
-
-    siwe_statement: "TAGGR LOGIN",
 };
 
 pub fn reaction_rewards() -> BTreeMap<u16, i64> {

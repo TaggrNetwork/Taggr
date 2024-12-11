@@ -49,15 +49,6 @@ pub fn load() {
     );
 
     add_asset(
-        &["/siwe.js"],
-        vec![
-            ("Content-Type".to_string(), "text/javascript".to_string()),
-            ("Content-Encoding".to_string(), "gzip".to_string()),
-        ],
-        include_bytes!("../../dist/frontend/siwe.js.gz").to_vec(),
-    );
-
-    add_asset(
         &["/favicon.ico"],
         vec![
             (
