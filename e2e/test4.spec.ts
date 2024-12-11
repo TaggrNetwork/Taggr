@@ -21,6 +21,7 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.waitForTimeout(1000);
         await page.getByPlaceholder("Enter your password...").fill("joe");
+        await page.getByPlaceholder("Repeat your password...").fill("joe");
         await page.getByRole("button", { name: "JOIN" }).click();
         exec(
             "dfx --identity local-minter ledger transfer --amount 1 --memo 0 a8caaf21598f17df5a17ce655b3a39298559b76f23ea1b2afddd312d0abb04e8",

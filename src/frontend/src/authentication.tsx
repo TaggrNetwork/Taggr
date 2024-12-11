@@ -105,11 +105,11 @@ export const LoginMasks = ({
         mask
     ) : (
         <div className="vertically_spaced text_centered column_container">
-            <span id="connect_logo"></span>
+            <span id="connect_logo" className="vertically_spaced"></span>
             {methods.map((method) => (
                 <ButtonWithLoading
                     key={method.label}
-                    classNameArg="large_text left_spaced right_spaced bottom_spaced"
+                    classNameArg="active large_text left_spaced right_spaced bottom_spaced"
                     onClick={async () => {
                         let mask = await method.login(confirmationRequired);
                         if (mask) {

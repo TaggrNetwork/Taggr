@@ -22,6 +22,7 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.waitForTimeout(1000);
         await page.getByPlaceholder("Enter your password...").fill("alice");
+        await page.getByPlaceholder("Repeat your password...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
         const alicePrincipal =
             "afqmt-iuwxe-fcmq2-gidf2-tqzx2-beg3a-jq7tp-he6c6-xr67k-rtnl7-aqe";
