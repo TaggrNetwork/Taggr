@@ -367,7 +367,7 @@ declare global {
         api: Backend;
         mainnet_api: Backend;
         getPrincipalId: () => string;
-        // Holds the principal of the delegate signing key (used for SIWE only)
+        // Holds the principal of the delegate signing key (the signing key living in the browser)
         _delegatePrincipalId: string;
         realm: string;
         user: User;
