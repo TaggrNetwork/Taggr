@@ -176,9 +176,8 @@ pub struct State {
 
     pub logger: Logger,
     // TODO: delete
+    #[serde(skip)]
     pub invites: BTreeMap<String, (UserId, Credits)>,
-    // New invites, indexed by code
-    #[serde(default)]
     pub invite_codes: BTreeMap<String, Invite>,
     pub realms: BTreeMap<RealmId, Realm>,
 
@@ -462,11 +461,7 @@ impl State {
         let realm_id = post.realm.as_ref().cloned().ok_or("no realm id found")?;
         let realm = self.realms.get(&realm_id).ok_or("no realm found")?;
 
-        if post.creation_timestamp() < realm.last_setting_update {
-            return Err(
-                "cannot move out posts created before the latest realm parameter changes".into(),
-            );
-        }
+        let post_update_cleanup = post.creation_timestamp() >= realm.last_setting_update;
 
         let post_user = post.user;
         if !realm.controllers.contains(&controller) {
@@ -479,11 +474,17 @@ impl State {
             "post [{0}](#/post/{0}) was moved out of realm /{1}: {2}",
             post_id, realm_id, reason
         );
-        user.change_rewards(-(realm.cleanup_penalty as i64), &msg);
-        let user_id = user.id;
-        let penalty = realm.cleanup_penalty.min(user.credits());
-        // if user has no credits left, ignore the error
-        let _ = self.charge(user_id, penalty, msg);
+
+        // If post removal happens for a post created after last realm updates, user is allowed to
+        // be penalized.
+        if post_update_cleanup {
+            user.change_rewards(-(realm.cleanup_penalty as i64), &msg);
+            let user_id = user.id;
+            let penalty = realm.cleanup_penalty.min(user.credits());
+            // if user has no credits left, ignore the error
+            let _ = self.charge(user_id, penalty, msg);
+        }
+
         post::change_realm(self, post_id, None);
         let realm = self.realms.get_mut(&realm_id).expect("no realm found");
         realm.posts.retain(|id| id != &post_id);

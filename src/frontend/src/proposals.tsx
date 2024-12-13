@@ -607,7 +607,7 @@ export const ProposalView = ({
                         )
                             return;
                         await window.api.call("cancel_proposal", proposal.id);
-                        location.reload();
+                        await loadState();
                     }}
                     classNameArg="top_spaced max_width_col large_text"
                     label="CANCEL"

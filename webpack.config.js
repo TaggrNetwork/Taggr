@@ -2,9 +2,10 @@ const path = require("path");
 const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyPlugin = require("copy-webpack-plugin");
+const TerserPlugin = require("terser-webpack-plugin");
+const { BundleAnalyzerPlugin } = require("webpack-bundle-analyzer");
 
 const isDevelopment = process.env.NODE_ENV !== "production";
-
 const NETWORK = process.env.DFX_NETWORK || (isDevelopment ? "local" : "ic");
 
 function initCanisterEnv() {
@@ -35,20 +36,32 @@ function initCanisterEnv() {
 const canisterEnvVariables = initCanisterEnv();
 
 const frontendDirectory = "frontend";
-
 const asset_entry = path.join("src", frontendDirectory, "src", "index.html");
 
 module.exports = {
     target: "web",
     mode: isDevelopment ? "development" : "production",
     entry: {
-        // The frontend.entrypoint points to the HTML file for this build, so we need
-        // to replace the extension to `.js`.
         index: path.join(__dirname, asset_entry).replace(/\.html$/, ".tsx"),
     },
     devtool: isDevelopment ? "source-map" : false,
     optimization: {
         minimize: !isDevelopment,
+        minimizer: [
+            new TerserPlugin({
+                terserOptions: {
+                    compress: {
+                        drop_console: true,
+                        dead_code: true,
+                        passes: 2,
+                    },
+                    output: {
+                        comments: false,
+                    },
+                },
+                extractComments: false,
+            }),
+        ],
     },
     resolve: {
         extensions: [".js", ".ts", ".jsx", ".tsx"],
@@ -57,27 +70,33 @@ module.exports = {
         },
     },
     output: {
-        filename: "index.js",
+        filename: "[name].js",
         path: path.join(__dirname, "dist", frontendDirectory),
+        chunkFormat: false,
         clean: true,
     },
-
-    // Depending in the language or framework you are using for
-    // front-end development, add module loaders to the default
-    // webpack configuration. For example, if you are using React
-    // modules and CSS as described in the "Adding a stylesheet"
-    // tutorial, uncomment the following lines:
     module: {
         rules: [
-            // { test: /\.css$/, use: ['style-loader','css-loader'] },
-            { test: /\.(ts|tsx|jsx)$/, loader: "ts-loader" },
+            { test: /\.js\.map$/, loader: "ignore-loader" },
+            { test: /\.d\.ts\.map$/, loader: "ignore-loader" },
+            { test: /\.d\.ts$/, loader: "ignore-loader" },
+            {
+                test: /\.(ts|tsx|jsx)$/,
+                loader: "ts-loader",
+                exclude: [/node_modules/],
+            },
             { test: /\.(md|css|svg)/i, use: "raw-loader" },
         ],
     },
     plugins: [
+        new BundleAnalyzerPlugin({
+            analyzerMode: "static",
+            openAnalyzer: false,
+        }),
         new HtmlWebpackPlugin({
             template: path.join(__dirname, asset_entry),
             cache: false,
+            chunks: ["index"],
             minify: isDevelopment
                 ? false
                 : {
@@ -114,7 +133,6 @@ module.exports = {
             process: require.resolve("process/browser"),
         }),
     ],
-    // proxy /api to port 8000 during development
     devServer: {
         host: "localhost",
         proxy: [

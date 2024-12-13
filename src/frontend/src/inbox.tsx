@@ -20,12 +20,11 @@ export const Inbox = () => {
     }
 
     const closeNotification = (k: number, callback?: () => void) => {
+        window.api.call("clear_notifications", [k]);
         clearTimeout(timer);
         setClosing(k);
         timer = setTimeout(() => {
-            window.api.call("clear_notifications", [k]);
             if (callback) callback();
-            let inbox = window.user.notifications;
             inbox[k][1] = true;
             setInbox({ ...inbox });
         }, 80);

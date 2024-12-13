@@ -264,7 +264,7 @@ export const ActiveUser = ({ classNameArg }: { classNameArg?: string }) => (
 export const User = ({ classNameArg }: { classNameArg?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={classNameArg}
+        className={`vertically_aligned ${classNameArg}`}
         width="16"
         height="16"
         viewBox="0 0 16 16"

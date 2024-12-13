@@ -304,7 +304,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                   }),
               )
             : null;
-    const inviter = profile.invited_by;
 
     const accountingList = (
         <>
@@ -426,14 +425,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     CREDITS
                     <code>{`${profile.cycles.toLocaleString()}`}</code>
                 </div>
-                {inviter != undefined && (
-                    <div className="db_cell">
-                        INVITED BY
-                        <span>
-                            <UserLink id={inviter} />
-                        </span>
-                    </div>
-                )}
                 {Object.entries(profile.downvotes).length > 0 && (
                     <div className="db_cell">
                         DOWNVOTERS (7d)

@@ -122,7 +122,7 @@ export const Invites = () => {
                         </li>
                         <li>
                             In an invite specifies a realm, users joining via
-                            this invite will automartically join the realm.
+                            this invite will automatically join the realm.
                         </li>
                         <li>
                             Invites can be canceled by setting the credits to 0.
@@ -182,7 +182,7 @@ export const Invites = () => {
                                     </th>
                                     <th align="left">Realm</th>
                                     <th align="right">Users</th>
-                                    <th align="right">CODE</th>
+                                    <th align="right">Invite</th>
                                     <th align="right">URL</th>
                                 </tr>
                             </thead>

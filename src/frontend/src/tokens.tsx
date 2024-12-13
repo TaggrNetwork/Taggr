@@ -326,6 +326,7 @@ const AuctionCard = ({}) => {
                             />
                             <ButtonWithLoading
                                 classNameArg="top_spaced active max_width_col left_half_spaced"
+                                disabled={parsedBidSize <= 0}
                                 onClick={async () => {
                                     const response: any = await window.api.call(
                                         "create_bid",
@@ -344,7 +345,11 @@ const AuctionCard = ({}) => {
                                     setBidSize("");
                                     await loadData();
                                 }}
-                                label="CREATE MY BID"
+                                label={
+                                    parsedBidSize == 0
+                                        ? "BID"
+                                        : `BID FOR ${bidSize} ${token_symbol}`
+                                }
                             />
                         </div>
                     </div>

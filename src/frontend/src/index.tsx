@@ -25,13 +25,11 @@ import {
     expandMeta,
 } from "./common";
 import { Settings } from "./settings";
-import { ApiGenerator } from "./api";
-import { Welcome, WelcomeInvited } from "./wallet";
+import { Welcome, WelcomeInvited } from "./welcome";
 import { Proposals } from "./proposals";
 import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
-import { MAINNET_MODE, CANISTER_ID } from "./env";
 import { Config, PostId, User, Stats } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
@@ -39,6 +37,8 @@ import { Distribution } from "./distribution";
 import { populateUserNameCacheSpeculatively } from "./user_resolve";
 import { Roadmap } from "./roadmap";
 import { LinksPage } from "./links";
+import { ApiGenerator } from "./api";
+import { MAINNET_MODE } from "./env";
 
 const { hash, pathname } = location;
 
@@ -86,7 +86,7 @@ const renderFrame = (content: React.ReactNode) => {
 const App = () => {
     window.lastActivity = new Date();
     const auth = (content: React.ReactNode) =>
-        window.principalId ? content : <Unauthorized />;
+        window.getPrincipalId() ? content : <Unauthorized />;
     const [handler = "", param, param2] = parseHash();
     let subtle = false;
     let inboxMode = false;
@@ -114,14 +114,14 @@ const App = () => {
     } else if (handler == "settings") {
         content = auth(<Settings />);
     } else if (handler == "welcome") {
-        subtle = !window.principalId;
-        content = window.principalId ? (
+        subtle = !window.getPrincipalId();
+        content = window.getPrincipalId() ? (
             <Settings invite={param} />
         ) : (
             <WelcomeInvited />
         );
     } else if (
-        (handler == "wallet" || (window.principalId && !window.user)) &&
+        (handler == "wallet" || (window.getPrincipalId() && !window.user)) &&
         !window.realm
     ) {
         content = <Welcome />;
@@ -264,13 +264,9 @@ const reloadCache = async () => {
         stats: stats || ({} as Stats),
         config: config || ({} as Config),
     };
-    window.resetUI = () => {
-        window.uiInitialized = false;
-        const frames = Array.from(stack.children);
-        frames.forEach((frame) => frame.remove());
-    };
     const last_upgrade = window.backendCache.stats?.last_release?.timestamp;
-    if (window.lastSavedUpgrade == 0) {
+    if (!last_upgrade) return;
+    else if (window.lastSavedUpgrade == 0) {
         window.lastSavedUpgrade = last_upgrade;
     } else if (window.lastSavedUpgrade != last_upgrade) {
         window.lastSavedUpgrade = last_upgrade;
@@ -284,74 +280,9 @@ const reloadCache = async () => {
     }
 };
 
-AuthClient.create({ idleOptions: { disableIdle: true } }).then(
-    async (authClient) => {
-        window.authClient = authClient;
-        let identity;
-        if (await authClient.isAuthenticated()) {
-            identity = authClient.getIdentity();
-        } else if (localStorage.getItem("IDENTITY")) {
-            const serializedIdentity = localStorage.getItem("IDENTITY");
-            if (serializedIdentity) {
-                identity = Ed25519KeyIdentity.fromJSON(serializedIdentity);
-            }
-        }
-        const api = ApiGenerator(MAINNET_MODE, CANISTER_ID, identity);
-        if (identity) window.principalId = identity.getPrincipal().toString();
-        window.api = api;
-
-        /*
-         *  RECOVERY SHORTCUT
-         */
-        if (window.location.href.includes("recovery")) {
-            document.getElementById("logo_container")?.remove();
-            renderFrame(<React.StrictMode>{<Recovery />}</React.StrictMode>);
-            window.user = await api.query<any>("user", []);
-            return;
-        }
-
-        window.lastSavedUpgrade = 0;
-        window.lastVisit = BigInt(0);
-        window.mainnet_api = ApiGenerator(true, CANISTER_ID, identity);
-        window.reloadCache = reloadCache;
-        window.setUI = setUI;
-        await reloadCache();
-
-        if (api) {
-            window.reloadUser = async () => {
-                let data = await api.query<User>("user", []);
-                if (data) {
-                    populateUserNameCacheSpeculatively();
-                    window.user = data;
-                    window.user.realms.reverse();
-                    if (600000 < microSecsSince(window.user.last_activity)) {
-                        window.lastVisit = window.user.last_activity;
-                        api.call("update_last_activity");
-                    } else if (window.lastVisit == BigInt(0))
-                        window.lastVisit = window.user.last_activity;
-                }
-            };
-            setInterval(async () => {
-                await window.reloadUser();
-                await reloadCache();
-            }, REFRESH_RATE_SECS * 1000);
-            await confirmPrincipalChange();
-            await window.reloadUser();
-        }
-        updateDoc();
-        App();
-
-        footerRoot.render(
-            <React.StrictMode>
-                <Footer />
-            </React.StrictMode>,
-        );
-    },
-);
-
 const confirmPrincipalChange = async () => {
     if (
-        !window.principalId ||
+        !window.getPrincipalId() ||
         !(await window.api.query<boolean>("migration_pending"))
     )
         return;
@@ -413,3 +344,76 @@ const updateDoc = () => {
         App();
     });
 };
+
+AuthClient.create({ idleOptions: { disableIdle: true } }).then(
+    async (authClient) => {
+        window.authClient = authClient;
+        let identity;
+        if (await authClient.isAuthenticated()) {
+            identity = authClient.getIdentity();
+        } else if (localStorage.getItem("IDENTITY")) {
+            const serializedIdentity = localStorage.getItem("IDENTITY");
+            if (serializedIdentity) {
+                identity = Ed25519KeyIdentity.fromJSON(serializedIdentity);
+            }
+        }
+        const api = ApiGenerator(MAINNET_MODE, identity);
+        if (identity)
+            window._delegatePrincipalId = identity.getPrincipal().toString();
+        window.api = api;
+        window.getPrincipalId = () =>
+            localStorage.getItem("delegator") || window._delegatePrincipalId;
+
+        /*
+         *  RECOVERY SHORTCUT
+         */
+        if (window.location.href.includes("recovery")) {
+            document.getElementById("logo_container")?.remove();
+            renderFrame(<React.StrictMode>{<Recovery />}</React.StrictMode>);
+            window.user = await api.query<any>("user", []);
+            return;
+        }
+
+        window.mainnet_api = ApiGenerator(true, identity);
+        window.lastSavedUpgrade = 0;
+        window.lastVisit = BigInt(0);
+        window.reloadCache = reloadCache;
+        window.setUI = setUI;
+        window.resetUI = () => {
+            window.uiInitialized = false;
+            const frames = Array.from(stack.children);
+            frames.forEach((frame) => frame.remove());
+        };
+        await reloadCache();
+
+        if (api) {
+            window.reloadUser = async () => {
+                let data = await api.query<User>("user", []);
+                if (data) {
+                    populateUserNameCacheSpeculatively();
+                    window.user = data;
+                    window.user.realms.reverse();
+                    if (600000 < microSecsSince(window.user.last_activity)) {
+                        window.lastVisit = window.user.last_activity;
+                        api.call("update_last_activity");
+                    } else if (window.lastVisit == BigInt(0))
+                        window.lastVisit = window.user.last_activity;
+                }
+            };
+            setInterval(async () => {
+                await window.reloadUser();
+                await reloadCache();
+            }, REFRESH_RATE_SECS * 1000);
+            await confirmPrincipalChange();
+            await window.reloadUser();
+        }
+        updateDoc();
+        App();
+
+        footerRoot.render(
+            <React.StrictMode>
+                <Footer />
+            </React.StrictMode>,
+        );
+    },
+);

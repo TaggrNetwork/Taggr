@@ -831,7 +831,7 @@ export const ReportBanner = ({
     );
 };
 
-export function popUp<T>(content: JSX.Element): null | Promise<T> {
+export function popUp<T>(content: JSX.Element): null | Promise<T | null> {
     const preview = document.getElementById("preview");
     if (!preview) return null;
     while (preview.hasChildNodes()) {
@@ -841,32 +841,36 @@ export function popUp<T>(content: JSX.Element): null | Promise<T> {
     preview.style.display = "flex";
     preview.style.flexDirection = "column";
     preview.style.justifyContent = "center";
-    const closePreview = () => (preview.style.display = "none");
 
-    preview.onclick = (event) => {
-        let target: any = event.target;
-        if (target?.id == "preview") preview.style.display = "none";
-    };
     const root = document.createElement("div");
     root.className = "popup_body";
     preview.appendChild(root);
 
-    const promise = new Promise((resolve: (arg: T) => void) => {
+    const promise = new Promise((resolve: (arg: T | null) => void) => {
+        const closePreview = (arg: T | null) => {
+            preview.style.display = "none";
+            resolve(arg);
+        };
+
+        preview.onclick = (event) => {
+            let target: any = event.target;
+            if (target?.id == "preview") closePreview(null);
+        };
+
         createRoot(root).render(
             <>
                 <div
                     data-testid="popup-close-button"
                     className="clickable row_container bottom_spaced"
-                    onClick={closePreview}
+                    onClick={() => closePreview(null)}
                 >
                     <div style={{ marginLeft: "auto" }}>
                         <Close classNameArg="action" size={18} />
                     </div>
                 </div>
                 {React.cloneElement(content, {
-                    popUpCallback: (arg: T) => {
-                        closePreview();
-                        resolve(arg);
+                    parentCallback: (arg: T) => {
+                        closePreview(arg);
                     },
                 })}
             </>,
@@ -1033,3 +1037,90 @@ export function pfpUrl(userId: UserId) {
         (MAINNET_MODE ? "" : `?canisterId=${canisterId}`)
     );
 }
+
+export const signOut = async () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    window.authClient.logout();
+    window._delegatePrincipalId = "";
+    restartApp();
+    return true;
+};
+
+export const SeedPhraseForm = ({
+    callback,
+    confirmationRequired,
+    classNameArg,
+}: {
+    callback: (arg: string) => Promise<void>;
+    confirmationRequired?: boolean;
+    classNameArg?: string;
+}) => {
+    const [value, setValue] = React.useState("");
+    const [confirmedValue, setConfirmedValue] = React.useState("");
+    const field = React.useRef<HTMLInputElement>();
+    React.useEffect(() => {
+        let current = field.current;
+        current?.focus();
+    }, []);
+    return (
+        <>
+            <p>
+                Please enter your password{" "}
+                {confirmationRequired && <>and confirm it</>}
+            </p>
+            <div
+                className={`${classNameArg} ${
+                    confirmationRequired ? "column_container" : "row_container"
+                } vertically_spaced`}
+            >
+                <input
+                    ref={field as unknown as any}
+                    onChange={(e) => setValue(e.target.value)}
+                    onKeyPress={async (e) => {
+                        if (!confirmationRequired && e.charCode == 13) {
+                            let button =
+                                document.getElementById("login-button");
+                            button?.click();
+                        }
+                    }}
+                    className="max_width_col"
+                    type="password"
+                    placeholder="Enter your password..."
+                />
+                {confirmationRequired && (
+                    <input
+                        onChange={(e) => setConfirmedValue(e.target.value)}
+                        className="max_width_col top_spaced bottom_spaced"
+                        type="password"
+                        placeholder="Repeat your password..."
+                    />
+                )}
+                <div className="row_container">
+                    {window.getPrincipalId() && (
+                        <ButtonWithLoading onClick={signOut} label="SIGN OUT" />
+                    )}
+                    <ButtonWithLoading
+                        id="login-button"
+                        classNameArg="active left_half_spaced right_half_spaced"
+                        onClick={async () => {
+                            if (
+                                confirmationRequired &&
+                                value != confirmedValue
+                            ) {
+                                alert("Passwords do not match.");
+                                return;
+                            }
+                            await callback(value);
+                        }}
+                        label="JOIN"
+                    />
+                </div>
+            </div>
+        </>
+    );
+};
+
+export const restartApp = async () => {
+    location.reload();
+};

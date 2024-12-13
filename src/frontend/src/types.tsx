@@ -308,6 +308,7 @@ export type Stats = {
 };
 
 export type Config = {
+    siwe_statement: string;
     staging: string;
     weekly_auction_size_tokens: number;
     user_report_validity_days: number;
@@ -365,7 +366,9 @@ declare global {
         lastVisit: BigInt;
         api: Backend;
         mainnet_api: Backend;
-        principalId: string;
+        getPrincipalId: () => string;
+        // Holds the principal of the delegate signing key (the signing key living in the browser)
+        _delegatePrincipalId: string;
         realm: string;
         user: User;
         scrollUpButton: HTMLElement;

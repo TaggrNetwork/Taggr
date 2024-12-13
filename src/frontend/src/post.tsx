@@ -599,41 +599,43 @@ const PostInfo = ({
                             }
                             testId="bookmark-post"
                         />
-                        <ButtonWithLoading
-                            title="Tip"
-                            classNameArg="max_width_col"
-                            onClick={async () => {
-                                const amount =
-                                    parseNumber(
-                                        prompt(
-                                            `Tip @${post.meta.author_name} with ${token_symbol}:`,
-                                            "0.1",
-                                        ) || "",
-                                        token_decimals,
-                                    ) || NaN;
-                                if (isNaN(amount)) return;
-                                if (
-                                    !confirm(
-                                        `Transfer ${tokens(
-                                            amount,
+                        {!postAuthor && (
+                            <ButtonWithLoading
+                                title="Tip"
+                                classNameArg="max_width_col"
+                                onClick={async () => {
+                                    const amount =
+                                        parseNumber(
+                                            prompt(
+                                                `Tip @${post.meta.author_name} with ${token_symbol}:`,
+                                                "0.1",
+                                            ) || "",
                                             token_decimals,
-                                        )} ${token_symbol} to @${
-                                            post.meta.author_name
-                                        } as a tip?`,
+                                        ) || NaN;
+                                    if (isNaN(amount)) return;
+                                    if (
+                                        !confirm(
+                                            `Transfer ${tokens(
+                                                amount,
+                                                token_decimals,
+                                            )} ${token_symbol} to @${
+                                                post.meta.author_name
+                                            } as a tip?`,
+                                        )
                                     )
-                                )
-                                    return;
-                                let response = await window.api.call<any>(
-                                    "tip",
-                                    post.id,
-                                    amount,
-                                );
-                                if ("Err" in response) {
-                                    alert(`Error: ${response.Err}`);
-                                } else await callback();
-                            }}
-                            label={<Coin />}
-                        />
+                                        return;
+                                    let response = await window.api.call<any>(
+                                        "tip",
+                                        post.id,
+                                        amount,
+                                    );
+                                    if ("Err" in response) {
+                                        alert(`Error: ${response.Err}`);
+                                    } else await callback();
+                                }}
+                                label={<Coin />}
+                            />
+                        )}
                         {realmController && isRoot(post) && (
                             <ButtonWithLoading
                                 title="Remove from realm"

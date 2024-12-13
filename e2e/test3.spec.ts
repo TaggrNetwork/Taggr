@@ -21,6 +21,7 @@ test.describe("Regular users flow, part two", () => {
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.waitForTimeout(1000);
         await page.getByPlaceholder("Enter your password...").fill("john");
+        await page.getByPlaceholder("Repeat your password...").fill("john");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.getByRole("button", { name: "MINT CREDITS" }).click();
         const value = await page.getByTestId("invoice-amount").textContent();
