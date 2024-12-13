@@ -265,7 +265,8 @@ const reloadCache = async () => {
         config: config || ({} as Config),
     };
     const last_upgrade = window.backendCache.stats?.last_release?.timestamp;
-    if (window.lastSavedUpgrade == 0) {
+    if (!last_upgrade) return;
+    else if (window.lastSavedUpgrade == 0) {
         window.lastSavedUpgrade = last_upgrade;
     } else if (window.lastSavedUpgrade != last_upgrade) {
         window.lastSavedUpgrade = last_upgrade;
