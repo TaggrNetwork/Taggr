@@ -45,8 +45,7 @@ pub struct Config {
     pub user_report_validity_days: u64,
 
     pub proposal_approval_threshold: u16,
-    pub proposal_controversy_threashold: u16,
-    pub proposal_rejection_penalty: Credits,
+    pub proposal_controversy_threshold: u16,
 
     pub max_report_length: usize,
 
@@ -136,6 +135,8 @@ pub struct Config {
 
     #[serde(with = "string")]
     pub neuron_id: u64,
+
+    pub proposal_escrow_tokens: Token,
 }
 
 mod string {
@@ -226,12 +227,8 @@ pub const CONFIG: &Config = &Config {
     proposal_approval_threshold: 1,
     #[cfg(not(feature = "dev"))]
     proposal_approval_threshold: 66,
-    proposal_controversy_threashold: 10,
 
-    #[cfg(not(feature = "staging"))]
-    proposal_rejection_penalty: 500,
-    #[cfg(feature = "staging")]
-    proposal_rejection_penalty: 50,
+    proposal_controversy_threshold: 10,
 
     maximum_supply: 100_000_000,
 
@@ -342,6 +339,11 @@ pub const CONFIG: &Config = &Config {
     max_funding_amount: 100000,
 
     neuron_id: 16737374299031693047,
+
+    #[cfg(feature = "dev")]
+    proposal_escrow_tokens: 100,
+    #[cfg(not(feature = "dev"))]
+    proposal_escrow_tokens: 1000,
 };
 
 pub fn reaction_rewards() -> BTreeMap<u16, i64> {
