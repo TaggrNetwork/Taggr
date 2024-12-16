@@ -265,7 +265,7 @@ article {
     border: 1px solid $frame;
 }
 
-.active_element {
+.drag_and_drop {
     border: 4px dashed orange;
 }
 
@@ -960,7 +960,8 @@ a.accent,
     background: $frame;
 }
 
-button.active {
+button.active,
+.active_element {
     background: $accent;
     color: #111111;
 }
