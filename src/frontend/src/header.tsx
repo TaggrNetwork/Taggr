@@ -142,7 +142,7 @@ export const Header = ({
                                 }
                             />
                             <button
-                                className={"active"}
+                                className="active"
                                 onClick={() => (location.href = "#/new")}
                             >
                                 POST

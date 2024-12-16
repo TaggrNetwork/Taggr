@@ -892,7 +892,7 @@ const PostBar = ({
         <div onClick={goInside}>
             <div
                 ref={ref}
-                className="active"
+                className="active_element"
                 style={{ height: "1px", width: 0 }}
             ></div>
             <div className="post_bar vcentered">

@@ -520,7 +520,7 @@ export const Form = ({
                                     )
                                 }
                                 className={`max_width_col ${
-                                    dragAndDropping ? "active_element" : null
+                                    dragAndDropping ? "drag_and_drop" : null
                                 }`}
                                 onChange={(event) =>
                                     onValueChange(event.target.value)
