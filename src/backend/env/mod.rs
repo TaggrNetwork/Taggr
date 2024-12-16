@@ -175,9 +175,6 @@ pub struct State {
     pub storage: storage::Storage,
 
     pub logger: Logger,
-    // TODO: delete
-    #[serde(skip)]
-    pub invites: BTreeMap<String, (UserId, Credits)>,
     pub invite_codes: BTreeMap<String, Invite>,
     pub realms: BTreeMap<RealmId, Realm>,
 
