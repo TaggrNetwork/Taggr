@@ -169,6 +169,11 @@ impl Proposal {
         let voting_power = (supply_of_users_total as f64 * delay) as u64;
         self.voting_power = voting_power;
 
+        let proposer = state
+            .users
+            .get(&self.proposer)
+            .ok_or("user not found")?
+            .principal;
         let (approvals, rejects): (Token, Token) =
             self.bulletins
                 .iter()
@@ -180,30 +185,23 @@ impl Proposal {
                     }
                 });
 
+        // Proposal rejected.
         if rejects * 100 >= voting_power * (100 - CONFIG.proposal_approval_threshold) as u64 {
             self.status = Status::Rejected;
-            // if proposal was rejected without a controversion, penalize the proposer
-            if approvals * 100 < CONFIG.proposal_controversy_threashold as u64 * rejects {
-                let proposer = state
-                    .users
-                    .get_mut(&self.proposer)
-                    .ok_or("user not found")?;
-                proposer.stalwart = false;
-                proposer.active_weeks = 0;
-                proposer.change_rewards(
-                    -(CONFIG.proposal_rejection_penalty as i64),
-                    "proposal rejection penalty",
-                );
-                let credit_balance = proposer.credits();
-                state.charge(
-                    self.proposer,
-                    credit_balance.min(CONFIG.proposal_rejection_penalty),
-                    "proposal rejection penalty",
+            // if proposal was not rejected with a controversion, mint  burned tokens for the proposer.
+            // Controversial rejection means approving VP is below 10% of rejecting VP.
+            if approvals * 100 >= rejects * CONFIG.proposal_controversy_threshold as u64 {
+                mint_tokens(
+                    state,
+                    proposer,
+                    CONFIG.proposal_escrow_tokens,
+                    format!("escrow proposal {}", self.id).as_str(),
                 )?;
             }
             return Ok(());
         }
 
+        // Proposal accepted.
         if approvals * 100 >= voting_power * CONFIG.proposal_approval_threshold as u64 {
             match &mut self.payload {
                 Payload::Release(release) => {
@@ -215,7 +213,9 @@ impl Proposal {
                         }
                     }
                 }
-                Payload::Funding(receiver, tokens) => mint_tokens(state, *receiver, *tokens)?,
+                Payload::Funding(receiver, tokens) => {
+                    mint_tokens(state, *receiver, *tokens, "funding proposal")?
+                }
                 Payload::Rewards(reward) => {
                     let votes = reward
                         .submissions
@@ -235,7 +235,7 @@ impl Proposal {
                     let tokens_to_mint: Token = votes.iter().fold(0.0, |acc, (vp, reward)| {
                         acc + *vp as f32 / total as f32 * *reward as f32
                     }) as Token;
-                    mint_tokens(state, reward.receiver, tokens_to_mint)?;
+                    mint_tokens(state, reward.receiver, tokens_to_mint, "reward proposal")?;
                     reward.minted = tokens_to_mint;
                 }
                 Payload::AddRealmController(realm_id, user_id) => {
@@ -267,16 +267,29 @@ impl Proposal {
                 }
                 _ => {}
             }
+
             self.status = Status::Executed;
+
+            mint_tokens(
+                state,
+                proposer,
+                CONFIG.proposal_escrow_tokens,
+                format!("escrow proposal {}", self.id).as_str(),
+            )?;
         }
 
         Ok(())
     }
 }
 
-fn mint_tokens(state: &mut State, receiver: Principal, mut tokens: Token) -> Result<(), String> {
+fn mint_tokens(
+    state: &mut State,
+    receiver: Principal,
+    mut tokens: Token,
+    memo: &str,
+) -> Result<(), String> {
     state.minting_mode = true;
-    crate::token::mint(state, account(receiver), tokens, "proposal execution");
+    crate::token::mint(state, account(receiver), tokens, memo);
     state.minting_mode = false;
     tokens /= token::base();
     state.logger.info(format!(
@@ -346,14 +359,16 @@ pub fn create_proposal(
     mut payload: Payload,
     time: u64,
 ) -> Result<u32, String> {
-    if !state
-        .principal_to_user(caller)
-        .map(|user| user.stalwart)
-        .unwrap_or_default()
-    {
-        return Err("only stalwarts can create proposals".to_string());
-    }
     payload.validate(state)?;
+
+    let id = state.proposals.len() as u32;
+    token::burn(
+        state,
+        caller,
+        CONFIG.proposal_escrow_tokens,
+        format!("escrow proposal {}", id).as_str(),
+    )
+    .map_err(|err| format!("{:?}", err))?;
 
     if let Payload::Release(release) = &mut payload {
         let mut hasher = Sha256::new();
@@ -381,8 +396,6 @@ pub fn create_proposal(
         .for_each(|proposal| {
             proposal.status = Status::Cancelled;
         });
-
-    let id = state.proposals.len() as u32;
 
     state.proposals.push(Proposal {
         post_id,
@@ -439,7 +452,11 @@ pub fn vote_on_proposal(
     execute_proposal(state, proposal_id, time)
 }
 
-pub fn cancel_proposal(state: &mut State, caller: Principal, proposal_id: u32) {
+pub fn cancel_proposal(
+    state: &mut State,
+    caller: Principal,
+    proposal_id: u32,
+) -> Result<(), String> {
     let mut proposals = std::mem::take(&mut state.proposals);
     let proposal = proposals
         .get_mut(proposal_id as usize)
@@ -447,8 +464,15 @@ pub fn cancel_proposal(state: &mut State, caller: Principal, proposal_id: u32) {
     let user = state.principal_to_user(caller).expect("no user found");
     if proposal.status == Status::Open && proposal.proposer == user.id {
         proposal.status = Status::Cancelled;
+        mint_tokens(
+            state,
+            caller,
+            CONFIG.proposal_escrow_tokens,
+            format!("escrow proposal {}", proposal.id).as_str(),
+        )?;
     }
     state.proposals = proposals;
+    Ok(())
 }
 
 pub(super) fn execute_proposal(
@@ -507,6 +531,7 @@ pub mod tests {
     fn test_wrong_post_id_in_proposal() {
         mutate(|state| {
             create_user(state, pr(1));
+            insert_balance(state, pr(1), 1000 * 100);
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
             create_proposal(state, pr(1), 2, Payload::Noop, 0).unwrap();
         })
@@ -517,6 +542,7 @@ pub mod tests {
     fn test_wrong_post_id_in_proposal_2() {
         mutate(|state| {
             create_user(state, pr(1));
+            insert_balance(state, pr(1), 1000 * 100);
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
             let post_id = Post::create(
                 state,
@@ -540,14 +566,10 @@ pub mod tests {
             for i in 1..=2 {
                 let p = pr(i);
                 let id = create_user(state, p);
+                insert_balance(state, p, 1000 * 100);
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(1000, "test");
             }
-
-            assert_eq!(
-                propose(state, pr(1), "test".into(), Payload::Noop, 0),
-                Err("only stalwarts can create proposals".into())
-            );
 
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
@@ -660,6 +682,8 @@ pub mod tests {
                 insert_balance(state, p, 1000 * 100);
             }
 
+            let token_balance = state.principal_to_user(proposer).unwrap().total_balance();
+
             // make sure the rewards accounting was correct
             assert_eq!(state.principal_to_user(proposer).unwrap().rewards(), 1000);
 
@@ -683,8 +707,14 @@ pub mod tests {
                 propose(state, proposer, "".into(), Payload::Noop, 0),
                 Err("invalid post content".to_string())
             );
-            let id = propose(state, proposer, "test".into(), Payload::Noop, 0)
-                .expect("couldn't create proposal");
+            let id = propose(state, proposer, "test".into(), Payload::Noop, 0).unwrap();
+
+            // make sure tokens were burned
+            let user = state.principal_to_user_mut(proposer).unwrap();
+            assert_eq!(
+                user.total_balance(),
+                token_balance - CONFIG.proposal_escrow_tokens
+            );
 
             assert_eq!(state.proposals.len(), 1);
 
@@ -699,8 +729,14 @@ pub mod tests {
             );
 
             // create a new proposal
-            let prop_id = propose(state, proposer, "test".into(), Payload::Noop, 0)
-                .expect("couldn't create proposal");
+            let prop_id = propose(state, proposer, "test".into(), Payload::Noop, 0).unwrap();
+            //
+            // make sure more tokens were burned
+            let user = state.principal_to_user_mut(proposer).unwrap();
+            assert_eq!(
+                user.total_balance(),
+                token_balance - 2 * CONFIG.proposal_escrow_tokens
+            );
 
             assert_eq!(state.proposals.len(), 2);
 
@@ -744,17 +780,12 @@ pub mod tests {
                 Status::Rejected,
             );
 
-            // make sure the user was penalized
+            // make sure tokens were not minted
             let user = state.principal_to_user_mut(proposer).unwrap();
             assert_eq!(
-                user.rewards(),
-                1000 - CONFIG.proposal_rejection_penalty as i64
+                user.total_balance(),
+                token_balance - 2 * CONFIG.proposal_escrow_tokens
             );
-            assert_eq!(
-                user.credits(),
-                1000 - CONFIG.proposal_rejection_penalty - 2 * CONFIG.post_cost
-            );
-            assert!(!user.stalwart);
             user.change_credits(100, crate::env::user::CreditsDelta::Plus, "")
                 .unwrap();
 
@@ -787,13 +818,24 @@ pub mod tests {
 
     #[test]
     fn test_reducing_voting_power() {
-        let data = &"".to_string();
+        let data = "";
         mutate(|state| {
             // create voters, make each of them earn some rewards
             for i in 1..=3 {
                 let p = pr(i);
                 let id = create_user(state, p);
-                insert_balance(state, p, 100 * 100);
+                // We need to give user 1 slightly more tokens, so that after proposals each
+                // controls exactly 33% of voting power.
+                insert_balance(
+                    state,
+                    p,
+                    100 * 100
+                        + if i == 1 {
+                            CONFIG.proposal_escrow_tokens
+                        } else {
+                            0
+                        },
+                );
                 let user = state.users.get_mut(&id).unwrap();
                 user.change_rewards(100, "test");
             }
@@ -822,6 +864,7 @@ pub mod tests {
                 Ok(())
             );
             assert_eq!(state.proposals.iter().last().unwrap().voting_power, 29400);
+
             assert_eq!(
                 state.proposals.iter().last().unwrap().status,
                 Status::Rejected
@@ -841,15 +884,26 @@ pub mod tests {
                 user.change_rewards(100, "test");
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
+            let token_balance = state.principal_to_user(pr(1)).unwrap().total_balance();
 
             let prop_id =
                 propose(state, pr(1), "test".into(), Payload::Noop, 0).expect("couldn't propose");
 
+            // Tokens burned.
+            assert_eq!(
+                state.principal_to_user(pr(1)).unwrap().total_balance(),
+                token_balance - CONFIG.proposal_escrow_tokens
+            );
+
             assert!(state.principal_to_user(pr(1)).unwrap().credits() > 0);
-            let proposer = state.principal_to_user(pr(1)).unwrap();
-            let data = &"".to_string();
-            let rewards = proposer.rewards();
-            for i in 2..4 {
+            let data = "";
+            for i in 1..=3 {
+                assert_eq!(
+                    vote_on_proposal(state, time(), pr(i), prop_id, true, data),
+                    Ok(())
+                );
+            }
+            for i in 4..=5 {
                 assert_eq!(
                     vote_on_proposal(state, time(), pr(i), prop_id, false, data),
                     Ok(())
@@ -860,10 +914,10 @@ pub mod tests {
                 state.proposals.iter().last().unwrap().status,
                 Status::Rejected
             );
-            assert_eq!(state.principal_to_user(pr(1)).unwrap().credits(), 498);
+            // Tokens were minted.
             assert_eq!(
-                state.principal_to_user(pr(1)).unwrap().rewards(),
-                rewards - CONFIG.proposal_rejection_penalty as i64
+                state.principal_to_user(pr(1)).unwrap().total_balance(),
+                token_balance
             );
         })
     }
@@ -973,7 +1027,10 @@ pub mod tests {
                 Err("reward amount is higher than the configured maximum of 1000 tokens".into())
             );
 
-            assert_eq!(state.active_voting_power(time()), 140000);
+            assert_eq!(
+                state.active_voting_power(time()),
+                140000 - CONFIG.proposal_escrow_tokens
+            );
 
             // 200 tokens vote for reward of size 1000
             assert_eq!(
@@ -993,7 +1050,7 @@ pub mod tests {
 
             let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
             if let Payload::Rewards(reward) = &proposal.payload {
-                assert_eq!(reward.minted, 48571);
+                assert_eq!(reward.minted, 48201);
                 assert_eq!(proposal.status, Status::Executed);
             } else {
                 panic!("unexpected payload")
@@ -1081,7 +1138,7 @@ pub mod tests {
 
             let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
             if let Payload::Rewards(reward) = &proposal.payload {
-                assert_eq!(reward.minted, 42857);
+                assert_eq!(reward.minted, 42446);
                 assert_eq!(proposal.status, Status::Executed);
             } else {
                 panic!("unexpected payload")
@@ -1137,7 +1194,10 @@ pub mod tests {
             )
             .expect("couldn't propose");
 
-            assert_eq!(state.active_voting_power(time()), 140000);
+            assert_eq!(
+                state.active_voting_power(time()),
+                140000 - CONFIG.proposal_escrow_tokens
+            );
 
             // 800 tokens vote for reward of size 500
             assert_eq!(
@@ -1159,7 +1219,10 @@ pub mod tests {
                 },
             )
             .unwrap();
-            assert_eq!(state.active_voting_power(time()), 140000  /* fee */ - 1);
+            assert_eq!(
+                state.active_voting_power(time()),
+                140000 - CONFIG.proposal_escrow_tokens  /* fee */ - 1
+            );
 
             // 200 tokens vote for reward of size 1000
             assert_eq!(
@@ -1199,7 +1262,7 @@ pub mod tests {
             .unwrap();
             assert_eq!(
                 state.active_voting_power(time()),
-                140000  /* fees */ - 1 - 1
+                140000 -CONFIG.proposal_escrow_tokens /* fees */ - 1 - 1
             );
         });
 
@@ -1209,7 +1272,7 @@ pub mod tests {
         read(|state| {
             let proposal = state.proposals.iter().find(|p| p.id == 0).unwrap();
             if let Payload::Rewards(reward) = &proposal.payload {
-                assert_eq!(reward.minted, 48571);
+                assert_eq!(reward.minted, 48201);
                 assert_eq!(proposal.status, Status::Executed);
             } else {
                 panic!("unexpected payload")

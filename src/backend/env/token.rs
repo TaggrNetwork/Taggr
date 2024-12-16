@@ -513,6 +513,7 @@ pub fn base() -> Token {
 
 pub fn mint(state: &mut State, account: Account, tokens: Token, memo: &str) {
     let now = time();
+    let truncated_memo = memo.chars().take(32).collect::<String>();
     let _result = transfer(
         state,
         now,
@@ -522,10 +523,33 @@ pub fn mint(state: &mut State, account: Account, tokens: Token, memo: &str) {
             to: account,
             amount: tokens as u128,
             fee: Some(0),
-            memo: Some(memo.as_bytes().to_vec()),
+            memo: Some(truncated_memo.as_bytes().to_vec()),
             created_at_time: Some(now),
         },
     );
+}
+
+pub fn burn(
+    state: &mut State,
+    principal: Principal,
+    tokens: Token,
+    memo: &str,
+) -> Result<u128, TransferError> {
+    let now = time();
+    let truncated_memo = memo.chars().take(32).collect::<String>();
+    transfer(
+        state,
+        now,
+        principal,
+        TransferArgs {
+            from_subaccount: None,
+            to: icrc1_minting_account().expect("no minting account"),
+            amount: tokens as u128,
+            fee: Some(0),
+            memo: Some(truncated_memo.as_bytes().to_vec()),
+            created_at_time: Some(now),
+        },
+    )
 }
 
 pub fn balances_from_ledger(
