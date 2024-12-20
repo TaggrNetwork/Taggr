@@ -106,7 +106,7 @@ pub struct Config {
     // top x percentage of users selected as stalwarts
     pub stalwart_percentage: usize,
     pub min_stalwart_activity_weeks: u8,
-    pub min_stalwart_account_age_weeks: u8,
+    pub min_stalwart_account_age_weeks: u64,
     pub stalwart_moderation_reward: Credits,
 
     // percentage of stalwarts needed to confirm a report
@@ -348,7 +348,7 @@ pub const CONFIG: &Config = &Config {
     #[cfg(test)]
     proposal_escrow_tokens: 1000,
     #[cfg(not(any(feature = "dev", test)))]
-    proposal_escrow_tokens: 10000,
+    proposal_escrow_tokens: 5000,
 };
 
 pub fn reaction_rewards() -> BTreeMap<u16, i64> {

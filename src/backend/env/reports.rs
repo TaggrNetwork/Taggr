@@ -13,6 +13,7 @@ pub struct Report {
     pub timestamp: Time,
 }
 
+#[derive(PartialEq)]
 pub enum ReportState {
     Open,
     Confirmed,
@@ -24,9 +25,11 @@ impl Report {
         self.confirmed_by.len() < self.rejected_by.len()
     }
 
-    pub fn pending_or_recently_confirmed(&self) -> bool {
-        !self.closed
-            || !self.rejected() && self.timestamp + CONFIG.user_report_validity_days * DAY >= time()
+    /// Returns true if the report was confirmed by stalwarts recently.
+    pub fn recently_confirmed(&self, time: Time) -> bool {
+        self.closed
+            && !self.rejected()
+            && self.timestamp + CONFIG.user_report_validity_days * DAY >= time
     }
 
     pub fn vote(

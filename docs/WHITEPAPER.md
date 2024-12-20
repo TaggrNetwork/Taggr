@@ -92,8 +92,8 @@ In both cases, participating stalwarts share rewards from the penalty fee, cappe
 ## Governance
 
 $name is governed via proposals.
-Any user with a balance of at least `$proposal\*escrow\*tokens` can create a proposal.
-This number of user's tokens will get burned upon proposal creation and minted again after the proposal is executed, cancelled or rejected _without a controversy_.
+Any user with an account age `$min*stalwart_account_age_weeks`  and a balance of at least`$proposal\*escrow\*tokens` can create a proposal.
+This number of user's tokens will get burned upon proposal creation and minted again after the proposal is executed, cancelled or rejected \_without a controversy*.
 Controversial rejections are proposal rejections with a rejected/adopted ratio under`$proposal_controversy_threashold%`.
 After a controversial rejection, the proposer loses their tokens forever.
 
