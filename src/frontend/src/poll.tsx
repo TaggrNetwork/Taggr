@@ -102,7 +102,7 @@ export const PollView = ({
                                                 height: "0.6em",
                                                 marginTop: "0.1em",
                                             }}
-                                            className="active"
+                                            className="active_element"
                                         ></div>
                                         <div className="small_text top_half_spaced">
                                             <UserList ids={data.votes[id]} />
