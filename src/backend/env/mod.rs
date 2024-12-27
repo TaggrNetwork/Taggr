@@ -292,6 +292,28 @@ pub enum Destination {
 }
 
 impl State {
+    pub fn toggle_account_activation(
+        &mut self,
+        caller: Principal,
+        seed: String,
+    ) -> Result<usize, String> {
+        let user = self.principal_to_user_mut(caller).ok_or("no user found")?;
+        user.change_credits(
+            CONFIG.feature_cost,
+            CreditsDelta::Minus,
+            "profile privacy change",
+        )?;
+        let len = user.posts.len();
+
+        user.deactivated = !user.deactivated;
+
+        for post_id in user.posts.clone() {
+            Post::crypt(self, post_id, &seed).expect("encryption failed");
+        }
+
+        Ok(len)
+    }
+
     pub fn create_backup(&mut self) {
         if self.backup_exists {
             return;

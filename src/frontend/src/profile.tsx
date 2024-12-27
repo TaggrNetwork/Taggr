@@ -218,34 +218,40 @@ export const Profile = ({ handle }: { handle: string }) => {
                 />
             )}
             <UserInfo profile={profile} />
-            <PostFeed
-                title={title}
-                useList={true}
-                feedLoader={async (page: number, offset: PostId) => {
-                    if (status != 1) return null;
-                    if (tab == "TAGS")
+            {profile.deactivated ? (
+                <div className="text_centered vertically_spaced">
+                    This account is deactivated.
+                </div>
+            ) : (
+                <PostFeed
+                    title={title}
+                    useList={true}
+                    feedLoader={async (page: number, offset: PostId) => {
+                        if (status != 1) return null;
+                        if (tab == "TAGS")
+                            return await window.api.query(
+                                "user_tags",
+                                profile.name,
+                                page,
+                                offset,
+                            );
+                        if (tab == "REWARDED")
+                            return await window.api.query(
+                                "rewarded_posts",
+                                profile.id.toString(),
+                                page,
+                                offset,
+                            );
                         return await window.api.query(
-                            "user_tags",
-                            profile.name,
-                            page,
-                            offset,
-                        );
-                    if (tab == "REWARDED")
-                        return await window.api.query(
-                            "rewarded_posts",
+                            "user_posts",
                             profile.id.toString(),
                             page,
                             offset,
                         );
-                    return await window.api.query(
-                        "user_posts",
-                        profile.id.toString(),
-                        page,
-                        offset,
-                    );
-                }}
-                heartbeat={profile.id + tab}
-            />
+                    }}
+                    heartbeat={profile.id + tab}
+                />
+            )}
         </>
     );
 };

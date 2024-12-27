@@ -1,5 +1,12 @@
 import * as React from "react";
-import { bigScreen, ButtonWithLoading, HeadBar, ICP_LEDGER_ID } from "./common";
+import {
+    hash,
+    bigScreen,
+    ButtonWithLoading,
+    HeadBar,
+    ICP_LEDGER_ID,
+    hex,
+} from "./common";
 import { PFP, User, UserFilter, UserId } from "./types";
 import { Principal } from "@dfinity/principal";
 import { setTheme } from "./theme";
@@ -21,6 +28,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         {},
     );
     const [controllers, setControllers] = React.useState("");
+    const [encryptionPassword, setEncryptionPassword] = React.useState("");
     const [label, setLabel] = React.useState(null);
     const [timer, setTimer] = React.useState<any>();
     const [uiRefresh, setUIRefresh] = React.useState(false);
@@ -441,6 +449,44 @@ export const Settings = ({ invite }: { invite?: string }) => {
                         <div>
                             <UserList profile={true} ids={user.blacklist} />
                         </div>
+                        <h2>Account suspension</h2>
+                        <p>
+                            You can suspend your account and encrypt all your
+                            messages to make them inaccessible. If you ever plan
+                            to activate your account again, make sure you can
+                            recover this password later. An account
+                            activation/deactivation costs
+                            {window.backendCache.config.feature_cost} credits.
+                        </p>
+                        <input
+                            placeholder="Encryption password"
+                            className="bottom_spaced"
+                            type="password"
+                            value={encryptionPassword}
+                            onChange={(event) =>
+                                setEncryptionPassword(event.target.value)
+                            }
+                        />
+                        <ButtonWithLoading
+                            classNameArg={encryptionPassword ? "" : "inactive"}
+                            onClick={async () => {
+                                const seed = hex(
+                                    Array.from(
+                                        await hash(encryptionPassword, 1),
+                                    ),
+                                );
+                                const result: any = await window.api.call(
+                                    "crypt",
+                                    seed,
+                                );
+                                alert(
+                                    result && "Ok" in result
+                                        ? `${result.Ok} posts sucessfully ${user.deactivated ? "de" : "en"}crypted!`
+                                        : `Error: decryption failed`,
+                                );
+                            }}
+                            label={`${user.deactivated ? "AC" : "DEAC"}TIVATE`}
+                        />
                         <h2>Principal Change</h2>
                         You can change your principal as follows:
                         <ol>

@@ -153,6 +153,7 @@ export type Post = {
     tree_size: number;
     tree_update: BigInt;
     meta: Meta;
+    encrypted: boolean;
 };
 
 export type BlogTitle = {
@@ -258,6 +259,7 @@ export type User = {
     notifications: { [key: number]: [Notification, boolean] };
     mode: Mode;
     pfp: PFP;
+    deactivated: boolean;
 };
 
 export type Report = {
