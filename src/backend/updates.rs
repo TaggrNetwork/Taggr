@@ -135,6 +135,14 @@ fn clear_notifications() {
     })
 }
 
+#[export_name = "canister_update crypt"]
+fn crypt() {
+    let seed: String = parse(&arg_data_raw());
+    reply(mutate(|state| {
+        state.toggle_account_activation(caller(), seed)
+    }))
+}
+
 #[update]
 fn link_cold_wallet(user_id: UserId) -> Result<(), String> {
     mutate(|state| state.link_cold_wallet(caller(), user_id))

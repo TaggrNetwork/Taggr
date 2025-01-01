@@ -88,6 +88,9 @@ pub struct Post {
 
     #[serde(skip)]
     pub archived: bool,
+
+    #[serde(default)]
+    pub encrypted: bool,
 }
 
 impl PartialEq for Post {
@@ -147,6 +150,7 @@ impl Post {
             report: None,
             extension,
             archived: false,
+            encrypted: false,
             realm,
             heat,
         }
@@ -501,6 +505,10 @@ impl Post {
             }
         };
 
+        if user.deactivated {
+            return Err("account deactivated".into());
+        }
+
         if user.is_bot() && parent.is_some() {
             return Err("bots can't create comments".into());
         }
@@ -726,6 +734,21 @@ impl Post {
                 .map(|id| filters.realms.contains(id))
                 .unwrap_or_default()
     }
+
+    pub fn crypt(state: &mut State, id: PostId, seed: &str) -> Result<(), String> {
+        let mut post = Post::take(state, &id)?;
+        let encrypt = !post.encrypted;
+        post.body = xor(&post.body, seed, encrypt);
+        post.patches = post
+            .patches
+            .into_iter()
+            .map(|(t, patch)| (t, xor(patch.as_str(), seed, encrypt)))
+            .collect();
+        post.encrypted = encrypt;
+        Post::save(state, post);
+
+        Ok(())
+    }
 }
 
 // Moves a configured number of posts from hot to cold memory.
@@ -932,6 +955,38 @@ fn tokens(max_tag_length: usize, input: &str, tokens: &[char]) -> impl Iterator<
     })
 }
 
+// Encrypts or decrypts a string from the provided secret key.
+fn xor(text: &str, seed: &str, encrypt: bool) -> String {
+    use sha2::{Digest, Sha256};
+
+    let mut pad = Vec::new();
+    let mut current = seed.as_bytes().to_vec();
+
+    while pad.len() < text.len() {
+        let mut hasher = Sha256::new();
+        hasher.update(&current);
+
+        let result = hasher.finalize();
+        pad.extend_from_slice(&result);
+
+        current = result.to_vec();
+    }
+
+    let xor = |bytes: &[u8]| {
+        bytes
+            .iter()
+            .zip(pad.iter().take(text.len()))
+            .map(|(t, &p)| t ^ p)
+            .collect::<Vec<u8>>()
+    };
+
+    if encrypt {
+        hex::encode(xor(text.as_bytes()))
+    } else {
+        String::from_utf8(xor(&hex::decode(text).expect("invalid hex"))).expect("decryption failed")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -964,7 +1019,7 @@ mod tests {
             assert_eq!(state.posts.len(), 10);
             // Trigger post archiving
             archive_cold_posts(state, 5).unwrap();
-            assert!(state.memory.health("B").starts_with("boundary=894B"));
+            assert!(state.memory.health("B").starts_with("boundary=949B"));
             assert!(state.memory.health("B").ends_with("segments=0"));
 
             // Make sure we have the right numbers in cold and hot memories
@@ -1006,7 +1061,7 @@ mod tests {
             assert!(!Post::get(state, &3).unwrap().archived);
             assert_eq!(state.posts.len(), 8);
             assert_eq!(state.memory.posts.len(), 3);
-            assert!(state.memory.health("B").starts_with("boundary=894B"));
+            assert!(state.memory.health("B").starts_with("boundary=949B"));
             assert!(state.memory.health("B").ends_with("segments=2"));
 
             // Archive posts again
@@ -1015,7 +1070,7 @@ mod tests {
             assert_eq!(state.memory.posts.len(), 6);
             // Segments were reduced, becasue the new post 10 fits into a gap left from one of the
             // old posts
-            assert!(state.memory.health("B").starts_with("boundary=1250B"));
+            assert!(state.memory.health("B").starts_with("boundary=1327B"));
             assert!(state.memory.health("B").ends_with("segments=1"));
         });
     }

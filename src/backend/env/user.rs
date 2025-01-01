@@ -138,8 +138,9 @@ pub struct User {
     pub mode: Mode,
     // Amount of credits burned per week; used for the random rewards only.
     credits_burned: Credits,
-    #[serde(default)]
     pub pfp: Pfp,
+    #[serde(default)]
+    pub deactivated: bool,
 }
 
 impl User {
@@ -229,6 +230,7 @@ impl User {
             show_posts_in_realms: true,
             mode: Mode::default(),
             pfp: Default::default(),
+            deactivated: false,
         }
     }
 
