@@ -455,7 +455,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             messages to make them inaccessible. If you ever plan
                             to activate your account again, make sure you can
                             recover this password later. An account
-                            activation/deactivation costs
+                            activation/deactivation costs{" "}
                             {window.backendCache.config.feature_cost} credits.
                         </p>
                         <input

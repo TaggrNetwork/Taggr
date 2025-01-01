@@ -53,7 +53,7 @@ export const PostSubmissionForm = ({
             }
             postId = post.id;
         } else postId = await newPostCallback(text, blobs, extension, realm);
-        return Number(postId);
+        return postId == null ? null : Number(postId);
     };
 
     if (id != undefined && !isNaN(id) && !post) return null;

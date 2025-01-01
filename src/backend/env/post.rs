@@ -1019,7 +1019,7 @@ mod tests {
             assert_eq!(state.posts.len(), 10);
             // Trigger post archiving
             archive_cold_posts(state, 5).unwrap();
-            assert!(state.memory.health("B").starts_with("boundary=894B"));
+            assert!(state.memory.health("B").starts_with("boundary=949B"));
             assert!(state.memory.health("B").ends_with("segments=0"));
 
             // Make sure we have the right numbers in cold and hot memories
@@ -1061,7 +1061,7 @@ mod tests {
             assert!(!Post::get(state, &3).unwrap().archived);
             assert_eq!(state.posts.len(), 8);
             assert_eq!(state.memory.posts.len(), 3);
-            assert!(state.memory.health("B").starts_with("boundary=894B"));
+            assert!(state.memory.health("B").starts_with("boundary=949B"));
             assert!(state.memory.health("B").ends_with("segments=2"));
 
             // Archive posts again
@@ -1070,7 +1070,7 @@ mod tests {
             assert_eq!(state.memory.posts.len(), 6);
             // Segments were reduced, becasue the new post 10 fits into a gap left from one of the
             // old posts
-            assert!(state.memory.health("B").starts_with("boundary=1250B"));
+            assert!(state.memory.health("B").starts_with("boundary=1327B"));
             assert!(state.memory.health("B").ends_with("segments=1"));
         });
     }

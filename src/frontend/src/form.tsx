@@ -152,43 +152,44 @@ export const Form = ({
                 extension,
                 realm,
             );
-            if (postId != null) {
-                if (proposal) {
-                    let result =
-                        "Release" in proposal
-                            ? await window.api.propose_release(
-                                  postId,
-                                  proposal.Release.commit,
-                                  proposal.Release.closed_features,
-                                  proposal.Release.binary,
-                              )
-                            : await window.api.call<any>(
-                                  "create_proposal",
-                                  postId,
-                                  proposal,
-                              );
-                    if (result && "Err" in result) {
-                        alert(
-                            `Post could be created, but the proposal creation failed: ${result.Err}`,
-                        );
-                    }
-                } else if (featureRequest) {
-                    let result: any = await window.api.call(
-                        "create_feature",
-                        postId,
-                    );
-                    if (result && "Err" in result) {
-                        alert(
-                            `Post could be created, but the feature request failed: ${result.Err}`,
-                        );
-                    }
-                }
-                setValue("");
-                clearTimeout(choresTimer);
-                localStorage.removeItem(draftKey);
-                setLines(3);
-                setShowTextField(false);
+            if (postId == null) {
+                return false;
             }
+            if (proposal) {
+                let result =
+                    "Release" in proposal
+                        ? await window.api.propose_release(
+                              postId,
+                              proposal.Release.commit,
+                              proposal.Release.closed_features,
+                              proposal.Release.binary,
+                          )
+                        : await window.api.call<any>(
+                              "create_proposal",
+                              postId,
+                              proposal,
+                          );
+                if (result && "Err" in result) {
+                    alert(
+                        `Post could be created, but the proposal creation failed: ${result.Err}`,
+                    );
+                }
+            } else if (featureRequest) {
+                let result: any = await window.api.call(
+                    "create_feature",
+                    postId,
+                );
+                if (result && "Err" in result) {
+                    alert(
+                        `Post could be created, but the feature request failed: ${result.Err}`,
+                    );
+                }
+            }
+            setValue("");
+            clearTimeout(choresTimer);
+            localStorage.removeItem(draftKey);
+            setLines(3);
+            setShowTextField(false);
             if (isRootPost || editMode) {
                 window.resetUI();
                 location.href = `#/post/${postId}`;
