@@ -755,13 +755,15 @@ export const Realms = () => {
                         return (
                             <div
                                 key={name}
-                                onClick={() => {
-                                    location.href = `#/realm/${name}`;
-                                }}
                                 className="stands_out clickable"
                                 style={{ position: "relative" }}
                             >
-                                <h3 className="vcentered">
+                                <h3
+                                    className="vcentered clickable"
+                                    onClick={() => {
+                                        location.href = `#/realm/${name}`;
+                                    }}
+                                >
                                     {realm.logo && (
                                         <img
                                             alt="Logo"
@@ -771,9 +773,7 @@ export const Realms = () => {
                                         />
                                     )}
                                     <div className="row_container max_width_col">
-                                        <div className="max_width_col">
-                                            {name}
-                                        </div>
+                                        <a className="max_width_col">{name}</a>
                                         {realm.adult_content && (
                                             <span
                                                 className="padded_rounded vcentered small_text left_half_spaced"
