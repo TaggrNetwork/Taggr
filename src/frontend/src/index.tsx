@@ -113,7 +113,7 @@ const App = () => {
         content = <Whitepaper />;
     } else if (handler == "settings") {
         content = auth(<Settings />);
-    } else if (handler == "welcome") {
+    } else if (handler == "welcome" && !window.user) {
         subtle = !window.getPrincipalId();
         content = window.getPrincipalId() ? (
             <Settings invite={param} />
