@@ -482,7 +482,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                 alert(
                                     result && "Ok" in result
                                         ? `${result.Ok} posts sucessfully ${user.deactivated ? "de" : "en"}crypted!`
-                                        : `Error: decryption failed`,
+                                        : `Error: decryption failed (${result?.Err || "wrong password?"})`,
                                 );
                             }}
                             label={`${user.deactivated ? "AC" : "DEAC"}TIVATE`}
