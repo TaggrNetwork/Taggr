@@ -30,8 +30,6 @@ pub struct Config {
 
     pub max_age_hot_post_days: u64,
 
-    pub downvote_counting_period_days: u64,
-
     pub credits_per_xdr: u64,
 
     pub minting_threshold_percentage: u64,
@@ -195,8 +193,6 @@ pub const CONFIG: &Config = &Config {
     active_user_share_for_minting_promille: 10,
 
     max_age_hot_post_days: 2,
-
-    downvote_counting_period_days: 7,
 
     max_credits_mint_kilos: 10,
 

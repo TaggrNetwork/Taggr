@@ -40,7 +40,6 @@ export const Settings = ({ invite }: { invite?: string }) => {
         age_days: 0,
         balance: 0,
         num_followers: 0,
-        downvotes: 0,
     });
 
     const updateData = (user: User) => {
@@ -340,8 +339,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                     className="left_half_spaced"
                                     htmlFor="own_theme"
                                 >
-                                    Non-controversial users (without pending or
-                                    confirmed reports and many downvotes)
+                                    Non-controversial users (without confirmed
+                                    reports)
                                 </label>
                             </div>
                         </div>
@@ -389,28 +388,6 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                 value={userFilter.num_followers}
                                 onChange={(e) => {
                                     userFilter.num_followers = Number(
-                                        e.target.value,
-                                    );
-                                    setUserFilter({ ...userFilter });
-                                }}
-                                id="own_theme"
-                            />
-                        </div>
-                        <div className="column_container bottom_spaced">
-                            <div className="bottom_half_spaced">
-                                Maximal number of downvotes in the last{" "}
-                                {
-                                    window.backendCache.config
-                                        .downvote_counting_period_days
-                                }{" "}
-                                days:
-                            </div>
-                            <input
-                                type="number"
-                                min="0"
-                                value={userFilter.downvotes}
-                                onChange={(e) => {
-                                    userFilter.downvotes = Number(
                                         e.target.value,
                                     );
                                     setUserFilter({ ...userFilter });

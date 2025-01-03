@@ -784,7 +784,7 @@ export const Logout = ({ classNameArg }: { classNameArg?: string }) => (
 export const reaction2icon = (id: number) => {
     switch (id) {
         case 1:
-            return <>👎</>;
+            return <>❌</>;
         case 50:
             return <>🔥</>;
         case 51:

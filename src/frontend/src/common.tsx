@@ -992,9 +992,8 @@ const checkUserFilterMatch = (
     user: User,
 ): string | null => {
     if (!filter || !user) return null;
-    const { age_days, safe, balance, num_followers, downvotes } = filter;
-    const { downvote_counting_period_days, user_report_validity_days } =
-        window.backendCache.config;
+    const { age_days, safe, balance, num_followers } = filter;
+    const { user_report_validity_days } = window.backendCache.config;
     if (daysOld(user.timestamp, age_days)) {
         return "account age is too low";
     }
@@ -1006,9 +1005,6 @@ const checkUserFilterMatch = (
     }
     if (num_followers > user.followers.length) {
         return "number of followers insufficient";
-    }
-    if (downvotes > 0 && Object.entries(user.downvotes).length > downvotes) {
-        return `number of downvotes on your posts in the last ${downvote_counting_period_days} days`;
     }
 
     return null;

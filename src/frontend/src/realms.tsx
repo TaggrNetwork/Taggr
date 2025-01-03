@@ -39,7 +39,6 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
             safe: false,
             balance: 0,
             num_followers: 0,
-            downvotes: 0,
         },
         label_color: "#ffffff",
         logo: "",
@@ -322,8 +321,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                     className="left_half_spaced"
                                     htmlFor="safe"
                                 >
-                                    Non-controversial users (without reports and
-                                    many downvotes)
+                                    Non-controversial users
                                 </label>
                             </div>
                         </div>
@@ -371,27 +369,6 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                 value={filter.num_followers}
                                 onChange={(e) => {
                                     realm.filter.num_followers = Number(
-                                        e.target.value,
-                                    );
-                                    setRealm({ ...realm });
-                                }}
-                            />
-                        </div>
-                        <div className="column_container bottom_spaced">
-                            <div className="bottom_half_spaced">
-                                Maximal number of downvotes in the last{" "}
-                                {
-                                    window.backendCache.config
-                                        .downvote_counting_period_days
-                                }{" "}
-                                days:
-                            </div>
-                            <input
-                                type="number"
-                                min="0"
-                                value={realm.filter.downvotes}
-                                onChange={(e) => {
-                                    realm.filter.downvotes = Number(
                                         e.target.value,
                                     );
                                     setRealm({ ...realm });
@@ -722,7 +699,6 @@ export const Realms = () => {
     const user = window.user;
     const unset = (filter: UserFilter) =>
         !filter.safe &&
-        filter.downvotes == 0 &&
         filter.age_days == 0 &&
         filter.balance == 0 &&
         filter.num_followers == 0;
