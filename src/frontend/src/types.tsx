@@ -215,7 +215,6 @@ export type UserFilter = {
     safe: boolean;
     balance: number;
     num_followers: number;
-    downvotes: number;
 };
 
 export type User = {
@@ -253,7 +252,6 @@ export type User = {
     cold_balance: number;
     cold_wallet: string;
     controllers: string[];
-    downvotes: { [key: UserId]: number };
     filters: Filters;
     blacklist: UserId[];
     notifications: { [key: number]: [Notification, boolean] };

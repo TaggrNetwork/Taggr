@@ -735,8 +735,10 @@ impl Post {
                 .unwrap_or_default()
     }
 
-    pub fn crypt(state: &mut State, id: PostId, seed: &str) -> Result<(), String> {
-        let mut post = Post::take(state, &id)?;
+    pub fn crypt(state: &mut State, id: PostId, seed: &str) {
+        let Ok(mut post) = Post::take(state, &id) else {
+            return;
+        };
         let encrypt = !post.encrypted;
         post.body = xor(&post.body, seed, encrypt);
         post.patches = post
@@ -746,8 +748,6 @@ impl Post {
             .collect();
         post.encrypted = encrypt;
         Post::save(state, post);
-
-        Ok(())
     }
 }
 
@@ -991,6 +991,33 @@ fn xor(text: &str, seed: &str, encrypt: bool) -> String {
 mod tests {
     use super::*;
     use crate::env::tests::{create_user, pr};
+
+    #[test]
+    fn test_post_encryption() {
+        mutate(|state| {
+            let p = pr(0);
+            create_user(state, p);
+            state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .change_credits(2000, CreditsDelta::Plus, "")
+                .unwrap();
+            let id =
+                Post::create(state, "Hello world!".into(), &[], p, 0, None, None, None).unwrap();
+
+            // encrypt and make sure it was encrypted
+            state.toggle_account_activation(p, "seed".into()).unwrap();
+            let post = Post::get(state, &id).unwrap();
+            assert_eq!(post.body, "51d7343a8ee127a5f1209be9");
+            assert!(state.principal_to_user_mut(p).unwrap().deactivated);
+
+            // decrypt and make sure we see the old content again
+            state.toggle_account_activation(p, "seed".into()).unwrap();
+            let post = Post::get(state, &id).unwrap();
+            assert_eq!(post.body, "Hello world!");
+            assert!(!state.principal_to_user_mut(p).unwrap().deactivated);
+        });
+    }
 
     #[test]
     fn test_post_archiving() {
