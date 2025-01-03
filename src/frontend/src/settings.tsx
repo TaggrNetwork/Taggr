@@ -479,10 +479,11 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                     "crypt",
                                     seed,
                                 );
+                                const prefix = user.deactivated ? "de" : "en";
                                 alert(
                                     result && "Ok" in result
-                                        ? `${result.Ok} posts sucessfully ${user.deactivated ? "de" : "en"}crypted!`
-                                        : `Error: decryption failed (${result?.Err || "wrong password?"})`,
+                                        ? `${result.Ok} posts sucessfully ${prefix}crypted!`
+                                        : `Error: ${prefix}cryption failed (${result?.Err || "wrong password?"})`,
                                 );
                             }}
                             label={`${user.deactivated ? "AC" : "DEAC"}TIVATE`}

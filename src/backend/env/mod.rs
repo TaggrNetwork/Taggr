@@ -308,7 +308,7 @@ impl State {
         user.deactivated = !user.deactivated;
 
         for post_id in user.posts.clone() {
-            Post::crypt(self, post_id, &seed).expect("encryption failed");
+            Post::crypt(self, post_id, &seed);
         }
 
         Ok(len)
