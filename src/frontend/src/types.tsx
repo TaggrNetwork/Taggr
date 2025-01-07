@@ -75,6 +75,16 @@ export type Release = {
     closed_features: PostId[];
 };
 
+export type Icrc1Canister = {
+    name: string;
+    symbol: string;
+    fee: number;
+    decimals: number;
+    logo?: string;
+    /** canisterId, offset, length */
+    logo_params?: [string, number, number];
+};
+
 export type Payload =
     | { ["Noop"]: any }
     | {
