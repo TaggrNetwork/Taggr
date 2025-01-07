@@ -1,15 +1,19 @@
+use base64::decode;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::panic;
 
 use super::config::CONFIG;
 use super::post::{Extension, Post, PostId};
+use super::storage::Storage;
 use super::token::{self, account};
-use super::user::Predicate;
+use super::user::{CreditsDelta, Predicate};
 use super::{features, invoices, RealmId, Time, HOUR};
 use super::{user::UserId, State};
-use crate::mutate;
 use crate::token::Token;
+use crate::{mutate, read};
 use candid::Principal;
+use ic_cdk::api::management_canister::main::CanisterId;
 use ic_cdk::spawn;
 use ic_cdk_timers::set_timer;
 use ic_ledger_types::{AccountIdentifier, Memo, Tokens};
@@ -53,6 +57,16 @@ pub struct Rewards {
     pub minted: Token,
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct Icrc1CanisterInfo {
+    name: String,
+    symbol: String,
+    fee: u128,
+    decimals: u8,
+    logo: Option<String>,
+    logo_params: Option<(String, u64, usize)>,
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub enum Payload {
     #[default]
@@ -62,6 +76,7 @@ pub enum Payload {
     AddRealmController(RealmId, UserId),
     Funding(Principal, Token),
     Rewards(Rewards),
+    AddIcrc1Canister(CanisterId, Icrc1CanisterInfo),
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -265,6 +280,21 @@ impl Proposal {
                         })
                     });
                 }
+                Payload::AddIcrc1Canister(canister_id, info) => {
+                    let canister_info = Icrc1CanisterInfo {
+                        decimals: info.decimals,
+                        fee: info.fee,
+                        logo: info.logo.clone(),
+                        logo_params: info.logo_params.clone(),
+                        name: info.name.clone(),
+                        symbol: info.symbol.clone(),
+                    };
+                    state.icrc1_canisters.insert(*canister_id, canister_info);
+                    state.logger.info(format!(
+                        "{} ICRC1 canister was added to Taggr curated list",
+                        canister_id
+                    ));
+                }
                 _ => {}
             }
             self.status = Status::Executed;
@@ -293,10 +323,19 @@ fn mint_tokens(state: &mut State, receiver: Principal, mut tokens: Token) -> Res
 }
 
 impl Payload {
-    pub fn validate(&self, state: &State) -> Result<(), String> {
+    pub fn validate(&self, state: &State, principal: Principal) -> Result<(), String> {
         let current_supply: Token = state.balances.values().sum();
+        let is_stalwart = state
+            .principal_to_user(principal)
+            .map(|user| user.stalwart)
+            .unwrap_or_default();
+        let stalwart_err = "only stalwarts can create proposals".to_string();
+
         match self {
             Payload::AddRealmController(realm_id, user_id) => {
+                if !is_stalwart {
+                    return Err(stalwart_err);
+                }
                 if !state.users.contains_key(user_id) {
                     return Err("user not found".to_string());
                 }
@@ -305,6 +344,9 @@ impl Payload {
                 }
             }
             Payload::Release(release) => {
+                if !is_stalwart {
+                    return Err(stalwart_err);
+                }
                 if release.commit.is_empty() {
                     return Err("commit is not specified".to_string());
                 }
@@ -313,6 +355,9 @@ impl Payload {
                 }
             }
             Payload::Funding(_, tokens) => {
+                if !is_stalwart {
+                    return Err(stalwart_err);
+                }
                 if current_supply >= CONFIG.maximum_supply {
                     return Err(
                         "no funding is allowed when the current supply is above maximum".into(),
@@ -327,13 +372,32 @@ impl Payload {
                 }
             }
             Payload::Rewards(_) => {
+                if !is_stalwart {
+                    return Err(stalwart_err);
+                }
                 if current_supply >= CONFIG.maximum_supply {
                     return Err(
                         "no rewards are allowed when the current supply is above maximum".into(),
                     );
                 }
             }
-            _ => {}
+            Payload::AddIcrc1Canister(canister_id, _) => {
+                if state.icrc1_canisters.contains_key(canister_id) {
+                    return Err(format!("{} ledger canister is already added", canister_id));
+                }
+                let user = state.principal_to_user(principal).expect("user not found");
+                if user.credits() < CONFIG.proposal_add_icrc1_canister_cost {
+                    return Err(format!(
+                        "You do not have {} credits to add new token",
+                        CONFIG.proposal_add_icrc1_canister_cost
+                    ));
+                }
+            }
+            _ => {
+                if !is_stalwart {
+                    return Err(stalwart_err);
+                }
+            }
         }
         Ok(())
     }
@@ -346,14 +410,7 @@ pub fn create_proposal(
     mut payload: Payload,
     time: u64,
 ) -> Result<u32, String> {
-    if !state
-        .principal_to_user(caller)
-        .map(|user| user.stalwart)
-        .unwrap_or_default()
-    {
-        return Err("only stalwarts can create proposals".to_string());
-    }
-    payload.validate(state)?;
+    payload.validate(state, caller)?;
 
     if let Payload::Release(release) = &mut payload {
         let mut hasher = Sha256::new();
@@ -364,6 +421,15 @@ pub fn create_proposal(
     let user = state
         .principal_to_user_mut(caller)
         .ok_or("proposer user not found")?;
+
+    if let Payload::AddIcrc1Canister(canister_id, _) = &mut payload {
+        user.change_credits(
+            CONFIG.proposal_add_icrc1_canister_cost,
+            CreditsDelta::Minus,
+            format!("proposal add icrc1 canister {}", canister_id),
+        )?;
+    }
+
     if !user.realms.contains(&CONFIG.dao_realm.to_owned()) {
         user.realms.push(CONFIG.dao_realm.to_owned());
     }
@@ -412,6 +478,7 @@ pub fn create_proposal(
         "@{} submitted a new [proposal](#/post/{}).",
         &proposer_name, post_id
     ));
+
     Ok(id)
 }
 
@@ -476,6 +543,48 @@ pub(super) fn execute_proposal(
     }
     state.proposals = proposals;
     result
+}
+
+/// Try to create asset for logo base64 string
+pub async fn create_proposal_asset(proposal_id: u32) {
+    if let Some(logo) = read(|state| {
+        let payload = &state
+            .proposals
+            .get(proposal_id as usize)
+            .expect("no proposals founds")
+            .payload;
+        if let Payload::AddIcrc1Canister(_, info) = payload {
+            info.logo.clone()
+        } else {
+            None
+        }
+    }) {
+        let base64_data = logo
+            .strip_prefix("data:image/png;base64,")
+            .expect("Invalid Base64 image string");
+
+        let image_data = decode(base64_data).expect("failed to decode Base64 string");
+
+        match Storage::write_to_bucket(image_data.as_slice()).await {
+            Ok((bucket_id, offset)) => {
+                mutate(|state| {
+                    let proposal = state
+                        .proposals
+                        .get_mut(proposal_id as usize)
+                        .expect("no proposals found");
+
+                    if let Payload::AddIcrc1Canister(_, info) = &mut proposal.payload {
+                        info.logo_params = Some((bucket_id.to_string(), offset, image_data.len()));
+                        info.logo = None;
+                    }
+                });
+            }
+            Err(err) => {
+                let msg = format!("Couldn't write a blob to bucket: {:?}", err);
+                mutate(|state| state.logger.error(&msg));
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -917,6 +1026,21 @@ pub mod tests {
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "300"),
                 Err("reward receivers can not vote".into())
             );
+
+            assert_eq!(
+                propose(
+                    state,
+                    pr(2),
+                    "test".into(),
+                    Payload::Rewards(Rewards {
+                        receiver: pr(1),
+                        submissions: Default::default(),
+                        minted: 0,
+                    }),
+                    time(),
+                ),
+                Err("only stalwarts can create proposals".to_string()),
+            );
         })
     }
 
@@ -1104,6 +1228,71 @@ pub mod tests {
             assert_eq!(
                 vote_on_proposal(state, time(), pr(1), prop_id, true, "300"),
                 Err("reward receivers can not vote".into())
+            );
+        })
+    }
+
+    #[test]
+    fn test_add_icrc1_canister_proposal() {
+        mutate(|state| {
+            // create stalwart
+            let p = pr(1);
+            let id = create_user(state, p);
+
+            assert_eq!(
+                propose(
+                    state,
+                    p,
+                    "test".into(),
+                    Payload::AddIcrc1Canister(
+                        Principal::from_text("ajuq4-ruaaa-aaaaa-qaaga-cai").unwrap(),
+                        Icrc1CanisterInfo {
+                            decimals: 2,
+                            fee: 10,
+                            logo: None,
+                            logo_params: None,
+                            name: "BTC".to_string(),
+                            symbol: "BTC".to_string(),
+                        }
+                    ),
+                    time(),
+                ),
+                Err("You do not have 5000 credits to add new token".to_string())
+            );
+
+            let _ = state
+                .users
+                .get_mut(&id)
+                .unwrap()
+                .change_credits(5000, CreditsDelta::Plus, "");
+
+            let previous_credits = state.users.get(&id).unwrap().credits();
+
+            assert_eq!(
+                propose(
+                    state,
+                    p,
+                    "test".into(),
+                    Payload::AddIcrc1Canister(
+                        Principal::from_text("ajuq4-ruaaa-aaaaa-qaaga-cai").unwrap(),
+                        Icrc1CanisterInfo {
+                            decimals: 2,
+                            fee: 10,
+                            logo: None,
+                            logo_params: None,
+                            name: "BTC".to_string(),
+                            symbol: "BTC".to_string(),
+                        }
+                    ),
+                    time(),
+                ),
+                Ok(0),
+            );
+
+            // User is charged with proposal cost and post cost
+            assert_eq!(
+                state.users.get(&id).unwrap().credits(),
+                previous_credits - CONFIG.proposal_add_icrc1_canister_cost - CONFIG.post_cost
             );
         })
     }

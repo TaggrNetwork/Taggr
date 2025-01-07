@@ -500,7 +500,7 @@ fn recent_tags() {
 #[export_name = "canister_query validate_proposal"]
 fn validate_proposal() {
     let payload: Payload = parse(&arg_data_raw());
-    read(|state| reply(payload.validate(state)));
+    read(|state| reply(payload.validate(state, caller())));
 }
 
 #[export_name = "canister_query validate_username"]
@@ -576,4 +576,9 @@ fn resolve_handle<'a>(state: &'a State, handle: Option<&'a String>) -> Option<&'
         Some(handle) => state.user(handle),
         None => Some(state.principal_to_user(caller())?),
     }
+}
+
+#[export_name = "canister_query icrc1_canisters"]
+fn icrc1_canisters() {
+    read(|state| reply(state.icrc1_canisters.iter().collect::<Vec<_>>()));
 }

@@ -75,6 +75,16 @@ export type Release = {
     closed_features: PostId[];
 };
 
+export type Icrc1Canister = {
+    name: string;
+    symbol: string;
+    fee: number;
+    decimals: number;
+    logo?: string;
+    /** canisterId, offset, length */
+    logo_params?: [string, number, number];
+};
+
 export type Payload =
     | { ["Noop"]: any }
     | {
@@ -91,6 +101,9 @@ export type Payload =
       }
     | {
           ["Rewards"]: Rewards;
+      }
+    | {
+          ["AddIcrc1Canister"]: [string, Icrc1Canister | undefined];
       };
 
 export type Proposal = {
@@ -348,6 +361,7 @@ export type Config = {
     domains: string[];
     reporting_penalty_post: number;
     reporting_penalty_misbehaviour: number;
+    proposal_add_icrc1_canister_cost: number;
 };
 
 export type Theme = { [name: string]: any };

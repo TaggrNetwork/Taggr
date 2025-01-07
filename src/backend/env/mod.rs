@@ -15,12 +15,13 @@ use crate::token::{Account, Token};
 use crate::{assets, id, mutate, read, time};
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
-use ic_cdk::api::management_canister::main::raw_rand;
+use ic_cdk::api::management_canister::main::{raw_rand, CanisterId};
 use ic_cdk::api::performance_counter;
 use ic_cdk::api::stable::stable_size;
 use ic_cdk::api::{self, canister_balance};
 use ic_ledger_types::{AccountIdentifier, Tokens, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
 use invoices::Invoices;
+use proposals::Icrc1CanisterInfo;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use sha2::{Digest, Sha256};
@@ -177,6 +178,8 @@ pub struct State {
     pub logger: Logger,
     pub invite_codes: BTreeMap<String, Invite>,
     pub realms: BTreeMap<RealmId, Realm>,
+    #[serde(default)]
+    pub icrc1_canisters: HashMap<CanisterId, Icrc1CanisterInfo>,
 
     #[serde(skip)]
     pub balances: HashMap<Account, Token>,

@@ -80,7 +80,11 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        state.icrc1_canisters = HashMap::new();
+    });
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -320,9 +324,16 @@ fn delay_weekly_chores() {
 #[export_name = "canister_update create_proposal"]
 fn create_proposal() {
     let (post_id, payload): (PostId, Payload) = parse(&arg_data_raw());
-    reply(mutate(|state| {
-        proposals::create_proposal(state, caller(), post_id, payload, time())
-    }))
+    let response =
+        mutate(|state| proposals::create_proposal(state, caller(), post_id, payload, time()));
+
+    if let Ok(proposal_id) = response.clone() {
+        spawn(async move {
+            proposals::create_proposal_asset(proposal_id).await;
+        });
+    }
+
+    reply(response);
 }
 
 #[update]

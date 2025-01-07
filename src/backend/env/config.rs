@@ -45,6 +45,7 @@ pub struct Config {
     pub proposal_approval_threshold: u16,
     pub proposal_controversy_threashold: u16,
     pub proposal_rejection_penalty: Credits,
+    pub proposal_add_icrc1_canister_cost: Credits,
 
     pub max_report_length: usize,
 
@@ -223,6 +224,10 @@ pub const CONFIG: &Config = &Config {
     #[cfg(not(feature = "dev"))]
     proposal_approval_threshold: 66,
     proposal_controversy_threashold: 10,
+    #[cfg(not(feature = "staging"))]
+    proposal_add_icrc1_canister_cost: 5000,
+    #[cfg(feature = "staging")]
+    proposal_add_icrc1_canister_cost: 50,
 
     #[cfg(not(feature = "staging"))]
     proposal_rejection_penalty: 500,

@@ -17,10 +17,12 @@ import {
 import * as React from "react";
 import { HourGlass } from "./icons";
 import { PostFeed } from "./post_feed";
-import { Payload, PostId, Proposal, User } from "./types";
+import { Icrc1Canister, Payload, PostId, Proposal, User } from "./types";
 import { UserLink, UserList } from "./user_resolve";
 import { Form } from "./form";
 import { newPostCallback } from "./new";
+import { Principal } from "@dfinity/principal";
+import { bucket_image_url } from "./util";
 
 const REPO_COMMIT = `${REPO}/commit`;
 const REPO_COMPARE = `${REPO}/compare`;
@@ -33,6 +35,7 @@ export enum ProposalType {
     Funding = "FUNDING",
     Rewards = "REWARDS",
     Release = "RELEASE",
+    AddIcrc1Canister = "ADD ICRC1 CANISTER",
 }
 
 export const Proposals = () => (
@@ -43,15 +46,13 @@ export const Proposals = () => (
             menu={true}
             burgerTestId="proposals-burger-button"
             content={
-                window.user?.stalwart ? (
-                    <>
-                        <h2>New Proposal Form</h2>
-                        <Form
-                            proposalCreation={true}
-                            submitCallback={newPostCallback}
-                        />
-                    </>
-                ) : undefined
+                <>
+                    <h2>New Proposal Form</h2>
+                    <Form
+                        proposalCreation={true}
+                        submitCallback={newPostCallback}
+                    />
+                </>
             }
         />
         <PostFeed
@@ -78,6 +79,10 @@ export const ProposalMask = ({
     const [binary, setBinary] = React.useState(new Uint8Array());
     const [commit, setCommit] = React.useState("");
     const [features, setFeatures] = React.useState("");
+    const [icrc1CanisterId, setIcrc1Canister] = React.useState("");
+    const [icrc1CanisterInfo, setIcrc1CanisterInfo] = React.useState<
+        Icrc1Canister | undefined
+    >(undefined);
 
     const validateAndSaveProposal = async () => {
         switch (proposalType) {
@@ -120,6 +125,11 @@ export const ProposalMask = ({
                     ],
                 });
                 break;
+            case ProposalType.AddIcrc1Canister:
+                saveProposal({
+                    ["AddIcrc1Canister"]: [icrc1CanisterId, icrc1CanisterInfo],
+                });
+                break;
             default:
                 saveProposal({
                     ["Release"]: {
@@ -143,12 +153,22 @@ export const ProposalMask = ({
             userName ||
             realmId ||
             binary.length > 0 ||
-            commit
+            commit ||
+            icrc1CanisterInfo
         ) {
             clearTimeout(timer);
             timer = setTimeout(validateAndSaveProposal, 1000);
         }
-    }, [receiver, fundingAmount, icpAmount, userName, realmId, binary, commit]);
+    }, [
+        receiver,
+        fundingAmount,
+        icpAmount,
+        userName,
+        realmId,
+        binary,
+        commit,
+        icrc1CanisterInfo,
+    ]);
 
     return (
         <div className="vertically_spaced">
@@ -270,6 +290,39 @@ export const ProposalMask = ({
                             callback={setBinary as unknown as any}
                         />
                     </div>
+                </div>
+            )}
+            {proposalType == ProposalType.AddIcrc1Canister && (
+                <div className="spaced column_container">
+                    <div className="vcentered bottom_half_spaced">
+                        ICRC1 CANISTER ID
+                        <input
+                            type="text"
+                            className="left_spaced max_width_col"
+                            onChange={async (ev) => {
+                                setIcrc1Canister(ev.target.value);
+                            }}
+                            onBlur={async () => {
+                                try {
+                                    Principal.fromText(icrc1CanisterId);
+                                } catch (e: any) {
+                                    return alert(e?.message);
+                                }
+                                const response =
+                                    await window.api.icrc_metadata(
+                                        icrc1CanisterId,
+                                    );
+                                if (response) {
+                                    setIcrc1CanisterInfo(response);
+                                } else {
+                                    alert(
+                                        "Failed to retrieve canister metadata",
+                                    );
+                                }
+                            }}
+                        />
+                    </div>
+                    <div className="accent">{`Cost is ${window.backendCache.config.proposal_add_icrc1_canister_cost} credits`}</div>
                 </div>
             )}
         </div>
@@ -528,6 +581,54 @@ export const ProposalView = ({
                     </div>
                 </>
             )}
+            {"AddIcrc1Canister" in proposal.payload && (
+                <>
+                    <div className="bottom_half_spaced">
+                        ICRC1 CANISTER:{" "}
+                        <a
+                            className="breakable"
+                            href={`https://dashboard.internetcomputer.org/canister/${proposal.payload.AddIcrc1Canister[0]}`}
+                            target="_blank"
+                        >
+                            {proposal.payload.AddIcrc1Canister[0]}
+                        </a>
+                        <img
+                            style={{
+                                height: 48,
+                                width: 48,
+                                verticalAlign: "middle",
+                                marginLeft: 16,
+                            }}
+                            src={
+                                proposal.payload.AddIcrc1Canister[1]
+                                    ?.logo_params
+                                    ? bucket_image_url(
+                                          ...proposal.payload
+                                              .AddIcrc1Canister[1]?.logo_params,
+                                      )
+                                    : proposal.payload.AddIcrc1Canister[1]?.logo
+                            }
+                        />
+                        <ul>
+                            <li>
+                                Name:{" "}
+                                {proposal.payload.AddIcrc1Canister[1]?.name}
+                            </li>
+                            <li>
+                                Symbol:{" "}
+                                {proposal.payload.AddIcrc1Canister[1]?.symbol}
+                            </li>
+                            <li>
+                                Fee: {proposal.payload.AddIcrc1Canister[1]?.fee}
+                            </li>
+                            <li>
+                                Decimals:{" "}
+                                {proposal.payload.AddIcrc1Canister[1]?.decimals}
+                            </li>
+                        </ul>
+                    </div>
+                </>
+            )}
             <div className="bottom_spaced">
                 EFFECTIVE VOTING POWER:{" "}
                 <code>{token(proposal.voting_power)}</code>
@@ -632,7 +733,6 @@ export const validateProposal = async (proposal: Payload) => {
         }
         return null;
     }
-
     let result = await window.api.query<any>("validate_proposal", proposal);
     if (result == null || (result && "Err" in result))
         return result ? result.Err : "invalid inputs";
