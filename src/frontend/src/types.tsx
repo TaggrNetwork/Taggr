@@ -308,7 +308,7 @@ export type Stats = {
 };
 
 export type Config = {
-    siwe_statement: string;
+    proposal_escrow_amount_xdr: number;
     staging: string;
     weekly_auction_size_tokens: number;
     user_report_validity_days: number;

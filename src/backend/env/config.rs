@@ -134,10 +134,10 @@ pub struct Config {
     #[serde(with = "string")]
     pub neuron_id: u64,
 
-    // Number of tokens that will be burned upon proposal creation.
+    // Value of tokens that will be burned upon proposal creation.
     // The tokens will be minted again after the proposal is executed, cancelled or
-    // rejected without a controversion.
-    pub proposal_escrow_tokens: Token,
+    // rejected without a controversion. The amount is in XDR.
+    pub proposal_escrow_amount_xdr: u64,
 }
 
 mod string {
@@ -340,11 +340,11 @@ pub const CONFIG: &Config = &Config {
     neuron_id: 16737374299031693047,
 
     #[cfg(feature = "dev")]
-    proposal_escrow_tokens: 100,
+    proposal_escrow_amount_xdr: 1,
     #[cfg(test)]
-    proposal_escrow_tokens: 1000,
+    proposal_escrow_amount_xdr: 769,
     #[cfg(not(any(feature = "dev", test)))]
-    proposal_escrow_tokens: 5000,
+    proposal_escrow_amount_xdr: 769,
 };
 
 pub fn reaction_rewards() -> BTreeMap<u16, i64> {

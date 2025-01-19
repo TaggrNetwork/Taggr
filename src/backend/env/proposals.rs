@@ -74,6 +74,8 @@ pub struct Proposal {
     pub payload: Payload,
     pub bulletins: Vec<(UserId, bool, Token)>,
     pub voting_power: Token,
+    #[serde(default)]
+    pub escrow_tokens: Token,
 }
 
 impl TryFrom<&Proposal> for ReleaseInfo {
@@ -194,7 +196,7 @@ impl Proposal {
                 mint_tokens(
                     state,
                     proposer,
-                    CONFIG.proposal_escrow_tokens,
+                    self.escrow_tokens,
                     format!("escrow proposal {}", self.id).as_str(),
                 )?;
             }
@@ -273,7 +275,7 @@ impl Proposal {
             mint_tokens(
                 state,
                 proposer,
-                CONFIG.proposal_escrow_tokens,
+                self.escrow_tokens,
                 format!("escrow proposal {}", self.id).as_str(),
             )?;
         }
@@ -373,10 +375,16 @@ pub fn create_proposal(
     payload.validate(state)?;
 
     let id = state.proposals.len() as u32;
+    let market_price = state.auction.last_auction_price_e8s;
+    let escrow_tokens = if market_price == 0 {
+        0
+    } else {
+        state.e8s_for_one_xdr * CONFIG.proposal_escrow_amount_xdr / market_price
+    };
     token::burn(
         state,
         caller,
-        CONFIG.proposal_escrow_tokens,
+        escrow_tokens,
         format!("escrow proposal {}", id).as_str(),
     )
     .map_err(|err| format!("{:?}", err))?;
@@ -389,7 +397,7 @@ pub fn create_proposal(
 
     let user = state
         .principal_to_user_mut(caller)
-        .ok_or("proposer user not found")?;
+        .expect("proposer user not found");
     if !user.realms.contains(&CONFIG.dao_realm.to_owned()) {
         user.realms.push(CONFIG.dao_realm.to_owned());
     }
@@ -416,6 +424,7 @@ pub fn create_proposal(
         payload,
         bulletins: Vec::default(),
         voting_power: 0,
+        escrow_tokens,
         id,
     });
     state.notify_with_predicate(
@@ -478,7 +487,7 @@ pub fn cancel_proposal(
         mint_tokens(
             state,
             caller,
-            CONFIG.proposal_escrow_tokens,
+            proposal.escrow_tokens,
             format!("escrow proposal {}", proposal.id).as_str(),
         )?;
     }
@@ -724,6 +733,8 @@ pub mod tests {
         let data = &"".to_string();
         let proposer = pr(1);
         mutate(|state| {
+            state.auction.last_auction_price_e8s = 10;
+            state.e8s_for_one_xdr = 10;
             // create voters, make each of them earn some rewards
             for i in 1..11 {
                 let p = pr(i);
@@ -764,7 +775,7 @@ pub mod tests {
             let user = state.principal_to_user_mut(proposer).unwrap();
             assert_eq!(
                 user.total_balance(),
-                token_balance - CONFIG.proposal_escrow_tokens
+                token_balance - CONFIG.proposal_escrow_amount_xdr
             );
 
             assert_eq!(state.proposals.len(), 1);
@@ -785,7 +796,7 @@ pub mod tests {
             let user = state.principal_to_user_mut(proposer).unwrap();
             assert_eq!(
                 user.total_balance(),
-                token_balance - 2 * CONFIG.proposal_escrow_tokens
+                token_balance - 2 * CONFIG.proposal_escrow_amount_xdr
             );
 
             assert_eq!(state.proposals.len(), 2);
@@ -834,7 +845,7 @@ pub mod tests {
             let user = state.principal_to_user_mut(proposer).unwrap();
             assert_eq!(
                 user.total_balance(),
-                token_balance - 2 * CONFIG.proposal_escrow_tokens
+                token_balance - 2 * CONFIG.proposal_escrow_amount_xdr
             );
             user.change_credits(100, crate::env::user::CreditsDelta::Plus, "")
                 .unwrap();
@@ -869,6 +880,8 @@ pub mod tests {
     fn test_reducing_voting_power() {
         let data = "";
         mutate(|state| {
+            state.auction.last_auction_price_e8s = 10;
+            state.e8s_for_one_xdr = 10;
             // create voters, make each of them earn some rewards
             for i in 1..=3 {
                 let p = pr(i);
@@ -880,7 +893,7 @@ pub mod tests {
                     p,
                     100 * 100
                         + if i == 1 {
-                            CONFIG.proposal_escrow_tokens
+                            CONFIG.proposal_escrow_amount_xdr
                         } else {
                             0
                         },
@@ -924,6 +937,8 @@ pub mod tests {
     #[test]
     fn test_non_controversial_rejection() {
         mutate(|state| {
+            state.auction.last_auction_price_e8s = 10;
+            state.e8s_for_one_xdr = 10;
             // create voters, make each of them earn some rewards
             for i in 1..=5 {
                 let p = pr(i);
@@ -941,7 +956,7 @@ pub mod tests {
             // Tokens burned.
             assert_eq!(
                 state.principal_to_user(pr(1)).unwrap().total_balance(),
-                token_balance - CONFIG.proposal_escrow_tokens
+                token_balance - CONFIG.proposal_escrow_amount_xdr
             );
 
             assert!(state.principal_to_user(pr(1)).unwrap().credits() > 0);
@@ -1024,6 +1039,8 @@ pub mod tests {
     #[test]
     fn test_reward_proposal() {
         mutate(|state| {
+            state.auction.last_auction_price_e8s = 10;
+            state.e8s_for_one_xdr = 10;
             // create voters, make each of them earn some rewards
             for i in 1..=3 {
                 let p = pr(i);
@@ -1074,7 +1091,7 @@ pub mod tests {
 
             assert_eq!(
                 state.active_voting_power(0),
-                140000 - CONFIG.proposal_escrow_tokens
+                140000 - CONFIG.proposal_escrow_amount_xdr
             );
 
             // 200 tokens vote for reward of size 1000
@@ -1095,7 +1112,7 @@ pub mod tests {
 
             let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
             if let Payload::Rewards(reward) = &proposal.payload {
-                assert_eq!(reward.minted, 48201);
+                assert_eq!(reward.minted, 48287);
                 assert_eq!(proposal.status, Status::Executed);
             } else {
                 panic!("unexpected payload")
@@ -1183,7 +1200,7 @@ pub mod tests {
 
             let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
             if let Payload::Rewards(reward) = &proposal.payload {
-                assert_eq!(reward.minted, 42446);
+                assert_eq!(reward.minted, 42541);
                 assert_eq!(proposal.status, Status::Executed);
             } else {
                 panic!("unexpected payload")
@@ -1214,6 +1231,10 @@ pub mod tests {
     async fn test_balance_adjustments_on_bulletins() {
         mutate(|state| {
             state.init();
+            state.auction.last_auction_price_e8s = 10;
+            state.e8s_for_one_xdr = 10;
+            let escrow_tokens = state.e8s_for_one_xdr * CONFIG.proposal_escrow_amount_xdr
+                / state.auction.last_auction_price_e8s;
 
             // create voters, make each of them earn some rewards
             for i in 1..=3 {
@@ -1242,10 +1263,7 @@ pub mod tests {
             )
             .expect("couldn't propose");
 
-            assert_eq!(
-                state.active_voting_power(time()),
-                140000 - CONFIG.proposal_escrow_tokens
-            );
+            assert_eq!(state.active_voting_power(time()), 140000 - escrow_tokens);
 
             // 800 tokens vote for reward of size 500
             assert_eq!(
@@ -1269,7 +1287,7 @@ pub mod tests {
             .unwrap();
             assert_eq!(
                 state.active_voting_power(time()),
-                140000 - CONFIG.proposal_escrow_tokens  /* fee */ - 1
+                140000 - CONFIG.proposal_escrow_amount_xdr  /* fee */ - 1
             );
 
             // 200 tokens vote for reward of size 1000
@@ -1310,7 +1328,7 @@ pub mod tests {
             .unwrap();
             assert_eq!(
                 state.active_voting_power(time()),
-                140000 -CONFIG.proposal_escrow_tokens /* fees */ - 1 - 1
+                140000 - CONFIG.proposal_escrow_amount_xdr /* fees */ - 1 - 1
             );
         });
 
@@ -1320,7 +1338,7 @@ pub mod tests {
         read(|state| {
             let proposal = state.proposals.iter().find(|p| p.id == 0).unwrap();
             if let Payload::Rewards(reward) = &proposal.payload {
-                assert_eq!(reward.minted, 48201);
+                assert_eq!(reward.minted, 48287);
                 assert_eq!(proposal.status, Status::Executed);
             } else {
                 panic!("unexpected payload")
