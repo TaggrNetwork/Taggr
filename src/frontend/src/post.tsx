@@ -295,6 +295,9 @@ export const PostView = ({
                         )}
                     </div>
                 )}
+                {post.encrypted && (
+                    <div className="text_centered x_large_text">ENCRYPTED</div>
+                )}
                 {isNSFW && (
                     <div
                         className="nsfw x_large_text"
@@ -317,7 +320,7 @@ export const PostView = ({
                         </ol>
                     </div>
                 )}
-                {!isNSFW && (
+                {!isNSFW && !post.encrypted && (
                     <article onClick={goInside}>
                         <Content
                             blogTitle={blogTitle}

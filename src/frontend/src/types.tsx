@@ -153,6 +153,7 @@ export type Post = {
     tree_size: number;
     tree_update: BigInt;
     meta: Meta;
+    encrypted: boolean;
 };
 
 export type BlogTitle = {
@@ -214,7 +215,6 @@ export type UserFilter = {
     safe: boolean;
     balance: number;
     num_followers: number;
-    downvotes: number;
 };
 
 export type User = {
@@ -252,12 +252,12 @@ export type User = {
     cold_balance: number;
     cold_wallet: string;
     controllers: string[];
-    downvotes: { [key: UserId]: number };
     filters: Filters;
     blacklist: UserId[];
     notifications: { [key: number]: [Notification, boolean] };
     mode: Mode;
     pfp: PFP;
+    deactivated: boolean;
 };
 
 export type Report = {

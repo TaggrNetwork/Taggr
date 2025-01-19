@@ -292,6 +292,28 @@ pub enum Destination {
 }
 
 impl State {
+    pub fn toggle_account_activation(
+        &mut self,
+        caller: Principal,
+        seed: String,
+    ) -> Result<usize, String> {
+        let user = self.principal_to_user_mut(caller).ok_or("no user found")?;
+        user.change_credits(
+            CONFIG.feature_cost,
+            CreditsDelta::Minus,
+            "profile privacy change",
+        )?;
+        let len = user.posts.len();
+
+        user.deactivated = !user.deactivated;
+
+        for post_id in user.posts.clone() {
+            Post::crypt(self, post_id, &seed);
+        }
+
+        Ok(len)
+    }
+
     pub fn create_backup(&mut self) {
         if self.backup_exists {
             return;
@@ -1568,12 +1590,6 @@ impl State {
             }
 
             state.recompute_stalwarts(now);
-
-            for user in state.users.values_mut() {
-                user.downvotes.retain(|_, timestamp| {
-                    *timestamp + CONFIG.downvote_counting_period_days * DAY >= now
-                });
-            }
 
             if let Err(err) = state.archive_cold_data() {
                 state
@@ -2966,12 +2982,6 @@ impl State {
         // Users initiate a credit transfer for upvotes, but burn their own credits on
         // downvotes + credits and rewards of the author
         if delta < 0 {
-            if user_controversial {
-                return Err("no downvotes for users with pending or confirmed reports".into());
-            }
-            if user.total_balance() < token::base() {
-                return Err("no downvotes for users with low token balance".into());
-            }
             if self
                 .users
                 .get(&post.user)
@@ -2983,7 +2993,6 @@ impl State {
 
             let user = self.users.get_mut(&post.user).expect("user not found");
             user.change_rewards(delta, log.clone());
-            user.downvotes.insert(user_id, time);
             self.charge_in_realm(
                 user_id,
                 delta.unsigned_abs().min(user_credits),

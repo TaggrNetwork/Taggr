@@ -64,14 +64,20 @@ export const Journal = ({ handle }: { handle: string }) => {
                     </div>
                 </div>
             )}
-            <PostFeed
-                classNameArg={bigScreen() ? "journal" : undefined}
-                useList={true}
-                journal={true}
-                feedLoader={async (page: number, offset: PostId) =>
-                    await window.api.query("journal", handle, page, offset)
-                }
-            />
+            {profile.deactivated ? (
+                <div className="text_centered vertically_spaced">
+                    This account is deactivated.
+                </div>
+            ) : (
+                <PostFeed
+                    classNameArg={bigScreen() ? "journal" : undefined}
+                    useList={true}
+                    journal={true}
+                    feedLoader={async (page: number, offset: PostId) =>
+                        await window.api.query("journal", handle, page, offset)
+                    }
+                />
+            )}
         </>
     );
 };

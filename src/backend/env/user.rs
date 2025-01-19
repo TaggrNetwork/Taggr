@@ -66,6 +66,8 @@ pub struct UserFilter {
     safe: bool,
     balance: Token,
     num_followers: usize,
+    // TODO: delete
+    #[serde(skip)]
     downvotes: usize,
 }
 
@@ -76,10 +78,9 @@ impl UserFilter {
             safe,
             balance,
             num_followers,
-            downvotes,
+            ..
         } = filter;
-        (*downvotes == 0 || self.downvotes <= *downvotes)
-            && self.age_days >= *age_days
+        self.age_days >= *age_days
             && (self.safe || !*safe)
             && self.balance >= *balance
             && self.num_followers >= *num_followers
@@ -131,6 +132,8 @@ pub struct User {
     pub previous_names: Vec<String>,
     pub governance: bool,
     pub notifications: BTreeMap<u64, (Notification, bool)>,
+    // TODO: delete
+    #[serde(skip)]
     pub downvotes: BTreeMap<UserId, Time>,
     pub show_posts_in_realms: bool,
     pub posts: Vec<PostId>,
@@ -138,8 +141,9 @@ pub struct User {
     pub mode: Mode,
     // Amount of credits burned per week; used for the random rewards only.
     credits_burned: Credits,
-    #[serde(default)]
     pub pfp: Pfp,
+    #[serde(default)]
+    pub deactivated: bool,
 }
 
 impl User {
@@ -229,6 +233,7 @@ impl User {
             show_posts_in_realms: true,
             mode: Mode::default(),
             pfp: Default::default(),
+            deactivated: false,
         }
     }
 
@@ -719,16 +724,16 @@ mod tests {
         assert!(!UserFilter {
             age_days: 12,
             safe: true,
-            downvotes: 7,
+            downvotes: 0,
             balance: 333,
             num_followers: 34
         }
         .passes(&UserFilter {
             age_days: 7,
             safe: false,
-            downvotes: 5,
+            downvotes: 0,
             balance: 1,
-            num_followers: 0
+            num_followers: 35
         }));
     }
 
