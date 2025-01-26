@@ -311,8 +311,7 @@ export const Wallet = () => {
                 </div>
             )}
             <hr />
-            <h2>ICRC1 Tokens</h2>
-            <Icrc1TokensWallet></Icrc1TokensWallet>
+            <Icrc1TokensWallet />
         </>
     );
 };

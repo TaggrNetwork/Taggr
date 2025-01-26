@@ -1,8 +1,7 @@
 import * as React from "react";
-import { ButtonWithLoading, CopyToClipboard } from "./common";
+import { ButtonWithLoading, bucket_image_url } from "./common";
 import { Principal } from "@dfinity/principal";
 import { Icrc1Canister } from "./types";
-import { bucket_image_url } from "./util";
 import { Repost } from "./icons";
 
 export const Icrc1TokensWallet = () => {
@@ -140,86 +139,51 @@ export const Icrc1TokensWallet = () => {
 
     return (
         <>
-            <div style={{ marginBottom: 4 }}>
+            <div className="vcentered bottom_spaced">
+                <h2 className="max_width_col">ICRC1 TOKENS</h2>
                 <ButtonWithLoading
                     onClick={addIcrc1CanisterPrompt}
                     label={"Add token"}
                 ></ButtonWithLoading>
                 <ButtonWithLoading
                     onClick={() => loadIcrc1CanisterBalances(undefined, true)}
-                    label={"Refresh balances"}
+                    label={<Repost />}
                 ></ButtonWithLoading>
             </div>
             {icrc1Canisters.length > 0 && (
-                <table className="icrc1-canisters">
-                    <tbody>
-                        {icrc1Canisters.map(([canisterId, info]) => (
-                            <tr key={canisterId}>
-                                <td className="monospace">{info.symbol}</td>
-                                <td>
-                                    <img
-                                        style={{
-                                            height: 32,
-                                            width: 32,
-                                            verticalAlign: "middle",
-                                        }}
-                                        src={
-                                            info.logo_params
-                                                ? bucket_image_url(
-                                                      ...info.logo_params,
-                                                  )
-                                                : info.logo
-                                        }
-                                    />
-                                </td>
-                                <td className="hide-mobile">
-                                    <a
-                                        href={`https://dashboard.internetcomputer.org/canister/${canisterId}`}
-                                        target="_blank"
-                                    >
-                                        {canisterId}
-                                    </a>
-                                </td>
-
-                                <td
-                                    style={{ textAlign: "right", width: "99%" }}
-                                >
-                                    <ButtonWithLoading
-                                        classNameArg="send"
-                                        onClick={() =>
-                                            loadIcrc1CanisterBalances(
-                                                canisterId,
-                                                true,
-                                            )
-                                        }
-                                        label={<Repost></Repost>}
-                                    ></ButtonWithLoading>
-                                </td>
-                                <td>
-                                    <ButtonWithLoading
-                                        classNameArg="send"
-                                        onClick={() =>
-                                            icrcTransferPrompts(
-                                                canisterId,
-                                                info,
-                                            )
-                                        }
-                                        label={"Send"}
-                                    ></ButtonWithLoading>
-                                </td>
-                                <td>
-                                    <span className="monospace">{`${(+canisterBalances[canisterId] / Math.pow(10, info.decimals))?.toFixed(info.decimals)}`}</span>
-                                </td>
-                                <td>
-                                    <CopyToClipboard
-                                        value={user.principal}
-                                        displayMap={() => `Receive`}
-                                    ></CopyToClipboard>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <div className="column_container">
+                    {icrc1Canisters.map(([canisterId, info]) => (
+                        <div className="vcentered" key={canisterId}>
+                            <img
+                                style={{
+                                    height: 32,
+                                    width: 32,
+                                    verticalAlign: "middle",
+                                }}
+                                src={
+                                    info.logo_params
+                                        ? bucket_image_url(...info.logo_params)
+                                        : info.logo
+                                }
+                            />
+                            <span className="monospace">{info.symbol}</span>
+                            <div className="max_width_col"></div>
+                            <code className="right_spaced">
+                                {(
+                                    Number(canisterBalances[canisterId]) /
+                                    Math.pow(10, info.decimals)
+                                )?.toFixed(info.decimals)}
+                            </code>
+                            <ButtonWithLoading
+                                classNameArg="send"
+                                onClick={() =>
+                                    icrcTransferPrompts(canisterId, info)
+                                }
+                                label={"Send"}
+                            ></ButtonWithLoading>
+                        </div>
+                    ))}
+                </div>
             )}
         </>
     );
