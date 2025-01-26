@@ -22,6 +22,7 @@ import {
     FlagButton,
     ReportBanner,
     tokens,
+    bucket_image_url,
     currentRealm,
     parseNumber,
     noiseControlBanner,
@@ -45,7 +46,6 @@ import {
 import { ProposalView } from "./proposals";
 import { Feature, Post, PostId, Realm, UserId } from "./types";
 import { UserLink, UserList, populateUserNameCache } from "./user_resolve";
-import { bucket_image_url } from "./util";
 
 export const PostView = ({
     id,

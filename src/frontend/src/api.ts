@@ -122,16 +122,18 @@ export const ApiGenerator = (
             console.error(err);
         });
 
-    const icrc_canisters: Map<string, IcrcLedgerCanister> = new Map();
+    const agentCache: Map<string, IcrcLedgerCanister> = new Map();
     const getIcrcCanister = (canisterId: string) => {
-        const canisterAgent = icrc_canisters.get(canisterId);
+        const canisterAgent = agentCache.get(canisterId);
         if (canisterAgent) {
             return canisterAgent;
         }
-        return IcrcLedgerCanister.create({
+        const canister = IcrcLedgerCanister.create({
             canisterId: Principal.from(canisterId),
             agent,
         });
+        agentCache.set(canisterId, canister);
+        return canister;
     };
 
     const query_raw = async (
@@ -509,7 +511,6 @@ export const ApiGenerator = (
         icrc_metadata: async (canisterId: string) => {
             try {
                 const canister = getIcrcCanister(canisterId);
-                // console.log(canister.metadata)
                 const meta = await canister.metadata({
                     certified: false,
                 });

@@ -1139,10 +1139,6 @@ label svg {
     .prime h1 {
         font-size: 200%;
     }
-
-    .hide-mobile {
-        display: none;
-    }
 }
 
 .bottom_spaced {
@@ -1170,23 +1166,4 @@ div.thumbnails {
     justify-content: center;
     margin-top: 0.4em;
     padding: 0.1em 0 0.1em 0;
-}
-
-.icrc1-canisters {
-    display: table;
-    width: 100%;
-    margin: 0;
-}
-
-.icrc1-canisters td {
-    padding: 0 0.25rem 0.125rem 0;
-    white-space: nowrap;
-}
-.icrc1-canisters td:last-of-type {
-    padding: 0;
-}
-
-.icrc1-canisters button.send {
-    padding-top: 0.4em;
-    padding-bottom: 0.4em;
 }
