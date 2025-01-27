@@ -1,4 +1,5 @@
 use super::{post_iterators::IteratorMerger, reports::Report, *};
+use api::management_canister::main::CanisterId;
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT};
 use serde::{Deserialize, Serialize};
 
@@ -144,6 +145,8 @@ pub struct User {
     pub pfp: Pfp,
     #[serde(default)]
     pub deactivated: bool,
+    #[serde(default)]
+    icrc1_canister_ids: Option<Vec<CanisterId>>,
 }
 
 impl User {
@@ -234,6 +237,7 @@ impl User {
             mode: Mode::default(),
             pfp: Default::default(),
             deactivated: false,
+            icrc1_canister_ids: Default::default(),
         }
     }
 
@@ -634,6 +638,25 @@ impl User {
 
         Ok(())
     }
+
+    pub fn update_icrc1_canisters(
+        caller: Principal,
+        icrc1_canister_ids: Vec<CanisterId>,
+    ) -> Result<(), String> {
+        let unique_ids: HashSet<CanisterId> = icrc1_canister_ids.clone().into_iter().collect();
+        if unique_ids.len() != icrc1_canister_ids.len() {
+            return Err("canister ids are not unique".into());
+        }
+        if icrc1_canister_ids.len() > 250 {
+            return Err("too many canisters".into());
+        }
+        mutate(|state| {
+            if let Some(user) = state.principal_to_user_mut(caller) {
+                user.icrc1_canister_ids = Some(icrc1_canister_ids);
+            }
+        });
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -807,5 +830,24 @@ mod tests {
         assert!(u.change_credits(155, CreditsDelta::Minus, "").is_ok());
         assert_eq!(u.take_credits_burned(), 0);
         assert_eq!(u.credits(), 0);
+    }
+
+    #[test]
+    fn test_update_icrc1_canisters() {
+        User::new(pr(2), 66, 0, Default::default());
+        assert!(User::update_icrc1_canisters(pr(1), vec![pr(2)]).is_ok());
+
+        // Unique canisters
+        assert_eq!(
+            User::update_icrc1_canisters(pr(1), vec![pr(2), pr(2)]),
+            Err("canister ids are not unique".into())
+        );
+
+        // More than 250 caniters
+        let canisters = (0..251).map(pr).collect();
+        assert_eq!(
+            User::update_icrc1_canisters(pr(1), canisters),
+            Err("too many canisters".into())
+        );
     }
 }
