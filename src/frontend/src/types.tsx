@@ -268,6 +268,7 @@ export type User = {
     mode: Mode;
     pfp: PFP;
     deactivated: boolean;
+    icrc1_canister_ids: string[];
 };
 
 export type Report = {

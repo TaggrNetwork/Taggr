@@ -15,6 +15,7 @@ use ic_cdk::{
     api::{
         self,
         call::{arg_data_raw, reply_raw},
+        management_canister::main::CanisterId,
     },
     spawn,
 };
@@ -235,6 +236,12 @@ fn update_user() {
 fn update_user_settings() {
     let settings: std::collections::BTreeMap<String, String> = parse(&arg_data_raw());
     reply(User::update_settings(caller(), settings))
+}
+
+#[export_name = "canister_update update_user_icrc_canisters"]
+fn update_user_icrc_canisters() {
+    let icrc1_canister_ids: Vec<CanisterId> = parse(&arg_data_raw());
+    reply(User::update_icrc1_canisters(caller(), icrc1_canister_ids))
 }
 
 #[export_name = "canister_update create_feature"]
