@@ -1139,11 +1139,3 @@ export function bucket_image_url(
         (MAINNET_MODE ? "" : `&canisterId=${bucket_id}`)
     );
 }
-
-export function promiseAllSettled<T>(fns: Array<() => Promise<T | null>>) {
-    return Promise.allSettled(fns.map((fn) => fn())).then((responses) =>
-        responses.map((response) =>
-            response.status === "fulfilled" ? response.value : null,
-        ),
-    );
-}
