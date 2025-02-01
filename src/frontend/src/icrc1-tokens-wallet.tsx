@@ -1,12 +1,8 @@
 import * as React from "react";
-import {
-    ButtonWithLoading,
-    bucket_image_url,
-    promiseAllSettled,
-} from "./common";
+import { ButtonWithLoading, bucket_image_url } from "./common";
 import { Principal } from "@dfinity/principal";
 import { Icrc1Canister } from "./types";
-import { Repost } from "./icons";
+import { Add, Repost } from "./icons";
 
 export const Icrc1TokensWallet = () => {
     const [user] = React.useState(window.user);
@@ -29,7 +25,7 @@ export const Icrc1TokensWallet = () => {
 
         // Add missing user canisters key for metadata
         const missingMetaCanisterIds =
-            user.icrc1_canister_ids?.filter(
+            user.wallet_tokens?.filter(
                 (canisterId) => !canistersFromStorageMap.has(canisterId),
             ) || [];
 
@@ -37,8 +33,8 @@ export const Icrc1TokensWallet = () => {
             return canistersFromStorageMap;
         }
 
-        // Load missing netadata
-        await promiseAllSettled(
+        // Load missing metadata
+        await Promise.all(
             missingMetaCanisterIds.map(
                 (canisterId) => () =>
                     window.api.icrc_metadata(canisterId).then((meta) => {
@@ -87,7 +83,7 @@ export const Icrc1TokensWallet = () => {
             (user && (forceRefresh || Object.keys(balances).length === 0)) ||
             isOld
         ) {
-            await promiseAllSettled(
+            await Promise.all(
                 [...canisters.keys()]
                     .filter(
                         (canisterId) =>
@@ -149,7 +145,7 @@ export const Icrc1TokensWallet = () => {
             canisters.set(canisterId, meta);
 
             const response = await window.api.call<any>(
-                "update_user_icrc_canisters",
+                "update_wallet_tokens",
                 [...canisters.keys()],
             );
             if (response?.Err) {
@@ -203,7 +199,7 @@ export const Icrc1TokensWallet = () => {
                 <h2 className="max_width_col">ICRC1 TOKENS</h2>
                 <ButtonWithLoading
                     onClick={addIcrc1CanisterPrompt}
-                    label={"Add token"}
+                    label={<Add />}
                 ></ButtonWithLoading>
                 <ButtonWithLoading
                     title="Refresh balances"
@@ -227,7 +223,9 @@ export const Icrc1TokensWallet = () => {
                                         : info.logo
                                 }
                             />
-                            <span className="monospace">{info.symbol}</span>
+                            <span className="left_half_spaced monospace">
+                                {info.symbol}
+                            </span>
                             <div className="max_width_col"></div>
                             <code className="right_spaced">
                                 {(

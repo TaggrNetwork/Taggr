@@ -22,7 +22,7 @@ use ic_cdk::{
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 use user::Pfp;
 
 #[init]
@@ -238,10 +238,10 @@ fn update_user_settings() {
     reply(User::update_settings(caller(), settings))
 }
 
-#[export_name = "canister_update update_user_icrc_canisters"]
-fn update_user_icrc_canisters() {
-    let icrc1_canister_ids: Vec<CanisterId> = parse(&arg_data_raw());
-    reply(User::update_icrc1_canisters(caller(), icrc1_canister_ids))
+#[export_name = "canister_update update_wallet_tokens"]
+fn update_wallet_tokens() {
+    let ids: HashSet<CanisterId> = parse(&arg_data_raw());
+    reply(User::update_wallet_tokens(caller(), ids))
 }
 
 #[export_name = "canister_update create_feature"]

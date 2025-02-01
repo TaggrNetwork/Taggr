@@ -268,7 +268,7 @@ export type User = {
     mode: Mode;
     pfp: PFP;
     deactivated: boolean;
-    icrc1_canister_ids: string[];
+    wallet_tokens: string[];
 };
 
 export type Report = {

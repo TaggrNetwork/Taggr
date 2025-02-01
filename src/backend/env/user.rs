@@ -67,9 +67,6 @@ pub struct UserFilter {
     safe: bool,
     balance: Token,
     num_followers: usize,
-    // TODO: delete
-    #[serde(skip)]
-    downvotes: usize,
 }
 
 impl UserFilter {
@@ -133,9 +130,6 @@ pub struct User {
     pub previous_names: Vec<String>,
     pub governance: bool,
     pub notifications: BTreeMap<u64, (Notification, bool)>,
-    // TODO: delete
-    #[serde(skip)]
-    pub downvotes: BTreeMap<UserId, Time>,
     pub show_posts_in_realms: bool,
     pub posts: Vec<PostId>,
     pub controlled_realms: HashSet<RealmId>,
@@ -146,7 +140,7 @@ pub struct User {
     #[serde(default)]
     pub deactivated: bool,
     #[serde(default)]
-    icrc1_canister_ids: Option<Vec<CanisterId>>,
+    wallet_tokens: HashSet<CanisterId>,
 }
 
 impl User {
@@ -178,7 +172,6 @@ impl User {
             safe: !self.controversial(time()),
             balance: self.total_balance() / token::base(),
             num_followers: self.followers.len(),
-            downvotes: self.downvotes.len(),
         }
     }
 
@@ -232,12 +225,11 @@ impl User {
             cold_wallet: None,
             cold_balance: 0,
             governance: true,
-            downvotes: Default::default(),
             show_posts_in_realms: true,
             mode: Mode::default(),
             pfp: Default::default(),
             deactivated: false,
-            icrc1_canister_ids: Default::default(),
+            wallet_tokens: Default::default(),
         }
     }
 
@@ -639,20 +631,13 @@ impl User {
         Ok(())
     }
 
-    pub fn update_icrc1_canisters(
-        caller: Principal,
-        icrc1_canister_ids: Vec<CanisterId>,
-    ) -> Result<(), String> {
-        let unique_ids: HashSet<CanisterId> = icrc1_canister_ids.clone().into_iter().collect();
-        if unique_ids.len() != icrc1_canister_ids.len() {
-            return Err("canister ids are not unique".into());
-        }
-        if icrc1_canister_ids.len() > 250 {
-            return Err("too many canisters".into());
+    pub fn update_wallet_tokens(caller: Principal, ids: HashSet<CanisterId>) -> Result<(), String> {
+        if ids.len() > 250 {
+            return Err("too many tokens".into());
         }
         mutate(|state| {
             if let Some(user) = state.principal_to_user_mut(caller) {
-                user.icrc1_canister_ids = Some(icrc1_canister_ids);
+                user.wallet_tokens = ids;
             }
         });
         Ok(())
@@ -674,11 +659,9 @@ mod tests {
             safe: false,
             balance: 333,
             num_followers: 34,
-            downvotes: 0,
         }
         .passes(&UserFilter {
             age_days: 7,
-            downvotes: 0,
             safe: true,
             balance: 1,
             num_followers: 0
@@ -686,7 +669,6 @@ mod tests {
 
         assert!(UserFilter {
             age_days: 12,
-            downvotes: 0,
             safe: false,
             balance: 333,
             num_followers: 34
@@ -694,14 +676,12 @@ mod tests {
         .passes(&UserFilter {
             age_days: 7,
             safe: false,
-            downvotes: 0,
             balance: 1,
             num_followers: 0
         }));
 
         assert!(UserFilter {
             age_days: 12,
-            downvotes: 0,
             safe: true,
             balance: 333,
             num_followers: 34
@@ -709,7 +689,6 @@ mod tests {
         .passes(&UserFilter {
             age_days: 7,
             safe: true,
-            downvotes: 0,
             balance: 1,
             num_followers: 0
         }));
@@ -717,14 +696,12 @@ mod tests {
         assert!(!UserFilter {
             age_days: 12,
             safe: true,
-            downvotes: 0,
             balance: 333,
             num_followers: 34
         }
         .passes(&UserFilter {
             age_days: 7,
             safe: false,
-            downvotes: 0,
             balance: 777,
             num_followers: 0
         }));
@@ -732,14 +709,12 @@ mod tests {
         assert!(UserFilter {
             age_days: 12,
             safe: true,
-            downvotes: 0,
             balance: 333,
             num_followers: 34
         }
         .passes(&UserFilter {
             age_days: 7,
             safe: false,
-            downvotes: 0,
             balance: 1,
             num_followers: 0
         }));
@@ -747,14 +722,12 @@ mod tests {
         assert!(!UserFilter {
             age_days: 12,
             safe: true,
-            downvotes: 0,
             balance: 333,
             num_followers: 34
         }
         .passes(&UserFilter {
             age_days: 7,
             safe: false,
-            downvotes: 0,
             balance: 1,
             num_followers: 35
         }));
@@ -833,21 +806,15 @@ mod tests {
     }
 
     #[test]
-    fn test_update_icrc1_canisters() {
+    fn test_update_weallet_tokens() {
         User::new(pr(2), 66, 0, Default::default());
-        assert!(User::update_icrc1_canisters(pr(1), vec![pr(2)]).is_ok());
-
-        // Unique canisters
-        assert_eq!(
-            User::update_icrc1_canisters(pr(1), vec![pr(2), pr(2)]),
-            Err("canister ids are not unique".into())
-        );
+        assert!(User::update_wallet_tokens(pr(1), vec![pr(2)].into_iter().collect()).is_ok());
 
         // More than 250 caniters
         let canisters = (0..251).map(pr).collect();
         assert_eq!(
-            User::update_icrc1_canisters(pr(1), canisters),
-            Err("too many canisters".into())
+            User::update_wallet_tokens(pr(1), canisters),
+            Err("too many tokens".into())
         );
     }
 }
