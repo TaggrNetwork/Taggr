@@ -189,7 +189,10 @@ export const Icrc1TokensWallet = () => {
             {icrc1Canisters.length > 0 && (
                 <div className="column_container">
                     {icrc1Canisters.map(([canisterId, info]) => (
-                        <div className="vcentered" key={canisterId}>
+                        <div
+                            className="vcentered bottom_spaced"
+                            key={canisterId}
+                        >
                             <img
                                 style={{
                                     height: 32,
