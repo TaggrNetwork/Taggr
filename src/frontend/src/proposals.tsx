@@ -606,7 +606,13 @@ export const ProposalView = ({
                             )
                         )
                             return;
-                        await window.api.call("cancel_proposal", proposal.id);
+                        const result: any = await window.api.call(
+                            "cancel_proposal",
+                            proposal.id,
+                        );
+                        if ("Err" in result) {
+                            alert(`Error: ${result.Err}`);
+                        }
                         await loadState();
                     }}
                     classNameArg="top_spaced max_width_col large_text"

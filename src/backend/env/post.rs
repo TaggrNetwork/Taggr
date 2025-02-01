@@ -550,7 +550,7 @@ impl Post {
         }
 
         let user_id = user.id;
-        let controversial = user.controversial();
+        let controversial = user.controversial(timestamp);
         let user_balance = user.balance;
         let tags = tags(CONFIG.max_tag_length, &body).collect::<BTreeSet<_>>();
         let mut post = Post::new(
