@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ButtonWithLoading, bucket_image_url } from "./common";
+import { ButtonWithLoading, Loading, bucket_image_url } from "./common";
 import { Principal } from "@dfinity/principal";
 import { Icrc1Canister } from "./types";
 import { Add, Repost } from "./icons";
@@ -210,10 +210,14 @@ export const Icrc1TokensWallet = () => {
                             </span>
                             <div className="max_width_col"></div>
                             <code className="right_spaced">
-                                {(
-                                    Number(canisterBalances[canisterId]) /
-                                    Math.pow(10, info.decimals)
-                                )?.toFixed(info.decimals)}
+                                {isNaN(Number(canisterBalances[canisterId])) ? (
+                                    <Loading spaced={false} />
+                                ) : (
+                                    (
+                                        Number(canisterBalances[canisterId]) /
+                                        Math.pow(10, info.decimals)
+                                    )?.toFixed(info.decimals)
+                                )}
                             </code>
                             <ButtonWithLoading
                                 classNameArg="send"
