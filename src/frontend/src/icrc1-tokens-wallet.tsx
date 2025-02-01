@@ -7,8 +7,6 @@ import { Add, Repost } from "./icons";
 export const Icrc1TokensWallet = () => {
     const [user] = React.useState(window.user);
     const USER_CANISTERS_KEY = `user:${user?.id}_canisters`;
-    const USER_BALANCES_KEY = `user:${user?.id}_canister_balances`;
-    const USER_BALANCES_KEY_AGE = `user:${user?.id}_canister_balances_age`;
     const [icrc1Canisters, setIcrc1Canisters] = React.useState<
         Array<[string, Icrc1Canister]>
     >([]);
@@ -37,11 +35,14 @@ export const Icrc1TokensWallet = () => {
         await Promise.all(
             missingMetaCanisterIds.map(
                 (canisterId) => () =>
-                    window.api.icrc_metadata(canisterId).then((meta) => {
-                        if (meta) {
-                            canistersFromStorageMap.set(canisterId, meta);
-                        }
-                    }),
+                    window.api
+                        .icrc_metadata(canisterId)
+                        .then((meta) => {
+                            if (meta) {
+                                canistersFromStorageMap.set(canisterId, meta);
+                            }
+                        })
+                        .catch(console.error),
             ),
         );
 
@@ -53,14 +54,6 @@ export const Icrc1TokensWallet = () => {
         return canistersFromStorageMap;
     };
 
-    const getBalancesLocal = () => {
-        return (
-            (JSON.parse(
-                localStorage.getItem(USER_BALANCES_KEY) || (null as any),
-            ) as unknown as { [key: string]: string }) || {}
-        );
-    };
-
     const loadIcrc1Canisters = async () => {
         const canisters = await getCanistersMetaData();
         setIcrc1Canisters([...canisters.entries()]);
@@ -68,46 +61,32 @@ export const Icrc1TokensWallet = () => {
         loadIcrc1CanisterBalances();
     };
 
-    const loadIcrc1CanisterBalances = async (
-        forCanisterId?: string,
-        forceRefresh = false,
-    ) => {
-        const balances: { [key: string]: string } = getBalancesLocal();
-        const balancesAge = localStorage.getItem(USER_BALANCES_KEY_AGE);
-        const hourAgo = new Date();
-        hourAgo.setHours(hourAgo.getHours() - 1);
-        const isOld = !balancesAge || new Date(balancesAge) < hourAgo;
+    const loadIcrc1CanisterBalances = async (forCanisterId?: string) => {
+        const balances: { [key: string]: string } = { ...canisterBalances };
 
         const canisters = await getCanistersMetaData();
-        if (
-            (user && (forceRefresh || Object.keys(balances).length === 0)) ||
-            isOld
-        ) {
+        if (user) {
             await Promise.all(
                 [...canisters.keys()]
                     .filter(
                         (canisterId) =>
                             !forCanisterId || forCanisterId === canisterId,
                     )
-                    .map(
-                        (canisterId) => () =>
-                            window.api
-                                .account_balance(Principal.from(canisterId), {
-                                    owner: Principal.from(user.principal),
-                                })
-                                .then(
-                                    (balance) =>
-                                        (balances[canisterId] =
-                                            new Number(balance).toString() ||
-                                            "0"),
-                                )
-                                .catch(() => (balances[canisterId] = "NaN")),
+                    .map((canisterId) =>
+                        window.api
+                            .account_balance(Principal.from(canisterId), {
+                                owner: Principal.from(user.principal),
+                            })
+                            .then(
+                                (balance) =>
+                                    (balances[canisterId] =
+                                        new Number(balance).toString() || "0"),
+                            )
+                            .catch((error) => {
+                                console.error(error);
+                                balances[canisterId] = "NaN";
+                            }),
                     ),
-            );
-            localStorage.setItem(USER_BALANCES_KEY, JSON.stringify(balances));
-            localStorage.setItem(
-                USER_BALANCES_KEY_AGE,
-                new Date().toISOString(),
             );
         }
         setCanisterBalances(balances);
@@ -158,7 +137,7 @@ export const Icrc1TokensWallet = () => {
 
             setIcrc1Canisters(entries);
 
-            await loadIcrc1CanisterBalances(canisterId, true);
+            await loadIcrc1CanisterBalances(canisterId);
         } catch (error: any) {
             alert(error?.message || "Failed to add token to your wallet");
         }
@@ -186,7 +165,7 @@ export const Icrc1TokensWallet = () => {
                     amount as number,
                     info.fee,
                 );
-                await loadIcrc1CanisterBalances(canisterId, true);
+                await loadIcrc1CanisterBalances(canisterId);
             }
         } catch (e: any) {
             alert(e.message);
@@ -203,7 +182,7 @@ export const Icrc1TokensWallet = () => {
                 ></ButtonWithLoading>
                 <ButtonWithLoading
                     title="Refresh balances"
-                    onClick={() => loadIcrc1CanisterBalances(undefined, true)}
+                    onClick={loadIcrc1CanisterBalances}
                     label={<Repost />}
                 ></ButtonWithLoading>
             </div>
