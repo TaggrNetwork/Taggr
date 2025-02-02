@@ -33,16 +33,15 @@ export const Icrc1TokensWallet = () => {
 
         // Load missing metadata
         await Promise.all(
-            missingMetaCanisterIds.map(
-                (canisterId) => () =>
-                    window.api
-                        .icrc_metadata(canisterId)
-                        .then((meta) => {
-                            if (meta) {
-                                canistersFromStorageMap.set(canisterId, meta);
-                            }
-                        })
-                        .catch(console.error),
+            missingMetaCanisterIds.map((canisterId) =>
+                window.api
+                    .icrc_metadata(canisterId)
+                    .then((meta) => {
+                        if (meta) {
+                            canistersFromStorageMap.set(canisterId, meta);
+                        }
+                    })
+                    .catch(console.error),
             ),
         );
 
@@ -155,16 +154,24 @@ export const Icrc1TokensWallet = () => {
                 return;
             }
 
-            const amount: number =
-                +(prompt(`Amount ${info.symbol} to send`) as any) || 0;
+            const amount: number = +(
+                prompt(
+                    `Amount ${info.symbol} to send, (fee: ${(info.fee / Math.pow(10, info.decimals)).toString()})`,
+                    (0).toFixed(info.decimals),
+                ) || 0
+            );
 
             if (toPrincipal && amount) {
-                await window.api.icrc_transfer(
+                const amountOrError = await window.api.icrc_transfer(
                     Principal.fromText(canisterId),
                     toPrincipal,
-                    amount as number,
+                    +Math.floor(amount * Math.pow(10, info.decimals)),
                     info.fee,
                 );
+                if (isNaN(+amountOrError)) {
+                    return alert(amountOrError);
+                }
+
                 await loadIcrc1CanisterBalances(canisterId);
             }
         } catch (e: any) {
