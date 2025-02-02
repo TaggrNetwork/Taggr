@@ -534,11 +534,15 @@ export const ApiGenerator = (
                             ) as unknown as { Nat: number }
                         ).Nat,
                     ).valueOf(),
-                    logo: (
-                        m.get(IcrcMetadataResponseEntries.LOGO) as unknown as {
-                            Text: string;
-                        }
-                    ).Text,
+                    logo:
+                        (
+                            m.get(
+                                IcrcMetadataResponseEntries.LOGO,
+                            ) as unknown as {
+                                Text: string;
+                            }
+                        )?.Text ||
+                        `https://wqfao-piaaa-aaaag-qj5ba-cai.raw.icp0.io/${canisterId}`,
                     name: (
                         m.get(IcrcMetadataResponseEntries.NAME) as unknown as {
                             Text: string;
