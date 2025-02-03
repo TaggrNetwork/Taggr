@@ -1139,3 +1139,9 @@ export function bucket_image_url(
         (MAINNET_MODE ? "" : `&canisterId=${bucket_id}`)
     );
 }
+
+export function createChunks<T>(arr: T[], size: number) {
+    return [...Array(Math.ceil(arr.length / size))].map((_, i) =>
+        arr.slice(size * i, size + size * i),
+    );
+}
