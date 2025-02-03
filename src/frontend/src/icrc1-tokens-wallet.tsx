@@ -1,24 +1,70 @@
 import * as React from "react";
-import { ButtonWithLoading, Loading, bucket_image_url } from "./common";
+import {
+    ButtonWithLoading,
+    Loading,
+    bucket_image_url,
+    createChunks,
+} from "./common";
 import { Principal } from "@dfinity/principal";
 import { Icrc1Canister } from "./types";
-import { Add, Repost } from "./icons";
+import { Add, Repost, Trash } from "./icons";
 
 export const Icrc1TokensWallet = () => {
     const [user] = React.useState(window.user);
-    const USER_CANISTERS_KEY = `user:${user?.id}_canisters`;
+    const getUserCanisterKey = (canisterId: string) =>
+        `canister:${canisterId}:user:${user?.id}`;
     const [icrc1Canisters, setIcrc1Canisters] = React.useState<
         Array<[string, Icrc1Canister]>
     >([]);
     const [canisterBalances, setCanisterBalances] = React.useState<{
         [key: string]: string;
     }>({});
+    const [hideZeroBalance, setHideZeroBalance] = React.useState(false);
+
+    const filterCanisters = (
+        canisters: Array<[string, Icrc1Canister]>,
+        _hideZeroBalance = hideZeroBalance,
+    ) => {
+        if (_hideZeroBalance) {
+            return canisters.filter(
+                ([canisterId]) => +canisterBalances[canisterId] > 0,
+            );
+        }
+        return canisters;
+    };
+
+    const getLocalCanistersMetaData = (): Array<[string, Icrc1Canister]> => {
+        return (user?.wallet_tokens || [])
+            .map((canisterId) => {
+                try {
+                    const canisterMeta: Icrc1Canister | null = JSON.parse(
+                        localStorage.getItem(
+                            getUserCanisterKey(canisterId),
+                        ) as string,
+                    );
+                    if (
+                        !canisterMeta?.symbol ||
+                        !canisterMeta?.name ||
+                        isNaN(canisterMeta?.decimals) ||
+                        isNaN(canisterMeta?.fee)
+                    ) {
+                        return null;
+                    }
+                    return [canisterId, canisterMeta] as [
+                        string,
+                        Icrc1Canister,
+                    ];
+                } catch {
+                    return null;
+                }
+            })
+            .filter((r) => !!r);
+    };
 
     const getCanistersMetaData = async () => {
+        // Add missing user canisters key for metadata
         const canistersFromStorageMap = new Map<string, Icrc1Canister>(
-            (JSON.parse(
-                localStorage.getItem(USER_CANISTERS_KEY) || (null as any),
-            ) as unknown as Array<[string, Icrc1Canister]>) || [],
+            getLocalCanistersMetaData(),
         );
 
         // Add missing user canisters key for metadata
@@ -31,47 +77,39 @@ export const Icrc1TokensWallet = () => {
             return canistersFromStorageMap;
         }
 
+        const chunks = createChunks(missingMetaCanisterIds, 5);
         // Load missing metadata
-        await Promise.all(
-            missingMetaCanisterIds.map((canisterId) =>
-                window.api
-                    .icrc_metadata(canisterId)
-                    .then((meta) => {
-                        if (meta) {
-                            canistersFromStorageMap.set(canisterId, meta);
-                        }
-                    })
-                    .catch(console.error),
-            ),
-        );
-
-        localStorage.setItem(
-            USER_CANISTERS_KEY,
-            JSON.stringify([...canistersFromStorageMap.entries()]),
-        );
+        for (const chunk of chunks) {
+            await Promise.all(
+                chunk.map((canisterId) =>
+                    window.api
+                        .icrc_metadata(canisterId)
+                        .then((meta) => {
+                            if (meta) {
+                                canistersFromStorageMap.set(canisterId, meta);
+                                localStorage.setItem(
+                                    getUserCanisterKey(canisterId),
+                                    JSON.stringify(meta),
+                                );
+                            }
+                        })
+                        .catch(console.error),
+                ),
+            );
+        }
 
         return canistersFromStorageMap;
     };
 
-    const loadIcrc1Canisters = async () => {
-        const canisters = await getCanistersMetaData();
-        setIcrc1Canisters([...canisters.entries()]);
-
-        loadIcrc1CanisterBalances();
-    };
-
-    const loadIcrc1CanisterBalances = async (forCanisterId?: string) => {
+    /** Load balances of user canisters in small batches to avoid spikes */
+    const loadBalances = async (canisterIds: string[]) => {
         const balances: { [key: string]: string } = { ...canisterBalances };
+        const chunks = createChunks(canisterIds, 5);
 
-        const canisters = await getCanistersMetaData();
         if (user) {
-            await Promise.all(
-                [...canisters.keys()]
-                    .filter(
-                        (canisterId) =>
-                            !forCanisterId || forCanisterId === canisterId,
-                    )
-                    .map((canisterId) =>
+            for (const chunk of chunks) {
+                await Promise.all(
+                    chunk.map((canisterId) =>
                         window.api
                             .account_balance(Principal.from(canisterId), {
                                 owner: Principal.from(user.principal),
@@ -86,16 +124,29 @@ export const Icrc1TokensWallet = () => {
                                 balances[canisterId] = "NaN";
                             }),
                     ),
-            );
+                );
+            }
         }
+
         setCanisterBalances(balances);
     };
 
+    const loadAllBalances = async () => {
+        const canisters = await getCanistersMetaData();
+        await loadBalances([...canisters.keys()]);
+    };
+
+    const initialLoad = async () => {
+        const canisters = await getCanistersMetaData();
+        setIcrc1Canisters(filterCanisters([...canisters.entries()]));
+
+        loadBalances([...canisters.keys()]);
+    };
     let loading = false;
     React.useEffect(() => {
         if (!loading) {
             loading = true;
-            loadIcrc1Canisters().finally(() => (loading = false));
+            initialLoad().finally(() => (loading = false));
         }
     }, []);
 
@@ -107,11 +158,12 @@ export const Icrc1TokensWallet = () => {
         try {
             Principal.fromText(canisterId);
 
-            const canisters = await getCanistersMetaData();
-            const existingCanister = canisters.get(canisterId);
-            if (existingCanister) {
+            if (user?.wallet_tokens?.includes(canisterId)) {
+                const canisterMeta = JSON.parse(
+                    localStorage.getItem(getUserCanisterKey(canisterId)) || "",
+                );
                 return alert(
-                    `Token ${existingCanister.symbol} was already added`,
+                    `Token ${canisterMeta?.symbol || canisterId} was already added`,
                 );
             }
 
@@ -120,23 +172,59 @@ export const Icrc1TokensWallet = () => {
                 throw new Error("Could not find Icrc1 canister data");
             }
 
-            canisters.set(canisterId, meta);
-
+            // Set global user, avoid callbacks
+            user.wallet_tokens = [...user?.wallet_tokens, canisterId];
             const response = await window.api.call<any>(
                 "update_wallet_tokens",
-                [...canisters.keys()],
+                user.wallet_tokens,
             );
             if (response?.Err) {
                 return alert(response.Err);
             }
 
-            const entries = [...canisters.entries()];
+            localStorage.setItem(
+                getUserCanisterKey(canisterId),
+                JSON.stringify(meta),
+            );
+            await loadBalances([canisterId]);
 
-            localStorage.setItem(USER_CANISTERS_KEY, JSON.stringify(entries));
+            setIcrc1Canisters(
+                filterCanisters([...icrc1Canisters, [canisterId, meta]]),
+            );
+        } catch (error: any) {
+            alert(error?.message || "Failed to add token to your wallet");
+        }
+    };
 
-            setIcrc1Canisters(entries);
+    const removeIcrc1CanisterPrompt = async () => {
+        const canisterId = prompt(`Icrc1 canister id`) || "";
+        if (!canisterId) {
+            return;
+        }
+        try {
+            Principal.fromText(canisterId);
 
-            await loadIcrc1CanisterBalances(canisterId);
+            if (!user?.wallet_tokens?.includes(canisterId)) {
+                return alert(`Token ${canisterId} is not in your list`);
+            }
+
+            // Set global user, avoid callbacks
+            user.wallet_tokens = user.wallet_tokens.filter(
+                (id) => id !== canisterId,
+            );
+            const response = await window.api.call<any>(
+                "update_wallet_tokens",
+                user.wallet_tokens,
+            );
+            if (response?.Err) {
+                return alert(response.Err);
+            }
+
+            localStorage.removeItem(getUserCanisterKey(canisterId));
+
+            setIcrc1Canisters(
+                icrc1Canisters.filter(([id]) => id !== canisterId),
+            );
         } catch (error: any) {
             alert(error?.message || "Failed to add token to your wallet");
         }
@@ -172,7 +260,7 @@ export const Icrc1TokensWallet = () => {
                     return alert(amountOrError);
                 }
 
-                await loadIcrc1CanisterBalances(canisterId);
+                await loadBalances([canisterId]);
             }
         } catch (e: any) {
             alert(e.message);
@@ -183,14 +271,44 @@ export const Icrc1TokensWallet = () => {
         <>
             <div className="vcentered bottom_spaced">
                 <h2 className="max_width_col">ICRC1 TOKENS</h2>
+                <div className="vcentered">
+                    <input
+                        id="canisters-hide-zero-balance"
+                        type="checkbox"
+                        checked={hideZeroBalance}
+                        onChange={async () => {
+                            const canisters = [
+                                ...(await getCanistersMetaData()),
+                            ];
+                            const filteredCanisters = filterCanisters(
+                                canisters,
+                                !hideZeroBalance,
+                            );
+                            setHideZeroBalance(!hideZeroBalance);
+                            setIcrc1Canisters(filteredCanisters);
+                        }}
+                    />
+                    <label
+                        className="right_half_spaced"
+                        htmlFor="canisters-hide-zero-balance"
+                    >
+                        Hide 0 Balance
+                    </label>
+                </div>
                 <ButtonWithLoading
                     onClick={addIcrc1CanisterPrompt}
                     label={<Add />}
+                    title="Add token"
                 ></ButtonWithLoading>
                 <ButtonWithLoading
                     title="Refresh balances"
-                    onClick={loadIcrc1CanisterBalances}
+                    onClick={loadAllBalances}
                     label={<Repost />}
+                ></ButtonWithLoading>
+                <ButtonWithLoading
+                    onClick={removeIcrc1CanisterPrompt}
+                    label={<Trash />}
+                    title="Remove token"
                 ></ButtonWithLoading>
             </div>
             {icrc1Canisters.length > 0 && (
