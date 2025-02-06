@@ -125,9 +125,11 @@ export const Icrc1TokensWallet = () => {
                             }),
                     ),
                 );
+                if (chunks.length !== 1 && chunks.at(-1) !== chunk) {
+                    setCanisterBalances({ ...balances }); // Add to the view
+                }
             }
         }
-
         setCanisterBalances(balances);
     };
 
@@ -250,6 +252,13 @@ export const Icrc1TokensWallet = () => {
             );
 
             if (toPrincipal && amount) {
+                const proceed = confirm(
+                    `Transfer ${amount} ${info.symbol} to ${toPrincipal}?`,
+                );
+                if (!proceed) {
+                    return;
+                }
+
                 const amountOrError = await window.api.icrc_transfer(
                     Principal.fromText(canisterId),
                     toPrincipal,
