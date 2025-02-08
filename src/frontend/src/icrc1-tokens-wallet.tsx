@@ -153,7 +153,7 @@ export const Icrc1TokensWallet = () => {
     }, []);
 
     const addIcrc1CanisterPrompt = async () => {
-        const canisterId = prompt(`Icrc1 canister id`) || "";
+        const canisterId = prompt(`ICRC-1 canister id:`) || "";
         if (!canisterId) {
             return;
         }
@@ -175,7 +175,7 @@ export const Icrc1TokensWallet = () => {
             }
 
             // Set global user, avoid callbacks
-            user.wallet_tokens = [...user?.wallet_tokens, canisterId];
+            user.wallet_tokens = [...(user?.wallet_tokens || []), canisterId];
             const response = await window.api.call<any>(
                 "update_wallet_tokens",
                 user.wallet_tokens,
@@ -198,8 +198,7 @@ export const Icrc1TokensWallet = () => {
         }
     };
 
-    const removeIcrc1CanisterPrompt = async () => {
-        const canisterId = prompt(`Icrc1 canister id`) || "";
+    const removeIcrc1CanisterPrompt = async (canisterId: string) => {
         if (!canisterId) {
             return;
         }
@@ -301,7 +300,7 @@ export const Icrc1TokensWallet = () => {
                         className="right_half_spaced"
                         htmlFor="canisters-hide-zero-balance"
                     >
-                        Hide 0 Balance
+                        Hide empty balances
                     </label>
                 </div>
                 <ButtonWithLoading
@@ -313,11 +312,6 @@ export const Icrc1TokensWallet = () => {
                     title="Refresh balances"
                     onClick={loadAllBalances}
                     label={<Repost />}
-                ></ButtonWithLoading>
-                <ButtonWithLoading
-                    onClick={removeIcrc1CanisterPrompt}
-                    label={<Trash />}
-                    title="Remove token"
                 ></ButtonWithLoading>
             </div>
             {icrc1Canisters.length > 0 && (
@@ -359,6 +353,13 @@ export const Icrc1TokensWallet = () => {
                                     icrcTransferPrompts(canisterId, info)
                                 }
                                 label={"Send"}
+                            ></ButtonWithLoading>
+                            <ButtonWithLoading
+                                onClick={() =>
+                                    removeIcrc1CanisterPrompt(canisterId)
+                                }
+                                label={<Trash />}
+                                title="Remove token"
                             ></ButtonWithLoading>
                         </div>
                     ))}
