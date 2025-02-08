@@ -171,7 +171,7 @@ export const Icrc1TokensWallet = () => {
 
             const meta = await window.api.icrc_metadata(canisterId);
             if (!meta) {
-                throw new Error("Could not find Icrc1 canister data");
+                throw new Error("Could not find ICRC-1 canister metadata");
             }
 
             // Set global user, avoid callbacks
