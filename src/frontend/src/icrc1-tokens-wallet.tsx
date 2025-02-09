@@ -32,17 +32,21 @@ export const Icrc1TokensWallet = () => {
         getLocalFilters()?.hideZeroBalance || false,
     );
 
-    const filterCanisters = (
+    const filterAndSortCanisters = (
         canisters: Array<[string, Icrc1Canister]>,
         balances: Record<string, string>,
         _hideZeroBalance = hideZeroBalance,
     ) => {
+        let filteredCanisters = canisters;
         if (_hideZeroBalance) {
-            return canisters.filter(
+            filteredCanisters = canisters.filter(
                 ([canisterId]) => +balances[canisterId] > 0,
             );
         }
-        return canisters;
+        // Sort by name and then balance
+        return filteredCanisters
+            .sort((a, b) => a[1].symbol.localeCompare(b[1].symbol))
+            .sort((a, b) => +balances[b[0]] - +balances[a[0]]);
     };
 
     const getLocalCanistersMetaData = (): Array<[string, Icrc1Canister]> => {
@@ -149,7 +153,9 @@ export const Icrc1TokensWallet = () => {
     const loadAllBalances = async () => {
         const canisters = await getCanistersMetaData();
         const balances = await loadBalances([...canisters.keys()]);
-        setIcrc1Canisters(filterCanisters([...canisters.entries()], balances));
+        setIcrc1Canisters(
+            filterAndSortCanisters([...canisters.entries()], balances),
+        );
     };
 
     const initialLoad = async () => {
@@ -158,7 +164,9 @@ export const Icrc1TokensWallet = () => {
 
         const balances = await loadBalances([...canisters.keys()]);
 
-        setIcrc1Canisters(filterCanisters([...canisters.entries()], balances));
+        setIcrc1Canisters(
+            filterAndSortCanisters([...canisters.entries()], balances),
+        );
     };
     let loading = false;
     React.useEffect(() => {
@@ -207,7 +215,7 @@ export const Icrc1TokensWallet = () => {
             const balances = await loadBalances([canisterId]);
 
             setIcrc1Canisters(
-                filterCanisters(
+                filterAndSortCanisters(
                     [...icrc1Canisters, [canisterId, meta]],
                     balances,
                 ),
@@ -311,7 +319,7 @@ export const Icrc1TokensWallet = () => {
                             const canisters = [
                                 ...(await getCanistersMetaData()),
                             ];
-                            const filteredCanisters = filterCanisters(
+                            const filteredCanisters = filterAndSortCanisters(
                                 canisters,
                                 canisterBalances,
                                 !hideZeroBalance,
