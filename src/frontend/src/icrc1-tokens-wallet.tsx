@@ -13,21 +13,33 @@ export const Icrc1TokensWallet = () => {
     const [user] = React.useState(window.user);
     const getUserCanisterKey = (canisterId: string) =>
         `canister:${canisterId}:user:${user?.id}`;
+    const userWalletFiltersKey = `user:${user?.id}:wallet-filters`;
     const [icrc1Canisters, setIcrc1Canisters] = React.useState<
         Array<[string, Icrc1Canister]>
     >([]);
     const [canisterBalances, setCanisterBalances] = React.useState<{
         [key: string]: string;
     }>({});
-    const [hideZeroBalance, setHideZeroBalance] = React.useState(false);
+    const getLocalFilters = (): { hideZeroBalance?: boolean } => {
+        const filters = localStorage.getItem(userWalletFiltersKey);
+        try {
+            return JSON.parse(filters || "");
+        } catch {
+            return {};
+        }
+    };
+    const [hideZeroBalance, setHideZeroBalance] = React.useState(
+        getLocalFilters()?.hideZeroBalance || false,
+    );
 
     const filterCanisters = (
         canisters: Array<[string, Icrc1Canister]>,
+        balances: Record<string, string>,
         _hideZeroBalance = hideZeroBalance,
     ) => {
         if (_hideZeroBalance) {
             return canisters.filter(
-                ([canisterId]) => +canisterBalances[canisterId] > 0,
+                ([canisterId]) => +balances[canisterId] > 0,
             );
         }
         return canisters;
@@ -131,18 +143,22 @@ export const Icrc1TokensWallet = () => {
             }
         }
         setCanisterBalances(balances);
+        return balances;
     };
 
     const loadAllBalances = async () => {
         const canisters = await getCanistersMetaData();
-        await loadBalances([...canisters.keys()]);
+        const balances = await loadBalances([...canisters.keys()]);
+        setIcrc1Canisters(filterCanisters([...canisters.entries()], balances));
     };
 
     const initialLoad = async () => {
         const canisters = await getCanistersMetaData();
-        setIcrc1Canisters(filterCanisters([...canisters.entries()]));
+        setIcrc1Canisters([...canisters.entries()]);
 
-        loadBalances([...canisters.keys()]);
+        const balances = await loadBalances([...canisters.keys()]);
+
+        setIcrc1Canisters(filterCanisters([...canisters.entries()], balances));
     };
     let loading = false;
     React.useEffect(() => {
@@ -188,10 +204,13 @@ export const Icrc1TokensWallet = () => {
                 getUserCanisterKey(canisterId),
                 JSON.stringify(meta),
             );
-            await loadBalances([canisterId]);
+            const balances = await loadBalances([canisterId]);
 
             setIcrc1Canisters(
-                filterCanisters([...icrc1Canisters, [canisterId, meta]]),
+                filterCanisters(
+                    [...icrc1Canisters, [canisterId, meta]],
+                    balances,
+                ),
             );
         } catch (error: any) {
             alert(error?.message || "Failed to add token to your wallet");
@@ -294,7 +313,14 @@ export const Icrc1TokensWallet = () => {
                             ];
                             const filteredCanisters = filterCanisters(
                                 canisters,
+                                canisterBalances,
                                 !hideZeroBalance,
+                            );
+                            const filters = getLocalFilters();
+                            filters.hideZeroBalance = !hideZeroBalance;
+                            localStorage.setItem(
+                                userWalletFiltersKey,
+                                JSON.stringify(filters),
                             );
                             setHideZeroBalance(!hideZeroBalance);
                             setIcrc1Canisters(filteredCanisters);
