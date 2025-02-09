@@ -249,6 +249,10 @@ export const Icrc1TokensWallet = () => {
                     (0).toFixed(info.decimals),
                 ) || 0
             );
+            const u64Amount = Math.floor(amount * Math.pow(10, info.decimals));
+            if (u64Amount <= info.fee) {
+                return alert("Amount is smaller than fee!");
+            }
 
             if (toPrincipal && amount) {
                 const proceed = confirm(
@@ -261,7 +265,7 @@ export const Icrc1TokensWallet = () => {
                 const amountOrError = await window.api.icrc_transfer(
                     Principal.fromText(canisterId),
                     toPrincipal,
-                    +Math.floor(amount * Math.pow(10, info.decimals)),
+                    u64Amount,
                     info.fee,
                 );
                 if (isNaN(+amountOrError)) {
