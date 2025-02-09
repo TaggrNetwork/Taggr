@@ -46,7 +46,11 @@ export const Icrc1TokensWallet = () => {
         // Sort by name and then balance
         return filteredCanisters
             .sort((a, b) => a[1].symbol.localeCompare(b[1].symbol))
-            .sort((a, b) => +balances[b[0]] - +balances[a[0]]);
+            .sort(
+                (a, b) =>
+                    +balances[b[0]] / Math.pow(10, b[1].decimals) -
+                    +balances[a[0]] / Math.pow(10, a[1].decimals),
+            );
     };
 
     const getLocalCanistersMetaData = (): Array<[string, Icrc1Canister]> => {
@@ -74,7 +78,8 @@ export const Icrc1TokensWallet = () => {
                     return null;
                 }
             })
-            .filter((r) => !!r);
+            .filter((r) => !!r)
+            .sort((a, b) => a[1].symbol.localeCompare(b[1].symbol));
     };
 
     const getCanistersMetaData = async () => {
@@ -309,7 +314,7 @@ export const Icrc1TokensWallet = () => {
     return (
         <>
             <div className="vcentered bottom_spaced">
-                <h2 className="max_width_col">ICRC1 TOKENS</h2>
+                <h2 className="max_width_col">IC TOKENS</h2>
                 <div className="vcentered">
                     <input
                         id="canisters-hide-zero-balance"
