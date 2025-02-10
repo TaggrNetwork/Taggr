@@ -31,6 +31,7 @@ export const Icrc1TokensWallet = () => {
     const [hideZeroBalance, setHideZeroBalance] = React.useState(
         getLocalFilters()?.hideZeroBalance || false,
     );
+    const [disabled, setDisabled] = React.useState(true);
 
     const filterAndSortCanisters = (
         canisters: Array<[string, Icrc1Canister]>,
@@ -156,11 +157,16 @@ export const Icrc1TokensWallet = () => {
     };
 
     const loadAllBalances = async () => {
-        const canisters = await getCanistersMetaData();
-        const balances = await loadBalances([...canisters.keys()]);
-        setIcrc1Canisters(
-            filterAndSortCanisters([...canisters.entries()], balances),
-        );
+        setDisabled(true);
+        try {
+            const canisters = await getCanistersMetaData();
+            const balances = await loadBalances([...canisters.keys()]);
+            setIcrc1Canisters(
+                filterAndSortCanisters([...canisters.entries()], balances),
+            );
+        } finally {
+            setDisabled(false);
+        }
     };
 
     const initialLoad = async () => {
@@ -177,7 +183,10 @@ export const Icrc1TokensWallet = () => {
     React.useEffect(() => {
         if (!loading) {
             loading = true;
-            initialLoad().finally(() => (loading = false));
+            initialLoad().finally(() => {
+                loading = false;
+                setDisabled(false);
+            });
         }
     }, []);
 
@@ -187,6 +196,7 @@ export const Icrc1TokensWallet = () => {
             return;
         }
         try {
+            setDisabled(true);
             Principal.fromText(canisterId);
 
             if (user?.wallet_tokens?.includes(canisterId)) {
@@ -227,11 +237,17 @@ export const Icrc1TokensWallet = () => {
             );
         } catch (error: any) {
             alert(error?.message || "Failed to add token to your wallet");
+        } finally {
+            setDisabled(false);
         }
     };
 
-    const removeIcrc1CanisterPrompt = async (canisterId: string) => {
+    const removeIcrc1CanisterPrompt = async (canisterId: string, info: Icrc1Canister) => {
         if (!canisterId) {
+            return;
+        }
+        const proceed = confirm(`Remove ${info.symbol} ?`);
+        if (!proceed) {
             return;
         }
         try {
@@ -320,6 +336,7 @@ export const Icrc1TokensWallet = () => {
                         id="canisters-hide-zero-balance"
                         type="checkbox"
                         checked={hideZeroBalance}
+                        disabled={disabled}
                         onChange={async () => {
                             const canisters = [
                                 ...(await getCanistersMetaData()),
@@ -350,11 +367,13 @@ export const Icrc1TokensWallet = () => {
                     onClick={addIcrc1CanisterPrompt}
                     label={<Add />}
                     title="Add token"
+                    disabled={disabled}
                 ></ButtonWithLoading>
                 <ButtonWithLoading
                     title="Refresh balances"
                     onClick={loadAllBalances}
                     label={<Repost />}
+                    disabled={disabled}
                 ></ButtonWithLoading>
             </div>
             {icrc1Canisters.length > 0 && (
@@ -398,8 +417,9 @@ export const Icrc1TokensWallet = () => {
                                 label={"Send"}
                             ></ButtonWithLoading>
                             <ButtonWithLoading
+                                disabled={disabled}
                                 onClick={() =>
-                                    removeIcrc1CanisterPrompt(canisterId)
+                                    removeIcrc1CanisterPrompt(canisterId, info)
                                 }
                                 label={<Trash />}
                                 title="Remove token"
