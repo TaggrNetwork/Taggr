@@ -15,13 +15,14 @@ use ic_cdk::{
     api::{
         self,
         call::{arg_data_raw, reply_raw},
+        management_canister::main::CanisterId,
     },
     spawn,
 };
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 use user::Pfp;
 
 #[init]
@@ -235,6 +236,12 @@ fn update_user() {
 fn update_user_settings() {
     let settings: std::collections::BTreeMap<String, String> = parse(&arg_data_raw());
     reply(User::update_settings(caller(), settings))
+}
+
+#[export_name = "canister_update update_wallet_tokens"]
+fn update_wallet_tokens() {
+    let ids: HashSet<CanisterId> = parse(&arg_data_raw());
+    reply(User::update_wallet_tokens(caller(), ids))
 }
 
 #[export_name = "canister_update create_feature"]
