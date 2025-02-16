@@ -242,7 +242,10 @@ export const Icrc1TokensWallet = () => {
         }
     };
 
-    const removeIcrc1CanisterPrompt = async (canisterId: string, info: Icrc1Canister) => {
+    const removeIcrc1CanisterPrompt = async (
+        canisterId: string,
+        info: Icrc1Canister,
+    ) => {
         if (!canisterId) {
             return;
         }
@@ -251,6 +254,7 @@ export const Icrc1TokensWallet = () => {
             return;
         }
         try {
+            setDisabled(true);
             Principal.fromText(canisterId);
 
             if (!user?.wallet_tokens?.includes(canisterId)) {
@@ -276,6 +280,8 @@ export const Icrc1TokensWallet = () => {
             );
         } catch (error: any) {
             alert(error?.message || "Failed to add token to your wallet");
+        } finally {
+            setDisabled(false);
         }
     };
 
