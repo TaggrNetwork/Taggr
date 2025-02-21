@@ -147,12 +147,9 @@ export const Icrc1TokensWallet = () => {
                             }),
                     ),
                 );
-                if (chunks.length !== 1 && chunks.at(-1) !== chunk) {
-                    setCanisterBalances({ ...balances }); // Add to the view
-                }
+                setCanisterBalances({ ...balances }); // Add to the view
             }
         }
-        setCanisterBalances(balances);
         return balances;
     };
 
@@ -304,8 +301,8 @@ export const Icrc1TokensWallet = () => {
                 ) || 0
             );
             const u64Amount = Math.floor(amount * Math.pow(10, info.decimals));
-            if (u64Amount <= info.fee) {
-                return alert("Amount is smaller than fee!");
+            if (u64Amount <= 1) {
+                return alert("Amount is too small!");
             }
 
             if (toPrincipal && amount) {
