@@ -301,8 +301,15 @@ export const Icrc1TokensWallet = () => {
                 ) || 0
             );
             const u64Amount = Math.floor(amount * Math.pow(10, info.decimals));
-            if (u64Amount <= 1) {
+            if (u64Amount < 1) {
                 return alert("Amount is too small!");
+            }
+            const decimalPart = (amount % 1).toPrecision(15); // Max 64bit precision
+            if (
+                decimalPart.toString().replaceAll("0", "").replace(".", "")
+                    .length > info.decimals
+            ) {
+                return alert(`More than ${info.decimals} decimals!`);
             }
 
             if (toPrincipal && amount) {
