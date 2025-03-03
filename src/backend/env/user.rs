@@ -169,20 +169,20 @@ impl User {
     pub fn get_filter(&self) -> UserFilter {
         UserFilter {
             age_days: (time() - self.timestamp) / DAY,
-            safe: !self.controversial(time()),
+            safe: !self.controversial(),
             balance: self.total_balance() / token::base(),
             num_followers: self.followers.len(),
         }
     }
 
-    pub fn controversial(&self, time: Time) -> bool {
+    pub fn controversial(&self) -> bool {
         self.post_reports
             .values()
-            .any(|timestamp| timestamp + CONFIG.user_report_validity_days * DAY >= time)
+            .any(|timestamp| timestamp + CONFIG.user_report_validity_days * DAY >= time())
             || self
                 .report
                 .as_ref()
-                .map(|report| report.recently_confirmed(time))
+                .map(|report| report.pending_or_recently_confirmed())
                 .unwrap_or_default()
     }
 

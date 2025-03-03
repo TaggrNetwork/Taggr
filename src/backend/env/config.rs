@@ -43,7 +43,8 @@ pub struct Config {
     pub user_report_validity_days: u64,
 
     pub proposal_approval_threshold: u16,
-    pub proposal_controversy_threshold: u16,
+    pub proposal_controversy_threashold: u16,
+    pub proposal_rejection_penalty: Credits,
 
     pub max_report_length: usize,
 
@@ -104,7 +105,7 @@ pub struct Config {
     // top x percentage of users selected as stalwarts
     pub stalwart_percentage: usize,
     pub min_stalwart_activity_weeks: u8,
-    pub min_stalwart_account_age_weeks: u64,
+    pub min_stalwart_account_age_weeks: u8,
     pub stalwart_moderation_reward: Credits,
 
     // percentage of stalwarts needed to confirm a report
@@ -133,11 +134,6 @@ pub struct Config {
 
     #[serde(with = "string")]
     pub neuron_id: u64,
-
-    // Value of tokens that will be burned upon proposal creation.
-    // The tokens will be minted again after the proposal is executed, cancelled or
-    // rejected without a controversion. The amount is in XDR.
-    pub proposal_escrow_amount_xdr: u64,
 }
 
 mod string {
@@ -226,8 +222,12 @@ pub const CONFIG: &Config = &Config {
     proposal_approval_threshold: 1,
     #[cfg(not(feature = "dev"))]
     proposal_approval_threshold: 66,
+    proposal_controversy_threashold: 10,
 
-    proposal_controversy_threshold: 10,
+    #[cfg(not(feature = "staging"))]
+    proposal_rejection_penalty: 500,
+    #[cfg(feature = "staging")]
+    proposal_rejection_penalty: 50,
 
     maximum_supply: 100_000_000,
 
@@ -338,13 +338,6 @@ pub const CONFIG: &Config = &Config {
     max_funding_amount: 100000,
 
     neuron_id: 16737374299031693047,
-
-    #[cfg(feature = "dev")]
-    proposal_escrow_amount_xdr: 1,
-    #[cfg(test)]
-    proposal_escrow_amount_xdr: 769,
-    #[cfg(not(any(feature = "dev", test)))]
-    proposal_escrow_amount_xdr: 769,
 };
 
 pub fn reaction_rewards() -> BTreeMap<u16, i64> {
