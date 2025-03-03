@@ -373,9 +373,8 @@ fn vote_on_proposal() {
 #[export_name = "canister_update cancel_proposal"]
 fn cancel_proposal() {
     let proposal_id: u32 = parse(&arg_data_raw());
-    reply(mutate(|state| {
-        proposals::cancel_proposal(state, caller(), proposal_id)
-    }));
+    mutate(|state| proposals::cancel_proposal(state, caller(), proposal_id));
+    reply(());
 }
 
 #[update]
