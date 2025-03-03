@@ -14,8 +14,10 @@ import {
     IcrcLedgerCanister,
     IcrcTransferError,
     IcrcAccount,
+    IcrcMetadataResponseEntries,
 } from "@dfinity/ledger-icrc";
-import { PostId } from "./types";
+import { Value } from "@dfinity/ledger-icrc/dist/candid/icrc_ledger";
+import { Icrc1Canister, PostId } from "./types";
 
 export type Backend = {
     query: <T>(
@@ -100,6 +102,8 @@ export type Backend = {
         amount: number,
         fee: number,
     ) => Promise<string | number>;
+
+    icrc_metadata: (canisterId: string) => Promise<Icrc1Canister | null>;
 };
 
 export const ApiGenerator = (
@@ -117,6 +121,20 @@ export const ApiGenerator = (
             );
             console.error(err);
         });
+
+    const agentCache: Map<string, IcrcLedgerCanister> = new Map();
+    const getIcrcCanister = (canisterId: string) => {
+        const canisterAgent = agentCache.get(canisterId);
+        if (canisterAgent) {
+            return canisterAgent;
+        }
+        const canister = IcrcLedgerCanister.create({
+            canisterId: Principal.from(canisterId),
+            agent,
+        });
+        agentCache.set(canisterId, canister);
+        return canister;
+    };
 
     const query_raw = async (
         canisterId = CANISTER_ID,
@@ -483,15 +501,63 @@ export const ApiGenerator = (
             token: Principal,
             account: IcrcAccount,
         ): Promise<bigint> => {
-            const canister = IcrcLedgerCanister.create({
-                canisterId: Principal.from(token),
-                agent,
-            });
+            const canister = getIcrcCanister(token.toString());
             return await canister.balance({
                 certified: false,
                 owner: account.owner,
                 subaccount: account.subaccount,
             });
+        },
+        icrc_metadata: async (canisterId: string) => {
+            try {
+                const canister = getIcrcCanister(canisterId);
+                const meta = await canister.metadata({
+                    certified: false,
+                });
+
+                const m = new Map<IcrcMetadataResponseEntries, Value>(
+                    meta as any,
+                );
+
+                return {
+                    decimals: new Number(
+                        (
+                            m.get(
+                                IcrcMetadataResponseEntries.DECIMALS,
+                            ) as unknown as { Nat: number }
+                        ).Nat,
+                    ).valueOf(),
+                    fee: new Number(
+                        (
+                            m.get(
+                                IcrcMetadataResponseEntries.FEE,
+                            ) as unknown as { Nat: number }
+                        ).Nat,
+                    ).valueOf(),
+                    logo:
+                        (
+                            m.get(
+                                IcrcMetadataResponseEntries.LOGO,
+                            ) as unknown as {
+                                Text: string;
+                            }
+                        )?.Text ||
+                        `https://wqfao-piaaa-aaaag-qj5ba-cai.raw.icp0.io/${canisterId}`,
+                    name: (
+                        m.get(IcrcMetadataResponseEntries.NAME) as unknown as {
+                            Text: string;
+                        }
+                    ).Text,
+                    symbol: (
+                        m.get(
+                            IcrcMetadataResponseEntries.SYMBOL,
+                        ) as unknown as { Text: string }
+                    ).Text,
+                } as Icrc1Canister;
+            } catch (error) {
+                console.error(error);
+                return null;
+            }
         },
     };
 };

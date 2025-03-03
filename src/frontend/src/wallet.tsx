@@ -15,6 +15,7 @@ import {
 } from "./common";
 import { Principal } from "@dfinity/principal";
 import { CANISTER_ID } from "./env";
+import { Icrc1TokensWallet } from "./icrc1-tokens-wallet";
 
 const coldWalletFunctionalityAvailable = window.ic && window.ic.plug;
 
@@ -309,6 +310,8 @@ export const Wallet = () => {
                     </a>
                 </div>
             )}
+            <hr />
+            <Icrc1TokensWallet />
         </>
     );
 };

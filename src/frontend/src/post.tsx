@@ -22,6 +22,7 @@ import {
     FlagButton,
     ReportBanner,
     tokens,
+    bucket_image_url,
     currentRealm,
     parseNumber,
     noiseControlBanner,
@@ -44,7 +45,6 @@ import {
 } from "./icons";
 import { ProposalView } from "./proposals";
 import { Feature, Post, PostId, Realm, UserId } from "./types";
-import { MAINNET_MODE } from "./env";
 import { UserLink, UserList, populateUserNameCache } from "./user_resolve";
 
 export const PostView = ({
@@ -1090,21 +1090,6 @@ export const filesToUrls = (files: { [id: string]: [number, number] }) =>
         },
         {} as { [id: string]: string },
     );
-
-function bucket_image_url(bucket_id: string, offset: number, len: number) {
-    // Fall back to the mainnet if the local config doesn't contain the bucket.
-    let fallback_to_mainnet = !window.backendCache.stats?.buckets?.find(
-        ([id, _y]) => id == bucket_id,
-    );
-    let host =
-        MAINNET_MODE || fallback_to_mainnet
-            ? `https://${bucket_id}.raw.icp0.io`
-            : `http://127.0.0.1:8080`;
-    return (
-        `${host}/image?offset=${offset}&len=${len}` +
-        (MAINNET_MODE ? "" : `&canisterId=${bucket_id}`)
-    );
-}
 
 const FeatureView = ({ id }: { id: PostId }) => {
     const [feature, setFeature] = React.useState<Feature>();
