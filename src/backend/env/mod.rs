@@ -1732,6 +1732,7 @@ impl State {
         read(|state| state.e8s_for_one_xdr)
     }
 
+    #[cfg(any(test, feature = "dev"))]
     pub fn reset_xdr_rate_for_testing() {
         mutate(|state| {
             // If this is set to 1_000_000 and above, then E2E tests fail.
