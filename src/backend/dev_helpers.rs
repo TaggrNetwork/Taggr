@@ -24,7 +24,14 @@ async fn reset() {
         cell.replace(state);
     });
     set_timer(Duration::from_millis(0), || {
-        spawn(State::fetch_xdr_rate());
+        spawn(async {
+            let old_xdr_rate = State::get_xdr_rate();
+            State::fetch_xdr_rate().await;
+            let new_xdr_rate = State::get_xdr_rate();
+            // Check that fetching of the rate worked.
+            assert_ne!(old_xdr_rate, new_xdr_rate);
+            State::reset_xdr_rate_for_testing();
+        });
     });
 }
 

@@ -1728,6 +1728,17 @@ impl State {
         }
     }
 
+    pub fn get_xdr_rate() -> u64 {
+        read(|state| state.e8s_for_one_xdr)
+    }
+
+    pub fn reset_xdr_rate_for_testing() {
+        mutate(|state| {
+            // If this is set to 1_000_000 and above, then E2E tests fail.
+            state.e8s_for_one_xdr = 900_000;
+        });
+    }
+
     pub async fn hourly_chores(now: u64) {
         mutate(|state| {
             state.backup_exists = false;
