@@ -1882,7 +1882,7 @@ impl State {
                 let mut allocation = Vec::new();
                 let mut threshold = 0;
                 for user in state.users.values_mut().filter(|user| {
-                    !user.controversial(time())
+                    !user.controversial()
                         && user.active_within_weeks(time(), 1)
                         && user.credits_burned() > 0
                 }) {
@@ -2168,8 +2168,9 @@ impl State {
         for u in users {
             if !u.governance
                 || u.is_bot()
-                || u.controversial(now)
-                || now.saturating_sub(u.timestamp) < WEEK * CONFIG.min_stalwart_account_age_weeks
+                || u.controversial()
+                || now.saturating_sub(u.timestamp)
+                    < WEEK * CONFIG.min_stalwart_account_age_weeks as u64
             {
                 u.stalwart = false;
                 continue;
@@ -2973,7 +2974,7 @@ impl State {
         let user_id = user.id;
         let user_credits = user.credits();
         let user_balance = user.total_balance();
-        let user_controversial = user.controversial(time);
+        let user_controversial = user.controversial();
         let post = Post::get(self, &post_id).ok_or("post not found")?.clone();
         if post.is_deleted() {
             return Err("post deleted".into());
@@ -4822,7 +4823,7 @@ pub(crate) mod tests {
                 .controllers
                 .is_empty());
 
-            let now = CONFIG.min_stalwart_account_age_weeks * WEEK;
+            let now = CONFIG.min_stalwart_account_age_weeks as u64 * WEEK;
             let num_users = 255;
 
             for i in 0..num_users {
