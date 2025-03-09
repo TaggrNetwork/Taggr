@@ -320,7 +320,6 @@ export type Stats = {
 
 export type Config = {
     proposal_escrow_amount_xdr: number;
-    proposal_controversy_threshold: number;
     staging: string;
     weekly_auction_size_tokens: number;
     user_report_validity_days: number;
