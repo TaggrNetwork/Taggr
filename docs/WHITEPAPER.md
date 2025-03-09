@@ -93,8 +93,8 @@ In both cases, participating stalwarts share rewards from the penalty fee, cappe
 
 $name is governed via proposals.
 Any user with an account age of `$min_stalwart_account_age_weeks`  weeks and a token balance with a value of at least  `$proposal_escrow_amount_usd` USD can create a proposal.
-This number of user's tokens will get burned upon proposal creation and minted again after the proposal is executed, cancelled or rejected \_without a controversy*.
-Controversial rejections are proposal rejections with a rejected/adopted ratio under`$proposal_controversy_threashold%`.
+This number of user's tokens will get burned upon proposal creation and minted again after the proposal is executed, cancelled or rejected without a controversy.
+Controversial rejections are proposal rejections with a rejected/adopted ratio under `$proposal_controversy_threshold%`.
 After a controversial rejection, the proposer loses their tokens forever.
 
 There are proposals for upgrading the main smart contract, minting new tokens for funding & rewards, and transferring ICP out of the treasury for off-chain activities of the DAO.
