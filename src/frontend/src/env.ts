@@ -1,4 +1,6 @@
-export const STAGING_MODE = process.env.DFX_NETWORK == "staging";
+export const STAGING_MODE =
+    process.env.DFX_NETWORK == "staging" ||
+    process.env.DFX_NETWORK == "staging_dev2";
 
 export const MAINNET_MODE = STAGING_MODE || process.env.DFX_NETWORK == "ic";
 
@@ -9,5 +11,7 @@ export const II_URL = MAINNET_MODE
     : "http://localhost:8080/?canisterId=qhbym-qaaaa-aaaaa-aaafq-cai";
 
 export const II_DERIVATION_URL = MAINNET_MODE
-    ? `https://${CANISTER_ID}.ic0.app`
+    ? process.env.DFX_NETWORK == "staging_dev2"
+        ? `https://${CANISTER_ID}.icp0.io`
+        : `https://${CANISTER_ID}.ic0.app`
     : window.location.origin;

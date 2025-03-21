@@ -6,6 +6,11 @@ staging_deploy:
 	FEATURES=staging dfx build
 	FEATURES=staging dfx --identity prod deploy --network staging taggr
 
+staging_dev2_deploy:
+	NODE_ENV=production DFX_NETWORK=staging_dev2 make fe
+	FEATURES=staging dfx build
+	FEATURES=staging dfx --identity prod deploy --network staging_dev2 taggr
+
 local_deploy:
 	FEATURES=dev dfx deploy
 
