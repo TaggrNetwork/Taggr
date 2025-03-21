@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::env::post::Post;
+use crate::env::token::mint;
 use crate::env::user::UserId;
 use ic_cdk::{caller, spawn};
 use ic_cdk_macros::{query, update};
@@ -151,4 +152,20 @@ fn stable_mem_write(input: Vec<(u64, ByteBuf)>) {
 // Backup restore method.
 fn stable_to_heap() {
     stable_to_heap_core();
+}
+
+#[update]
+// Mint tokens to principal
+fn mint_tokens(principal: String, amount: u64) {
+    let principal = Principal::from_text(principal).unwrap();
+    let account = Account {
+        owner: principal,
+        subaccount: None,
+    };
+
+    mutate(|state| {
+        state.minting_mode = true;
+        mint(state, account, amount, "test-mint");
+        state.minting_mode = false;
+    });
 }

@@ -1,10 +1,44 @@
-import { test, expect, Page } from "@playwright/test";
+import { test, expect, Page, Locator } from "@playwright/test";
 import { resolve } from "node:path";
 import { exec, mkPwd } from "./command";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 test.describe.configure({ mode: "serial" });
+
+const executeTransfer = async (page: Page, btn: Locator, amount = "5") => {
+    // Q1 - enter the principal receiver
+    await new Promise((resolve) => {
+        page.once("dialog", async (dialog) => {
+            if (dialog.message().includes("Enter the recipient principal")) {
+                await dialog.accept("6qfxa-ryaaa-aaaai-qbhsq-cai");
+                resolve(null);
+            }
+        });
+        // Click button after listener is setup
+        btn.click();
+    });
+
+    // Q2 - enter the amount
+    await new Promise((resolve) => {
+        page.once("dialog", async (dialog) => {
+            if (dialog.message().includes("Enter the amount")) {
+                await dialog.accept(amount);
+                resolve(null);
+            }
+        });
+    });
+
+    // Q3 - confirm receiver and amount
+    await new Promise((resolve) => {
+        page.once("dialog", async (dialog) => {
+            await dialog.accept();
+            await page.waitForLoadState("networkidle");
+            await page.waitForTimeout(1000);
+            resolve(null);
+        });
+    });
+};
 
 test.describe("Upgrades & token transfer flow", () => {
     let page: Page;
@@ -73,11 +107,7 @@ test.describe("Upgrades & token transfer flow", () => {
             .getByTestId("reaction-picker")
             .click();
         // React with a star
-        await page
-            .locator('button[title="Reward points: 10"]')
-            .first()
-            .click({ delay: 3000 });
-        await page.waitForTimeout(4500);
+        await page.locator('button[title="Reward points: 10"]').first().click();
     });
 
     test("Create an auction bid, trigger minting", async ({}) => {
@@ -101,28 +131,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
         await expect(page.getByTestId("token-balance")).toHaveText("15");
 
-        const transferExecuted = new Promise((resolve, _reject) => {
-            page.on("dialog", async (dialog) => {
-                if (
-                    dialog.message().includes("Enter the recipient principal")
-                ) {
-                    await dialog.accept("6qfxa-ryaaa-aaaai-qbhsq-cai");
-                }
-                if (dialog.message().includes("Enter the amount")) {
-                    await dialog.accept("5");
-                }
-                if (dialog.message().includes("You are transferring")) {
-                    await dialog.accept();
-                    await page.waitForLoadState("networkidle");
-                    await page.waitForTimeout(3000);
-                    resolve(null);
-                }
-            });
-        });
-
-        await page.getByTestId("tokens-transfer-button").click();
-
-        await transferExecuted;
+        await executeTransfer(page, page.getByTestId("tokens-transfer-button"));
 
         await expect(page.getByTestId("token-balance")).toHaveText("9.9");
         await page.getByTestId("token-balance").click();
@@ -271,6 +280,117 @@ test.describe("Upgrades & token transfer flow", () => {
         expect(
             await page.locator("p", { hasText: /Upgrade succeeded/ }).count(),
         ).toEqual(2);
+    });
+
+    test.describe("IC TOKENS", () => {
+        test("Add - input", async () => {
+            // Enable in settings
+            await page.goto("/#/settings");
+            await expect(page.getByTestId("ic-wallet-select")).toBeVisible();
+            await page.getByTestId("ic-wallet-select").selectOption("YES");
+            await page.getByRole("button", { name: "SAVE" }).click();
+            await page.waitForTimeout(1000);
+            await page.reload();
+
+            // Test the wallet functionality
+            await page.goto("/");
+            await page.getByTestId("toggle-user-section").click();
+
+            await expect(page.getByTestId("token-balance")).toHaveText("9.9"); // Starting balance
+
+            const tokenListLocator = page.locator(
+                'div[data-testid="ic-tokens-div"]',
+            ); // IC tokens list locator
+            expect(tokenListLocator).toBeVisible();
+
+            const addTokenDialog = new Promise((resolve, _reject) => {
+                page.once("dialog", async (dialog) => {
+                    if (dialog.message().includes("ICRC canister id")) {
+                        await dialog.accept("bkyz2-fmaaa-aaaaa-qaaaq-cai"); // Add Taggr token
+                        resolve(null);
+                    }
+                });
+            });
+
+            const addTokenBtn = tokenListLocator.locator(
+                'button[title="Add token"]',
+            );
+            await expect(addTokenBtn).toBeEnabled();
+            await addTokenBtn.click();
+
+            // Add token and see it in the list
+            await addTokenDialog;
+
+            await expect(
+                page.getByTestId("bkyz2-fmaaa-aaaaa-qaaaq-cai-balance"),
+            ).toHaveText("9.90"); // Token added to the list
+        });
+
+        test("Send", async () => {
+            const tokenSendBtn = page.getByTestId(
+                "bkyz2-fmaaa-aaaaa-qaaaq-cai-send",
+            );
+
+            await expect(tokenSendBtn).toBeVisible();
+
+            await executeTransfer(page, tokenSendBtn); // Token send button
+
+            await expect(
+                page.getByTestId("bkyz2-fmaaa-aaaaa-qaaaq-cai-balance"),
+            ).toHaveText("4.80"); // Starting balance
+        });
+
+        test("Hide zeros", async () => {
+            const tokenHideZeros = page.getByTestId(
+                "canisters-hide-zero-balance",
+            );
+            const tokenSendBtn = page.getByTestId(
+                "bkyz2-fmaaa-aaaaa-qaaaq-cai-send",
+            );
+
+            await executeTransfer(page, tokenSendBtn, "4.70"); // Send all remaining balance
+            await expect(
+                page.getByTestId("bkyz2-fmaaa-aaaaa-qaaaq-cai-balance"),
+            ).toHaveText("0.00"); // 0 balance
+
+            // Hide zeros
+            await expect(tokenHideZeros).toBeVisible();
+            await tokenHideZeros.click();
+
+            // Token removed from the list
+            await expect(
+                page.getByTestId("bkyz2-fmaaa-aaaaa-qaaaq-cai-send"),
+            ).not.toBeVisible();
+
+            await tokenHideZeros.click(); // Add zeros back to the list
+            await expect(
+                page.getByTestId("bkyz2-fmaaa-aaaaa-qaaaq-cai-send"),
+            ).toBeVisible();
+        });
+
+        test("Remove", async () => {
+            const tokenRemoveBtn = page.getByTestId(
+                "bkyz2-fmaaa-aaaaa-qaaaq-cai-remove",
+            );
+
+            await expect(tokenRemoveBtn).toBeVisible();
+
+            const removeTokenDialog = new Promise((resolve, _reject) => {
+                page.once("dialog", async (dialog) => {
+                    if (dialog.message().includes("Remove TAGGR")) {
+                        await dialog.accept(); // Confirm remove token
+                        await page.waitForTimeout(1000);
+                        resolve(null);
+                    }
+                });
+            });
+
+            await tokenRemoveBtn.click(); // Remove token
+            await removeTokenDialog;
+            expect(
+                page.getByTestId("bkyz2-fmaaa-aaaaa-qaaaq-cai-remove"),
+            ).not.toBeVisible(); // Row removed
+        });
     });
 });
 

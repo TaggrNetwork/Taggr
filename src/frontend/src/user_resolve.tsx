@@ -3,6 +3,10 @@ import { UserId, UserData, User } from "./types";
 import { Loading, commaSeparated, pfpUrl } from "./common";
 
 export const USER_CACHE: UserData = {};
+export const USER_COMMON_CACHE: Record<
+    number,
+    Pick<User, "name" | "principal">
+> = {}; // Unchangable things, store whenever possible
 
 export const populateUserNameCache = async (
     ids: UserId[],
@@ -20,6 +24,15 @@ export const populateUserNameCache = async (
     );
 };
 
+export const populateUserCommonCache = (user: User | null) => {
+    if (user) {
+        USER_COMMON_CACHE[user.id] = {
+            name: user.name,
+            principal: user.principal,
+        };
+    }
+};
+
 export const userNameToIds = async (names: string[]) => {
     if (names.length == 0) return [];
     names = names.map((name) => name.trim().replace("@", ""));
@@ -35,7 +48,9 @@ export const userNameToIds = async (names: string[]) => {
             names.map((name) =>
                 name in cachedNames
                     ? { id: cachedNames[name] }
-                    : window.api.query<User>("user", "", [name]),
+                    : window.api
+                          .query<User>("user", "", [name])
+                          .then(populateUserCommonCache),
             ),
         )
     )

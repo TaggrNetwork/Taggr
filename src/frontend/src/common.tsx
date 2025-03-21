@@ -12,11 +12,15 @@ import {
 } from "./icons";
 import { loadFile } from "./form";
 import {
+    IcExplorerUserTokenInfo,
+    IcExplorerUserTokenResponse,
+    Icrc1Canister,
     Meta,
     Post,
     PostId,
     Realm,
     Report,
+    TokenInfo,
     User,
     UserFilter,
     UserId,
@@ -288,7 +292,7 @@ export const foregroundColor = (background: string) => {
 export const RealmSpan = ({
     background,
     name,
-    classNameArg,
+    classNameArg = "",
     styleArg,
 }: {
     background: string;
@@ -395,7 +399,7 @@ export const ButtonWithLoading = ({
             className={`medium_text ${
                 loading || disabled
                     ? classNameArg?.replaceAll("active", "")
-                    : classNameArg
+                    : classNameArg || ""
             } ${disabled ? "inactive" : ""}`}
             style={styleArg || null}
             data-testid={testId}
@@ -507,7 +511,15 @@ export const tokens = (n: number, decimals: number, hideDecimals?: boolean) => {
     });
 };
 
-export const ICP_LEDGER_ID = Principal.fromText("ryjl3-tyaaa-aaaaa-aaaba-cai");
+/** Remove tail zeros */
+export const shortenTokensAmount = (n: number, decimals: number) => {
+    return tokens(n, decimals)
+        .replace(/([\.,\,]\d*?[1-9])0+$/, "$1")
+        .replace(/[\.,\,]0+$/, "");
+};
+
+export const ICP_LEDGER = "ryjl3-tyaaa-aaaaa-aaaba-cai";
+export const ICP_LEDGER_ID = Principal.fromText(ICP_LEDGER);
 
 export const ICP_DEFAULT_FEE = 10000;
 
@@ -1297,3 +1309,250 @@ export const getCanonicalDomain = () =>
 
 export const onCanonicalDomain = () =>
     !MAINNET_MODE || domain() == getCanonicalDomain();
+
+export function getUserCanisterKey(canisterId: string) {
+    return `canister-meta:${canisterId}`;
+}
+
+export function getLocalCanistersMetaData(
+    canisterIds: string[],
+): Array<[string, Icrc1Canister]> {
+    return canisterIds
+        .map((canisterId) => {
+            try {
+                const canisterMeta = getFromLocalStorage<Icrc1Canister>(
+                    getUserCanisterKey(canisterId),
+                    168_800,
+                );
+                if (
+                    !canisterMeta?.symbol ||
+                    isNaN(canisterMeta?.decimals) ||
+                    isNaN(canisterMeta?.fee)
+                ) {
+                    return null;
+                }
+                return [canisterId, canisterMeta] as [string, Icrc1Canister];
+            } catch {
+                return null;
+            }
+        })
+        .filter((r) => !!r);
+}
+
+export async function getCanistersMetaData(canisterIds: string[]) {
+    const uniqueCanisterIds = [...new Set(canisterIds)];
+    // Add missing user canisters key for metadata
+    const canistersFromStorageMap = new Map<string, Icrc1Canister>(
+        getLocalCanistersMetaData(uniqueCanisterIds),
+    );
+
+    // Add missing user canisters key for metadata
+    const missingMetaCanisterIds =
+        uniqueCanisterIds.filter(
+            (canisterId) => !canistersFromStorageMap.has(canisterId),
+        ) || [];
+
+    if (missingMetaCanisterIds.length === 0) {
+        return canistersFromStorageMap;
+    }
+
+    const chunks = createChunks(missingMetaCanisterIds, 5);
+    // Load missing metadata
+    for (const chunk of chunks) {
+        await Promise.all(
+            chunk.map((canisterId) =>
+                window.api
+                    .icrc_metadata(canisterId)
+                    .then((meta) => {
+                        if (meta) {
+                            canistersFromStorageMap.set(canisterId, meta);
+                            cacheLocalStorage(
+                                getUserCanisterKey(canisterId),
+                                meta,
+                            );
+                        }
+                    })
+                    .catch(console.error),
+            ),
+        );
+    }
+
+    return canistersFromStorageMap;
+}
+
+export function numberToUint8Array(num: number) {
+    // Create an empty array to hold the bytes
+    const arr: number[] = [];
+
+    // For 32-bit integer, store the number in up to 4 bytes
+    for (let i = 0; i < 4; i++) {
+        arr.push(num & 0xff); // Extract the least significant byte
+        num = num >> 8; // Shift right by 8 bits to get the next byte
+    }
+
+    // Return the Uint8Array
+    return new Uint8Array(arr.reverse()); // Reverse to ensure correct byte order (little-endian)
+}
+
+type LocalStorageData = {
+    data: any;
+    updated_at: string;
+};
+/** Helper for stale local storage data */
+export function getFromLocalStorage<T>(
+    cacheKey: string,
+    staleness = 0,
+): T | null {
+    const cachedValue = JSON.parse(
+        localStorage.getItem(cacheKey) || "{}",
+    ) as LocalStorageData;
+    const staleDate = new Date();
+    staleDate.setSeconds(staleDate.getSeconds() - staleness);
+    if (
+        cachedValue?.updated_at &&
+        new Date(cachedValue.updated_at) > staleDate
+    ) {
+        return cachedValue.data;
+    }
+    return null;
+}
+/** Helper for stale local storage data */
+export function cacheLocalStorage(cacheKey: string, data: object) {
+    localStorage.setItem(
+        cacheKey,
+        JSON.stringify({
+            data: data,
+            updated_at: new Date().toISOString(),
+        } as LocalStorageData),
+    );
+}
+
+export const Popup = ({
+    html,
+    onConfirm,
+    onCancel,
+    show,
+    confirmLabel = "OK",
+}: {
+    html: any;
+    onConfirm: () => any;
+    onCancel: () => any;
+    show: boolean;
+    confirmLabel?: string;
+}) => {
+    React.useEffect(() => {
+        // Prevent scrolling when popup is open
+        if (show) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "auto";
+        }
+
+        // Cleanup function
+        return () => {
+            document.body.style.overflow = "auto";
+        };
+    }, [show]);
+
+    if (!show) return null;
+
+    return (
+        <>
+            <div className="popup-overlay" />
+            <div className="popup-container" data-testid="custom-popup">
+                <div className="popup-content">
+                    {html}
+                    <div className="popup-buttons">
+                        <ButtonWithLoading
+                            label={confirmLabel}
+                            onClick={onConfirm}
+                        />
+                        {
+                            <ButtonWithLoading
+                                label={"Cancel"}
+                                onClick={onCancel}
+                            />
+                        }
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+};
+
+/** Using IC-explorer */
+export const getUserTokensFromIcExplorer = async (
+    principal: string,
+): Promise<IcExplorerUserTokenInfo[]> => {
+    if (!principal) {
+        return [];
+    }
+    let hasNextPage = true;
+    let page = 1;
+    const list: IcExplorerUserTokenInfo[] = [];
+    do {
+        try {
+            const response = await fetch(
+                "https://api.icexplorer.io/api/holder/user",
+                {
+                    headers: {
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    referrer: "https://www.icexplorer.io/",
+                    body: `{"principal":"${principal}","page":${page},"size":50,"isDesc":true}`,
+                    method: "POST",
+                    mode: "cors",
+                },
+            );
+            const { data } = (await new Response(response.body).json()) as {
+                data: IcExplorerUserTokenResponse;
+            };
+            hasNextPage = data?.hasNextPage;
+            list.push(...data?.list);
+        } catch (e) {
+            console.error(e);
+        }
+        page++;
+    } while (hasNextPage && page <= 2); // Block at 2 (100)
+
+    return list;
+};
+
+export const getUserTokens = async (user: User) => {
+    if (!MAINNET_MODE) {
+        return [];
+    }
+    const CACHE_KEY = `user-tokens-v2-${user.id}`;
+    const cachedValue = getFromLocalStorage<TokenInfo[]>(CACHE_KEY, 30);
+    if (!cachedValue) {
+        const icExplorerTokens = await getUserTokensFromIcExplorer(
+            user.principal,
+        );
+        const tokensInfo: TokenInfo[] = icExplorerTokens.map(
+            ({
+                amount,
+                ledgerId,
+                subaccount,
+                tokenDecimal,
+                symbol,
+                valueUSD,
+            }) => ({
+                amount,
+                canisterId: ledgerId,
+                decimals: tokenDecimal,
+                subaccount,
+                symbol,
+                usdAmount: valueUSD,
+                logo: `https://api.icexplorer.io/images/${ledgerId}`,
+            }),
+        );
+
+        cacheLocalStorage(CACHE_KEY, tokensInfo);
+        return tokensInfo;
+    }
+    return cachedValue;
+};
+
+export const icpSwapLogoFallback = (canisterId: string) =>
+    `https://static.icpswap.com/logo/${canisterId}`;

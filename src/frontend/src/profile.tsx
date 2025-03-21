@@ -27,7 +27,7 @@ import { Journal } from "./icons";
 import { PostFeed } from "./post_feed";
 import { PostId, User, UserId } from "./types";
 import { Principal } from "@dfinity/principal";
-import { UserLink, UserList } from "./user_resolve";
+import { populateUserCommonCache, UserLink, UserList } from "./user_resolve";
 
 export const Profile = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
@@ -45,6 +45,7 @@ export const Profile = ({ handle }: { handle: string }) => {
         setStatus(1);
         setProfile(profile);
         setTitle(`${profile.name}'s profile`);
+        populateUserCommonCache(profile);
     };
 
     React.useEffect(() => {

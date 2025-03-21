@@ -35,6 +35,8 @@ pub struct Realm {
     pub posts: Vec<PostId>,
     pub adult_content: bool,
     pub comments_filtering: bool,
+    /// Tokens allowed to appear in realm like tips
+    pub tokens: Option<BTreeSet<Principal>>,
 }
 
 impl Realm {
@@ -451,6 +453,20 @@ pub(crate) mod tests {
             assert_eq!(
                 create_realm(state, p0, name.clone(),),
                 Err("realm name taken".to_string())
+            );
+
+            let mut tokens = BTreeSet::new();
+            tokens.insert(pr(99));
+            let realm = Realm {
+                controllers: controllers.clone(),
+                tokens: Some(tokens.clone()),
+                ..Default::default()
+            };
+            assert_eq!(state.edit_realm(p0, name.clone(), realm), Ok(()));
+
+            assert_eq!(
+                state.realms.get(&name).unwrap().tokens,
+                Some(tokens.clone()),
             );
 
             assert_eq!(

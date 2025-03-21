@@ -94,13 +94,18 @@ export type Backend = {
         account: IcrcAccount,
     ) => Promise<bigint>;
 
-    icp_transfer: (account: string, e8s: number) => Promise<JsonValue>;
+    icp_transfer: (
+        account: string,
+        e8s: number,
+        memo?: number,
+    ) => Promise<JsonValue>;
 
     icrc_transfer: (
         token: Principal,
         recipient: Principal,
         amount: number,
         fee: number,
+        memo?: any,
     ) => Promise<string | number>;
 
     icrc_metadata: (canisterId: string) => Promise<Icrc1Canister | null>;
@@ -151,6 +156,7 @@ export const ApiGenerator = (
                 console.error(methodName, response);
                 return null;
             }
+
             return response.reply.arg;
         } catch (error) {
             console.error(error);
@@ -455,25 +461,28 @@ export const ApiGenerator = (
             recipient: Principal,
             amount: number,
             fee: number,
+            memo?: Uint8Array,
         ) => {
             try {
                 const canister = IcrcLedgerCanister.create({
                     canisterId: Principal.from(token),
                     agent,
                 });
-                await canister.transfer({
+                const response = await canister.transfer({
                     to: { owner: recipient, subaccount: [] },
                     amount: BigInt(amount),
                     fee: BigInt(fee),
+                    memo: memo as any,
                 });
-                return amount;
+
+                return response.toString(); // Response is index of transaction
             } catch (e) {
                 let err = e as unknown as IcrcTransferError<string>;
                 return err.message;
             }
         },
 
-        icp_transfer: async (account: string, e8s: number) => {
+        icp_transfer: async (account: string, e8s: number, memo = 0) => {
             const arg = IDL.encode(
                 [
                     IDL.Record({
@@ -488,7 +497,7 @@ export const ApiGenerator = (
                         to: hexToBytes(account),
                         amount: { e8s },
                         fee: { e8s: ICP_DEFAULT_FEE },
-                        memo: 0,
+                        memo,
                     },
                 ],
             );

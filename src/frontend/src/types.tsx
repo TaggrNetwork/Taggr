@@ -163,6 +163,7 @@ export type Realm = {
     last_setting_update: number;
     revenue: number;
     posts: PostId[];
+    tokens?: string[];
 };
 
 export type Meta = {
@@ -194,6 +195,7 @@ export type Post = {
     tree_update: BigInt;
     meta: Meta;
     encrypted: boolean;
+    external_tips?: PostTip[];
 };
 
 export type BlogTitle = {
@@ -355,6 +357,7 @@ export type Stats = {
 export type Config = {
     proposal_escrow_amount_xdr: number;
     staging: string;
+    staging2: string;
     weekly_auction_size_tokens: number;
     user_report_validity_days: number;
     downvote_counting_period_days: number;
@@ -395,6 +398,55 @@ export type Config = {
 
 export type Theme = { [name: string]: any };
 export type UserData = { [id: UserId]: string };
+
+export interface PostTip {
+    amount: number;
+    canister_id: string;
+    sender_id: number;
+    index: number;
+}
+
+export interface IcExplorerUserTokenInfo {
+    ledgerId: string;
+    symbol: string;
+    totalSupply: number;
+    owner: string;
+    subaccount: string;
+    accountId: string;
+    amount: number;
+    tokenDecimal: number;
+    snapshotTime: number;
+    valueUSD: number;
+}
+
+export interface IcExplorerUserTokenResponse {
+    list: IcExplorerUserTokenInfo[];
+    pageNum: number;
+    pageSize: number;
+    size: number;
+    startRow: number;
+    endRow: number;
+    pages: number;
+    prePage: number;
+    nextPage: number;
+    isFirstPage: boolean;
+    isLastPage: boolean;
+    hasPreviousPage: boolean;
+    hasNextPage: boolean;
+    navigatePages: number;
+    navigateFirstPage: number;
+    navigateLastPage: number;
+}
+
+export interface TokenInfo {
+    canisterId: string;
+    symbol: string;
+    subaccount: string;
+    amount: number;
+    decimals: number;
+    usdAmount?: number;
+    logo: string;
+}
 
 declare global {
     interface Window {

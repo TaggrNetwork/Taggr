@@ -13,6 +13,7 @@ pub struct Config {
     pub name: &'static str,
     pub logo: &'static str,
     pub staging: &'static str,
+    pub staging2: &'static str,
 
     pub random_reward_amount: Token,
 
@@ -162,6 +163,7 @@ pub const CONFIG: &Config = &Config {
     name: "Taggr",
     logo: include_str!("../../frontend/assets/logo.min.svg"),
     staging: "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io",
+    staging2: "2ogwt-7aaaa-aaaam-aedoa-cai.icp0.io",
 
     weekly_auction_size_tokens_min: 1500,
     weekly_auction_size_tokens_max: 100000,

@@ -1,7 +1,7 @@
 import { HeadBar, REPO } from "./common";
 
 export const LinksPage = ({}) => {
-    const { token_symbol, staging } = window.backendCache.config;
+    const { token_symbol, staging, staging2 } = window.backendCache.config;
     return (
         <div className="spaced">
             <HeadBar title="LINKS" shareLink="links" />
@@ -57,6 +57,10 @@ export const LinksPage = ({}) => {
                 <li>
                     <a href={`https://${staging}`}>Staging environment</a>{" "}
                     (maintained by <a href="#/user/0">X</a>)
+                </li>
+                <li>
+                    <a href={`https://${staging2}`}>Staging environment 2</a>{" "}
+                    (maintained by <a href="#/user/935">aligatorr</a>)
                 </li>
             </ul>
         </div>
