@@ -1,5 +1,6 @@
 use crate::env::{
     proposals::{Payload, Release},
+    tip::try_tip,
     user::{Mode, UserFilter},
 };
 
@@ -664,6 +665,14 @@ fn create_bid() {
 #[export_name = "canister_update cancel_bid"]
 fn cancel_bid() {
     spawn(async { reply(auction::cancel_bid(read(caller)).await) });
+}
+
+#[export_name = "canister_update add_external_icrc_transaction"]
+fn add_external_icrc_transaction() {
+    let (canister_id_as_str, start_index, post_id): (String, u64, PostId) = parse(&arg_data_raw());
+
+    let canister_id = Principal::from_text(canister_id_as_str).unwrap();
+    spawn(async move { reply(try_tip(post_id, canister_id, read(caller), start_index).await) });
 }
 
 #[update]

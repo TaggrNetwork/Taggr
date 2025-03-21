@@ -1,4 +1,8 @@
-use crate::env::{invoices::principal_to_subaccount, proposals::Payload};
+use crate::env::{
+    invoices::principal_to_subaccount, proposals::Payload, tip::Tip, user::UserFilter,
+};
+use std::cmp::Reverse;
+use std::collections::BTreeMap;
 
 use super::*;
 use candid::Principal;
@@ -332,6 +336,24 @@ fn posts() {
                 .map(|post| post.with_meta(state))
                 .collect::<Vec<_>>(),
         );
+    })
+}
+
+#[export_name = "canister_query post_tips"]
+fn post_tips() {
+    let (post_id, page): (PostId, usize) = parse(&arg_data_raw());
+    read(|state| {
+        if let Some(tip_ids) = state.post_tip_indexes.get(&post_id) {
+            return reply(
+                tip_ids
+                    .iter()
+                    .skip(50 * page)
+                    .take(50)
+                    .map(|tip_id| state.memory.tips.get(tip_id))
+                    .collect::<Vec<_>>(),
+            );
+        }
+        reply(vec![] as Vec<Tip>)
     })
 }
 
