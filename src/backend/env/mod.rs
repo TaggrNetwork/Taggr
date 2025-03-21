@@ -30,6 +30,7 @@ use sha2::{Digest, Sha256};
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::convert::TryFrom;
+use tip::TipId;
 use token::base;
 use user::{Pfp, User, UserId};
 
@@ -50,6 +51,7 @@ pub mod proposals;
 pub mod reports;
 pub mod search;
 pub mod storage;
+pub mod tip;
 pub mod token;
 pub mod user;
 
@@ -117,7 +119,7 @@ pub struct Stats {
 
 pub type RealmId = String;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct Realm {
     pub cleanup_penalty: Credits,
     pub controllers: BTreeSet<UserId>,
@@ -138,6 +140,11 @@ pub struct Realm {
     pub adult_content: bool,
     #[serde(default)]
     pub comments_filtering: bool,
+    /// Native token of realm - 1 use case is min balance to post
+    pub native_token: Option<Principal>,
+    /// Tokens allowed to appear in realm like tips
+    pub tokens: Option<BTreeSet<Principal>>,
+    pub min_native_token_balance: Option<u128>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -253,6 +260,10 @@ pub struct State {
     pub weekly_chores_delay_votes: HashSet<UserId>,
 
     pub timers: Timers,
+
+    // Map of post id to sorted of tip ids and external index
+    #[serde(default)]
+    pub post_tip_indexes: BTreeMap<PostId, Vec<TipId>>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -747,6 +758,9 @@ impl State {
             cleanup_penalty,
             adult_content,
             comments_filtering,
+            native_token,
+            min_native_token_balance,
+            tokens,
             ..
         } = realm;
         let user = self.principal_to_user(principal).ok_or("no user found")?;
@@ -761,6 +775,9 @@ impl State {
         }
         if !logo.is_empty() {
             realm.logo = logo;
+        }
+        if tokens.clone().map_or(false, |t| t.len() > 50) {
+            return Err("tokens count below 50".into());
         }
         let description_change = realm.description != description;
         realm.description = description;
@@ -791,6 +808,9 @@ impl State {
         realm.last_setting_update = time();
         realm.adult_content = adult_content;
         realm.comments_filtering = comments_filtering;
+        realm.native_token = native_token;
+        realm.min_native_token_balance = min_native_token_balance;
+        realm.tokens = tokens;
         if description_change {
             self.notify_with_filter(
                 &|user| user.realms.contains(&realm_id),
@@ -2931,6 +2951,45 @@ impl State {
 
         Ok(())
     }
+
+    // To improve post performance, instead of validating balance do penalty after
+    // In frontend there is a warning about min native token balance
+    // Post will still be created but will be deleted async - this way we have user POV-performance and policy enforcement
+    pub async fn delete_post_realm_native_token_balance(
+        owner: Principal,
+        post_id: PostId,
+    ) -> Result<(), String> {
+        let (realm_id, post_body) = read(|state| {
+            let post = Post::get(state, &post_id).expect("post not found");
+            (post.realm.clone(), post.body.clone())
+        });
+        if let Some(realm_id) = realm_id {
+            let (native_token, min_native_token_balance) = read(|state| {
+                let realm = state.realms.get(&realm_id).expect("realm not found");
+                (realm.native_token, realm.min_native_token_balance)
+            });
+
+            if let Some((native_token, min_native_token_balance)) =
+                native_token.zip(min_native_token_balance)
+            {
+                let balance = canisters::icrc_balance_of(native_token, owner).await;
+                match balance {
+                    Ok(balance) => {
+                        // Delete post of user
+                        if balance < min_native_token_balance {
+                            let _ =
+                                mutate(|state| state.delete_post(owner, post_id, vec![post_body]));
+                        }
+                    }
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 // Checks if any feed represents the superset for the given tag set.
@@ -3826,9 +3885,14 @@ pub(crate) mod tests {
                 Err("not authorized".to_string())
             );
 
+            let mut tokens = BTreeSet::new();
+            tokens.insert(pr(99));
             let realm = Realm {
                 controllers,
                 description: "New test description".into(),
+                native_token: Some(pr(100)),
+                tokens: Some(tokens.clone()),
+                min_native_token_balance: Some(500),
                 ..Default::default()
             };
             assert_eq!(state.edit_realm(p0, name.clone(), realm), Ok(()));
@@ -3836,6 +3900,16 @@ pub(crate) mod tests {
             assert_eq!(
                 state.realms.get(&name).unwrap().description,
                 new_description
+            );
+
+            assert_eq!(state.realms.get(&name).unwrap().native_token, Some(pr(100)),);
+            assert_eq!(
+                state.realms.get(&name).unwrap().min_native_token_balance,
+                Some(500),
+            );
+            assert_eq!(
+                state.realms.get(&name).unwrap().tokens,
+                Some(tokens.clone()),
             );
 
             // wrong user and wrong realm joining
@@ -4006,6 +4080,7 @@ pub(crate) mod tests {
                 .unwrap()
                 .realms
                 .contains(&"TAGGRDAO".to_string()));
+
             (p1, realm_name)
         });
 
@@ -4891,5 +4966,79 @@ pub(crate) mod tests {
             assert_eq!(state.principal_to_user(pr(8)).unwrap().treasury_e8s, 12545);
             assert_eq!(state.principal_to_user(pr(9)).unwrap().treasury_e8s, 12545);
         });
+    }
+
+    #[actix_rt::test]
+    async fn test_delete_post_realm_native_token_balance() {
+        let pr = pr(10);
+
+        // Setup user and realm
+        let post_id = mutate(|state| {
+            create_user_with_params(state, pr, "test-name", 10000);
+            let _ = create_realm(state, pr, "test-realm".to_string());
+            state.toggle_realm_membership(pr, "test-realm".to_string());
+            Post::create(
+                state,
+                "test-post".to_string(),
+                &[],
+                pr,
+                time(),
+                None,
+                Some("test-realm".to_string()),
+                None,
+            )
+            .expect("post not created")
+        });
+
+        // Add realm native token balance
+        mutate(|state| {
+            if let Some(realm) = state.realms.get("test-realm") {
+                let mut edit = realm.clone();
+                edit.native_token = Some(id());
+                edit.min_native_token_balance = Some(5000);
+                let _ = state.edit_realm(pr, "test-realm".to_string(), edit);
+            }
+        });
+
+        // Test edit realm
+        assert_eq!(
+            read(|state| state
+                .realms
+                .get("test-realm")
+                .and_then(|realm| realm.native_token)),
+            Some(id()),
+        );
+        assert_eq!(
+            read(|state| state
+                .realms
+                .get("test-realm")
+                .and_then(|realm| realm.min_native_token_balance)),
+            Some(5000),
+        );
+
+        // Mint 50 Taggr to user
+        mutate(|state| {
+            state.balances.insert(account(pr), 5000);
+            if let Some(user) = state.principal_to_user_mut(pr) {
+                user.balance = 5000;
+            }
+        });
+
+        let delete_post = State::delete_post_realm_native_token_balance(pr, post_id).await;
+        assert_eq!(delete_post.err(), None);
+
+        // Increase min native token balance to 5001
+        mutate(|state| {
+            if let Some(realm) = state.realms.get_mut("test-realm") {
+                realm.min_native_token_balance = Some(5001);
+            }
+        });
+
+        // Post should be deleted when balance below min
+        let _ = State::delete_post_realm_native_token_balance(pr, post_id).await;
+        assert_eq!(
+            Some(true),
+            read(|state| Post::get(state, &post_id).map(|post| post.is_deleted())),
+        );
     }
 }

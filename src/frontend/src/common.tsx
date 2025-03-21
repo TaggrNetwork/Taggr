@@ -12,11 +12,14 @@ import {
 } from "./icons";
 import { loadFile } from "./form";
 import {
+    Icrc1Canister,
     Meta,
     Post,
     PostId,
+    PostTip,
     Realm,
     Report,
+    TokenInfo,
     User,
     UserFilter,
     UserId,
@@ -350,7 +353,7 @@ export const ButtonWithLoading = ({
             className={`fat ${
                 loading || disabled
                     ? classNameArg?.replaceAll("active", "")
-                    : classNameArg
+                    : classNameArg || ""
             } ${disabled ? "inactive" : ""}`}
             style={styleArg || null}
             data-testid={testId}
@@ -462,7 +465,8 @@ export const tokens = (n: number, decimals: number, hideDecimals?: boolean) => {
     });
 };
 
-export const ICP_LEDGER_ID = Principal.fromText("ryjl3-tyaaa-aaaaa-aaaba-cai");
+export const ICP_LEDGER = "ryjl3-tyaaa-aaaaa-aaaba-cai";
+export const ICP_LEDGER_ID = Principal.fromText(ICP_LEDGER);
 
 export const ICP_DEFAULT_FEE = 10000;
 
@@ -1257,3 +1261,219 @@ export function createChunks<T>(arr: T[], size: number) {
         arr.slice(size * i, size + size * i),
     );
 }
+
+export function getUserCanisterKey(canisterId: string) {
+    return `canister:${canisterId}`;
+}
+
+export function getLocalCanistersMetaData(
+    canisterIds: string[],
+): Array<[string, Icrc1Canister]> {
+    return canisterIds
+        .map((canisterId) => {
+            try {
+                const canisterMeta: Icrc1Canister | null = JSON.parse(
+                    localStorage.getItem(
+                        getUserCanisterKey(canisterId),
+                    ) as string,
+                );
+                if (
+                    !canisterMeta?.symbol ||
+                    !canisterMeta?.name ||
+                    isNaN(canisterMeta?.decimals) ||
+                    isNaN(canisterMeta?.fee)
+                ) {
+                    return null;
+                }
+                return [canisterId, canisterMeta] as [string, Icrc1Canister];
+            } catch {
+                return null;
+            }
+        })
+        .filter((r) => !!r);
+}
+
+export async function getCanistersMetaData(canisterIds: string[]) {
+    // Add missing user canisters key for metadata
+    const canistersFromStorageMap = new Map<string, Icrc1Canister>(
+        getLocalCanistersMetaData(canisterIds),
+    );
+
+    // Add missing user canisters key for metadata
+    const missingMetaCanisterIds =
+        canisterIds.filter(
+            (canisterId) => !canistersFromStorageMap.has(canisterId),
+        ) || [];
+
+    if (missingMetaCanisterIds.length === 0) {
+        return canistersFromStorageMap;
+    }
+
+    const chunks = createChunks(missingMetaCanisterIds, 5);
+    // Load missing metadata
+    for (const chunk of chunks) {
+        await Promise.all(
+            chunk.map((canisterId) =>
+                window.api
+                    .icrc_metadata(canisterId)
+                    .then((meta) => {
+                        if (meta) {
+                            canistersFromStorageMap.set(canisterId, meta);
+                            localStorage.setItem(
+                                getUserCanisterKey(canisterId),
+                                JSON.stringify(meta),
+                            );
+                        }
+                    })
+                    .catch(console.error),
+            ),
+        );
+    }
+
+    return canistersFromStorageMap;
+}
+
+export function numberToUint8Array(num: number) {
+    // Create an empty array to hold the bytes
+    const arr: number[] = [];
+
+    // For 32-bit integer, store the number in up to 4 bytes
+    for (let i = 0; i < 4; i++) {
+        arr.push(num & 0xff); // Extract the least significant byte
+        num = num >> 8; // Shift right by 8 bits to get the next byte
+    }
+
+    // Return the Uint8Array
+    return new Uint8Array(arr.reverse()); // Reverse to ensure correct byte order (little-endian)
+}
+
+export const loadExternalTips = (postId: PostId): Promise<PostTip[]> => {
+    return window.api.query<any>("post_tips", postId, 0).catch(() => []);
+};
+
+export const getAllTokens = async (): Promise<TokenInfo[]> => {
+    const CACHE_KEY = "all_tokens";
+
+    const localTokens: { updated_at: string; tokens: TokenInfo[] } = JSON.parse(
+        localStorage.getItem(CACHE_KEY) || "{}",
+    );
+    const dayAndHalfAgo = new Date();
+    dayAndHalfAgo.setHours(dayAndHalfAgo.getHours() - 36);
+
+    if (new Date(localTokens.updated_at) > dayAndHalfAgo) {
+        return localTokens?.tokens || [];
+    }
+
+    return window.api
+        .icp_swap_tokens()
+        .then((jsonStr) => {
+            let tokens = (jsonStr[0] || []) as unknown as TokenInfo[];
+            // Filter out non ICRC tokens
+            tokens = tokens.filter(
+                ({ standard }) => standard.slice(0, 4) === "ICRC",
+            );
+            localStorage.setItem(
+                CACHE_KEY,
+                JSON.stringify({
+                    updated_at: new Date().toISOString(),
+                    tokens,
+                }),
+            );
+            return tokens;
+        })
+        .catch((e) => {
+            console.error(e);
+            return [];
+        });
+};
+
+export const Popup = ({
+    html,
+    onConfirm,
+    onCancel,
+    show,
+    confirmLabel = "OK",
+}: {
+    html: any;
+    onConfirm: () => any;
+    onCancel: () => any;
+    show: boolean;
+    confirmLabel?: string;
+}) => {
+    React.useEffect(() => {
+        // Prevent scrolling when popup is open
+        if (show) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "auto";
+        }
+
+        // Cleanup function
+        return () => {
+            document.body.style.overflow = "auto";
+        };
+    }, [show]);
+
+    if (!show) return null;
+
+    return (
+        <>
+            <div className="popup-overlay" />
+            <div className="popup-container" data-testid="custom-popup">
+                <div className="popup-content">
+                    {html}
+                    <div className="popup-buttons">
+                        <ButtonWithLoading
+                            label={confirmLabel}
+                            onClick={onConfirm}
+                        />
+                        {
+                            <ButtonWithLoading
+                                label={"Cancel"}
+                                onClick={onCancel}
+                            />
+                        }
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+};
+
+/** Get it from cache or network */
+export const getIcrcBalance = async (
+    canisterId: string,
+    ownerPrincipal: string,
+): Promise<string> => {
+    const cacheKey = `user:${ownerPrincipal}-canister-${canisterId}-balance`;
+    const balanceFromStorage = JSON.parse(
+        localStorage.getItem(cacheKey) || "{}",
+    );
+    const minuteAgo = new Date();
+    minuteAgo.setHours(minuteAgo.getMinutes() - 5);
+    if (
+        Object.keys(balanceFromStorage).length &&
+        balanceFromStorage.updated_at > minuteAgo
+    ) {
+        return balanceFromStorage.balance;
+    }
+
+    return window.api
+        .account_balance(Principal.from(canisterId), {
+            owner: Principal.from(ownerPrincipal),
+        })
+        .then((balance) => {
+            localStorage.setItem(
+                cacheKey,
+                JSON.stringify({
+                    updated_at: new Date().toISOString(),
+                    balance: balance.toString(),
+                }),
+            );
+            return balance.toString();
+        })
+        .catch((error) => {
+            console.error(error);
+            return "0";
+        });
+};

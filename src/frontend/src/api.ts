@@ -33,6 +33,7 @@ export type Backend = {
         canisterId: string,
         methodName: string,
         arg: ArrayBuffer,
+        toIdl?: boolean,
     ) => Promise<ArrayBuffer | null>;
 
     call: <T>(
@@ -94,16 +95,23 @@ export type Backend = {
         account: IcrcAccount,
     ) => Promise<bigint>;
 
-    icp_transfer: (account: string, e8s: number) => Promise<JsonValue>;
+    icp_transfer: (
+        account: string,
+        e8s: number,
+        memo?: number,
+    ) => Promise<JsonValue>;
 
     icrc_transfer: (
         token: Principal,
         recipient: Principal,
         amount: number,
         fee: number,
+        memo?: any,
     ) => Promise<string | number>;
 
     icrc_metadata: (canisterId: string) => Promise<Icrc1Canister | null>;
+
+    icp_swap_tokens: () => Promise<JsonValue[]>;
 };
 
 export const ApiGenerator = (
@@ -151,6 +159,7 @@ export const ApiGenerator = (
                 console.error(methodName, response);
                 return null;
             }
+
             return response.reply.arg;
         } catch (error) {
             console.error(error);
@@ -455,25 +464,28 @@ export const ApiGenerator = (
             recipient: Principal,
             amount: number,
             fee: number,
+            memo?: Uint8Array,
         ) => {
             try {
                 const canister = IcrcLedgerCanister.create({
                     canisterId: Principal.from(token),
                     agent,
                 });
-                await canister.transfer({
+                const response = await canister.transfer({
                     to: { owner: recipient, subaccount: [] },
                     amount: BigInt(amount),
                     fee: BigInt(fee),
+                    memo: memo as any,
                 });
-                return amount;
+
+                return response.toString(); // Response is index of transaction
             } catch (e) {
                 let err = e as unknown as IcrcTransferError<string>;
                 return err.message;
             }
         },
 
-        icp_transfer: async (account: string, e8s: number) => {
+        icp_transfer: async (account: string, e8s: number, memo = 0) => {
             const arg = IDL.encode(
                 [
                     IDL.Record({
@@ -488,7 +500,7 @@ export const ApiGenerator = (
                         to: hexToBytes(account),
                         amount: { e8s },
                         fee: { e8s: ICP_DEFAULT_FEE },
-                        memo: 0,
+                        memo,
                     },
                 ],
             );
@@ -533,6 +545,41 @@ export const ApiGenerator = (
                 name: (m.get(IcrcMetadataResponseEntries.NAME) as any).Text,
                 symbol: (m.get(IcrcMetadataResponseEntries.SYMBOL) as any).Text,
             };
+        },
+
+        icp_swap_tokens: async () => {
+            const uint8Array = new Uint8Array(0);
+            const arg = IDL.encode(
+                [IDL.Vec(IDL.Nat8)],
+                [Array.from(uint8Array)],
+            );
+
+            if (!mainnetMode) {
+                return [];
+            }
+
+            const response = await query_raw(
+                "ggzvv-5qaaa-aaaag-qck7a-cai",
+                "getAllTokens",
+                arg,
+            );
+            if (!response) {
+                console.error("Failed to retrieve tokens info from ICPSwap!");
+                return [];
+            }
+
+            const TokenInfoRecord = IDL.Record({
+                volumeUSD7d: IDL.Float64,
+                totalVolumeUSD: IDL.Float64,
+                address: IDL.Text,
+                symbol: IDL.Text,
+                standard: IDL.Text,
+            });
+
+            const TokenInfoList = IDL.Vec(TokenInfoRecord);
+            const decodedResponse = IDL.decode([TokenInfoList], response);
+
+            return decodedResponse;
         },
     };
 };
