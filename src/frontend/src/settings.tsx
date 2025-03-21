@@ -294,6 +294,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             Enable ICRC tokens in the wallet
                         </div>
                         <select
+                            data-testid="ic-wallet-select"
                             value={settings.icrcWallet || "false"}
                             className="bottom_spaced"
                             onChange={(event) =>

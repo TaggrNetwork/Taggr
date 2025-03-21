@@ -55,6 +55,7 @@ pub mod realms;
 pub mod reports;
 pub mod search;
 pub mod storage;
+pub mod tip;
 pub mod token;
 pub mod user;
 
@@ -696,6 +697,7 @@ impl State {
             cleanup_penalty,
             adult_content,
             comments_filtering,
+            tokens,
             ..
         } = realm;
         let user = self.principal_to_user(principal).ok_or("user not found")?;
@@ -710,6 +712,9 @@ impl State {
         }
         if !logo.is_empty() {
             realm.logo = logo;
+        }
+        if tokens.as_ref().map_or(false, |t| t.len() > 50) {
+            return Err("tokens count above 50".into());
         }
         let description_change = realm.description != description;
         realm.description = description;
@@ -740,6 +745,7 @@ impl State {
         realm.last_setting_update = time();
         realm.adult_content = adult_content;
         realm.comments_filtering = comments_filtering;
+        realm.tokens = tokens;
         if description_change {
             self.notify_with_filter(
                 &|user| user.realms.contains(&realm_id),
