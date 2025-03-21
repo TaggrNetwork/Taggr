@@ -101,6 +101,7 @@ export type Backend = {
         recipient: Principal,
         amount: number,
         fee: number,
+        memo?: any,
     ) => Promise<string | number>;
 
     icrc_metadata: (canisterId: string) => Promise<Icrc1Canister | null>;
@@ -450,18 +451,21 @@ export const ApiGenerator = (
             recipient: Principal,
             amount: number,
             fee: number,
+            memo?: Uint8Array,
         ) => {
             try {
                 const canister = IcrcLedgerCanister.create({
                     canisterId: Principal.from(token),
                     agent,
                 });
-                await canister.transfer({
+                const response = await canister.transfer({
                     to: { owner: recipient, subaccount: [] },
                     amount: BigInt(amount),
                     fee: BigInt(fee),
+                    memo: memo as any,
                 });
-                return amount;
+
+                return response.toString();
             } catch (e) {
                 let err = e as unknown as IcrcTransferError<string>;
                 return err.message;

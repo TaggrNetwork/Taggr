@@ -1,3 +1,4 @@
+import { Principal } from "@dfinity/principal";
 import * as React from "react";
 import { Form } from "./form";
 import { Content } from "./content";
@@ -26,6 +27,9 @@ import {
     currentRealm,
     parseNumber,
     noiseControlBanner,
+    getCanistersMetaData,
+    numberToUint8Array,
+    loadExternalTips,
 } from "./common";
 import {
     reaction2icon,
@@ -44,8 +48,23 @@ import {
     More,
 } from "./icons";
 import { ProposalView } from "./proposals";
-import { Feature, Post, PostId, Realm, UserId } from "./types";
-import { UserLink, UserList, populateUserNameCache } from "./user_resolve";
+import {
+    Feature,
+    Icrc1Canister,
+    Post,
+    PostId,
+    PostTip,
+    Realm,
+    User,
+    UserId,
+} from "./types";
+import {
+    USER_CACHE,
+    UserLink,
+    UserList,
+    populateUserNameCache,
+} from "./user_resolve";
+import { CANISTER_ID } from "./env";
 
 export const PostView = ({
     id,
@@ -470,26 +489,73 @@ const PostInfo = ({
     const [realmData, setRealmData] = React.useState<Realm | null>();
     const [loaded, setLoaded] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
+    const [externalTips, setExternalTips] = React.useState<PostTip[]>([]);
+    const [canistersMetaData, setCanisterMetaData] = React.useState(
+        new Map<string, Icrc1Canister>(),
+    );
+    const [postUser, setPostUser] = React.useState<User | null>(null);
 
     const loadData = async () => {
         // Load realm data asynchronously
-        post.realm &&
-            window.api
-                .query<Realm[]>("realms", [post.realm])
-                .then((realmData) => setRealmData((realmData || [])[0]));
-        const ids: UserId[] = []
+        let realm: Realm | undefined;
+        const realmPromise = post.realm
+            ? window.api
+                  .query<Realm[]>("realms", [post.realm])
+                  .then((realmData) => {
+                      realm = realmData?.at(0);
+                      setRealmData((realmData || [])[0]);
+                  })
+            : Promise.resolve(null);
+        // Load external tips if there are any
+        const externalTips: PostTip[] = post.has_external_tip
+            ? await loadExternalTips(post.id)
+            : [];
+        setExternalTips(externalTips);
+
+        const ids: UserId[] = [post.user]
             // @ts-ignore
             .concat(...Object.values(reactions))
             // @ts-ignore
             .concat(post.watchers)
             // @ts-ignore
-            .concat(Object.keys(post.tips).map(Number));
-        await populateUserNameCache(ids, setLoading);
+            .concat(Object.keys(post.tips).map(Number))
+            // @ts-ignore
+            .concat(externalTips.map(({ sender_id }) => sender_id));
+        await populateUserNameCache([...new Set(ids)], setLoading);
+
+        if (!postUser) {
+            setPostUser(
+                post.user != window.user?.id
+                    ? await window.api.query<User>("user", [
+                          USER_CACHE[post.user],
+                      ])
+                    : window.user,
+            );
+        }
+
+        await realmPromise
+            .then(async () => {
+                const token_ids = new Set(
+                    externalTips.map(({ canister_id }) => canister_id),
+                );
+                token_ids.add(CANISTER_ID);
+                if (realm?.native_token) {
+                    token_ids.add(realm.native_token);
+                }
+
+                setCanisterMetaData(await getCanistersMetaData([...token_ids]));
+            })
+            .catch(console.error);
+
         setLoaded(true);
     };
 
+    let initial = false;
     React.useEffect(() => {
-        loadData();
+        if (!initial) {
+            initial = true;
+            loadData().finally(() => (initial = false));
+        }
     }, []);
 
     const user = window.user;
@@ -607,34 +673,106 @@ const PostInfo = ({
                                 title="Tip"
                                 classNameArg="max_width_col"
                                 onClick={async () => {
+                                    let selectedTokenSymbol = token_symbol;
+                                    if (realmData?.native_token) {
+                                        selectedTokenSymbol =
+                                            prompt(
+                                                `Select token (${token_symbol} or ${canistersMetaData.get(realmData?.native_token)?.symbol}): `,
+                                                token_symbol,
+                                            ) || "";
+                                    }
+                                    if (!selectedTokenSymbol) {
+                                        return;
+                                    }
+
+                                    const canister = canistersMetaData.get(
+                                        selectedTokenSymbol !== token_symbol
+                                            ? realmData?.native_token || ""
+                                            : CANISTER_ID,
+                                    );
+                                    if (!canister) {
+                                        return alert(
+                                            "Could not find canister data :(",
+                                        );
+                                    }
+
                                     const amount =
                                         parseNumber(
                                             prompt(
-                                                `Tip @${post.meta.author_name} with ${token_symbol}:`,
-                                                "0.1",
+                                                `Tip @${post.meta.author_name} with ${canister.symbol}:`,
+                                                canister.symbol === token_symbol
+                                                    ? "0.1"
+                                                    : (0).toFixed(
+                                                          canister.decimals,
+                                                      ),
                                             ) || "",
-                                            token_decimals,
+                                            canister.decimals,
                                         ) || NaN;
                                     if (isNaN(amount)) return;
                                     if (
                                         !confirm(
                                             `Transfer ${tokens(
                                                 amount,
-                                                token_decimals,
-                                            )} ${token_symbol} to @${
+                                                canister.decimals,
+                                            )} ${canister.symbol} to @${
                                                 post.meta.author_name
                                             } as a tip?`,
                                         )
                                     )
                                         return;
-                                    let response = await window.api.call<any>(
-                                        "tip",
-                                        post.id,
-                                        amount,
-                                    );
-                                    if ("Err" in response) {
-                                        alert(`Error: ${response.Err}`);
-                                    } else await callback();
+
+                                    if (canister.symbol !== token_symbol) {
+                                        let transferResponse =
+                                            await window.api.icrc_transfer(
+                                                Principal.fromText(
+                                                    realmData?.native_token as any,
+                                                ),
+                                                Principal.fromText(
+                                                    postUser?.principal as any,
+                                                ),
+                                                amount,
+                                                canister.fee,
+                                                numberToUint8Array(post.id),
+                                            );
+
+                                        if (isNaN(transferResponse as number)) {
+                                            return alert(
+                                                transferResponse ||
+                                                    "Something went wrong with transfer!",
+                                            );
+                                        }
+
+                                        let addTipResponse =
+                                            await window.api.call<any>(
+                                                "add_external_icrc_transaction",
+                                                realmData?.native_token,
+                                                +transferResponse,
+                                                post.id,
+                                            );
+                                        if (
+                                            "Err" in (addTipResponse || {}) ||
+                                            !addTipResponse
+                                        ) {
+                                            return alert(
+                                                `Error: ${addTipResponse?.Err}`,
+                                            );
+                                        }
+
+                                        setExternalTips([
+                                            ...externalTips,
+                                            addTipResponse.Ok,
+                                        ]);
+                                    } else {
+                                        let response =
+                                            await window.api.call<any>(
+                                                "tip",
+                                                post.id,
+                                                amount,
+                                            );
+                                        if ("Err" in response) {
+                                            alert(`Error: ${response.Err}`);
+                                        } else await callback();
+                                    }
                                 }}
                                 label={<Coin />}
                             />
@@ -766,7 +904,7 @@ const PostInfo = ({
                                     version == v ? (
                                         `${version} (${timeAgo(timestamp)})`
                                     ) : (
-                                        <span key={v}>
+                                        <span key={"version-" + v}>
                                             <a
                                                 href={`/#/post/${post.id}/${v}`}
                                             >{`${v}`}</a>{" "}
@@ -786,8 +924,17 @@ const PostInfo = ({
                     <div>
                         <b>{token_symbol} TIPS</b>:{" "}
                         {commaSeparated(
-                            post.tips.map(([id, tip]) => (
-                                <span key={id + Number(tip)}>
+                            post.tips.map(([id, tip], index) => (
+                                <span
+                                    key={
+                                        "tip-" +
+                                        index +
+                                        ":id-" +
+                                        id +
+                                        ":amount-" +
+                                        Number(tip)
+                                    }
+                                >
                                     <code>
                                         {tokens(Number(tip), token_decimals)}
                                     </code>{" "}
@@ -800,11 +947,52 @@ const PostInfo = ({
                 {Object.keys(reactions).length > 0 && (
                     <div className="top_spaced">
                         {Object.entries(reactions).map(([reactId, users]) => (
-                            <div key={reactId} className="bottom_half_spaced">
+                            <div
+                                key={"reaction" + reactId}
+                                className="bottom_half_spaced"
+                            >
                                 {reaction2icon(Number(reactId))}{" "}
                                 <UserList ids={users} profile={true} />
                             </div>
                         ))}
+                    </div>
+                )}
+                {externalTips.length > 0 && (
+                    <div>
+                        <b>EXTERNAL TIPS</b>:{" "}
+                        {commaSeparated(
+                            externalTips.map((tip) => (
+                                <span
+                                    style={{ verticalAlign: "middle" }}
+                                    key={"external_tip" + tip.id}
+                                >
+                                    <code>
+                                        {tokens(Number(tip.amount), 8).replace(
+                                            /0{1,16}$/g,
+                                            "",
+                                        )}
+                                        {canistersMetaData.get(tip.canister_id)
+                                            ?.symbol || ""}
+                                    </code>{" "}
+                                    <img
+                                        src={
+                                            canistersMetaData.get(
+                                                tip.canister_id,
+                                            )?.logo || ""
+                                        }
+                                        className="vertically_aligned "
+                                        style={{ height: 16 }}
+                                    />
+                                    from{" "}
+                                    {
+                                        <UserLink
+                                            id={tip.sender_id}
+                                            profile={true}
+                                        />
+                                    }
+                                </span>
+                            )),
+                        )}
                     </div>
                 )}
             </div>
@@ -927,7 +1115,7 @@ const PostBar = ({
                 )}
                 {!showEmojis && (
                     <>
-                        {post.tips.length > 0 && (
+                        {(post.tips.length > 0 || post.has_external_tip) && (
                             <Coin classNameArg="accent right_quarter_spaced" />
                         )}
                         {post.reposts.length > 0 && (

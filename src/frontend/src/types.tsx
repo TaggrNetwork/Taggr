@@ -132,6 +132,7 @@ export type Realm = {
     last_setting_update: number;
     revenue: number;
     posts: PostId[];
+    native_token?: string;
 };
 
 export type Meta = {
@@ -164,6 +165,7 @@ export type Post = {
     tree_update: BigInt;
     meta: Meta;
     encrypted: boolean;
+    has_external_tip?: boolean;
 };
 
 export type BlogTitle = {
@@ -363,6 +365,14 @@ export type Config = {
 
 export type Theme = { [name: string]: any };
 export type UserData = { [id: UserId]: string };
+
+export interface PostTip {
+    amount: number;
+    canister_id: string;
+    id: number;
+    post_id: number;
+    sender_id: number;
+}
 
 declare global {
     interface Window {

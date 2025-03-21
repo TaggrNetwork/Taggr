@@ -10,11 +10,12 @@ import {
     setTitle,
     ToggleButton,
     foregroundColor,
+    getCanistersMetaData,
 } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
 import { getTheme, setRealmUI } from "./theme";
-import { Realm, Theme, UserFilter } from "./types";
+import { Icrc1Canister, Realm, Theme, UserFilter } from "./types";
 import {
     USER_CACHE,
     UserList,
@@ -53,9 +54,13 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         posts: [],
         adult_content: false,
         comments_filtering: true,
+        native_token: undefined,
     });
     const [controllersString, setControllersString] = React.useState("");
     const [whitelistString, setWhitelistString] = React.useState("");
+    const [canistersMetaData, setCanisterMetaData] = React.useState(
+        new Map<string, Icrc1Canister>(),
+    );
 
     const loadRealm = async () => {
         let result =
@@ -65,6 +70,12 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         setRealm(realm);
         setStrings(realm);
         if (realm.theme) setTheme(JSON.parse(realm.theme));
+
+        if (realm.native_token) {
+            setCanisterMetaData(
+                await getCanistersMetaData([realm.native_token]),
+            );
+        }
     };
 
     const setStrings = async (realm: Realm) => {
@@ -91,6 +102,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         cleanup_penalty,
         adult_content,
         comments_filtering,
+        native_token,
     } = realm;
 
     const valid = name && description && controllers.length > 0;
@@ -304,6 +316,54 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                     </div>
                 </div>
 
+                <div className="column_container bottom_spaced">
+                    <div className="bottom_half_spaced">
+                        Native Token{" "}
+                        {realm.native_token && (
+                            <span>
+                                <code>
+                                    {
+                                        canistersMetaData.get(
+                                            realm.native_token,
+                                        )?.symbol
+                                    }
+                                </code>
+                                &nbsp;
+                                <img
+                                    style={{
+                                        height: 32,
+                                        width: 32,
+                                        verticalAlign: "middle",
+                                    }}
+                                    src={
+                                        canistersMetaData.get(
+                                            realm.native_token,
+                                        )?.logo
+                                    }
+                                />
+                            </span>
+                        )}
+                    </div>
+                    <input
+                        type="text"
+                        defaultValue={native_token || ""}
+                        onBlur={async (e) => {
+                            const canisterId = e.target.value;
+                            const metadata = await getCanistersMetaData([
+                                canisterId,
+                            ]);
+                            if (!metadata) {
+                                return alert(
+                                    "Could not find canister metadata",
+                                );
+                            }
+                            realm.native_token = canisterId;
+                            setCanisterMetaData(metadata);
+                            setRealm({ ...realm });
+                        }}
+                    />
+                </div>
+
                 {whitelist.length == 0 && (
                     <>
                         <div className="column_container bottom_spaced">
@@ -506,6 +566,13 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         await Promise.all([
                             window.reloadCache(),
                             window.reloadUser(),
+                            realm.native_token
+                                ? setCanisterMetaData(
+                                      await getCanistersMetaData([
+                                          realm.native_token,
+                                      ]),
+                                  )
+                                : null,
                         ]);
                         if (!editing) {
                             location.href = `#/realm/${name}`;

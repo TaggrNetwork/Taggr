@@ -4,6 +4,8 @@ import {
     Loading,
     bucket_image_url,
     createChunks,
+    getCanistersMetaData,
+    getUserCanisterKey,
 } from "./common";
 import { Principal } from "@dfinity/principal";
 import { Icrc1Canister } from "./types";
@@ -11,8 +13,6 @@ import { Add, Repost, Trash } from "./icons";
 
 export const Icrc1TokensWallet = () => {
     const [user] = React.useState(window.user);
-    const getUserCanisterKey = (canisterId: string) =>
-        `canister:${canisterId}:user:${user?.id}`;
     const userWalletFiltersKey = `user:${user?.id}:wallet-filters`;
     const [icrc1Canisters, setIcrc1Canisters] = React.useState<
         Array<[string, Icrc1Canister]>
@@ -54,75 +54,6 @@ export const Icrc1TokensWallet = () => {
             );
     };
 
-    const getLocalCanistersMetaData = (): Array<[string, Icrc1Canister]> => {
-        return (user?.wallet_tokens || [])
-            .map((canisterId) => {
-                try {
-                    const canisterMeta: Icrc1Canister | null = JSON.parse(
-                        localStorage.getItem(
-                            getUserCanisterKey(canisterId),
-                        ) as string,
-                    );
-                    if (
-                        !canisterMeta?.symbol ||
-                        !canisterMeta?.name ||
-                        isNaN(canisterMeta?.decimals) ||
-                        isNaN(canisterMeta?.fee)
-                    ) {
-                        return null;
-                    }
-                    return [canisterId, canisterMeta] as [
-                        string,
-                        Icrc1Canister,
-                    ];
-                } catch {
-                    return null;
-                }
-            })
-            .filter((r) => !!r)
-            .sort((a, b) => a[1].symbol.localeCompare(b[1].symbol));
-    };
-
-    const getCanistersMetaData = async () => {
-        // Add missing user canisters key for metadata
-        const canistersFromStorageMap = new Map<string, Icrc1Canister>(
-            getLocalCanistersMetaData(),
-        );
-
-        // Add missing user canisters key for metadata
-        const missingMetaCanisterIds =
-            user.wallet_tokens?.filter(
-                (canisterId) => !canistersFromStorageMap.has(canisterId),
-            ) || [];
-
-        if (missingMetaCanisterIds.length === 0) {
-            return canistersFromStorageMap;
-        }
-
-        const chunks = createChunks(missingMetaCanisterIds, 5);
-        // Load missing metadata
-        for (const chunk of chunks) {
-            await Promise.all(
-                chunk.map((canisterId) =>
-                    window.api
-                        .icrc_metadata(canisterId)
-                        .then((meta) => {
-                            if (meta) {
-                                canistersFromStorageMap.set(canisterId, meta);
-                                localStorage.setItem(
-                                    getUserCanisterKey(canisterId),
-                                    JSON.stringify(meta),
-                                );
-                            }
-                        })
-                        .catch(console.error),
-                ),
-            );
-        }
-
-        return canistersFromStorageMap;
-    };
-
     /** Load balances of user canisters in small batches to avoid spikes */
     const loadBalances = async (canisterIds: string[]) => {
         const balances: { [key: string]: string } = { ...canisterBalances };
@@ -156,7 +87,9 @@ export const Icrc1TokensWallet = () => {
     const loadAllBalances = async () => {
         setDisabled(true);
         try {
-            const canisters = await getCanistersMetaData();
+            const canisters = await getCanistersMetaData(
+                user?.wallet_tokens || [],
+            );
             const balances = await loadBalances([...canisters.keys()]);
             setIcrc1Canisters(
                 filterAndSortCanisters([...canisters.entries()], balances),
@@ -167,7 +100,7 @@ export const Icrc1TokensWallet = () => {
     };
 
     const initialLoad = async () => {
-        const canisters = await getCanistersMetaData();
+        const canisters = await getCanistersMetaData(user?.wallet_tokens || []);
         setIcrc1Canisters([...canisters.entries()]);
 
         const balances = await loadBalances([...canisters.keys()]);
@@ -349,7 +282,9 @@ export const Icrc1TokensWallet = () => {
                         disabled={disabled}
                         onChange={async () => {
                             const canisters = [
-                                ...(await getCanistersMetaData()),
+                                ...(await getCanistersMetaData(
+                                    user?.wallet_tokens || [],
+                                )),
                             ];
                             const filteredCanisters = filterAndSortCanisters(
                                 canisters,

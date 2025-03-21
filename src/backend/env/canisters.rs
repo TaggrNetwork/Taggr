@@ -7,7 +7,7 @@ use crate::env::NNSProposal;
 use crate::{env::config::CONFIG, id};
 use candid::{
     utils::{ArgumentDecoder, ArgumentEncoder},
-    CandidType, Principal,
+    CandidType, Nat, Principal,
 };
 use ic_cdk::api::{
     call::CallResult,
@@ -31,6 +31,43 @@ thread_local! {
     static CALLS: RefCell<HashMap<String, i32>> = Default::default();
     // A timestamp of the last upgrading attempt
     static UPGRADE_TIMESTAMP: RefCell<u64> = Default::default();
+}
+
+#[derive(CandidType, Clone, Serialize, Deserialize)]
+pub struct GetTransactionsArgs {
+    pub start: Nat,
+    pub length: Nat,
+}
+
+#[derive(CandidType, Debug, Serialize, Deserialize)]
+pub struct ArchivedTransaction {
+    // Define the fields of ArchivedTransaction here
+    // This is a placeholder as the exact structure wasn't provided
+}
+
+#[derive(CandidType, Clone, Serialize, Deserialize)]
+pub struct IcrcTransactionTransfer {
+    // pub created_at_time: Option<u64>,
+    pub from: Account,
+    pub to: Account,
+    pub amount: Nat,
+    pub fee: Option<Nat>,
+    pub memo: Option<Vec<u8>>,
+}
+
+#[derive(CandidType, Clone, Serialize, Deserialize)]
+pub struct IcrcTransaction {
+    // pub timestamp: u64,
+    // pub kind: String,
+    pub transfer: IcrcTransactionTransfer,
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone)]
+pub struct GetTransactionsResult {
+    // pub first_index: u128,
+    // pub log_length: u128,
+    pub transactions: Vec<IcrcTransaction>,
+    // pub archived_transactions: Vec<ArchivedTransaction>,
 }
 
 // Panics if an upgrade was initiated within the last 5 minutes. If something goes wrong

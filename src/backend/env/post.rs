@@ -91,6 +91,9 @@ pub struct Post {
 
     #[serde(default)]
     pub encrypted: bool,
+
+    #[serde(default)]
+    pub has_external_tip: Option<bool>,
 }
 
 impl PartialEq for Post {
@@ -153,6 +156,7 @@ impl Post {
             encrypted: false,
             realm,
             heat,
+            has_external_tip: None,
         }
     }
 
@@ -174,6 +178,10 @@ impl Post {
             nsfw: realm.map(|realm| realm.adult_content).unwrap_or_default(),
         };
         (self, meta)
+    }
+
+    pub fn get_tips<'a>(&'a self, state: &'a State) -> Option<&Vec<Tip>> {
+        state.post_tips.get(&self.id)
     }
 
     pub fn creation_timestamp(&self) -> u64 {

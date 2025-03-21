@@ -355,6 +355,22 @@ fn posts() {
     })
 }
 
+#[export_name = "canister_query post_tips"]
+fn post_tips() {
+    let (post_id, page): (PostId, usize) = parse(&arg_data_raw());
+    read(|state| {
+        reply(
+            state
+                .post_tips
+                .iter()
+                .filter(|(id, _)| **id == post_id)
+                .skip(50 * page)
+                .take(50)
+                .collect::<Vec<_>>(),
+        )
+    });
+}
+
 #[export_name = "canister_query journal"]
 fn journal() {
     let (handle, page, offset): (String, usize, PostId) = parse(&arg_data_raw());

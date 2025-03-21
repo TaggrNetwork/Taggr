@@ -27,6 +27,7 @@ use sha2::{Digest, Sha256};
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::convert::TryFrom;
+use tip::Tip;
 use token::base;
 use user::{Pfp, User, UserId};
 
@@ -44,6 +45,7 @@ pub mod proposals;
 pub mod reports;
 pub mod search;
 pub mod storage;
+pub mod tip;
 pub mod token;
 pub mod user;
 
@@ -133,6 +135,7 @@ pub struct Realm {
     pub adult_content: bool,
     #[serde(default)]
     pub comments_filtering: bool,
+    pub native_token: Option<Principal>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -239,6 +242,9 @@ pub struct State {
     pub weekly_chores_delay_votes: HashSet<UserId>,
 
     pub timers: Timers,
+
+    #[serde(default)]
+    pub post_tips: BTreeMap<PostId, Vec<Tip>>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -733,6 +739,7 @@ impl State {
             cleanup_penalty,
             adult_content,
             comments_filtering,
+            native_token,
             ..
         } = realm;
         let user = self.principal_to_user(principal).ok_or("no user found")?;
@@ -777,6 +784,7 @@ impl State {
         realm.last_setting_update = time();
         realm.adult_content = adult_content;
         realm.comments_filtering = comments_filtering;
+        realm.native_token = native_token;
         if description_change {
             self.notify_with_filter(
                 &|user| user.realms.contains(&realm_id),

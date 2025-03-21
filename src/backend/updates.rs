@@ -4,10 +4,14 @@ use crate::env::{
 };
 
 use super::*;
+use candid::Nat;
+use canisters::call_canister;
+use canisters::{GetTransactionsArgs, GetTransactionsResult};
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
     post::{Extension, Post, PostId},
+    tip::create_post_tip,
     user::{Draft, User, UserId},
     State,
 };
@@ -629,6 +633,46 @@ fn create_bid() {
 #[export_name = "canister_update cancel_bid"]
 fn cancel_bid() {
     spawn(async { reply(auction::cancel_bid(caller()).await) });
+}
+
+#[export_name = "canister_update add_external_icrc_transaction"]
+fn add_external_icrc_transaction() {
+    let (canister_id_as_str, start_index, post_id): (String, u64, PostId) = parse(&arg_data_raw());
+
+    let canister_id = Principal::from_text(canister_id_as_str).unwrap();
+
+    let args = GetTransactionsArgs {
+        start: Nat::from(start_index),
+        length: Nat::from(1_u128),
+    };
+
+    spawn(async move {
+        let (response,): (GetTransactionsResult,) =
+            call_canister(canister_id, "get_transactions", (args,))
+                .await
+                .expect("Failed to do cross canister call");
+
+        if !response.transactions.is_empty() {
+            let transaction = &response.transactions[0];
+            let amount = transaction.transfer.amount.0.to_u64_digits();
+            reply(mutate(|state| {
+                create_post_tip(
+                    state,
+                    post_id,
+                    canister_id,
+                    amount[0],
+                    transaction.transfer.memo.clone(),
+                    transaction.transfer.to.owner,
+                    transaction.transfer.from.owner,
+                )
+            }))
+        } else {
+            reply(format!(
+                "We could not find transaction at index {}",
+                start_index
+            ))
+        }
+    });
 }
 
 pub fn caller() -> Principal {
