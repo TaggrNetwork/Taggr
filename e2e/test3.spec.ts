@@ -104,4 +104,126 @@ test.describe("Regular users flow, part two", () => {
         });
         await expect(repostFeedItem.getByText(/Poll from John/)).toBeVisible();
     });
+
+    test.describe("Tips", () => {
+        test('Logout and login with "1" user', async () => {
+            // Logout and register "1" user
+            await page.getByTestId("toggle-user-section").click();
+            await expect(page.locator(`a[title="SIGN OUT"]`)).toBeVisible();
+            await page.locator(`a[title="SIGN OUT"]`).click();
+
+            await expect(page).toHaveTitle("TAGGR");
+
+            await page.getByRole("button", { name: "CONNECT" }).click();
+            await page.getByRole("button", { name: "PASSWORD" }).click();
+            await page.getByPlaceholder("Enter your password...").fill("1");
+            await page.getByRole("button", { name: "JOIN" }).click();
+            await page.waitForTimeout(1000);
+            await page.getByPlaceholder("Enter your password...").fill("1");
+            await page.getByPlaceholder("Repeat your password...").fill("1");
+            await page.getByRole("button", { name: "JOIN" }).click();
+            await page.getByRole("button", { name: "MINT CREDITS" }).click();
+            const value = await page
+                .getByTestId("invoice-amount")
+                .textContent();
+            exec(
+                `dfx --identity local-minter ledger transfer --amount ${value} --memo 0 061f95b2447df3afd65e84d572a26a4af898e015f1a1bbccd2348e9c04b4bb4b`,
+            );
+            await page.getByRole("button", { name: "CHECK BALANCE" }).click();
+
+            await page.getByRole("button", { name: "CREATE USER" }).click();
+            await page.getByPlaceholder("alphanumeric").fill("one");
+            await page
+                .getByPlaceholder("tell us what we should know about you")
+                .fill("I am one");
+            await page.getByRole("button", { name: "SAVE" }).click();
+            await expect(page).toHaveTitle("TAGGR");
+        });
+
+        test("Find post and tip it", async () => {
+            // Mint 5 Taggr to tipper "1"
+            exec(
+                `dfx canister call taggr mint_tokens '("m3uoe-djcwl-qxrq5-2z4pn-flt5v-y3c2e-cxxp3-v2np5-idczn-cspi4-fae", 500 : nat64)'`,
+            );
+            await page.goto("/");
+            await page.getByTestId("toggle-user-section").click();
+            await expect(page.getByTestId("token-balance")).toHaveText("5");
+            await page.getByTestId("toggle-user-section").click();
+
+            // Find post with Poll from John
+            const post = page
+                .getByTestId("post-body")
+                .filter({
+                    hasText: "Poll from John",
+                })
+                .last();
+            await expect(post).toBeVisible();
+            // Click post menu
+            const menuBTN = post.locator(`button[title="Menu"]`);
+            await expect(menuBTN).toBeVisible();
+            await menuBTN.click();
+            // Click tip button
+            const postMenu = post.getByTestId("post-menu");
+            await expect(postMenu).toBeVisible();
+            await postMenu.locator(`button[title="Tip"]`).click();
+            // Wait for custom popup and send 1 Taggr
+            const popup = page.getByTestId("custom-popup");
+            await expect(popup).toBeVisible();
+            await expect(popup).toHaveText(/Tip @john with.*/);
+            await popup.locator("input").fill("1"); // Send 1 Taggr to john
+
+            popup.getByText("SEND").click();
+            // Confirm receiver and amount
+            await new Promise((resolve) => {
+                page.once("dialog", async (dialog) => {
+                    await dialog.accept();
+                    await page.waitForLoadState("networkidle");
+                    await page.waitForTimeout(1000);
+                    resolve(null);
+                });
+            });
+
+            // Check balance
+            await page.goto("/");
+            await page.getByTestId("toggle-user-section").click();
+            await expect(page.getByTestId("token-balance")).toHaveText("4");
+        });
+
+        test("Find post click tip but cancel it", async () => {
+            // Find post with Poll from John
+            const post = page
+                .getByTestId("post-body")
+                .filter({
+                    hasText: "Poll from John",
+                })
+                .last();
+            await expect(post).toBeVisible();
+            // Click post menu
+            const menuBTN = post.locator(`button[title="Menu"]`);
+            await expect(menuBTN).toBeVisible();
+            await menuBTN.click();
+            // Click tip button
+            const postMenu = post.getByTestId("post-menu");
+            await expect(postMenu).toBeVisible();
+            await postMenu.locator(`button[title="Tip"]`).click();
+            // Wait for custom popup and send 1 Taggr
+            const popup = page.getByTestId("custom-popup");
+            await expect(popup).toBeVisible();
+            await popup.locator("input").fill("1"); // Send 1 Taggr to john
+            popup.getByText("SEND").click();
+            // Dismiss
+            const promise = new Promise((resolve) => {
+                page.once("dialog", async (dialog) => {
+                    await dialog.dismiss();
+                    resolve(null);
+                });
+            });
+            await promise;
+
+            // Check balance
+            await page.goto("/");
+            await page.getByTestId("toggle-user-section").click();
+            await expect(page.getByTestId("token-balance")).toHaveText("4"); // Canceled
+        });
+    });
 });
