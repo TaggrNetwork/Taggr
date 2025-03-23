@@ -650,22 +650,33 @@ fn add_external_icrc_transaction() {
         let (response,): (GetTransactionsResult,) =
             call_canister(canister_id, "get_transactions", (args,))
                 .await
-                .expect("Failed to do cross canister call");
+                .map_err(|e| {
+                    ic_cdk::println!("Failed to call ledger: {:?}", e);
+                    format!("Failed to call ledger: {:?}", e)
+                })
+                .expect("Failed to do a cross canister call");
 
         if !response.transactions.is_empty() {
             let transaction = &response.transactions[0];
-            let amount = transaction.transfer.amount.0.to_u64_digits();
-            reply(mutate(|state| {
-                create_post_tip(
-                    state,
-                    post_id,
-                    canister_id,
-                    amount[0],
-                    transaction.transfer.memo.clone(),
-                    transaction.transfer.to.owner,
-                    transaction.transfer.from.owner,
-                )
-            }))
+            match &transaction.transfer {
+                Some(transfer) => reply(mutate(|state| {
+                    let amount = transfer.amount.0.to_u64_digits();
+                    let memo = transfer.memo.as_ref().unwrap().0.to_vec();
+                    create_post_tip(
+                        state,
+                        post_id,
+                        canister_id,
+                        amount[0],
+                        Some(memo),
+                        transfer.to.owner,
+                        transfer.from.owner,
+                    )
+                })),
+                None => {
+                    ic_cdk::println!("No transfer field");
+                    reply("Transaction is not a transfer!");
+                }
+            }
         } else {
             reply(format!(
                 "We could not find transaction at index {}",

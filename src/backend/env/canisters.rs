@@ -22,6 +22,7 @@ use ic_cdk::api::{
 use ic_cdk::{api::call::call_raw, notify};
 use ic_ledger_types::MAINNET_GOVERNANCE_CANISTER_ID;
 use serde::{Deserialize, Serialize};
+use serde_bytes::ByteBuf;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -33,41 +34,41 @@ thread_local! {
     static UPGRADE_TIMESTAMP: RefCell<u64> = Default::default();
 }
 
-#[derive(CandidType, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
 pub struct GetTransactionsArgs {
     pub start: Nat,
     pub length: Nat,
 }
 
-#[derive(CandidType, Debug, Serialize, Deserialize)]
-pub struct ArchivedTransaction {
-    // Define the fields of ArchivedTransaction here
-    // This is a placeholder as the exact structure wasn't provided
+#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
+pub struct IcrcAccount {
+    pub owner: Principal,
+    pub subaccount: Option<[u8; 32]>,
 }
 
-#[derive(CandidType, Clone, Serialize, Deserialize)]
-pub struct IcrcTransactionTransfer {
-    // pub created_at_time: Option<u64>,
-    pub from: Account,
-    pub to: Account,
+#[derive(
+    Serialize, Deserialize, CandidType, Clone, Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Default,
+)]
+#[serde(transparent)]
+pub struct IcrcMemo(pub ByteBuf);
+
+#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
+pub struct IcrcTransfer {
     pub amount: Nat,
+    pub from: IcrcAccount,
+    pub to: IcrcAccount,
+    pub memo: Option<IcrcMemo>,
     pub fee: Option<Nat>,
-    pub memo: Option<Vec<u8>>,
 }
 
-#[derive(CandidType, Clone, Serialize, Deserialize)]
-pub struct IcrcTransaction {
-    // pub timestamp: u64,
-    // pub kind: String,
-    pub transfer: IcrcTransactionTransfer,
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct IcrcTransactionRecord {
+    pub transfer: Option<IcrcTransfer>,
 }
 
-#[derive(CandidType, Serialize, Deserialize, Clone)]
+#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
 pub struct GetTransactionsResult {
-    // pub first_index: u128,
-    // pub log_length: u128,
-    pub transactions: Vec<IcrcTransaction>,
-    // pub archived_transactions: Vec<ArchivedTransaction>,
+    pub transactions: Vec<IcrcTransactionRecord>,
 }
 
 // Panics if an upgrade was initiated within the last 5 minutes. If something goes wrong
