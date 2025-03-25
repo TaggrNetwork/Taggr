@@ -4,12 +4,15 @@ import {
     Loading,
     bucket_image_url,
     createChunks,
+    getAllTokens,
     getCanistersMetaData,
     getUserCanisterKey,
 } from "./common";
 import { Principal } from "@dfinity/principal";
 import { Icrc1Canister } from "./types";
 import { Add, Repost, Trash } from "./icons";
+import { TokenSelect } from "./token-select";
+import { CANISTER_ID } from "./env";
 
 export const Icrc1TokensWallet = () => {
     const [user] = React.useState(window.user);
@@ -32,6 +35,9 @@ export const Icrc1TokensWallet = () => {
         getLocalFilters()?.hideZeroBalance || false,
     );
     const [disabled, setDisabled] = React.useState(true);
+    const [dropdownCanisters, setDropdownCanisters] = React.useState<
+        Array<[string, Icrc1Canister]>
+    >([]);
 
     const filterAndSortCanisters = (
         canisters: Array<[string, Icrc1Canister]>,
@@ -108,6 +114,35 @@ export const Icrc1TokensWallet = () => {
         setIcrc1Canisters(
             filterAndSortCanisters([...canisters.entries()], balances),
         );
+
+        // Async, don't wait for dropdown
+        getAllTokens()
+            .then(async (tokens) => {
+                const topVolume = tokens
+                    .sort((a, b) => b.totalVolumeUSD - a.totalVolumeUSD)
+                    .slice(0, 50)
+                    .map(({ address }) => address);
+                const topLast7DaysVolume = tokens
+                    .sort((a, b) => b.volumeUSD7d - a.volumeUSD7d)
+                    .slice(0, 50)
+                    .map(({ address }) => address);
+
+                const topCanisters = await getCanistersMetaData([
+                    ...new Set([
+                        ...topLast7DaysVolume,
+                        ...topVolume,
+                        CANISTER_ID,
+                    ]),
+                ]);
+                setDropdownCanisters([
+                    ...topCanisters.entries(),
+                    ...canisters.entries(),
+                ]);
+            })
+            .catch((e) => {
+                // Ignore
+                console.error(e)
+            });
     };
     let loading = false;
     React.useEffect(() => {
@@ -120,8 +155,8 @@ export const Icrc1TokensWallet = () => {
         }
     }, []);
 
-    const addIcrc1CanisterPrompt = async () => {
-        const canisterId = prompt(`ICRC-1 canister id:`) || "";
+    const addIcrc1Canister = async (canisterId?: string) => {
+        canisterId = canisterId || prompt(`ICRC-1 canister id:`) || "";
         if (!canisterId) {
             return;
         }
@@ -308,8 +343,16 @@ export const Icrc1TokensWallet = () => {
                         Hide empty balances
                     </label>
                 </div>
+                {dropdownCanisters.length > 0 && (
+                    <TokenSelect
+                        canisters={Object.fromEntries(dropdownCanisters)}
+                        onSelectionChange={async (canisterId) => {
+                            await addIcrc1Canister(canisterId);
+                        }}
+                    />
+                )}
                 <ButtonWithLoading
-                    onClick={addIcrc1CanisterPrompt}
+                    onClick={addIcrc1Canister}
                     label={<Add />}
                     title="Add token"
                     disabled={disabled}

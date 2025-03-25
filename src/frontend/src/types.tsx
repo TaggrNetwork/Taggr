@@ -133,6 +133,7 @@ export type Realm = {
     revenue: number;
     posts: PostId[];
     native_token?: string;
+    min_native_token_balance?: number;
 };
 
 export type Meta = {
@@ -372,6 +373,14 @@ export interface PostTip {
     id: number;
     post_id: number;
     sender_id: number;
+}
+
+/** Currently ICPSwap data */
+export interface TokenInfo {
+    volumeUSD7d: number;
+    totalVolumeUSD: number;
+    address: string;
+    symbol: string;
 }
 
 declare global {

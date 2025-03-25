@@ -33,6 +33,7 @@ export type Backend = {
         canisterId: string,
         methodName: string,
         arg: ArrayBuffer,
+        toIdl?: boolean,
     ) => Promise<ArrayBuffer | null>;
 
     call: <T>(
@@ -94,7 +95,11 @@ export type Backend = {
         account: IcrcAccount,
     ) => Promise<bigint>;
 
-    icp_transfer: (account: string, e8s: number) => Promise<JsonValue>;
+    icp_transfer: (
+        account: string,
+        e8s: number,
+        memo?: number,
+    ) => Promise<JsonValue>;
 
     icrc_transfer: (
         token: Principal,
@@ -105,6 +110,8 @@ export type Backend = {
     ) => Promise<string | number>;
 
     icrc_metadata: (canisterId: string) => Promise<Icrc1Canister | null>;
+
+    icp_swap_tokens: () => Promise<JsonValue[]>;
 };
 
 export const ApiGenerator = (
@@ -152,6 +159,7 @@ export const ApiGenerator = (
                 console.error(methodName, response);
                 return null;
             }
+
             return response.reply.arg;
         } catch (error) {
             console.error(error);
@@ -472,7 +480,7 @@ export const ApiGenerator = (
             }
         },
 
-        icp_transfer: async (account: string, e8s: number) => {
+        icp_transfer: async (account: string, e8s: number, memo = 0) => {
             const arg = IDL.encode(
                 [
                     IDL.Record({
@@ -487,7 +495,7 @@ export const ApiGenerator = (
                         to: hexToBytes(account),
                         amount: { e8s },
                         fee: { e8s: ICP_DEFAULT_FEE },
-                        memo: 0,
+                        memo,
                     },
                 ],
             );
@@ -562,6 +570,36 @@ export const ApiGenerator = (
                 console.error(error);
                 return null;
             }
+        },
+
+        icp_swap_tokens: async () => {
+            const uint8Array = new Uint8Array(0);
+            const arg = IDL.encode(
+                [IDL.Vec(IDL.Nat8)],
+                [Array.from(uint8Array)],
+            );
+
+            const response = await query_raw(
+                "ggzvv-5qaaa-aaaag-qck7a-cai",
+                "getAllTokens",
+                arg,
+            );
+            if (!response) {
+                console.error("Failed to retrieve tokens info from ICPSwap!");
+                return [];
+            }
+
+            const TokenInfoRecord = IDL.Record({
+                volumeUSD7d: IDL.Float64,
+                totalVolumeUSD: IDL.Float64,
+                address: IDL.Text,
+                symbol: IDL.Text,
+            });
+
+            const TokenInfoList = IDL.Vec(TokenInfoRecord);
+            const decodedResponse = IDL.decode([TokenInfoList], response);
+
+            return decodedResponse;
         },
     };
 };

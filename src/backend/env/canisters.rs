@@ -372,6 +372,36 @@ pub async fn icrc_transfer(
     result.map_err(|err| format!("{:?}", err))
 }
 
+pub async fn icrc_balance_of(canister_id: Principal, owner: Principal) -> Result<u128, String> {
+    let account = Account {
+        owner,
+        subaccount: None,
+    };
+
+    let (balance,): (u128,) = call_canister(canister_id, "icrc1_balance_of", (account,))
+        .await
+        .map_err(|e| {
+            ic_cdk::println!("Failed to call ledger: {:?}", e);
+            format!("Failed to call ledger: {:?}", e)
+        })?;
+
+    Ok(balance)
+}
+
+pub async fn icrc_transactions(
+    canister_id: Principal,
+    args: GetTransactionsArgs,
+) -> Result<GetTransactionsResult, String> {
+    let (response,): (GetTransactionsResult,) =
+        call_canister(canister_id, "get_transactions", (args,))
+            .await
+            .map_err(|e| {
+                ic_cdk::println!("Failed to call ledger: {:?}", e);
+                format!("Failed to call ledger: {:?}", e)
+            })?;
+    Ok(response)
+}
+
 pub async fn call_canister_raw(id: Principal, method: &str, args: &[u8]) -> CallResult<Vec<u8>> {
     open_call(method);
     let result = call_raw(id, method, args, 0).await;

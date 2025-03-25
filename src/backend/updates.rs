@@ -5,8 +5,7 @@ use crate::env::{
 
 use super::*;
 use candid::Nat;
-use canisters::call_canister;
-use canisters::{GetTransactionsArgs, GetTransactionsResult};
+use canisters::GetTransactionsArgs;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
@@ -26,7 +25,7 @@ use ic_cdk::{
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
-use std::{collections::HashSet, time::Duration};
+use std::{collections::HashSet, convert::TryFrom, time::Duration};
 use user::Pfp;
 
 #[init]
@@ -390,6 +389,33 @@ async fn add_post(
     realm: Option<RealmId>,
     extension: Option<Blob>,
 ) -> Result<PostId, String> {
+    // Check min native realm token balance
+    if let Some(realm_id) = realm.clone() {
+        let (native_token, min_native_token_balance) = read(|state| {
+            let realm = state.realms.get(&realm_id).expect("realm not found");
+            (realm.native_token, realm.min_native_token_balance)
+        });
+
+        if let Some((native_token, min_native_token_balance)) =
+            native_token.zip(min_native_token_balance)
+        {
+            let balance = canisters::icrc_balance_of(native_token, caller()).await;
+            match balance {
+                Ok(balance) => {
+                    if balance < min_native_token_balance {
+                        return Err(format!(
+                            "Native realm token balance is lower than {}",
+                            min_native_token_balance
+                        ));
+                    }
+                }
+                Err(err) => {
+                    return Err(err);
+                }
+            }
+        }
+    }
+
     let post_id = mutate(|state| {
         let extension: Option<Extension> = extension.map(|bytes| parse(&bytes));
         Post::create(
@@ -647,34 +673,36 @@ fn add_external_icrc_transaction() {
     };
 
     spawn(async move {
-        let (response,): (GetTransactionsResult,) =
-            call_canister(canister_id, "get_transactions", (args,))
-                .await
-                .map_err(|e| {
-                    ic_cdk::println!("Failed to call ledger: {:?}", e);
-                    format!("Failed to call ledger: {:?}", e)
-                })
-                .expect("Failed to do a cross canister call");
-
-        if !response.transactions.is_empty() {
-            let transaction = &response.transactions[0];
+        let response = canisters::icrc_transactions(canister_id, args).await;
+        if let Some(transaction) = response
+            .expect("Failed to retrive transactions")
+            .transactions
+            .first()
+        {
             match &transaction.transfer {
                 Some(transfer) => reply(mutate(|state| {
-                    let amount = transfer.amount.0.to_u64_digits();
+                    ic_cdk::println!(
+                        "input amount {:?}, input memo {:?}",
+                        transfer.amount,
+                        transfer.memo
+                    );
+                    let amount = u128::try_from(&transfer.amount.0).expect("Wrong amount");
                     let memo = transfer.memo.as_ref().unwrap().0.to_vec();
+                    ic_cdk::println!("memo {:?}", memo);
                     create_post_tip(
                         state,
                         post_id,
                         canister_id,
-                        amount[0],
+                        amount,
                         Some(memo),
                         transfer.to.owner,
                         transfer.from.owner,
+                        start_index,
                     )
                 })),
                 None => {
                     ic_cdk::println!("No transfer field");
-                    reply("Transaction is not a transfer!");
+                    reply("Transaction is not a transfer!")
                 }
             }
         } else {

@@ -19,6 +19,7 @@ import {
     PostTip,
     Realm,
     Report,
+    TokenInfo,
     User,
     UserFilter,
     UserId,
@@ -1239,4 +1240,36 @@ export const loadExternalTips = (postId: PostId): Promise<PostTip[]> => {
         .query<any>("post_tips", postId, 0)
         .then((response) => response?.at(0)?.at(1) || [])
         .catch(() => []);
+};
+
+export const getAllTokens = async (): Promise<TokenInfo[]> => {
+    const CACHE_KEY = "all_tokens";
+
+    const localTokens: { updated_at: string; tokens: TokenInfo[] } = JSON.parse(
+        localStorage.getItem(CACHE_KEY) || "{}",
+    );
+    const dayAndHalfAgo = new Date();
+    dayAndHalfAgo.setHours(dayAndHalfAgo.getHours() - 36);
+
+    if (new Date(localTokens.updated_at) > dayAndHalfAgo) {
+        return localTokens?.tokens || [];
+    }
+
+    return window.api
+        .icp_swap_tokens()
+        .then((jsonStr) => {
+            const tokens = jsonStr[0] as unknown as TokenInfo[];
+            localStorage.setItem(
+                CACHE_KEY,
+                JSON.stringify({
+                    updated_at: new Date().toISOString(),
+                    tokens,
+                }),
+            );
+            return tokens;
+        })
+        .catch((e) => {
+            console.error(e);
+            return [];
+        });
 };

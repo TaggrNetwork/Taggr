@@ -136,6 +136,7 @@ pub struct Realm {
     #[serde(default)]
     pub comments_filtering: bool,
     pub native_token: Option<Principal>,
+    pub min_native_token_balance: Option<u128>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -740,6 +741,7 @@ impl State {
             adult_content,
             comments_filtering,
             native_token,
+            min_native_token_balance,
             ..
         } = realm;
         let user = self.principal_to_user(principal).ok_or("no user found")?;
@@ -785,6 +787,7 @@ impl State {
         realm.adult_content = adult_content;
         realm.comments_filtering = comments_filtering;
         realm.native_token = native_token;
+        realm.min_native_token_balance = min_native_token_balance;
         if description_change {
             self.notify_with_filter(
                 &|user| user.realms.contains(&realm_id),

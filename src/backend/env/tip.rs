@@ -11,28 +11,38 @@ pub struct Tip {
 
     canister_id: Principal,
     amount: u128,
+    index: u64,
 }
 
 impl Tip {
-    pub fn new(post_id: PostId, sender_id: UserId, canister_id: Principal, amount: u128) -> Self {
+    pub fn new(
+        post_id: PostId,
+        sender_id: UserId,
+        canister_id: Principal,
+        amount: u128,
+        index: u64,
+    ) -> Self {
         Self {
             post_id,
             id: 0,
             amount,
             canister_id,
             sender_id,
+            index,
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_post_tip(
     state: &mut State,
     post_id: PostId,
     canister_id: Principal,
-    amount: u64,
+    amount: u128,
     memo: Option<Vec<u8>>,
     to_principal: Principal,
     from_principal: Principal,
+    index: u64,
 ) -> Result<Tip, String> {
     let post = Post::get(state, &post_id).ok_or("post not found")?;
     let receiver_id = state
@@ -67,6 +77,14 @@ pub fn create_post_tip(
 
     let has_external_tip = post.has_external_tip;
 
+    if state
+        .post_tips
+        .get(&post_id)
+        .map_or(false, |tips| tips.iter().any(|tip| tip.index == index))
+    {
+        return Err("tip index already exists".to_string());
+    }
+
     // DoS protection
     state.charge(
         sender_id,
@@ -82,7 +100,7 @@ pub fn create_post_tip(
         .expect("post not found");
     }
 
-    let mut tip = Tip::new(post_id, sender_id, canister_id, amount as u128);
+    let mut tip = Tip::new(post_id, sender_id, canister_id, amount, index);
     tip.id = state.post_tips.len() as u64;
 
     if let Some(post_tips) = state.post_tips.get_mut(&post_id) {
