@@ -141,7 +141,7 @@ export const Icrc1TokensWallet = () => {
             })
             .catch((e) => {
                 // Ignore
-                console.error(e)
+                console.error(e);
             });
     };
     let loading = false;
