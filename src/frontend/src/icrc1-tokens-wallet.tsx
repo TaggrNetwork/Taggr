@@ -108,6 +108,7 @@ export const Icrc1TokensWallet = () => {
     const initialLoad = async () => {
         const canisters = await getCanistersMetaData(user?.wallet_tokens || []);
         setIcrc1Canisters([...canisters.entries()]);
+        // setDropdownCanisters([...canisters.entries()]);
 
         const balances = await loadBalances([...canisters.keys()]);
 
@@ -345,7 +346,7 @@ export const Icrc1TokensWallet = () => {
                 </div>
                 {dropdownCanisters.length > 0 && (
                     <TokenSelect
-                        canisters={Object.fromEntries(dropdownCanisters)}
+                        canisters={dropdownCanisters}
                         onSelectionChange={async (canisterId) => {
                             await addIcrc1Canister(canisterId);
                         }}

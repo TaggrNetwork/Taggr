@@ -359,7 +359,12 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         <div className="row_container">
                             <TokenSelect
                                 classNameArg="max_width_col"
-                                canisters={canistersMetaData}
+                                canisters={Object.keys(canistersMetaData).map(
+                                    (canisterId) => [
+                                        canisterId,
+                                        canistersMetaData[canisterId],
+                                    ],
+                                )}
                                 onSelectionChange={(canisterId) => {
                                     realm.native_token = canisterId;
                                     setRealm({ ...realm });

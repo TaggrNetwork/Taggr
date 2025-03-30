@@ -468,7 +468,8 @@ export const tokens = (n: number, decimals: number, hideDecimals?: boolean) => {
     });
 };
 
-export const ICP_LEDGER_ID = Principal.fromText("ryjl3-tyaaa-aaaaa-aaaba-cai");
+export const ICP_LEDGER = "ryjl3-tyaaa-aaaaa-aaaba-cai";
+export const ICP_LEDGER_ID = Principal.fromText(ICP_LEDGER);
 
 export const ICP_DEFAULT_FEE = 10000;
 
@@ -1272,4 +1273,52 @@ export const getAllTokens = async (): Promise<TokenInfo[]> => {
             console.error(e);
             return [];
         });
+};
+
+export const Popup = ({
+    html,
+    onConfirm,
+    onCancel,
+    show,
+}: {
+    html: any;
+    onConfirm: () => any;
+    onCancel: () => any;
+    show: boolean;
+}) => {
+    React.useEffect(() => {
+        // Prevent scrolling when popup is open
+        if (show) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "auto";
+        }
+
+        // Cleanup function
+        return () => {
+            document.body.style.overflow = "auto";
+        };
+    }, [show]);
+
+    if (!show) return null;
+
+    return (
+        <>
+            <div className="popup-overlay" />
+            <div className="popup-container">
+                <div className="popup-content">
+                    {html}
+                    <div className="popup-buttons">
+                        <ButtonWithLoading label={"OK"} onClick={onConfirm} />
+                        {
+                            <ButtonWithLoading
+                                label={"Cancel"}
+                                onClick={onCancel}
+                            />
+                        }
+                    </div>
+                </div>
+            </div>
+        </>
+    );
 };

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ICP_LEDGER_ID } from "./common";
+import { ICP_LEDGER } from "./common";
 import { Icrc1Canister } from "./types";
 import { CANISTER_ID } from "./env";
 
@@ -10,7 +10,7 @@ export const TokenSelect = ({
     selectedCanisterId,
 }: {
     classNameArg?: string;
-    canisters: Record<string, Icrc1Canister>;
+    canisters: Array<[string, Icrc1Canister]>;
     onSelectionChange: (canisterId: string) => void;
     selectedCanisterId?: string;
 }) => {
@@ -36,46 +36,41 @@ export const TokenSelect = ({
     };
 
     const setData = () => {
+        const canistersMap = new Map(canisters);
         // Add ICP or Taggr
         const mainCanisters: Array<[string, Icrc1Canister]> = [];
-        const nativeCanister = canisters[CANISTER_ID];
+        const nativeCanister = canistersMap.get(CANISTER_ID);
         if (nativeCanister) {
             mainCanisters.push([CANISTER_ID, nativeCanister]);
         }
 
-        const icpCanister = canisters[ICP_LEDGER_ID.toText()];
+        const icpCanister = canistersMap.get(ICP_LEDGER);
         if (icpCanister) {
-            mainCanisters.push([ICP_LEDGER_ID.toText(), icpCanister]);
+            mainCanisters.push([ICP_LEDGER, icpCanister]);
         }
 
         setMainCanisters(mainCanisters);
 
         setDefaultCanisters(
-            Object.keys(canisters)
-                .filter(
-                    (canisterId) =>
-                        ![CANISTER_ID, ICP_LEDGER_ID.toText()].includes(
-                            canisterId,
-                        ),
-                )
-                .map((canisterId) => [canisterId, canisters[canisterId]]),
+            canisters.filter(
+                ([canisterId]) =>
+                    ![CANISTER_ID, ICP_LEDGER].includes(canisterId),
+            ),
         );
 
         const userTokens = window.user?.wallet_tokens || [];
         setUserCanisters(
-            Object.keys(canisters)
-                .filter((canisterId) => userTokens.includes(canisterId))
-                .map((canisterId) => [canisterId, canisters[canisterId]]),
+            userTokens
+                .filter((id) => canistersMap.has(id))
+                .map((canisterId) => [
+                    canisterId,
+                    canistersMap.get(canisterId) as Icrc1Canister,
+                ]),
         );
     };
 
-    let initial = false;
     React.useEffect(() => {
-        if (!initial) {
-            initial = true;
-            setData();
-            initial = false;
-        }
+        setData();
         if (selectedCanisterId) {
             setSelectedValue(selectedCanisterId);
         }
@@ -88,9 +83,11 @@ export const TokenSelect = ({
             onChange={handleChange}
             style={{ fontSize: "small" }}
         >
-            <option key={"main-option"} value={""}>
-                {""}
-            </option>
+            {!selectedCanisterId && (
+                <option key={"main-option"} value={""}>
+                    {""}
+                </option>
+            )}
             {mainCanisters.length > 0 && (
                 <optgroup label="Main">
                     {mainCanisters.map(([canisterId, canisterMeta]) => (
