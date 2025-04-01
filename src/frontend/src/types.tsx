@@ -373,6 +373,7 @@ export interface PostTip {
     id: number;
     post_id: number;
     sender_id: number;
+    index: number;
 }
 
 /** Currently ICPSwap data */

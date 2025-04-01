@@ -532,6 +532,7 @@ const PostInfo = ({
         await populateUserNameCache([...new Set(ids)], setLoading);
 
         if (!postUser) {
+            // Async load
             post.user !== window.user?.id &&
                 window.api
                     .query<User>("user", [USER_CACHE[post.user]])
@@ -615,15 +616,19 @@ const PostInfo = ({
         setSelectedTippingCanisterId(canisterId);
 
         const canister = canistersMetaData[canisterId];
-        setTippingAmount(canister.fee / Math.pow(10, canister.decimals));
+        if (!canister) {
+            return alert(`Could not find canister data for ${canisterId}`);
+        }
+        setTippingAmount(+(canister.fee / Math.pow(10, canister.decimals)).toFixed(canister.decimals));
     };
 
     const finalizeTip = async () => {
         setTipping(true);
         try {
-            const canister = canistersMetaData[selectedTippingCanisterId];
+            const canisterId = selectedTippingCanisterId; // Store constant for whole function which has 2 separate canister calls (3 in total)
+            const canister = canistersMetaData[canisterId];
             if (!canister) {
-                return alert("Could not find canister data :(");
+                return alert(`Could not find canister data for ${canisterId}`);
             }
 
             const amount = +(
@@ -641,7 +646,7 @@ const PostInfo = ({
 
             if (canister.symbol !== token_symbol) {
                 let transferResponse = await window.api.icrc_transfer(
-                    Principal.fromText(selectedTippingCanisterId),
+                    Principal.fromText(canisterId),
                     Principal.fromText(postUser?.principal || ""),
                     amount,
                     canister.fee,
@@ -655,17 +660,29 @@ const PostInfo = ({
                     );
                 }
 
-                let addTipResponse = await window.api.call<any>(
+                // Add to view in "optimistic" manner to improve speed
+                const optimisticPostTip: PostTip = {
+                    amount,
+                    canister_id: canisterId,
+                    id: -1, // Replace -1 with real id later
+                    index: +transferResponse,
+                    post_id: post.id,
+                    sender_id: window.user.id,
+                }
+                setExternalTips([...externalTips, optimisticPostTip]);
+                setTipping(false); // Show as it's not loading anymore ;)
+
+                let addTipResponse = await window.api.call<{ Ok: PostTip, Err: string; }>(
                     "add_external_icrc_transaction",
-                    selectedTippingCanisterId,
+                    canisterId,
                     +transferResponse,
                     post.id,
                 );
                 if ("Err" in (addTipResponse || {}) || !addTipResponse) {
-                    return alert(`Error: ${addTipResponse?.Err}`);
+                    throw new Error(addTipResponse?.Err);
                 }
 
-                setExternalTips([...externalTips, addTipResponse.Ok]);
+                setExternalTips([...externalTips.filter(({ id }) => id !== -1), addTipResponse.Ok]);
             } else {
                 let response = await window.api.call<any>(
                     "tip",
@@ -676,6 +693,12 @@ const PostInfo = ({
                     alert(`Error: ${response.Err}`);
                 } else await callback();
             }
+        } catch (e: any) {
+            const hasOptimisticTips = externalTips.some(({ id }) => id === -1); // Optimistic id = -1
+            if (hasOptimisticTips) {
+                setExternalTips(externalTips.filter(({ id }) => id !== -1));
+            }
+            return alert(e?.message || e);
         } finally {
             setTipping(false);
         }
@@ -776,10 +799,13 @@ const PostInfo = ({
                                                 onSelectionChange={
                                                     onTokenSelectionChange
                                                 }
-                                                selectedCanisterId={CANISTER_ID}
+                                                selectedCanisterId={
+                                                    selectedTippingCanisterId
+                                                }
                                             />
                                             <input
-                                                className="max_width_col top_spaced"
+                                                style={{ display: "block" }}
+                                                className="top_spaced"
                                                 type="number"
                                                 value={tippingAmount}
                                                 onChange={async (e) => {
@@ -979,44 +1005,50 @@ const PostInfo = ({
                         )}
                     </div>
                 )}
-                {externalTips.length > 0 && (
-                    <div>
-                        <b>EXTERNAL TIPS</b>:{" "}
-                        {commaSeparated(
-                            externalTips.map((tip) => (
-                                <span key={"external_tip" + tip.id}>
-                                    <code>
-                                        {tokens(
-                                            Number(tip.amount),
-                                            canistersMetaData[tip.canister_id]
-                                                ?.decimals || 0,
-                                        )
-                                            .replace(/0{1,16}$/g, "")
-                                            .replace(/\.$/, "")}
-                                        {canistersMetaData[tip.canister_id]
-                                            ?.symbol || ""}
-                                    </code>
-                                    <img
-                                        src={
-                                            canistersMetaData[tip.canister_id]
-                                                ?.logo || ""
+                {externalTips.length > 0 &&
+                    Object.keys(canistersMetaData).length > 0 && (
+                        <div>
+                            <b>EXTERNAL TIPS</b>:{" "}
+                            {commaSeparated(
+                                externalTips.map((tip) => (
+                                    <span key={"external_tip" + tip.id}>
+                                        <code>
+                                            {tokens(
+                                                tip.amount,
+                                                canistersMetaData[
+                                                    tip.canister_id
+                                                ]?.decimals || 0,
+                                            )
+                                                .replace(
+                                                    /(\.\d*?[1-9])0+$/,
+                                                    "$1",
+                                                )
+                                                .replace(/\.0+$/, "")}
+                                            {canistersMetaData[tip.canister_id]
+                                                ?.symbol || ""}
+                                        </code>
+                                        <img
+                                            src={
+                                                canistersMetaData[
+                                                    tip.canister_id
+                                                ]?.logo || ""
+                                            }
+                                            className="vertically_aligned "
+                                            style={{ height: 16 }}
+                                        />{" "}
+                                        from{" "}
+                                        {
+                                            <UserLink
+                                                id={tip.sender_id}
+                                                profile={true}
+                                                pfp={false}
+                                            />
                                         }
-                                        className="vertically_aligned "
-                                        style={{ height: 16 }}
-                                    />{" "}
-                                    from{" "}
-                                    {
-                                        <UserLink
-                                            id={tip.sender_id}
-                                            profile={true}
-                                            pfp={false}
-                                        />
-                                    }
-                                </span>
-                            )),
-                        )}
-                    </div>
-                )}
+                                    </span>
+                                )),
+                            )}
+                        </div>
+                    )}
                 {Object.keys(reactions).length > 0 && (
                     <div className="top_spaced">
                         {Object.entries(reactions).map(([reactId, users]) => (
