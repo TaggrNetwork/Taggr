@@ -106,7 +106,9 @@ export const Icrc1TokensWallet = () => {
     };
 
     const initialLoad = async () => {
-        const userCanisters = await getCanistersMetaData(user?.wallet_tokens || []);
+        const userCanisters = await getCanistersMetaData(
+            user?.wallet_tokens || [],
+        );
         setIcrc1Canisters([...userCanisters.entries()]);
         // setDropdownCanisters([...canisters.entries()]);
 
@@ -137,8 +139,24 @@ export const Icrc1TokensWallet = () => {
                 ]);
 
                 const sorted: Array<[string, Icrc1Canister]> = [
-                    ...topVolume.filter(canisterId => topCanisters.has(canisterId)).map(canisterId => [canisterId, topCanisters.get(canisterId)] as [string, Icrc1Canister]),
-                    ...topLast7DaysVolume.filter(canisterId => topCanisters.has(canisterId)).map(canisterId => [canisterId, topCanisters.get(canisterId)] as [string, Icrc1Canister]),
+                    ...topVolume
+                        .filter((canisterId) => topCanisters.has(canisterId))
+                        .map(
+                            (canisterId) =>
+                                [canisterId, topCanisters.get(canisterId)] as [
+                                    string,
+                                    Icrc1Canister,
+                                ],
+                        ),
+                    ...topLast7DaysVolume
+                        .filter((canisterId) => topCanisters.has(canisterId))
+                        .map(
+                            (canisterId) =>
+                                [canisterId, topCanisters.get(canisterId)] as [
+                                    string,
+                                    Icrc1Canister,
+                                ],
+                        ),
                     ...userCanisters.entries(),
                 ];
 

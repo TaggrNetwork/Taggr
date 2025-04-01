@@ -619,7 +619,11 @@ const PostInfo = ({
         if (!canister) {
             return alert(`Could not find canister data for ${canisterId}`);
         }
-        setTippingAmount(+(canister.fee / Math.pow(10, canister.decimals)).toFixed(canister.decimals));
+        setTippingAmount(
+            +(canister.fee / Math.pow(10, canister.decimals)).toFixed(
+                canister.decimals,
+            ),
+        );
     };
 
     const finalizeTip = async () => {
@@ -668,11 +672,14 @@ const PostInfo = ({
                     index: +transferResponse,
                     post_id: post.id,
                     sender_id: window.user.id,
-                }
+                };
                 setExternalTips([...externalTips, optimisticPostTip]);
                 setTipping(false); // Show as it's not loading anymore ;)
 
-                let addTipResponse = await window.api.call<{ Ok: PostTip, Err: string; }>(
+                let addTipResponse = await window.api.call<{
+                    Ok: PostTip;
+                    Err: string;
+                }>(
                     "add_external_icrc_transaction",
                     canisterId,
                     +transferResponse,
@@ -682,7 +689,10 @@ const PostInfo = ({
                     throw new Error(addTipResponse?.Err);
                 }
 
-                setExternalTips([...externalTips.filter(({ id }) => id !== -1), addTipResponse.Ok]);
+                setExternalTips([
+                    ...externalTips.filter(({ id }) => id !== -1),
+                    addTipResponse.Ok,
+                ]);
             } else {
                 let response = await window.api.call<any>(
                     "tip",
