@@ -1175,16 +1175,17 @@ div.thumbnails {
     left: 0;
     right: 0;
     bottom: 0;
-    /* background-color: rgba(0, 0, 0, 0.5); */
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px); /* For Safari */
+    /* backdrop-filter: blur(5px); */
+     /* For Safari */
+    /* -webkit-backdrop-filter: blur(5px); */
+    background-color: rgba(0, 0, 0, 0.75);
     z-index: 1000;
 }
 
 /* Fallback for browsers that don't support backdrop-filter */
 /* @supports not (backdrop-filter: blur(5px)) {
   .popup-overlay {
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.5);
   }
 } */
 
@@ -1194,12 +1195,11 @@ div.thumbnails {
     left: 50%;
     transform: translate(-50%, -50%);
     background-color: $background;
-    padding: 0.5em;
+    padding: 1em;
     border-radius: 0.5em;
-    /* box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); */
+    box-shadow: 0 0.5em 1em rgba(0, 0, 0, 0.5);
     z-index: 1001;
-    width: 90%;
-    max-width: 256px;
+    max-width: 80%;
 }
 
 .popup-content {
