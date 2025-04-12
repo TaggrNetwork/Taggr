@@ -87,7 +87,7 @@ async fn restore(
         if !filename.exists() {
             break;
         }
-        files.push(filename);
+        files.push((page, filename));
         page += 1;
     }
 
@@ -99,9 +99,10 @@ async fn restore(
     for chunk in files.chunks(10) {
         let tasks = chunk
             .iter()
-            .map(|filename| {
+            .map(|(page, filename)| {
                 let canister_id_clone = canister_id.clone();
                 let agent = agent.clone();
+                let page = page.clone();
                 let filename = filename.clone();
 
                 tokio::spawn(async move {
