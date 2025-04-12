@@ -80,12 +80,18 @@ async fn restore(
 
     let dir = dir.as_path();
     let mut page: u64 = start_page;
+    let mut files = Vec::new();
     loop {
         let filename = dir.join(format!("page{}.bin", page));
         if !filename.exists() {
             break;
         }
-        let buffer = std::fs::read(filename).map_err(|e| e.to_string())?;
+        files.push(filename);
+        page += 1;
+    }
+
+    for filename in files {
+        let buffer = std::fs::read(&filename).map_err(|e| e.to_string())?;
         let arg = vec![(page, buffer)];
 
         agent
@@ -93,8 +99,7 @@ async fn restore(
             .with_arg(Encode!(&arg).map_err(|e| e.to_string())?)
             .await
             .map_err(|e| e.to_string())?;
-        println!("Restored page {}", page);
-        page += 1;
+        println!("Restored page {:?}", filename)
     }
 
     Ok(())
