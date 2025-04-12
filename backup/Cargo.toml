@@ -8,6 +8,7 @@ edition = "2018"
 candid = "0.10.13"
 ic-agent = "0.39.3"
 tokio = { version = "1", features = ["full"] }
+futures = "0.3.31"
 
 [workspace]
 exclude = ["taggr/backup"]
