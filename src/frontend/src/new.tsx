@@ -135,7 +135,10 @@ export const newPostCallback = async (
             encodeExtension(extension),
         );
     }
-    if ("Err" in result) {
+    if (!result) {
+        alert(`Error: call failed`);
+        return null;
+    } else if ("Err" in result) {
         alert(`Error: ${result.Err}`);
         return null;
     }

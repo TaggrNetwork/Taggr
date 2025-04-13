@@ -108,6 +108,7 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
         await expect(page.getByText("post-scriptum")).toBeVisible();
+        await page.waitForTimeout(3000);
 
         // Make sure the post is visible on the front page too
         await page.goto("/");

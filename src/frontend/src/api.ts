@@ -221,8 +221,9 @@ export const ApiGenerator = (
                             ) || null
                         );
                     case "rejected":
-                        console.error(`Call rejected: ${response.statusText}`);
-                        return null;
+                        console.error(
+                            `Call rejected: ${response.statusText}; falling back to polling...`,
+                        );
                 }
             }
 
