@@ -1113,7 +1113,7 @@ impl State {
     }
 
     fn critical<T: ToString>(&mut self, message: T) {
-        self.logger.critical(&message.to_string());
+        self.logger.critical(message.to_string());
         self.users.values_mut().for_each(|user| {
             user.notify(format!("CRITICAL SYSTEM ERROR: {}", message.to_string()))
         });
