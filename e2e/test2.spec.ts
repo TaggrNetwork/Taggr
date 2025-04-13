@@ -101,6 +101,7 @@ test.describe("Regular users flow", () => {
         // Edit the post
         await page.getByTestId("post-info-toggle").click();
         await page.locator("button[title=Edit]").click();
+        await page.waitForTimeout(1000);
         const value = await page.locator("textarea").inputValue();
         await page
             .locator("textarea")
