@@ -53,6 +53,9 @@ jobs:
           make e2e_build
           make local_deploy
 
+      - name: Top up canisters
+        run: dfx --identity local-minter ledger fabricate-cycles --all --cycles 1000000000000000
+
       - name: Run e2e tests
         run: npm run test:e2e
 

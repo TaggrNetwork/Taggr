@@ -101,14 +101,13 @@ test.describe("Regular users flow", () => {
         // Edit the post
         await page.getByTestId("post-info-toggle").click();
         await page.locator("button[title=Edit]").click();
-        const value = await page.locator("textarea").textContent();
+        const value = await page.locator("textarea").inputValue();
         await page
             .locator("textarea")
             .fill(value + "\n\n**Edit:** this is a post-scriptum");
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
         await expect(page.getByText("post-scriptum")).toBeVisible();
-        await page.waitForTimeout(3000);
 
         // Make sure the post is visible on the front page too
         await page.goto("/");

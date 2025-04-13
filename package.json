@@ -16,7 +16,7 @@
         "format:check": "prettier --check ."
     },
     "devDependencies": {
-        "@playwright/test": "1.51",
+        "@playwright/test": "1.46.1",
         "@types/isomorphic-fetch": "0.0.39",
         "@types/react-dom": "19.0.0",
         "buffer": "6.0.3",
