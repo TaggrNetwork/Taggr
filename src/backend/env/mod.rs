@@ -995,6 +995,7 @@ impl State {
                     return Err("inviter has not enough credits".into());
                 };
                 let user = state.users.get_mut(&new_user_id).expect("no user found");
+                let user_name = user.name.clone();
                 user.invited_by = Some(inviter_id);
                 if let Some(inviter) = state.users.get_mut(&inviter_id) {
                     inviter.notify(format!(
@@ -1002,6 +1003,9 @@ impl State {
                         name, CONFIG.name
                     ));
                 }
+                state
+                    .logger
+                    .info(format!("@{} joined Taggr! 🎉", user_name));
                 return Ok((true, realm_id.clone()));
             }
             Ok((false, None))
