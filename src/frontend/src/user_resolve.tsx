@@ -81,9 +81,9 @@ export const UserLink = ({
 
     if (loading) return <Loading spaced={false} />;
 
-    return userName ? (
-        <span className={`${classNameArg} user_link no_wrap`}>
-            {pfp && (
+    return (
+        <span className={`${classNameArg} user_link no_wrap vcentered`}>
+            {pfp && id != null && (
                 <img
                     className="pfp"
                     src={pfpUrl(id)}
@@ -91,10 +91,14 @@ export const UserLink = ({
                     width={pfpSize}
                 />
             )}
-            <a href={`#/${profile ? "user" : "journal"}/${id}`}>{userName}</a>
+            {userName || id ? (
+                <a href={`#/${profile ? "user" : "journal"}/${id}`}>
+                    {userName || id}
+                </a>
+            ) : (
+                "N/A"
+            )}
         </span>
-    ) : (
-        <span className={`${classNameArg} user_link`}>N/A</span>
     );
 };
 
