@@ -549,15 +549,11 @@ export const Loading = ({
             } accent small_text no_wrap text_centered left_spaced right_spaced`}
             data-testid="loading-spinner"
         >
-            {[md, md, md].map((v, i) =>
-                i == dot % 3 ? (
-                    <span key={i} style={{ opacity: 0.5 }}>
-                        {v}
-                    </span>
-                ) : (
-                    v
-                ),
-            )}
+            {[md, md, md].map((v, i) => (
+                <span key={i} style={{ opacity: i == dot % 3 ? 0.6 : 1 }}>
+                    {v}
+                </span>
+            ))}
         </div>
     );
 };
