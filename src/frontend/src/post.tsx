@@ -791,7 +791,14 @@ const PostInfo = ({
                                     <code>
                                         {tokens(Number(tip), token_decimals)}
                                     </code>{" "}
-                                    from {<UserLink id={id} profile={true} />}
+                                    from{" "}
+                                    {
+                                        <UserLink
+                                            id={id}
+                                            pfp={false}
+                                            profile={true}
+                                        />
+                                    }
                                 </span>
                             )),
                         )}
