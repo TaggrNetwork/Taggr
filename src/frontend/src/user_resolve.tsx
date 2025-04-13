@@ -82,8 +82,8 @@ export const UserLink = ({
     if (loading) return <Loading spaced={false} />;
 
     return (
-        <span className={`${classNameArg} user_link no_wrap vcentered`}>
-            {pfp && id != null && (
+        <span className={`${classNameArg} user_link no_wrap`}>
+            {pfp && validUserId(id) && (
                 <img
                     className="pfp"
                     src={pfpUrl(id)}
@@ -91,7 +91,7 @@ export const UserLink = ({
                     width={pfpSize}
                 />
             )}
-            {userName || id ? (
+            {userName || validUserId(id) ? (
                 <a href={`#/${profile ? "user" : "journal"}/${id}`}>
                     {userName || id}
                 </a>
@@ -101,6 +101,9 @@ export const UserLink = ({
         </span>
     );
 };
+
+// In some cases we use anonymous user ids by using very large numbers (close to max uint64)
+const validUserId = (id: number | null) => id != null && id < 1_000_000_000;
 
 export const UserList = ({
     ids = [],
