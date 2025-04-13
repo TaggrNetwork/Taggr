@@ -190,7 +190,7 @@ export const HeadBar = ({
     burgerTestId?: any;
 }) => {
     const [showMenu, setShowMenu] = React.useState(false);
-    const effStyle = { ...styleArg } || {};
+    const effStyle = { ...styleArg };
     effStyle.flex = 0;
     return (
         <div className="column_container stands_out" style={styleArg}>
@@ -569,7 +569,7 @@ export const loadFeed = async (ids: PostId[]) =>
 export const loadPosts = async (ids: PostId[]) =>
     ((await loadFeed(ids)) || []).map(expandMeta);
 
-export const blobToUrl = (blob: ArrayBuffer) =>
+export const blobToUrl = (blob: Uint8Array) =>
     URL.createObjectURL(
         new Blob([new Uint8Array(blob).buffer], { type: "image/png" }),
     );

@@ -25,6 +25,11 @@
             "type": "persistent"
         }
     },
+    "metadata": [
+        {
+            "name": "candid:service"
+        }
+    ],
     "dfx": "0.24.3",
     "version": 1
 }
