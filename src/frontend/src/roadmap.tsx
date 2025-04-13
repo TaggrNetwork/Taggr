@@ -8,6 +8,7 @@ import { PostFeed } from "./post_feed";
 
 export const Roadmap = () => {
     const [posts, setPosts] = React.useState<[Post, Meta][]>([]);
+    const [tab, setTab] = React.useState("OPEN");
 
     const loadData = async () => {
         const features = await window.api.query<
@@ -17,12 +18,19 @@ export const Roadmap = () => {
         features.sort(([_f1, tokens1], [_f2, tokens2]) =>
             Number(tokens2 - tokens1),
         );
-        setPosts(features.map(([posts_with_meta]) => posts_with_meta));
+        setPosts(
+            features
+                .filter(
+                    ([_post, _tokens, feature]) =>
+                        feature.status == (tab == "IMPLEMENTED" ? 1 : 0),
+                )
+                .map(([posts_with_meta]) => posts_with_meta),
+        );
     };
 
     React.useEffect(() => {
         loadData();
-    }, []);
+    }, [tab]);
 
     return (
         <>
@@ -49,6 +57,20 @@ export const Roadmap = () => {
                 The order of features signalizes their priority as defined by
                 DAO's support. When creating a new feature request, be clear and
                 consise, link all previous discussions and design documents.
+            </div>
+            <div className="text_centered vertically_spaced">
+                {["OPEN", "IMPLEMENTED"].map((id) => (
+                    <button
+                        key={id}
+                        onClick={() => setTab(id)}
+                        className={
+                            "medium_text " +
+                            (tab == id ? "active" : "unselected")
+                        }
+                    >
+                        {id}
+                    </button>
+                ))}
             </div>
             <PostFeed
                 heartbeat={posts}

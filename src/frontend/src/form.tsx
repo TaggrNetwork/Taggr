@@ -212,7 +212,7 @@ export const Form = ({
         for (let i = 0; i < files.length; i++) {
             let file = files[i];
             let content = await loadFile(file);
-            let image = await loadImage(content);
+            let image = await loadImage(new Uint8Array(content));
             if (iOS() && image.height * image.width > MAX_IMG_SIZE) {
                 alert("Image resolution should be under 16 megapixels.");
                 setBusy(false);
@@ -224,7 +224,10 @@ export const Form = ({
             if (content.byteLength > max_blob_size_bytes)
                 while (true) {
                     const scale = (low + high) / 2;
-                    resized_content = await resize(content, scale / 100);
+                    resized_content = await resize(
+                        new Uint8Array(content),
+                        scale / 100,
+                    );
                     const ratio =
                         resized_content.byteLength / max_blob_size_bytes;
                     if (ratio < 1 && (0.92 < ratio || low > 99)) {
@@ -243,7 +246,7 @@ export const Form = ({
             setTmpBlobs(tmpBlobs);
             tmpUrls[key] = blobToUrl(resized_content_bytes);
             setTmpUrls(tmpUrls);
-            image = await loadImage(resized_content);
+            image = await loadImage(new Uint8Array(resized_content));
             fileLinks.push(
                 `![${image.width}x${image.height}, ${size}kb](/blob/${key})`,
             );
@@ -786,7 +789,7 @@ export const loadFile = (file: any): Promise<ArrayBuffer> => {
     });
 };
 
-const loadImage = (blob: ArrayBuffer): Promise<HTMLImageElement> => {
+const loadImage = (blob: Uint8Array): Promise<HTMLImageElement> => {
     const image = new Image();
     return new Promise((resolve) => {
         image.onload = () => resolve(image);
@@ -803,7 +806,7 @@ const canvasToBlob = (canvas: HTMLCanvasElement): Promise<ArrayBuffer> =>
         ),
     );
 
-const hash = async (buffer: ArrayBuffer): Promise<string> => {
+const hash = async (buffer: Uint8Array): Promise<string> => {
     const result = await crypto.subtle.digest("SHA-256", buffer);
     const hashArray = Array.from(new Uint8Array(result)).slice(0, 4);
     return hashArray
@@ -812,7 +815,7 @@ const hash = async (buffer: ArrayBuffer): Promise<string> => {
 };
 
 const resize = async (
-    blob: ArrayBuffer,
+    blob: Uint8Array,
     scale: number,
 ): Promise<ArrayBuffer> => {
     const image = await loadImage(blob);

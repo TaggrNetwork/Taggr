@@ -167,7 +167,8 @@ export const ApiGenerator = (
         arg4?: unknown,
     ): Promise<T | null> => {
         let effParams = getEffParams([arg0, arg1, arg2, arg3, arg4]);
-        const arg = Buffer.from(JSON.stringify(effParams));
+        const arg = new TextEncoder().encode(JSON.stringify(effParams))
+            .buffer as ArrayBuffer;
 
         const response = await query_raw(undefined, methodName, arg);
         if (!response) {
@@ -197,7 +198,7 @@ export const ApiGenerator = (
                 const cert = response.body.certificate;
                 certificate = await Certificate.create({
                     certificate: bufFromBufLike(cert),
-                    rootKey: agent.rootKey,
+                    rootKey: agent.rootKey || new ArrayBuffer(0),
                     canisterId: Principal.from(canisterId),
                 });
                 const path = [
@@ -206,6 +207,7 @@ export const ApiGenerator = (
                 ];
                 const status = new TextDecoder().decode(
                     lookupResultToBuffer(
+                        // @ts-ignore
                         certificate.lookup([...path, "status"]),
                     ),
                 );
@@ -214,12 +216,14 @@ export const ApiGenerator = (
                     case "replied":
                         return (
                             lookupResultToBuffer(
+                                // @ts-ignore
                                 certificate.lookup([...path, "reply"]),
                             ) || null
                         );
                     case "rejected":
-                        console.error(`Call rejected: ${response.statusText}`);
-                        return null;
+                        console.error(
+                            `Call rejected: ${response.statusText}; falling back to polling...`,
+                        );
                 }
             }
 
@@ -263,7 +267,8 @@ export const ApiGenerator = (
         const responseBytes = await call_raw(
             undefined,
             methodName,
-            Buffer.from(JSON.stringify(effParams)),
+            new TextEncoder().encode(JSON.stringify(effParams))
+                .buffer as ArrayBuffer,
         );
         if (!responseBytes || !responseBytes.byteLength) {
             return null;

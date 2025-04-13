@@ -29,7 +29,7 @@ import { MAINNET_MODE } from "./env";
 
 export const REPO = "https://github.com/TaggrNetwork/taggr";
 
-export const USD_PER_XDR = 1.33;
+export const USD_PER_XDR = 1.39;
 
 export const MAX_POST_SIZE_BYTES = Math.ceil(1024 * 1024 * 1.9);
 
@@ -190,7 +190,7 @@ export const HeadBar = ({
     burgerTestId?: any;
 }) => {
     const [showMenu, setShowMenu] = React.useState(false);
-    const effStyle = { ...styleArg } || {};
+    const effStyle = { ...styleArg };
     effStyle.flex = 0;
     return (
         <div className="column_container stands_out" style={styleArg}>
@@ -549,15 +549,11 @@ export const Loading = ({
             } accent small_text no_wrap text_centered left_spaced right_spaced`}
             data-testid="loading-spinner"
         >
-            {[md, md, md].map((v, i) =>
-                i == dot % 3 ? (
-                    <span key={i} style={{ opacity: 0.5 }}>
-                        {v}
-                    </span>
-                ) : (
-                    v
-                ),
-            )}
+            {[md, md, md].map((v, i) => (
+                <span key={i} style={{ opacity: i == dot % 3 ? 0.6 : 1 }}>
+                    {v}
+                </span>
+            ))}
         </div>
     );
 };
@@ -573,7 +569,7 @@ export const loadFeed = async (ids: PostId[]) =>
 export const loadPosts = async (ids: PostId[]) =>
     ((await loadFeed(ids)) || []).map(expandMeta);
 
-export const blobToUrl = (blob: ArrayBuffer) =>
+export const blobToUrl = (blob: Uint8Array) =>
     URL.createObjectURL(
         new Blob([new Uint8Array(blob).buffer], { type: "image/png" }),
     );

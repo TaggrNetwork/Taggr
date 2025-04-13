@@ -1,5 +1,6 @@
 use std::env;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Duration;
 
 use candid::{Decode, Encode};
@@ -80,21 +81,54 @@ async fn restore(
 
     let dir = dir.as_path();
     let mut page: u64 = start_page;
+    let mut files = Vec::new();
     loop {
         let filename = dir.join(format!("page{}.bin", page));
         if !filename.exists() {
             break;
         }
-        let buffer = std::fs::read(filename).map_err(|e| e.to_string())?;
-        let arg = vec![(page, buffer)];
-
-        agent
-            .update(&canister_id, "stable_mem_write")
-            .with_arg(Encode!(&arg).map_err(|e| e.to_string())?)
-            .await
-            .map_err(|e| e.to_string())?;
-        println!("Restored page {}", page);
+        files.push((page, filename));
         page += 1;
+    }
+
+    use futures::future::join_all;
+
+    let agent = Arc::new(agent);
+
+    // Process files in batches of 10
+    for chunk in files.chunks(10) {
+        let tasks = chunk
+            .iter()
+            .map(|(page, filename)| {
+                let canister_id_clone = canister_id.clone();
+                let agent = agent.clone();
+                let page = page.clone();
+                let filename = filename.clone();
+
+                tokio::spawn(async move {
+                    let buffer = std::fs::read(&filename).map_err(|e| e.to_string())?;
+                    let arg = vec![(page, buffer)];
+
+                    agent
+                        .update(&canister_id_clone, "stable_mem_write")
+                        .with_arg(Encode!(&arg).map_err(|e| e.to_string())?)
+                        .await
+                        .map_err(|e| e.to_string())?;
+
+                    println!("Restored page {:?}", filename);
+                    Ok::<_, String>(())
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let results = join_all(tasks).await;
+
+        for result in results {
+            match result {
+                Ok(inner_result) => inner_result?,
+                Err(e) => return Err(format!("Task join error: {}", e)),
+            }
+        }
     }
 
     Ok(())

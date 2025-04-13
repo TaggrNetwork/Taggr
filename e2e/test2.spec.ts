@@ -101,7 +101,7 @@ test.describe("Regular users flow", () => {
         // Edit the post
         await page.getByTestId("post-info-toggle").click();
         await page.locator("button[title=Edit]").click();
-        const value = await page.locator("textarea").textContent();
+        const value = await page.locator("textarea").inputValue();
         await page
             .locator("textarea")
             .fill(value + "\n\n**Edit:** this is a post-scriptum");

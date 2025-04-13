@@ -272,7 +272,7 @@ export const PostView = ({
                             </a>
                         )}
                         <UserLink
-                            classNameArg="left_well_spaced right_half_spaced"
+                            classNameArg="left_well_spaced right_half_spaced vcentered"
                             id={post.user}
                             name={post.meta.author_name}
                             profile={true}
@@ -791,7 +791,14 @@ const PostInfo = ({
                                     <code>
                                         {tokens(Number(tip), token_decimals)}
                                     </code>{" "}
-                                    from {<UserLink id={id} profile={true} />}
+                                    from{" "}
+                                    {
+                                        <UserLink
+                                            id={id}
+                                            pfp={false}
+                                            profile={true}
+                                        />
+                                    }
                                 </span>
                             )),
                         )}
