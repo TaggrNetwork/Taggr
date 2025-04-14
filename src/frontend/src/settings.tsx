@@ -29,7 +29,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         {},
     );
     const [controllers, setControllers] = React.useState("");
-    const [encryptionPassword, setEncryptionPassword] = React.useState("");
+    const [encKey, setEncKey] = React.useState("");
     const [label, setLabel] = React.useState(null);
     const [timer, setTimer] = React.useState<any>();
     const [uiRefresh, setUIRefresh] = React.useState(false);
@@ -453,18 +453,14 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             placeholder="Encryption password"
                             className="bottom_spaced"
                             type="password"
-                            value={encryptionPassword}
-                            onChange={(event) =>
-                                setEncryptionPassword(event.target.value)
-                            }
+                            value={encKey}
+                            onChange={(event) => setEncKey(event.target.value)}
                         />
                         <ButtonWithLoading
-                            classNameArg={encryptionPassword ? "" : "inactive"}
+                            classNameArg={encKey ? "" : "inactive"}
                             onClick={async () => {
                                 const seed = hex(
-                                    Array.from(
-                                        await hash(encryptionPassword, 1),
-                                    ),
+                                    Array.from(await hash(encKey, 1)),
                                 );
                                 const result: any = await window.api.call(
                                     "crypt",
@@ -492,7 +488,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                         <ol>
                             <li>
                                 Log in using the new authentication method (a
-                                new II anchor or a password).
+                                new II anchor or a seed phrase).
                             </li>
                             <li>
                                 Copy the displayed principal and log out again{" "}

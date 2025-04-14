@@ -17,12 +17,12 @@ test.describe("Regular users flow", () => {
 
         // Registration flow
         await page.getByRole("button", { name: "CONNECT" }).click();
-        await page.getByRole("button", { name: "PASSWORD" }).click();
-        await page.getByPlaceholder("Enter your password...").fill("alice");
+        await page.getByRole("button", { name: "SEED PHRASE" }).click();
+        await page.getByPlaceholder("Enter your seed phrase...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.waitForTimeout(1000);
-        await page.getByPlaceholder("Enter your password...").fill("alice");
-        await page.getByPlaceholder("Repeat your password...").fill("alice");
+        await page.getByPlaceholder("Enter your seed phrase...").fill("alice");
+        await page.getByPlaceholder("Repeat your seed phrase...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
         const alicePrincipal =
             "afqmt-iuwxe-fcmq2-gidf2-tqzx2-beg3a-jq7tp-he6c6-xr67k-rtnl7-aqe";
@@ -55,8 +55,8 @@ test.describe("Regular users flow", () => {
     test("Login and post", async () => {
         // Login flow
         await page.getByRole("button", { name: "CONNECT" }).click();
-        await page.getByRole("button", { name: "PASSWORD" }).click();
-        await page.getByPlaceholder("Enter your password...").fill("alice");
+        await page.getByRole("button", { name: "SEED PHRASE" }).click();
+        await page.getByPlaceholder("Enter your seed phrase...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.getByTestId("toggle-user-section").click();
         const profileButton = page.getByRole("link", { name: /.*ALICE.*/ });
@@ -221,9 +221,9 @@ test.describe("Regular users flow", () => {
 
     test("Registration by invite", async () => {
         await page.goto(inviteLink);
-        await page.getByRole("button", { name: "PASSWORD" }).click();
-        await page.getByPlaceholder("Enter your password...").fill("bob");
-        await page.getByPlaceholder("Repeat your password...").fill("bob");
+        await page.getByRole("button", { name: "SEED PHRASE" }).click();
+        await page.getByPlaceholder("Enter your seed phrase...").fill("bob");
+        await page.getByPlaceholder("Repeat your seed phrase...").fill("bob");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.getByPlaceholder("alphanumeric").fill("bob");
         await page

@@ -8,31 +8,32 @@ import { Ed25519KeyIdentity } from "@dfinity/identity";
 export const authMethods = [
     {
         icon: <Incognito />,
-        label: "Password",
+        label: "Seed Phrase",
         description:
             "This connection method is based on a secret (your seed phrase) stored in your browser. It is convenient, self-custodial, but less secure.",
         login: async (confirmationRequired?: boolean): Promise<JSX.Element> => (
             <SeedPhraseForm
                 classNameArg="spaced"
-                callback={async (password: string) => {
-                    if (!password) return;
-                    let seed = await hash(password, HASH_ITERATIONS);
+                callback={async (seedphrase: string) => {
+                    if (!seedphrase) return;
+                    let seed = await hash(seedphrase, HASH_ITERATIONS);
                     let identity = Ed25519KeyIdentity.generate(seed);
-                    const isSecurePassword = (password: string): boolean =>
+                    // TODO: does it accept 12 words phrases?
+                    const isSecureSeedphrase = (seedphrase: string): boolean =>
                         /^(?=.*?[A-Z])(?=.*?[0-9])(?=.*?[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(
-                            password,
+                            seedphrase,
                         );
                     if (
                         MAINNET_MODE &&
-                        !isSecurePassword(password) &&
+                        !isSecureSeedphrase(seedphrase) &&
                         !(await window.api.query("user", [
                             identity.getPrincipal().toString(),
                         ])) &&
                         !confirm(
-                            "Your password is insecure and will eventually be guessed. " +
-                                "A secure password should contain at least 8 symbols such as " +
+                            "Your seed phrase is insecure and will eventually be guessed. " +
+                                "A secure seed phrase should contain at least 8 symbols such as " +
                                 "uppercase and lowercase letters, symbols and digits. " +
-                                "Do you want to continue with an insecure password?",
+                                "Do you want to continue with an insecure seed phrase?",
                         )
                     ) {
                         return;

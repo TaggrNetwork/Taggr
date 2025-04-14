@@ -39,7 +39,7 @@ export const Welcome = () => {
         setInvoice(result.Ok);
     };
 
-    const passwordConfirmationRequired =
+    const seedphraseConfirmationRequired =
         !!localStorage.getItem("SEED_PHRASE") && !seedPhraseConfirmed;
     const logOutButton = (
         <button className="right_spaced" onClick={signOut}>
@@ -51,15 +51,15 @@ export const Welcome = () => {
         <>
             <HeadBar title={"WELCOME!"} shareLink="welcome" />
             <div className="spaced">
-                {passwordConfirmationRequired && (
+                {seedphraseConfirmationRequired && (
                     <>
                         <h2>New user detected</h2>
                         <SeedPhraseForm
                             classNameArg=""
-                            confirmationRequired={passwordConfirmationRequired}
-                            callback={async (password: string) => {
+                            confirmationRequired={seedphraseConfirmationRequired}
+                            callback={async (seedphrase: string) => {
                                 const seed = await hash(
-                                    password,
+                                    seedphrase,
                                     HASH_ITERATIONS,
                                 );
                                 let identity =
@@ -79,7 +79,7 @@ export const Welcome = () => {
                         />
                     </>
                 )}
-                {!passwordConfirmationRequired && (
+                {!seedphraseConfirmationRequired && (
                     <>
                         {(!invoice || !invoice.paid) && (
                             <div className="bottom_spaced">
