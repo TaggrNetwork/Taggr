@@ -1,3 +1,4 @@
+import { Principal } from "@dfinity/principal";
 import * as React from "react";
 import { loadFile } from "./form";
 import {
@@ -10,17 +11,21 @@ import {
     setTitle,
     ToggleButton,
     foregroundColor,
+    getCanistersMetaData,
+    ICP_LEDGER_ID,
 } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
 import { getTheme, setRealmUI } from "./theme";
-import { Realm, Theme, UserFilter } from "./types";
+import { Icrc1Canister, Realm, Theme, UserFilter } from "./types";
 import {
     USER_CACHE,
     UserList,
     populateUserNameCache,
     userNameToIds,
 } from "./user_resolve";
+import { TokenSelect } from "./token-select";
+import { CANISTER_ID } from "./env";
 
 let timer: any = null;
 
@@ -53,9 +58,14 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         posts: [],
         adult_content: false,
         comments_filtering: true,
+        native_token: undefined,
+        min_native_token_balance: undefined,
     });
     const [controllersString, setControllersString] = React.useState("");
     const [whitelistString, setWhitelistString] = React.useState("");
+    const [canistersMetaData, setCanisterMetaData] = React.useState<
+        Record<string, Icrc1Canister>
+    >({});
 
     const loadRealm = async () => {
         let result =
@@ -65,6 +75,20 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         setRealm(realm);
         setStrings(realm);
         if (realm.theme) setTheme(JSON.parse(realm.theme));
+    };
+
+    const loadTokens = async () => {
+        const canisterIds: string[] = [ICP_LEDGER_ID.toText(), CANISTER_ID];
+        if (realm.native_token) {
+            canisterIds.push(realm.native_token);
+        }
+        if (window.user?.wallet_tokens?.length > 0) {
+            canisterIds.push(...(window.user?.wallet_tokens || []));
+        }
+        if (canisterIds.length > 0) {
+            const map = await getCanistersMetaData([...new Set(canisterIds)]);
+            setCanisterMetaData(Object.fromEntries(map));
+        }
     };
 
     const setStrings = async (realm: Realm) => {
@@ -79,6 +103,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
 
     React.useEffect(() => {
         if (editing) loadRealm();
+        loadTokens();
     }, []);
 
     const {
@@ -303,6 +328,120 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         Valid users: <UserList ids={realm.whitelist} />
                     </div>
                 </div>
+
+                <div className="column_container bottom_spaced">
+                    <div className="bottom_half_spaced">
+                        Native Token{" "}
+                        {realm.native_token && (
+                            <span>
+                                <code>
+                                    {
+                                        canistersMetaData[realm.native_token]
+                                            ?.symbol
+                                    }
+                                </code>
+                                &nbsp;
+                                <img
+                                    style={{
+                                        height: 32,
+                                        width: 32,
+                                        verticalAlign: "middle",
+                                    }}
+                                    src={
+                                        canistersMetaData[realm.native_token]
+                                            ?.logo
+                                    }
+                                />
+                            </span>
+                        )}
+                    </div>
+                    {Object.keys(canistersMetaData).length > 0 && (
+                        <div className="row_container">
+                            <TokenSelect
+                                classNameArg="max_width_col"
+                                canisters={Object.keys(canistersMetaData).map(
+                                    (canisterId) => [
+                                        canisterId,
+                                        canistersMetaData[canisterId],
+                                    ],
+                                )}
+                                onSelectionChange={(canisterId) => {
+                                    realm.native_token = canisterId;
+                                    setRealm({ ...realm });
+                                }}
+                                selectedCanisterId={realm.native_token}
+                            />
+                            &nbsp;
+                            <input
+                                className="max_width_col"
+                                type="text"
+                                defaultValue={realm.native_token || ""}
+                                onBlur={async (e) => {
+                                    const canisterId = e.target.value;
+                                    if (!canisterId) {
+                                        return;
+                                    }
+                                    try {
+                                        Principal.fromText(canisterId); // Try catch
+                                        const metadata =
+                                            await getCanistersMetaData([
+                                                canisterId,
+                                            ]);
+                                        if (!metadata) {
+                                            return alert(
+                                                "Could not find canister metadata",
+                                            );
+                                        }
+                                        realm.native_token = canisterId;
+
+                                        if (!canistersMetaData[canisterId]) {
+                                            canistersMetaData[canisterId] =
+                                                metadata.get(
+                                                    canisterId,
+                                                ) as Icrc1Canister;
+                                            setCanisterMetaData({
+                                                ...canistersMetaData,
+                                            });
+                                        }
+                                        setRealm({ ...realm });
+                                    } catch (e) {
+                                        return alert(e);
+                                    }
+                                }}
+                            />
+                        </div>
+                    )}
+                </div>
+                {realm?.native_token && (
+                    <div className="column_container bottom_spaced">
+                        <div className="bottom_half_spaced">
+                            Minimal{" "}
+                            {canistersMetaData[realm.native_token].symbol}&nbsp;
+                            <img
+                                style={{
+                                    height: 32,
+                                    width: 32,
+                                    verticalAlign: "middle",
+                                }}
+                                src={
+                                    canistersMetaData[realm.native_token]?.logo
+                                }
+                            />{" "}
+                            balance:
+                        </div>
+                        <input
+                            type="number"
+                            min="0"
+                            defaultValue={realm.min_native_token_balance}
+                            onChange={(e) => {
+                                realm.min_native_token_balance = Number(
+                                    e.target.value,
+                                );
+                                setRealm({ ...realm });
+                            }}
+                        />
+                    </div>
+                )}
 
                 {whitelist.length == 0 && (
                     <>

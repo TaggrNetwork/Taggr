@@ -4,10 +4,13 @@ use crate::env::{
 };
 
 use super::*;
+use candid::Nat;
+use canisters::GetTransactionsArgs;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
     post::{Extension, Post, PostId},
+    tip::create_post_tip,
     user::{Draft, User, UserId},
     State,
 };
@@ -22,7 +25,7 @@ use ic_cdk::{
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
-use std::{collections::HashSet, time::Duration};
+use std::{collections::HashSet, convert::TryFrom, time::Duration};
 use user::Pfp;
 
 #[init]
@@ -386,6 +389,33 @@ async fn add_post(
     realm: Option<RealmId>,
     extension: Option<Blob>,
 ) -> Result<PostId, String> {
+    // Check min native realm token balance
+    if let Some(realm_id) = realm.clone() {
+        let (native_token, min_native_token_balance) = read(|state| {
+            let realm = state.realms.get(&realm_id).expect("realm not found");
+            (realm.native_token, realm.min_native_token_balance)
+        });
+
+        if let Some((native_token, min_native_token_balance)) =
+            native_token.zip(min_native_token_balance)
+        {
+            let balance = canisters::icrc_balance_of(native_token, caller()).await;
+            match balance {
+                Ok(balance) => {
+                    if balance < min_native_token_balance {
+                        return Err(format!(
+                            "Native realm token balance is lower than {}",
+                            min_native_token_balance
+                        ));
+                    }
+                }
+                Err(err) => {
+                    return Err(err);
+                }
+            }
+        }
+    }
+
     let post_id = mutate(|state| {
         let extension: Option<Extension> = extension.map(|bytes| parse(&bytes));
         Post::create(
@@ -629,6 +659,59 @@ fn create_bid() {
 #[export_name = "canister_update cancel_bid"]
 fn cancel_bid() {
     spawn(async { reply(auction::cancel_bid(caller()).await) });
+}
+
+#[export_name = "canister_update add_external_icrc_transaction"]
+fn add_external_icrc_transaction() {
+    let (canister_id_as_str, start_index, post_id): (String, u64, PostId) = parse(&arg_data_raw());
+
+    let canister_id = Principal::from_text(canister_id_as_str).unwrap();
+
+    let args = GetTransactionsArgs {
+        start: Nat::from(start_index),
+        length: Nat::from(1_u128),
+    };
+
+    spawn(async move {
+        let response = canisters::icrc_transactions(canister_id, args).await;
+        if let Some(transaction) = response
+            .expect("Failed to retrive transactions")
+            .transactions
+            .first()
+        {
+            match &transaction.transfer {
+                Some(transfer) => reply(mutate(|state| {
+                    ic_cdk::println!(
+                        "input amount {:?}, input memo {:?}",
+                        transfer.amount,
+                        transfer.memo
+                    );
+                    let amount = u128::try_from(&transfer.amount.0).expect("Wrong amount");
+                    let memo = transfer.memo.as_ref().unwrap().0.to_vec();
+                    ic_cdk::println!("memo {:?}", memo);
+                    create_post_tip(
+                        state,
+                        post_id,
+                        canister_id,
+                        amount,
+                        Some(memo),
+                        transfer.to.owner,
+                        transfer.from.owner,
+                        start_index,
+                    )
+                })),
+                None => {
+                    ic_cdk::println!("No transfer field");
+                    reply("Transaction is not a transfer!")
+                }
+            }
+        } else {
+            reply(format!(
+                "We could not find transaction at index {}",
+                start_index
+            ))
+        }
+    });
 }
 
 pub fn caller() -> Principal {
