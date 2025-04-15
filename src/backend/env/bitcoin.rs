@@ -1,7 +1,7 @@
 use bitcoin::{Address, Network, PublicKey};
 use ic_cdk::api::management_canister::ecdsa::{EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgument};
 
-const KEY_NAME: &str = "test_key_1";
+const KEY_NAME: &str = "dfx_test_key";
 const NETWORK: Network = Network::Testnet;
 
 /// Returns the P2PKH address of this canister at the given derivation path.
