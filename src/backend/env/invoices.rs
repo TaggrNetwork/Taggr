@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use crate::{mutate, read};
 
-use super::canisters::call_canister;
+use super::{bitcoin, canisters::call_canister};
 
 const INVOICE_MAX_AGE_HOURS: u64 = 24 * super::HOUR;
 
@@ -35,6 +35,8 @@ pub struct Invoice {
     time: u64,
     sub_account: Subaccount,
     pub account: AccountIdentifier,
+    #[serde(default)]
+    pub btc_address: String,
 }
 
 #[derive(Deserialize, Default, Serialize)]
@@ -48,7 +50,7 @@ impl Invoices {
             .retain(|_, invoice| time() - invoice.time < INVOICE_MAX_AGE_HOURS)
     }
 
-    fn create(invoice_id: Principal, e8s: u64) -> Result<Invoice, String> {
+    fn create(invoice_id: Principal, btc_address: String, e8s: u64) -> Result<Invoice, String> {
         if e8s == 0 {
             return Err("wrong ICP/XDR ratio".into());
         }
@@ -62,6 +64,7 @@ impl Invoices {
             time,
             account,
             sub_account,
+            btc_address,
         };
         Ok(invoice)
     }
@@ -78,7 +81,8 @@ impl Invoices {
         let invoice = match read(|state| state.accounting.invoices.get(invoice_id).cloned()) {
             Some(invoice) => invoice,
             None => {
-                let invoice = Self::create(*invoice_id, e8s_for_one_xdr)?;
+                let btc_address = bitcoin::get_address(vec![invoice_id.as_slice().to_vec()]).await;
+                let invoice = Self::create(*invoice_id, btc_address, e8s_for_one_xdr)?;
                 mutate(|state| {
                     state
                         .accounting
