@@ -32,6 +32,7 @@ use token::base;
 use user::{Pfp, User, UserId};
 
 pub mod auction;
+mod bitcoin;
 pub mod canisters;
 pub mod config;
 pub mod features;
