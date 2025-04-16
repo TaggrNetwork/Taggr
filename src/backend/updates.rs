@@ -81,7 +81,16 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        for u in state.users.values_mut() {
+            if u.mode == Mode::Rewards {
+                u.mode = Mode::Mining
+            }
+        }
+        state.total_revenue_shared += state.total_rewards_shared;
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -219,6 +228,7 @@ fn update_user() {
         bool,
         Pfp,
     ) = parse(&arg_data_raw());
+    assert!(mode != Mode::Rewards);
     reply(User::update(
         caller(),
         optional(new_name),

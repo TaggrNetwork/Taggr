@@ -85,7 +85,6 @@ pub struct Stats {
     canister_cycle_balance: u64,
     burned_credits: i64,
     total_revenue_shared: u64,
-    total_rewards_shared: u64,
     posts: usize,
     comments: usize,
     account: String,
@@ -185,8 +184,9 @@ pub struct State {
     // new principal -> old principal
     pub principal_change_requests: BTreeMap<Principal, Principal>,
 
-    total_revenue_shared: u64,
-    total_rewards_shared: u64,
+    pub total_revenue_shared: u64,
+    // TODO: delete
+    pub total_rewards_shared: u64,
 
     pub proposals: Vec<Proposal>,
 
@@ -1398,30 +1398,6 @@ impl State {
         }
     }
 
-    /// Returns all rewards that need to be paid out. Skips all miners.
-    pub fn collect_new_rewards(&mut self) -> HashMap<UserId, u64> {
-        let mut payouts = HashMap::default();
-
-        for user in self
-            .users
-            .values_mut()
-            .filter(|user| user.mode != Mode::Mining)
-        {
-            let rewards = user.take_positive_rewards();
-            if rewards == 0 {
-                continue;
-            };
-            // All normie rewards are burned.
-            if user.mode == Mode::Credits {
-                self.burned_cycles += rewards;
-            } else {
-                payouts.insert(user.id, rewards as Credits);
-            }
-        }
-
-        payouts
-    }
-
     async fn distribute_icp() {
         let treasury_balance = match invoices::account_balance(invoices::main_account()).await {
             Ok(balance) => balance.e8s(),
@@ -1436,7 +1412,7 @@ impl State {
             }
         };
 
-        let debt = mutate(|state| state.assign_rewards_and_revenue(time(), treasury_balance));
+        let debt = mutate(|state| state.assign_revenue(time(), treasury_balance));
 
         if let Err(err) = canisters::icrc_transfer(
             MAINNET_LEDGER_CANISTER_ID,
@@ -1457,24 +1433,12 @@ impl State {
         }
     }
 
-    fn assign_rewards_and_revenue(&mut self, now: Time, treasury_balance: u64) -> u64 {
-        let (rewards, revenue, e8s_for_one_xdr) = (
-            self.collect_new_rewards(),
+    fn assign_revenue(&mut self, now: Time, treasury_balance: u64) -> u64 {
+        let (revenue, e8s_for_one_xdr) = (
             self.collect_revenue(now, self.e8s_for_one_xdr),
             self.e8s_for_one_xdr,
         );
-        let rewards = rewards
-            .iter()
-            .map(|(id, donations)| {
-                (
-                    id,
-                    (*donations as f64 / CONFIG.credits_per_xdr as f64 * e8s_for_one_xdr as f64)
-                        as u64,
-                )
-            })
-            .collect::<HashMap<_, _>>();
-        let total_payout =
-            rewards.values().copied().sum::<u64>() + revenue.values().copied().sum::<u64>();
+        let total_payout = revenue.values().copied().sum::<u64>();
         if total_payout == 0 {
             self.logger.info("No payouts to distribute...");
             return 0;
@@ -1486,7 +1450,6 @@ impl State {
                 .info("Treasury balance is too low; skipping the payouts...");
             return 0;
         }
-        let mut total_rewards = 0;
         let mut total_revenue = 0;
         let mut summary = Summary {
             title: "DAO revenue".into(),
@@ -1497,31 +1460,16 @@ impl State {
         for user in self.users.values_mut() {
             let mut user_revenue = revenue.get(&user.id).copied().unwrap_or_default();
             let _ = user.top_up_credits_from_revenue(&mut user_revenue, e8s_for_one_xdr);
-            let user_reward = rewards.get(&user.id).copied().unwrap_or_default();
-            let e8s = match user_reward.checked_add(user_revenue) {
-                Some(0) | None => continue,
-                Some(value) => value,
-            };
 
-            user.treasury_e8s = match user.treasury_e8s.checked_add(e8s) {
+            user.treasury_e8s = match user.treasury_e8s.checked_add(user_revenue) {
                 Some(0) | None => continue,
                 Some(value) => value,
             };
-            total_rewards += user_reward;
+            items.push((user_revenue, user.name.clone()));
             total_revenue += user_revenue;
-            items.push((e8s, user.name.clone()));
-            if user_reward > 0 || user_revenue > 0 {
+            if user_revenue > 0 {
                 let mut notification = String::from("You received ");
-                if user_reward > 0 {
-                    notification.push_str(&format!(
-                        "`{}` ICP as rewards",
-                        display_tokens(user_reward, 8)
-                    ));
-                }
                 if user_revenue > 0 {
-                    if user_reward > 0 {
-                        notification.push_str(" and ");
-                    }
                     notification.push_str(&format!(
                         "`{}` ICP as revenue",
                         display_tokens(user_revenue, 8)
@@ -1534,7 +1482,6 @@ impl State {
         if self.burned_cycles > 0 {
             self.spend(self.burned_cycles as Credits, "revenue distribution");
         }
-        self.total_rewards_shared += total_rewards;
         self.total_revenue_shared += total_revenue;
         let supply_of_active_users = self.active_voting_power(time());
         let e8s_revenue_per_1k =
@@ -1552,13 +1499,12 @@ impl State {
         }
 
         summary.description = format!(
-            "Weekly pay out to users: `{}` ICP as rewards and `{}` ICP as revenue.",
-            display_tokens(total_rewards, 8),
+            "Weekly pay out to users: `{}` ICP as revenue.",
             display_tokens(total_revenue, 8)
         );
         self.distribution_reports.push(summary);
 
-        total_rewards + total_revenue
+        total_revenue
     }
 
     fn conclude_polls(&mut self, now: u64) {
@@ -2672,7 +2618,6 @@ impl State {
             credits,
             burned_credits: self.burned_cycles + speculative_revenue,
             total_revenue_shared: self.total_revenue_shared,
-            total_rewards_shared: self.total_rewards_shared,
             account: invoices::main_account().to_string(),
             users_online,
             stalwarts: stalwarts.into_iter().map(|u| u.id).collect(),
@@ -3428,42 +3373,6 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_new_rewards_collection() {
-        mutate(|state| {
-            for (i, rewards) in vec![125, -11, 0, 672].into_iter().enumerate() {
-                let id = create_user(state, pr(i));
-                let user = state.users.get_mut(&id).unwrap();
-                user.change_rewards(rewards, "");
-                if i == 4 {
-                    user.mode = Mode::Mining
-                } else {
-                    user.mode = Mode::Rewards
-                };
-            }
-
-            let new_rewards = state.collect_new_rewards();
-
-            let user = state.principal_to_user(pr(0)).unwrap();
-            assert_eq!(*new_rewards.get(&user.id).unwrap(), 125);
-            assert_eq!(user.rewards(), 0);
-
-            let user = state.principal_to_user(pr(1)).unwrap();
-            // no new rewards was collected
-            assert!(!new_rewards.contains_key(&user.id));
-            assert_eq!(user.rewards(), -11);
-
-            let user = state.principal_to_user(pr(2)).unwrap();
-            // no new rewards was collected
-            assert!(!new_rewards.contains_key(&user.id));
-            assert_eq!(user.rewards(), 0);
-
-            let user = state.principal_to_user(pr(3)).unwrap();
-            // no new rewards was collected becasue the user is a miner
-            assert_eq!(user.rewards(), 0);
-        });
-    }
-
-    #[test]
     fn test_revenue_collection() {
         mutate(|state| {
             let now = WEEK * CONFIG.voting_power_activity_weeks;
@@ -3520,7 +3429,7 @@ pub(crate) mod tests {
             assert_eq!(state.user("4").unwrap().rewards(), 4000);
 
             // user 3 switches to non-miner
-            state.principal_to_user_mut(pr(3)).unwrap().mode = Mode::Rewards;
+            state.principal_to_user_mut(pr(3)).unwrap().mode = Mode::Credits;
 
             let market_price = 300313; // e8s per token (cent)
             state.e8s_for_one_xdr = 14410000;
@@ -3716,6 +3625,7 @@ pub(crate) mod tests {
             for i in 0..=2 {
                 let user = state.principal_to_user_mut(pr(i)).unwrap();
                 user.realms.push("TEST".into());
+                user.mode = Mode::Mining;
                 user.change_credits(10000, CreditsDelta::Plus, "").unwrap();
             }
             state.realms.insert("TEST".into(), test_realm);
@@ -3831,9 +3741,11 @@ pub(crate) mod tests {
         mutate(|state| {
             let id = create_user_with_credits(state, pr(0), 2000);
             let user = state.users.get_mut(&id).unwrap();
+            user.mode = Mode::Mining;
             assert_eq!(user.rewards(), 0);
             let upvoter_id = create_user(state, pr(1));
             let user = state.users.get_mut(&upvoter_id).unwrap();
+            user.mode = Mode::Mining;
             let upvoter_credits = user.credits();
             user.change_rewards(1000, "test");
             let uid = create_user(state, pr(2));
@@ -4564,9 +4476,11 @@ pub(crate) mod tests {
             let active_id = create_user_with_credits(state, pr(4), 1300);
 
             let user = state.users.get_mut(&inactive_id1).unwrap();
+            user.mode = Mode::Mining;
             user.change_rewards(25, "");
             assert_eq!(user.rewards(), 25);
             let user = state.users.get_mut(&active_id).unwrap();
+            user.mode = Mode::Mining;
             user.change_rewards(25, "");
             assert_eq!(user.rewards(), 25);
 
@@ -4612,6 +4526,7 @@ pub(crate) mod tests {
         mutate(|state| {
             let p0 = pr(0);
             let post_author_id = create_user_with_credits(state, p0, 2000);
+            state.users.get_mut(&post_author_id).unwrap().mode = Mode::Mining;
             let post_id =
                 Post::create(state, "test".to_string(), &[], p0, 0, None, None, None).unwrap();
             let p = pr(1);
@@ -4620,7 +4535,8 @@ pub(crate) mod tests {
 
             let lurker_id = create_user(state, p);
             create_user(state, p2);
-            create_user(state, p3);
+            let id = create_user(state, p3);
+            state.users.get_mut(&id).unwrap().mode = Mode::Mining;
             insert_balance(state, p3, 10 * token::base());
             let c = CONFIG;
             assert_eq!(state.burned_cycles as Credits, c.post_cost);
@@ -4710,6 +4626,7 @@ pub(crate) mod tests {
 
             // Create a new user and a new post
             let user_id111 = create_user_with_params(state, pr(55), "user111", 2000);
+            state.users.get_mut(&user_id111).unwrap().mode = Mode::Mining;
             let id =
                 Post::create(state, "t".to_string(), &[], pr(55), 0, Some(0), None, None).unwrap();
 
@@ -4989,8 +4906,8 @@ pub(crate) mod tests {
             for i in 0..10 {
                 create_user(state, pr(i));
                 let user = state.principal_to_user_mut(pr(i)).unwrap();
-                assert_eq!(user.mode, Mode::Mining);
                 user.last_activity = now;
+                user.mode = Mode::Mining;
                 if i > 0 {
                     user.change_rewards(300, "");
                     insert_balance(state, pr(i), 300 * token::base());
@@ -5019,7 +4936,7 @@ pub(crate) mod tests {
                 .change_rewards(-1000, "");
 
             // Make user pr(7) non-miner
-            state.principal_to_user_mut(pr(7)).unwrap().mode = Mode::Rewards;
+            state.principal_to_user_mut(pr(7)).unwrap().mode = Mode::Credits;
 
             // Assume the revenue was 1M credits
             state.burned_cycles = 1_000_000;
@@ -5030,11 +4947,11 @@ pub(crate) mod tests {
             // mint to burn miners rewards
             state.mint(1);
 
-            let payout = state.assign_rewards_and_revenue(now, 100000000);
+            let payout = state.assign_revenue(now, 100000000);
 
             // Payout will be the amount of burned cycles + rewards of miners,
             // divided by the XDR rate
-            assert_eq!(payout, 100330);
+            assert_eq!(payout, 100270);
             assert_eq!(
                 payout,
                 state.users.values().map(|u| u.treasury_e8s).sum::<u64>()
@@ -5056,8 +4973,7 @@ pub(crate) mod tests {
             assert_eq!(state.principal_to_user(pr(5)).unwrap().treasury_e8s, 0);
             // pr(6) has negative rewards balance (no effect on VP => revenue ICP)
             assert_eq!(state.principal_to_user(pr(6)).unwrap().treasury_e8s, 12545);
-            // pr(7) is not miner, so he gets the highest rewards
-            assert_eq!(state.principal_to_user(pr(7)).unwrap().treasury_e8s, 12605);
+            assert_eq!(state.principal_to_user(pr(7)).unwrap().treasury_e8s, 12545);
             assert_eq!(state.principal_to_user(pr(8)).unwrap().treasury_e8s, 12545);
             assert_eq!(state.principal_to_user(pr(9)).unwrap().treasury_e8s, 12545);
         });

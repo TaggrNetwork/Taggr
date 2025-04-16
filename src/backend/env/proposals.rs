@@ -487,6 +487,7 @@ pub mod tests {
             tests::{create_user, insert_balance, pr},
             time,
             token::{transfer, TransferArgs},
+            user::Mode,
         },
         read,
     };
@@ -656,7 +657,8 @@ pub mod tests {
             // create voters, make each of them earn some rewards
             for i in 1..11 {
                 let p = pr(i);
-                create_user(state, p);
+                let id = create_user(state, p);
+                state.users.get_mut(&id).unwrap().mode = Mode::Mining;
                 insert_balance(state, p, 1000 * 100);
             }
 
@@ -838,14 +840,14 @@ pub mod tests {
                 let id = create_user(state, p);
                 insert_balance(state, p, 100 * 100);
                 let user = state.users.get_mut(&id).unwrap();
-                user.change_rewards(100, "test");
+                user.mode = Mode::Mining;
             }
             state.principal_to_user_mut(pr(1)).unwrap().stalwart = true;
 
             let prop_id =
                 propose(state, pr(1), "test".into(), Payload::Noop, 0).expect("couldn't propose");
 
-            assert!(state.principal_to_user(pr(1)).unwrap().credits() > 0);
+            assert_eq!(state.principal_to_user(pr(1)).unwrap().credits(), 1098);
             let proposer = state.principal_to_user(pr(1)).unwrap();
             let data = &"".to_string();
             let rewards = proposer.rewards();
@@ -860,7 +862,10 @@ pub mod tests {
                 state.proposals.iter().last().unwrap().status,
                 Status::Rejected
             );
-            assert_eq!(state.principal_to_user(pr(1)).unwrap().credits(), 498);
+            assert_eq!(
+                state.principal_to_user(pr(1)).unwrap().credits(),
+                1098 - CONFIG.proposal_rejection_penalty
+            );
             assert_eq!(
                 state.principal_to_user(pr(1)).unwrap().rewards(),
                 rewards - CONFIG.proposal_rejection_penalty as i64

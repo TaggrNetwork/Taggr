@@ -33,7 +33,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
     const [timer, setTimer] = React.useState<any>();
     const [uiRefresh, setUIRefresh] = React.useState(false);
     const [governance, setGovernance] = React.useState("true");
-    const [mode, setMode] = React.useState("Mining");
+    const [mode, setMode] = React.useState("Credits");
     const [showPostsInRealms, setShowPostsInRealms] = React.useState("true");
     const [userFilter, setUserFilter] = React.useState<UserFilter>({
         safe: false,
@@ -136,8 +136,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 principal_ids,
                 userFilter,
                 governance == "true",
-                // For new and invited users, set the mode to "Credits"
-                registrationFlow && invite ? "Credits" : mode,
+                mode,
                 showPostsInRealms == "true",
                 pfp,
             ),
@@ -210,7 +209,6 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             <option value="Credits">
                                 Convert rewards to credits automatically
                             </option>
-                            <option value="Rewards">Receive ICP rewards</option>
                             <option value="Mining">
                                 Mine {window.backendCache.config.token_symbol}{" "}
                                 tokens
