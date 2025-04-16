@@ -390,7 +390,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                         </a>
                     </div>
                 )}
-                {(profile.mode == "Rewards" || profile.rewards < 0) && (
+                {(profile.mode == "Mining" || profile.rewards < 0) && (
                     <div className="db_cell">
                         REWARDS
                         <code className="accent">

@@ -44,7 +44,7 @@ export type Summary = {
     items: string[];
 };
 
-export type Mode = "Mining" | "Rewards" | "Credits";
+export type Mode = "Mining" | "Credits";
 
 export type Feature = {
     supporters: UserId[];
@@ -296,7 +296,6 @@ export type Stats = {
     credits: number;
     burned_credits: BigInt;
     circulating_supply: number;
-    total_rewards_shared: BigInt;
     total_revenue_shared: BigInt;
     canister_cycle_balance: BigInt;
     last_release: LastReleaseInfo;

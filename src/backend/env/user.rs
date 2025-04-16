@@ -87,9 +87,10 @@ impl UserFilter {
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Mode {
-    #[default]
     Mining,
+    // TODO: delete
     Rewards,
+    #[default]
     Credits,
 }
 
@@ -458,13 +459,24 @@ impl User {
     }
 
     pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {
-        // The top up only works if the rewards balance is non-negative
-        if self.mode == Mode::Credits && self.rewards() >= 0 && amount > 0 {
-            self.change_credits(amount.unsigned_abs(), CreditsDelta::Plus, log)
-                .expect("couldn't change credits");
-            return;
+        if self.rewards() >= 0 {
+            // The top up only works if the rewards balance is non-negative
+            if self.mode == Mode::Credits && amount > 0 {
+                self.change_credits(amount.unsigned_abs(), CreditsDelta::Plus, log)
+                    .expect("couldn't change credits");
+                return;
+            }
+            self.rewards = self.rewards.saturating_add(amount);
+        } else {
+            self.rewards = self.rewards.saturating_add(amount);
+            // if rewards were negative and we flipped it to positive, we need to repeat the
+            // rewards assignment with the created overflow.
+            if self.rewards() > 0 {
+                let overflow = self.take_positive_rewards();
+                self.change_rewards(overflow, log);
+                return;
+            }
         }
-        self.rewards = self.rewards.saturating_add(amount);
         self.add_accounting_log(time(), "RWD".to_string(), amount, log.to_string());
     }
 
@@ -734,6 +746,37 @@ mod tests {
     }
 
     #[test]
+    fn test_overflowing_rewards() {
+        // Test overflow for credits mode
+        let mut user = User::new(pr(0), 66, 0, Default::default());
+        user.mode = Mode::Credits;
+
+        // simple top up
+        user.cycles = 1000;
+
+        // decrease in rewards does not remove credits, but creates a "debt"
+        user.change_rewards(-30, "");
+        assert_eq!(user.rewards(), -30);
+        user.change_rewards(35, "");
+        assert_eq!(user.cycles, 1005);
+        assert_eq!(user.rewards(), 0);
+
+        // Test overflow for mining mode
+        let mut user = User::new(pr(0), 66, 0, Default::default());
+        user.mode = Mode::Mining;
+
+        // simple top up
+        user.cycles = 1000;
+
+        // decrease in rewards does not remove credits, but creates a "debt"
+        user.change_rewards(-30, "");
+        assert_eq!(user.rewards(), -30);
+        user.change_rewards(35, "");
+        assert_eq!(user.cycles, 1000);
+        assert_eq!(user.rewards(), 5);
+    }
+
+    #[test]
     fn test_automatic_top_up() {
         let mut user = User::new(pr(0), 66, 0, Default::default());
         user.mode = Mode::Credits;
@@ -749,18 +792,18 @@ mod tests {
         assert_eq!(user.cycles, 1030);
         assert_eq!(user.rewards(), -30);
         user.change_rewards(35, "");
-        assert_eq!(user.cycles, 1030);
-        assert_eq!(user.rewards(), 5);
+        assert_eq!(user.cycles, 1035);
+        assert_eq!(user.rewards(), 0);
 
         // Chraging credits works as before
         user.change_credits(30, CreditsDelta::Minus, "").unwrap();
-        assert_eq!(user.cycles, 1000);
+        assert_eq!(user.cycles, 1005);
 
         let mut revenue = 2000_0000;
         user.top_up_credits_from_revenue(&mut revenue, e8s_for_one_xdr)
             .unwrap();
         assert_eq!(revenue, 2000_0000);
-        assert_eq!(user.credits(), 1000);
+        assert_eq!(user.credits(), 1005);
 
         // rewards are enough
         user.cycles = 980;

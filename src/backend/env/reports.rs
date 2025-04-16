@@ -180,6 +180,7 @@ mod tests {
             let p = pr(0);
             let u1 = create_user(state, p);
             let user = state.users.get_mut(&u1).unwrap();
+            user.mode = Mode::Mining;
             user.change_rewards(100, "");
 
             assert_eq!(user.notifications.len(), 1);
@@ -189,6 +190,7 @@ mod tests {
             for i in 1..20 {
                 let id = create_user(state, pr(i));
                 let user = state.users.get_mut(&id).unwrap();
+                user.mode = Mode::Mining;
                 user.stalwart = true;
             }
 
@@ -361,6 +363,7 @@ mod tests {
             let p = pr(100);
             let u = create_user(state, p);
             let user = state.users.get_mut(&u).unwrap();
+            user.mode = Mode::Mining;
             user.change_rewards(100, "");
 
             let post_id =
