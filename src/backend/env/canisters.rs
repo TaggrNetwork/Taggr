@@ -13,6 +13,7 @@ use ic_cdk::api::{
     self,
     call::{call_with_payment, CallResult},
     management_canister::{
+        bitcoin::{bitcoin_get_balance, GetBalanceRequest},
         main::{
             canister_status, create_canister, deposit_cycles, install_code, CanisterInstallMode,
             CanisterStatusResponse, CreateCanisterArgument, InstallCodeArgument,
@@ -222,6 +223,20 @@ pub async fn icrc_transfer(
         .await
         .map_err(|err| format!("icrc1_transfer call failed: {:?}", err))?;
     result.map_err(|err| format!("{:?}", err))
+}
+
+pub async fn btc_balance(address: String) -> Result<u64, String> {
+    open_call("btc_balance");
+    let balance_res = bitcoin_get_balance(GetBalanceRequest {
+        address,
+        network: super::bitcoin::btc_network(),
+        min_confirmations: None,
+    })
+    .await
+    .map_err(|err| format!("bitcoin_get_balance call failed: {:?}", err))?;
+    close_call("btc_balance");
+
+    Ok(balance_res.0)
 }
 
 pub async fn sats_for_one_usd() -> Result<u64, String> {

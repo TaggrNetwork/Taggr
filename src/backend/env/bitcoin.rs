@@ -1,7 +1,21 @@
 use bitcoin::{Address, Network, PublicKey};
-use ic_cdk::api::management_canister::ecdsa::{EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgument};
+use ic_cdk::api::management_canister::{
+    bitcoin::BitcoinNetwork,
+    ecdsa::{EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgument},
+};
 
 use super::config::CONFIG;
+
+pub fn network() -> Network {
+    Network::from_core_arg(CONFIG.btc_network).expect("couldn't parse metwork id")
+}
+
+pub fn btc_network() -> BitcoinNetwork {
+    match CONFIG.btc_network {
+        "main" => BitcoinNetwork::Mainnet,
+        _ => BitcoinNetwork::Testnet,
+    }
+}
 
 /// Returns the P2PKH address of this canister at the given derivation path.
 pub async fn get_address(derivation_path: Vec<Vec<u8>>) -> String {
@@ -11,7 +25,7 @@ pub async fn get_address(derivation_path: Vec<Vec<u8>>) -> String {
     // Compute the address.
     Address::p2pkh(
         &PublicKey::from_slice(&public_key).expect("failed to parse public key"),
-        Network::from_core_arg(CONFIG.btc_network).expect("couldn't parse metwork id"),
+        network(),
     )
     .to_string()
 }
