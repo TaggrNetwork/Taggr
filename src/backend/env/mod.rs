@@ -227,7 +227,7 @@ pub struct State {
     e8s_for_one_xdr: u64,
 
     #[serde(default)]
-    sats_for_one_usd: u64,
+    pub sats_for_one_usd: u64,
 
     last_revenues: VecDeque<u64>,
 
@@ -1463,7 +1463,7 @@ impl State {
             mutate(|state| state.e8s_for_one_xdr = e8s_for_one_xdr);
         }
         if let Ok(sats_for_one_usd) = canisters::sats_for_one_usd().await {
-            mutate(|state| state.sats_for_one_usd = sats_for_one_usd / 10);
+            mutate(|state| state.sats_for_one_usd = sats_for_one_usd);
         }
     }
 

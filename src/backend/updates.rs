@@ -85,9 +85,11 @@ fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {
-    let ratio = canisters::sats_for_one_usd().await;
+    State::fetch_rates().await;
     mutate(|state| {
-        state.logger.debug(format!("ratio={:?}", ratio));
+        state
+            .logger
+            .debug(format!("ratio={:?}", state.sats_for_one_usd));
     })
 }
 

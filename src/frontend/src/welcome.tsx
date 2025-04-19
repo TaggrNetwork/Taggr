@@ -19,6 +19,7 @@ import { Ed25519KeyIdentity } from "@dfinity/identity";
 type Invoice = {
     paid: boolean;
     e8s: BigInt;
+    sats: BigInt;
     account: number[];
     btc_address: string;
 };
@@ -132,7 +133,9 @@ export const Welcome = () => {
                                     </a>
                                     !
                                 </p>
-                                <p>Ready to mint? Continue below!</p>
+                                {!invoice && !loadingInvoice && (
+                                    <p>Ready to mint? Continue below!</p>
+                                )}
                             </div>
                         )}
                         {loadingInvoice && (
@@ -178,17 +181,17 @@ export const Welcome = () => {
                                         )}
                                         {!invoice.paid && (
                                             <>
-                                                In order to mint{" "}
-                                                <code>1000</code> credits,
-                                                please do one of the following
-                                                payments:
+                                                To mint <code>1000</code>{" "}
+                                                credits, please make one of the
+                                                following payments:
                                                 <ul>
                                                     <li>
-                                                        Transfer at least&nbsp;
+                                                        <b>BITCOIN</b>: Transfer
+                                                        at least&nbsp;
                                                         <CopyToClipboard
                                                             testId="invoice-amount-btc"
                                                             value={Number(
-                                                                6969,
+                                                                invoice.sats,
                                                             ).toString()}
                                                         />
                                                         &nbsp;Sats to account
@@ -204,7 +207,8 @@ export const Welcome = () => {
                                                         />
                                                     </li>
                                                     <li>
-                                                        Transfer at least&nbsp;
+                                                        <b>ICP</b>: Transfer at
+                                                        least&nbsp;
                                                         <CopyToClipboard
                                                             testId="invoice-amount"
                                                             value={(
