@@ -31,6 +31,7 @@ use token::base;
 use user::{Pfp, User, UserId};
 
 pub mod auction;
+mod bitcoin;
 pub mod canisters;
 pub mod config;
 pub mod features;
@@ -224,6 +225,9 @@ pub struct State {
     pub root_posts_index: Vec<PostId>,
 
     e8s_for_one_xdr: u64,
+
+    #[serde(default)]
+    pub sats_for_one_usd: u64,
 
     last_revenues: VecDeque<u64>,
 
@@ -1726,9 +1730,12 @@ impl State {
         }
     }
 
-    pub async fn fetch_xdr_rate() {
+    pub async fn fetch_rates() {
         if let Ok(e8s_for_one_xdr) = invoices::get_xdr_in_e8s().await {
             mutate(|state| state.e8s_for_one_xdr = e8s_for_one_xdr);
+        }
+        if let Ok(sats_for_one_usd) = canisters::sats_for_one_usd().await {
+            mutate(|state| state.sats_for_one_usd = sats_for_one_usd);
         }
     }
 
@@ -1750,7 +1757,7 @@ impl State {
             state.conclude_polls(now);
         });
 
-        State::fetch_xdr_rate().await;
+        State::fetch_rates().await;
 
         State::top_up().await;
 
@@ -2297,7 +2304,10 @@ impl State {
         }
 
         let e8s_for_one_xdr = read(|state| state.e8s_for_one_xdr);
-        let invoice = Invoices::outstanding(&principal, kilo_credits, e8s_for_one_xdr).await?;
+        let sats_for_one_usd = read(|state| state.sats_for_one_usd);
+        let invoice =
+            Invoices::outstanding(&principal, kilo_credits, e8s_for_one_xdr, sats_for_one_usd)
+                .await?;
 
         mutate(|state| {
             if invoice.paid {

@@ -15,7 +15,13 @@ import {
 } from "./common";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 
-type Invoice = { paid: boolean; e8s: BigInt; account: number[] };
+type Invoice = {
+    paid: boolean;
+    e8s: BigInt;
+    sats: BigInt;
+    account: number[];
+    btc_address: string;
+};
 
 const shortenPrincipal = (principal: string) => {
     const parts = principal.split("-");
@@ -38,7 +44,7 @@ export const Welcome = () => {
         setInvoice(result.Ok);
     };
 
-    const passwordConfirmationRequired =
+    const seedphraseConfirmationRequired =
         !!localStorage.getItem("SEED_PHRASE") && !seedPhraseConfirmed;
     const logOutButton = (
         <button className="right_spaced" onClick={signOut}>
@@ -50,15 +56,17 @@ export const Welcome = () => {
         <>
             <HeadBar title={"WELCOME!"} shareLink="welcome" />
             <div className="spaced">
-                {passwordConfirmationRequired && (
+                {seedphraseConfirmationRequired && (
                     <>
                         <h2>New user detected</h2>
                         <SeedPhraseForm
                             classNameArg=""
-                            confirmationRequired={passwordConfirmationRequired}
-                            callback={async (password: string) => {
+                            confirmationRequired={
+                                seedphraseConfirmationRequired
+                            }
+                            callback={async (seedphrase: string) => {
                                 const seed = await hash(
-                                    password,
+                                    seedphrase,
                                     HASH_ITERATIONS,
                                 );
                                 let identity =
@@ -76,7 +84,7 @@ export const Welcome = () => {
                         />
                     </>
                 )}
-                {!passwordConfirmationRequired && (
+                {!seedphraseConfirmationRequired && (
                     <>
                         {(!invoice || !invoice.paid) && (
                             <div className="bottom_spaced">
@@ -105,12 +113,12 @@ export const Welcome = () => {
                                 </p>
                                 <p>
                                     To mint credits, you need to transfer a
-                                    small amount of ICP to an account controlled
-                                    by the {window.backendCache.config.name}{" "}
-                                    canister. You get <code>1000</code> credits
-                                    for as little as{" "}
-                                    <code>~{USD_PER_XDR} USD</code> (corresponds
-                                    to 1{" "}
+                                    small amount of Bitcoin or ICP to an account
+                                    controlled by the{" "}
+                                    {window.backendCache.config.name} canister.
+                                    You get <code>1000</code> credits for as
+                                    little as <code>~{USD_PER_XDR} USD</code>{" "}
+                                    (corresponds to 1{" "}
                                     <a href="https://en.wikipedia.org/wiki/Special_drawing_rights">
                                         XDR
                                     </a>
@@ -122,7 +130,9 @@ export const Welcome = () => {
                                     </a>
                                     !
                                 </p>
-                                <p>Ready to mint? Continue below!</p>
+                                {!invoice && !loadingInvoice && (
+                                    <p>Ready to mint? Continue below!</p>
+                                )}
                             </div>
                         )}
                         {loadingInvoice && (
@@ -168,29 +178,55 @@ export const Welcome = () => {
                                         )}
                                         {!invoice.paid && (
                                             <>
-                                                Please transfer at least&nbsp;
-                                                <CopyToClipboard
-                                                    testId="invoice-amount"
-                                                    value={(
-                                                        Number(invoice.e8s) /
-                                                        1e8
-                                                    ).toString()}
-                                                />
-                                                &nbsp;ICP to account
-                                                <br />
-                                                <CopyToClipboard
-                                                    value={hex(invoice.account)}
-                                                    displayMap={(account) =>
-                                                        bigScreen()
-                                                            ? account
-                                                            : shortenAccount(
-                                                                  account,
-                                                              )
-                                                    }
-                                                    testId="account-to-transfer-to"
-                                                />{" "}
-                                                to mint <code>1000</code>{" "}
-                                                credits.
+                                                To mint <code>1000</code>{" "}
+                                                credits, please make one of the
+                                                following payments:
+                                                <ul>
+                                                    <li>
+                                                        <b>BITCOIN</b>: Transfer
+                                                        at least&nbsp;
+                                                        <CopyToClipboard
+                                                            testId="invoice-amount-btc"
+                                                            value={Number(
+                                                                invoice.sats,
+                                                            ).toString()}
+                                                        />
+                                                        &nbsp;Sats to account
+                                                        <br />
+                                                        <CopyToClipboard
+                                                            value={
+                                                                invoice.btc_address
+                                                            }
+                                                            displayMap={
+                                                                shortener
+                                                            }
+                                                            testId="account-to-transfer-to"
+                                                        />
+                                                    </li>
+                                                    <li>
+                                                        <b>ICP</b>: Transfer at
+                                                        least&nbsp;
+                                                        <CopyToClipboard
+                                                            testId="invoice-amount"
+                                                            value={(
+                                                                Number(
+                                                                    invoice.e8s,
+                                                                ) / 1e8
+                                                            ).toString()}
+                                                        />
+                                                        &nbsp;ICP to account
+                                                        <br />
+                                                        <CopyToClipboard
+                                                            value={hex(
+                                                                invoice.account,
+                                                            )}
+                                                            displayMap={
+                                                                shortener
+                                                            }
+                                                            testId="account-to-transfer-to"
+                                                        />
+                                                    </li>
+                                                </ul>
                                                 <br />
                                                 <br />
                                                 If you transfer a larger amount,
@@ -217,6 +253,9 @@ export const Welcome = () => {
         </>
     );
 };
+
+const shortener = (account: string) =>
+    bigScreen() ? account : shortenAccount(account);
 
 export const WelcomeInvited = ({}) => (
     <div className="text_centered">

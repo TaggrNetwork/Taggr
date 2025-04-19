@@ -134,6 +134,10 @@ pub struct Config {
 
     #[serde(with = "string")]
     pub neuron_id: u64,
+
+    pub ecdsa_key_name: &'static str,
+
+    pub btc_network: &'static str,
 }
 
 mod string {
@@ -303,6 +307,18 @@ pub const CONFIG: &Config = &Config {
     max_blob_size_bytes: 460800,
 
     online_activity_minutes: 10 * 60000000000_u64,
+
+    #[cfg(any(test, feature = "dev"))]
+    ecdsa_key_name: "dfx_test_key",
+    #[cfg(feature = "staging")]
+    ecdsa_key_name: "test_key_1",
+    #[cfg(not(any(test, feature = "staging", feature = "dev")))]
+    ecdsa_key_name: "key_1",
+
+    #[cfg(any(test, feature = "staging", feature = "dev"))]
+    btc_network: "test",
+    #[cfg(not(any(test, feature = "staging", feature = "dev")))]
+    btc_network: "main",
 
     reactions: &[
         // sad, thumb up, heart

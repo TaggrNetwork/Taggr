@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use crate::{mutate, read};
 
-use super::canisters::call_canister;
+use super::{bitcoin, canisters::call_canister};
 
 const INVOICE_MAX_AGE_HOURS: u64 = 24 * super::HOUR;
 
@@ -30,11 +30,15 @@ struct IcpXdrConversionRateCertifiedResponse {
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Invoice {
     pub e8s: u64,
+    #[serde(default)]
+    pub sats: u64,
     pub paid_e8s: u64,
     pub paid: bool,
     time: u64,
     sub_account: Subaccount,
     pub account: AccountIdentifier,
+    #[serde(default)]
+    pub btc_address: String,
 }
 
 #[derive(Deserialize, Default, Serialize)]
@@ -48,7 +52,12 @@ impl Invoices {
             .retain(|_, invoice| time() - invoice.time < INVOICE_MAX_AGE_HOURS)
     }
 
-    fn create(invoice_id: Principal, e8s: u64) -> Result<Invoice, String> {
+    fn create(
+        invoice_id: Principal,
+        btc_address: String,
+        e8s: u64,
+        sats: u64,
+    ) -> Result<Invoice, String> {
         if e8s == 0 {
             return Err("wrong ICP/XDR ratio".into());
         }
@@ -58,10 +67,12 @@ impl Invoices {
         let invoice = Invoice {
             paid: false,
             e8s,
+            sats,
             paid_e8s: 0,
             time,
             account,
             sub_account,
+            btc_address,
         };
         Ok(invoice)
     }
@@ -74,11 +85,14 @@ impl Invoices {
         invoice_id: &Principal,
         kilo_credits: u64,
         e8s_for_one_xdr: u64,
+        sats_fur_one_usd: u64,
     ) -> Result<Invoice, String> {
         let invoice = match read(|state| state.accounting.invoices.get(invoice_id).cloned()) {
             Some(invoice) => invoice,
             None => {
-                let invoice = Self::create(*invoice_id, e8s_for_one_xdr)?;
+                let btc_address = bitcoin::get_address(vec![invoice_id.as_slice().to_vec()]).await;
+                let invoice =
+                    Self::create(*invoice_id, btc_address, e8s_for_one_xdr, sats_fur_one_usd)?;
                 mutate(|state| {
                     state
                         .accounting

@@ -10,7 +10,7 @@ use candid::{
     CandidType, Principal,
 };
 use ic_cdk::api::{
-    call::CallResult,
+    call::{call_with_payment, CallResult},
     management_canister::{
         main::{
             canister_status, create_canister, deposit_cycles, install_code, CanisterInstallMode,
@@ -21,6 +21,7 @@ use ic_cdk::api::{
 };
 use ic_cdk::{api::call::call_raw, notify};
 use ic_ledger_types::MAINNET_GOVERNANCE_CANISTER_ID;
+use ic_xrc_types::{Asset, GetExchangeRateRequest, GetExchangeRateResult};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -332,6 +333,34 @@ pub async fn icrc_transfer(
         .await
         .map_err(|err| format!("icrc1_transfer call failed: {:?}", err))?;
     result.map_err(|err| format!("{:?}", err))
+}
+
+pub async fn sats_for_one_usd() -> Result<u64, String> {
+    let xrc_canister_id =
+        Principal::from_text("uf6dk-hyaaa-aaaaq-qaaaq-cai").expect("couldn't parse canister id");
+    let args = GetExchangeRateRequest {
+        base_asset: Asset {
+            symbol: "USD".into(),
+            class: ic_xrc_types::AssetClass::FiatCurrency,
+        },
+        quote_asset: Asset {
+            symbol: "BTC".into(),
+            class: ic_xrc_types::AssetClass::Cryptocurrency,
+        },
+        timestamp: None,
+    };
+    let cycles = 10000000000;
+
+    open_call("sats_for_one_usd");
+    let (response,): (GetExchangeRateResult,) =
+        call_with_payment(xrc_canister_id, "get_exchange_rate", (args,), cycles)
+            .await
+            .map_err(|err| format!("xrc call failed: {:?}", err))?;
+    close_call("sats_for_one_usd");
+
+    response
+        .map(|result| result.rate / 10)
+        .map_err(|err| format!("couldn't get canister status: {:?}", err))
 }
 
 pub async fn call_canister_raw(id: Principal, method: &str, args: &[u8]) -> CallResult<Vec<u8>> {
