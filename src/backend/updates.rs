@@ -35,7 +35,7 @@ fn init() {
         state.auction.amount = CONFIG.weekly_auction_size_tokens_max;
     });
     set_timer(Duration::from_millis(0), || {
-        spawn(State::fetch_xdr_rate());
+        spawn(State::fetch_rates());
     });
     set_timer_interval(Duration::from_secs(15 * 60), || {
         spawn(State::chores(api::time()))
@@ -84,7 +84,12 @@ fn post_upgrade() {
 fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {}
+async fn async_post_upgrade_fixtures() {
+    let ratio = canisters::sats_for_one_usd().await;
+    mutate(|state| {
+        state.logger.debug(format!("ratio={:?}", ratio));
+    })
+}
 
 /*
  * UPDATES
