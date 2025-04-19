@@ -1,18 +1,17 @@
 use bitcoin::{Address, Network, PublicKey};
 use ic_cdk::api::management_canister::ecdsa::{EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgument};
 
-const KEY_NAME: &str = "dfx_test_key";
-const NETWORK: Network = Network::Testnet;
+use super::config::CONFIG;
 
 /// Returns the P2PKH address of this canister at the given derivation path.
 pub async fn get_address(derivation_path: Vec<Vec<u8>>) -> String {
     // Fetch the public key of the given derivation path.
-    let public_key = get_ecdsa_public_key(KEY_NAME.to_string(), derivation_path).await;
+    let public_key = get_ecdsa_public_key(CONFIG.ecdsa_key_name.into(), derivation_path).await;
 
     // Compute the address.
     Address::p2pkh(
         &PublicKey::from_slice(&public_key).expect("failed to parse public key"),
-        NETWORK,
+        Network::from_core_arg(CONFIG.btc_network).expect("couldn't parse metwork id"),
     )
     .to_string()
 }
