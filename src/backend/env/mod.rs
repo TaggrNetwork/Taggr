@@ -1,7 +1,7 @@
 use self::auction::Auction;
 use self::canisters::{icrc_transfer, upgrade_main_canister};
 use self::invite::Invite;
-use self::invoices::{Invoice, USER_ICP_SUBACCOUNT};
+use self::invoices::{ICPInvoice, USER_ICP_SUBACCOUNT};
 use self::post::{archive_cold_posts, Extension, Post, PostId};
 use self::post_iterators::{IteratorMerger, MergeStrategy};
 use self::proposals::{Payload, ReleaseInfo, Status};
@@ -21,6 +21,7 @@ use ic_cdk::api::performance_counter;
 use ic_cdk::api::stable::stable_size;
 use ic_cdk::api::{self, canister_balance};
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
+use invoices::BTCInvoice;
 use invoices::Invoices;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -227,7 +228,7 @@ pub struct State {
     e8s_for_one_xdr: u64,
 
     #[serde(default)]
-    pub sats_for_one_usd: u64,
+    pub sats_for_one_xdr: u64,
 
     last_revenues: VecDeque<u64>,
 
@@ -1458,12 +1459,12 @@ impl State {
         archive_cold_posts(self, max_posts_in_heap)
     }
 
-    pub async fn fetch_rates() {
-        if let Ok(e8s_for_one_xdr) = invoices::get_xdr_in_e8s().await {
+    pub async fn fetch_xdr_rate() {
+        if let Ok(e8s_for_one_xdr) = canisters::coins_for_one_xdr("ICP").await {
             mutate(|state| state.e8s_for_one_xdr = e8s_for_one_xdr);
         }
-        if let Ok(sats_for_one_usd) = canisters::sats_for_one_usd().await {
-            mutate(|state| state.sats_for_one_usd = sats_for_one_usd);
+        if let Ok(sats_for_one_xdr) = canisters::coins_for_one_xdr("BTC").await {
+            mutate(|state| state.sats_for_one_xdr = sats_for_one_xdr);
         }
     }
 
@@ -1485,7 +1486,7 @@ impl State {
             state.conclude_polls(now);
         });
 
-        State::fetch_rates().await;
+        State::fetch_xdr_rate().await;
 
         canisters::top_up().await;
 
@@ -2000,7 +2001,10 @@ impl State {
         Ok(())
     }
 
-    pub async fn mint_credits(principal: Principal, kilo_credits: u64) -> Result<Invoice, String> {
+    pub async fn mint_credits_with_icp(
+        principal: Principal,
+        kilo_credits: u64,
+    ) -> Result<ICPInvoice, String> {
         if kilo_credits > CONFIG.max_credits_mint_kilos {
             return Err(format!(
                 "can't mint more than {} thousands of credits",
@@ -2009,10 +2013,8 @@ impl State {
         }
 
         let e8s_for_one_xdr = read(|state| state.e8s_for_one_xdr);
-        let sats_for_one_usd = read(|state| state.sats_for_one_usd);
         let invoice =
-            Invoices::outstanding(&principal, kilo_credits, e8s_for_one_xdr, sats_for_one_usd)
-                .await?;
+            Invoices::outstanding_icp_invoice(&principal, kilo_credits, e8s_for_one_xdr).await?;
 
         mutate(|state| {
             if invoice.paid {
@@ -2023,7 +2025,27 @@ impl State {
                         CreditsDelta::Plus,
                         "top up with ICP".to_string(),
                     )?;
-                    state.accounting.close(&principal);
+                    state.accounting.close_invoice(&principal);
+                }
+            }
+            Ok(invoice)
+        })
+    }
+
+    pub async fn mint_credits_with_btc(principal: Principal) -> Result<BTCInvoice, String> {
+        let sats_for_one_xdr = read(|state| state.sats_for_one_xdr);
+        let invoice = Invoices::outstanding_btc_invoice(&principal, sats_for_one_xdr).await?;
+
+        mutate(|state| {
+            if invoice.paid {
+                if let Some(user) = state.principal_to_user_mut(principal) {
+                    user.change_credits(
+                        ((invoice.balance as f64 / invoice.sats as f64)
+                            * CONFIG.credits_per_xdr as f64) as Credits,
+                        CreditsDelta::Plus,
+                        "top up with Bitcoin".to_string(),
+                    )?;
+                    state.accounting.close_invoice(&principal);
                 }
             }
             Ok(invoice)

@@ -28,87 +28,104 @@ struct IcpXdrConversionRateCertifiedResponse {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct Invoice {
+pub struct ICPInvoice {
     pub e8s: u64,
-    #[serde(default)]
-    pub sats: u64,
     pub paid_e8s: u64,
     pub paid: bool,
     time: u64,
     sub_account: Subaccount,
     pub account: AccountIdentifier,
-    #[serde(default)]
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct BTCInvoice {
+    // Sats worth $1
+    pub sats: u64,
+    // Actually transferred sats
+    pub balance: u64,
+    pub paid: bool,
+    time: u64,
     pub btc_address: String,
-    #[serde(default)]
-    pub derivation_path: Vec<Vec<u8>>,
 }
 
 #[derive(Deserialize, Default, Serialize)]
 pub struct Invoices {
-    invoices: HashMap<Principal, Invoice>,
-    // Keeps all balances with their addresses.
-    btc_balances: Vec<(String, u64)>,
+    invoices: HashMap<Principal, ICPInvoice>,
+    #[serde(default)]
+    btc_invoices: HashMap<Principal, BTCInvoice>,
+    #[serde(default)]
+    paid_btc_invoices: Vec<BTCInvoice>,
 }
 
 impl Invoices {
     pub fn clean_up(&mut self) {
+        let now = time();
         self.invoices
-            .retain(|_, invoice| time() - invoice.time < INVOICE_MAX_AGE_HOURS)
+            .retain(|_, invoice| now - invoice.time < INVOICE_MAX_AGE_HOURS);
+        self.btc_invoices
+            .retain(|_, invoice| now - invoice.time < INVOICE_MAX_AGE_HOURS);
     }
 
-    fn create(
-        invoice_id: Principal,
-        btc_address: String,
-        derivation_path: Vec<Vec<u8>>,
-        e8s: u64,
-        sats: u64,
-    ) -> Result<Invoice, String> {
+    fn new_icp_invoice(invoice_id: Principal, e8s: u64) -> Result<ICPInvoice, String> {
         if e8s == 0 {
             return Err("wrong ICP/XDR ratio".into());
         }
         let time = time();
         let sub_account = principal_to_subaccount(&invoice_id);
         let account = AccountIdentifier::new(&id(), &sub_account);
-        let invoice = Invoice {
+        let invoice = ICPInvoice {
             paid: false,
             e8s,
-            sats,
             paid_e8s: 0,
             time,
             account,
             sub_account,
-            btc_address,
-            derivation_path,
         };
         Ok(invoice)
     }
 
-    pub fn close(&mut self, invoice_id: &Principal) {
-        self.invoices.remove(invoice_id);
+    async fn new_btc_invoice(invoice_id: Principal, sats: u64) -> Result<BTCInvoice, String> {
+        if sats == 0 {
+            return Err("wrong USD/BTC ratio".into());
+        }
+        // The derivation path contains the timestamp and the principal.
+        let derivation_path = vec![
+            time().to_be_bytes().to_vec(),
+            invoice_id.as_slice().to_vec(),
+        ];
+        let btc_address = bitcoin::get_address(&derivation_path).await;
+        let time = time();
+        let invoice = BTCInvoice {
+            paid: false,
+            sats,
+            balance: 0,
+            time,
+            btc_address,
+        };
+        Ok(invoice)
     }
 
-    pub async fn outstanding(
+    // Closes all paid invoices for the given principal id.
+    pub fn close_invoice(&mut self, invoice_id: &Principal) {
+        let invoice = self.invoices.remove(invoice_id).expect("no invoice found");
+        assert!(invoice.paid, "invoice not paid");
+        let invoice = self
+            .btc_invoices
+            .remove(invoice_id)
+            .expect("no invoice found");
+        assert!(invoice.paid, "invoice not paid");
+        self.paid_btc_invoices.push(invoice);
+    }
+
+    pub async fn outstanding_icp_invoice(
         invoice_id: &Principal,
         kilo_credits: u64,
         e8s_for_one_xdr: u64,
-        sats_fur_one_usd: u64,
-    ) -> Result<Invoice, String> {
+    ) -> Result<ICPInvoice, String> {
         let invoice = match read(|state| state.accounting.invoices.get(invoice_id).cloned()) {
             Some(invoice) => invoice,
             None => {
-                // The derivation path contains the timestamp and the principal.
-                let derivation_path = vec![
-                    time().to_be_bytes().to_vec(),
-                    invoice_id.as_slice().to_vec(),
-                ];
-                let btc_address = bitcoin::get_address(&derivation_path).await;
-                let invoice = Self::create(
-                    *invoice_id,
-                    btc_address,
-                    derivation_path,
-                    e8s_for_one_xdr,
-                    sats_fur_one_usd,
-                )?;
+                let invoice = Self::new_icp_invoice(*invoice_id, e8s_for_one_xdr)?;
                 mutate(|state| {
                     state
                         .accounting
@@ -139,7 +156,7 @@ impl Invoices {
                     Some(invoice.sub_account),
                 );
                 // We don't block on the transfer of remaining funds, because these funds are not
-                // critical for the further workflow.
+                // critical for the rest of the workflow.
                 spawn(async {
                     let _ = future.await;
                 });
@@ -158,6 +175,47 @@ impl Invoices {
         }
         read(|state| state.accounting.invoices.get(invoice_id).cloned())
             .ok_or("no invoice found".into())
+    }
+
+    pub async fn outstanding_btc_invoice(
+        invoice_id: &Principal,
+        sats_for_one_xdr: u64,
+    ) -> Result<BTCInvoice, String> {
+        let invoice = match read(|state| state.accounting.btc_invoices.get(invoice_id).cloned()) {
+            Some(invoice) => invoice,
+            None => {
+                let invoice = Self::new_btc_invoice(*invoice_id, sats_for_one_xdr).await?;
+                mutate(|state| {
+                    state
+                        .accounting
+                        .btc_invoices
+                        .insert(*invoice_id, invoice.clone());
+                });
+                invoice
+            }
+        };
+        if invoice.paid {
+            return Ok(invoice);
+        }
+        let balance = bitcoin::balance(invoice.btc_address).await?;
+        let min_balance = invoice.sats;
+        if balance >= min_balance {
+            return mutate(|state| {
+                let invoice = state
+                    .accounting
+                    .btc_invoices
+                    .get_mut(invoice_id)
+                    .expect("no invoice found");
+                invoice.paid = true;
+                invoice.balance = balance;
+                return Ok(invoice.clone());
+            });
+        }
+
+        return Err(format!(
+            "BTC balance too low (need: {} sats, got: {} sats)",
+            min_balance, balance
+        ));
     }
 }
 
@@ -213,21 +271,6 @@ pub async fn account_balance(account: AccountIdentifier) -> Result<Tokens, Strin
     .await
     .map_err(|err| format!("couldn't check balance: {:?}", err))?;
     Ok(balance)
-}
-
-pub async fn get_xdr_in_e8s() -> Result<u64, String> {
-    let (IcpXdrConversionRateCertifiedResponse {
-        data: IcpXdrConversionRate {
-            xdr_permyriad_per_icp,
-        },
-    },) = call_canister(
-        MAINNET_CYCLES_MINTING_CANISTER_ID,
-        "get_icp_xdr_conversion_rate",
-        (),
-    )
-    .await
-    .map_err(|err| format!("couldn't get ICP/XDR ratio: {:?}", err))?;
-    Ok((100_000_000.0 / xdr_permyriad_per_icp as f64) as u64 * 10_000)
 }
 
 pub async fn topup_with_icp(canister_id: &Principal, icp: Tokens) -> Result<u128, String> {

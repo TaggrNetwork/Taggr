@@ -733,10 +733,19 @@ pub async fn create_user(
         return Ok(realm_id);
     }
 
-    if let Ok(Invoice { paid: true, .. }) = State::mint_credits(principal, 0).await {
+    if let Ok(ICPInvoice { paid: true, .. }) = State::mint_credits_with_icp(principal, 0).await {
         mutate(|state| state.new_user(principal, time(), name, None))?;
         // After the user has beed created, transfer credits.
-        return State::mint_credits(principal, 0).await.map(|_| (None));
+        return State::mint_credits_with_icp(principal, 0)
+            .await
+            .map(|_| (None));
+    } else if let Ok(BTCInvoice { paid: true, .. }) = State::mint_credits_with_btc(principal).await
+    {
+        mutate(|state| state.new_user(principal, time(), name, None))?;
+        // After the user has beed created, transfer credits.
+        return State::mint_credits_with_btc(principal)
+            .await
+            .map(|_| (None));
     }
 
     Err("payment missing or the invite is invalid".to_string())

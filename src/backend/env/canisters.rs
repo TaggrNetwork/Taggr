@@ -13,7 +13,6 @@ use ic_cdk::api::{
     self,
     call::{call_with_payment, CallResult},
     management_canister::{
-        bitcoin::{bitcoin_get_balance, GetBalanceRequest},
         main::{
             canister_status, create_canister, deposit_cycles, install_code, CanisterInstallMode,
             CanisterStatusResponse, CreateCanisterArgument, InstallCodeArgument,
@@ -225,42 +224,26 @@ pub async fn icrc_transfer(
     result.map_err(|err| format!("{:?}", err))
 }
 
-pub async fn btc_balance(address: String) -> Result<u64, String> {
-    open_call("btc_balance");
-    let balance_res = bitcoin_get_balance(GetBalanceRequest {
-        address,
-        network: super::bitcoin::btc_network(),
-        min_confirmations: None,
-    })
-    .await
-    .map_err(|err| format!("bitcoin_get_balance call failed: {:?}", err))?;
-    close_call("btc_balance");
-
-    Ok(balance_res.0)
-}
-
-pub async fn sats_for_one_usd() -> Result<u64, String> {
+pub async fn coins_for_one_xdr(coin: &str) -> Result<u64, String> {
     let xrc_canister_id =
         Principal::from_text("uf6dk-hyaaa-aaaaq-qaaaq-cai").expect("couldn't parse canister id");
     let args = GetExchangeRateRequest {
         base_asset: Asset {
-            symbol: "USD".into(),
+            symbol: "XDR".into(),
             class: ic_xrc_types::AssetClass::FiatCurrency,
         },
         quote_asset: Asset {
-            symbol: "BTC".into(),
+            symbol: coin.into(),
             class: ic_xrc_types::AssetClass::Cryptocurrency,
         },
         timestamp: None,
     };
     let cycles = 10000000000;
 
-    open_call("sats_for_one_usd");
     let (response,): (GetExchangeRateResult,) =
-        call_with_payment(xrc_canister_id, "get_exchange_rate", (args,), cycles)
+        call_canister_with_payment(xrc_canister_id, "get_exchange_rate", (args,), cycles)
             .await
             .map_err(|err| format!("xrc call failed: {:?}", err))?;
-    close_call("sats_for_one_usd");
 
     response
         .map(|result| result.rate / 10)
@@ -270,6 +253,18 @@ pub async fn sats_for_one_usd() -> Result<u64, String> {
 pub async fn call_canister_raw(id: Principal, method: &str, args: &[u8]) -> CallResult<Vec<u8>> {
     open_call(method);
     let result = call_raw(id, method, args, 0).await;
+    close_call(method);
+    result
+}
+
+pub async fn call_canister_with_payment<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(
+    id: Principal,
+    method: &str,
+    args: T,
+    cycles: u64,
+) -> CallResult<R> {
+    open_call(method);
+    let result = call_with_payment(id, method, args, cycles).await;
     close_call(method);
     result
 }

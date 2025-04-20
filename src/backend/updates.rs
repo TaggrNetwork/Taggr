@@ -35,7 +35,7 @@ fn init() {
         state.auction.amount = CONFIG.weekly_auction_size_tokens_max;
     });
     set_timer(Duration::from_millis(0), || {
-        spawn(State::fetch_rates());
+        spawn(State::fetch_xdr_rate());
     });
     set_timer_interval(Duration::from_secs(15 * 60), || {
         spawn(State::chores(api::time()))
@@ -85,11 +85,11 @@ fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {
-    State::fetch_rates().await;
+    State::fetch_xdr_rate().await;
     mutate(|state| {
         state
             .logger
-            .debug(format!("ratio={:?}", state.sats_for_one_usd));
+            .debug(format!("ratio={:?}", state.sats_for_one_xdr));
     })
 }
 
@@ -302,7 +302,7 @@ fn transfer_credits() {
 fn mint_credits() {
     spawn(async {
         let kilo_credits: u64 = parse(&arg_data_raw());
-        reply(State::mint_credits(caller(), kilo_credits).await)
+        reply(State::mint_credits_with_icp(caller(), kilo_credits).await)
     });
 }
 
