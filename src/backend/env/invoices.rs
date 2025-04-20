@@ -39,11 +39,15 @@ pub struct Invoice {
     pub account: AccountIdentifier,
     #[serde(default)]
     pub btc_address: String,
+    #[serde(default)]
+    pub derivation_path: Vec<Vec<u8>>,
 }
 
 #[derive(Deserialize, Default, Serialize)]
 pub struct Invoices {
     invoices: HashMap<Principal, Invoice>,
+    // Keeps all balances with their addresses.
+    btc_balances: Vec<(String, u64)>,
 }
 
 impl Invoices {
@@ -55,6 +59,7 @@ impl Invoices {
     fn create(
         invoice_id: Principal,
         btc_address: String,
+        derivation_path: Vec<Vec<u8>>,
         e8s: u64,
         sats: u64,
     ) -> Result<Invoice, String> {
@@ -73,6 +78,7 @@ impl Invoices {
             account,
             sub_account,
             btc_address,
+            derivation_path,
         };
         Ok(invoice)
     }
@@ -90,9 +96,19 @@ impl Invoices {
         let invoice = match read(|state| state.accounting.invoices.get(invoice_id).cloned()) {
             Some(invoice) => invoice,
             None => {
-                let btc_address = bitcoin::get_address(vec![invoice_id.as_slice().to_vec()]).await;
-                let invoice =
-                    Self::create(*invoice_id, btc_address, e8s_for_one_xdr, sats_fur_one_usd)?;
+                // The derivation path contains the timestamp and the principal.
+                let derivation_path = vec![
+                    time().to_be_bytes().to_vec(),
+                    invoice_id.as_slice().to_vec(),
+                ];
+                let btc_address = bitcoin::get_address(&derivation_path).await;
+                let invoice = Self::create(
+                    *invoice_id,
+                    btc_address,
+                    derivation_path,
+                    e8s_for_one_xdr,
+                    sats_fur_one_usd,
+                )?;
                 mutate(|state| {
                     state
                         .accounting

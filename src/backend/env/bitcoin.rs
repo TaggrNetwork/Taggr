@@ -18,7 +18,7 @@ pub fn btc_network() -> BitcoinNetwork {
 }
 
 /// Returns the P2PKH address of this canister at the given derivation path.
-pub async fn get_address(derivation_path: Vec<Vec<u8>>) -> String {
+pub async fn get_address(derivation_path: &Vec<Vec<u8>>) -> String {
     // Fetch the public key of the given derivation path.
     let public_key = get_ecdsa_public_key(CONFIG.ecdsa_key_name.into(), derivation_path).await;
 
@@ -31,7 +31,7 @@ pub async fn get_address(derivation_path: Vec<Vec<u8>>) -> String {
 }
 
 /// Returns the ECDSA public key of this canister at the given derivation path.
-async fn get_ecdsa_public_key(key_name: String, derivation_path: Vec<Vec<u8>>) -> Vec<u8> {
+async fn get_ecdsa_public_key(key_name: String, derivation_path: &Vec<Vec<u8>>) -> Vec<u8> {
     // Retrieve the public key of this canister at the given derivation path
     // from the ECDSA API.
     let key_id = EcdsaKeyId {
