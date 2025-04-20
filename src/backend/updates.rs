@@ -298,12 +298,17 @@ fn transfer_credits() {
     }))
 }
 
-#[export_name = "canister_update mint_credits"]
-fn mint_credits() {
+#[export_name = "canister_update mint_credits_with_icp"]
+fn mint_credits_with_icp() {
     spawn(async {
         let kilo_credits: u64 = parse(&arg_data_raw());
         reply(State::mint_credits_with_icp(caller(), kilo_credits).await)
     });
+}
+
+#[export_name = "canister_update mint_credits_with_btc"]
+fn mint_credits_with_btc() {
+    spawn(async { reply(State::mint_credits_with_btc(caller()).await) });
 }
 
 #[export_name = "canister_update create_invite"]

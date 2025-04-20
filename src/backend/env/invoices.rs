@@ -107,14 +107,13 @@ impl Invoices {
 
     // Closes all paid invoices for the given principal id.
     pub fn close_invoice(&mut self, invoice_id: &Principal) {
-        let invoice = self.invoices.remove(invoice_id).expect("no invoice found");
-        assert!(invoice.paid, "invoice not paid");
-        let invoice = self
-            .btc_invoices
-            .remove(invoice_id)
-            .expect("no invoice found");
-        assert!(invoice.paid, "invoice not paid");
-        self.paid_btc_invoices.push(invoice);
+        if let Some(invoice) = self.invoices.remove(invoice_id) {
+            assert!(invoice.paid, "invoice paid");
+        }
+        if let Some(invoice) = self.btc_invoices.remove(invoice_id) {
+            assert!(invoice.paid, "invoice paid");
+            self.paid_btc_invoices.push(invoice);
+        }
     }
 
     pub async fn outstanding_icp_invoice(
@@ -197,7 +196,7 @@ impl Invoices {
         if invoice.paid {
             return Ok(invoice);
         }
-        let balance = bitcoin::balance(invoice.btc_address).await?;
+        let balance = bitcoin::balance(invoice.btc_address.clone()).await?;
         let min_balance = invoice.sats;
         if balance >= min_balance {
             return mutate(|state| {
@@ -212,10 +211,7 @@ impl Invoices {
             });
         }
 
-        return Err(format!(
-            "BTC balance too low (need: {} sats, got: {} sats)",
-            min_balance, balance
-        ));
+        return Ok(invoice);
     }
 }
 
