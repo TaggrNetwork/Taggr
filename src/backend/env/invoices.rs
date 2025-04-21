@@ -46,6 +46,8 @@ pub struct BTCInvoice {
     pub paid: bool,
     time: u64,
     pub btc_address: String,
+    #[serde(default)]
+    derivation_path: Vec<Vec<u8>>,
 }
 
 #[derive(Deserialize, Default, Serialize)]
@@ -58,6 +60,13 @@ pub struct Invoices {
 }
 
 impl Invoices {
+    pub fn bitcoin_treasury_sats(&self) -> u64 {
+        self.paid_btc_invoices
+            .iter()
+            .map(|invoice| invoice.balance)
+            .sum()
+    }
+
     pub fn clean_up(&mut self) {
         let now = time();
         self.invoices
@@ -101,6 +110,7 @@ impl Invoices {
             balance: 0,
             time,
             btc_address,
+            derivation_path,
         };
         Ok(invoice)
     }

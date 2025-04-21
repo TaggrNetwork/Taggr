@@ -149,6 +149,17 @@ export const Dashboard = ({}) => {
                     </div>
                     <div className="db_cell">
                         <label>
+                            <Treasury /> TREASURY BTC
+                        </label>
+                        <code className="xx_large_text">
+                            {Number(
+                                stats.bitcoin_treasury_sats,
+                            ).toLocaleString()}{" "}
+                            Sats
+                        </code>
+                    </div>
+                    <div className="db_cell">
+                        <label>
                             <HourGlass /> DISTRIBUTION
                         </label>
                         <code className="xx_large_text">{`${hoursTillNext(

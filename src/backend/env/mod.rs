@@ -80,6 +80,7 @@ pub struct Event {
 pub struct Stats {
     e8s_revenue_per_1k: u64,
     e8s_for_one_xdr: u64,
+    bitcoin_treasury_sats: u64,
     vesting_tokens_of_x: (Token, Token),
     users: usize,
     credits: Credits,
@@ -2481,6 +2482,7 @@ impl State {
         let volume_week = last_week_txs.into_iter().map(|(_, tx)| tx.amount).sum();
 
         Stats {
+            bitcoin_treasury_sats: self.accounting.bitcoin_treasury_sats(),
             fees_burned: self.token_fees_burned,
             volume_day,
             volume_week,
