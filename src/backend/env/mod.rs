@@ -1460,12 +1460,18 @@ impl State {
     }
 
     pub async fn fetch_xdr_rate() {
-        if let Ok(e8s_for_one_xdr) = canisters::coins_for_one_xdr("ICP").await {
-            mutate(|state| state.e8s_for_one_xdr = e8s_for_one_xdr);
-        }
-        if let Ok(sats_for_one_xdr) = canisters::coins_for_one_xdr("BTC").await {
-            mutate(|state| state.sats_for_one_xdr = sats_for_one_xdr);
-        }
+        let e8s_for_one_xdr = canisters::coins_for_one_xdr("ICP")
+            .await
+            // by default use ~$5/ICP
+            .unwrap_or(28082976);
+        let sats_for_one_xdr = canisters::coins_for_one_xdr("BTC")
+            .await
+            // by default use ~$86k/BTC
+            .unwrap_or(1609);
+        mutate(|state| {
+            state.sats_for_one_xdr = sats_for_one_xdr;
+            state.e8s_for_one_xdr = e8s_for_one_xdr;
+        });
     }
 
     pub fn get_xdr_rate() -> u64 {

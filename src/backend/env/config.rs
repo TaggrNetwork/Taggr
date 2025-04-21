@@ -303,14 +303,12 @@ pub const CONFIG: &Config = &Config {
 
     #[cfg(any(test, feature = "dev"))]
     ecdsa_key_name: "dfx_test_key",
-    #[cfg(feature = "staging")]
-    ecdsa_key_name: "test_key_1",
-    #[cfg(not(any(test, feature = "staging", feature = "dev")))]
+    #[cfg(not(any(test, feature = "dev")))]
     ecdsa_key_name: "key_1",
 
-    #[cfg(any(test, feature = "staging", feature = "dev"))]
-    btc_network: "test",
-    #[cfg(not(any(test, feature = "staging", feature = "dev")))]
+    #[cfg(any(test, feature = "dev"))]
+    btc_network: "regtest",
+    #[cfg(not(any(test, feature = "dev")))]
     btc_network: "main",
 
     reactions: &[

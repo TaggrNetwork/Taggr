@@ -15,7 +15,7 @@ use crate::{mutate, read};
 
 use super::{bitcoin, canisters::call_canister};
 
-const INVOICE_MAX_AGE_HOURS: u64 = 24 * super::HOUR;
+const INVOICE_MAX_AGE_HOURS: u64 = 48 * super::HOUR;
 
 #[derive(CandidType, Deserialize)]
 struct IcpXdrConversionRate {
@@ -112,6 +112,8 @@ impl Invoices {
         }
         if let Some(invoice) = self.btc_invoices.remove(invoice_id) {
             assert!(invoice.paid, "invoice paid");
+            // We store all paid invoices until we sweep the
+            // canister address.
             self.paid_btc_invoices.push(invoice);
         }
     }
