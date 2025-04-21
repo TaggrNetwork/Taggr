@@ -2482,7 +2482,7 @@ impl State {
         let volume_week = last_week_txs.into_iter().map(|(_, tx)| tx.amount).sum();
 
         Stats {
-            bitcoin_treasury_sats: self.accounting.bitcoin_treasury_sats(),
+            bitcoin_treasury_sats: 0,
             fees_burned: self.token_fees_burned,
             volume_day,
             volume_week,

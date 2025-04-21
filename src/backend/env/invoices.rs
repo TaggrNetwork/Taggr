@@ -46,8 +46,7 @@ pub struct BTCInvoice {
     pub paid: bool,
     time: u64,
     pub btc_address: String,
-    #[serde(default)]
-    derivation_path: Vec<Vec<u8>>,
+    pub derivation_path: Vec<Vec<u8>>,
 }
 
 #[derive(Deserialize, Default, Serialize)]
@@ -55,24 +54,15 @@ pub struct Invoices {
     invoices: HashMap<Principal, ICPInvoice>,
     #[serde(default)]
     btc_invoices: HashMap<Principal, BTCInvoice>,
-    #[serde(default)]
-    paid_btc_invoices: Vec<BTCInvoice>,
 }
 
 impl Invoices {
-    pub fn bitcoin_treasury_sats(&self) -> u64 {
-        self.paid_btc_invoices
-            .iter()
-            .map(|invoice| invoice.balance)
-            .sum()
-    }
-
     pub fn clean_up(&mut self) {
         let now = time();
         self.invoices
-            .retain(|_, invoice| now - invoice.time < INVOICE_MAX_AGE_HOURS);
+            .retain(|_, invoice| !invoice.paid && now - invoice.time < INVOICE_MAX_AGE_HOURS);
         self.btc_invoices
-            .retain(|_, invoice| now - invoice.time < INVOICE_MAX_AGE_HOURS);
+            .retain(|_, invoice| !invoice.paid && now - invoice.time < INVOICE_MAX_AGE_HOURS);
     }
 
     fn new_icp_invoice(invoice_id: Principal, e8s: u64) -> Result<ICPInvoice, String> {
@@ -126,7 +116,6 @@ impl Invoices {
             // We store all paid invoices until we sweep the
             // canister address.
             if invoice.paid {
-                self.paid_btc_invoices.push(invoice);
                 paid = true
             }
         }

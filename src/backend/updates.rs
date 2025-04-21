@@ -85,17 +85,20 @@ fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {
-    let addresses = vec![
-        "1DJVqzYJptwXrZBRppLtREVNhDaca4u4of".into(),
-        "1Md53sqrPjg7u3F3EYtEcDSJHwjLkBg9GE".into(),
-    ];
+    // let addresses = vec![
+    //     "1DJVqzYJptwXrZBRppLtREVNhDaca4u4of".into(),
+    //     "1Md53sqrPjg7u3F3EYtEcDSJHwjLkBg9GE".into(),
+    // ];
 
-    crate::bitcoin::transfer(
-        addresses,
-        "bc1qurala6xm9jgw0j48v9c9p592x3xv4ja5an2gpw".into(),
-        3131,
-    )
-    .await;
+    // ic_cdk::println!("sending sats...");
+    // let id = crate::bitcoin::transfer(
+    //     addresses,
+    //     "bc1qurala6xm9jgw0j48v9c9p592x3xv4ja5an2gpw".into(),
+    //     3131,
+    // )
+    // .await;
+
+    // ic_cdk::println!("txId={:?}", id);
 
     State::fetch_xdr_rate().await;
     mutate(|state| {

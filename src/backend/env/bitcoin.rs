@@ -14,13 +14,10 @@ use ic_cdk::api::management_canister::bitcoin::{
     BitcoinNetwork, GetCurrentFeePercentilesRequest, GetUtxosRequest, MillisatoshiPerByte, Satoshi,
     SendTransactionRequest, Utxo,
 };
-use ic_cdk::api::management_canister::ecdsa::SignWithEcdsaArgument;
-use ic_cdk::api::{
-    call::CallResult,
-    management_canister::{
-        bitcoin::{bitcoin_get_balance, GetBalanceRequest},
-        ecdsa::{EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgument, EcdsaPublicKeyResponse},
-    },
+use ic_cdk::api::management_canister::ecdsa::{SignWithEcdsaArgument, SignWithEcdsaResponse};
+use ic_cdk::api::management_canister::{
+    bitcoin::{bitcoin_get_balance, GetBalanceRequest},
+    ecdsa::{EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgument, EcdsaPublicKeyResponse},
 };
 use std::convert::TryFrom;
 use std::str::FromStr;
@@ -41,7 +38,9 @@ pub fn btc_network() -> BitcoinNetwork {
 /// Returns the P2PKH address of this canister at the given derivation path.
 pub async fn get_address(derivation_path: &Vec<Vec<u8>>) -> String {
     // Fetch the public key of the given derivation path.
-    let public_key = get_ecdsa_public_key(CONFIG.ecdsa_key_name.into(), derivation_path).await;
+    let public_key = get_ecdsa_public_key(CONFIG.ecdsa_key_name.into(), derivation_path)
+        .await
+        .expect("failed to get address");
 
     // Compute the address.
     Address::p2pkh(
@@ -52,7 +51,10 @@ pub async fn get_address(derivation_path: &Vec<Vec<u8>>) -> String {
 }
 
 /// Returns the ECDSA public key of this canister at the given derivation path.
-pub async fn get_ecdsa_public_key(key_name: String, derivation_path: &Vec<Vec<u8>>) -> Vec<u8> {
+pub async fn get_ecdsa_public_key(
+    key_name: String,
+    derivation_path: &Vec<Vec<u8>>,
+) -> Result<Vec<u8>, String> {
     // Retrieve the public key of this canister at the given derivation path
     // from the ECDSA API.
     let key_id = EcdsaKeyId {
@@ -60,7 +62,7 @@ pub async fn get_ecdsa_public_key(key_name: String, derivation_path: &Vec<Vec<u8
         name: key_name,
     };
 
-    let res: CallResult<(EcdsaPublicKeyResponse,)> = canisters::call_canister(
+    let res: (EcdsaPublicKeyResponse,) = canisters::call_canister(
         Principal::management_canister(),
         "ecdsa_public_key",
         (EcdsaPublicKeyArgument {
@@ -69,9 +71,10 @@ pub async fn get_ecdsa_public_key(key_name: String, derivation_path: &Vec<Vec<u8
             key_id,
         },),
     )
-    .await;
+    .await
+    .map_err(|err| format!("call failed: {:?}", err))?;
 
-    res.unwrap().0.public_key
+    Ok(res.0.public_key)
 }
 
 pub async fn balance(address: String) -> Result<u64, String> {
@@ -88,25 +91,30 @@ pub async fn balance(address: String) -> Result<u64, String> {
     Ok(balance_res.0)
 }
 
-pub async fn transfer(addresses: Vec<String>, dst_address: String, amount: Satoshi) -> Txid {
+pub async fn transfer(
+    own_address: String,
+    dst_address: String,
+    amount: Satoshi,
+) -> Result<Txid, String> {
     let btc_network = btc_network();
     let network = network();
-    let fee_per_byte = get_fee_per_byte(btc_network).await;
+    let fee_per_byte = get_fee_per_byte(btc_network).await?;
 
-    let utxos = get_utxos(btc_network, addresses).await;
+    let utxos = get_utxos(btc_network, own_address).await?;
 
     let main_derivation_path = Vec::new();
 
     let own_public_key =
-        get_ecdsa_public_key(CONFIG.ecdsa_key_name.into(), &main_derivation_path).await;
+        get_ecdsa_public_key(CONFIG.ecdsa_key_name.into(), &main_derivation_path).await?;
     let own_address = Address::from_str(get_address(&main_derivation_path).await.as_str())
-        .expect("couldn't get address")
+        .map_err(|err| format!("couldn't get address: {}", err))?
         .require_network(network)
-        .expect("should be valid address for the network");
+        .map_err(|err| format!("should be valid address for the network: {}", err))?;
+
     let dst_address = Address::from_str(&dst_address)
-        .expect("couldn't get address")
+        .map_err(|err| format!("couldn't get address: {}", err))?
         .require_network(network)
-        .expect("should be valid address for the network");
+        .map_err(|err| format!("should be valid address for the network: {}", err))?;
 
     // Build the transaction that sends `amount` to the destination address.
     let transaction = build_p2pkh_spend_tx(
@@ -117,7 +125,7 @@ pub async fn transfer(addresses: Vec<String>, dst_address: String, amount: Satos
         amount,
         fee_per_byte,
     )
-    .await;
+    .await?;
 
     // Sign the transaction.
     let signed_transaction = ecdsa_sign_transaction(
@@ -128,7 +136,7 @@ pub async fn transfer(addresses: Vec<String>, dst_address: String, amount: Satos
         main_derivation_path,
         get_ecdsa_signature,
     )
-    .await;
+    .await?;
 
     let signed_transaction_bytes = serialize(&signed_transaction);
 
@@ -137,48 +145,44 @@ pub async fn transfer(addresses: Vec<String>, dst_address: String, amount: Satos
         transaction: signed_transaction_bytes,
     })
     .await
-    .expect("couldn't send transaction");
+    .map_err(|err| format!("couldn't send transaction: {:?}", err))?;
 
-    signed_transaction.compute_txid()
+    Ok(signed_transaction.compute_txid())
 }
 
-pub async fn get_fee_per_byte(network: BitcoinNetwork) -> u64 {
+pub async fn get_fee_per_byte(network: BitcoinNetwork) -> Result<u64, String> {
     // Get fee percentiles from previous transactions to estimate our own fee.
     let fee_percentiles =
         bitcoin_get_current_fee_percentiles(GetCurrentFeePercentilesRequest { network })
             .await
-            .expect("fee percentiles could not be fetched")
+            .map_err(|err| format!("fee percentiles could not be fetched: {:?}", err))?
             .0;
 
     if fee_percentiles.is_empty() {
         // There are no fee percentiles. This case can only happen on a regtest
         // network where there are no non-coinbase transactions. In this case,
         // we use a default of 2000 millisatoshis/byte (i.e. 2 satoshi/byte)
-        2000
+        Ok(2000)
     } else {
         // Choose the 50th percentile for sending fees.
-        fee_percentiles[50]
+        Ok(fee_percentiles[50])
     }
 }
 
-pub async fn get_utxos(network: BitcoinNetwork, addresses: Vec<String>) -> Vec<Utxo> {
-    let mut result = Vec::new();
-    for address in addresses.into_iter() {
-        // Note that pagination may have to be used to get all UTXOs for the given address.
-        // For the sake of simplicity, it is assumed here that the `utxo` field in the response
-        // contains all UTXOs.
-        let response = bitcoin_get_utxos(GetUtxosRequest {
-            address,
-            network,
-            filter: None,
-        })
-        .await
-        .expect("failed to get utxos")
-        .0;
-        result.extend_from_slice(response.utxos.as_slice())
-    }
+pub async fn get_utxos(network: BitcoinNetwork, address: String) -> Result<Vec<Utxo>, String> {
+    // Note that pagination may have to be used to get all UTXOs for the given address.
+    // For the sake of simplicity, it is assumed here that the `utxo` field in the response
+    // contains all UTXOs.
+    let response = bitcoin_get_utxos(GetUtxosRequest {
+        address,
+        network,
+        filter: None,
+    })
+    .await
+    .map_err(|err| format!("failed to get utxos: {:?}", err))?
+    .0;
 
-    result
+    Ok(response.utxos)
 }
 
 // Builds a transaction to send the given `amount` of satoshis to the
@@ -190,7 +194,7 @@ async fn build_p2pkh_spend_tx(
     dst_address: &Address,
     amount: Satoshi,
     fee_per_vbyte: MillisatoshiPerByte,
-) -> Transaction {
+) -> Result<Transaction, String> {
     // We have a chicken-and-egg problem where we need to know the length
     // of the transaction in order to compute its proper fee, but we need
     // to know the proper fee in order to figure out the inputs needed for
@@ -207,10 +211,7 @@ async fn build_p2pkh_spend_tx(
             dst_address,
             amount - total_fee,
             total_fee,
-        )
-        .expect("Error building transaction.");
-
-        ic_cdk::println!("amt={}, fee={}", amount - total_fee, total_fee);
+        )?;
 
         // Sign the transaction. In this case, we only care about the size
         // of the signed transaction, so we use a mock signer here for efficiency.
@@ -222,12 +223,12 @@ async fn build_p2pkh_spend_tx(
             vec![],           // mock derivation path
             mock_signer,
         )
-        .await;
+        .await?;
 
         let tx_vsize = signed_transaction.vsize() as u64;
 
         if (tx_vsize * fee_per_vbyte) / 1000 == total_fee {
-            return transaction;
+            return Ok(transaction);
         } else {
             total_fee = (tx_vsize * fee_per_vbyte) / 1000;
         }
@@ -326,17 +327,14 @@ async fn ecdsa_sign_transaction<SignFun, Fut>(
     key_name: String,
     derivation_path: Vec<Vec<u8>>,
     signer: SignFun,
-) -> Transaction
+) -> Result<Transaction, String>
 where
     SignFun: Fn(String, Vec<Vec<u8>>, Vec<u8>) -> Fut,
-    Fut: std::future::Future<Output = Vec<u8>>,
+    Fut: std::future::Future<Output = Result<Vec<u8>, String>>,
 {
-    // Verify that our own address is P2PKH.
-    assert_eq!(
-        own_address.address_type(),
-        Some(bitcoin::AddressType::P2pkh),
-        "This example supports signing p2pkh addresses only."
-    );
+    if own_address.address_type() != Some(bitcoin::AddressType::P2pkh) {
+        return Err("wrong address type".into());
+    }
 
     let txclone = transaction.clone();
     for (index, input) in transaction.input.iter_mut().enumerate() {
@@ -346,14 +344,14 @@ where
                 &own_address.script_pubkey(),
                 ECDSA_SIG_HASH_TYPE.to_u32(),
             )
-            .unwrap();
+            .map_err(|err| format!("{:?}", err))?;
 
         let signature = signer(
             key_name.clone(),
             derivation_path.clone(),
             sighash.as_byte_array().to_vec(),
         )
-        .await;
+        .await?;
 
         // Convert signature to DER.
         let der_signature = sec1_to_der(signature);
@@ -370,15 +368,15 @@ where
         input.witness.clear();
     }
 
-    transaction
+    Ok(transaction)
 }
 
 async fn mock_signer(
     _key_name: String,
     _derivation_path: Vec<Vec<u8>>,
     _signing_data: Vec<u8>,
-) -> Vec<u8> {
-    vec![0; 64]
+) -> Result<Vec<u8>, String> {
+    Ok(vec![0; 64])
 }
 
 // Converts a SEC1 ECDSA signature to the DER format.
@@ -419,15 +417,13 @@ pub async fn get_ecdsa_signature(
     key_name: String,
     derivation_path: Vec<Vec<u8>>,
     message_hash: Vec<u8>,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, String> {
     let key_id = EcdsaKeyId {
         curve: EcdsaCurve::Secp256k1,
         name: key_name,
     };
 
-    let res: ic_cdk::api::call::CallResult<(
-        ic_cdk::api::management_canister::ecdsa::SignWithEcdsaResponse,
-    )> = ic_cdk::api::call::call_with_payment128(
+    let res: (SignWithEcdsaResponse,) = ic_cdk::api::call::call_with_payment128(
         Principal::management_canister(),
         "sign_with_ecdsa",
         (SignWithEcdsaArgument {
@@ -437,7 +433,8 @@ pub async fn get_ecdsa_signature(
         },),
         26_153_846_153,
     )
-    .await;
+    .await
+    .map_err(|err| format!("call failed: {:?}", err))?;
 
-    res.unwrap().0.signature
+    Ok(res.0.signature)
 }
