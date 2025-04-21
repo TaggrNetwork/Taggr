@@ -105,7 +105,8 @@ impl Invoices {
         Ok(invoice)
     }
 
-    // Closes all paid invoices for the given principal id.
+    // Closes all invoices for the given principal id and assert that at least one of them was
+    // paid. If the user paid both invoices, we do not handle this case.
     pub fn close_invoice(&mut self, invoice_id: &Principal) {
         let mut paid = false;
         if let Some(invoice) = self.invoices.remove(invoice_id) {
@@ -218,6 +219,20 @@ impl Invoices {
         }
 
         return Ok(invoice);
+    }
+
+    pub fn has_paid_icp_invoice(&self, principal_id: &Principal) -> bool {
+        self.invoices
+            .get(principal_id)
+            .map(|invoice| invoice.paid)
+            .unwrap_or_default()
+    }
+
+    pub fn has_paid_btc_invoice(&self, principal_id: &Principal) -> bool {
+        self.btc_invoices
+            .get(principal_id)
+            .map(|invoice| invoice.paid)
+            .unwrap_or_default()
     }
 }
 

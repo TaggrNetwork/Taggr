@@ -942,6 +942,73 @@ impl State {
         self.new_user(principal, timestamp, name, credits)
     }
 
+    fn create_user_from_invite(
+        &mut self,
+        principal: Principal,
+        name: String,
+        code: String,
+    ) -> Result<Option<RealmId>, String> {
+        let Invite {
+            credits,
+            credits_per_user,
+            inviter_user_id,
+            realm_id,
+            ..
+        } = self
+            .invite_codes
+            .get(&code)
+            .cloned()
+            .ok_or("no invite found")?;
+
+        if credits < credits_per_user {
+            return Err("invite has not enough credits".to_string());
+        }
+
+        let inviter = self
+            .users
+            .get_mut(&inviter_user_id)
+            .ok_or("no user found")?;
+
+        if inviter.credits() < credits_per_user {
+            return Err("inviter has not enough credits".into());
+        }
+
+        let new_user_id = self.new_user(principal, time(), name.clone(), None)?;
+
+        self.invite_codes
+            .get_mut(&code)
+            .expect("invite not found") // Revert newly created user in an edge case
+            .consume(new_user_id)?;
+
+        self.credit_transfer(
+            inviter_user_id,
+            new_user_id,
+            credits_per_user,
+            0,
+            Destination::Credits,
+            "claimed by invited user",
+            None,
+        )
+        .unwrap_or_else(|err| panic!("couldn't use the invite: {}", err));
+
+        if let Some(id) = realm_id.clone() {
+            self.toggle_realm_membership(principal, id);
+        }
+
+        let user = self.users.get_mut(&new_user_id).expect("no user found");
+        let user_name = user.name.clone();
+        user.invited_by = Some(inviter_user_id);
+        if let Some(inviter) = self.users.get_mut(&inviter_user_id) {
+            inviter.notify(format!(
+                "Your invite was used by @{}! Thanks for helping #{} grow! 🤗",
+                name, CONFIG.name
+            ));
+        }
+        self.logger.info(format!("@{} joined Taggr! 🎉", user_name));
+
+        return Ok(realm_id);
+    }
+
     /// Assigns a new Avataggr to the user.
     pub fn set_pfp(&mut self, user_id: UserId, pfp: Pfp) -> Result<(), String> {
         let bytes = pfp::pfp(

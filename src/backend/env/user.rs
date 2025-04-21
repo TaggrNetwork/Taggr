@@ -659,96 +659,45 @@ pub async fn create_user(
     principal: Principal,
     name: String,
     invite_code: Option<String>,
-) -> Result<Option<String>, String> {
-    let (invited, realm_id) = mutate(|state| {
+) -> Result<Option<RealmId>, String> {
+    // Validations.
+    read(|state| {
         state.validate_username(&name)?;
         if let Some(user) = state.principal_to_user(principal) {
             return Err(format!("principal already assigned to user @{}", user.name));
         }
-        if let Some((credits, credits_per_user, inviter_id, code, realm_id)) =
-            invite_code.and_then(|code| {
-                state.invite_codes.get(&code).map(|invite| {
-                    (
-                        invite.credits,
-                        invite.credits_per_user,
-                        invite.inviter_user_id,
-                        code,
-                        invite.realm_id.clone(),
-                    )
-                })
-            })
-        {
-            // Return gracefully before any updates
-            if credits < credits_per_user {
-                return Err("invite has not enough credits".into());
-            }
-            let inviter = state.users.get_mut(&inviter_id).ok_or("no user found")?;
-            let new_user_id = if inviter.credits() > credits_per_user {
-                let new_user_id = state.new_user(principal, time(), name.clone(), None)?;
-
-                state
-                    .invite_codes
-                    .get_mut(&code)
-                    .expect("invite not found") // Revert newly created user in an edge case
-                    .consume(new_user_id)?;
-
-                state
-                    .credit_transfer(
-                        inviter_id,
-                        new_user_id,
-                        credits_per_user,
-                        0,
-                        Destination::Credits,
-                        "claimed by invited user",
-                        None,
-                    )
-                    .unwrap_or_else(|err| panic!("couldn't use the invite: {}", err));
-
-                if let Some(id) = realm_id.clone() {
-                    state.toggle_realm_membership(principal, id);
-                }
-
-                new_user_id
-            } else {
-                return Err("inviter has not enough credits".into());
-            };
-            let user = state.users.get_mut(&new_user_id).expect("no user found");
-            let user_name = user.name.clone();
-            user.invited_by = Some(inviter_id);
-            if let Some(inviter) = state.users.get_mut(&inviter_id) {
-                inviter.notify(format!(
-                    "Your invite was used by @{}! Thanks for helping #{} grow! 🤗",
-                    name, CONFIG.name
-                ));
-            }
-            state
-                .logger
-                .info(format!("@{} joined Taggr! 🎉", user_name));
-            return Ok((true, realm_id.clone()));
-        }
-        Ok((false, None))
+        Ok(())
     })?;
 
-    if invited {
-        return Ok(realm_id);
+    if let Some(code) = invite_code {
+        return mutate(|state| state.create_user_from_invite(principal, name, code));
     }
 
-    if let Ok(ICPInvoice { paid: true, .. }) = State::mint_credits_with_icp(principal, 0).await {
-        mutate(|state| state.new_user(principal, time(), name, None))?;
-        // After the user has beed created, transfer credits.
+    let (paid_icp_invoice, paid_btc_invoice) = read(|state| {
+        (
+            state.accounting.has_paid_icp_invoice(&principal),
+            state.accounting.has_paid_btc_invoice(&principal),
+        )
+    });
+
+    if !paid_icp_invoice && !paid_btc_invoice {
+        return Err("payment missing or the invite is invalid".to_string());
+    }
+
+    mutate(|state| state.new_user(principal, time(), name, None))?;
+
+    // After the user has beed created, transfer credits.
+    if paid_icp_invoice {
         return State::mint_credits_with_icp(principal, 0)
             .await
             .map(|_| (None));
-    } else if let Ok(BTCInvoice { paid: true, .. }) = State::mint_credits_with_btc(principal).await
-    {
-        mutate(|state| state.new_user(principal, time(), name, None))?;
-        // After the user has beed created, transfer credits.
+    } else if paid_btc_invoice {
         return State::mint_credits_with_btc(principal)
             .await
             .map(|_| (None));
     }
 
-    Err("payment missing or the invite is invalid".to_string())
+    unreachable!()
 }
 
 #[cfg(test)]

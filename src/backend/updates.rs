@@ -265,9 +265,9 @@ fn toggle_feature_support() {
 
 #[export_name = "canister_update create_user"]
 fn create_user() {
-    let (name, invite): (String, Option<String>) = parse(&arg_data_raw());
+    let (name, invite): (String, String) = parse(&arg_data_raw());
     spawn(async {
-        reply(user::create_user(caller(), name, invite).await);
+        reply(user::create_user(caller(), name, optional(invite)).await);
     });
 }
 
