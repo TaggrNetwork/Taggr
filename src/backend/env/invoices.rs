@@ -107,15 +107,19 @@ impl Invoices {
 
     // Closes all paid invoices for the given principal id.
     pub fn close_invoice(&mut self, invoice_id: &Principal) {
+        let mut paid = false;
         if let Some(invoice) = self.invoices.remove(invoice_id) {
-            assert!(invoice.paid, "invoice paid");
+            paid = paid || invoice.paid
         }
         if let Some(invoice) = self.btc_invoices.remove(invoice_id) {
-            assert!(invoice.paid, "invoice paid");
             // We store all paid invoices until we sweep the
             // canister address.
-            self.paid_btc_invoices.push(invoice);
+            if invoice.paid {
+                self.paid_btc_invoices.push(invoice);
+                paid = true
+            }
         }
+        assert!(paid, "invoice paid");
     }
 
     pub async fn outstanding_icp_invoice(

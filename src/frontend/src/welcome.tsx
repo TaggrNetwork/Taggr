@@ -289,6 +289,7 @@ export const Welcome = () => {
                                                     )}
                                                 <br />
                                                 <br />
+                                                {logOutButton}
                                                 <button
                                                     className="active"
                                                     onClick={
