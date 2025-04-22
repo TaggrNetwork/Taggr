@@ -927,7 +927,7 @@ impl State {
             return Err("another user assigned to the same principal".into());
         }
         let id = self.new_user_id();
-        let mut user = User::new(principal, id, timestamp, name);
+        let mut user = User::new(principal, id, timestamp, name.clone());
         user.notify(format!("**Welcome!** 🎉 Use #{} as your personal blog, micro-blog or a photo blog. Use #hashtags to connect with others. Make sure you understand [how {0} works](/#/whitepaper). And finally, [say hello](#/new) and start earning rewards!", CONFIG.name));
         if let Some(credits) = credits {
             user.change_credits(credits, CreditsDelta::Plus, "topped up by an invite")
@@ -937,6 +937,7 @@ impl State {
         self.users.insert(user.id, user);
         self.set_pfp(id, Default::default())
             .expect("couldn't set default pfp");
+        self.logger.info(format!("@{} joined Taggr! 🎉", name));
         Ok(id)
     }
 
@@ -1005,7 +1006,6 @@ impl State {
         }
 
         let user = self.users.get_mut(&new_user_id).expect("no user found");
-        let user_name = user.name.clone();
         user.invited_by = Some(inviter_user_id);
         if let Some(inviter) = self.users.get_mut(&inviter_user_id) {
             inviter.notify(format!(
@@ -1013,7 +1013,6 @@ impl State {
                 name, CONFIG.name
             ));
         }
-        self.logger.info(format!("@{} joined Taggr! 🎉", user_name));
 
         return Ok(realm_id);
     }
