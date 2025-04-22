@@ -1,3 +1,5 @@
+use crate::mutate;
+
 use super::canisters;
 use super::config::CONFIG;
 use bitcoin::script::{Builder, PushBytesBuf};
@@ -22,6 +24,8 @@ use ic_cdk::api::management_canister::{
 use std::convert::TryFrom;
 use std::str::FromStr;
 
+const DERIVATION_PATH: Vec<Vec<u8>> = vec![];
+
 const ECDSA_SIG_HASH_TYPE: EcdsaSighashType = EcdsaSighashType::All;
 
 pub fn network() -> Network {
@@ -33,6 +37,17 @@ pub fn btc_network() -> BitcoinNetwork {
         "main" => BitcoinNetwork::Mainnet,
         _ => BitcoinNetwork::Testnet,
     }
+}
+
+pub async fn update_treasury_balance() {
+    let main_address = get_address(&DERIVATION_PATH).await;
+    let result = balance(main_address).await;
+    mutate(|state| match result {
+        Ok(sats) => state.bitcoin_treasury_sats = sats,
+        Err(err) => state
+            .logger
+            .error(format!("Bitcoin treasury update failed: {}", err)),
+    })
 }
 
 /// Returns the P2PKH address of this canister at the given derivation path.
@@ -96,9 +111,9 @@ pub async fn transfer(
     dst_address: String,
     amount: Satoshi,
 ) -> Result<Txid, String> {
+    let fee_per_byte = get_fee_per_byte().await?;
     let btc_network = btc_network();
     let network = network();
-    let fee_per_byte = get_fee_per_byte(btc_network).await?;
 
     let utxos = get_utxos(btc_network, own_address).await?;
 
@@ -150,13 +165,14 @@ pub async fn transfer(
     Ok(signed_transaction.compute_txid())
 }
 
-pub async fn get_fee_per_byte(network: BitcoinNetwork) -> Result<u64, String> {
+pub async fn get_fee_per_byte() -> Result<u64, String> {
     // Get fee percentiles from previous transactions to estimate our own fee.
-    let fee_percentiles =
-        bitcoin_get_current_fee_percentiles(GetCurrentFeePercentilesRequest { network })
-            .await
-            .map_err(|err| format!("fee percentiles could not be fetched: {:?}", err))?
-            .0;
+    let fee_percentiles = bitcoin_get_current_fee_percentiles(GetCurrentFeePercentilesRequest {
+        network: btc_network(),
+    })
+    .await
+    .map_err(|err| format!("fee percentiles could not be fetched: {:?}", err))?
+    .0;
 
     if fee_percentiles.is_empty() {
         // There are no fee percentiles. This case can only happen on a regtest

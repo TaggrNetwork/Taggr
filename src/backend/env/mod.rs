@@ -231,6 +231,9 @@ pub struct State {
     #[serde(default)]
     pub sats_for_one_xdr: u64,
 
+    #[serde(default)]
+    pub bitcoin_treasury_sats: u64,
+
     last_revenues: VecDeque<u64>,
 
     pub distribution_reports: Vec<Summary>,
@@ -1516,6 +1519,8 @@ impl State {
         });
 
         export_token_supply(token::icrc1_total_supply());
+
+        bitcoin::update_treasury_balance().await;
     }
 
     fn archive_cold_data(&mut self) -> Result<(), String> {
@@ -2482,7 +2487,7 @@ impl State {
         let volume_week = last_week_txs.into_iter().map(|(_, tx)| tx.amount).sum();
 
         Stats {
-            bitcoin_treasury_sats: 0,
+            bitcoin_treasury_sats: self.bitcoin_treasury_sats,
             fees_burned: self.token_fees_burned,
             volume_day,
             volume_week,

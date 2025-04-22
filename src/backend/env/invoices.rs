@@ -54,15 +54,18 @@ pub struct Invoices {
     invoices: HashMap<Principal, ICPInvoice>,
     #[serde(default)]
     pub btc_invoices: HashMap<Principal, BTCInvoice>,
+    // Contains all funds that have to be moved to the main canister address.
+    #[serde(default)]
+    pub pending_btc_invoices: Vec<BTCInvoice>,
 }
 
 impl Invoices {
     pub fn clean_up(&mut self) {
         let now = time();
         self.invoices
-            .retain(|_, invoice| !invoice.paid && now - invoice.time < INVOICE_MAX_AGE_HOURS);
+            .retain(|_, invoice| invoice.time + INVOICE_MAX_AGE_HOURS >= now);
         self.btc_invoices
-            .retain(|_, invoice| !invoice.paid && now - invoice.time < INVOICE_MAX_AGE_HOURS);
+            .retain(|_, invoice| invoice.time + INVOICE_MAX_AGE_HOURS >= now);
     }
 
     fn new_icp_invoice(invoice_id: Principal, e8s: u64) -> Result<ICPInvoice, String> {
@@ -92,11 +95,14 @@ impl Invoices {
             time().to_be_bytes().to_vec(),
             invoice_id.as_slice().to_vec(),
         ];
+        let fee_per_byte = bitcoin::get_fee_per_byte().await?;
+        let avg_tx_size = 200;
+        let outgoing_tx_cost = avg_tx_size * fee_per_byte;
         let address = bitcoin::get_address(&derivation_path).await;
         let time = time();
         let invoice = BTCInvoice {
             paid: false,
-            sats,
+            sats: sats + outgoing_tx_cost,
             balance: 0,
             time,
             address,
@@ -113,10 +119,9 @@ impl Invoices {
             paid = paid || invoice.paid
         }
         if let Some(invoice) = self.btc_invoices.remove(invoice_id) {
-            // We store all paid invoices until we sweep the
-            // canister address.
             if invoice.paid {
-                paid = true
+                paid = true;
+                self.pending_btc_invoices.push(invoice);
             }
         }
         assert!(paid, "invoice paid");
