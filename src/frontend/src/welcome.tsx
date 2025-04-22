@@ -25,7 +25,7 @@ type ICPInvoice = {
 type BTCInvoice = {
     paid: boolean;
     sats: BigInt;
-    btc_address: string;
+    address: string;
 };
 
 const shortenPrincipal = (principal: string) => {
@@ -235,7 +235,7 @@ export const Welcome = () => {
                                                             <br />
                                                             <CopyToClipboard
                                                                 value={
-                                                                    btcInvoice.btc_address
+                                                                    btcInvoice.address
                                                                 }
                                                                 displayMap={
                                                                     shortener

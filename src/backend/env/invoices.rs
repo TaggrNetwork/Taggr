@@ -45,7 +45,7 @@ pub struct BTCInvoice {
     pub balance: u64,
     pub paid: bool,
     time: u64,
-    pub btc_address: String,
+    pub address: String,
     pub derivation_path: Vec<Vec<u8>>,
 }
 
@@ -53,7 +53,7 @@ pub struct BTCInvoice {
 pub struct Invoices {
     invoices: HashMap<Principal, ICPInvoice>,
     #[serde(default)]
-    btc_invoices: HashMap<Principal, BTCInvoice>,
+    pub btc_invoices: HashMap<Principal, BTCInvoice>,
 }
 
 impl Invoices {
@@ -92,14 +92,14 @@ impl Invoices {
             time().to_be_bytes().to_vec(),
             invoice_id.as_slice().to_vec(),
         ];
-        let btc_address = bitcoin::get_address(&derivation_path).await;
+        let address = bitcoin::get_address(&derivation_path).await;
         let time = time();
         let invoice = BTCInvoice {
             paid: false,
             sats,
             balance: 0,
             time,
-            btc_address,
+            address,
             derivation_path,
         };
         Ok(invoice)
@@ -202,7 +202,7 @@ impl Invoices {
         if invoice.paid {
             return Ok(invoice);
         }
-        let balance = bitcoin::balance(invoice.btc_address.clone()).await?;
+        let balance = bitcoin::balance(invoice.address.clone()).await?;
         let min_balance = invoice.sats;
         if balance >= min_balance {
             return mutate(|state| {
