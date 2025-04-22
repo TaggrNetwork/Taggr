@@ -81,33 +81,14 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    // mutate(|s| s.accounting.test_purge())
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {
-    // let addresses = vec![
-    //     "1DJVqzYJptwXrZBRppLtREVNhDaca4u4of".into(),
-    //     "1Md53sqrPjg7u3F3EYtEcDSJHwjLkBg9GE".into(),
-    // ];
-
-    // ic_cdk::println!("sending sats...");
-    // let id = crate::bitcoin::transfer(
-    //     addresses,
-    //     "bc1qurala6xm9jgw0j48v9c9p592x3xv4ja5an2gpw".into(),
-    //     3131,
-    // )
-    // .await;
-
-    // ic_cdk::println!("txId={:?}", id);
-
     bitcoin::update_treasury_address().await;
-
     State::fetch_xdr_rate().await;
-    mutate(|state| {
-        state
-            .logger
-            .debug(format!("ratio={:?}", state.sats_for_one_xdr));
-    })
 }
 
 /*

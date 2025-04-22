@@ -24,7 +24,8 @@ type ICPInvoice = {
 
 type BTCInvoice = {
     paid: boolean;
-    sats: BigInt;
+    sats: number;
+    fee: number;
     address: string;
 };
 
@@ -227,10 +228,16 @@ export const Welcome = () => {
                                                             <CopyToClipboard
                                                                 testId="invoice-amount-btc"
                                                                 value={Number(
-                                                                    btcInvoice.sats,
+                                                                    btcInvoice.sats +
+                                                                        btcInvoice.fee,
                                                                 ).toString()}
                                                             />
-                                                            &nbsp;Sats to
+                                                            &nbsp;Sats (
+                                                            <code>
+                                                                {btcInvoice.fee}
+                                                            </code>{" "}
+                                                            Sats tx. fees
+                                                            already included) to
                                                             account
                                                             <br />
                                                             <CopyToClipboard

@@ -41,6 +41,8 @@ pub struct ICPInvoice {
 pub struct BTCInvoice {
     // Sats worth $1
     pub sats: u64,
+    #[serde(default)]
+    pub fee: u64,
     // Actually transferred sats
     pub balance: u64,
     pub paid: bool,
@@ -60,6 +62,11 @@ pub struct Invoices {
 }
 
 impl Invoices {
+    // TODO: delete
+    pub fn test_purge(&mut self) {
+        self.btc_invoices.clear();
+    }
+
     pub fn clean_up(&mut self) {
         let now = time();
         self.invoices
@@ -97,12 +104,13 @@ impl Invoices {
         ];
         let fee_per_byte = bitcoin::get_fee_per_byte().await?;
         let avg_tx_size = 200;
-        let outgoing_tx_cost = avg_tx_size * fee_per_byte;
+        let outgoing_tx_fee = avg_tx_size * fee_per_byte;
         let address = bitcoin::get_address(&derivation_path).await;
         let time = time();
         let invoice = BTCInvoice {
             paid: false,
-            sats: sats + outgoing_tx_cost,
+            fee: outgoing_tx_fee,
+            sats,
             balance: 0,
             time,
             address,
@@ -208,7 +216,7 @@ impl Invoices {
             return Ok(invoice);
         }
         let balance = bitcoin::balance(invoice.address.clone()).await?;
-        let min_balance = invoice.sats;
+        let min_balance = invoice.sats + invoice.fee;
         if balance >= min_balance {
             return mutate(|state| {
                 let invoice = state
@@ -250,7 +258,7 @@ pub async fn process_btc_invoices() {
             invoice.address.clone(),
             invoice.derivation_path.clone(),
             treasury_address.clone(),
-            invoice.balance,
+            invoice.balance, // contains the fees already
         )
         .await;
         mutate(|state| match result {

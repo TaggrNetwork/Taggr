@@ -13,7 +13,7 @@ use bitcoin::{Amount, EcdsaSighashType, ScriptBuf, Sequence, Witness};
 use candid::Principal;
 use ic_cdk::api::management_canister::bitcoin::{
     bitcoin_get_current_fee_percentiles, bitcoin_get_utxos, bitcoin_send_transaction,
-    BitcoinNetwork, GetCurrentFeePercentilesRequest, GetUtxosRequest, MillisatoshiPerByte, Satoshi,
+    BitcoinNetwork, GetCurrentFeePercentilesRequest, GetUtxosRequest, Satoshi,
     SendTransactionRequest, Utxo,
 };
 use ic_cdk::api::management_canister::ecdsa::{SignWithEcdsaArgument, SignWithEcdsaResponse};
@@ -169,7 +169,7 @@ pub async fn transfer(
     Ok(signed_transaction.compute_txid())
 }
 
-pub async fn get_fee_per_byte() -> Result<u64, String> {
+pub async fn get_fee_per_byte() -> Result<Satoshi, String> {
     // Get fee percentiles from previous transactions to estimate our own fee.
     let fee_percentiles = bitcoin_get_current_fee_percentiles(GetCurrentFeePercentilesRequest {
         network: btc_network(),
@@ -178,15 +178,17 @@ pub async fn get_fee_per_byte() -> Result<u64, String> {
     .map_err(|err| format!("fee percentiles could not be fetched: {:?}", err))?
     .0;
 
-    if fee_percentiles.is_empty() {
+    let milli_sat_per_byte = if fee_percentiles.is_empty() {
         // There are no fee percentiles. This case can only happen on a regtest
         // network where there are no non-coinbase transactions. In this case,
         // we use a default of 2000 millisatoshis/byte (i.e. 2 satoshi/byte)
-        Ok(2000)
+        2000
     } else {
         // Choose the 50th percentile for sending fees.
-        Ok(fee_percentiles[50])
-    }
+        fee_percentiles[50]
+    };
+
+    Ok(milli_sat_per_byte / 1000)
 }
 
 pub async fn get_utxos(network: BitcoinNetwork, address: String) -> Result<Vec<Utxo>, String> {
@@ -213,7 +215,7 @@ async fn build_p2pkh_spend_tx(
     own_utxos: &[Utxo],
     dst_address: &Address,
     amount: Satoshi,
-    fee_per_vbyte: MillisatoshiPerByte,
+    fee_per_vbyte: Satoshi,
 ) -> Result<Transaction, String> {
     // We have a chicken-and-egg problem where we need to know the length
     // of the transaction in order to compute its proper fee, but we need
@@ -247,10 +249,10 @@ async fn build_p2pkh_spend_tx(
 
         let tx_vsize = signed_transaction.vsize() as u64;
 
-        if (tx_vsize * fee_per_vbyte) / 1000 == total_fee {
+        if (tx_vsize * fee_per_vbyte) == total_fee {
             return Ok(transaction);
         } else {
-            total_fee = (tx_vsize * fee_per_vbyte) / 1000;
+            total_fee = tx_vsize * fee_per_vbyte;
         }
     }
 }
