@@ -286,6 +286,7 @@ export type LastReleaseInfo = {
 
 export type Stats = {
     bitcoin_treasury_sats: number;
+    bitcoin_treasury_address: string;
     fees_burned: number;
     volume_day: number;
     volume_week: number;

@@ -20,6 +20,7 @@ use ic_cdk::api::management_canister::main::raw_rand;
 use ic_cdk::api::performance_counter;
 use ic_cdk::api::stable::stable_size;
 use ic_cdk::api::{self, canister_balance};
+use ic_cdk::spawn;
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
 use invoices::BTCInvoice;
 use invoices::Invoices;
@@ -81,6 +82,7 @@ pub struct Stats {
     e8s_revenue_per_1k: u64,
     e8s_for_one_xdr: u64,
     bitcoin_treasury_sats: u64,
+    bitcoin_treasury_address: String,
     vesting_tokens_of_x: (Token, Token),
     users: usize,
     credits: Credits,
@@ -233,6 +235,9 @@ pub struct State {
 
     #[serde(default)]
     pub bitcoin_treasury_sats: u64,
+
+    #[serde(default)]
+    pub bitcoin_treasury_address: String,
 
     last_revenues: VecDeque<u64>,
 
@@ -1520,6 +1525,7 @@ impl State {
 
         export_token_supply(token::icrc1_total_supply());
 
+        invoices::process_btc_invoices().await;
         bitcoin::update_treasury_balance().await;
     }
 
@@ -2115,7 +2121,8 @@ impl State {
         let sats_for_one_xdr = read(|state| state.sats_for_one_xdr);
         let invoice = Invoices::outstanding_btc_invoice(&principal, sats_for_one_xdr).await?;
 
-        mutate(|state| {
+        let mut invoice_closed = false;
+        let result = mutate(|state| {
             if invoice.paid {
                 if let Some(user) = state.principal_to_user_mut(principal) {
                     user.change_credits(
@@ -2125,10 +2132,22 @@ impl State {
                         "top up with Bitcoin".to_string(),
                     )?;
                     state.accounting.close_invoice(&principal);
+                    invoice_closed = true;
                 }
             }
             Ok(invoice)
-        })
+        });
+
+        // If we were able to close an invoice, spawn the processing
+        // of pedning btc invoices in a non-blocking way.
+        if invoice_closed {
+            let future = invoices::process_btc_invoices();
+            spawn(async {
+                let _ = future.await;
+            });
+        }
+
+        result
     }
 
     pub fn validate_username(&self, name: &str) -> Result<(), String> {
@@ -2487,6 +2506,7 @@ impl State {
         let volume_week = last_week_txs.into_iter().map(|(_, tx)| tx.amount).sum();
 
         Stats {
+            bitcoin_treasury_address: self.bitcoin_treasury_address.clone(),
             bitcoin_treasury_sats: self.bitcoin_treasury_sats,
             fees_burned: self.token_fees_burned,
             volume_day,

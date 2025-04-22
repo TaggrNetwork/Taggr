@@ -240,6 +240,43 @@ impl Invoices {
     }
 }
 
+pub async fn process_btc_invoices() {
+    let treasury_address = read(|state| state.bitcoin_treasury_address.clone());
+    let invoices = mutate(|state| std::mem::take(&mut state.accounting.pending_btc_invoices));
+
+    let mut failed = Vec::new();
+    for invoice in invoices {
+        let result = bitcoin::transfer(
+            invoice.address.clone(),
+            invoice.derivation_path.clone(),
+            treasury_address.clone(),
+            invoice.balance,
+        )
+        .await;
+        mutate(|state| match result {
+            Ok(tx_id) => state.logger.debug(format!(
+                "[Transferred](https://mempool.space/tx/{}) {} sats to BTC treasury",
+                tx_id, invoice.balance
+            )),
+            Err(err) => {
+                state.logger.error(format!(
+                    "Failed to transfer {} sats from address {}: {}",
+                    invoice.balance, &invoice.address, err
+                ));
+                failed.push(invoice);
+            }
+        })
+    }
+
+    // Put all failed invoices back
+    mutate(|state| {
+        state
+            .accounting
+            .pending_btc_invoices
+            .extend_from_slice(&failed)
+    });
+}
+
 pub fn fee() -> Tokens {
     DEFAULT_FEE
 }

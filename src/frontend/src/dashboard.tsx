@@ -139,7 +139,7 @@ export const Dashboard = ({}) => {
                             <Treasury />{" "}
                             <IcpAccountLink
                                 address={stats.account}
-                                label={"TREASURY"}
+                                label={"ICP TREASURY"}
                             />
                         </label>
                         <ICPAccountBalance
@@ -149,7 +149,12 @@ export const Dashboard = ({}) => {
                     </div>
                     <div className="db_cell">
                         <label>
-                            <Treasury /> TREASURY BTC
+                            <Treasury />{" "}
+                            <a
+                                href={`https://mempool.space/address/${stats.bitcoin_treasury_address}`}
+                            >
+                                BTC TREASURY
+                            </a>
                         </label>
                         <code className="xx_large_text">
                             {Number(

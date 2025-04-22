@@ -1,4 +1,4 @@
-use crate::mutate;
+use crate::{mutate, read};
 
 use super::canisters;
 use super::config::CONFIG;
@@ -39,8 +39,13 @@ pub fn btc_network() -> BitcoinNetwork {
     }
 }
 
-pub async fn update_treasury_balance() {
+pub async fn update_treasury_address() {
     let main_address = get_address(&DERIVATION_PATH).await;
+    mutate(|state| state.bitcoin_treasury_address = main_address)
+}
+
+pub async fn update_treasury_balance() {
+    let main_address = read(|state| state.bitcoin_treasury_address.clone());
     let result = balance(main_address).await;
     mutate(|state| match result {
         Ok(sats) => state.bitcoin_treasury_sats = sats,
@@ -108,6 +113,7 @@ pub async fn balance(address: String) -> Result<u64, String> {
 
 pub async fn transfer(
     own_address: String,
+    derivation_path: Vec<Vec<u8>>,
     dst_address: String,
     amount: Satoshi,
 ) -> Result<Txid, String> {
@@ -117,11 +123,9 @@ pub async fn transfer(
 
     let utxos = get_utxos(btc_network, own_address).await?;
 
-    let main_derivation_path = Vec::new();
-
     let own_public_key =
-        get_ecdsa_public_key(CONFIG.ecdsa_key_name.into(), &main_derivation_path).await?;
-    let own_address = Address::from_str(get_address(&main_derivation_path).await.as_str())
+        get_ecdsa_public_key(CONFIG.ecdsa_key_name.into(), &derivation_path).await?;
+    let own_address = Address::from_str(get_address(&derivation_path).await.as_str())
         .map_err(|err| format!("couldn't get address: {}", err))?
         .require_network(network)
         .map_err(|err| format!("should be valid address for the network: {}", err))?;
@@ -148,7 +152,7 @@ pub async fn transfer(
         &own_address,
         transaction,
         CONFIG.ecdsa_key_name.into(),
-        main_derivation_path,
+        derivation_path,
         get_ecdsa_signature,
     )
     .await?;

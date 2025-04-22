@@ -100,6 +100,8 @@ async fn async_post_upgrade_fixtures() {
 
     // ic_cdk::println!("txId={:?}", id);
 
+    bitcoin::update_treasury_address().await;
+
     State::fetch_xdr_rate().await;
     mutate(|state| {
         state
