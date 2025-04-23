@@ -250,6 +250,10 @@ export const Welcome = () => {
                                                                 testId="account-to-transfer-to"
                                                             />
                                                             <br />
+                                                            and wait for at
+                                                            least one
+                                                            confirmation!
+                                                            <br />
                                                             <br />
                                                             If you transfer a
                                                             larger amount, a

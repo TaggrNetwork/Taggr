@@ -11,7 +11,7 @@ use candid::{
 };
 use ic_cdk::api::{
     self,
-    call::{call_with_payment, CallResult},
+    call::{call_with_payment128, CallResult},
     management_canister::{
         main::{
             canister_status, create_canister, deposit_cycles, install_code, CanisterInstallMode,
@@ -261,10 +261,10 @@ pub async fn call_canister_with_payment<T: ArgumentEncoder, R: for<'a> ArgumentD
     id: Principal,
     method: &str,
     args: T,
-    cycles: u64,
+    cycles: u128,
 ) -> CallResult<R> {
     open_call(method);
-    let result = call_with_payment(id, method, args, cycles).await;
+    let result = call_with_payment128(id, method, args, cycles).await;
     close_call(method);
     result
 }

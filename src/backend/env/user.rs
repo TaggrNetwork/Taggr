@@ -688,16 +688,14 @@ pub async fn create_user(
 
     // After the user has beed created, transfer credits.
     if paid_icp_invoice {
-        return State::mint_credits_with_icp(principal, 0)
+        State::mint_credits_with_icp(principal, 0)
             .await
-            .map(|_| (None));
-    } else if paid_btc_invoice {
-        return State::mint_credits_with_btc(principal)
+            .map(|_| (None))
+    } else {
+        State::mint_credits_with_btc(principal)
             .await
-            .map(|_| (None));
+            .map(|_| (None))
     }
-
-    unreachable!()
 }
 
 #[cfg(test)]

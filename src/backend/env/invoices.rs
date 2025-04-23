@@ -15,7 +15,7 @@ use crate::{mutate, read};
 
 use super::{bitcoin, canisters::call_canister};
 
-const INVOICE_MAX_AGE_HOURS: u64 = 48 * super::HOUR;
+const INVOICE_MAX_AGE_HOURS: u64 = 24 * super::HOUR;
 
 #[derive(CandidType, Deserialize)]
 struct IcpXdrConversionRate {
@@ -60,17 +60,12 @@ pub struct Invoices {
     invoices: HashMap<Principal, ICPInvoice>,
     #[serde(default)]
     pub btc_invoices: HashMap<Principal, BTCInvoice>,
-    // Contains all funds that have to be moved to the main canister address.
+    // Contains all funds that have to be moved to the treasury address.
     #[serde(default)]
     pub pending_btc_invoices: Vec<BTCInvoice>,
 }
 
 impl Invoices {
-    // TODO: delete
-    pub fn test_purge(&mut self) {
-        self.btc_invoices.clear();
-    }
-
     pub fn clean_up(&mut self) {
         let now = time();
         self.invoices
@@ -106,18 +101,15 @@ impl Invoices {
             time().to_be_bytes().to_vec(),
             invoice_id.as_slice().to_vec(),
         ];
-        // We charge users with fees corresponding to 25'th percentile.
         let fee_per_byte = bitcoin::get_fee_per_byte(25).await?;
-        let avg_tx_size = 200;
-        let outgoing_tx_fee = avg_tx_size * fee_per_byte;
-        let address = bitcoin::get_address(&derivation_path).await;
-        let time = time();
+        let address = bitcoin::get_address(derivation_path.clone()).await?;
         let invoice = BTCInvoice {
             paid: false,
-            fee: outgoing_tx_fee,
+            // We charge users with fees corresponding to 25'th percentile and assuming a 200 bytes tx size.
+            fee: fee_per_byte * 200,
             sats,
             balance: 0,
-            time,
+            time: time(),
             address,
             derivation_path,
             fee_percentile: 10,
@@ -233,11 +225,11 @@ impl Invoices {
                     .expect("no invoice found");
                 invoice.paid = true;
                 invoice.balance = balance;
-                return Ok(invoice.clone());
+                Ok(invoice.clone())
             });
         }
 
-        return Ok(invoice);
+        Ok(invoice)
     }
 
     pub fn has_paid_icp_invoice(&self, principal_id: &Principal) -> bool {
@@ -256,47 +248,54 @@ impl Invoices {
 }
 
 // Processes all BTC invoices in two steps:
-// - create a transaction,
-// - check the balance and if it decreased, delete the invoice,
-// - if the balance did not decrease, increase the fees and try again.
+// 1. create a transaction,
+// 2. check the balance and if it has decreased, delete the invoice;
+//    if the balance did not decrease, increase the fees and try again.
 pub async fn process_btc_invoices() {
-    let treasury_address = read(|state| state.bitcoin_treasury_address.clone());
     let invoices = mutate(|state| std::mem::take(&mut state.accounting.pending_btc_invoices));
+    if invoices.is_empty() {
+        return;
+    }
 
+    let treasury_address = read(|state| state.bitcoin_treasury_address.clone());
+
+    let mut total_sats = 0;
     let mut pending = Vec::new();
     for mut invoice in invoices {
         // If the invoice has a tx id already, check the balance and if it's smaller
-        // that previously recorder, the transfer has happened and we are done.
-        if let Some(tx_id) = invoice.tx_id.clone() {
+        // than previously recorded, the transfer succeeded and we are done.
+        if invoice.tx_id.as_ref().is_some() {
             let result = bitcoin::balance(invoice.address.clone()).await;
             match result {
                 Ok(balance) => {
                     if balance < invoice.balance {
-                        mutate(|state| {
-                            state.logger.debug(format!(
-                            "[Transferred](https://mempool.space/tx/{}) {} sats to BTC treasury",
-                            tx_id, invoice.balance));
-                        });
+                        total_sats += invoice.balance;
                         continue;
                     } else {
+                        // Increase fees by two percentiles.
                         invoice.fee_percentile = (invoice.fee_percentile + 2) % 100;
                     }
                 }
-                Err(err) => mutate(|state| {
-                    state.logger.error(format!(
-                        "Failed to fetch balance of address {}: {}",
-                        &invoice.address, err
-                    ));
-                }),
+                Err(err) => {
+                    mutate(|state| {
+                        state.logger.error(format!(
+                            "Failed to fetch balance of address {}: {}",
+                            &invoice.address, err
+                        ));
+                    });
+                    continue;
+                }
             }
         }
 
+        // If we're here, that we either have no tx id or the tx is still pending.
+        // If we transfer happens while we're retrying below, we might submit a new transaction, but
+        // we'll clean up the invoice on the next retry because the balance has decreased.
         let result = bitcoin::transfer(
             invoice.address.clone(),
             invoice.derivation_path.clone(),
             treasury_address.clone(),
             invoice.fee_percentile,
-            invoice.balance, // contains the fees already
         )
         .await;
         mutate(|state| match result {
@@ -313,13 +312,26 @@ pub async fn process_btc_invoices() {
         pending.push(invoice);
     }
 
-    // Put all pending invoices back
+    // Put all pending invoices back.
     mutate(|state| {
         state
             .accounting
             .pending_btc_invoices
             .extend_from_slice(&pending)
     });
+
+    if total_sats > 0 {
+        mutate(|state| {
+            state
+                .logger
+                .debug(format!("Transferred `{}` sats to BTC treasury", total_sats));
+            state
+                .accounting
+                .pending_btc_invoices
+                .extend_from_slice(&pending)
+        });
+        bitcoin::update_treasury_balance().await;
+    }
 }
 
 pub fn fee() -> Tokens {

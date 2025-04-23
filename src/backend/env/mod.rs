@@ -1014,7 +1014,7 @@ impl State {
             ));
         }
 
-        return Ok(realm_id);
+        Ok(realm_id)
     }
 
     /// Assigns a new Avataggr to the user.
@@ -1523,9 +1523,6 @@ impl State {
         });
 
         export_token_supply(token::icrc1_total_supply());
-
-        invoices::process_btc_invoices().await;
-        bitcoin::update_treasury_balance().await;
     }
 
     fn archive_cold_data(&mut self) -> Result<(), String> {
@@ -1576,6 +1573,8 @@ impl State {
 
         #[cfg(not(any(feature = "dev", feature = "staging")))]
         nns_proposals::work(now).await;
+
+        invoices::process_btc_invoices().await;
     }
 
     pub async fn chores(now: u64) {
@@ -1621,7 +1620,8 @@ impl State {
                 state.timers.last_daily += DAY;
                 state.timers.daily_pending = false;
                 state.logger.debug(format!(
-                    "Pending NNS proposals: `{}`, pending polls: `{}`.",
+                    "Pending BTC invoices: `{}`, pending NNS proposals: `{}`, pending polls: `{}`.",
+                    state.accounting.pending_btc_invoices.len(),
                     state.pending_nns_proposals.len(),
                     state.pending_polls.len(),
                 ));
@@ -2138,7 +2138,7 @@ impl State {
         });
 
         // If we were able to close an invoice, spawn the processing
-        // of pedning btc invoices in a non-blocking way.
+        // of pending btc invoices in a non-blocking way.
         if invoice_closed {
             let future = invoices::process_btc_invoices();
             spawn(async {

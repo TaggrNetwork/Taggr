@@ -87,6 +87,7 @@ fn sync_post_upgrade_fixtures() {
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {
+    // TODO: remove
     bitcoin::update_treasury_address().await;
     State::fetch_xdr_rate().await;
 }
