@@ -41,7 +41,6 @@ pub struct ICPInvoice {
 pub struct BTCInvoice {
     // Sats worth $1
     pub sats: u64,
-    #[serde(default)]
     pub fee: u64,
     // Actually transferred sats
     pub balance: u64,
@@ -49,6 +48,11 @@ pub struct BTCInvoice {
     time: u64,
     pub address: String,
     pub derivation_path: Vec<Vec<u8>>,
+    // This is the percentile we use to estimate fees for transferring funds to the treasury.
+    #[serde(default)]
+    pub fee_percentile: usize,
+    #[serde(default)]
+    pub tx_id: Option<String>,
 }
 
 #[derive(Deserialize, Default, Serialize)]
@@ -102,7 +106,8 @@ impl Invoices {
             time().to_be_bytes().to_vec(),
             invoice_id.as_slice().to_vec(),
         ];
-        let fee_per_byte = bitcoin::get_fee_per_byte().await?;
+        // We charge users with fees corresponding to 25'th percentile.
+        let fee_per_byte = bitcoin::get_fee_per_byte(25).await?;
         let avg_tx_size = 200;
         let outgoing_tx_fee = avg_tx_size * fee_per_byte;
         let address = bitcoin::get_address(&derivation_path).await;
@@ -115,6 +120,8 @@ impl Invoices {
             time,
             address,
             derivation_path,
+            fee_percentile: 10,
+            tx_id: None,
         };
         Ok(invoice)
     }
@@ -248,40 +255,70 @@ impl Invoices {
     }
 }
 
+// Processes all BTC invoices in two steps:
+// - create a transaction,
+// - check the balance and if it decreased, delete the invoice,
+// - if the balance did not decrease, increase the fees and try again.
 pub async fn process_btc_invoices() {
     let treasury_address = read(|state| state.bitcoin_treasury_address.clone());
     let invoices = mutate(|state| std::mem::take(&mut state.accounting.pending_btc_invoices));
 
-    let mut failed = Vec::new();
-    for invoice in invoices {
+    let mut pending = Vec::new();
+    for mut invoice in invoices {
+        // If the invoice has a tx id already, check the balance and if it's smaller
+        // that previously recorder, the transfer has happened and we are done.
+        if let Some(tx_id) = invoice.tx_id.clone() {
+            let result = bitcoin::balance(invoice.address.clone()).await;
+            match result {
+                Ok(balance) => {
+                    if balance < invoice.balance {
+                        mutate(|state| {
+                            state.logger.debug(format!(
+                            "[Transferred](https://mempool.space/tx/{}) {} sats to BTC treasury",
+                            tx_id, invoice.balance));
+                        });
+                        continue;
+                    } else {
+                        invoice.fee_percentile = (invoice.fee_percentile + 2) % 100;
+                    }
+                }
+                Err(err) => mutate(|state| {
+                    state.logger.error(format!(
+                        "Failed to fetch balance of address {}: {}",
+                        &invoice.address, err
+                    ));
+                }),
+            }
+        }
+
         let result = bitcoin::transfer(
             invoice.address.clone(),
             invoice.derivation_path.clone(),
             treasury_address.clone(),
+            invoice.fee_percentile,
             invoice.balance, // contains the fees already
         )
         .await;
         mutate(|state| match result {
-            Ok(tx_id) => state.logger.debug(format!(
-                "[Transferred](https://mempool.space/tx/{}) {} sats to BTC treasury",
-                tx_id, invoice.balance
-            )),
+            Ok(tx_id) => {
+                invoice.tx_id = Some(tx_id.to_string());
+            }
             Err(err) => {
                 state.logger.error(format!(
                     "Failed to transfer {} sats from address {}: {}",
                     invoice.balance, &invoice.address, err
                 ));
-                failed.push(invoice);
             }
-        })
+        });
+        pending.push(invoice);
     }
 
-    // Put all failed invoices back
+    // Put all pending invoices back
     mutate(|state| {
         state
             .accounting
             .pending_btc_invoices
-            .extend_from_slice(&failed)
+            .extend_from_slice(&pending)
     });
 }
 

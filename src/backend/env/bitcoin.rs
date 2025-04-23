@@ -115,9 +115,15 @@ pub async fn transfer(
     own_address: String,
     derivation_path: Vec<Vec<u8>>,
     dst_address: String,
+    fee_percentile: usize,
     amount: Satoshi,
 ) -> Result<Txid, String> {
-    let fee_per_byte = get_fee_per_byte().await?;
+    ic_cdk::println!(
+        "Processing address {} with fee_percentile={}",
+        &own_address,
+        fee_percentile
+    );
+    let fee_per_byte = get_fee_per_byte(fee_percentile).await?;
     let btc_network = btc_network();
     let network = network();
 
@@ -169,8 +175,14 @@ pub async fn transfer(
     Ok(signed_transaction.compute_txid())
 }
 
-pub async fn get_fee_per_byte() -> Result<Satoshi, String> {
-    // Get fee percentiles from previous transactions to estimate our own fee.
+// Get fee percentiles from previous transactions and take the nth percentile.
+pub async fn get_fee_per_byte(n: usize) -> Result<Satoshi, String> {
+    if n > 99 {
+        return Err(format!(
+            "percentile should be in the range [0, 99]; got {}",
+            n
+        ));
+    }
     let fee_percentiles = bitcoin_get_current_fee_percentiles(GetCurrentFeePercentilesRequest {
         network: btc_network(),
     })
@@ -185,7 +197,7 @@ pub async fn get_fee_per_byte() -> Result<Satoshi, String> {
         2000
     } else {
         // Choose the 50th percentile for sending fees.
-        fee_percentiles[50]
+        fee_percentiles[n]
     };
 
     Ok(milli_sat_per_byte / 1000)
