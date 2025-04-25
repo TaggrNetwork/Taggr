@@ -1859,7 +1859,7 @@ impl State {
             realms_cleaned.join(",")
         ));
 
-        self.accounting.clean_up();
+        self.accounting.clean_up(now);
 
         let inactive_realm_ids = self
             .realms

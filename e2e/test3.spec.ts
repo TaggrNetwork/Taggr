@@ -23,7 +23,9 @@ test.describe("Regular users flow, part two", () => {
         await page.getByPlaceholder("Enter your seed phrase...").fill("john");
         await page.getByPlaceholder("Repeat your seed phrase...").fill("john");
         await page.getByRole("button", { name: "JOIN" }).click();
-        await page.getByRole("button", { name: "MINT CREDITS" }).click();
+        await page
+            .getByRole("button", { name: "MINT CREDITS WITH ICP" })
+            .click();
         const value = await page.getByTestId("invoice-amount").textContent();
         exec(
             `dfx --identity local-minter ledger transfer --amount ${value} --memo 0 6b7ebd22b3ad442ffd64168b44068e6093b3a2f3f17230974e89ae60eef2ae8d`,

@@ -30,7 +30,9 @@ test.describe("Regular users flow", () => {
         exec(
             "dfx --identity local-minter ledger transfer --amount 1 --memo 0 ce8d1d9b278bf41f444a8e1686559f33029602274363e8f13a43e06461f312ab",
         );
-        await page.getByRole("button", { name: "MINT CREDITS" }).click();
+        await page
+            .getByRole("button", { name: "MINT CREDITS WITH ICP" })
+            .click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
         await page.getByPlaceholder("alphanumeric").fill("alice");
         await page

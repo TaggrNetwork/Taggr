@@ -31,7 +31,9 @@ test.describe("Upgrades & token transfer flow", () => {
         exec(
             "dfx --identity local-minter ledger transfer --amount 1 --memo 0 2e670a6cf5ec1a1387dc8e02da3279f8e9221c2191b6f7532f449bb439538f20",
         );
-        await page.getByRole("button", { name: "MINT CREDITS" }).click();
+        await page
+            .getByRole("button", { name: "MINT CREDITS WITH ICP" })
+            .click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
         await page.getByPlaceholder("alphanumeric").fill("eve");
         await page.getByRole("button", { name: "SAVE" }).click();

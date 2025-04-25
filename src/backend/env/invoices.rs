@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use crate::{mutate, read};
 
-use super::{bitcoin, canisters::call_canister};
+use super::{bitcoin, canisters::call_canister, Time};
 
 const INVOICE_MAX_AGE_HOURS: u64 = 24 * super::HOUR;
 
@@ -66,8 +66,7 @@ pub struct Invoices {
 }
 
 impl Invoices {
-    pub fn clean_up(&mut self) {
-        let now = time();
+    pub fn clean_up(&mut self, now: Time) {
         self.invoices
             .retain(|_, invoice| invoice.time + INVOICE_MAX_AGE_HOURS >= now);
         self.btc_invoices
