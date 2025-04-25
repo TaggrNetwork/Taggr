@@ -3,24 +3,25 @@ use crate::{mutate, read};
 
 use super::canisters;
 use super::config::CONFIG;
-use bitcoin::script::{Builder, PushBytesBuf};
-use bitcoin::sighash::SighashCache;
-use bitcoin::transaction::Version;
 use bitcoin::{
-    absolute, consensus::serialize, hashes::Hash, Address, Network, OutPoint, PublicKey,
-    Transaction, TxIn, TxOut, Txid,
+    absolute,
+    consensus::serialize,
+    hashes::Hash,
+    script::{Builder, PushBytesBuf},
+    sighash::SighashCache,
+    transaction::Version,
+    Address, Amount, EcdsaSighashType, Network, OutPoint, PublicKey, ScriptBuf, Sequence,
+    Transaction, TxIn, TxOut, Txid, Witness,
 };
-use bitcoin::{Amount, EcdsaSighashType, ScriptBuf, Sequence, Witness};
 use candid::Principal;
-use ic_cdk::api::management_canister::bitcoin::{
-    bitcoin_get_current_fee_percentiles, bitcoin_get_utxos, bitcoin_send_transaction,
-    BitcoinNetwork, GetCurrentFeePercentilesRequest, GetUtxosRequest, Satoshi,
-    SendTransactionRequest, Utxo,
-};
-use ic_cdk::api::management_canister::ecdsa::{SignWithEcdsaArgument, SignWithEcdsaResponse};
 use ic_cdk::api::management_canister::{
-    bitcoin::{bitcoin_get_balance, GetBalanceRequest},
+    bitcoin::{
+        bitcoin_get_balance, bitcoin_get_current_fee_percentiles, bitcoin_get_utxos,
+        bitcoin_send_transaction, BitcoinNetwork, GetBalanceRequest,
+        GetCurrentFeePercentilesRequest, GetUtxosRequest, Satoshi, SendTransactionRequest, Utxo,
+    },
     ecdsa::{EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgument, EcdsaPublicKeyResponse},
+    ecdsa::{SignWithEcdsaArgument, SignWithEcdsaResponse},
 };
 use std::convert::TryFrom;
 use std::str::FromStr;
