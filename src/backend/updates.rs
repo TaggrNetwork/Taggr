@@ -81,13 +81,11 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    // mutate(|s| s.accounting.test_purge())
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {
-    // TODO: remove
+    // TODO: remove both lines after release
     bitcoin::update_treasury_address().await;
     State::fetch_xdr_rate().await;
 }
