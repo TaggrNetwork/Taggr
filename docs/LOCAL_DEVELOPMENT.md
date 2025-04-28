@@ -127,7 +127,7 @@ Make sure to follow the [first time setup instructions](#first-time-setup) befor
 
 Run the test UI, this is great for watching the tests run as they are happening and checking screenshots at each stage:
 
-Make sure javascript is built for tests (production) as it avoids binary file size limits. Make sure you to re-build if you make changes.
+Make sure javascript is built for tests (production) as it avoids binary file size limits. Make sure to re-build if you make changes.
 
 ```shell
 make e2e_build
