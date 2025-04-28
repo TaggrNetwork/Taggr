@@ -268,11 +268,11 @@ fn create_user() {
 fn transfer_credits() {
     let (recipient, amount): (UserId, Credits) = parse(&arg_data_raw());
     reply(mutate(|state| {
-        let sender = state.principal_to_user(caller()).expect("no user found");
+        let sender = state.principal_to_user(caller()).ok_or("no user found")?;
 
         sender.validate_send_credits(state)?;
 
-        let recipient_name = &state.users.get(&recipient).expect("no user found").name;
+        let recipient_name = &state.users.get(&recipient).ok_or("no user found")?.name;
         state.credit_transfer(
             sender.id,
             recipient,

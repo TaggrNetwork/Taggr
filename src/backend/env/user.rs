@@ -613,19 +613,22 @@ impl User {
         })
     }
 
-    /// Protect against invite phishing
+    /// Protect against stealing credits from invites.
     ///
     /// TODO: credits_burned reset every week, think of better way
     pub fn validate_send_credits(&self, state: &State) -> Result<(), String> {
-        if let Some(invited_by) = self.invited_by {
-            let invite = state.invite_codes.values().find(|invite| {
-                invited_by == invite.inviter_user_id && invite.joined_user_ids.contains(&self.id)
-            });
-            if let Some(invite) = invite {
-                if self.credits_burned() < invite.credits_per_user {
-                    return Err("you are not allowed to send credits acquired in invite".into());
-                }
-            }
+        let Some(invited_by) = self.invited_by else {
+            return Ok(());
+        };
+
+        let Some(invite) = state.invite_codes.values().find(|invite| {
+            invited_by == invite.inviter_user_id && invite.joined_user_ids.contains(&self.id)
+        }) else {
+            return Ok(());
+        };
+
+        if self.credits_burned() < invite.credits_per_user {
+            return Err("you are not allowed to send credits acquired in an invite".into());
         }
 
         Ok(())
