@@ -55,6 +55,7 @@ input[type="color"] {
 }
 
 .popup_body {
+    overflow: hidden;
     margin-top: 1em;
     padding: 1em;
     border-radius: 15px;
