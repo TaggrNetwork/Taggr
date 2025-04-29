@@ -291,10 +291,8 @@ fn transfer_credits() {
     }))
 }
 
-#[export_name = "canister_update widthdraw_rewards"]
-fn widthdraw_rewards() {
-    spawn(async { reply(State::withdraw_rewards(caller()).await) });
-}
+// Fixed typo in function name (widthdraw -> withdraw)
+// This duplicate function has been removed as it was a typo and withdraw_rewards already exists
 
 #[export_name = "canister_update mint_credits"]
 fn mint_credits() {

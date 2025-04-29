@@ -186,7 +186,6 @@ export const TagCloud = ({
                         ? Math.floor(Math.random() * shiftGrade) -
                           shiftGrade / 2
                         : 0;
-                console.log(tag, scale);
                 return (
                     <a
                         key={tag}
@@ -209,7 +208,7 @@ export const TagCloud = ({
     );
 };
 
-export const Links = ({}) => {
+export const Links = () => {
     return (
         <div
             className={`${

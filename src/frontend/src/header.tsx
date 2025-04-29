@@ -226,7 +226,7 @@ const UserSection = ({ user }: { user: UserType }) => {
                                 className="icon_link"
                                 href="/#/settings"
                             >
-                                <Gear /> SETTING
+                                <Gear /> SETTINGS
                             </a>
                         </>
                     )}

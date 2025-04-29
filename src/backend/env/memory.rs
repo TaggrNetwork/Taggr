@@ -29,7 +29,7 @@ pub struct Memory {
     api_ref: Rc<RefCell<Api>>,
 }
 
-// We leave the first 16 bytes recerved for the heap coordinates (offset + length)
+// We leave the first 16 bytes reserved for the heap coordinates (offset + length)
 const INITIAL_OFFSET: u64 = 16;
 
 impl Api {
