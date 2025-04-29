@@ -299,16 +299,15 @@ article {
 }
 
 #tag_cloud {
-    padding: 1em;
     justify-content: center;
     align-items: center;
-    line-height: 210%;
-    overflow: hidden;
+    line-height: 60%;
 }
 
 #tag_cloud .tag {
     margin-left: 0.2em;
     margin-right: 0.2em;
+    border-radius: 5px;
 }
 
 .stands_out {
@@ -577,38 +576,6 @@ table {
     border-collapse: collapse;
     margin-top: 1em;
     margin-bottom: 1em;
-}
-
-.size1,
-.size0 {
-    font-size: 0.6em;
-}
-.size2 {
-    font-size: 1em;
-}
-.size3 {
-    font-size: 1.3em;
-}
-.size4 {
-    font-size: 1.7em;
-}
-.size5 {
-    font-size: 2em;
-}
-.size6 {
-    font-size: 2.2em;
-}
-.size7 {
-    font-size: 2.4em;
-}
-.size8 {
-    font-size: 2.7em;
-}
-.size9 {
-    font-size: 3em;
-}
-.size10 {
-    font-size: 3.3em;
 }
 
 .centered {
