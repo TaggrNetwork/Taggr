@@ -94,7 +94,7 @@ export const Form = ({
         React.useState("");
     const textarea = React.useRef<HTMLTextAreaElement>();
     const form = React.useRef();
-    const tags = window.backendCache.recent_tags;
+    const tags = window.backendCache.recent_tags.map(([tag]) => tag);
     const users = Object.values(USER_CACHE);
     const user = window.user;
     const realms = user ? user.realms : [];

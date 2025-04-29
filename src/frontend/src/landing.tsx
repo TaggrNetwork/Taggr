@@ -156,12 +156,14 @@ export const TagCloud = ({
 
     const [tags, setTags] = React.useState<[string, number][]>();
     const loadTags = async () => {
-        let tags =
-            (await window.api.query<[string, number][]>(
-                "recent_tags",
-                realm,
-                200,
-            )) || [];
+        // We only load tags inside realms, otherwise we use the backend cache.
+        let tags = realm
+            ? (await window.api.query<[string, number][]>(
+                  "recent_tags",
+                  realm,
+                  200,
+              )) || []
+            : window.backendCache.recent_tags;
         tags = tags.filter((val) => !muted.has(val[0].toLowerCase()));
         tags.sort((a, b) => (a[1] > b[1] ? -1 : 1));
         tags = shuffle(tags.slice(0, tagsToDisplay));

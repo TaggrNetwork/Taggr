@@ -386,7 +386,7 @@ declare global {
         lastSavedUpgrade: number;
         uiInitialized: boolean;
         backendCache: {
-            recent_tags: string[];
+            recent_tags: [string, number][];
             stats: Stats;
             config: Config;
         };
