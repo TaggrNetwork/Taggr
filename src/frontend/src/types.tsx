@@ -292,6 +292,7 @@ export type Stats = {
     volume_week: number;
     users: number;
     active_users: number;
+    active_users_vp: number;
     users_online: number;
     credits: number;
     burned_credits: BigInt;

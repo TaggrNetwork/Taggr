@@ -96,6 +96,7 @@ pub struct Stats {
     bots: Vec<UserId>,
     state_size: u64,
     active_users: usize,
+    active_users_vp: u64,
     invited_users: usize,
     buckets: Vec<(String, u64)>,
     users_online: usize,
@@ -2603,6 +2604,7 @@ impl State {
         let mut users_online = 0;
         let mut invited_users = 0;
         let mut active_users = 0;
+        let mut active_users_vp = 0;
         let mut bots = Vec::new();
         let mut credits = 0;
         let mut speculative_revenue = 0;
@@ -2624,6 +2626,7 @@ impl State {
             }
             if user.active_within_weeks(now, 1) {
                 active_users += 1;
+                active_users_vp += user.total_balance();
             }
             credits += user.credits();
         }
@@ -2680,6 +2683,7 @@ impl State {
             state_size: stable_size() << 16,
             invited_users,
             active_users,
+            active_users_vp: active_users_vp / token::base(),
             circulating_supply: self.balances.values().sum(),
             buckets: self
                 .storage
