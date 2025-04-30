@@ -141,6 +141,8 @@ fn test_add_post() {
     let post_id = add_post(&pic, backend, controller(), "lorem ipsum", vec![], None).unwrap();
     let post = &posts(&pic, backend, controller(), vec![post_id])[0];
 
+    let post: &serde_json::Value = if post.is_array() { &post[0] } else { post };
+
     assert_eq!(post.get("id").unwrap().as_u64().unwrap(), post_id);
     assert_eq!(post.get("body").unwrap().as_str().unwrap(), "lorem ipsum");
 }
@@ -197,6 +199,7 @@ fn test_upgrades() {
     let posts = &posts(&pic, backend, controller(), post_ids.clone());
 
     for (post_id, (post, body)) in post_ids.iter().zip(posts.iter().zip(bodies.iter())) {
+        let post: &serde_json::Value = if post.is_array() { &post[0] } else { post };
         assert_eq!(post.get("id").unwrap().as_u64().unwrap(), *post_id);
         assert_eq!(post.get("body").unwrap().as_str().unwrap(), *body);
     }

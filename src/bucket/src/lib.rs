@@ -14,7 +14,7 @@ mod url;
 // without trying to read the stable memory.
 const MAX_BLOB_SIZE: u64 = 8 * 1024 * 1024;
 
-// HTTP request and responst headers.
+// HTTP request and response headers.
 type Headers = Vec<(String, String)>;
 
 #[derive(CandidType, Deserialize)]

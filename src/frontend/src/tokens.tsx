@@ -82,7 +82,14 @@ export const Tokens = () => {
     ) {
         vp += balanceAmounts.shift() || 0;
     }
-    const { e8s_for_one_xdr, e8s_revenue_per_1k } = window.backendCache.stats;
+    const {
+        e8s_for_one_xdr,
+        e8s_revenue_per_1k,
+        fees_burned,
+        volume_day,
+        volume_week,
+        active_users_vp,
+    } = window.backendCache.stats;
     const holders = balances.length;
 
     if (status == 0) return <Loading />;
@@ -105,6 +112,10 @@ export const Tokens = () => {
                         HELD BY USERS<code>{token(heldByUsers)}</code>
                     </div>
                     <div className="db_cell">
+                        ACTIVE VP
+                        <code>{active_users_vp.toLocaleString()}</code>
+                    </div>
+                    <div className="db_cell">
                         WEEKLY REVENUE / 1K
                         <code>
                             $
@@ -125,15 +136,11 @@ export const Tokens = () => {
                     </div>
                     <div className="db_cell">
                         VOLUME 24H
-                        <code>
-                            {token(window.backendCache.stats.volume_day)}
-                        </code>
+                        <code>{token(volume_day)}</code>
                     </div>
                     <div className="db_cell">
                         VOLUME 7D
-                        <code>
-                            {token(window.backendCache.stats.volume_week)}
-                        </code>
+                        <code>{token(volume_week)}</code>
                     </div>
                     <div className="db_cell">
                         TRANSACTION FEE
@@ -150,9 +157,7 @@ export const Tokens = () => {
                     </div>
                     <div className="db_cell">
                         TOTAL FEES BURNED
-                        <code>
-                            {token(window.backendCache.stats.fees_burned)}
-                        </code>
+                        <code>{token(fees_burned)}</code>
                     </div>
                 </div>
                 <h2>Top 100 token holders</h2>

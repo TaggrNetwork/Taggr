@@ -220,15 +220,12 @@ fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
 
 #[query]
 fn icrc3_get_blocks(args: Vec<GetBlocksArgs>) -> GetBlocksResult {
-    let mut blocks: Vec<BlockWithId> = Default::default();
-    read(|state| {
-        for arg in args {
-            for i in arg.start..(arg.start + arg.length) {
-                if let Some(tx) = state.memory.ledger.get(&(i as u32)) {
-                    blocks.push(tx.into());
-                }
-            }
-        }
+    let blocks: Vec<BlockWithId> = read(|state| {
+        args.into_iter()
+            .flat_map(|arg| arg.start..(arg.start + arg.length))
+            .filter_map(|i| state.memory.ledger.get(&(i as u32)))
+            .map(|tx| tx.into())
+            .collect()
     });
     GetBlocksResult {
         log_length: blocks.len().into(),

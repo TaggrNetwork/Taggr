@@ -1,12 +1,11 @@
-use ic_cdk::api::stable::{stable_grow, stable_read, stable_size, stable_write};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{cell::RefCell, collections::BTreeMap, fmt::Display, rc::Rc};
-
 use super::{
     features::Feature,
     post::{Post, PostId},
     token::Transaction,
 };
+use ic_cdk::api::stable::{stable_grow, stable_read, stable_size, stable_write};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::{cell::RefCell, collections::BTreeMap, fmt::Display, rc::Rc};
 
 #[derive(Serialize, Deserialize)]
 pub struct Api {
@@ -30,7 +29,7 @@ pub struct Memory {
     api_ref: Rc<RefCell<Api>>,
 }
 
-// We leave the first 16 bytes recerved for the heap coordinates (offset + length)
+// We leave the first 16 bytes reserved for the heap coordinates (offset + length)
 const INITIAL_OFFSET: u64 = 16;
 
 impl Api {

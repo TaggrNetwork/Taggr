@@ -23,7 +23,7 @@ use serde_bytes::ByteBuf;
 #[export_name = "canister_query check_invite"]
 fn check_invite() {
     let code: String = parse(&arg_data_raw());
-    read(|state| reply(state.invite_codes.contains_key(&code)))
+    reply(read(|state| state.invite_codes.contains_key(&code)))
 }
 
 #[export_name = "canister_query migration_pending"]

@@ -166,9 +166,13 @@ impl User {
             && (self.followees.contains(&user_id) || filter.passes(&self.filters.noise))
     }
 
+    pub fn account_age_days(&self) -> u64 {
+        (time() - self.timestamp) / DAY
+    }
+
     pub fn get_filter(&self) -> UserFilter {
         UserFilter {
-            age_days: (time() - self.timestamp) / DAY,
+            age_days: self.account_age_days(),
             safe: !self.controversial(),
             balance: self.total_balance() / token::base(),
             num_followers: self.followers.len(),
@@ -613,19 +617,25 @@ impl User {
         })
     }
 
-    /// Protect against invite phishing
-    ///
-    /// TODO: credits_burned reset every week, think of better way
+    /// Protect against stealing credits from invites: all accounts younger than 30 days,
+    /// cannot send more credits than they have burned in a week.
     pub fn validate_send_credits(&self, state: &State) -> Result<(), String> {
-        if let Some(invited_by) = self.invited_by {
-            let invite = state.invite_codes.values().find(|invite| {
-                invited_by == invite.inviter_user_id && invite.joined_user_ids.contains(&self.id)
-            });
-            if let Some(invite) = invite {
-                if self.credits_burned() < invite.credits_per_user {
-                    return Err("you are not allowed to send credits acquired in invite".into());
-                }
-            }
+        if self.account_age_days() > 30 {
+            return Ok(());
+        }
+
+        let Some(invited_by) = self.invited_by else {
+            return Ok(());
+        };
+
+        let Some(invite) = state.invite_codes.values().find(|invite| {
+            invited_by == invite.inviter_user_id && invite.joined_user_ids.contains(&self.id)
+        }) else {
+            return Ok(());
+        };
+
+        if self.credits_burned() < invite.credits_per_user {
+            return Err("you are not allowed to send credits acquired in an invite".into());
         }
 
         Ok(())
@@ -647,7 +657,33 @@ impl User {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::env::tests::pr;
+    use crate::{
+        env::{invite::tests::create_invite_with_realm, tests::pr},
+        tests::create_user,
+    };
+
+    #[test]
+    fn test_validate_send_credits() {
+        mutate(|state| {
+            let (inviter_id, code, _) = create_invite_with_realm(state, pr(6));
+            create_user(state, pr(7));
+            state.principal_to_user_mut(pr(7)).unwrap().invited_by = Some(inviter_id);
+            let user_id = state.principal_to_user(pr(7)).unwrap().id;
+            let invite = state.invite_codes.get_mut(&code).expect("invite not found");
+            assert_eq!(invite.consume(user_id), Ok(()));
+            let user = state.principal_to_user(pr(7)).unwrap();
+            let error = "you are not allowed to send credits acquired in an invite".into();
+            assert_eq!(user.validate_send_credits(state), Err(error));
+
+            // Make user burn enough credits
+            state
+                .principal_to_user_mut(pr(7))
+                .unwrap()
+                .add_burned_credits(1000);
+            let user = state.principal_to_user(pr(7)).unwrap();
+            assert_eq!(user.validate_send_credits(state), Ok(()));
+        });
+    }
 
     #[test]
     fn test_user_filters() {

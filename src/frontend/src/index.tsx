@@ -260,7 +260,7 @@ const reloadCache = async () => {
     if (!config) console.error("Config wasn't loaded!");
     if (!stats) console.error("Stats weren't loaded!");
     window.backendCache = {
-        recent_tags: (recent_tags || []).map(([tag, _]) => tag),
+        recent_tags: recent_tags || [],
         stats: stats || ({} as Stats),
         config: config || ({} as Config),
     };

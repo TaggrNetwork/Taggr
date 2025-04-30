@@ -80,11 +80,7 @@ export const Landing = () => {
             )}
             {!user && <Links />}
             <Search />
-            <TagCloud
-                size={bigScreen() ? 60 : 30}
-                heartbeat={feed}
-                realm={realm}
-            />
+            <TagCloud heartbeat={feed} realm={realm} />
             <PostFeed
                 heartbeat={feed}
                 refreshRateSecs={10 * 60}
@@ -134,30 +130,48 @@ export const Landing = () => {
 };
 
 export const TagCloud = ({
-    size,
     heartbeat,
     realm,
 }: {
-    size: number;
     heartbeat: any;
     realm: string;
 }) => {
+    const tagsToDisplay = bigScreen() ? 60 : 30;
+    const muted = new Set();
+    muted.add("taggr");
+
+    const shuffle = (array: any[], seed = 1) => {
+        const seededRandom = (max: number) => {
+            // Simple LCG (Linear Congruential Generator)
+            seed = (seed * 1664525 + 1013904223) % 2147483648;
+            return (seed / 2147483648) * max;
+        };
+
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(seededRandom(i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    };
+
     const [tags, setTags] = React.useState<[string, number][]>();
     const loadTags = async () => {
-        let tags =
-            (await window.api.query<[string, number][]>(
-                "recent_tags",
-                realm,
-                size,
-            )) || [];
+        // We only load tags inside realms, otherwise we use the backend cache.
+        let tags = realm
+            ? (await window.api.query<[string, number][]>(
+                  "recent_tags",
+                  realm,
+                  200,
+              )) || []
+            : window.backendCache.recent_tags;
+        tags = tags.filter((val) => !muted.has(val[0].toLowerCase()));
+        tags.sort((a, b) => (a[1] > b[1] ? -1 : 1));
+        tags = shuffle(tags.slice(0, tagsToDisplay));
         const occurences = tags.map(([_, N]) => Number(N));
         const max = Math.max(...occurences);
         const min = Math.min(...occurences);
-        tags = tags.map(([tag, N]) => [
-            tag,
-            Math.ceil(((N - min) / (max - min)) * 10),
-        ]);
-        tags.sort((a, b) => (a[0] > b[0] ? 1 : -1));
+        tags = tags.map(([tag, N]) => [tag, (N - min) / (max - min)]);
+
         setTags(tags);
     };
     React.useEffect(() => {
@@ -166,21 +180,37 @@ export const TagCloud = ({
     if (tags == null) return <Loading />;
     if (tags.length == 0) return null;
     return (
-        <div id="tag_cloud" className="row_container ">
-            {tags.map(([tag, size]) => (
-                <a
-                    key={tag}
-                    className={`tag size${size}`}
-                    href={`#/feed/${tag}`}
-                >
-                    {tag}
-                </a>
-            ))}
+        <div id="tag_cloud" className="row_container top_spaced">
+            {tags.map(([tag, scale]) => {
+                const shiftGrade = 20;
+                const vertShift =
+                    scale < 0.5
+                        ? Math.floor(Math.random() * shiftGrade) -
+                          shiftGrade / 2
+                        : 0;
+                return (
+                    <a
+                        key={tag}
+                        className="tag"
+                        href={`#/feed/${tag}`}
+                        style={{
+                            position: "relative",
+                            bottom: `${vertShift}px`,
+                            transform: `scale(${3 * scale + 0.6})`,
+                            margin: `${scale * 1.2}rem`,
+                            opacity: `${0.5 + scale * 0.5}`,
+                            zIndex: Math.ceil(scale * 10),
+                        }}
+                    >
+                        {tag}
+                    </a>
+                );
+            })}
         </div>
     );
 };
 
-export const Links = ({}) => {
+export const Links = () => {
     return (
         <div
             className={`${

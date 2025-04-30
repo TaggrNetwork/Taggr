@@ -137,7 +137,7 @@ pub(crate) mod tests {
 
     use super::*;
 
-    /// Creates invite with 200 credits, "test" realm, 50 credits per user
+    // Creates invite with 200 credits, "test" realm, 50 credits per user
     pub fn create_invite_with_realm(
         state: &mut State,
         principal: Principal,
@@ -262,13 +262,9 @@ pub(crate) mod tests {
 
     #[test]
     fn test_consume() {
-        let (_, code, invitee_id_1) = mutate(|state| {
-            let (user_id, code, _) = create_invite_with_realm(state, pr(6));
-            let invitee_id_1 = create_user(state, pr(7));
-            (user_id, code, invitee_id_1)
-        });
-
         mutate(|state| {
+            let (_, code, _) = create_invite_with_realm(state, pr(6));
+            let invitee_id_1 = create_user(state, pr(7));
             let invite = state.invite_codes.get_mut(&code).expect("invite not found");
             // Consume credits
             assert_eq!(invite.consume(invitee_id_1), Ok(()));
