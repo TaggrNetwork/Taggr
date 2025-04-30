@@ -617,7 +617,7 @@ impl User {
         })
     }
 
-    /// Protect against stealing credits from invites: all acounts younger than 30 days,
+    /// Protect against stealing credits from invites: all accounts younger than 30 days,
     /// cannot send more credits than they have burned in a week.
     pub fn validate_send_credits(&self, state: &State) -> Result<(), String> {
         if self.account_age_days() > 30 {
