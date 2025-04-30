@@ -302,6 +302,7 @@ article {
     justify-content: center;
     align-items: center;
     line-height: 60%;
+    overflow: hidden;
 }
 
 #tag_cloud .tag {

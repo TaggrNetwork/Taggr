@@ -180,7 +180,7 @@ export const TagCloud = ({
     if (tags == null) return <Loading />;
     if (tags.length == 0) return null;
     return (
-        <div id="tag_cloud" className="row_container vertically_spaced">
+        <div id="tag_cloud" className="row_container top_spaced">
             {tags.map(([tag, scale]) => {
                 const shiftGrade = 20;
                 const vertShift =
