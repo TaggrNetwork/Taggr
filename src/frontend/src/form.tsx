@@ -586,6 +586,7 @@ export const Form = ({
                                         <IconToggleButton
                                             testId="poll-button"
                                             classNameArg="left_half_spaced"
+                                            title="Attach a poll"
                                             icon={<Bars />}
                                             pressed={!!poll}
                                             onClick={() => {
