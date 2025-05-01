@@ -519,7 +519,7 @@ impl State {
             self.users
                 .values()
                 .filter(move |user| {
-                    user.active_within_weeks(time, CONFIG.voting_power_activity_weeks)
+                    user.active_within(CONFIG.voting_power_activity_weeks, WEEK, time)
                 })
                 .map(move |user| (user.id, user.total_balance())),
         )
@@ -1888,7 +1888,7 @@ impl State {
                 let mut threshold = 0;
                 for user in state.users.values_mut().filter(|user| {
                     !user.controversial()
-                        && user.active_within_weeks(time(), 1)
+                        && user.active_within(1, WEEK, time())
                         && user.credits_burned() > 0
                 }) {
                     threshold += user.take_credits_burned();
@@ -2006,7 +2006,7 @@ impl State {
             let controllers = controllers
                 .into_iter()
                 .filter_map(|user_id| self.users.get(&user_id))
-                .filter(|user| user.active_within_weeks(now, 1))
+                .filter(|user| user.active_within(1, WEEK, now))
                 .map(|user| (user.id, user.name.clone()))
                 .collect::<Vec<_>>();
             let realm_revenue = revenue * CONFIG.realm_revenue_percentage as u64 / 100;
@@ -2044,8 +2044,22 @@ impl State {
 
         let mut inactive_users = Vec::new();
 
+        let mut realms_cleaned = Vec::default();
         for user in self.users.values_mut() {
-            if user.active_within_weeks(now, 1) {
+            // If a user is inactive for a year, remove them from all realms they
+            // control.
+            if !user.active_within(CONFIG.realm_inactivity_timeout_days, DAY, now) {
+                for realm_id in std::mem::take(&mut user.controlled_realms) {
+                    realms_cleaned.push(format!("/{}", realm_id));
+                    if let Some(realm) = self.realms.get_mut(&realm_id) {
+                        realm
+                            .controllers
+                            .retain(|controller_id| controller_id != &user.id);
+                    }
+                }
+            }
+
+            if user.active_within(1, WEEK, now) {
                 user.active_weeks += 1;
 
                 // Count this active user's subscriptions
@@ -2061,6 +2075,10 @@ impl State {
             user.post_reports
                 .retain(|_, timestamp| *timestamp + CONFIG.user_report_validity_days * DAY >= now);
         }
+        self.logger.info(format!(
+            "Removed inactive controllers from realms {}.",
+            realms_cleaned.join(",")
+        ));
 
         self.accounting.clean_up();
 
@@ -2119,10 +2137,10 @@ impl State {
         let inactive_user_balance_threshold = CONFIG.inactivity_penalty * 4;
         let mut charges = Vec::new();
         for user in self.users.values_mut() {
-            if !user.active_within_weeks(now, CONFIG.voting_power_activity_weeks) {
+            if !user.active_within(WEEK, CONFIG.voting_power_activity_weeks, now) {
                 user.mode = Mode::Credits;
             }
-            if user.active_within_weeks(now, CONFIG.inactivity_duration_weeks) {
+            if user.active_within(WEEK, CONFIG.inactivity_duration_weeks, now) {
                 continue;
             }
             inactive_users += 1;
@@ -2624,7 +2642,7 @@ impl State {
             if user.invited_by.is_some() {
                 invited_users += 1;
             }
-            if user.active_within_weeks(now, 1) {
+            if user.active_within(1, WEEK, now) {
                 active_users += 1;
                 active_users_vp += user.total_balance();
             }
@@ -4562,6 +4580,8 @@ pub(crate) mod tests {
     #[test]
     fn test_clean_up() {
         mutate(|state| {
+            state.init();
+
             let inactive_id1 = create_user_with_credits(state, pr(1), 1500);
             let inactive_id2 = create_user_with_credits(state, pr(2), 1100);
             let inactive_id3 = create_user_with_credits(state, pr(3), 180);
@@ -4608,6 +4628,33 @@ pub(crate) mod tests {
                 user.change_rewards(*rewards, "");
                 user.take_positive_rewards();
             }
+
+            // Make sure user is removed from the DAO realm upon being inactive for a year
+            let user = state.users.get_mut(&inactive_id1).unwrap();
+            user.controlled_realms.insert("DAO".into());
+            let realm = state.realms.get_mut("DAO").unwrap();
+            realm.controllers.insert(inactive_id1);
+            realm.controllers.insert(inactive_id2);
+            realm.last_update = 40 * WEEK;
+            // Make inactive_id2 be active in week 40
+            let user = state.users.get_mut(&inactive_id2).unwrap();
+            user.last_activity = WEEK * 40;
+
+            let now = WEEK + DAY * CONFIG.realm_inactivity_timeout_days;
+            state.clean_up(now);
+            let realm = state.realms.get("DAO").unwrap();
+            // Make sure only inactive_id2 is still controller
+            assert_eq!(
+                realm.controllers.iter().cloned().collect::<Vec<_>>(),
+                vec![inactive_id2]
+            );
+            // Make sure the realm does not appear for inactive_id1
+            assert!(state
+                .users
+                .get(&inactive_id1)
+                .unwrap()
+                .controlled_realms
+                .is_empty())
         })
     }
 

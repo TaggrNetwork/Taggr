@@ -304,8 +304,9 @@ impl User {
         }
     }
 
-    pub fn active_within_weeks(&self, now: u64, n: u64) -> bool {
-        self.last_activity + n * WEEK > now
+    /// Returns `true` if the user was active within the last `n` time units (days, weeks, etc).
+    pub fn active_within(&self, n: u64, time_units: u64, now: u64) -> bool {
+        self.last_activity + n * time_units > now
     }
 
     pub fn valid_info(about: &str, settings: &BTreeMap<String, String>) -> bool {

@@ -5,7 +5,7 @@ use super::config::CONFIG;
 use super::post::{Extension, Post, PostId};
 use super::token::{self, account};
 use super::user::Predicate;
-use super::{features, invoices, RealmId, Time, HOUR};
+use super::{features, invoices, RealmId, Time, HOUR, WEEK};
 use super::{user::UserId, State};
 use crate::mutate;
 use crate::token::Token;
@@ -396,7 +396,7 @@ pub fn create_proposal(
     });
     state.notify_with_predicate(
         &|user| {
-            user.governance && user.active_within_weeks(time, 1) && user.balance > token::base()
+            user.governance && user.active_within(1, WEEK, time) && user.balance > token::base()
         },
         format!("@{} submitted a new proposal", &proposer_name,),
         Predicate::Proposal(post_id),
@@ -472,7 +472,7 @@ pub(super) fn execute_proposal(
             .error(format!("Proposal execution failed: {:?}", err));
     }
     if previous_state != proposal.status {
-        state.denotify_users(&|user| user.active_within_weeks(time, 1) && user.balance > 0);
+        state.denotify_users(&|user| user.active_within(1, WEEK, time) && user.balance > 0);
     }
     state.proposals = proposals;
     result
