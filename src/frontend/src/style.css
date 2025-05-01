@@ -299,6 +299,7 @@ article {
 }
 
 #tag_cloud {
+    padding: 1em;
     justify-content: center;
     align-items: center;
     line-height: 60%;
