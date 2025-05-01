@@ -15,8 +15,6 @@ pub struct Config {
     pub logo: &'static str,
     pub staging: &'static str,
 
-    pub nns_voting_enabled: bool,
-
     pub random_reward_amount: Token,
 
     pub transaction_fee: u64,
@@ -204,11 +202,6 @@ pub const CONFIG: &Config = &Config {
     supply_threshold_for_transfer_percentage: 10,
 
     user_report_validity_days: 90,
-
-    #[cfg(not(any(feature = "dev", feature = "staging")))]
-    nns_voting_enabled: true,
-    #[cfg(any(feature = "dev", feature = "staging"))]
-    nns_voting_enabled: false,
 
     random_reward_amount: 1000,
 

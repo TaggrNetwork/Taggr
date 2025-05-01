@@ -1,8 +1,8 @@
 use self::auction::Auction;
-use self::canisters::{icrc_transfer, upgrade_main_canister, NNSVote};
+use self::canisters::{icrc_transfer, upgrade_main_canister};
 use self::invite::Invite;
 use self::invoices::{Invoice, USER_ICP_SUBACCOUNT};
-use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
+use self::post::{archive_cold_posts, Extension, Post, PostId};
 use self::post_iterators::{IteratorMerger, MergeStrategy};
 use self::proposals::{Payload, ReleaseInfo, Status};
 use self::reports::Report;
@@ -13,6 +13,7 @@ use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
 use crate::token::{Account, Token};
 use crate::{assets, id, mutate, read, time};
+use candid::CandidType;
 use candid::Principal;
 use config::{CONFIG, ICP_CYCLES_PER_XDR};
 use ic_cdk::api::management_canister::main::raw_rand;
@@ -37,6 +38,8 @@ pub mod features;
 pub mod invite;
 pub mod invoices;
 pub mod memory;
+#[cfg(not(any(feature = "dev", feature = "staging")))]
+pub mod nns_proposals;
 pub mod pfp;
 pub mod post;
 pub mod post_iterators;
@@ -59,13 +62,9 @@ pub const HOUR: u64 = 60 * MINUTE;
 pub const DAY: u64 = 24 * HOUR;
 pub const WEEK: u64 = 7 * DAY;
 
-#[derive(Serialize, Deserialize)]
-pub struct NNSProposal {
+#[derive(CandidType, Debug, Serialize, Deserialize)]
+pub struct NeuronId {
     pub id: u64,
-    pub topic: i32,
-    pub proposer: u64,
-    pub title: String,
-    pub summary: String,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -1615,118 +1614,6 @@ impl State {
         archive_cold_posts(self, max_posts_in_heap)
     }
 
-    async fn handle_nns_proposals(now: u64) {
-        if !CONFIG.nns_voting_enabled {
-            return;
-        }
-
-        // Vote on proposals if pending ones exist
-        for (proposal_id, post_id) in read(|state| state.pending_nns_proposals.clone()) {
-            if let Some(Extension::Poll(poll)) = read(|state| {
-                Post::get(state, &post_id).and_then(|post| post.extension.as_ref().cloned())
-            }) {
-                // The poll is still pending.
-                if read(|state| state.pending_polls.contains(&post_id)) {
-                    continue;
-                }
-
-                let adopted = poll.weighted_by_tokens.get(&0).copied().unwrap_or_default();
-                let rejected = poll.weighted_by_tokens.get(&1).copied().unwrap_or_default();
-                if let Err(err) = canisters::vote_on_nns_proposal(
-                    proposal_id,
-                    if adopted > rejected {
-                        NNSVote::Adopt
-                    } else {
-                        NNSVote::Reject
-                    },
-                )
-                .await
-                {
-                    mutate(|state| {
-                        state.logger.warn(format!(
-                            "couldn't vote on NNS proposal {}: {}",
-                            proposal_id, err
-                        ))
-                    });
-                };
-            }
-            mutate(|state| state.pending_nns_proposals.remove(&proposal_id));
-        }
-
-        // fetch new proposals
-        let last_known_proposal_id = read(|state| state.last_nns_proposal);
-        let proposals = match canisters::fetch_proposals().await {
-            Ok(value) => value,
-            Err(err) => {
-                mutate(|state| {
-                    state
-                        .logger
-                        .warn(format!("couldn't fetch proposals: {}", err))
-                });
-                Default::default()
-            }
-        };
-
-        for proposal in proposals
-            .into_iter()
-            .filter(|proposal| proposal.id > last_known_proposal_id)
-        {
-            // Vote only on proposals with topics governance, SNS & replica-management.
-            if [4, 14].contains(&proposal.topic) {
-                let post = format!(
-                    "# #NNS-Proposal [{0}](https://dashboard.internetcomputer.org/proposal/{0})\n## {1}\n",
-                    proposal.id, proposal.title,
-                ) + &format!(
-                    "Proposer: [{0}](https://dashboard.internetcomputer.org/neuron/{0})\n\n\n\n{1}",
-                    proposal.proposer, proposal.summary
-                );
-
-                let result = mutate(|state| {
-                    state.last_nns_proposal = state.last_nns_proposal.max(proposal.id);
-                    Post::create(
-                        state,
-                        post,
-                        Default::default(),
-                        id(),
-                        now,
-                        None,
-                        Some("NNS-GOV".into()),
-                        Some(Extension::Poll(Poll {
-                            deadline: 72,
-                            options: vec!["ACCEPT".into(), "REJECT".into()],
-                            ..Default::default()
-                        })),
-                    )
-                });
-
-                match result {
-                    Ok(post_id) => {
-                        mutate(|state| state.pending_nns_proposals.insert(proposal.id, post_id));
-                        continue;
-                    }
-                    Err(err) => {
-                        mutate(|state| {
-                            state.logger.warn(format!(
-                                "couldn't create an NNS proposal post for proposal {}: {:?}",
-                                proposal.id, err
-                            ))
-                        });
-                    }
-                };
-            }
-
-            if let Err(err) = canisters::vote_on_nns_proposal(proposal.id, NNSVote::Reject).await {
-                mutate(|state| {
-                    state.last_nns_proposal = state.last_nns_proposal.max(proposal.id);
-                    state.logger.warn(format!(
-                        "couldn't vote on NNS proposal {}: {}",
-                        proposal.id, err
-                    ))
-                });
-            };
-        }
-    }
-
     pub async fn fetch_xdr_rate() {
         if let Ok(e8s_for_one_xdr) = invoices::get_xdr_in_e8s().await {
             mutate(|state| state.e8s_for_one_xdr = e8s_for_one_xdr);
@@ -1755,7 +1642,8 @@ impl State {
 
         State::top_up().await;
 
-        State::handle_nns_proposals(now).await;
+        #[cfg(not(any(feature = "dev", feature = "staging")))]
+        nns_proposals::work(now).await;
     }
 
     pub async fn chores(now: u64) {
@@ -3181,6 +3069,7 @@ pub fn display_tokens(amount: u64, decimals: u32) -> String {
 
 #[cfg(test)]
 pub(crate) mod tests {
+
     use super::*;
     use invite::tests::create_invite_with_realm;
     use post::Post;
@@ -3592,7 +3481,7 @@ pub(crate) mod tests {
                 0,
                 None,
                 None,
-                Some(Extension::Poll(Poll {
+                Some(Extension::Poll(post::Poll {
                     options: vec!["A".into(), "B".into(), "C".into()],
                     deadline: 72,
                     ..Default::default()
