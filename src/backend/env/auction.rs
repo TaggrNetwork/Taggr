@@ -14,7 +14,7 @@ use crate::{
 use super::{
     config::CONFIG,
     invoices::{main_account, principal_to_subaccount},
-    token::Token,
+    token::{self, account, Token},
     user::UserId,
     State, Time,
 };
@@ -270,6 +270,47 @@ pub async fn move_to_treasury(amount: u64) -> Result<u64, String> {
         Some(Subaccount(AUCTION_ICP_SUBACCOUNT)),
     )
     .await
+}
+
+/// Checks if we could collect enough bids to close the auction.
+/// If yes, mints the requested amount of tokens for each bidder and moves all funds to
+/// treasury, converting them to revenue.
+pub async fn close_auction() -> (u64, u64) {
+    let (bids, revenue, market_price) = mutate(|state| {
+        let (bids, revenue, market_price) = state.auction.close();
+        if bids.is_empty() {
+            state.logger.info("Auction skipped: not enough bids");
+            return (bids, 0, 0);
+        }
+
+        state.minting_mode = true;
+        for bid in &bids {
+            let principal = state.users.get(&bid.user).expect("no user found").principal;
+            token::mint(state, account(principal), bid.amount, "auction bid");
+        }
+        state.minting_mode = false;
+
+        (bids, revenue, market_price)
+    });
+
+    if revenue == 0 {
+        return (market_price, revenue);
+    }
+
+    if let Err(err) = move_to_treasury(revenue).await {
+        mutate(|state| {
+            state.logger.error(format!(
+                "couldn't move funds from the auction to treasury: {}",
+                err
+            ));
+            state
+                .logger
+                .error(format!("bids that were closed: {:?}", bids))
+        });
+        return (0, 0);
+    }
+
+    (market_price, revenue)
 }
 
 #[cfg(test)]
