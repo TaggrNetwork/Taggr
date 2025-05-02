@@ -1,15 +1,16 @@
 use super::{
-    time,
+    config::{CONFIG, ICP_CYCLES_PER_XDR},
+    invoices, time,
     token::{Account, Subaccount, TransferArgs, TransferError},
     Logger, MINUTE,
 };
-use crate::env::NNSProposal;
-use crate::{env::config::CONFIG, id};
+use crate::{env::NeuronId, id, mutate, read};
 use candid::{
     utils::{ArgumentDecoder, ArgumentEncoder},
     CandidType, Principal,
 };
 use ic_cdk::api::{
+    self,
     call::CallResult,
     management_canister::{
         main::{
@@ -20,7 +21,7 @@ use ic_cdk::api::{
     },
 };
 use ic_cdk::{api::call::call_raw, notify};
-use ic_ledger_types::MAINNET_GOVERNANCE_CANISTER_ID;
+use ic_ledger_types::{Tokens, MAINNET_GOVERNANCE_CANISTER_ID};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -172,77 +173,6 @@ pub async fn topup_with_cycles(canister_id: Principal, cycles: u128) -> Result<(
     Ok(())
 }
 
-#[derive(CandidType, Debug, Serialize, Deserialize)]
-pub struct NeuronId {
-    pub id: u64,
-}
-
-#[derive(Clone, CandidType, Default, Serialize, Deserialize, PartialEq)]
-pub struct ProposalId {
-    pub id: u64,
-}
-
-pub async fn fetch_proposals() -> Result<Vec<NNSProposal>, String> {
-    #[derive(CandidType, Serialize, Deserialize)]
-    pub struct ListProposalInfo {
-        pub limit: u32,
-        pub before_proposal: Option<ProposalId>,
-        pub exclude_topic: Vec<i32>,
-        pub include_reward_status: Vec<i32>,
-        pub include_status: Vec<i32>,
-    }
-
-    #[derive(CandidType, Serialize, Deserialize)]
-    pub struct ListProposalInfoResponse {
-        pub proposal_info: Vec<ProposalInfo>,
-    }
-
-    #[derive(CandidType, Serialize, Deserialize)]
-    pub struct ProposalStruct {
-        pub title: Option<String>,
-        pub summary: String,
-    }
-
-    #[derive(CandidType, Serialize, Deserialize)]
-    pub struct ProposalInfo {
-        pub id: Option<ProposalId>,
-        pub proposer: Option<NeuronId>,
-        pub proposal: Option<ProposalStruct>,
-        pub topic: i32,
-    }
-
-    let args = ListProposalInfo {
-        include_reward_status: Default::default(),
-        before_proposal: Default::default(),
-        limit: 25,
-        exclude_topic: Default::default(),
-        include_status: Default::default(),
-    };
-    let (response,): (ListProposalInfoResponse,) =
-        call_canister(MAINNET_GOVERNANCE_CANISTER_ID, "list_proposals", (args,))
-            .await
-            .map_err(|err| format!("couldn't call governance canister: {:?}", err))?;
-
-    Ok(response
-        .proposal_info
-        .into_iter()
-        .filter_map(|i| {
-            i.proposal.as_ref().map(|p| NNSProposal {
-                id: i.id.clone().unwrap_or_default().id,
-                title: p.title.clone().unwrap_or_default(),
-                summary: p.summary.clone(),
-                topic: i.topic,
-                proposer: i.proposer.as_ref().expect("no neuron found").id,
-            })
-        })
-        .collect())
-}
-
-pub enum NNSVote {
-    Adopt = 1,
-    Reject = 2,
-}
-
 pub async fn get_full_neuron(neuron_id: u64) -> Result<String, String> {
     #[derive(CandidType, Deserialize)]
     struct GovernanceError {
@@ -271,47 +201,6 @@ pub async fn get_full_neuron(neuron_id: u64) -> Result<String, String> {
     result
         .map(|neuron| format!("{:?}", neuron))
         .map_err(|err| err.error_message)
-}
-
-pub async fn vote_on_nns_proposal(proposal_id: u64, vote: NNSVote) -> Result<(), String> {
-    #[derive(CandidType, Serialize)]
-    enum Command {
-        RegisterVote {
-            vote: i32,
-            proposal: Option<ProposalId>,
-        },
-    }
-    #[derive(CandidType, Serialize)]
-    struct NnsVoteArgs {
-        id: Option<ProposalId>,
-        command: Option<Command>,
-    }
-    let args = NnsVoteArgs {
-        id: Some(ProposalId {
-            id: CONFIG.neuron_id,
-        }),
-        command: Some(Command::RegisterVote {
-            vote: vote as i32,
-            proposal: Some(ProposalId { id: proposal_id }),
-        }),
-    };
-    let encoded_args = candid::utils::encode_one(args).expect("failed to encode args");
-
-    let method = "manage_neuron";
-    // Sometimes we can't vote because the governance canister gets an upgrade,
-    // so we try at most 10 times
-    let mut attempts: i16 = 10;
-    loop {
-        let result = call_canister_raw(MAINNET_GOVERNANCE_CANISTER_ID, method, &encoded_args).await;
-
-        attempts -= 1;
-
-        if result.is_ok() || attempts <= 0 {
-            return result
-                .map(|_| ())
-                .map_err(|err| format!("couldn't call the governance canister: {:?}", err));
-        }
-    }
 }
 
 pub async fn icrc_transfer(
@@ -350,4 +239,78 @@ pub async fn call_canister<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(
     let result = ic_cdk::call(id, method, args).await;
     close_call(method);
     result
+}
+
+/// Tops up all canisters
+pub async fn top_up() {
+    // top up the main canister
+    match cycles(id()).await {
+        Ok((cycles, cycles_per_day)) => {
+            if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
+                let xdrs = (CONFIG.canister_survival_period_days * cycles_per_day
+                    / ICP_CYCLES_PER_XDR)
+                    // Circuit breaker: Never top up for more than ~75$ at once.
+                    .min(50);
+                let icp = Tokens::from_e8s(xdrs * read(|state| state.e8s_for_one_xdr));
+                match invoices::topup_with_icp(&api::id(), icp).await {
+                    Err(err) => mutate(|state| {
+                        state.critical(format!(
+                    "FAILED TO TOP UP THE MAIN CANISTER — {}'S FUNCTIONALITY IS ENDANGERED: {:?}",
+                    CONFIG.name.to_uppercase(),
+                    err
+                ))
+                    }),
+                    Ok(_) => mutate(|state| {
+                        // subtract weekly burned credits to reduce the revenue
+                        state.spend(xdrs * 1000, "main canister top up");
+                        state.logger.debug(format!(
+                        "The main canister was topped up with credits (balance was `{}`, now `{}`).",
+                        cycles,
+                        api::canister_balance()
+                    ))
+                    }),
+                }
+            }
+        }
+        Err(err) => mutate(|state| {
+            state.logger.error(format!(
+                "failed to fetch the cycle balance of the main canister: {}",
+                err
+            ))
+        }),
+    };
+
+    // For any child canister that is below the safety threshold,
+    // top up with cycles for at least `CONFIG.canister_survival_period_days` days.
+    for canister_id in read(|state| state.storage.buckets.keys().cloned().collect::<Vec<_>>()) {
+        match cycles(canister_id).await {
+            Ok((cycles, cycles_per_day)) => {
+                if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
+                    let result = topup_with_cycles(
+                        canister_id,
+                        (CONFIG.canister_survival_period_days * cycles_per_day) as u128,
+                    )
+                    .await;
+                    mutate(|state| match result {
+                        Ok(_) => state.logger.debug(format!(
+                            "The canister {} was topped up (balance was `{}`, now `{}`).",
+                            canister_id,
+                            cycles,
+                            cycles + cycles_per_day
+                        )),
+                        Err(err) => state.critical(format!(
+                            "FAILED TO TOP UP THE CANISTER {}: {:?}",
+                            canister_id, err
+                        )),
+                    })
+                }
+            }
+            Err(err) => mutate(|state| {
+                state.logger.error(format!(
+                    "failed to fetch the cycle balance from `{}`: {}",
+                    canister_id, err
+                ))
+            }),
+        }
+    }
 }

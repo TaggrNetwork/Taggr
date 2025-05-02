@@ -1,8 +1,8 @@
 use self::auction::Auction;
-use self::canisters::{icrc_transfer, upgrade_main_canister, NNSVote};
+use self::canisters::{icrc_transfer, upgrade_main_canister};
 use self::invite::Invite;
 use self::invoices::{Invoice, USER_ICP_SUBACCOUNT};
-use self::post::{archive_cold_posts, Extension, Poll, Post, PostId};
+use self::post::{archive_cold_posts, Extension, Post, PostId};
 use self::post_iterators::{IteratorMerger, MergeStrategy};
 use self::proposals::{Payload, ReleaseInfo, Status};
 use self::reports::Report;
@@ -13,13 +13,14 @@ use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
 use crate::token::{Account, Token};
 use crate::{assets, id, mutate, read, time};
+use candid::CandidType;
 use candid::Principal;
-use config::{CONFIG, ICP_CYCLES_PER_XDR};
+use config::CONFIG;
 use ic_cdk::api::management_canister::main::raw_rand;
 use ic_cdk::api::performance_counter;
 use ic_cdk::api::stable::stable_size;
 use ic_cdk::api::{self, canister_balance};
-use ic_ledger_types::{AccountIdentifier, Tokens, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
+use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
 use invoices::Invoices;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -37,6 +38,8 @@ pub mod features;
 pub mod invite;
 pub mod invoices;
 pub mod memory;
+#[cfg(not(any(feature = "dev", feature = "staging")))]
+pub mod nns_proposals;
 pub mod pfp;
 pub mod post;
 pub mod post_iterators;
@@ -59,13 +62,9 @@ pub const HOUR: u64 = 60 * MINUTE;
 pub const DAY: u64 = 24 * HOUR;
 pub const WEEK: u64 = 7 * DAY;
 
-#[derive(Serialize, Deserialize)]
-pub struct NNSProposal {
+#[derive(CandidType, Debug, Serialize, Deserialize)]
+pub struct NeuronId {
     pub id: u64,
-    pub topic: i32,
-    pub proposer: u64,
-    pub title: String,
-    pub summary: String,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -519,7 +518,7 @@ impl State {
             self.users
                 .values()
                 .filter(move |user| {
-                    user.active_within_weeks(time, CONFIG.voting_power_activity_weeks)
+                    user.active_within(CONFIG.voting_power_activity_weeks, WEEK, time)
                 })
                 .map(move |user| (user.id, user.total_balance())),
         )
@@ -938,93 +937,6 @@ impl State {
         self.new_user(principal, timestamp, name, credits)
     }
 
-    pub async fn create_user(
-        principal: Principal,
-        name: String,
-        invite_code: Option<String>,
-    ) -> Result<Option<String>, String> {
-        let (invited, realm_id) = mutate(|state| {
-            state.validate_username(&name)?;
-            if let Some(user) = state.principal_to_user(principal) {
-                return Err(format!("principal already assigned to user @{}", user.name));
-            }
-            if let Some((credits, credits_per_user, inviter_id, code, realm_id)) = invite_code
-                .and_then(|code| {
-                    state.invite_codes.get(&code).map(|invite| {
-                        (
-                            invite.credits,
-                            invite.credits_per_user,
-                            invite.inviter_user_id,
-                            code,
-                            invite.realm_id.clone(),
-                        )
-                    })
-                })
-            {
-                // Return gracefully before any updates
-                if credits < credits_per_user {
-                    return Err("invite has not enough credits".into());
-                }
-                let inviter = state.users.get_mut(&inviter_id).ok_or("no user found")?;
-                let new_user_id = if inviter.credits() > credits_per_user {
-                    let new_user_id = state.new_user(principal, time(), name.clone(), None)?;
-
-                    state
-                        .invite_codes
-                        .get_mut(&code)
-                        .expect("invite not found") // Revert newly created user in an edge case
-                        .consume(new_user_id)?;
-
-                    state
-                        .credit_transfer(
-                            inviter_id,
-                            new_user_id,
-                            credits_per_user,
-                            0,
-                            Destination::Credits,
-                            "claimed by invited user",
-                            None,
-                        )
-                        .unwrap_or_else(|err| panic!("couldn't use the invite: {}", err));
-
-                    if let Some(id) = realm_id.clone() {
-                        state.toggle_realm_membership(principal, id);
-                    }
-
-                    new_user_id
-                } else {
-                    return Err("inviter has not enough credits".into());
-                };
-                let user = state.users.get_mut(&new_user_id).expect("no user found");
-                let user_name = user.name.clone();
-                user.invited_by = Some(inviter_id);
-                if let Some(inviter) = state.users.get_mut(&inviter_id) {
-                    inviter.notify(format!(
-                        "Your invite was used by @{}! Thanks for helping #{} grow! 🤗",
-                        name, CONFIG.name
-                    ));
-                }
-                state
-                    .logger
-                    .info(format!("@{} joined Taggr! 🎉", user_name));
-                return Ok((true, realm_id.clone()));
-            }
-            Ok((false, None))
-        })?;
-
-        if invited {
-            return Ok(realm_id);
-        }
-
-        if let Ok(Invoice { paid: true, .. }) = State::mint_credits(principal, 0).await {
-            mutate(|state| state.new_user(principal, time(), name, None))?;
-            // After the user has beed created, transfer credits.
-            return State::mint_credits(principal, 0).await.map(|_| (None));
-        }
-
-        Err("payment missing or the invite is invalid".to_string())
-    }
-
     /// Assigns a new Avataggr to the user.
     pub fn set_pfp(&mut self, user_id: UserId, pfp: Pfp) -> Result<(), String> {
         let bytes = pfp::pfp(
@@ -1177,79 +1089,6 @@ impl State {
                 .and_then(|user| user.notifications.get_mut(&notification_id))
             {
                 *read_status = new_read_status;
-            }
-        }
-    }
-
-    async fn top_up() {
-        // top up the main canister
-        match canisters::cycles(id()).await {
-            Ok((cycles, cycles_per_day)) => {
-                if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
-                    let xdrs = (CONFIG.canister_survival_period_days * cycles_per_day
-                        / ICP_CYCLES_PER_XDR)
-                        // Circuit breaker: Never top up for more than ~75$ at once.
-                        .min(50);
-                    let icp = Tokens::from_e8s(xdrs * read(|state| state.e8s_for_one_xdr));
-                    match invoices::topup_with_icp(&api::id(), icp).await {
-                        Err(err) => mutate(|state| {
-                            state.critical(format!(
-                    "FAILED TO TOP UP THE MAIN CANISTER — {}'S FUNCTIONALITY IS ENDANGERED: {:?}",
-                    CONFIG.name.to_uppercase(),
-                    err
-                ))
-                        }),
-                        Ok(_) => mutate(|state| {
-                            // subtract weekly burned credits to reduce the revenue
-                            state.spend(xdrs * 1000, "main canister top up");
-                            state.logger.debug(format!(
-                        "The main canister was topped up with credits (balance was `{}`, now `{}`).",
-                        cycles,
-                        canister_balance()
-                    ))
-                        }),
-                    }
-                }
-            }
-            Err(err) => mutate(|state| {
-                state.logger.error(format!(
-                    "failed to fetch the cycle balance of the main canister: {}",
-                    err
-                ))
-            }),
-        };
-
-        // For any child canister that is below the safety threshold,
-        // top up with cycles for at least `CONFIG.canister_survival_period_days` days.
-        for canister_id in read(|state| state.storage.buckets.keys().cloned().collect::<Vec<_>>()) {
-            match canisters::cycles(canister_id).await {
-                Ok((cycles, cycles_per_day)) => {
-                    if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
-                        let result = canisters::topup_with_cycles(
-                            canister_id,
-                            (CONFIG.canister_survival_period_days * cycles_per_day) as u128,
-                        )
-                        .await;
-                        mutate(|state| match result {
-                            Ok(_) => state.logger.debug(format!(
-                                "The canister {} was topped up (balance was `{}`, now `{}`).",
-                                canister_id,
-                                cycles,
-                                cycles + cycles_per_day
-                            )),
-                            Err(err) => state.critical(format!(
-                                "FAILED TO TOP UP THE CANISTER {}: {:?}",
-                                canister_id, err
-                            )),
-                        })
-                    }
-                }
-                Err(err) => mutate(|state| {
-                    state.logger.error(format!(
-                        "failed to fetch the cycle balance from `{}`: {}",
-                        canister_id, err
-                    ))
-                }),
             }
         }
     }
@@ -1615,118 +1454,6 @@ impl State {
         archive_cold_posts(self, max_posts_in_heap)
     }
 
-    async fn handle_nns_proposals(now: u64) {
-        if !CONFIG.nns_voting_enabled {
-            return;
-        }
-
-        // Vote on proposals if pending ones exist
-        for (proposal_id, post_id) in read(|state| state.pending_nns_proposals.clone()) {
-            if let Some(Extension::Poll(poll)) = read(|state| {
-                Post::get(state, &post_id).and_then(|post| post.extension.as_ref().cloned())
-            }) {
-                // The poll is still pending.
-                if read(|state| state.pending_polls.contains(&post_id)) {
-                    continue;
-                }
-
-                let adopted = poll.weighted_by_tokens.get(&0).copied().unwrap_or_default();
-                let rejected = poll.weighted_by_tokens.get(&1).copied().unwrap_or_default();
-                if let Err(err) = canisters::vote_on_nns_proposal(
-                    proposal_id,
-                    if adopted > rejected {
-                        NNSVote::Adopt
-                    } else {
-                        NNSVote::Reject
-                    },
-                )
-                .await
-                {
-                    mutate(|state| {
-                        state.logger.warn(format!(
-                            "couldn't vote on NNS proposal {}: {}",
-                            proposal_id, err
-                        ))
-                    });
-                };
-            }
-            mutate(|state| state.pending_nns_proposals.remove(&proposal_id));
-        }
-
-        // fetch new proposals
-        let last_known_proposal_id = read(|state| state.last_nns_proposal);
-        let proposals = match canisters::fetch_proposals().await {
-            Ok(value) => value,
-            Err(err) => {
-                mutate(|state| {
-                    state
-                        .logger
-                        .warn(format!("couldn't fetch proposals: {}", err))
-                });
-                Default::default()
-            }
-        };
-
-        for proposal in proposals
-            .into_iter()
-            .filter(|proposal| proposal.id > last_known_proposal_id)
-        {
-            // Vote only on proposals with topics governance, SNS & replica-management.
-            if [4, 14].contains(&proposal.topic) {
-                let post = format!(
-                    "# #NNS-Proposal [{0}](https://dashboard.internetcomputer.org/proposal/{0})\n## {1}\n",
-                    proposal.id, proposal.title,
-                ) + &format!(
-                    "Proposer: [{0}](https://dashboard.internetcomputer.org/neuron/{0})\n\n\n\n{1}",
-                    proposal.proposer, proposal.summary
-                );
-
-                let result = mutate(|state| {
-                    state.last_nns_proposal = state.last_nns_proposal.max(proposal.id);
-                    Post::create(
-                        state,
-                        post,
-                        Default::default(),
-                        id(),
-                        now,
-                        None,
-                        Some("NNS-GOV".into()),
-                        Some(Extension::Poll(Poll {
-                            deadline: 72,
-                            options: vec!["ACCEPT".into(), "REJECT".into()],
-                            ..Default::default()
-                        })),
-                    )
-                });
-
-                match result {
-                    Ok(post_id) => {
-                        mutate(|state| state.pending_nns_proposals.insert(proposal.id, post_id));
-                        continue;
-                    }
-                    Err(err) => {
-                        mutate(|state| {
-                            state.logger.warn(format!(
-                                "couldn't create an NNS proposal post for proposal {}: {:?}",
-                                proposal.id, err
-                            ))
-                        });
-                    }
-                };
-            }
-
-            if let Err(err) = canisters::vote_on_nns_proposal(proposal.id, NNSVote::Reject).await {
-                mutate(|state| {
-                    state.last_nns_proposal = state.last_nns_proposal.max(proposal.id);
-                    state.logger.warn(format!(
-                        "couldn't vote on NNS proposal {}: {}",
-                        proposal.id, err
-                    ))
-                });
-            };
-        }
-    }
-
     pub async fn fetch_xdr_rate() {
         if let Ok(e8s_for_one_xdr) = invoices::get_xdr_in_e8s().await {
             mutate(|state| state.e8s_for_one_xdr = e8s_for_one_xdr);
@@ -1753,9 +1480,10 @@ impl State {
 
         State::fetch_xdr_rate().await;
 
-        State::top_up().await;
+        canisters::top_up().await;
 
-        State::handle_nns_proposals(now).await;
+        #[cfg(not(any(feature = "dev", feature = "staging")))]
+        nns_proposals::work(now).await;
     }
 
     pub async fn chores(now: u64) {
@@ -1834,7 +1562,7 @@ impl State {
         let circulating_supply: Token = read(|state| state.balances.values().sum());
         // only if we're below the maximum supply, we close the auction
         let auction_revenue = if circulating_supply < CONFIG.maximum_supply {
-            let (market_price, revenue) = State::close_auction().await;
+            let (market_price, revenue) = auction::close_auction().await;
             mutate(|state| {
                 state.logger.info(format!(
                     "Established market price: `{}` ICP per `1` ${}; next auction size: `{}` tokens",
@@ -1888,7 +1616,7 @@ impl State {
                 let mut threshold = 0;
                 for user in state.users.values_mut().filter(|user| {
                     !user.controversial()
-                        && user.active_within_weeks(time(), 1)
+                        && user.active_within(1, WEEK, time())
                         && user.credits_burned() > 0
                 }) {
                     threshold += user.take_credits_burned();
@@ -1936,47 +1664,6 @@ impl State {
         };
     }
 
-    // Checks if we could collect enough bids to close the auction.
-    // If yes, mints the requested amount of tokens for each bidder and moves all funds to
-    // treasury, converting them to revenue.
-    async fn close_auction() -> (u64, u64) {
-        let (bids, revenue, market_price) = mutate(|state| {
-            let (bids, revenue, market_price) = state.auction.close();
-            if bids.is_empty() {
-                state.logger.info("Auction skipped: not enough bids");
-                return (bids, 0, 0);
-            }
-
-            state.minting_mode = true;
-            for bid in &bids {
-                let principal = state.users.get(&bid.user).expect("no user found").principal;
-                token::mint(state, account(principal), bid.amount, "auction bid");
-            }
-            state.minting_mode = false;
-
-            (bids, revenue, market_price)
-        });
-
-        if revenue == 0 {
-            return (market_price, revenue);
-        }
-
-        if let Err(err) = auction::move_to_treasury(revenue).await {
-            mutate(|state| {
-                state.logger.error(format!(
-                    "couldn't move funds from the auction to treasury: {}",
-                    err
-                ));
-                state
-                    .logger
-                    .error(format!("bids that were closed: {:?}", bids))
-            });
-            return (0, 0);
-        }
-
-        (market_price, revenue)
-    }
-
     pub fn distribute_revenue_from_icp(&mut self, e8s: u64) {
         self.burned_cycles +=
             (e8s as f64 / self.e8s_for_one_xdr as f64 * CONFIG.credits_per_xdr as f64) as i64;
@@ -2006,7 +1693,7 @@ impl State {
             let controllers = controllers
                 .into_iter()
                 .filter_map(|user_id| self.users.get(&user_id))
-                .filter(|user| user.active_within_weeks(now, 1))
+                .filter(|user| user.active_within(1, WEEK, now))
                 .map(|user| (user.id, user.name.clone()))
                 .collect::<Vec<_>>();
             let realm_revenue = revenue * CONFIG.realm_revenue_percentage as u64 / 100;
@@ -2044,8 +1731,22 @@ impl State {
 
         let mut inactive_users = Vec::new();
 
+        let mut realms_cleaned = Vec::default();
         for user in self.users.values_mut() {
-            if user.active_within_weeks(now, 1) {
+            // If a user is inactive for a year, remove them from all realms they
+            // control.
+            if !user.active_within(CONFIG.realm_inactivity_timeout_days, DAY, now) {
+                for realm_id in std::mem::take(&mut user.controlled_realms) {
+                    realms_cleaned.push(format!("/{}", realm_id));
+                    if let Some(realm) = self.realms.get_mut(&realm_id) {
+                        realm
+                            .controllers
+                            .retain(|controller_id| controller_id != &user.id);
+                    }
+                }
+            }
+
+            if user.active_within(1, WEEK, now) {
                 user.active_weeks += 1;
 
                 // Count this active user's subscriptions
@@ -2061,6 +1762,10 @@ impl State {
             user.post_reports
                 .retain(|_, timestamp| *timestamp + CONFIG.user_report_validity_days * DAY >= now);
         }
+        self.logger.info(format!(
+            "Removed inactive controllers from realms {}.",
+            realms_cleaned.join(",")
+        ));
 
         self.accounting.clean_up();
 
@@ -2119,10 +1824,10 @@ impl State {
         let inactive_user_balance_threshold = CONFIG.inactivity_penalty * 4;
         let mut charges = Vec::new();
         for user in self.users.values_mut() {
-            if !user.active_within_weeks(now, CONFIG.voting_power_activity_weeks) {
+            if !user.active_within(WEEK, CONFIG.voting_power_activity_weeks, now) {
                 user.mode = Mode::Credits;
             }
-            if user.active_within_weeks(now, CONFIG.inactivity_duration_weeks) {
+            if user.active_within(WEEK, CONFIG.inactivity_duration_weeks, now) {
                 continue;
             }
             inactive_users += 1;
@@ -2624,7 +2329,7 @@ impl State {
             if user.invited_by.is_some() {
                 invited_users += 1;
             }
-            if user.active_within_weeks(now, 1) {
+            if user.active_within(1, WEEK, now) {
                 active_users += 1;
                 active_users_vp += user.total_balance();
             }
@@ -3163,6 +2868,7 @@ pub fn display_tokens(amount: u64, decimals: u32) -> String {
 
 #[cfg(test)]
 pub(crate) mod tests {
+
     use super::*;
     use invite::tests::create_invite_with_realm;
     use post::Post;
@@ -3426,7 +3132,7 @@ pub(crate) mod tests {
 
         // The old name is reserved now
         assert_eq!(
-            State::create_user(pr(2), "peter".into(), None).await,
+            user::create_user(pr(2), "peter".into(), None).await,
             Err("taken".to_string())
         );
     }
@@ -3574,7 +3280,7 @@ pub(crate) mod tests {
                 0,
                 None,
                 None,
-                Some(Extension::Poll(Poll {
+                Some(Extension::Poll(post::Poll {
                     options: vec!["A".into(), "B".into(), "C".into()],
                     deadline: 72,
                     ..Default::default()
@@ -4562,6 +4268,8 @@ pub(crate) mod tests {
     #[test]
     fn test_clean_up() {
         mutate(|state| {
+            state.init();
+
             let inactive_id1 = create_user_with_credits(state, pr(1), 1500);
             let inactive_id2 = create_user_with_credits(state, pr(2), 1100);
             let inactive_id3 = create_user_with_credits(state, pr(3), 180);
@@ -4608,6 +4316,33 @@ pub(crate) mod tests {
                 user.change_rewards(*rewards, "");
                 user.take_positive_rewards();
             }
+
+            // Make sure user is removed from the DAO realm upon being inactive for a year
+            let user = state.users.get_mut(&inactive_id1).unwrap();
+            user.controlled_realms.insert("DAO".into());
+            let realm = state.realms.get_mut("DAO").unwrap();
+            realm.controllers.insert(inactive_id1);
+            realm.controllers.insert(inactive_id2);
+            realm.last_update = 40 * WEEK;
+            // Make inactive_id2 be active in week 40
+            let user = state.users.get_mut(&inactive_id2).unwrap();
+            user.last_activity = WEEK * 40;
+
+            let now = WEEK + DAY * CONFIG.realm_inactivity_timeout_days;
+            state.clean_up(now);
+            let realm = state.realms.get("DAO").unwrap();
+            // Make sure only inactive_id2 is still controller
+            assert_eq!(
+                realm.controllers.iter().cloned().collect::<Vec<_>>(),
+                vec![inactive_id2]
+            );
+            // Make sure the realm does not appear for inactive_id1
+            assert!(state
+                .users
+                .get(&inactive_id1)
+                .unwrap()
+                .controlled_realms
+                .is_empty())
         })
     }
 
@@ -4932,7 +4667,7 @@ pub(crate) mod tests {
         });
 
         // use the invite
-        assert!(State::create_user(pr(2), "name".to_string(), Some(code))
+        assert!(user::create_user(pr(2), "name".to_string(), Some(code))
             .await
             .is_ok());
 
@@ -4951,7 +4686,7 @@ pub(crate) mod tests {
 
         let prev_revenue = read(|state| state.burned_cycles);
 
-        assert!(State::create_user(pr(3), "name2".to_string(), Some(code))
+        assert!(user::create_user(pr(3), "name2".to_string(), Some(code))
             .await
             .is_ok());
 
@@ -4970,7 +4705,7 @@ pub(crate) mod tests {
         // New user should be joined to realm
         let new_principal = pr(5);
         assert_eq!(
-            State::create_user(new_principal, "name".to_string(), Some(invite_code)).await,
+            user::create_user(new_principal, "name".to_string(), Some(invite_code)).await,
             Ok(Some(realm_id.clone()))
         );
         read(|state| {

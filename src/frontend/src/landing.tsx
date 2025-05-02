@@ -24,22 +24,17 @@ export const Landing = () => {
         (!currentRealm() && user && user.settings.tab) || "TRENDING",
     );
     let labels: [JSX.Element, string][] = [
-        [<New />, "NEW"],
+        [<New />, "ALL"],
         [<Fire />, "TRENDING"],
     ];
     if (!realm) {
         if (user) {
-            // If user didn't configure noise filters, hide NEW
-            const { age_days, balance, num_followers } = user.filters.noise;
-            if (age_days == 0 && balance == 0 && num_followers == 0)
-                labels = labels.slice(1);
             labels.push([
                 <User classNameArg="vertically_aligned" />,
                 "PERSONAL",
             ]);
             if (user.realms.length > 0) labels.push([<Realm />, "REALMS"]);
         } else {
-            labels = labels.slice(1);
             labels.push([<Realm />, "BEST IN REALMS"]);
         }
     }
@@ -120,8 +115,7 @@ export const Landing = () => {
                             realm,
                             page,
                             offset,
-                            // only enable noise filtering outside of realms
-                            !currentRealm(),
+                            false /* don't apply noise filter */,
                         );
                 }}
             />
@@ -217,9 +211,6 @@ export const Links = () => {
                 bigScreen() ? "row_container icon_bar" : "dynamic_table tripple"
             } vertically_spaced spaced`}
         >
-            <a title="NEW POSTS" className="icon_link" href="/#/posts">
-                <New /> ALL NEW POSTS
-            </a>
             <a title="WHITE PAPER" className="icon_link" href="/#/whitepaper">
                 <Document /> WHITE PAPER
             </a>

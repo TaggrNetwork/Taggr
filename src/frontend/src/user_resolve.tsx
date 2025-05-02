@@ -63,11 +63,13 @@ export const UserLink = ({
     pfpSize?: number;
 }) => {
     const [loading, setLoading] = React.useState(false);
-    const [userName, setUserName] = React.useState<string | null>(null);
+    const [userName, setUserName] = React.useState<string | null>(
+        name || USER_CACHE[id] || null,
+    );
 
     const loadUserName = async () => {
         if (name) USER_CACHE[id] = name;
-        await populateUserNameCache([id], setLoading);
+        else await populateUserNameCache([id], setLoading);
         setUserName(USER_CACHE[id]);
     };
 
