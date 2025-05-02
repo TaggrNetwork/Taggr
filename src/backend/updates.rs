@@ -260,7 +260,7 @@ fn toggle_feature_support() {
 fn create_user() {
     let (name, invite): (String, Option<String>) = parse(&arg_data_raw());
     spawn(async {
-        reply(State::create_user(caller(), name, invite).await);
+        reply(user::create_user(caller(), name, invite).await);
     });
 }
 
