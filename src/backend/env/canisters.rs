@@ -1,14 +1,16 @@
 use super::{
-    time,
+    config::{CONFIG, ICP_CYCLES_PER_XDR},
+    invoices, time,
     token::{Account, Subaccount, TransferArgs, TransferError},
     Logger, MINUTE,
 };
-use crate::{env::NeuronId, id};
+use crate::{env::NeuronId, id, mutate, read};
 use candid::{
     utils::{ArgumentDecoder, ArgumentEncoder},
     CandidType, Principal,
 };
 use ic_cdk::api::{
+    self,
     call::CallResult,
     management_canister::{
         main::{
@@ -19,7 +21,7 @@ use ic_cdk::api::{
     },
 };
 use ic_cdk::{api::call::call_raw, notify};
-use ic_ledger_types::MAINNET_GOVERNANCE_CANISTER_ID;
+use ic_ledger_types::{Tokens, MAINNET_GOVERNANCE_CANISTER_ID};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -237,4 +239,78 @@ pub async fn call_canister<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(
     let result = ic_cdk::call(id, method, args).await;
     close_call(method);
     result
+}
+
+/// Tops up all canisters
+pub async fn top_up() {
+    // top up the main canister
+    match cycles(id()).await {
+        Ok((cycles, cycles_per_day)) => {
+            if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
+                let xdrs = (CONFIG.canister_survival_period_days * cycles_per_day
+                    / ICP_CYCLES_PER_XDR)
+                    // Circuit breaker: Never top up for more than ~75$ at once.
+                    .min(50);
+                let icp = Tokens::from_e8s(xdrs * read(|state| state.e8s_for_one_xdr));
+                match invoices::topup_with_icp(&api::id(), icp).await {
+                    Err(err) => mutate(|state| {
+                        state.critical(format!(
+                    "FAILED TO TOP UP THE MAIN CANISTER — {}'S FUNCTIONALITY IS ENDANGERED: {:?}",
+                    CONFIG.name.to_uppercase(),
+                    err
+                ))
+                    }),
+                    Ok(_) => mutate(|state| {
+                        // subtract weekly burned credits to reduce the revenue
+                        state.spend(xdrs * 1000, "main canister top up");
+                        state.logger.debug(format!(
+                        "The main canister was topped up with credits (balance was `{}`, now `{}`).",
+                        cycles,
+                        api::canister_balance()
+                    ))
+                    }),
+                }
+            }
+        }
+        Err(err) => mutate(|state| {
+            state.logger.error(format!(
+                "failed to fetch the cycle balance of the main canister: {}",
+                err
+            ))
+        }),
+    };
+
+    // For any child canister that is below the safety threshold,
+    // top up with cycles for at least `CONFIG.canister_survival_period_days` days.
+    for canister_id in read(|state| state.storage.buckets.keys().cloned().collect::<Vec<_>>()) {
+        match cycles(canister_id).await {
+            Ok((cycles, cycles_per_day)) => {
+                if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
+                    let result = topup_with_cycles(
+                        canister_id,
+                        (CONFIG.canister_survival_period_days * cycles_per_day) as u128,
+                    )
+                    .await;
+                    mutate(|state| match result {
+                        Ok(_) => state.logger.debug(format!(
+                            "The canister {} was topped up (balance was `{}`, now `{}`).",
+                            canister_id,
+                            cycles,
+                            cycles + cycles_per_day
+                        )),
+                        Err(err) => state.critical(format!(
+                            "FAILED TO TOP UP THE CANISTER {}: {:?}",
+                            canister_id, err
+                        )),
+                    })
+                }
+            }
+            Err(err) => mutate(|state| {
+                state.logger.error(format!(
+                    "failed to fetch the cycle balance from `{}`: {}",
+                    canister_id, err
+                ))
+            }),
+        }
+    }
 }
