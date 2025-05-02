@@ -28,6 +28,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 const CYCLES_FOR_NEW_CANISTER: u128 = 1_000_000_000_000;
+// uf6dk-hyaaa-aaaaq-qaaaq-cai
+const XR_CANISTER_ID: Principal = Principal::from_slice(&[0, 0, 0, 0, 2, 16, 0, 1, 1, 1]);
 
 thread_local! {
     static CALLS: RefCell<HashMap<String, i32>> = Default::default();
@@ -225,8 +227,6 @@ pub async fn icrc_transfer(
 }
 
 pub async fn coins_for_one_xdr(coin: &str) -> Result<u64, String> {
-    let xrc_canister_id =
-        Principal::from_text("uf6dk-hyaaa-aaaaq-qaaaq-cai").expect("couldn't parse canister id");
     let args = GetExchangeRateRequest {
         base_asset: Asset {
             symbol: "XDR".into(),
@@ -241,7 +241,7 @@ pub async fn coins_for_one_xdr(coin: &str) -> Result<u64, String> {
     let cycles = 10000000000;
 
     let (response,): (GetExchangeRateResult,) =
-        call_canister_with_payment(xrc_canister_id, "get_exchange_rate", (args,), cycles)
+        call_canister_with_payment(XR_CANISTER_ID, "get_exchange_rate", (args,), cycles)
             .await
             .map_err(|err| format!("xrc call failed: {:?}", err))?;
 
