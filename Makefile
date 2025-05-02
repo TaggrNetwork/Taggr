@@ -50,9 +50,9 @@ e2e_test:
 	dfx stop
 
 release:
-	docker build -t taggr .
+	$(if $(PODMAN),podman,docker) build -t taggr .
 	mkdir -p $(shell pwd)/release-artifacts
-	docker run --rm -v $(shell pwd)/release-artifacts:/target/wasm32-unknown-unknown/release taggr
+	$(if $(PODMAN),podman,docker) run --rm -v $(shell pwd)/release-artifacts:/target/wasm32-unknown-unknown/release taggr
 	make hashes
 
 hashes:
