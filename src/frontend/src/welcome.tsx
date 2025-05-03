@@ -35,14 +35,15 @@ const shortenPrincipal = (principal: string) => {
 };
 
 export const Welcome = () => {
-    const [icpInvoice, setICPInvoice] = React.useState<ICPInvoice>();
-    const [btcInvoice, setBTCInvoice] = React.useState<BTCInvoice>();
-    const [payment, setPayment] = React.useState("icp");
+    const [icpInvoice, setICPInvoice] = React.useState<ICPInvoice | null>();
+    const [btcInvoice, setBTCInvoice] = React.useState<BTCInvoice | null>();
+    const [payment, setPayment] = React.useState("");
     const [loadingInvoice, setLoadingInvoice] = React.useState(false);
     const [seedPhraseConfirmed, setSeedPhraseConfirmed] = React.useState(false);
 
     const checkICPPayment = async () => {
         setLoadingInvoice(true);
+        setPayment("icp");
         const result = await window.api.call<any>("mint_credits_with_icp", 0);
         if ("Err" in result) {
             showPopUp("error", result.Err);
@@ -301,6 +302,15 @@ export const Welcome = () => {
                                                 <br />
                                                 <br />
                                                 {logOutButton}
+                                                <button
+                                                    className="right_spaced"
+                                                    onClick={() => {
+                                                        setBTCInvoice(null);
+                                                        setICPInvoice(null);
+                                                    }}
+                                                >
+                                                    CHANGE PAYMENT
+                                                </button>
                                                 <button
                                                     className="active"
                                                     onClick={
