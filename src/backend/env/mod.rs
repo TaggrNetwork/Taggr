@@ -292,6 +292,20 @@ pub enum Destination {
 }
 
 impl State {
+    /// Returns for the given principal, how many of their tokens should be locked.
+    /// The amount is only expected to be positive if the principal corresponds to
+    /// a user with open proposals.
+    pub fn tokens_locked_on_active_proposals(&self, principal: Principal) -> Token {
+        let Some(user) = self.principal_to_user(principal) else {
+            return 0;
+        };
+        self.proposals
+            .iter()
+            .filter(|proposal| proposal.proposer == user.id && proposal.status == Status::Open)
+            .map(|proposal| proposal.escrow_tokens)
+            .sum()
+    }
+
     pub fn toggle_account_activation(
         &mut self,
         caller: Principal,
@@ -1879,8 +1893,7 @@ impl State {
             if !u.governance
                 || u.is_bot()
                 || u.controversial()
-                || now.saturating_sub(u.timestamp)
-                    < WEEK * CONFIG.min_stalwart_account_age_weeks as u64
+                || now.saturating_sub(u.timestamp) < WEEK * CONFIG.min_stalwart_account_age_weeks
             {
                 u.stalwart = false;
                 continue;
@@ -2900,6 +2913,7 @@ pub(crate) mod tests {
         state.minting_mode = false;
         if let Some(user) = state.principal_to_user_mut(principal) {
             user.change_rewards((amount / token::base()) as i64, "");
+            user.balance = amount;
         }
     }
 
@@ -4566,7 +4580,7 @@ pub(crate) mod tests {
                 .controllers
                 .is_empty());
 
-            let now = CONFIG.min_stalwart_account_age_weeks as u64 * WEEK;
+            let now = CONFIG.min_stalwart_account_age_weeks * WEEK;
             let num_users = 255;
 
             for i in 0..num_users {

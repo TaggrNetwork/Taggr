@@ -75,7 +75,7 @@ pub struct BadFee {
 #[cfg_attr(test, derive(PartialEq))]
 #[derive(CandidType, Debug, Serialize, Deserialize)]
 pub struct InsufficientFunds {
-    balance: u128,
+    pub balance: u128,
 }
 
 #[cfg_attr(test, derive(PartialEq))]
@@ -417,12 +417,13 @@ pub fn transfer(
     let effective_fee = fee.unwrap_or(icrc1_fee()) as Token;
     if from.owner != Principal::anonymous() {
         let effective_amount = (amount as Token).saturating_add(effective_fee);
-        if balance < effective_amount {
+        let resulting_balance = balance.saturating_sub(effective_amount);
+        let locked_tokens = state.tokens_locked_on_active_proposals(from.owner);
+        if balance < effective_amount || resulting_balance < locked_tokens {
             return Err(TransferError::InsufficientFunds(InsufficientFunds {
                 balance: balance as u128,
             }));
         }
-        let resulting_balance = balance.saturating_sub(effective_amount);
         if resulting_balance == 0 {
             state.balances.remove(&from);
         } else {
@@ -510,6 +511,7 @@ pub fn base() -> Token {
 
 pub fn mint(state: &mut State, account: Account, tokens: Token, memo: &str) {
     let now = time();
+    let truncated_memo = memo.chars().take(32).collect::<String>();
     let _result = transfer(
         state,
         now,
@@ -519,10 +521,33 @@ pub fn mint(state: &mut State, account: Account, tokens: Token, memo: &str) {
             to: account,
             amount: tokens as u128,
             fee: Some(0),
-            memo: Some(memo.as_bytes().to_vec()),
+            memo: Some(truncated_memo.as_bytes().to_vec()),
             created_at_time: Some(now),
         },
     );
+}
+
+pub fn burn(
+    state: &mut State,
+    principal: Principal,
+    tokens: Token,
+    memo: &str,
+) -> Result<u128, TransferError> {
+    let now = time();
+    let truncated_memo = memo.chars().take(32).collect::<String>();
+    transfer(
+        state,
+        now,
+        principal,
+        TransferArgs {
+            from_subaccount: None,
+            to: icrc1_minting_account().expect("no minting account"),
+            amount: tokens as u128,
+            fee: Some(0),
+            memo: Some(truncated_memo.as_bytes().to_vec()),
+            created_at_time: Some(now),
+        },
+    )
 }
 
 pub fn balances_from_ledger(

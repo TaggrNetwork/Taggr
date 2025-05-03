@@ -47,7 +47,7 @@ The fee is computed by multiplying `$excess_penalty` with the number of excessiv
 ## Stalwarts
 
 Stalwarts represent the union of top `$stalwart_percentage%` of users with the highest $`$token_symbol`  balance, active during the last  `$min_stalwart_activity_weeks` consecutive weeks and possessing accounts older than `$min_stalwart_account_age_weeks` weeks.
-They are considered trusted community members, authorized to carry out moderating actions and propose upgrades.
+They are considered trusted community members, authorized to carry out moderating actions.
 
 ## Realms
 
@@ -92,12 +92,15 @@ In both cases, participating stalwarts share rewards from the penalty fee, cappe
 ## Governance
 
 $name is governed via proposals.
+Any user with an account age of `$min_stalwart_account_age_weeks`  weeks and a token balance with a value of at least  `$proposal_escrow_amount_usd` USD can create a proposal.
+This number of user's tokens will get locked upon proposal creation and released again after the proposal is executed, cancelled or rejected \_without a controversy*.
+If the proposal was rejectd as controversial, the locked tokens get burned.
+Controversial rejections are proposal rejections with a rejected/adopted ratio under`$proposal_controversy_threashold%`.
+
 There are proposals for upgrading the main smart contract, minting new tokens for funding & rewards, and transferring ICP out of the treasury for off-chain activities of the DAO.
 
 A proposal succeeds if `$proposal_approval_threshold%` of users approve it or fails if `(100 - $proposal_approval_threshold)%` of users reject it.
 Only tokens of registered users active within `$voting_power_activity_weeks` weeks count as participating votes.
-To prevent low-quality proposals, a proposal rejected with a rejected/adopted ratio under `$proposal_controversy_threashold%` incurs a loss of `$proposal_rejection_penalty` rewards and credits for the proposer.
-
 The total voting power of all registered users required to adopt or reject a proposal decreases daily by `1%` while the proposal remains open.
 This is achieved by multiplying the total available voting power by a factor `d%`, where `d` is the number of days the proposal remains open.
 This ensures any proposal eventually passes within `100` days.

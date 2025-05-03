@@ -24,9 +24,8 @@ impl Report {
         self.confirmed_by.len() < self.rejected_by.len()
     }
 
-    pub fn pending_or_recently_confirmed(&self) -> bool {
-        !self.closed
-            || !self.rejected() && self.timestamp + CONFIG.user_report_validity_days * DAY >= time()
+    pub fn recently_confirmed(&self) -> bool {
+        !self.rejected() && self.timestamp + CONFIG.user_report_validity_days * DAY >= time()
     }
 
     pub fn vote(
