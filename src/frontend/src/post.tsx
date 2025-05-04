@@ -26,6 +26,8 @@ import {
     currentRealm,
     parseNumber,
     noiseControlBanner,
+    realmAllowed,
+    NotAllowed,
 } from "./common";
 import {
     reaction2icon,
@@ -80,6 +82,7 @@ export const PostView = ({
     const [body, setBody] = React.useState("");
     const [urls, setUrls] = React.useState({});
     const [notFound, setNotFound] = React.useState(false);
+    const [notAllowed, setNotAllowed] = React.useState(false);
     const [hidden, setHidden] = React.useState(false);
     const [showComments, toggleComments] = React.useState(!!prime);
     const [showInfo, toggleInfo] = React.useState(false);
@@ -92,6 +95,11 @@ export const PostView = ({
         const data = preloadedData || (await loadPosts([id])).pop();
         if (!data) {
             setNotFound(true);
+            return;
+        }
+
+        if (!realmAllowed(data.realm)) {
+            setNotAllowed(true);
             return;
         }
 
@@ -114,6 +122,8 @@ export const PostView = ({
     React.useEffect(() => {
         loadData(data);
     }, [id, version, data]);
+
+    if (notAllowed) return <NotAllowed />;
 
     if (!post) {
         if (notFound) return <NotFound />;

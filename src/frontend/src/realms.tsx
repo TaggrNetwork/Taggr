@@ -10,6 +10,7 @@ import {
     setTitle,
     ToggleButton,
     foregroundColor,
+    domain,
 } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
@@ -521,10 +522,14 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
 
 export const RealmHeader = ({ name }: { name: string }) => {
     const [realm, setRealm] = React.useState<Realm>();
+    const [loading, setLoading] = React.useState(false);
     const [showInfo, toggleInfo] = React.useState(false);
 
     const loadRealm = async () => {
-        let result = (await window.api.query<Realm[]>("realms", [name])) || [];
+        setLoading(true);
+        let result = await window.api.query<Realm[]>("realms", [name]);
+        setLoading(false);
+        if (!result || result.length == 0) return;
         setRealm(result[0]);
     };
 
@@ -535,7 +540,8 @@ export const RealmHeader = ({ name }: { name: string }) => {
 
     setTitle(`realm ${name}`);
 
-    if (!realm) return <Loading />;
+    if (loading) return <Loading />;
+    if (!realm) return null;
 
     const colors = {
         background: realm.label_color,
@@ -677,8 +683,13 @@ export const Realms = () => {
     const loadRealms = async () => {
         const data =
             (filter
-                ? await window.api.query<any>("realm_search", filter)
-                : await window.api.query<any>("all_realms", order, page)) || [];
+                ? await window.api.query<any>("realm_search", domain(), filter)
+                : await window.api.query<any>(
+                      "all_realms",
+                      domain(),
+                      order,
+                      page,
+                  )) || [];
         if (data.length == 0) {
             setNoMoreData(true);
         }

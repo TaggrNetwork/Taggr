@@ -55,8 +55,8 @@ pub struct HttpResponse {
 
 #[ic_cdk_macros::update]
 fn http_request_update(req: HttpRequest) -> HttpResponse {
-    let path = &req.url;
-    route(path)
+    let url = &req.url;
+    route(url)
         .map(|(headers, body)| HttpResponse {
             status_code: 200,
             headers,
@@ -174,15 +174,15 @@ fn http_request(req: HttpRequest) -> HttpResponse {
     }
 }
 
-fn route(path: &str) -> Option<(Headers, ByteBuf)> {
+fn route(url: &str) -> Option<(Headers, ByteBuf)> {
     read(|state| {
-        let domain = CONFIG.domains.first().cloned().expect("no domains");
         let filter = |val: &str| {
             val.chars()
                 .filter(|c| c.is_alphanumeric() || " .,?!-:/@\n#".chars().any(|v| &v == c))
                 .collect::<String>()
         };
-        let mut parts = path.split('/').skip(1);
+        let mut parts = url.split('/');
+        let domain = parts.next()?;
         match (parts.next(), parts.next()) {
             (Some("post"), Some(id)) | (Some("thread"), Some(id)) => {
                 if let Some(post) =

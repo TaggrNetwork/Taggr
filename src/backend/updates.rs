@@ -1,6 +1,7 @@
 use crate::env::{
     proposals::{Payload, Release},
     user::{Mode, UserFilter},
+    DomainConfig,
 };
 
 use super::*;
@@ -81,7 +82,46 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|s| {
+        // Needed for the local development.
+        let mut cfg = DomainConfig::default();
+        cfg.realm_whitelist.insert("DAO".into());
+        cfg.realm_whitelist.insert("TAGGRDEV".into());
+        cfg.realm_whitelist.insert("NEWS".into());
+        s.domains.insert("localhost".into(), cfg);
+
+        // DAO controlled domains
+        s.domains.insert(
+            "6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io".into(),
+            DomainConfig::default(),
+        );
+        s.domains.insert(
+            "6qfxa-ryaaa-aaaai-qbhsq-cai.ic0.app".into(),
+            DomainConfig::default(),
+        );
+
+        // Currently supported domains
+        let mut cfg = DomainConfig::default();
+        cfg.owner = Some(0); // X
+        s.domains.insert("taggr.link".into(), cfg);
+
+        let mut cfg = DomainConfig::default();
+        cfg.owner = Some(8); // radudaniel
+        s.domains.insert("taggr.wtf".into(), cfg.clone());
+        s.domains.insert("taggr.blog".into(), cfg);
+
+        let mut cfg = DomainConfig::default();
+        cfg.owner = Some(305); // mechaquan
+        s.domains.insert("taggr.network".into(), cfg.clone());
+
+        // TODO remove before release
+        s.domains.insert(
+            "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io".into(),
+            DomainConfig::default(),
+        )
+    });
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
