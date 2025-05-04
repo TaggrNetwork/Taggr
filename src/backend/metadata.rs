@@ -1,8 +1,6 @@
 use crate::env::config::CONFIG;
 
-pub fn set_index_metadata(body: &[u8]) -> Vec<u8> {
-    let domain = CONFIG.domains.first().cloned().expect("no domains");
-
+pub fn set_index_metadata(domain: &str, body: &[u8]) -> Vec<u8> {
     set_metadata(
         body,
         domain,

@@ -1,4 +1,8 @@
-use crate::{config::CONFIG, env::token, metadata::set_index_metadata};
+use crate::{
+    config::CONFIG,
+    env::{token, DomainConfig},
+    metadata::set_index_metadata,
+};
 use base64::{engine::general_purpose, Engine as _};
 use ic_certified_map::{labeled, labeled_hash, AsHashTree, Hash, RbTree};
 use serde_bytes::ByteBuf;
@@ -27,16 +31,22 @@ pub fn index_html_headers() -> Headers {
     )]
 }
 
-pub fn load() {
+pub fn load(domains: &HashMap<String, DomainConfig>) {
     unsafe {
         ASSET_HASHES = Some(Default::default());
         ASSETS = Some(Default::default());
     }
 
+    let dao_owned_domain = domains
+        .iter()
+        .find(|(_, cfg)| cfg.owner.is_none())
+        .map(|(domain, _)| domain)
+        .expect("no DAO domains");
+
     add_asset(
         &["/", "/index.html"],
         index_html_headers(),
-        set_index_metadata(INDEX_HTML),
+        set_index_metadata(dao_owned_domain, INDEX_HTML),
     );
 
     add_asset(
@@ -96,7 +106,6 @@ pub fn load() {
         include_bytes!("../../dist/frontend/font-bold.woff2").to_vec(),
     );
 
-    let domains = Vec::from(CONFIG.domains);
     add_asset(
         &["/.well-known/ii-alternative-origins"],
         vec![
@@ -106,8 +115,8 @@ pub fn load() {
         format!(
             "{{\"alternativeOrigins\": [ {} ]}}",
             domains
-                .iter()
-                .chain(std::iter::once(&CONFIG.staging))
+                .keys()
+                .chain(std::iter::once(&CONFIG.staging.to_string()))
                 .map(|domain| format!("\"https://{}\"", &domain))
                 .collect::<Vec<_>>()
                 .join(",")
@@ -119,7 +128,13 @@ pub fn load() {
     add_asset(
         &["/.well-known/ic-domains"],
         Default::default(),
-        domains.join("\n").as_bytes().to_vec(),
+        domains
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n")
+            .as_bytes()
+            .to_vec(),
     );
 
     certify();

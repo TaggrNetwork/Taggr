@@ -25,6 +25,7 @@ import {
     expandMeta,
     KNOWN_USER,
     showPopUp,
+    domain,
 } from "./common";
 import { Settings } from "./settings";
 import { Welcome, WelcomeInvited } from "./welcome";
@@ -32,7 +33,7 @@ import { Proposals } from "./proposals";
 import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
-import { Config, User, Stats } from "./types";
+import { Config, User, Stats, DomainConfig } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
@@ -90,6 +91,7 @@ const App = () => {
     const auth = (content: React.ReactNode) =>
         window.getPrincipalId() ? content : <Unauthorized />;
     const [handler = "", param, param2] = parseHash();
+
     let subtle = false;
     let inboxMode = false;
     let content = null;
@@ -236,10 +238,11 @@ const App = () => {
 
 const reloadCache = async () => {
     window.backendCache = window.backendCache || { users: [], recent_tags: [] };
-    const [recent_tags, stats, config] = await Promise.all([
-        window.api.query<[string, any][]>("recent_tags", "", 500),
+    const [recent_tags, stats, config, domains] = await Promise.all([
+        window.api.query<[string, any][]>("recent_tags", domain(), "", 500),
         window.api.query<Stats>("stats"),
         window.api.query<Config>("config"),
+        window.api.query<{ [domain: string]: DomainConfig }>("domains"),
     ]);
     if (!config) console.error("Config wasn't loaded!");
     if (!stats) console.error("Stats weren't loaded!");
@@ -247,6 +250,7 @@ const reloadCache = async () => {
         recent_tags: recent_tags || [],
         stats: stats || ({} as Stats),
         config: config || ({} as Config),
+        domains: domains || {},
     };
     const last_upgrade = window.backendCache.stats?.last_release?.timestamp;
     if (!last_upgrade) return;

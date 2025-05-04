@@ -11,7 +11,6 @@ pub const ICP_CYCLES_PER_XDR: u64 = 1_000_000_000_000;
 #[derive(CandidType, Serialize)]
 pub struct Config {
     pub name: &'static str,
-    pub domains: &'static [&'static str],
     pub logo: &'static str,
     pub staging: &'static str,
 
@@ -157,14 +156,6 @@ mod string {
 
 pub const CONFIG: &Config = &Config {
     name: "Taggr",
-    domains: &[
-        "taggr.link",
-        "taggr.network",
-        "taggr.blog",
-        "taggr.wtf",
-        "6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io",
-        "6qfxa-ryaaa-aaaai-qbhsq-cai.ic0.app",
-    ],
     logo: include_str!("../../frontend/assets/logo.min.svg"),
     staging: "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io",
 

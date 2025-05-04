@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Loading, ShareButton } from "./common";
+import { domain, Loading, ShareButton } from "./common";
 import { PostId, UserId } from "./types";
 import { UserLink } from "./user_resolve";
 import { Principal } from "@dfinity/principal";
@@ -34,7 +34,7 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
             return;
         } catch (_) {}
         setSearching(true);
-        setResults((await window.api.query("search", query)) || []);
+        setResults((await window.api.query("search", domain(), query)) || []);
         setSearching(false);
     };
 

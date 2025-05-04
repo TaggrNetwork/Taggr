@@ -77,6 +77,14 @@ pub struct Event {
     pub message: String,
 }
 
+#[derive(Default, Clone, Deserialize, Serialize)]
+pub struct DomainConfig {
+    // If a domain config has no owner, it is managed by the DAO
+    pub owner: Option<UserId>,
+    pub realm_whitelist: HashSet<RealmId>,
+    pub realm_blacklist: HashSet<RealmId>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Stats {
     e8s_revenue_per_1k: u64,
@@ -201,8 +209,10 @@ pub struct State {
 
     pub memory: memory::Memory,
 
-    #[serde(default)]
     pub pfps: HashSet<String>,
+
+    #[serde(default)]
+    pub domains: HashMap<String, DomainConfig>,
 
     // This runtime flag has to be set in order to mint new tokens.
     #[serde(skip)]
@@ -628,7 +638,9 @@ impl State {
     }
 
     pub fn init(&mut self) {
-        assets::load();
+        self.domains
+            .insert("localhost".into(), DomainConfig::default());
+        assets::load(&self.domains);
         match token::balances_from_ledger(&mut self.memory.ledger.iter().map(|(_, tx)| tx)) {
             Ok((balances, total_fees)) => {
                 for user in self.users.values_mut() {
@@ -665,6 +677,7 @@ impl State {
 
     pub fn realms_posts(
         &self,
+        domain: String,
         caller: Principal,
         offset: PostId,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
@@ -675,22 +688,26 @@ impl State {
             None | Some(&[]) => return Box::new(std::iter::empty()),
             Some(ids) => ids.iter().collect::<BTreeSet<_>>(),
         };
-        Box::new(self.last_posts(None, offset, 0, false).filter(move |post| {
-            post.realm
-                .as_ref()
-                .map(|id| realm_ids.contains(&id))
-                .unwrap_or_default()
-        }))
+        Box::new(
+            self.last_posts(domain, None, offset, 0, false)
+                .filter(move |post| {
+                    post.realm
+                        .as_ref()
+                        .map(|id| realm_ids.contains(&id))
+                        .unwrap_or_default()
+                }),
+        )
     }
 
     pub fn hot_posts(
         &self,
+        domain: String,
         realm: Option<RealmId>,
         offset: PostId,
         filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
-            .last_posts(realm.clone(), offset, 0, false)
+            .last_posts(domain, realm.clone(), offset, 0, false)
             .filter(|post| {
                 // we exclude NSFW posts unless the query comes for the realm of the post
                 (!post.with_meta(self).1.nsfw || post.realm.as_ref() == realm.as_ref())
@@ -2120,17 +2137,85 @@ impl State {
         Ok(())
     }
 
+    /// Returns an iterator that is
+    /// - simply the list of all posts if no whitelist is specified,
+    /// - a merge iterator over all posts from all white-listed realms of the given domain.
+    pub fn domain_post_iter<'a>(
+        &'a self,
+        domain: &String,
+    ) -> Box<dyn Iterator<Item = PostId> + 'a> {
+        let Some(cfg) = self.domains.get(domain) else {
+            return Box::new(std::iter::empty());
+        };
+
+        if cfg.realm_whitelist.is_empty() {
+            return Box::new(self.root_posts_index.iter().rev().copied());
+        }
+
+        let iterators: Vec<Box<dyn Iterator<Item = &'a PostId>>> = cfg
+            .realm_whitelist
+            .iter()
+            .filter_map(move |id| self.realms.get(id))
+            .map(|realm| Box::new(realm.posts.iter().rev()) as Box<dyn Iterator<Item = &'a PostId>>)
+            .collect();
+
+        Box::new(IteratorMerger::new(MergeStrategy::Or, iterators).copied())
+    }
+
+    /// Creates a post filter based on the current domain and selected realm.
+    /// If domain is inavlid no filter is returned.
+    #[allow(clippy::type_complexity)]
+    pub fn domain_realm_post_filter(
+        &self,
+        domain: &String,
+        realm_id: Option<&RealmId>,
+    ) -> Option<Box<dyn Fn(&Post) -> bool>> {
+        let cfg = self.domains.get(domain)?;
+
+        match realm_id {
+            Some(id) => {
+                let wl = &cfg.realm_whitelist;
+                let bl = &cfg.realm_blacklist;
+                // If the realm is specified, but is on a black list or is not on a non-empty
+                // white-list, we have no filter.
+                if bl.contains(id.as_str()) || !wl.is_empty() && !wl.contains(id.as_str()) {
+                    return None;
+                }
+                let id = id.clone();
+                // The realm is ok for the given domain, simply filter post by realm id.
+                Some(Box::new(move |p: &Post| p.realm.as_ref() == Some(&id)))
+            }
+            None => {
+                let wl = cfg.realm_whitelist.clone();
+                let bl = cfg.realm_whitelist.clone();
+                // If the realm id was not provided, we can only return posts, that are:
+                // - are realm-less, if the domain has a empty whitelist,
+                // - are not in a realm that's black-listed for this domain,
+                // - are in a realm and this realm is white-listed for this domain
+                return Some(Box::new(move |p: &Post| {
+                    p.realm
+                        .as_ref()
+                        .map(|id| wl.contains(id) || wl.is_empty() && !bl.contains(id))
+                        .unwrap_or(wl.is_empty())
+                }));
+            }
+        }
+    }
+
     pub fn posts_by_tags_and_users<'a>(
         &'a self,
+        domain: &String,
         realm_id: Option<RealmId>,
         offset: PostId,
         tags_and_users: &'a [String],
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+        let Some(domain_filter) = self.domain_realm_post_filter(domain, realm_id.as_ref()) else {
+            return Box::new(std::iter::empty());
+        };
+
         let filter = move |post: &Post| {
-            !post.is_deleted()
-                && (with_comments || post.parent.is_none())
-                && (realm_id.is_none() || post.realm == realm_id)
+            !post.is_deleted() && (with_comments || post.parent.is_none()) && domain_filter(post)
         };
 
         let tags = tags_and_users
@@ -2174,7 +2259,7 @@ impl State {
                 users
                     .into_iter()
                     .filter_map(|user_id| self.users.get(&user_id))
-                    .map(|user| user.posts(self, offset, with_comments))
+                    .map(|user| user.posts(Some(domain), self, offset, with_comments))
                     .collect(),
             )
             .filter(move |post| filter(post) && tags.iter().all(|tag| post.tags.contains(tag))),
@@ -2183,6 +2268,7 @@ impl State {
 
     pub fn last_posts<'a>(
         &'a self,
+        domain: String,
         realm_id: Option<RealmId>,
         offset: PostId,
         genesis: Time,
@@ -2207,28 +2293,38 @@ impl State {
                         };
                         Box::new((0..last_id).rev())
                     } else {
-                        Box::new(
-                            self.root_posts_index
-                                .iter()
-                                .rev()
-                                .skip_while(move |post_id| offset > 0 && *post_id > &offset)
-                                .copied(),
-                        )
+                        self.domain_post_iter(&domain)
                     }
                 }
             };
-        Box::new(
-            iter.filter_map(move |i| Post::get(self, &i))
-                .take_while(move |post| post.creation_timestamp() >= genesis)
-                .filter(move |post| !post.is_deleted()),
-        )
+
+        let iter = iter
+            .filter_map(move |i| Post::get(self, &i))
+            .take_while(move |post| post.creation_timestamp() >= genesis)
+            .filter(move |post| !post.is_deleted());
+
+        // Depending on the domain, we might need to respect the realm blacklist.
+        match self.domains.get(&domain) {
+            Some(cfg) if !cfg.realm_blacklist.is_empty() => Box::new(iter.filter(move |post| {
+                post.realm
+                    .as_ref()
+                    .map(|id| !cfg.realm_blacklist.contains(id))
+                    .unwrap_or(true)
+            })),
+            _ => Box::new(iter),
+        }
     }
 
-    pub fn recent_tags(&self, realm_id: Option<RealmId>, n: usize) -> Vec<(String, u64)> {
+    pub fn recent_tags(
+        &self,
+        domain: String,
+        realm_id: Option<RealmId>,
+        n: usize,
+    ) -> Vec<(String, u64)> {
         let mut tags: HashMap<String, u64> = Default::default();
         let muted_tags: BTreeSet<String> = vec!["taggr".into()].into_iter().collect();
         for post in self
-            .last_posts(realm_id, 0, 0, false)
+            .last_posts(domain, realm_id, 0, 0, false)
             // We only count tags occurrences on root posts, if they have comments or reactions
             .filter(|post| {
                 post.parent.is_none() && !post.reactions.is_empty() && !post.children.is_empty()
@@ -2955,6 +3051,81 @@ impl State {
         }
 
         Ok(())
+    }
+
+    /// Returns realms available under the current domain:
+    ///  - if a whitelist is specified, it return only realms from this list,
+    ///  - if a blacklist is specified, returns all realms not on that list.
+    ///
+    /// If no config found, returns all domains.
+    pub fn available_realms(&self, domain: String) -> Box<dyn Iterator<Item = &'_ RealmId> + '_> {
+        let Some(config) = self.domains.get(&domain) else {
+            return Box::new(std::iter::empty());
+        };
+        let wl = &config.realm_whitelist;
+        let bl = &config.realm_blacklist;
+        let iter = self.realms.iter();
+        return Box::new(
+            iter.filter(move |(realm_id, _)| {
+                if wl.is_empty() {
+                    !bl.contains(realm_id.as_str())
+                } else {
+                    wl.contains(realm_id.as_str())
+                }
+            })
+            .map(|(id, _)| id),
+        );
+    }
+
+    /// Returns the list of all available realms to be displayed on the UI, depending on the
+    /// sorting criteria.
+    pub fn sorted_realms(
+        &self,
+        domain: String,
+        order: String,
+    ) -> Box<dyn Iterator<Item = (&'_ RealmId, &'_ Realm)> + '_> {
+        let realm_vp = read(|state| {
+            state
+                .users
+                .values()
+                .fold(BTreeMap::default(), |mut acc, user| {
+                    let vp = (user.total_balance() as f32).sqrt() as u64;
+                    user.realms.iter().for_each(|realm_id| {
+                        acc.entry(realm_id.clone())
+                            .and_modify(|realm_vp| *realm_vp += vp)
+                            .or_insert(vp);
+                    });
+                    acc
+                })
+        });
+        let mut realms = self
+            .available_realms(domain)
+            .filter_map(|realm_id| self.realms.get(realm_id).map(|realm| (realm_id, realm)))
+            .collect::<Vec<_>>();
+        if order != "name" {
+            realms.sort_unstable_by_key(|(realm_id, realm)| match order.as_str() {
+                "popularity" => {
+                    let realm_vp = realm_vp.get(realm_id.as_str()).copied().unwrap_or(1);
+                    let vp = if realm.whitelist.is_empty() {
+                        realm_vp
+                    } else {
+                        1
+                    };
+                    let moderation = if realm.filter == UserFilter::default() {
+                        1
+                    } else {
+                        realm_vp
+                    };
+                    Reverse(
+                        vp * moderation
+                            + (realm.num_members as f32).sqrt() as u64
+                            + (realm.posts.len() as f32).sqrt() as u64,
+                    )
+                }
+                _ => Reverse(realm.last_update),
+            });
+        }
+        Box::new(realms.into_iter())
     }
 }
 
@@ -3738,7 +3909,7 @@ pub(crate) mod tests {
 
     fn realm_posts(state: &State, name: &str) -> Vec<PostId> {
         state
-            .last_posts(None, 0, 0, true)
+            .last_posts("domain".into(), None, 0, 0, true)
             .filter(|post| post.realm.as_ref() == Some(&name.to_string()))
             .map(|post| post.id)
             .collect::<Vec<_>>()
@@ -4269,7 +4440,7 @@ pub(crate) mod tests {
             let post_visible = |state: &State| {
                 let inverse_filters = state.principal_to_user(caller).map(|user| &user.filters);
                 state
-                    .last_posts(None, 0, 0, true)
+                    .last_posts("domain".into(), None, 0, 0, true)
                     .filter(|post| {
                         inverse_filters
                             .map(|filters| !post.matches_filters(filters))
@@ -4306,6 +4477,11 @@ pub(crate) mod tests {
     #[test]
     fn test_personal_feed() {
         mutate(|state| {
+            state.init();
+            state
+                .domains
+                .insert("domain".into(), DomainConfig::default());
+
             // create a post author and one post for its principal
             let p = pr(0);
             let post_author_id = create_user(state, p);
@@ -4327,7 +4503,7 @@ pub(crate) mod tests {
             assert!(state
                 .user(&user_id.to_string())
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed("domain".into(), state, 0)
                 .next()
                 .is_none());
 
@@ -4340,7 +4516,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed("domain".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 1);
@@ -4357,7 +4533,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed("domain".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 1);
@@ -4383,7 +4559,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed("domain".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -4410,7 +4586,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed("domain".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -4426,7 +4602,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed("domain".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 3);
@@ -4441,7 +4617,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed("domain".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -4455,7 +4631,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed("domain".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert!(feed.contains(&post_id));
@@ -4466,7 +4642,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed(state, 0)
+                .personal_feed("domain".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert!(!feed.contains(&post_id));

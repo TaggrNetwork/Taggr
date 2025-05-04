@@ -241,19 +241,31 @@ impl User {
         self.balance + self.cold_balance
     }
 
+    /// Returns all posts of the user.
+    /// If no domain is specified (e.g. for excess penalty computations), return all
+    /// posts without restrictions. Otherwise, return a filter corresponding to thedomain config.
     pub fn posts<'a>(
         &'a self,
+        domain: Option<&String>,
         state: &'a State,
         offset: PostId,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
+        let filter = match domain {
+            None => Box::new(|_: &Post| true),
+            Some(domain) => match state.domain_realm_post_filter(domain, None) {
+                Some(filter) => filter,
+                None => return Box::new(std::iter::empty()),
+            },
+        };
+
         Box::new(
             self.posts
                 .iter()
                 .rev()
                 .skip_while(move |post_id| offset > 0 && post_id > &&offset)
                 .filter_map(move |post_id| Post::get(state, post_id))
-                .filter(move |post| with_comments || post.parent.is_none()),
+                .filter(move |post| filter(post) && (with_comments || post.parent.is_none())),
         )
     }
 
@@ -357,6 +369,7 @@ impl User {
 
     pub fn personal_feed<'a>(
         &'a self,
+        domain: String,
         state: &'a State,
         offset: PostId,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
@@ -364,11 +377,11 @@ impl User {
             .followees
             .iter()
             .filter_map(move |id| state.users.get(id))
-            .map(|user| user.posts(state, 0, false))
+            .map(|user| user.posts(Some(&domain), state, 0, false))
             .collect();
 
         for feed in self.feeds.iter() {
-            iterators.push(state.posts_by_tags_and_users(None, offset, feed, false))
+            iterators.push(state.posts_by_tags_and_users(&domain, None, offset, feed, false))
         }
 
         Box::new(

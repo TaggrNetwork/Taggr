@@ -1,7 +1,7 @@
 // @ts-ignore
 import template from "./style.css";
 import { currentRealm } from "./common";
-import { Theme } from "./types";
+import { Realm, Theme } from "./types";
 
 var shade = function (color: string, percent: number) {
     var num = parseInt(color.replace("#", ""), 16),
@@ -100,7 +100,8 @@ export const setRealmUI = (realm: string) => {
     window.realm = realm;
     if (window.user && window.user.settings.overrideRealmColors == "true")
         return;
-    window.api.query("realms", [realm]).then((result: any) => {
+    window.api.query<Realm[]>("realms", [realm]).then((result) => {
+        if (!result || result.length == 0) return;
         let realm = result[0];
         let realmTheme = realm.theme;
         if (realmTheme) applyTheme(JSON.parse(realmTheme));

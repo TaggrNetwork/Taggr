@@ -10,6 +10,12 @@ export type ICP = {
     e8s: BigInt | number;
 };
 
+export type DomainConfig = {
+    owner: UserId;
+    realm_whitelist: RealmId[];
+    realm_blacklist: RealmId[];
+};
+
 export type PFP = {
     nonce: number;
     palette_nonce: number;
@@ -155,7 +161,7 @@ export type Post = {
     patches: [BigInt, string][];
     tips: [UserId, BigInt][];
     hashes: string[];
-    realm?: string;
+    realm?: RealmId;
     timestamp: BigInt;
     extension: Extension;
     tree_size: number;
@@ -301,7 +307,6 @@ export type Stats = {
     total_revenue_shared: BigInt;
     canister_cycle_balance: BigInt;
     last_release: LastReleaseInfo;
-    domains: string[];
     bots: UserId[];
     weekly_karma_leaders: [UserId, number][];
     invited_users: number;
@@ -357,7 +362,6 @@ export type Config = {
     feed_page_size: number;
     reactions: [number, number][];
     token_decimals: number;
-    domains: string[];
     reporting_penalty_post: number;
     reporting_penalty_misbehaviour: number;
 };
@@ -390,6 +394,7 @@ declare global {
             recent_tags: [string, number][];
             stats: Stats;
             config: Config;
+            domains: { [domain: string]: DomainConfig };
         };
     }
 }

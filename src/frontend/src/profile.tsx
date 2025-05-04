@@ -18,6 +18,7 @@ import {
     setTitle,
     pfpUrl,
     showPopUp,
+    domain,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -232,6 +233,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                         if (tab == "TAGS")
                             return await window.api.query(
                                 "user_tags",
+                                domain(),
                                 profile.name,
                                 page,
                                 offset,
@@ -239,12 +241,14 @@ export const Profile = ({ handle }: { handle: string }) => {
                         if (tab == "REWARDED")
                             return await window.api.query(
                                 "rewarded_posts",
+                                domain(),
                                 profile.id.toString(),
                                 page,
                                 offset,
                             );
                         return await window.api.query(
                             "user_posts",
+                            domain(),
                             profile.id.toString(),
                             page,
                             offset,

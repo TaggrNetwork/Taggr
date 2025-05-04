@@ -167,11 +167,12 @@ const linkRenderer =
                 try {
                     const url = new URL(props.href);
 
+                    // @ts-ignore
+                    let domains = []; // TODO
                     // Internal links
                     if (
-                        window.backendCache.config.domains.some((domain) =>
-                            url.hostname.includes(domain),
-                        )
+                        // @ts-ignore
+                        domains.some((domain) => url.hostname.includes(domain))
                     ) {
                         const nonMarkdownLink = label == url.href;
                         let link = url.href.replace(url.origin + "/", "");
