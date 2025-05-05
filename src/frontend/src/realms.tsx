@@ -575,15 +575,19 @@ export const RealmHeader = ({ name }: { name: string }) => {
                 styleArg={colors}
                 content={
                     <>
-                        <ButtonWithLoading
-                            styleArg={colors}
-                            testId="realm-close-button"
-                            onClick={async () => {
-                                window.realm = "";
-                                location.href = "/#/home";
-                            }}
-                            label={<Close styleArg={{ fill: colors.color }} />}
-                        />
+                        {!window.monoRealm && (
+                            <ButtonWithLoading
+                                styleArg={colors}
+                                testId="realm-close-button"
+                                onClick={async () => {
+                                    window.realm = "";
+                                    location.href = "/#/home";
+                                }}
+                                label={
+                                    <Close styleArg={{ fill: colors.color }} />
+                                }
+                            />
+                        )}
                         <BurgerButton
                             styleArg={colors}
                             onClick={() => toggleInfo(!showInfo)}

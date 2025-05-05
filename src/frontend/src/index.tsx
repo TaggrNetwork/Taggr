@@ -96,22 +96,13 @@ const App = () => {
     let inboxMode = false;
     let content = null;
 
-    // If we're in a realm, but navigate outside of realm routes, reset the UI.
-    if (
-        currentRealm() &&
-        ["#/realm/", "#/feed", "#/post/", "#/thread", "#/new"].every(
-            (prefix: string) => !location.hash.startsWith(prefix),
-        )
-    ) {
-        window.realm = "";
-        window.uiInitialized = false;
-    }
-
     setTitle(handler);
     setUI();
     if (handler == "realm" && currentRealm() != param) {
         setRealmUI(param.toUpperCase());
     }
+
+    if (window.monoRealm) setRealmUI(window.monoRealm);
 
     if (handler == "whitepaper") {
         content = <Whitepaper />;
@@ -125,8 +116,8 @@ const App = () => {
             <WelcomeInvited />
         );
     } else if (
-        (handler == "wallet" || (window.getPrincipalId() && !window.user)) &&
-        !window.realm
+        handler == "wallet" ||
+        (window.getPrincipalId() && !window.user)
     ) {
         content = <Welcome />;
     } else if (handler == "post") {
@@ -252,6 +243,11 @@ const reloadCache = async () => {
         config: config || ({} as Config),
         domains: domains || {},
     };
+    const domainCfg = (domains || {})[domain()];
+    window.monoRealm =
+        domainCfg.realm_whitelist.length == 1
+            ? domainCfg.realm_whitelist[0]
+            : null;
     const last_upgrade = window.backendCache.stats?.last_release?.timestamp;
     if (!last_upgrade) return;
     else if (window.lastSavedUpgrade == 0) {
