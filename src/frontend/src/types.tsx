@@ -390,6 +390,8 @@ declare global {
         scrollUpButton: HTMLElement;
         lastSavedUpgrade: number;
         uiInitialized: boolean;
+        // Domains with a single whitelisted realm
+        monoRealm: string | null;
         backendCache: {
             recent_tags: [string, number][];
             stats: Stats;

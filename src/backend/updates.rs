@@ -86,9 +86,7 @@ fn sync_post_upgrade_fixtures() {
     mutate(|s| {
         // Needed for the local development.
         let mut cfg = DomainConfig::default();
-        cfg.realm_whitelist.insert("DAO".into());
-        cfg.realm_whitelist.insert("TAGGRDEV".into());
-        cfg.realm_whitelist.insert("NEWS".into());
+        cfg.realm_whitelist.insert("DIAMOND-HANDS".into());
         s.domains.insert("localhost".into(), cfg);
 
         // DAO controlled domains
