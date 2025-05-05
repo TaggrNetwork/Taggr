@@ -1,7 +1,7 @@
 import * as React from "react";
 import { PostFeed } from "./post_feed";
 import { Search } from "./search";
-import { bigScreen, currentRealm, Loading } from "./common";
+import { bigScreen, currentRealm, domain, Loading } from "./common";
 import {
     New,
     User,
@@ -88,19 +88,21 @@ export const Landing = () => {
                     if (feed == "PERSONAL")
                         return await window.api.query(
                             "personal_feed",
+                            domain(),
                             page,
                             offset,
                         );
                     if (feed == "BEST IN REALMS")
                         return await window.api.query(
                             "hot_realm_posts",
-                            realm,
+                            domain(),
                             page,
                             offset,
                         );
                     if (feed == "HOT")
                         return await window.api.query(
                             "hot_posts",
+                            domain(),
                             realm,
                             page,
                             offset,
@@ -110,11 +112,13 @@ export const Landing = () => {
                     if (feed == "REALMS")
                         return await window.api.query(
                             "realms_posts",
+                            domain(),
                             page,
                             offset,
                         );
                     return await window.api.query(
                         "last_posts",
+                        domain(),
                         realm,
                         page,
                         offset,
@@ -158,6 +162,7 @@ export const TagCloud = ({
         let tags = realm
             ? (await window.api.query<[string, number][]>(
                   "recent_tags",
+                  domain(),
                   realm,
                   200,
               )) || []

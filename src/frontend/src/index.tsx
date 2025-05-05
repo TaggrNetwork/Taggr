@@ -23,6 +23,7 @@ import {
     currentRealm,
     loadFeed,
     expandMeta,
+    domain,
 } from "./common";
 import { Settings } from "./settings";
 import { Welcome, WelcomeInvited } from "./welcome";
@@ -30,7 +31,7 @@ import { Proposals } from "./proposals";
 import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
-import { Config, User, Stats } from "./types";
+import { Config, User, Stats, DomainConfig } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
@@ -88,26 +89,18 @@ const App = () => {
     const auth = (content: React.ReactNode) =>
         window.getPrincipalId() ? content : <Unauthorized />;
     const [handler = "", param, param2] = parseHash();
+
     let subtle = false;
     let inboxMode = false;
     let content = null;
-
-    // If we're in a realm, but navigate outside of realm routes, reset the UI.
-    if (
-        currentRealm() &&
-        ["#/realm/", "#/feed", "#/post/", "#/thread", "#/new"].every(
-            (prefix: string) => !location.hash.startsWith(prefix),
-        )
-    ) {
-        window.realm = "";
-        window.uiInitialized = false;
-    }
 
     setTitle(handler);
     setUI();
     if (handler == "realm" && currentRealm() != param) {
         setRealmUI(param.toUpperCase());
     }
+
+    if (window.monoRealm) setRealmUI(window.monoRealm);
 
     if (handler == "whitepaper") {
         content = <Whitepaper />;
@@ -121,8 +114,8 @@ const App = () => {
             <WelcomeInvited />
         );
     } else if (
-        (handler == "wallet" || (window.getPrincipalId() && !window.user)) &&
-        !window.realm
+        handler == "wallet" ||
+        (window.getPrincipalId() && !window.user)
     ) {
         content = <Welcome />;
     } else if (handler == "post") {
@@ -234,10 +227,11 @@ const App = () => {
 
 const reloadCache = async () => {
     window.backendCache = window.backendCache || { users: [], recent_tags: [] };
-    const [recent_tags, stats, config] = await Promise.all([
-        window.api.query<[string, any][]>("recent_tags", "", 500),
+    const [recent_tags, stats, config, domains] = await Promise.all([
+        window.api.query<[string, any][]>("recent_tags", domain(), "", 500),
         window.api.query<Stats>("stats"),
         window.api.query<Config>("config"),
+        window.api.query<{ [domain: string]: DomainConfig }>("domains"),
     ]);
     if (!config) console.error("Config wasn't loaded!");
     if (!stats) console.error("Stats weren't loaded!");
@@ -245,7 +239,13 @@ const reloadCache = async () => {
         recent_tags: recent_tags || [],
         stats: stats || ({} as Stats),
         config: config || ({} as Config),
+        domains: domains || {},
     };
+    const domainCfg = (domains || {})[domain()];
+    window.monoRealm =
+        domainCfg.realm_whitelist.length == 1
+            ? domainCfg.realm_whitelist[0]
+            : null;
     const last_upgrade = window.backendCache.stats?.last_release?.timestamp;
     if (!last_upgrade) return;
     else if (window.lastSavedUpgrade == 0) {

@@ -568,7 +568,7 @@ impl Post {
         let future_id = state.next_post_id;
         let is_comment = parent.is_some();
         let excess_factor = user
-            .posts(state, 0, is_comment)
+            .posts(None, state, 0, is_comment)
             .take_while(|post| post.timestamp() + if is_comment { HOUR } else { DAY } > timestamp)
             .count()
             .saturating_sub(if is_comment {
