@@ -120,6 +120,7 @@ fn make_stalwart(user_handle: String) {
             .find(|user| &user.name == &user_handle)
             .map(|user| {
                 user.stalwart = true;
+                user.timestamp = time() - CONFIG.min_stalwart_account_age_weeks * WEEK;
             })
     });
 }

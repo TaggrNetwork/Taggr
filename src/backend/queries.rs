@@ -535,6 +535,13 @@ fn search() {
     read(|state| reply(env::search::search(state, query)));
 }
 
+#[export_name = "canister_query proposal_escrow_balance_required"]
+fn proposal_escrow_balance_required() {
+    reply(read(|state| {
+        state.proposal_escrow_balance_required(caller())
+    }))
+}
+
 #[export_name = "canister_query realm_search"]
 fn realm_search() {
     let query: String = parse(&arg_data_raw());

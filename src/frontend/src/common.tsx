@@ -965,17 +965,17 @@ export const noiseControlBanner = (
 const daysOld = (timestamp: bigint, days: number) =>
     (Number(new Date()) - Number(timestamp) / 1000000) / DAY < days;
 
-const pending_or_recently_confirmed = (report: Report | undefined) =>
+const recently_confirmed = (report: Report | undefined) =>
     report &&
-    (!report.closed ||
-        (report.confirmed_by.length > report.rejected_by.length &&
-            daysOld(
-                report.timestamp,
-                window.backendCache.config.user_report_validity_days,
-            )));
+    report.closed &&
+    report.confirmed_by.length > report.rejected_by.length &&
+    daysOld(
+        report.timestamp,
+        window.backendCache.config.user_report_validity_days,
+    );
 
 const controversialUser = (profile: User) =>
-    pending_or_recently_confirmed(profile.report) ||
+    recently_confirmed(profile.report) ||
     Object.values(profile.post_reports).some((timestamp) =>
         daysOld(
             timestamp,

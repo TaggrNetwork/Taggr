@@ -186,7 +186,7 @@ impl User {
             || self
                 .report
                 .as_ref()
-                .map(|report| report.pending_or_recently_confirmed())
+                .map(|report| report.recently_confirmed())
                 .unwrap_or_default()
     }
 

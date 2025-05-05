@@ -42,17 +42,7 @@ export const Proposals = () => (
             shareLink="proposals"
             menu={true}
             burgerTestId="proposals-burger-button"
-            content={
-                window.user?.stalwart ? (
-                    <>
-                        <h2>New Proposal Form</h2>
-                        <Form
-                            proposalCreation={true}
-                            submitCallback={newPostCallback}
-                        />
-                    </>
-                ) : undefined
-            }
+            content={window.user ? <ProposalForm /> : false}
         />
         <PostFeed
             useList={true}
@@ -62,6 +52,40 @@ export const Proposals = () => (
         />
     </>
 );
+
+const ProposalForm = ({}) => {
+    const [balance, setBalance] = React.useState<number>(0);
+
+    React.useEffect(() => {
+        window.api
+            .query<[number, number]>("proposal_escrow_balance_required")
+            .then((resp) => {
+                const [escrow_tokens, already_locked]: [number, number] =
+                    resp || [0, 0];
+                setBalance(escrow_tokens + already_locked);
+            });
+    }, []);
+
+    const userBalance = window.user.balance;
+
+    return (
+        <>
+            <h2>New Proposal Form</h2>
+            {userBalance > balance ? (
+                <Form
+                    proposalCreation={true}
+                    submitCallback={newPostCallback}
+                />
+            ) : (
+                <div className="banner">
+                    To open a new proposal, you need to have a least{" "}
+                    {token(balance)} {window.backendCache.config.token_symbol}{" "}
+                    on your balance.
+                </div>
+            )}
+        </>
+    );
+};
 
 export const ProposalMask = ({
     proposalType,
