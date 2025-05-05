@@ -283,7 +283,7 @@ export const Wallet = () => {
                             transaction_fee,
                         );
                         if (typeof response == "string")
-                            alert(`Error: ${JSON.stringify(response)}`);
+                            alert(`Error: ${response}`);
                         await window.reloadUser();
                         setUser(window.user);
                     }}

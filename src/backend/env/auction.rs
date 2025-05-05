@@ -64,7 +64,7 @@ impl Ord for Bid {
 pub struct Auction {
     pub amount: Token,
     bids: BTreeSet<Bid>,
-    #[serde(default)]
+    // E8S per 1 token (with 100 tokens are 1 TAGGR).
     pub last_auction_price_e8s: u64,
 }
 

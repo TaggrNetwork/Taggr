@@ -14,6 +14,7 @@ import {
     Link,
     Roadmap,
     CashCoin,
+    All,
 } from "./icons";
 import { PostId } from "./types";
 
@@ -21,18 +22,18 @@ export const Landing = () => {
     const user = window.user;
     const realm = currentRealm();
     const [feed, setFeed] = React.useState(
-        (!currentRealm() && user && user.settings.tab) || "TRENDING",
+        (!currentRealm() && user && user.settings.tab) || "HOT",
     );
-    let labels: [JSX.Element, string][] = [
-        [<New />, "ALL"],
-        [<Fire />, "TRENDING"],
-    ];
+
+    let labels: [JSX.Element, string][] = [[<All />, "ALL"]];
+
+    if (user) labels.push([<New />, "NEW"]);
+
+    labels.push([<Fire />, "HOT"]);
+
     if (!realm) {
         if (user) {
-            labels.push([
-                <User classNameArg="vertically_aligned" />,
-                "PERSONAL",
-            ]);
+            labels.push([<User classNameArg="vertically_aligned" />, "FOR ME"]);
             if (user.realms.length > 0) labels.push([<Realm />, "REALMS"]);
         } else {
             labels.push([<Realm />, "BEST IN REALMS"]);
@@ -40,7 +41,7 @@ export const Landing = () => {
     }
 
     const title = (
-        <div className="text_centered vertically_spaced small_text">
+        <div className="vertically_spaced small_text row_container centered">
             {labels.map(([icon, id]: [JSX.Element, string]) => (
                 <button
                     key={id}
@@ -55,9 +56,12 @@ export const Landing = () => {
                         }
                         setFeed(id);
                     }}
-                    className={feed == id ? "active" : "unselected"}
+                    className={
+                        `vcentered ${feed == id ? "active" : "unselected"} ` +
+                        `${bigScreen() ? "small_text" : "smaller_text"}`
+                    }
                 >
-                    {icon} {id}
+                    {icon}&nbsp; {id}
                 </button>
             ))}
         </div>
@@ -94,7 +98,7 @@ export const Landing = () => {
                             page,
                             offset,
                         );
-                    if (feed == "TRENDING")
+                    if (feed == "HOT")
                         return await window.api.query(
                             "hot_posts",
                             realm,
@@ -109,14 +113,14 @@ export const Landing = () => {
                             page,
                             offset,
                         );
-                    else
-                        return await window.api.query(
-                            "last_posts",
-                            realm,
-                            page,
-                            offset,
-                            false /* don't apply noise filter */,
-                        );
+                    return await window.api.query(
+                        "last_posts",
+                        realm,
+                        page,
+                        offset,
+                        feed ==
+                            "NEW" /* apply noise filter on NEW but not on ALL */,
+                    );
                 }}
             />
         </>

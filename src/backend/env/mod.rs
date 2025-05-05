@@ -1879,8 +1879,7 @@ impl State {
             if !u.governance
                 || u.is_bot()
                 || u.controversial()
-                || now.saturating_sub(u.timestamp)
-                    < WEEK * CONFIG.min_stalwart_account_age_weeks as u64
+                || now.saturating_sub(u.timestamp) < WEEK * CONFIG.min_stalwart_account_age_weeks
             {
                 u.stalwart = false;
                 continue;
@@ -2215,6 +2214,31 @@ impl State {
                     })
                 }),
         }
+    }
+
+    /// Returns for the given principal:
+    /// - how many of their tokens should be locked for a new proposal (at least 1),
+    /// - how many tokens are locked for already open proposal.
+    pub fn proposal_escrow_balance_required(&self, caller: Principal) -> (Token, Token) {
+        let market_price = self.auction.last_auction_price_e8s;
+        let Some(user) = self.principal_to_user(caller) else {
+            return (0, 0);
+        };
+
+        let already_locked_tokens: Token = self
+            .proposals
+            .iter()
+            .filter(|proposal| proposal.proposer == user.id && proposal.status == Status::Open)
+            .map(|proposal| proposal.escrow_tokens)
+            .sum();
+
+        let required_tokens = if market_price == 0 {
+            0
+        } else {
+            (self.e8s_for_one_xdr * CONFIG.proposal_escrow_amount_xdr) / market_price
+        };
+
+        (required_tokens.max(token::base()), already_locked_tokens)
     }
 
     pub fn change_principal(&mut self, new_principal: Principal) -> Result<bool, String> {
@@ -2900,6 +2924,7 @@ pub(crate) mod tests {
         state.minting_mode = false;
         if let Some(user) = state.principal_to_user_mut(principal) {
             user.change_rewards((amount / token::base()) as i64, "");
+            user.balance = amount;
         }
     }
 
@@ -4566,7 +4591,7 @@ pub(crate) mod tests {
                 .controllers
                 .is_empty());
 
-            let now = CONFIG.min_stalwart_account_age_weeks as u64 * WEEK;
+            let now = CONFIG.min_stalwart_account_age_weeks * WEEK;
             let num_users = 255;
 
             for i in 0..num_users {
