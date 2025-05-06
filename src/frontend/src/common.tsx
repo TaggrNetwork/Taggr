@@ -1030,8 +1030,12 @@ export function pfpUrl(userId: UserId) {
     );
 }
 
+export const KNOWN_USER = "KNOWN_USER";
+
 export const signOut = async () => {
     localStorage.clear();
+    // We know this user is not new.
+    localStorage.setItem(KNOWN_USER, "1");
     sessionStorage.clear();
     window.authClient.logout();
     window._delegatePrincipalId = "";

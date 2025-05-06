@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ButtonWithLoading, restartApp } from "./common";
+import { ButtonWithLoading, KNOWN_USER, restartApp } from "./common";
 import { HASH_ITERATIONS, SeedPhraseForm, hash } from "./common";
 import { Infinity, Incognito, Ticket } from "./icons";
 import { II_URL, II_DERIVATION_URL, MAINNET_MODE } from "./env";
@@ -9,6 +9,8 @@ export const authMethods = [
     {
         icon: <Incognito />,
         label: "Password",
+        description:
+            "This connection method is based on a secret (your seed phrase) stored in your browser. It is convenient, self-custodial, but less secure.",
         login: async (confirmationRequired?: boolean): Promise<JSX.Element> => (
             <SeedPhraseForm
                 classNameArg="spaced"
@@ -47,6 +49,8 @@ export const authMethods = [
     {
         icon: <Ticket />,
         label: "Invite",
+        description:
+            "If you have received an invite from someone, use this connection method.",
         login: async () => {
             const code = prompt("Enter your invite code:")?.toLowerCase();
             if (!(await window.api.query("check_invite", code))) {
@@ -60,6 +64,8 @@ export const authMethods = [
     {
         icon: <Infinity />,
         label: "Internet Identity",
+        description:
+            "This connection method is using an NNS-controlled authentication service hosted on IC and based on biometric and other secure options.",
         login: async () => {
             if (
                 (location.href.includes(".raw") ||
@@ -91,9 +97,11 @@ export const LoginMasks = ({
 }) => {
     const [mask, setMask] = React.useState<JSX.Element>();
     const inviteMode = confirmationRequired;
-    const methods = inviteMode
-        ? authMethods.filter((method) => method.label != "Invite")
-        : authMethods;
+    const knownUser = localStorage.getItem(KNOWN_USER) == "1";
+    const methods =
+        inviteMode || knownUser
+            ? authMethods.filter((method) => method.label != "Invite")
+            : authMethods;
 
     React.useEffect(() => {
         const logo = document.getElementById("connect_logo");
@@ -105,23 +113,30 @@ export const LoginMasks = ({
         mask
     ) : (
         <div className="vertically_spaced text_centered column_container">
-            <span id="connect_logo" className="vertically_spaced"></span>
+            <span id="connect_logo"></span>
+            <p className="vertically_spaced">Choose your connection method.</p>
             {methods.map((method) => (
-                <ButtonWithLoading
-                    key={method.label}
-                    classNameArg="active large_text left_spaced right_spaced bottom_spaced"
-                    onClick={async () => {
-                        let mask = await method.login(confirmationRequired);
-                        if (mask) {
-                            setMask(mask);
+                <div className="left_spaced right_spaced bottom_spaced">
+                    <ButtonWithLoading
+                        key={method.label}
+                        classNameArg="active large_text"
+                        styleArg={{ width: "100%" }}
+                        onClick={async () => {
+                            let mask = await method.login(confirmationRequired);
+                            if (mask) {
+                                setMask(mask);
+                            }
+                        }}
+                        label={
+                            <>
+                                {method.icon} {method.label}
+                            </>
                         }
-                    }}
-                    label={
-                        <>
-                            {method.icon} {method.label}
-                        </>
-                    }
-                />
+                    />
+                    {!knownUser && (
+                        <p className="small_text">{method.description}</p>
+                    )}{" "}
+                </div>
             ))}
         </div>
     );

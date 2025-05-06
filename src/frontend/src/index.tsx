@@ -23,6 +23,7 @@ import {
     currentRealm,
     loadFeed,
     expandMeta,
+    KNOWN_USER,
 } from "./common";
 import { Settings } from "./settings";
 import { Welcome, WelcomeInvited } from "./welcome";
@@ -374,6 +375,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                 if (data) {
                     populateUserNameCacheSpeculatively();
                     window.user = data;
+                    localStorage.setItem(KNOWN_USER, "1");
                     window.user.realms.reverse();
                     if (600000 < microSecsSince(window.user.last_activity)) {
                         window.lastVisit = window.user.last_activity;
