@@ -12,6 +12,7 @@ import {
     parseNumber,
     tokens,
     ICP_DEFAULT_FEE,
+    showPopUp,
 } from "./common";
 import { Principal } from "@dfinity/principal";
 import { CANISTER_ID } from "./env";
@@ -73,7 +74,7 @@ export const Wallet = () => {
                         onClick={async () => {
                             let result =
                                 await window.api.call<any>("withdraw_rewards");
-                            if ("Err" in result) alert(`Error: ${result.Err}`);
+                            if ("Err" in result) showPopUp("error", result.Err);
                             await window.reloadUser();
                             setUser(window.user);
                         }}
@@ -116,7 +117,7 @@ export const Wallet = () => {
                                     );
                                 if ("Err" in response) {
                                     console.error(response);
-                                    alert("Transfer failed");
+                                    showPopUp("error", "Transfer failed");
                                 }
                                 await window.reloadUser();
                                 setUser(window.user);
@@ -130,11 +131,14 @@ export const Wallet = () => {
                                 recipient,
                             );
                             if (typeof response == "string")
-                                alert(`Transfer failed: ${response}`);
+                                showPopUp(
+                                    "error",
+                                    `Transfer failed: ${response}`,
+                                );
                             await window.reloadUser();
                             setUser(window.user);
                         } catch (e) {
-                            alert(e);
+                            showPopUp("error", `${e}`, 5);
                         }
                     }}
                 />
@@ -178,7 +182,8 @@ export const Wallet = () => {
                             ) || "0",
                         );
                         if (Number(kilo_credits) > maxKilos) {
-                            alert(
+                            showPopUp(
+                                "error",
                                 `You can't mint more than ${
                                     1000 * maxKilos
                                 } credits at once.`,
@@ -190,7 +195,7 @@ export const Wallet = () => {
                         }
                         const invoice_result = await future_invoice;
                         if ("Err" in invoice_result) {
-                            alert(`Error: ${invoice_result.Err}`);
+                            showPopUp("error", invoice_result.Err);
                             return;
                         }
                         const { account, e8s } = invoice_result.Ok;
@@ -201,16 +206,18 @@ export const Wallet = () => {
                             amount,
                         );
                         if ("Err" in response) {
-                            alert(
+                            showPopUp(
+                                "error",
                                 `Couldn't transfer ICP for minting. Make sure you have at least ${tokens(
                                     amount + ICP_DEFAULT_FEE,
                                     8,
                                 )} ICP on your wallet and try again.`,
+                                7,
                             );
                         }
                         const result: any = await mintCredits(kilo_credits);
                         if ("Err" in result) {
-                            alert(`Error: ${result.Err}`);
+                            showPopUp("error", result.Err);
                             return;
                         }
                         const invoice = result.Ok;
@@ -239,7 +246,7 @@ export const Wallet = () => {
                                 window.user.id,
                             );
                             if (response && "Err" in response) {
-                                alert(`Error: ${response.Err}`);
+                                showPopUp("error", response.Err);
                                 return;
                             }
                             await window.reloadUser();
@@ -263,7 +270,7 @@ export const Wallet = () => {
                             const response: any =
                                 await window.api.unlink_cold_wallet();
                             if (response && "Err" in response) {
-                                alert(`Error: ${response.Err}`);
+                                showPopUp("error", response.Err);
                                 return;
                             }
                             await window.reloadUser();
@@ -283,7 +290,7 @@ export const Wallet = () => {
                             transaction_fee,
                         );
                         if (typeof response == "string")
-                            alert(`Error: ${response}`);
+                            showPopUp("error", response);
                         await window.reloadUser();
                         setUser(window.user);
                     }}

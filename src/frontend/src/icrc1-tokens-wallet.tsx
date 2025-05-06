@@ -4,6 +4,7 @@ import {
     Loading,
     bucket_image_url,
     createChunks,
+    showPopUp,
 } from "./common";
 import { Principal } from "@dfinity/principal";
 import { Icrc1Canister } from "./types";
@@ -200,8 +201,10 @@ export const Icrc1TokensWallet = () => {
                 const canisterMeta = JSON.parse(
                     localStorage.getItem(getUserCanisterKey(canisterId)) || "",
                 );
-                return alert(
+                return showPopUp(
+                    "info",
                     `Token ${canisterMeta?.symbol || canisterId} was already added`,
+                    4,
                 );
             }
 
@@ -217,7 +220,7 @@ export const Icrc1TokensWallet = () => {
                 user.wallet_tokens,
             );
             if (response?.Err) {
-                return alert(response.Err);
+                return showPopUp("error", response.Err);
             }
 
             localStorage.setItem(
@@ -233,7 +236,10 @@ export const Icrc1TokensWallet = () => {
                 ),
             );
         } catch (error: any) {
-            alert(error?.message || "Failed to add token to your wallet");
+            showPopUp(
+                "error",
+                error?.message || "Failed to add token to your wallet",
+            );
         } finally {
             setDisabled(false);
         }
@@ -255,7 +261,10 @@ export const Icrc1TokensWallet = () => {
             Principal.fromText(canisterId);
 
             if (!user?.wallet_tokens?.includes(canisterId)) {
-                return alert(`Token ${canisterId} is not in your list`);
+                return showPopUp(
+                    "info",
+                    `Token ${canisterId} is not in your list`,
+                );
             }
 
             // Set global user, avoid callbacks
@@ -267,7 +276,7 @@ export const Icrc1TokensWallet = () => {
                 user.wallet_tokens,
             );
             if (response?.Err) {
-                return alert(response.Err);
+                return showPopUp("error", response.Err);
             }
 
             localStorage.removeItem(getUserCanisterKey(canisterId));
@@ -276,7 +285,10 @@ export const Icrc1TokensWallet = () => {
                 icrc1Canisters.filter(([id]) => id !== canisterId),
             );
         } catch (error: any) {
-            alert(error?.message || "Failed to add token to your wallet");
+            showPopUp(
+                "error",
+                error?.message || "Failed to add token to your wallet",
+            );
         } finally {
             setDisabled(false);
         }
@@ -302,14 +314,17 @@ export const Icrc1TokensWallet = () => {
             );
             const u64Amount = Math.floor(amount * Math.pow(10, info.decimals));
             if (u64Amount < 1) {
-                return alert("Amount is too small!");
+                return showPopUp("error", "Amount is too small!");
             }
             const decimalPart = (amount % 1).toPrecision(15); // Max 64bit precision
             if (
                 decimalPart.toString().replaceAll("0", "").replace(".", "")
                     .length > info.decimals
             ) {
-                return alert(`More than ${info.decimals} decimals!`);
+                return showPopUp(
+                    "error",
+                    `More than ${info.decimals} decimals!`,
+                );
             }
 
             if (toPrincipal && amount) {
@@ -327,13 +342,13 @@ export const Icrc1TokensWallet = () => {
                     info.fee,
                 );
                 if (isNaN(+amountOrError)) {
-                    return alert(amountOrError);
+                    return showPopUp("error", `${amountOrError}`);
                 }
 
                 await loadBalances([canisterId]);
             }
         } catch (e: any) {
-            alert(e.message);
+            showPopUp("error", e.message);
         }
     };
 

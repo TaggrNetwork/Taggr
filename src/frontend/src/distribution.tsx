@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ButtonWithLoading, HeadBar } from "./common";
+import { ButtonWithLoading, HeadBar, showPopUp } from "./common";
 import { Summary } from "./types";
 import { Content } from "./content";
 
@@ -27,7 +27,8 @@ export const Distribution = () => {
                         <ButtonWithLoading
                             label="VOTE FOR DELAY"
                             onClick={async () =>
-                                alert(
+                                showPopUp(
+                                    "info",
                                     (await window.api.call(
                                         "delay_weekly_chores",
                                     ))

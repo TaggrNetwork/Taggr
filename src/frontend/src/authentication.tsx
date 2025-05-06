@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ButtonWithLoading, KNOWN_USER, restartApp } from "./common";
+import { ButtonWithLoading, KNOWN_USER, restartApp, showPopUp } from "./common";
 import { HASH_ITERATIONS, SeedPhraseForm, hash } from "./common";
 import { Infinity, Incognito, Ticket } from "./icons";
 import { II_URL, II_DERIVATION_URL, MAINNET_MODE } from "./env";
@@ -54,7 +54,7 @@ export const authMethods = [
         login: async () => {
             const code = prompt("Enter your invite code:")?.toLowerCase();
             if (!(await window.api.query("check_invite", code))) {
-                alert("Invalid invite");
+                showPopUp("error", "Invalid invite");
                 return;
             }
             location.href = `#/welcome/${code}`;

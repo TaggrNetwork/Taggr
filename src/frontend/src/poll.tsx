@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ButtonWithLoading, token } from "./common";
+import { ButtonWithLoading, showPopUp, token } from "./common";
 import { Content } from "./content";
 import { Poll, PostId } from "./types";
 import { UserList } from "./user_resolve";
@@ -133,7 +133,7 @@ export const PollView = ({
                                     )
                                     .then((response) => {
                                         if (response.Err) {
-                                            alert(`Error: ${response.Err}!`);
+                                            showPopUp("error", response.Err);
                                             return;
                                         }
                                     });

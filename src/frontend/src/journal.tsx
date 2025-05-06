@@ -32,8 +32,6 @@ export const Journal = ({ handle }: { handle: string }) => {
             return <Loading />;
     }
 
-    const { name } = window.backendCache.config;
-
     return (
         <>
             {profile && (
@@ -57,10 +55,7 @@ export const Journal = ({ handle }: { handle: string }) => {
                         style={{ justifyContent: "center" }}
                     >
                         <FollowButton id={profile.id} />
-                        <ShareButton
-                            url={`journal/${handle}`}
-                            title={`${handle}'s journal on ${name}`}
-                        />
+                        <ShareButton url={`journal/${handle}`} />
                     </div>
                 </div>
             )}

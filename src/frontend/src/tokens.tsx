@@ -9,6 +9,7 @@ import {
     parseNumber,
     percentage,
     shortenAccount,
+    showPopUp,
     timeAgo,
     token,
     TokenBalance,
@@ -318,11 +319,11 @@ const AuctionCard = ({}) => {
                                     const response: any =
                                         await window.api.call("cancel_bid");
                                     if (!response) {
-                                        alert("Error: call failed");
+                                        showPopUp("error", "Call failed");
                                         return;
                                     }
                                     if ("Err" in response) {
-                                        alert(`Error: ${response.Err}`);
+                                        showPopUp("error", response.Err);
                                         return;
                                     }
                                     await loadData();
@@ -339,11 +340,11 @@ const AuctionCard = ({}) => {
                                         parsedE8sPerToken,
                                     );
                                     if (!response) {
-                                        alert("Error: call failed");
+                                        showPopUp("error", "Call failed");
                                         return;
                                     }
                                     if ("Err" in response) {
-                                        alert(`Error: ${response.Err}`);
+                                        showPopUp("error", response.Err);
                                         return;
                                     }
                                     setE8sPerToken("");

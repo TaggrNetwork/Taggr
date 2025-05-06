@@ -24,6 +24,7 @@ import {
     loadFeed,
     expandMeta,
     KNOWN_USER,
+    showPopUp,
 } from "./common";
 import { Settings } from "./settings";
 import { Welcome, WelcomeInvited } from "./welcome";
@@ -271,7 +272,7 @@ const confirmPrincipalChange = async () => {
         return;
     const response = await window.api.call<any>("confirm_principal_change");
     if (response && "Err" in response) {
-        alert(`Error: ${response.Err}`);
+        showPopUp("error", response.Err);
     }
 };
 

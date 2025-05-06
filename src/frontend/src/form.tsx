@@ -7,6 +7,7 @@ import {
     getTokens,
     Loading,
     IconToggleButton,
+    showPopUp,
 } from "./common";
 import {
     Bars,
@@ -104,8 +105,10 @@ export const Form = ({
 
     const handleSubmit = async () => {
         if (value.length == 0 || value.length > max_post_length) {
-            alert(
+            showPopUp(
+                "error",
                 `Post length should be larger than 0 and shorter than ${max_post_length} characters.`,
+                5,
             );
             return false;
         }
@@ -128,8 +131,10 @@ export const Form = ({
             (value.match(/!\[.*?\]\(\/blob\/.*?\)/g) || []).length !=
             blobIds.length
         ) {
-            alert(
+            showPopUp(
+                "error",
                 "You're referencing pictures that are not attached anymore. Please re-upload.",
+                5,
             );
             setSubmitting(false);
             return false;
@@ -170,7 +175,8 @@ export const Form = ({
                               proposal,
                           );
                 if (result && "Err" in result) {
-                    alert(
+                    showPopUp(
+                        "warning",
                         `Post could be created, but the proposal creation failed: ${result.Err}`,
                     );
                 }
@@ -180,7 +186,8 @@ export const Form = ({
                     postId,
                 );
                 if (result && "Err" in result) {
-                    alert(
+                    showPopUp(
+                        "warning",
                         `Post could be created, but the feature request failed: ${result.Err}`,
                     );
                 }
@@ -214,7 +221,10 @@ export const Form = ({
             let content = await loadFile(file);
             let image = await loadImage(new Uint8Array(content));
             if (iOS() && image.height * image.width > MAX_IMG_SIZE) {
-                alert("Image resolution should be under 16 megapixels.");
+                showPopUp(
+                    "error",
+                    "Image resolution should be under 16 megapixels.",
+                );
                 setBusy(false);
                 return;
             }
@@ -783,7 +793,8 @@ export const loadFile = (file: any): Promise<ArrayBuffer> => {
     return new Promise((resolve, reject) => {
         reader.onerror = () => {
             reader.abort();
-            reject(alert("Couldn't upload file!"));
+            showPopUp("error", "Couldn't upload file!");
+            reject("Couldn't upload file!");
         };
         reader.onload = () => resolve(reader.result as ArrayBuffer);
         reader.readAsArrayBuffer(file);
