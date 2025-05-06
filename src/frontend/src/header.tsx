@@ -7,6 +7,7 @@ import {
     signOut,
     popUp,
     ButtonWithLoading,
+    pfpUrl,
 } from "./common";
 import { LoginMasks } from "./authentication";
 import {
@@ -24,7 +25,6 @@ import { STAGING_MODE } from "./env";
 import { User as UserType } from "./types";
 import { Wallet } from "./wallet";
 import { Links } from "./landing";
-import { UserLink } from "./user_resolve";
 
 let interval: any = null;
 
@@ -187,60 +187,54 @@ export const Header = ({
 const UserSection = ({ user }: { user: UserType }) => {
     return (
         <div className="bottom_spaced stands_out">
-            <div className="column_container centered">
-                {user && (
-                    <UserLink
-                        classNameArg="centered xx_large_text bottom_spaced top_spaced"
-                        profile={true}
-                        id={user.id}
-                        name={user.name}
-                    />
-                )}
-
-                <div className="row_container icon_bar top_half_spaced">
-                    {user && (
-                        <>
-                            <a
-                                title="JOURNAL"
-                                className="icon_link"
-                                href={`/#/journal/${user.name}`}
-                            >
-                                <Journal /> JOURNAL
-                            </a>
-                            <a
-                                title="INVITES"
-                                className="icon_link"
-                                href="/#/invites"
-                            >
-                                <Ticket /> INVITES
-                            </a>
-                            <a
-                                title="BOOKMARKS"
-                                className="icon_link"
-                                href={`/#/bookmarks`}
-                            >
-                                <Save /> BOOKMARKS
-                            </a>
-                            <a
-                                title="SETTINGS"
-                                className="icon_link"
-                                href="/#/settings"
-                            >
-                                <Gear /> SETTINGS
-                            </a>
-                        </>
-                    )}
+            <div className="row_container icon_bar top_spaced vcentered">
+                <>
+                    <div title={user.name} className="icon_link">
+                        <img
+                            className="pfp bottom_half_spaced"
+                            src={pfpUrl(user.id)}
+                            height={20}
+                            width={20}
+                        />
+                        <a href={`/#/user/${user.name}`}>
+                            {user.name.toUpperCase()}
+                        </a>
+                    </div>
                     <a
-                        title="SIGN OUT"
+                        title="JOURNAL"
                         className="icon_link"
-                        href=""
-                        onClick={signOut}
+                        href={`/#/journal/${user.name}`}
                     >
-                        <Logout /> SIGN OUT
+                        <Journal /> JOURNAL
                     </a>
-                </div>
+                    <a title="INVITES" className="icon_link" href="/#/invites">
+                        <Ticket /> INVITES
+                    </a>
+                    <a
+                        title="BOOKMARKS"
+                        className="icon_link"
+                        href={`/#/bookmarks`}
+                    >
+                        <Save /> BOOKMARKS
+                    </a>
+                    <a
+                        title="SETTINGS"
+                        className="icon_link"
+                        href="/#/settings"
+                    >
+                        <Gear /> SETTINGS
+                    </a>
+                </>
+                <a
+                    title="SIGN OUT"
+                    className="icon_link"
+                    href=""
+                    onClick={signOut}
+                >
+                    <Logout /> SIGN OUT
+                </a>
             </div>
-            {user && <Wallet />}
+            <Wallet />
         </div>
     );
 };
