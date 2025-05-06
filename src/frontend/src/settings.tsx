@@ -275,6 +275,19 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 {user && (
                     <>
                         <div className="bottom_half_spaced">
+                            Enable ICRC tokens in the wallet
+                        </div>
+                        <select
+                            value={settings.icrcWallet || "false"}
+                            className="bottom_spaced"
+                            onChange={(event) =>
+                                setSetting("icrcWallet", event)
+                            }
+                        >
+                            <option value="true">YES</option>
+                            <option value="false">NO</option>
+                        </select>
+                        <div className="bottom_half_spaced">
                             Override realm color themes
                         </div>
                         <select

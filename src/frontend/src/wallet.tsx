@@ -310,8 +310,12 @@ export const Wallet = () => {
                     </a>
                 </div>
             )}
-            <hr />
-            <Icrc1TokensWallet />
+            {user.settings.icrcWallet == "true" && (
+                <>
+                    <hr />
+                    <Icrc1TokensWallet />
+                </>
+            )}
         </>
     );
 };
