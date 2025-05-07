@@ -87,6 +87,7 @@ fn sync_post_upgrade_fixtures() {}
 async fn async_post_upgrade_fixtures() {
     // TODO: remove both lines after release
     bitcoin::update_treasury_address().await;
+    #[cfg(not(feature = "dev"))]
     State::fetch_xdr_rate().await;
 }
 
