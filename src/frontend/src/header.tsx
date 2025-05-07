@@ -191,7 +191,7 @@ const UserSection = ({ user }: { user: UserType }) => {
                 <>
                     <div title={user.name} className="icon_link">
                         <img
-                            className="pfp bottom_half_spaced"
+                            className="bottom_half_spaced"
                             src={pfpUrl(user.id)}
                             height={20}
                             width={20}
