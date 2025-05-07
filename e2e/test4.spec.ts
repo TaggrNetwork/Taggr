@@ -166,8 +166,6 @@ test.describe("Report and transfer to user", () => {
                         .includes("You are reporting this user to stalwarts")
                 ) {
                     await dialog.accept("mfer");
-                } else if (dialog.message().includes("Report accepted!")) {
-                    await dialog.accept("");
                     resolve(null);
                 } else {
                     reject("unexpected error: " + dialog.message());
