@@ -166,13 +166,13 @@ impl User {
             && (self.followees.contains(&user_id) || filter.passes(&self.filters.noise))
     }
 
-    pub fn account_age_days(&self) -> u64 {
-        (time() - self.timestamp) / DAY
+    pub fn account_age(&self, units: u64) -> u64 {
+        (time() - self.timestamp) / units
     }
 
     pub fn get_filter(&self) -> UserFilter {
         UserFilter {
-            age_days: self.account_age_days(),
+            age_days: self.account_age(DAY),
             safe: !self.controversial(),
             balance: self.total_balance() / token::base(),
             num_followers: self.followers.len(),
@@ -621,7 +621,7 @@ impl User {
     /// Protect against stealing credits from invites: all accounts younger than 30 days,
     /// cannot send more credits than they have burned in a week.
     pub fn validate_send_credits(&self, state: &State) -> Result<(), String> {
-        if self.account_age_days() > 30 {
+        if self.account_age(DAY) > 30 {
             return Ok(());
         }
 
