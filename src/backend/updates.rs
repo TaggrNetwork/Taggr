@@ -572,9 +572,9 @@ fn toggle_filter() {
 async fn set_emergency_release(binary: ByteBuf) {
     mutate(|state| {
         if binary.is_empty()
-            || !state
+            || state
                 .principal_to_user(caller())
-                .map(|user| user.stalwart)
+                .map(|user| user.account_age(WEEK) < CONFIG.min_stalwart_account_age_weeks)
                 .unwrap_or_default()
         {
             return;

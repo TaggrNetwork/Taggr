@@ -13,6 +13,7 @@ import {
     parseNumber,
     commaSeparated,
     REPO,
+    showPopUp,
 } from "./common";
 import * as React from "react";
 import { HourGlass } from "./icons";
@@ -108,7 +109,7 @@ export const ProposalMask = ({
             case ProposalType.AddRealmController:
                 const user = await window.api.query<User>("user", [userName]);
                 if (!user) {
-                    alert(`No user ${userName} found!`);
+                    showPopUp("error", `No user ${userName} found!`);
                     return;
                 }
                 saveProposal({
@@ -372,7 +373,7 @@ export const ProposalView = ({
             data || "",
         );
         if ("Err" in result) {
-            alert(`Error: ${result.Err}`);
+            showPopUp("error", result.Err);
             return;
         }
         window.api.call("toggle_following_post", postId);

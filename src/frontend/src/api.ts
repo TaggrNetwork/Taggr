@@ -513,56 +513,26 @@ export const ApiGenerator = (
                 subaccount: account.subaccount,
             });
         },
+
         icrc_metadata: async (canisterId: string) => {
-            try {
-                const canister = getIcrcCanister(canisterId);
-                const meta = await canister.metadata({
-                    certified: false,
-                });
+            const canister = getIcrcCanister(canisterId);
+            const meta = await canister.metadata({
+                certified: false,
+            });
 
-                const m = new Map<IcrcMetadataResponseEntries, Value>(
-                    meta as any,
-                );
+            const m = new Map<IcrcMetadataResponseEntries, Value>(meta as any);
 
-                return {
-                    decimals: new Number(
-                        (
-                            m.get(
-                                IcrcMetadataResponseEntries.DECIMALS,
-                            ) as unknown as { Nat: number }
-                        ).Nat,
-                    ).valueOf(),
-                    fee: new Number(
-                        (
-                            m.get(
-                                IcrcMetadataResponseEntries.FEE,
-                            ) as unknown as { Nat: number }
-                        ).Nat,
-                    ).valueOf(),
-                    logo:
-                        (
-                            m.get(
-                                IcrcMetadataResponseEntries.LOGO,
-                            ) as unknown as {
-                                Text: string;
-                            }
-                        )?.Text ||
-                        `https://wqfao-piaaa-aaaag-qj5ba-cai.raw.icp0.io/${canisterId}`,
-                    name: (
-                        m.get(IcrcMetadataResponseEntries.NAME) as unknown as {
-                            Text: string;
-                        }
-                    ).Text,
-                    symbol: (
-                        m.get(
-                            IcrcMetadataResponseEntries.SYMBOL,
-                        ) as unknown as { Text: string }
-                    ).Text,
-                } as Icrc1Canister;
-            } catch (error) {
-                console.error(error);
-                return null;
-            }
+            return {
+                decimals: new Number(
+                    (m.get(IcrcMetadataResponseEntries.DECIMALS) as any).Nat,
+                ).valueOf(),
+                fee: new Number(
+                    (m.get(IcrcMetadataResponseEntries.FEE) as any).Nat,
+                ).valueOf(),
+                logo: (m.get(IcrcMetadataResponseEntries.LOGO) as any)?.Text,
+                name: (m.get(IcrcMetadataResponseEntries.NAME) as any).Text,
+                symbol: (m.get(IcrcMetadataResponseEntries.SYMBOL) as any).Text,
+            };
         },
     };
 };

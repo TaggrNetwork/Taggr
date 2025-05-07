@@ -6,6 +6,7 @@ import {
     HeadBar,
     ICP_LEDGER_ID,
     hex,
+    showPopUp,
 } from "./common";
 import { PFP, User, UserFilter, UserId } from "./types";
 import { Principal } from "@dfinity/principal";
@@ -96,7 +97,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 invite || "",
             );
             if ("Err" in response) {
-                return alert(`Error: ${response.Err}`);
+                return showPopUp("error", response.Err);
             }
             registrationRealmId = response?.Ok;
         }
@@ -146,7 +147,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         for (let i in responses) {
             const response = responses[i];
             if ("Err" in response) {
-                alert(`Error: ${response.Err}`);
+                showPopUp("error", response.Err);
                 return;
             }
         }
@@ -274,6 +275,19 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 </select>
                 {user && (
                     <>
+                        <div className="bottom_half_spaced">
+                            Enable ICRC tokens in the wallet
+                        </div>
+                        <select
+                            value={settings.icrcWallet || "false"}
+                            className="bottom_spaced"
+                            onChange={(event) =>
+                                setSetting("icrcWallet", event)
+                            }
+                        >
+                            <option value="true">YES</option>
+                            <option value="false">NO</option>
+                        </select>
                         <div className="bottom_half_spaced">
                             Override realm color themes
                         </div>
@@ -457,11 +471,19 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                     seed,
                                 );
                                 const prefix = user.deactivated ? "de" : "en";
-                                alert(
-                                    result && "Ok" in result
-                                        ? `${result.Ok} posts sucessfully ${prefix}crypted!`
-                                        : `Error: ${prefix}cryption failed (${result?.Err || "wrong password?"})`,
-                                );
+                                if (result && "Ok" in result) {
+                                    showPopUp(
+                                        "success",
+                                        `${result.Ok} posts sucessfully ${prefix}crypted!`,
+                                        5,
+                                    );
+                                } else {
+                                    showPopUp(
+                                        "error",
+                                        `${prefix}cryption failed (${result?.Err || "wrong password?"})`,
+                                        5,
+                                    );
+                                }
                             }}
                             label={`${user.deactivated ? "AC" : "DEAC"}TIVATE`}
                         />
@@ -515,8 +537,10 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                             },
                                         );
                                     if (accountBalance > 0) {
-                                        alert(
+                                        showPopUp(
+                                            "warning",
                                             "Your ICP balance is not empty. Please withdraw all funds before changing the principal.",
+                                            5,
                                         );
                                         return;
                                     }

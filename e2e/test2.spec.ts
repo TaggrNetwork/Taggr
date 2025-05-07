@@ -59,7 +59,7 @@ test.describe("Regular users flow", () => {
         await page.getByPlaceholder("Enter your password...").fill("alice");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.getByTestId("toggle-user-section").click();
-        const profileButton = page.getByRole("link", { name: /.*alice.*/ });
+        const profileButton = page.getByRole("link", { name: /.*ALICE.*/ });
         await expect(profileButton).toBeVisible();
 
         // Open our own profile and make sure it works

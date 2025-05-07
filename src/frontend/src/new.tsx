@@ -5,6 +5,7 @@ import {
     loadPosts,
     currentRealm,
     MAX_POST_SIZE_BYTES,
+    showPopUp,
 } from "./common";
 import { Extension, Post, PostId } from "./types";
 import { filesToUrls } from "./post";
@@ -48,7 +49,7 @@ export const PostSubmissionForm = ({
                 optionalRealm,
             );
             if ("Err" in response) {
-                alert(`Error: ${response.Err}`);
+                showPopUp("error", response.Err);
                 return null;
             }
             postId = post.id;
@@ -122,7 +123,7 @@ export const newPostCallback = async (
         );
         let error: any = results.find((result: any) => "Err" in result);
         if (error) {
-            alert(`Error: ${error.Err}`);
+            showPopUp("error", error.Err);
             return null;
         }
         result = await window.api.commit_post();
@@ -136,10 +137,10 @@ export const newPostCallback = async (
         );
     }
     if (!result) {
-        alert(`Error: call failed`);
+        showPopUp("error", "Call failed");
         return null;
     } else if ("Err" in result) {
-        alert(`Error: ${result.Err}`);
+        showPopUp("error", result.Err);
         return null;
     }
     // this is the rare case when a blob triggers the creation of a new bucket

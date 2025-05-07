@@ -26,6 +26,7 @@ import {
     currentRealm,
     parseNumber,
     noiseControlBanner,
+    showPopUp,
 } from "./common";
 import {
     reaction2icon,
@@ -132,7 +133,7 @@ export const PostView = ({
             [],
         );
         if (result.Err) {
-            alert(`Error: ${result.Err}`);
+            showPopUp("error", result.Err);
             return false;
         }
         const commentId = result.Ok;
@@ -175,7 +176,7 @@ export const PostView = ({
             return;
         }
         window.api.call<any>("react", post.id, id).then((response) => {
-            if ("Err" in response) alert(`Error: ${response.Err}`);
+            if ("Err" in response) showPopUp("error", response.Err);
             window.reloadUser();
         });
         users.push(userId);
@@ -633,7 +634,7 @@ const PostInfo = ({
                                         amount,
                                     );
                                     if ("Err" in response) {
-                                        alert(`Error: ${response.Err}`);
+                                        showPopUp("error", response.Err);
                                     } else await callback();
                                 }}
                                 label={<Coin />}
@@ -655,7 +656,7 @@ const PostInfo = ({
                                         reason,
                                     );
                                     if ("Err" in response)
-                                        alert(`Error: ${response.Err}`);
+                                        showPopUp("error", response.Err);
                                 }}
                                 label={<Close />}
                             />
@@ -730,7 +731,10 @@ const PostInfo = ({
                                                     versions,
                                                 );
                                             if ("Err" in response) {
-                                                alert(`Error: ${response.Err}`);
+                                                showPopUp(
+                                                    "error",
+                                                    response.Err,
+                                                );
                                             } else await callback();
                                         }}
                                         label={<Trash />}

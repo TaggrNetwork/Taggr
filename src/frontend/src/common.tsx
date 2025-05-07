@@ -117,8 +117,9 @@ export const FileUploadInput = ({
             const file = files[0];
             const content = new Uint8Array(await loadFile(file));
             if (content.byteLength > MAX_POST_SIZE_BYTES) {
-                alert(
-                    `Error: the binary cannot be larger than ${MAX_POST_SIZE_BYTES} bytes.`,
+                showPopUp(
+                    "error",
+                    `The binary cannot be larger than ${MAX_POST_SIZE_BYTES} bytes.`,
                 );
                 return;
             }
@@ -171,7 +172,6 @@ export const bigScreen = () => window.innerWidth >= 1024;
 export const HeadBar = ({
     title,
     shareLink,
-    shareTitle,
     button1,
     button2,
     content,
@@ -207,7 +207,6 @@ export const HeadBar = ({
                         <ShareButton
                             styleArg={effStyle}
                             url={shareLink}
-                            title={shareTitle}
                             classNameArg="right_half_spaced"
                         />
                     )}
@@ -269,7 +268,6 @@ export const currentRealm = () => window.realm || "";
 
 export const ShareButton = ({
     classNameArg,
-    title = "Check this out",
     url,
     styleArg,
     text,
@@ -288,11 +286,8 @@ export const ShareButton = ({
             className={classNameArg}
             style={styleArg}
             onClick={async (_) => {
-                if (navigator.share) navigator.share({ title, url: fullUlr });
-                else {
-                    await navigator.clipboard.writeText(fullUlr);
-                    alert(`Copied to clipboard: ${fullUlr}`);
-                }
+                await navigator.clipboard.writeText(fullUlr);
+                showPopUp("info", `Link copied to clipboard: ${fullUlr}`);
             }}
         >
             {text ? "SHARE" : <Share styleArg={styleArg} />}
@@ -400,6 +395,8 @@ export const ToggleButton = ({
             onClick={(e) => {
                 e.preventDefault();
                 setStatus(on ? -1 : 1);
+                if (onTitle && offTitle)
+                    showPopUp("success", on ? onTitle : offTitle);
                 toggler();
             }}
             data-testid={testId}
@@ -740,8 +737,10 @@ export const FlagButton = ({
                     ) || "";
                 if (reason.length == 0) return;
                 if (reason.length > max_size) {
-                    alert(
+                    showPopUp(
+                        "error",
                         `The report has ${reason.length} characters, but has to have between 0 and ${max_size}. Please adjust accordingly.`,
+                        5,
                     );
                 } else {
                     success = true;
@@ -755,10 +754,10 @@ export const FlagButton = ({
                     reason,
                 );
                 if (response && "Err" in response) {
-                    alert(`Error: ${response.Err}`);
+                    showPopUp("error", response.Err);
                     return;
                 }
-                alert("Report accepted! Thank you!");
+                showPopUp("success", "Report accepted! Thank you!");
             }
         }}
         label={text ? "REPORT" : <Flag />}
@@ -804,7 +803,7 @@ export const ReportBanner = ({
                                     [name: string]: any;
                                 }>("vote_on_report", domain, id, val);
                                 if (result && "Err" in result) {
-                                    alert(`Error: ${result.Err}`);
+                                    showPopUp("error", result.Err);
                                     return;
                                 }
                                 const updatedReport =
@@ -1030,8 +1029,122 @@ export function pfpUrl(userId: UserId) {
     );
 }
 
+export const KNOWN_USER = "KNOWN_USER";
+
+export const InfoPopup = ({
+    type,
+    message,
+    duration,
+}: {
+    type: string;
+    message: string;
+    duration: number;
+}) => {
+    const [expiration, setExpiration] = React.useState(0);
+    const [visible, setVisible] = React.useState(true);
+
+    React.useEffect(() => {
+        const interval = setInterval(() => {
+            setExpiration((prev) => {
+                const newValue = prev + 100 / (duration / 100);
+                return newValue > 100 ? 100 : newValue;
+            });
+        }, 100);
+
+        const timeout = setTimeout(() => {
+            setVisible(false);
+        }, duration);
+
+        return () => {
+            clearInterval(interval);
+            clearTimeout(timeout);
+        };
+    }, [duration]);
+
+    if (!visible) return null;
+
+    let typeIcon;
+
+    switch (type) {
+        case "success":
+            typeIcon = "✅";
+            break;
+        case "error":
+            typeIcon = "⛔️";
+            break;
+        case "warning":
+            typeIcon = "⚠️";
+            break;
+        default:
+            typeIcon = "ℹ️";
+    }
+
+    // Capitalize the message and add punctation if needed.
+    let formattedMessage = message[0].toUpperCase() + message.slice(1);
+    if (
+        ![".", "!", "?"].includes(formattedMessage[formattedMessage.length - 1])
+    )
+        formattedMessage += ".";
+
+    return (
+        <div className="info_popup">
+            <div className="info_popup_content">
+                <div className="info_popup_message vcentered">
+                    <span className="xx_large_text right_spaced">
+                        {typeIcon}
+                    </span>{" "}
+                    {formattedMessage}
+                </div>
+                <button
+                    className="info_popup_close"
+                    onClick={() => setVisible(false)}
+                >
+                    <Close size={14} />
+                </button>
+            </div>
+            <div className="info_popup_timer">
+                <div
+                    className="info_popup_timer_indicator"
+                    style={{ width: `${expiration}%` }}
+                ></div>
+            </div>
+        </div>
+    );
+};
+
+export const showPopUp = (
+    type: string = "info",
+    message: string,
+    duration_secs: number = 3,
+) => {
+    const duration = duration_secs * 1000;
+    let domElem = document.getElementById("info_popup_container");
+    if (domElem)
+        // Another pop up is in progress.
+        return;
+
+    domElem = document.createElement("div");
+    domElem.id = "info_popup_container";
+    document.body.appendChild(domElem);
+
+    const root = createRoot(
+        document.getElementById("info_popup_container") as HTMLElement,
+    );
+    root.render(
+        <InfoPopup type={type} message={message} duration={duration} />,
+    );
+
+    // Clean up after the popup closes
+    setTimeout(() => {
+        root.unmount();
+        domElem.parentNode?.removeChild(domElem);
+    }, duration + 100); // Add a little buffer time
+};
+
 export const signOut = async () => {
     localStorage.clear();
+    // We know this user is not new.
+    localStorage.setItem(KNOWN_USER, "1");
     sessionStorage.clear();
     window.authClient.logout();
     window._delegatePrincipalId = "";
@@ -1100,7 +1213,7 @@ export const SeedPhraseForm = ({
                                 confirmationRequired &&
                                 value != confirmedValue
                             ) {
-                                alert("Passwords do not match.");
+                                showPopUp("error", "Passwords do not match.");
                                 return;
                             }
                             await callback(value);

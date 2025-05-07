@@ -23,6 +23,8 @@ import {
     currentRealm,
     loadFeed,
     expandMeta,
+    KNOWN_USER,
+    showPopUp,
 } from "./common";
 import { Settings } from "./settings";
 import { Welcome, WelcomeInvited } from "./welcome";
@@ -270,7 +272,7 @@ const confirmPrincipalChange = async () => {
         return;
     const response = await window.api.call<any>("confirm_principal_change");
     if (response && "Err" in response) {
-        alert(`Error: ${response.Err}`);
+        showPopUp("error", response.Err);
     }
 };
 
@@ -374,6 +376,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                 if (data) {
                     populateUserNameCacheSpeculatively();
                     window.user = data;
+                    localStorage.setItem(KNOWN_USER, "1");
                     window.user.realms.reverse();
                     if (600000 < microSecsSince(window.user.last_activity)) {
                         window.lastVisit = window.user.last_activity;

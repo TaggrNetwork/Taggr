@@ -5,6 +5,7 @@ import {
     CopyToClipboard,
     HeadBar,
     Loading,
+    showPopUp,
 } from "./common";
 import { Credits } from "./icons";
 import { UserList } from "./user_resolve";
@@ -45,7 +46,7 @@ export const Invites = () => {
             credits_per_user,
             inviteRealm,
         );
-        if ("Err" in result) alert(`Failed: ${result.Err}`);
+        if ("Err" in result) showPopUp("error", result.Err);
         else loadInvites();
         setBusy(false);
     };
@@ -63,7 +64,7 @@ export const Invites = () => {
                 invite.realm_id !== undefined ? invite.realm_id : null,
             );
             if ("Err" in (response || {})) {
-                alert(`Error: ${response.Err}`);
+                showPopUp("error", response.Err);
                 setBusy(true);
                 await loadInvites(); // Set back to prior state
                 setBusy(false);

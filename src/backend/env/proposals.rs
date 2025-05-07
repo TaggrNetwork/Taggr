@@ -363,8 +363,7 @@ pub fn create_proposal(
     if state
         .principal_to_user(caller)
         .map(|user| {
-            user.controversial()
-                || user.timestamp + WEEK * CONFIG.min_stalwart_account_age_weeks > time
+            user.controversial() || user.account_age(WEEK) < CONFIG.min_stalwart_account_age_weeks
         })
         .unwrap_or(true)
     {
@@ -520,6 +519,7 @@ pub mod tests {
         },
         read,
         reports::Report,
+        time,
     };
 
     pub fn propose(
@@ -533,15 +533,17 @@ pub mod tests {
         create_proposal(state, caller, post_id, payload, time)
     }
 
-    fn time() -> Time {
-        CONFIG.min_stalwart_account_age_weeks * WEEK
+    fn set_time(new_time: Time) {
+        crate::TEST_TIME.with(|c| *c.borrow_mut() = new_time * WEEK);
     }
 
     #[test]
     fn test_untrusted_accounts() {
         mutate(|state| {
+            state.init();
             create_user(state, pr(1));
             insert_balance(state, pr(1), 1000 * 100);
+
             let post_id =
                 Post::create(state, "hello world".into(), &[], pr(1), 0, None, None, None).unwrap();
 
@@ -553,6 +555,10 @@ pub mod tests {
             // Users with reports are rejected.
             create_user(state, pr(2));
             insert_balance(state, pr(2), 1000 * 100);
+
+            // Advance time by half a year
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
+
             let user = state.principal_to_user_mut(pr(1)).unwrap();
             user.last_activity = time();
             let report = Report {
@@ -579,6 +585,10 @@ pub mod tests {
         mutate(|state| {
             create_user(state, pr(1));
             insert_balance(state, pr(1), 1000 * 100);
+
+            // Advance time by half a year
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
+
             create_proposal(state, pr(1), 2, Payload::Noop, time()).unwrap();
         })
     }
@@ -589,6 +599,10 @@ pub mod tests {
         mutate(|state| {
             create_user(state, pr(1));
             insert_balance(state, pr(1), 1000 * 100);
+
+            // Advance time by half a year
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
+
             let post_id = Post::create(
                 state,
                 "hello world".into(),
@@ -613,6 +627,9 @@ pub mod tests {
                 create_user(state, p);
                 insert_balance(state, p, 1000 * 100);
             }
+
+            // Advance time by half a year
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
 
             let id = propose(state, pr(1), "test".into(), Payload::Noop, time())
                 .expect("couldn't create proposal");
@@ -718,6 +735,10 @@ pub mod tests {
         mutate(|state| {
             state.auction.last_auction_price_e8s = 10;
             state.e8s_for_one_xdr = 10;
+
+            // Advance time by half a year
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
+
             // create voters, make each of them earn some rewards
             for i in 1..11 {
                 let p = pr(i);
@@ -850,6 +871,10 @@ pub mod tests {
         mutate(|state| {
             state.auction.last_auction_price_e8s = 10;
             state.e8s_for_one_xdr = 10;
+
+            // Advance time by half a year
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
+
             // create voters, make each of them earn some rewards
             for i in 1..=3 {
                 let p = pr(i);
@@ -897,6 +922,10 @@ pub mod tests {
         mutate(|state| {
             state.auction.last_auction_price_e8s = 10;
             state.e8s_for_one_xdr = 10;
+
+            // Advance time by half a year
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
+
             // create voters, make each of them earn some rewards
             for i in 1..=5 {
                 let p = pr(i);
@@ -953,6 +982,9 @@ pub mod tests {
                 insert_balance(state, p, (100 * (1 << i)) * 100);
             }
 
+            // Advance time by half a year
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
+
             state
                 .balances
                 .insert(account(pr(222)), CONFIG.maximum_supply);
@@ -997,6 +1029,10 @@ pub mod tests {
         mutate(|state| {
             state.auction.last_auction_price_e8s = 10;
             state.e8s_for_one_xdr = 10;
+
+            // Advance time by half a year
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
+
             // create voters, make each of them earn some rewards
             for i in 1..=3 {
                 let p = pr(i);
@@ -1186,6 +1222,9 @@ pub mod tests {
             state.auction.last_auction_price_e8s = 10;
             state.e8s_for_one_xdr = 10;
 
+            // Advance time by half a year
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
+
             // create voters, make each of them earn some rewards
             for i in 1..=3 {
                 let p = pr(i);
@@ -1307,6 +1346,9 @@ pub mod tests {
             let p = pr(0);
             create_user(state, p);
 
+            // Advance time by half a year
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
+
             assert_eq!(
                 propose(state, pr(0), "test".into(), Payload::Noop, time()),
                 // we use the same escrow amount as in prod
@@ -1370,6 +1412,9 @@ pub mod tests {
             state.init();
             state.auction.last_auction_price_e8s = 10;
             state.e8s_for_one_xdr = 10;
+
+            // Advance time by half a year
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
 
             let p = pr(1);
             let id = create_user(state, p);

@@ -81,8 +81,6 @@ export type Icrc1Canister = {
     fee: number;
     decimals: number;
     logo?: string;
-    /** canisterId, offset, length */
-    logo_params?: [string, number, number];
 };
 
 export type Payload =

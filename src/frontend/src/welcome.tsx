@@ -12,6 +12,7 @@ import {
     hash,
     signOut,
     SeedPhraseForm,
+    showPopUp,
 } from "./common";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 
@@ -32,7 +33,7 @@ export const Welcome = () => {
         const result = await window.api.call<any>("mint_credits", 0);
         setLoadingInvoice(false);
         if ("Err" in result) {
-            alert(`Error: ${result.Err}`);
+            showPopUp("error", result.Err);
             return;
         }
         setInvoice(result.Ok);
@@ -67,8 +68,10 @@ export const Welcome = () => {
                                     identity.getPrincipal().toString() !=
                                     window.getPrincipalId()
                                 ) {
-                                    alert(
+                                    showPopUp(
+                                        "error",
                                         "The seed phrase does not match! Please log-out and try again.",
+                                        5,
                                     );
                                     return;
                                 } else setSeedPhraseConfirmed(true);

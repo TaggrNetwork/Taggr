@@ -1,19 +1,15 @@
 import * as React from "react";
-import {
-    ButtonWithLoading,
-    Loading,
-    bucket_image_url,
-    createChunks,
-} from "./common";
+import { ButtonWithLoading, Loading, createChunks, showPopUp } from "./common";
 import { Principal } from "@dfinity/principal";
 import { Icrc1Canister } from "./types";
 import { Add, Repost, Trash } from "./icons";
 
 export const Icrc1TokensWallet = () => {
-    const [user] = React.useState(window.user);
+    const user = window.user;
     const getUserCanisterKey = (canisterId: string) =>
         `canister:${canisterId}:user:${user?.id}`;
     const userWalletFiltersKey = `user:${user?.id}:wallet-filters`;
+
     const [icrc1Canisters, setIcrc1Canisters] = React.useState<
         Array<[string, Icrc1Canister]>
     >([]);
@@ -32,27 +28,6 @@ export const Icrc1TokensWallet = () => {
         getLocalFilters()?.hideZeroBalance || false,
     );
     const [disabled, setDisabled] = React.useState(true);
-
-    const filterAndSortCanisters = (
-        canisters: Array<[string, Icrc1Canister]>,
-        balances: Record<string, string>,
-        _hideZeroBalance = hideZeroBalance,
-    ) => {
-        let filteredCanisters = canisters;
-        if (_hideZeroBalance) {
-            filteredCanisters = canisters.filter(
-                ([canisterId]) => +balances[canisterId] > 0,
-            );
-        }
-        // Sort by name and then balance
-        return filteredCanisters
-            .sort((a, b) => a[1].symbol.localeCompare(b[1].symbol))
-            .sort(
-                (a, b) =>
-                    +balances[b[0]] / Math.pow(10, b[1].decimals) -
-                    +balances[a[0]] / Math.pow(10, a[1].decimals),
-            );
-    };
 
     const getLocalCanistersMetaData = (): Array<[string, Icrc1Canister]> => {
         return (user?.wallet_tokens || [])
@@ -107,13 +82,12 @@ export const Icrc1TokensWallet = () => {
                     window.api
                         .icrc_metadata(canisterId)
                         .then((meta) => {
-                            if (meta) {
-                                canistersFromStorageMap.set(canisterId, meta);
-                                localStorage.setItem(
-                                    getUserCanisterKey(canisterId),
-                                    JSON.stringify(meta),
-                                );
-                            }
+                            if (!meta) return;
+                            canistersFromStorageMap.set(canisterId, meta);
+                            localStorage.setItem(
+                                getUserCanisterKey(canisterId),
+                                JSON.stringify(meta),
+                            );
                         })
                         .catch(console.error),
                 ),
@@ -123,33 +97,32 @@ export const Icrc1TokensWallet = () => {
         return canistersFromStorageMap;
     };
 
-    /** Load balances of user canisters in small batches to avoid spikes */
+    // Load balances of user canisters in small batches to avoid spikes
     const loadBalances = async (canisterIds: string[]) => {
         const balances: { [key: string]: string } = { ...canisterBalances };
         const chunks = createChunks(canisterIds, 5);
 
-        if (user) {
-            for (const chunk of chunks) {
-                await Promise.all(
-                    chunk.map((canisterId) =>
-                        window.api
-                            .account_balance(Principal.from(canisterId), {
-                                owner: Principal.from(user.principal),
-                            })
-                            .then(
-                                (balance) =>
-                                    (balances[canisterId] =
-                                        new Number(balance).toString() || "0"),
-                            )
-                            .catch((error) => {
-                                console.error(error);
-                                balances[canisterId] = "NaN";
-                            }),
-                    ),
-                );
-                setCanisterBalances({ ...balances }); // Add to the view
-            }
+        for (const chunk of chunks) {
+            await Promise.all(
+                chunk.map((canisterId) =>
+                    window.api
+                        .account_balance(Principal.from(canisterId), {
+                            owner: Principal.from(user.principal),
+                        })
+                        .then(
+                            (balance) =>
+                                (balances[canisterId] =
+                                    new Number(balance).toString() || "0"),
+                        )
+                        .catch((error) => {
+                            console.error(error);
+                            balances[canisterId] = "NaN";
+                        }),
+                ),
+            );
+            setCanisterBalances({ ...balances }); // Add to the view
         }
+
         return balances;
     };
 
@@ -159,7 +132,11 @@ export const Icrc1TokensWallet = () => {
             const canisters = await getCanistersMetaData();
             const balances = await loadBalances([...canisters.keys()]);
             setIcrc1Canisters(
-                filterAndSortCanisters([...canisters.entries()], balances),
+                filterAndSortCanisters(
+                    [...canisters.entries()],
+                    balances,
+                    hideZeroBalance,
+                ),
             );
         } finally {
             setDisabled(false);
@@ -173,7 +150,11 @@ export const Icrc1TokensWallet = () => {
         const balances = await loadBalances([...canisters.keys()]);
 
         setIcrc1Canisters(
-            filterAndSortCanisters([...canisters.entries()], balances),
+            filterAndSortCanisters(
+                [...canisters.entries()],
+                balances,
+                hideZeroBalance,
+            ),
         );
     };
     let loading = false;
@@ -189,9 +170,8 @@ export const Icrc1TokensWallet = () => {
 
     const addIcrc1CanisterPrompt = async () => {
         const canisterId = prompt(`ICRC-1 canister id:`) || "";
-        if (!canisterId) {
-            return;
-        }
+        if (!canisterId) return;
+
         try {
             setDisabled(true);
             Principal.fromText(canisterId);
@@ -200,15 +180,16 @@ export const Icrc1TokensWallet = () => {
                 const canisterMeta = JSON.parse(
                     localStorage.getItem(getUserCanisterKey(canisterId)) || "",
                 );
-                return alert(
+                return showPopUp(
+                    "info",
                     `Token ${canisterMeta?.symbol || canisterId} was already added`,
+                    4,
                 );
             }
 
             const meta = await window.api.icrc_metadata(canisterId);
-            if (!meta) {
+            if (!meta)
                 throw new Error("Could not find ICRC-1 canister metadata");
-            }
 
             // Set global user, avoid callbacks
             user.wallet_tokens = [...(user?.wallet_tokens || []), canisterId];
@@ -216,9 +197,7 @@ export const Icrc1TokensWallet = () => {
                 "update_wallet_tokens",
                 user.wallet_tokens,
             );
-            if (response?.Err) {
-                return alert(response.Err);
-            }
+            if (response?.Err) return showPopUp("error", response.Err);
 
             localStorage.setItem(
                 getUserCanisterKey(canisterId),
@@ -230,10 +209,14 @@ export const Icrc1TokensWallet = () => {
                 filterAndSortCanisters(
                     [...icrc1Canisters, [canisterId, meta]],
                     balances,
+                    hideZeroBalance,
                 ),
             );
         } catch (error: any) {
-            alert(error?.message || "Failed to add token to your wallet");
+            showPopUp(
+                "error",
+                error?.message || "Failed to add token to your wallet",
+            );
         } finally {
             setDisabled(false);
         }
@@ -255,7 +238,10 @@ export const Icrc1TokensWallet = () => {
             Principal.fromText(canisterId);
 
             if (!user?.wallet_tokens?.includes(canisterId)) {
-                return alert(`Token ${canisterId} is not in your list`);
+                return showPopUp(
+                    "info",
+                    `Token ${canisterId} is not in your list`,
+                );
             }
 
             // Set global user, avoid callbacks
@@ -267,7 +253,7 @@ export const Icrc1TokensWallet = () => {
                 user.wallet_tokens,
             );
             if (response?.Err) {
-                return alert(response.Err);
+                return showPopUp("error", response.Err);
             }
 
             localStorage.removeItem(getUserCanisterKey(canisterId));
@@ -276,7 +262,10 @@ export const Icrc1TokensWallet = () => {
                 icrc1Canisters.filter(([id]) => id !== canisterId),
             );
         } catch (error: any) {
-            alert(error?.message || "Failed to add token to your wallet");
+            showPopUp(
+                "error",
+                error?.message || "Failed to add token to your wallet",
+            );
         } finally {
             setDisabled(false);
         }
@@ -302,14 +291,17 @@ export const Icrc1TokensWallet = () => {
             );
             const u64Amount = Math.floor(amount * Math.pow(10, info.decimals));
             if (u64Amount < 1) {
-                return alert("Amount is too small!");
+                return showPopUp("error", "Amount is too small!");
             }
             const decimalPart = (amount % 1).toPrecision(15); // Max 64bit precision
             if (
                 decimalPart.toString().replaceAll("0", "").replace(".", "")
                     .length > info.decimals
             ) {
-                return alert(`More than ${info.decimals} decimals!`);
+                return showPopUp(
+                    "error",
+                    `More than ${info.decimals} decimals!`,
+                );
             }
 
             if (toPrincipal && amount) {
@@ -327,13 +319,13 @@ export const Icrc1TokensWallet = () => {
                     info.fee,
                 );
                 if (isNaN(+amountOrError)) {
-                    return alert(amountOrError);
+                    return showPopUp("error", `${amountOrError}`);
                 }
 
                 await loadBalances([canisterId]);
             }
         } catch (e: any) {
-            alert(e.message);
+            showPopUp("error", e.message);
         }
     };
 
@@ -400,9 +392,7 @@ export const Icrc1TokensWallet = () => {
                                     verticalAlign: "middle",
                                 }}
                                 src={
-                                    info.logo_params
-                                        ? bucket_image_url(...info.logo_params)
-                                        : info.logo
+                                    info.logo || icpSwapLogoFallback(canisterId)
                                 }
                             />
                             <span className="left_half_spaced monospace">
@@ -440,4 +430,28 @@ export const Icrc1TokensWallet = () => {
             )}
         </>
     );
+};
+
+const icpSwapLogoFallback = (canisterId: string) =>
+    `https://wqfao-piaaa-aaaag-qj5ba-cai.raw.icp0.io/${canisterId}`;
+
+const filterAndSortCanisters = (
+    canisters: Array<[string, Icrc1Canister]>,
+    balances: Record<string, string>,
+    hideZeroBalance: boolean,
+) => {
+    let filteredCanisters = canisters;
+    if (hideZeroBalance) {
+        filteredCanisters = canisters.filter(
+            ([canisterId]) => +balances[canisterId] > 0,
+        );
+    }
+    // Sort by name and then balance
+    return filteredCanisters
+        .sort((a, b) => a[1].symbol.localeCompare(b[1].symbol))
+        .sort(
+            (a, b) =>
+                +balances[b[0]] / Math.pow(10, b[1].decimals) -
+                +balances[a[0]] / Math.pow(10, a[1].decimals),
+        );
 };

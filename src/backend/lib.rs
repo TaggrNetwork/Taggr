@@ -17,6 +17,8 @@ const BACKUP_PAGE_SIZE: u32 = 1024 * 1024;
 
 thread_local! {
     static STATE: RefCell<State> = Default::default();
+    #[cfg(test)]
+    pub static TEST_TIME: RefCell<Time> = Default::default();
 }
 
 pub fn read<F, R>(f: F) -> R
@@ -70,7 +72,7 @@ pub fn id() -> Principal {
 
 pub fn time() -> u64 {
     #[cfg(test)]
-    return 0;
+    return TEST_TIME.with(|cell| *cell.borrow());
     #[cfg(not(test))]
     ic_cdk::api::time()
 }

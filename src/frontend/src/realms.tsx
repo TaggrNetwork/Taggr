@@ -10,6 +10,7 @@ import {
     setTitle,
     ToggleButton,
     foregroundColor,
+    showPopUp,
 } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
@@ -138,12 +139,14 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                     window.backendCache.config
                                         .max_realm_logo_len
                                 ) {
-                                    alert(
+                                    showPopUp(
+                                        "error",
                                         `Logo size must be below ${Math.ceil(
                                             expectedSize / 1024,
                                         )}KB, while yours has ${Math.ceil(
                                             actualSize / 1024,
                                         )}KB.`,
+                                        5,
                                     );
                                     return;
                                 }
@@ -494,7 +497,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             realm,
                         );
                         if ("Err" in response) {
-                            alert(`Error: ${response.Err}`);
+                            showPopUp("error", response.Err);
                             return;
                         }
                         if (!editing) {

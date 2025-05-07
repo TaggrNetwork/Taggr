@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HeadBar, MoreButton } from "./common";
+import { HeadBar, MoreButton, showPopUp } from "./common";
 import { Content } from "./content";
 import { BellOff, Close } from "./icons";
 import { PostView } from "./post";
@@ -70,12 +70,13 @@ export const Inbox = () => {
                                 <button
                                     className="unselected"
                                     onClick={() =>
-                                        closeNotification(k, () =>
+                                        closeNotification(k, () => {
+                                            showPopUp("info", "Post unwatched");
                                             window.api.call(
                                                 "toggle_following_post",
                                                 id,
-                                            ),
-                                        )
+                                            );
+                                        })
                                     }
                                 >
                                     <BellOff classNameArg="accent" />

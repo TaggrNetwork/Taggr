@@ -17,6 +17,7 @@ import {
     noiseControlBanner,
     setTitle,
     pfpUrl,
+    showPopUp,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -178,7 +179,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                                     amount,
                                                 );
                                             if ("Err" in result) {
-                                                alert(`Error: ${result.Err}`);
+                                                showPopUp("error", result.Err);
                                                 return;
                                             }
                                             window.reloadUser();

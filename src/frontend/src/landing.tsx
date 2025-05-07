@@ -18,25 +18,32 @@ import {
 } from "./icons";
 import { PostId } from "./types";
 
+const NEW = "NEW";
+const ALL = "ALL";
+const HOT = "HOT";
+const REALMS = "REALMS";
+const BEST_IN_REALMS = "BEST IN REALMS";
+const FOR_ME = "FOR ME";
+
 export const Landing = () => {
     const user = window.user;
     const realm = currentRealm();
     const [feed, setFeed] = React.useState(
-        (!currentRealm() && user && user.settings.tab) || "HOT",
+        (!currentRealm() && user && user.settings.tab) || HOT,
     );
 
-    let labels: [JSX.Element, string][] = [[<All />, "ALL"]];
+    let labels: [JSX.Element, string][] = [[<All />, ALL]];
 
-    if (user) labels.push([<New />, "NEW"]);
+    if (user) labels.push([<New />, NEW]);
 
-    labels.push([<Fire />, "HOT"]);
+    labels.push([<Fire />, HOT]);
 
     if (!realm) {
         if (user) {
-            labels.push([<User classNameArg="vertically_aligned" />, "FOR ME"]);
-            if (user.realms.length > 0) labels.push([<Realm />, "REALMS"]);
+            labels.push([<User classNameArg="vertically_aligned" />, FOR_ME]);
+            if (user.realms.length > 0) labels.push([<Realm />, REALMS]);
         } else {
-            labels.push([<Realm />, "BEST IN REALMS"]);
+            labels.push([<Realm />, BEST_IN_REALMS]);
         }
     }
 
@@ -85,20 +92,20 @@ export const Landing = () => {
                 refreshRateSecs={10 * 60}
                 title={title}
                 feedLoader={async (page: number, offset: PostId) => {
-                    if (feed == "PERSONAL")
+                    if (feed == FOR_ME)
                         return await window.api.query(
                             "personal_feed",
                             page,
                             offset,
                         );
-                    if (feed == "BEST IN REALMS")
+                    if (feed == BEST_IN_REALMS)
                         return await window.api.query(
                             "hot_realm_posts",
                             realm,
                             page,
                             offset,
                         );
-                    if (feed == "HOT")
+                    if (feed == HOT)
                         return await window.api.query(
                             "hot_posts",
                             realm,
@@ -107,7 +114,7 @@ export const Landing = () => {
                             // only enable noise filtering outside of realms
                             !currentRealm(),
                         );
-                    if (feed == "REALMS")
+                    if (feed == REALMS)
                         return await window.api.query(
                             "realms_posts",
                             page,
@@ -119,7 +126,7 @@ export const Landing = () => {
                         page,
                         offset,
                         feed ==
-                            "NEW" /* apply noise filter on NEW but not on ALL */,
+                            NEW /* apply noise filter on NEW but not on ALL */,
                     );
                 }}
             />
