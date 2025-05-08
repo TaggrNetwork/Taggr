@@ -185,21 +185,10 @@ fn update_last_activity() {
 
 #[export_name = "canister_update request_principal_change"]
 fn request_principal_change() {
-    let principal: String = parse(&arg_data_raw());
-    mutate(|state| {
-        let principal = Principal::from_text(principal).expect("can't parse principal");
-        if principal == Principal::anonymous() || state.principals.contains_key(&principal) {
-            return;
-        }
-        let caller = caller();
-        state
-            .principal_change_requests
-            .retain(|_, principal| principal != &caller);
-        if state.principal_change_requests.len() <= 500 {
-            state.principal_change_requests.insert(principal, caller);
-        }
-    });
-    reply_raw(&[]);
+    let new_principal: String = parse(&arg_data_raw());
+    reply(mutate(|state| {
+        state.request_principal_change(caller(), new_principal)
+    }))
 }
 
 #[export_name = "canister_update confirm_principal_change"]
