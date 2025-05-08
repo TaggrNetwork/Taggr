@@ -600,6 +600,140 @@ mod tests {
     }
 
     #[test]
+    fn test_balances_from_ledger() {
+        // Setup test transactions
+        let minting_account = icrc1_minting_account().expect("no minting account");
+        let principal1 = pr(1);
+        let principal2 = pr(2);
+        let principal3 = pr(3);
+        let account1 = account(principal1);
+        let account2 = account(principal2);
+        let account3 = account(principal3);
+
+        let transactions = vec![
+            // Mint to account1
+            Transaction {
+                timestamp: 100,
+                from: minting_account.clone(),
+                to: account1.clone(),
+                amount: 1000,
+                fee: 0,
+                memo: None,
+                parent_hash: Default::default(),
+                id: 0,
+            },
+            // Transfer from account1 to account2
+            Transaction {
+                timestamp: 200,
+                from: account1.clone(),
+                to: account2.clone(),
+                amount: 400,
+                fee: 10,
+                memo: None,
+                parent_hash: Default::default(),
+                id: 1,
+            },
+            // Mint to account2
+            Transaction {
+                timestamp: 300,
+                from: minting_account.clone(),
+                to: account2.clone(),
+                amount: 500,
+                fee: 0,
+                memo: None,
+                parent_hash: Default::default(),
+                id: 2,
+            },
+            // Burn from account2
+            Transaction {
+                timestamp: 400,
+                from: account2.clone(),
+                to: minting_account.clone(),
+                amount: 200,
+                fee: 10,
+                memo: None,
+                parent_hash: Default::default(),
+                id: 3,
+            },
+            // Transfer to a new account3
+            Transaction {
+                timestamp: 500,
+                from: account1.clone(),
+                to: account3.clone(),
+                amount: 300,
+                fee: 10,
+                memo: None,
+                parent_hash: Default::default(),
+                id: 4,
+            },
+        ];
+
+        // Test successful case
+        let mut tx_iter = transactions.iter().cloned();
+        let (balances, total_fees) =
+            balances_from_ledger(&mut tx_iter).expect("balance computation failed");
+
+        // Verify balances
+        assert_eq!(balances.get(&account1), Some(&(1000 - 400 - 10 - 300 - 10)));
+        assert_eq!(balances.get(&account2), Some(&(400 + 500 - 200 - 10)));
+        assert_eq!(balances.get(&account3), Some(&300));
+        assert_eq!(total_fees, 30); // Sum of all fees
+
+        // Test error cases
+
+        // Insufficient funds error
+        let bad_transactions = vec![
+            // Mint to account1
+            Transaction {
+                timestamp: 100,
+                from: minting_account.clone(),
+                to: account1.clone(),
+                amount: 1000,
+                fee: 0,
+                memo: None,
+                parent_hash: Default::default(),
+                id: 0,
+            },
+            // Try to transfer more than balance
+            Transaction {
+                timestamp: 200,
+                from: account1.clone(),
+                to: account2.clone(),
+                amount: 2000, // More than available
+                fee: 10,
+                memo: None,
+                parent_hash: Default::default(),
+                id: 1,
+            },
+        ];
+
+        let mut bad_tx_iter = bad_transactions.iter().cloned();
+        let result = balances_from_ledger(&mut bad_tx_iter);
+        if let Err(msg) = result {
+            assert_eq!(msg, "account has not enough funds");
+        } else {
+            panic!("unexpected result");
+        }
+
+        // Invalid transaction (amount overflow) error
+        let overflow_amount = u64::MAX;
+        let overflow_transactions = vec![Transaction {
+            timestamp: 100,
+            from: account1.clone(),
+            to: account2.clone(),
+            amount: overflow_amount,
+            fee: 1,
+            memo: None,
+            parent_hash: Default::default(),
+            id: 0,
+        }];
+
+        let mut overflow_tx_iter = overflow_transactions.iter().cloned();
+        let result = balances_from_ledger(&mut overflow_tx_iter);
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_transfers() {
         let mut state = State::default();
         env::tests::create_user(&mut state, pr(0));

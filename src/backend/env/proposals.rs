@@ -516,6 +516,8 @@ pub mod tests {
         env::{
             tests::{create_user, insert_balance, pr},
             token::{transfer, InsufficientFunds, TransferArgs, TransferError},
+            user::Notification,
+            Realm, DAY,
         },
         read,
         reports::Report,
@@ -733,6 +735,7 @@ pub mod tests {
         let data = &"".to_string();
         let proposer = pr(1);
         mutate(|state| {
+            state.init();
             state.auction.last_auction_price_e8s = 10;
             state.e8s_for_one_xdr = 10;
 
@@ -861,8 +864,173 @@ pub mod tests {
             assert_eq!(
                 vote_on_proposal(state, time(), pr(9), prop_id, true, data),
                 Err("last proposal is not open".into())
+            );
+
+            // New section to test ReleaseInfo conversion
+            let prop_id = propose(
+                state,
+                proposer,
+                "test release proposal".into(),
+                Payload::Release(Release {
+                    commit: "abcdef1234".into(),
+                    hash: "0987654321".into(),
+                    binary: vec![1, 2, 3, 4],
+                    closed_features: vec![42],
+                }),
+                time(),
             )
+            .expect("couldn't propose");
+
+            // Test successful conversion
+            let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
+            let result = ReleaseInfo::try_from(proposal);
+            assert!(result.is_ok());
+            let release_info = result.unwrap();
+            assert_eq!(release_info.post_id, proposal.post_id);
+            assert_eq!(release_info.timestamp, proposal.timestamp);
+            assert_eq!(release_info.commit, "abcdef1234");
+            assert_eq!(
+                release_info.hash,
+                "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a"
+            );
+
+            // Test failure case for conversion
+            let prop_id = propose(
+                state,
+                proposer,
+                "test non-release proposal".into(),
+                Payload::Noop,
+                time(),
+            )
+            .expect("couldn't propose");
+
+            let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
+            match ReleaseInfo::try_from(proposal) {
+                Err(msg) => assert_eq!(msg, "wrong proposal type"),
+                _ => unreachable!(),
+            }
         })
+    }
+
+    #[test]
+    fn test_payload_validation() {
+        mutate(|state| {
+            state.init();
+            create_user(state, pr(1));
+
+            // Test Release payload validation
+            let release_payload = Payload::Release(Release {
+                commit: "".into(),
+                hash: "".into(),
+                binary: vec![],
+                closed_features: vec![],
+            });
+
+            // Empty commit should fail
+            assert_eq!(
+                release_payload.validate(state),
+                Err("commit is not specified".to_string())
+            );
+
+            // Empty binary should fail
+            let release_payload = Payload::Release(Release {
+                commit: "abcdef".into(),
+                hash: "".into(),
+                binary: vec![],
+                closed_features: vec![],
+            });
+
+            assert_eq!(
+                release_payload.validate(state),
+                Err("binary is missing".to_string())
+            );
+
+            // Valid release should pass
+            let release_payload = Payload::Release(Release {
+                commit: "abcdef".into(),
+                hash: "".into(),
+                binary: vec![1, 2, 3],
+                closed_features: vec![],
+            });
+
+            assert_eq!(release_payload.validate(state), Ok(()));
+
+            // Test Funding payload validation
+            // First, set supply to maximum to test threshold
+            state
+                .balances
+                .insert(account(pr(100)), CONFIG.maximum_supply);
+
+            let funding_payload = Payload::Funding(pr(2), 1000);
+            assert_eq!(
+                funding_payload.validate(state),
+                Err("no funding is allowed when the current supply is above maximum".into())
+            );
+
+            // Remove maxed supply and test
+            state.balances.clear();
+
+            // Test exceeding max funding amount
+            let funding_payload = Payload::Funding(pr(2), CONFIG.max_funding_amount + 1);
+
+            assert_eq!(
+                funding_payload.validate(state),
+                Err(format!(
+                    "funding amount is higher than the configured maximum of {} tokens",
+                    CONFIG.max_funding_amount
+                ))
+            );
+
+            // Valid funding should pass
+            let funding_payload = Payload::Funding(pr(2), 1000);
+            assert_eq!(funding_payload.validate(state), Ok(()));
+
+            // Test Rewards payload similar to Funding
+            state
+                .balances
+                .insert(account(pr(100)), CONFIG.maximum_supply);
+
+            let rewards_payload = Payload::Rewards(Rewards {
+                receiver: pr(3),
+                submissions: Default::default(),
+                minted: 0,
+            });
+
+            assert_eq!(
+                rewards_payload.validate(state),
+                Err("no rewards are allowed when the current supply is above maximum".into())
+            );
+
+            // Valid rewards
+            state.balances.clear();
+            assert_eq!(rewards_payload.validate(state), Ok(()));
+
+            // Test AddRealmController payload
+            let realm_controller_payload = Payload::AddRealmController("NONEXISTENT".into(), 0);
+
+            assert_eq!(
+                realm_controller_payload.validate(state),
+                Err("realm not found".to_string())
+            );
+
+            // Create realm and test with non-existent user
+            state.realms.insert("TESTREALM".into(), Realm::default());
+
+            let realm_controller_payload = Payload::AddRealmController("TESTREALM".into(), 999);
+
+            assert_eq!(
+                realm_controller_payload.validate(state),
+                Err("user not found".to_string())
+            );
+
+            // Valid AddRealmController
+            let realm_controller_payload = Payload::AddRealmController(
+                "TESTREALM".into(),
+                0, // User 0 should exist
+            );
+
+            assert_eq!(realm_controller_payload.validate(state), Ok(()));
+        });
     }
 
     #[test]
@@ -915,6 +1083,103 @@ pub mod tests {
                 Status::Rejected
             );
         })
+    }
+
+    #[test]
+    fn test_create_proposal_extended() {
+        mutate(|state| {
+            state.init();
+
+            // Advance time by half a year
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
+
+            state.auction.last_auction_price_e8s = 186253; // Realistic ICP/TAGGR ratio
+            state.e8s_for_one_xdr = 29060000; // Realistic ICP/XDR ratio
+
+            // Create users with various conditions
+            let normal_user = create_user(state, pr(1));
+            let controversial_user = create_user(state, pr(2));
+            let new_user = create_user(state, pr(3));
+            let reported_user = create_user(state, pr(4));
+
+            // Mark one user as controversial (with a report)
+            state.users.get_mut(&controversial_user).unwrap().report = Some(Report {
+                reporter: 0,
+                confirmed_by: vec![0],
+                rejected_by: vec![],
+                closed: true,
+                reason: "Testing".into(),
+                timestamp: time() - DAY,
+            });
+
+            // Set new user timestamp to be recent (less than min account age)
+            state.users.get_mut(&new_user).unwrap().timestamp = time() - WEEK;
+
+            // Add tokens to users
+            for id in &[normal_user, controversial_user, new_user, reported_user] {
+                insert_balance(state, pr(*id as usize), 1000 * 100);
+            }
+
+            // Create test post
+            let post_id = Post::create(
+                state,
+                "Test proposal post".to_string(),
+                &[],
+                pr(1),
+                time(),
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+
+            // Test with controversial user
+            assert_eq!(
+                create_proposal(state, pr(2), post_id, Payload::Noop, time()),
+                Err("untrusted account".into())
+            );
+
+            // Test with new user (account too young)
+            assert_eq!(
+                create_proposal(state, pr(3), post_id, Payload::Noop, time()),
+                Err("untrusted account".into())
+            );
+
+            // Test with invalid payload
+            let invalid_payload = Payload::Release(Release {
+                commit: "".into(), // Empty commit
+                hash: "".into(),
+                binary: vec![],
+                closed_features: vec![],
+            });
+
+            assert_eq!(
+                create_proposal(state, pr(1), post_id, invalid_payload, time()),
+                Err("commit is not specified".to_string())
+            );
+
+            // Successful proposal creation
+            let prop_id = create_proposal(state, pr(1), post_id, Payload::Noop, time())
+                .expect("should create proposal");
+
+            // Verify proposal created correctly
+            let proposal = state.proposals.iter().find(|p| p.id == prop_id).unwrap();
+            assert_eq!(proposal.post_id, post_id);
+            assert_eq!(proposal.proposer, normal_user);
+            assert_eq!(proposal.status, Status::Open);
+
+            // Verify post has extension
+            let post = Post::get(state, &post_id).unwrap();
+            assert!(matches!(post.extension, Some(Extension::Proposal(_))));
+
+            // Verify notifications were sent
+            let has_notifications = state.users.values().any(|user| {
+            user.notifications.values().any(|(notification, _)| {
+                matches!(notification, Notification::Conditional(_, Predicate::Proposal(pid)) if *pid == post_id)
+            })
+        });
+            assert!(has_notifications);
+        });
     }
 
     #[test]
@@ -1354,6 +1619,7 @@ pub mod tests {
                 // we use the same escrow amount as in prod
                 Err("token balance required for a new proposal: 224".into())
             );
+
             // Insert tokens and make sure only one proposal can be created.
             let tokens = 200 * token::base() * factor;
             insert_balance(state, p, tokens);
