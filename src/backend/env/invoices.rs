@@ -39,7 +39,7 @@ pub struct ICPInvoice {
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct BTCInvoice {
-    // Sats worth $1
+    // Sats worth 1 XDR
     pub sats: u64,
     pub fee: u64,
     // Actually transferred sats
@@ -282,14 +282,15 @@ pub async fn process_btc_invoices() {
                             &invoice.address, err
                         ));
                     });
+                    pending.push(invoice);
                     continue;
                 }
             }
         }
 
-        // If we're here, that we either have no tx id or the tx is still pending.
-        // If we transfer happens while we're retrying below, we might submit a new transaction, but
-        // we'll clean up the invoice on the next retry because the balance has decreased.
+        // If we're here, then the invoice has either no tx id or the tx is still pending.
+        // If a concurrent transfer happens while we're retrying below, we might submit a new transaction, but
+        // it will fail because UTXOs are spent and we'll simply clean up the invoice on the next retry because the balance has decreased.
         let result = bitcoin::transfer(
             invoice.address.clone(),
             invoice.derivation_path.clone(),
@@ -297,17 +298,17 @@ pub async fn process_btc_invoices() {
             invoice.fee_percentile,
         )
         .await;
-        mutate(|state| match result {
-            Ok(tx_id) => {
-                invoice.tx_id = Some(tx_id.to_string());
-            }
+        match result {
+            Ok(tx_id) => invoice.tx_id = Some(tx_id.to_string()),
             Err(err) => {
-                state.logger.error(format!(
-                    "Failed to transfer {} sats from address {}: {}",
-                    invoice.balance, &invoice.address, err
-                ));
+                mutate(|state| {
+                    state.logger.error(format!(
+                        "Failed to transfer {} sats from address {}: {}",
+                        invoice.balance, &invoice.address, err
+                    ))
+                });
             }
-        });
+        }
         pending.push(invoice);
     }
 
@@ -324,10 +325,6 @@ pub async fn process_btc_invoices() {
             state
                 .logger
                 .debug(format!("Transferred `{}` sats to BTC treasury", total_sats));
-            state
-                .accounting
-                .pending_btc_invoices
-                .extend_from_slice(&pending)
         });
         bitcoin::update_treasury_balance().await;
     }

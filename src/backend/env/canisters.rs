@@ -246,8 +246,9 @@ pub async fn coins_for_one_xdr(coin: &str) -> Result<u64, String> {
             .map_err(|err| format!("xrc call failed: {:?}", err))?;
 
     response
-        .map(|result| result.rate / 10)
         .map_err(|err| format!("couldn't get canister status: {:?}", err))
+        // I did not dig into why all responses are x10
+        .map(|result| result.rate / 10)
 }
 
 pub async fn call_canister_raw(id: Principal, method: &str, args: &[u8]) -> CallResult<Vec<u8>> {

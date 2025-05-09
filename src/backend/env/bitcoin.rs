@@ -30,7 +30,7 @@ use std::str::FromStr;
 const DERIVATION_PATH: Vec<Vec<u8>> = vec![];
 
 pub fn network() -> Network {
-    Network::from_core_arg(CONFIG.btc_network).expect("couldn't parse metwork id")
+    Network::from_core_arg(CONFIG.btc_network).expect("couldn't parse network id")
 }
 
 pub fn btc_network() -> BitcoinNetwork {
@@ -102,11 +102,13 @@ pub async fn balance(address: String) -> Result<u64, String> {
         network: super::bitcoin::btc_network(),
         min_confirmations: None,
     })
-    .await
-    .map_err(|err| format!("bitcoin_get_balance call failed: {:?}", err))?;
+    .await;
     canisters::close_call(method);
 
-    Ok(balance_res.0)
+    Ok(balance_res
+        // Note: this error handling must be done AFTER canisters::close_call!
+        .map_err(|err| format!("bitcoin_get_balance call failed: {:?}", err))?
+        .0)
 }
 
 // Transfers all funds from the given address.
@@ -116,15 +118,8 @@ pub async fn transfer(
     dst_address: String,
     fee_percentile: usize,
 ) -> Result<Txid, String> {
-    ic_cdk::println!(
-        "Processing address {} with fee_percentile={}",
-        &own_address,
-        fee_percentile
-    );
     let fee_per_byte = get_fee_per_byte(fee_percentile).await?;
-
     let utxos = get_utxos(own_address).await?;
-
     let network = network();
     let own_public_key =
         get_ecdsa_public_key(CONFIG.ecdsa_key_name.into(), derivation_path.clone()).await?;
@@ -132,7 +127,6 @@ pub async fn transfer(
         .map_err(|err| format!("couldn't get address: {}", err))?
         .require_network(network)
         .map_err(|err| format!("should be valid address for the network: {}", err))?;
-
     let dst_address = Address::from_str(&dst_address)
         .map_err(|err| format!("couldn't get address: {}", err))?
         .require_network(network)
@@ -161,12 +155,17 @@ pub async fn transfer(
 
     let signed_transaction_bytes = serialize(&signed_transaction);
 
-    bitcoin_send_transaction(SendTransactionRequest {
+    let method = "bitcoin_send_transaction";
+    canisters::open_call(method);
+    let result = bitcoin_send_transaction(SendTransactionRequest {
         network: btc_network(),
         transaction: signed_transaction_bytes,
     })
-    .await
-    .map_err(|err| format!("couldn't submit transaction: {:?}", err))?;
+    .await;
+    canisters::close_call(method);
+
+    // Note: this error handling must be done AFTER canisters::close_call!
+    result.map_err(|err| format!("couldn't submit transaction: {:?}", err))?;
 
     Ok(signed_transaction.compute_txid())
 }
@@ -181,13 +180,16 @@ pub async fn get_fee_per_byte(n: usize) -> Result<Satoshi, String> {
     }
     let method = "bitcoin_get_current_fee_percentiles";
     canisters::open_call(method);
-    let fee_percentiles = bitcoin_get_current_fee_percentiles(GetCurrentFeePercentilesRequest {
+    let result = bitcoin_get_current_fee_percentiles(GetCurrentFeePercentilesRequest {
         network: btc_network(),
     })
-    .await
-    .map_err(|err| format!("fee percentiles could not be fetched: {:?}", err))?
-    .0;
+    .await;
     canisters::close_call(method);
+
+    let fee_percentiles = result
+        // Note: this error handling must be done AFTER canisters::close_call!
+        .map_err(|err| format!("fee percentiles could not be fetched: {:?}", err))?
+        .0;
 
     let milli_sat_per_byte = if fee_percentiles.is_empty() {
         // There are no fee percentiles. This case can only happen on a regtest
@@ -213,12 +215,14 @@ pub async fn get_utxos(address: String) -> Result<Vec<Utxo>, String> {
         network: btc_network(),
         filter: None,
     })
-    .await
-    .map_err(|err| format!("failed to get utxos: {:?}", err))?
-    .0;
+    .await;
     canisters::close_call(method);
 
-    Ok(response.utxos)
+    Ok(response
+        // Note: this error handling must be done AFTER canisters::close_call!
+        .map_err(|err| format!("failed to get utxos: {:?}", err))?
+        .0
+        .utxos)
 }
 
 // Builds a transaction to send all satoshis to the destination address.

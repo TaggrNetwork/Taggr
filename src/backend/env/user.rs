@@ -670,7 +670,7 @@ pub async fn create_user(
     })?;
 
     if let Some(code) = invite_code {
-        return mutate(|state| state.create_user_from_invite(principal, name, code));
+        return create_user_from_invite(principal, name, code);
     }
 
     let (paid_icp_invoice, paid_btc_invoice) = read(|state| {
@@ -681,7 +681,7 @@ pub async fn create_user(
     });
 
     if !paid_icp_invoice && !paid_btc_invoice {
-        return Err("payment missing or the invite is invalid".to_string());
+        return Err("payment missing".to_string());
     }
 
     mutate(|state| state.new_user(principal, time(), name, None))?;
@@ -696,6 +696,76 @@ pub async fn create_user(
             .await
             .map(|_| (None))
     }
+}
+
+fn create_user_from_invite(
+    principal: Principal,
+    name: String,
+    code: String,
+) -> Result<Option<RealmId>, String> {
+    mutate(|state| {
+        let Invite {
+            credits,
+            credits_per_user,
+            inviter_user_id,
+            realm_id,
+            ..
+        } = state
+            .invite_codes
+            .get(&code)
+            .cloned()
+            .ok_or("invite not found")?;
+
+        if credits < credits_per_user {
+            return Err("invite has not enough credits".to_string());
+        }
+
+        let inviter = state
+            .users
+            .get_mut(&inviter_user_id)
+            .ok_or("user not found")?;
+
+        if inviter.credits() < credits_per_user {
+            return Err("inviter has not enough credits".into());
+        }
+
+        let new_user_id = state.new_user(principal, time(), name.clone(), None)?;
+
+        state
+            .invite_codes
+            .get_mut(&code)
+            .expect("invite not found") // Revert newly created user in an edge case
+            .consume(new_user_id)?;
+
+        state
+            .credit_transfer(
+                inviter_user_id,
+                new_user_id,
+                credits_per_user,
+                0,
+                Destination::Credits,
+                "claimed by invited user",
+                None,
+            )
+            .unwrap_or_else(|err| panic!("couldn't use the invite: {}", err));
+
+        if let Some(id) = realm_id.clone() {
+            state.toggle_realm_membership(principal, id);
+        }
+
+        let user = state.users.get_mut(&new_user_id).expect("user not found");
+        user.invited_by = Some(inviter_user_id);
+        let inviter = state
+            .users
+            .get_mut(&inviter_user_id)
+            .expect("user not found");
+        inviter.notify(format!(
+            "Your invite was used by @{}! Thanks for helping #{} grow! 🤗",
+            name, CONFIG.name
+        ));
+
+        Ok(realm_id)
+    })
 }
 
 #[cfg(test)]
