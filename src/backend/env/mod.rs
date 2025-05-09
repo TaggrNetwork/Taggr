@@ -2951,45 +2951,6 @@ impl State {
 
         Ok(())
     }
-
-    // To improve post performance, instead of validating balance do penalty after
-    // In frontend there is a warning about min native token balance
-    // Post will still be created but will be deleted async - this way we have user POV-performance and policy enforcement
-    pub async fn delete_post_realm_native_token_balance(
-        owner: Principal,
-        post_id: PostId,
-    ) -> Result<(), String> {
-        let (realm_id, post_body) = read(|state| {
-            let post = Post::get(state, &post_id).expect("post not found");
-            (post.realm.clone(), post.body.clone())
-        });
-        if let Some(realm_id) = realm_id {
-            let (native_token, min_native_token_balance) = read(|state| {
-                let realm = state.realms.get(&realm_id).expect("realm not found");
-                (realm.native_token, realm.min_native_token_balance)
-            });
-
-            if let Some((native_token, min_native_token_balance)) =
-                native_token.zip(min_native_token_balance)
-            {
-                let balance = canisters::icrc_balance_of(native_token, owner).await;
-                match balance {
-                    Ok(balance) => {
-                        // Delete post of user
-                        if balance < min_native_token_balance {
-                            let _ =
-                                mutate(|state| state.delete_post(owner, post_id, vec![post_body]));
-                        }
-                    }
-                    Err(err) => {
-                        return Err(err);
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
 }
 
 // Checks if any feed represents the superset for the given tag set.
@@ -4966,79 +4927,5 @@ pub(crate) mod tests {
             assert_eq!(state.principal_to_user(pr(8)).unwrap().treasury_e8s, 12545);
             assert_eq!(state.principal_to_user(pr(9)).unwrap().treasury_e8s, 12545);
         });
-    }
-
-    #[actix_rt::test]
-    async fn test_delete_post_realm_native_token_balance() {
-        let pr = pr(10);
-
-        // Setup user and realm
-        let post_id = mutate(|state| {
-            create_user_with_params(state, pr, "test-name", 10000);
-            let _ = create_realm(state, pr, "test-realm".to_string());
-            state.toggle_realm_membership(pr, "test-realm".to_string());
-            Post::create(
-                state,
-                "test-post".to_string(),
-                &[],
-                pr,
-                time(),
-                None,
-                Some("test-realm".to_string()),
-                None,
-            )
-            .expect("post not created")
-        });
-
-        // Add realm native token balance
-        mutate(|state| {
-            if let Some(realm) = state.realms.get("test-realm") {
-                let mut edit = realm.clone();
-                edit.native_token = Some(id());
-                edit.min_native_token_balance = Some(5000);
-                let _ = state.edit_realm(pr, "test-realm".to_string(), edit);
-            }
-        });
-
-        // Test edit realm
-        assert_eq!(
-            read(|state| state
-                .realms
-                .get("test-realm")
-                .and_then(|realm| realm.native_token)),
-            Some(id()),
-        );
-        assert_eq!(
-            read(|state| state
-                .realms
-                .get("test-realm")
-                .and_then(|realm| realm.min_native_token_balance)),
-            Some(5000),
-        );
-
-        // Mint 50 Taggr to user
-        mutate(|state| {
-            state.balances.insert(account(pr), 5000);
-            if let Some(user) = state.principal_to_user_mut(pr) {
-                user.balance = 5000;
-            }
-        });
-
-        let delete_post = State::delete_post_realm_native_token_balance(pr, post_id).await;
-        assert_eq!(delete_post.err(), None);
-
-        // Increase min native token balance to 5001
-        mutate(|state| {
-            if let Some(realm) = state.realms.get_mut("test-realm") {
-                realm.min_native_token_balance = Some(5001);
-            }
-        });
-
-        // Post should be deleted when balance below min
-        let _ = State::delete_post_realm_native_token_balance(pr, post_id).await;
-        assert_eq!(
-            Some(true),
-            read(|state| Post::get(state, &post_id).map(|post| post.is_deleted())),
-        );
     }
 }

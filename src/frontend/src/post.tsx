@@ -31,7 +31,6 @@ import {
     numberToUint8Array,
     loadExternalTips,
     Popup,
-    getIcrcBalance,
 } from "./common";
 import {
     reaction2icon,
@@ -510,10 +509,6 @@ const PostInfo = ({
     const [showTipPopup, setShowTipPopup] = React.useState(false);
     const [tipping, setTipping] = React.useState(false);
     const [tippingAmount, setTippingAmount] = React.useState(0.1);
-    const [
-        belowMinNativeTokenBalanceMessage,
-        setBelowMinNativeTokenBalanceMessage,
-    ] = React.useState("");
 
     const loadData = async () => {
         // Load realm data asynchronously
@@ -579,22 +574,6 @@ const PostInfo = ({
         );
 
         setExternalTipsLoading(false);
-
-        // Realm native token min balance warning
-        if (realm) {
-            const { native_token = "", min_native_token_balance = 0 } = realm;
-            if (native_token && min_native_token_balance) {
-                // Async
-                getIcrcBalance(native_token, user.principal).then((balance) => {
-                    if (+balance < min_native_token_balance) {
-                        const canisterMeta = metadata.get(native_token);
-                        setBelowMinNativeTokenBalanceMessage(
-                            `Your balance of ${canisterMeta?.symbol} is less than ${tokens(min_native_token_balance, canisterMeta?.decimals || 0, true)}`,
-                        );
-                    }
-                });
-            }
-        }
 
         if (USER_COMMON_CACHE[post.user]) {
             return setPostUser(USER_COMMON_CACHE[post.user]);
@@ -773,11 +752,6 @@ const PostInfo = ({
                             writingCallback={writingCallback}
                             comment={true}
                         />
-                    )}
-                    {belowMinNativeTokenBalanceMessage && (
-                        <div className="banner vertically_spaced">
-                            {belowMinNativeTokenBalanceMessage}
-                        </div>
                     )}
                 </>
             )}

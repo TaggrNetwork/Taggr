@@ -411,10 +411,6 @@ async fn add_post(
     canisters::open_call(&call_name);
     let result = Post::save_blobs(post_id, blobs).await;
     canisters::close_call(&call_name);
-    // Check min native realm token balance (either parent post realm or new post)
-    spawn(async move {
-        let _ = State::delete_post_realm_native_token_balance(caller(), post_id).await;
-    });
     result.map(|_| post_id)
 }
 

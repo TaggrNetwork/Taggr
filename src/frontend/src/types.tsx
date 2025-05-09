@@ -131,7 +131,6 @@ export type Realm = {
     revenue: number;
     posts: PostId[];
     native_token?: string;
-    min_native_token_balance?: number;
     tokens?: string[];
 };
 

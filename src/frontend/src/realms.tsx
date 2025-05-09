@@ -14,8 +14,6 @@ import {
     showPopUp,
     getCanistersMetaData,
     ICP_LEDGER_ID,
-    tokens,
-    parseNumber,
 } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
@@ -62,7 +60,6 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         adult_content: false,
         comments_filtering: true,
         native_token: undefined,
-        min_native_token_balance: undefined,
         tokens: undefined,
     });
     const [controllersString, setControllersString] = React.useState("");
@@ -418,37 +415,6 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                 }}
                             />
                         </div>
-                    )}
-                </div>
-                <div className="column_container bottom_spaced">
-                    {realm?.native_token && (
-                        <>
-                            <div className="bottom_half_spaced">
-                                Minimal {realmTokenInfo(realm.native_token)}
-                                balance:
-                            </div>
-                            <input
-                                type="number"
-                                min="0"
-                                defaultValue={tokens(
-                                    realm.min_native_token_balance || 0,
-                                    canistersMetaData[realm.native_token]
-                                        ?.decimals || 0,
-                                )}
-                                onChange={(e) => {
-                                    const decimals = realm.native_token
-                                        ? canistersMetaData[realm.native_token]
-                                              ?.decimals
-                                        : 0;
-                                    realm.min_native_token_balance =
-                                        parseNumber(
-                                            e.target.value || "",
-                                            decimals,
-                                        ) || undefined;
-                                    setRealm({ ...realm });
-                                }}
-                            />
-                        </>
                     )}
                 </div>
 

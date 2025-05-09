@@ -130,7 +130,10 @@ pub fn create_post_tip(
         .get_mut(&receiver_id)
         .expect("user not found")
         .notify_about_post(
-            format!("@{} tipped you with `{}` for your post", sender_name, amount),
+            format!(
+                "@{} tipped you with `{}` for your post",
+                sender_name, amount
+            ),
             post_id,
         );
 

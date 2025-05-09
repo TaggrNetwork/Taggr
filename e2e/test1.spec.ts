@@ -277,6 +277,14 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test.describe("IC TOKENS", () => {
         test("Add - input", async () => {
+            // Enable in settings
+            await page.goto("/#/settings");
+            await expect(page.getByTestId("ic-wallet-select")).toBeVisible();
+            await page.getByTestId("ic-wallet-select").selectOption("YES");
+            await page.getByRole("button", { name: "SAVE" }).click();
+            await page.waitForTimeout(1000);
+            await page.reload();
+
             // Test the wallet functionality
             await page.goto("/");
             await page.getByTestId("toggle-user-section").click();

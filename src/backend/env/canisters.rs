@@ -289,27 +289,6 @@ pub async fn coins_for_one_xdr(coin: &str) -> Result<u64, String> {
         .map(|result| result.rate / 10)
 }
 
-#[allow(unused_variables, unreachable_code)]
-pub async fn icrc_balance_of(canister_id: Principal, owner: Principal) -> Result<u128, String> {
-    // Testing return 5000
-    #[cfg(test)]
-    return Ok(5000);
-
-    let account = Account {
-        owner,
-        subaccount: None,
-    };
-
-    let (balance,): (u128,) = call_canister(canister_id, "icrc1_balance_of", (account,))
-        .await
-        .map_err(|e| {
-            ic_cdk::println!("Failed to call ledger: {:?}", e);
-            format!("Failed to call ledger: {:?}", e)
-        })?;
-
-    Ok(balance)
-}
-
 pub async fn icrc_transactions(
     canister_id: Principal,
     args: GetTransactionsArgs,
