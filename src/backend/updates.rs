@@ -383,11 +383,7 @@ async fn add_post(
             extension,
         )
     })?;
-    let call_name = format!("blobs_storing_for_{}", post_id);
-    canisters::open_call(&call_name);
-    let result = Post::save_blobs(post_id, blobs).await;
-    canisters::close_call(&call_name);
-    result.map(|_| post_id)
+    Post::save_blobs(post_id, blobs).await.map(|_| post_id)
 }
 
 #[update]
