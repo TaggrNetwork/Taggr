@@ -50,10 +50,10 @@ pub fn create_post_tip(
         .principal_to_user(to_principal)
         .ok_or("receiver not found")?
         .id;
-    let sender_id = state
+    let (sender_id, sender_name) = state
         .principal_to_user(from_principal)
-        .ok_or("sender not found")?
-        .id;
+        .map(|sender| (sender.id, sender.name.clone()))
+        .ok_or("sender not found")?;
     let realm = post
         .realm
         .as_ref()
@@ -130,7 +130,7 @@ pub fn create_post_tip(
         .get_mut(&receiver_id)
         .expect("user not found")
         .notify_about_post(
-            format!("{} tipped you with `{}` for your post", sender_id, amount,),
+            format!("@{} tipped you with `{}` for your post", sender_name, amount),
             post_id,
         );
 

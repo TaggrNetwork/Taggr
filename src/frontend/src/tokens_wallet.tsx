@@ -1,14 +1,13 @@
 import * as React from "react";
-import { ButtonWithLoading, Loading, createChunks, showPopUp } from "./common";
 import {
     ButtonWithLoading,
     Loading,
-    bucket_image_url,
     createChunks,
     getAllTokens,
     getCanistersMetaData,
     getUserCanisterKey,
     icrcTransfer,
+    showPopUp,
 } from "./common";
 import { Principal } from "@dfinity/principal";
 import { Icrc1Canister } from "./types";
@@ -18,8 +17,6 @@ import { CANISTER_ID } from "./env";
 
 export const Icrc1TokensWallet = () => {
     const user = window.user;
-    const getUserCanisterKey = (canisterId: string) =>
-        `canister:${canisterId}:user:${user?.id}`;
     const userWalletFiltersKey = `user:${user?.id}:wallet-filters`;
 
     const [icrc1Canisters, setIcrc1Canisters] = React.useState<
@@ -103,7 +100,7 @@ export const Icrc1TokensWallet = () => {
 
         setIcrc1Canisters(
             filterAndSortCanisters(
-                [...canisters.entries()],
+                [...userCanisters.entries()],
                 balances,
                 hideZeroBalance,
             ),
