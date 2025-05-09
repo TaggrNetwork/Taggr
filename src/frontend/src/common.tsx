@@ -1171,7 +1171,7 @@ export const SeedPhraseForm = ({
     return (
         <>
             <p>
-                Please enter your password{" "}
+                Please enter your seed phrase{" "}
                 {confirmationRequired && <>and confirm it</>}
             </p>
             <div
@@ -1190,15 +1190,15 @@ export const SeedPhraseForm = ({
                         }
                     }}
                     className="max_width_col"
-                    type="password"
-                    placeholder="Enter your password..."
+                    type="seedphrase"
+                    placeholder="Enter your seed phrase..."
                 />
                 {confirmationRequired && (
                     <input
                         onChange={(e) => setConfirmedValue(e.target.value)}
                         className="max_width_col top_spaced bottom_spaced"
-                        type="password"
-                        placeholder="Repeat your password..."
+                        type="seedphrase"
+                        placeholder="Repeat your seed phrase..."
                     />
                 )}
                 <div className="row_container">
@@ -1213,7 +1213,10 @@ export const SeedPhraseForm = ({
                                 confirmationRequired &&
                                 value != confirmedValue
                             ) {
-                                showPopUp("error", "Passwords do not match.");
+                                showPopUp(
+                                    "error",
+                                    "Seed phrases do not match.",
+                                );
                                 return;
                             }
                             await callback(value);

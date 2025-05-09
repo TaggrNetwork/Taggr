@@ -23,7 +23,7 @@ const coldWalletFunctionalityAvailable = window.ic && window.ic.plug;
 export const Wallet = () => {
     const [user, setUser] = React.useState(window.user);
     const mintCredits = async (kilo_credits: number) =>
-        await window.api.call("mint_credits", kilo_credits);
+        await window.api.call("mint_credits_with_icp", kilo_credits);
 
     let { token_symbol, token_decimals, transaction_fee } =
         window.backendCache.config;
@@ -169,7 +169,7 @@ export const Wallet = () => {
                     label="MINT"
                     onClick={async () => {
                         const future_invoice = window.api.call<any>(
-                            "mint_credits",
+                            "mint_credits_with_icp",
                             0,
                         );
                         const maxKilos =

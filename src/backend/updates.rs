@@ -84,7 +84,12 @@ fn post_upgrade() {
 fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {}
+async fn async_post_upgrade_fixtures() {
+    // TODO: remove both lines after release
+    bitcoin::update_treasury_address().await;
+    #[cfg(not(feature = "dev"))]
+    State::fetch_xdr_rate().await;
+}
 
 /*
  * UPDATES
@@ -258,9 +263,9 @@ fn toggle_feature_support() {
 
 #[export_name = "canister_update create_user"]
 fn create_user() {
-    let (name, invite): (String, Option<String>) = parse(&arg_data_raw());
+    let (name, invite): (String, String) = parse(&arg_data_raw());
     spawn(async {
-        reply(user::create_user(caller(), name, invite).await);
+        reply(user::create_user(caller(), name, optional(invite)).await);
     });
 }
 
@@ -291,12 +296,17 @@ fn transfer_credits() {
     }))
 }
 
-#[export_name = "canister_update mint_credits"]
-fn mint_credits() {
+#[export_name = "canister_update mint_credits_with_icp"]
+fn mint_credits_with_icp() {
     spawn(async {
         let kilo_credits: u64 = parse(&arg_data_raw());
-        reply(State::mint_credits(caller(), kilo_credits).await)
+        reply(State::mint_credits_with_icp(caller(), kilo_credits).await)
     });
+}
+
+#[export_name = "canister_update mint_credits_with_btc"]
+fn mint_credits_with_btc() {
+    spawn(async { reply(State::mint_credits_with_btc(caller()).await) });
 }
 
 #[export_name = "canister_update create_invite"]

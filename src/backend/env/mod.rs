@@ -1,7 +1,7 @@
 use self::auction::Auction;
 use self::canisters::{icrc_transfer, upgrade_main_canister};
 use self::invite::Invite;
-use self::invoices::{Invoice, USER_ICP_SUBACCOUNT};
+use self::invoices::{ICPInvoice, USER_ICP_SUBACCOUNT};
 use self::post::{archive_cold_posts, Extension, Post, PostId};
 use self::post_iterators::{IteratorMerger, MergeStrategy};
 use self::proposals::{Payload, ReleaseInfo, Status};
@@ -20,7 +20,9 @@ use ic_cdk::api::management_canister::main::raw_rand;
 use ic_cdk::api::performance_counter;
 use ic_cdk::api::stable::stable_size;
 use ic_cdk::api::{self, canister_balance};
+use ic_cdk::spawn;
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
+use invoices::BTCInvoice;
 use invoices::Invoices;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -32,6 +34,7 @@ use token::base;
 use user::{Pfp, User, UserId};
 
 pub mod auction;
+pub mod bitcoin;
 pub mod canisters;
 pub mod config;
 pub mod features;
@@ -78,6 +81,8 @@ pub struct Event {
 pub struct Stats {
     e8s_revenue_per_1k: u64,
     e8s_for_one_xdr: u64,
+    bitcoin_treasury_sats: u64,
+    bitcoin_treasury_address: String,
     vesting_tokens_of_x: (Token, Token),
     users: usize,
     credits: Credits,
@@ -224,6 +229,15 @@ pub struct State {
     pub root_posts_index: Vec<PostId>,
 
     e8s_for_one_xdr: u64,
+
+    #[serde(default)]
+    pub sats_for_one_xdr: u64,
+
+    #[serde(default)]
+    pub bitcoin_treasury_sats: u64,
+
+    #[serde(default)]
+    pub bitcoin_treasury_address: String,
 
     last_revenues: VecDeque<u64>,
 
@@ -913,7 +927,7 @@ impl State {
             return Err("another user assigned to the same principal".into());
         }
         let id = self.new_user_id();
-        let mut user = User::new(principal, id, timestamp, name);
+        let mut user = User::new(principal, id, timestamp, name.clone());
         user.notify(format!("**Welcome!** 🎉 Use #{} as your personal blog, micro-blog or a photo blog. Use #hashtags to connect with others. Make sure you understand [how {0} works](/#/whitepaper). And finally, [say hello](#/new) and start earning rewards!", CONFIG.name));
         if let Some(credits) = credits {
             user.change_credits(credits, CreditsDelta::Plus, "topped up by an invite")
@@ -923,6 +937,7 @@ impl State {
         self.users.insert(user.id, user);
         self.set_pfp(id, Default::default())
             .expect("couldn't set default pfp");
+        self.logger.info(format!("@{} joined Taggr! 🎉", name));
         Ok(id)
     }
 
@@ -1455,9 +1470,18 @@ impl State {
     }
 
     pub async fn fetch_xdr_rate() {
-        if let Ok(e8s_for_one_xdr) = invoices::get_xdr_in_e8s().await {
-            mutate(|state| state.e8s_for_one_xdr = e8s_for_one_xdr);
-        }
+        let e8s_for_one_xdr = canisters::coins_for_one_xdr("ICP")
+            .await
+            // by default use ~$5/ICP
+            .unwrap_or(28082976);
+        let sats_for_one_xdr = canisters::coins_for_one_xdr("BTC")
+            .await
+            // by default use ~$86k/BTC
+            .unwrap_or(1609);
+        mutate(|state| {
+            state.sats_for_one_xdr = sats_for_one_xdr;
+            state.e8s_for_one_xdr = e8s_for_one_xdr;
+        });
     }
 
     pub fn get_xdr_rate() -> u64 {
@@ -1484,6 +1508,8 @@ impl State {
 
         #[cfg(not(any(feature = "dev", feature = "staging")))]
         nns_proposals::work(now).await;
+
+        invoices::process_btc_invoices().await;
     }
 
     pub async fn chores(now: u64) {
@@ -1529,7 +1555,8 @@ impl State {
                 state.timers.last_daily += DAY;
                 state.timers.daily_pending = false;
                 state.logger.debug(format!(
-                    "Pending NNS proposals: `{}`, pending polls: `{}`.",
+                    "Pending BTC invoices: `{}`, pending NNS proposals: `{}`, pending polls: `{}`.",
+                    state.accounting.pending_btc_invoices.len(),
                     state.pending_nns_proposals.len(),
                     state.pending_polls.len(),
                 ));
@@ -1767,7 +1794,7 @@ impl State {
             realms_cleaned.join(",")
         ));
 
-        self.accounting.clean_up();
+        self.accounting.clean_up(now);
 
         let inactive_realm_ids = self
             .realms
@@ -1993,7 +2020,10 @@ impl State {
         Ok(())
     }
 
-    pub async fn mint_credits(principal: Principal, kilo_credits: u64) -> Result<Invoice, String> {
+    pub async fn mint_credits_with_icp(
+        principal: Principal,
+        kilo_credits: u64,
+    ) -> Result<ICPInvoice, String> {
         if kilo_credits > CONFIG.max_credits_mint_kilos {
             return Err(format!(
                 "can't mint more than {} thousands of credits",
@@ -2002,7 +2032,8 @@ impl State {
         }
 
         let e8s_for_one_xdr = read(|state| state.e8s_for_one_xdr);
-        let invoice = Invoices::outstanding(&principal, kilo_credits, e8s_for_one_xdr).await?;
+        let invoice =
+            Invoices::outstanding_icp_invoice(&principal, kilo_credits, e8s_for_one_xdr).await?;
 
         mutate(|state| {
             if invoice.paid {
@@ -2013,11 +2044,44 @@ impl State {
                         CreditsDelta::Plus,
                         "top up with ICP".to_string(),
                     )?;
-                    state.accounting.close(&principal);
+                    state.accounting.close_invoice(&principal);
                 }
             }
             Ok(invoice)
         })
+    }
+
+    pub async fn mint_credits_with_btc(principal: Principal) -> Result<BTCInvoice, String> {
+        let sats_for_one_xdr = read(|state| state.sats_for_one_xdr);
+        let invoice = Invoices::outstanding_btc_invoice(&principal, sats_for_one_xdr).await?;
+
+        let mut invoice_closed = false;
+        let result = mutate(|state| {
+            if invoice.paid {
+                if let Some(user) = state.principal_to_user_mut(principal) {
+                    user.change_credits(
+                        ((invoice.balance as f64 / invoice.sats as f64)
+                            * CONFIG.credits_per_xdr as f64) as Credits,
+                        CreditsDelta::Plus,
+                        "top up with Bitcoin".to_string(),
+                    )?;
+                    state.accounting.close_invoice(&principal);
+                    invoice_closed = true;
+                }
+            }
+            Ok(invoice)
+        });
+
+        // If we were able to close an invoice, spawn the processing
+        // of pending btc invoices in a non-blocking way.
+        if invoice_closed {
+            let future = invoices::process_btc_invoices();
+            spawn(async {
+                let _ = future.await;
+            });
+        }
+
+        result
     }
 
     pub fn validate_username(&self, name: &str) -> Result<(), String> {
@@ -2376,6 +2440,8 @@ impl State {
         let volume_week = last_week_txs.into_iter().map(|(_, tx)| tx.amount).sum();
 
         Stats {
+            bitcoin_treasury_address: self.bitcoin_treasury_address.clone(),
+            bitcoin_treasury_sats: self.bitcoin_treasury_sats,
             fees_burned: self.token_fees_burned,
             volume_day,
             volume_week,

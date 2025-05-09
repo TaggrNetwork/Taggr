@@ -11,7 +11,7 @@ use candid::{
 };
 use ic_cdk::api::{
     self,
-    call::CallResult,
+    call::{call_with_payment128, CallResult},
     management_canister::{
         main::{
             canister_status, create_canister, deposit_cycles, install_code, CanisterInstallMode,
@@ -22,11 +22,14 @@ use ic_cdk::api::{
 };
 use ic_cdk::{api::call::call_raw, notify};
 use ic_ledger_types::{Tokens, MAINNET_GOVERNANCE_CANISTER_ID};
+use ic_xrc_types::{Asset, GetExchangeRateRequest, GetExchangeRateResult};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 
 const CYCLES_FOR_NEW_CANISTER: u128 = 1_000_000_000_000;
+// uf6dk-hyaaa-aaaaq-qaaaq-cai
+const XR_CANISTER_ID: Principal = Principal::from_slice(&[0, 0, 0, 0, 2, 16, 0, 1, 1, 1]);
 
 thread_local! {
     static CALLS: RefCell<HashMap<String, i32>> = Default::default();
@@ -223,9 +226,46 @@ pub async fn icrc_transfer(
     result.map_err(|err| format!("{:?}", err))
 }
 
+pub async fn coins_for_one_xdr(coin: &str) -> Result<u64, String> {
+    let args = GetExchangeRateRequest {
+        base_asset: Asset {
+            symbol: "XDR".into(),
+            class: ic_xrc_types::AssetClass::FiatCurrency,
+        },
+        quote_asset: Asset {
+            symbol: coin.into(),
+            class: ic_xrc_types::AssetClass::Cryptocurrency,
+        },
+        timestamp: None,
+    };
+    let cycles = 10000000000;
+
+    let (response,): (GetExchangeRateResult,) =
+        call_canister_with_payment(XR_CANISTER_ID, "get_exchange_rate", (args,), cycles)
+            .await
+            .map_err(|err| format!("xrc call failed: {:?}", err))?;
+
+    response
+        .map_err(|err| format!("couldn't get canister status: {:?}", err))
+        // I did not dig into why all responses are x10
+        .map(|result| result.rate / 10)
+}
+
 pub async fn call_canister_raw(id: Principal, method: &str, args: &[u8]) -> CallResult<Vec<u8>> {
     open_call(method);
     let result = call_raw(id, method, args, 0).await;
+    close_call(method);
+    result
+}
+
+pub async fn call_canister_with_payment<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(
+    id: Principal,
+    method: &str,
+    args: T,
+    cycles: u128,
+) -> CallResult<R> {
+    open_call(method);
+    let result = call_with_payment128(id, method, args, cycles).await;
     close_call(method);
     result
 }

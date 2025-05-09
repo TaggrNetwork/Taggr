@@ -38,7 +38,7 @@ fe:
 
 e2e_build:
 	NODE_ENV=production DFX_NETWORK=local npm run build
-	FEATURES=dev ./build.sh bucket
+	./build.sh bucket
 	FEATURES=dev ./build.sh taggr
 
 e2e_test:

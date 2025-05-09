@@ -18,12 +18,12 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.goto("/");
         // Registration flow
         await page.getByRole("button", { name: "CONNECT" }).click();
-        await page.getByRole("button", { name: "PASSWORD" }).click();
-        await page.getByPlaceholder("Enter your password...").fill("eve");
+        await page.getByRole("button", { name: "SEED PHRASE" }).click();
+        await page.getByPlaceholder("Enter your seed phrase...").fill("eve");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.waitForTimeout(1000);
-        await page.getByPlaceholder("Enter your password...").fill("eve");
-        await page.getByPlaceholder("Repeat your password...").fill("eve");
+        await page.getByPlaceholder("Enter your seed phrase...").fill("eve");
+        await page.getByPlaceholder("Repeat your seed phrase...").fill("eve");
         await page.getByRole("button", { name: "JOIN" }).click();
         const stalwartPrincipal =
             "qjuij-xy6vt-yssaf-dar36-pqa7n-5plk4-3dfy3-ppec7-exsio-qy6xh-7qe";
@@ -31,7 +31,9 @@ test.describe("Upgrades & token transfer flow", () => {
         exec(
             "dfx --identity local-minter ledger transfer --amount 1 --memo 0 2e670a6cf5ec1a1387dc8e02da3279f8e9221c2191b6f7532f449bb439538f20",
         );
-        await page.getByRole("button", { name: "MINT CREDITS" }).click();
+        await page
+            .getByRole("button", { name: "MINT CREDITS WITH ICP" })
+            .click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
         await page.getByPlaceholder("alphanumeric").fill("eve");
         await page.getByRole("button", { name: "SAVE" }).click();
@@ -54,9 +56,9 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Registration by invite and rewarding a post", async ({ page }) => {
         await page.goto(inviteLink);
-        await page.getByRole("button", { name: "PASSWORD" }).click();
-        await page.getByPlaceholder("Enter your password...").fill("pete");
-        await page.getByPlaceholder("Repeat your password...").fill("pete");
+        await page.getByRole("button", { name: "SEED PHRASE" }).click();
+        await page.getByPlaceholder("Enter your seed phrase...").fill("pete");
+        await page.getByPlaceholder("Repeat your seed phrase...").fill("pete");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.getByPlaceholder("alphanumeric").fill("pete");
         await page.getByRole("button", { name: "SAVE" }).click();
@@ -130,8 +132,8 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Recovery proposal", async ({ page }) => {
         await page.goto("/#/recovery");
-        await page.getByRole("button", { name: "PASSWORD" }).click();
-        await page.getByPlaceholder("Enter your password...").fill("eve");
+        await page.getByRole("button", { name: "SEED PHRASE" }).click();
+        await page.getByPlaceholder("Enter your seed phrase...").fill("eve");
         await page.getByRole("button", { name: "JOIN" }).click();
 
         // Make sure the recovery page is visible

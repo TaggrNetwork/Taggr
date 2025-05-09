@@ -139,13 +139,29 @@ export const Dashboard = ({}) => {
                             <Treasury />{" "}
                             <IcpAccountLink
                                 address={stats.account}
-                                label={"TREASURY"}
+                                label={"ICP TREASURY"}
                             />
                         </label>
                         <ICPAccountBalance
                             address={stats.account}
                             decimals={0}
                         />
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Treasury />{" "}
+                            <a
+                                href={`https://mempool.space/address/${stats.bitcoin_treasury_address}`}
+                            >
+                                BTC TREASURY
+                            </a>
+                        </label>
+                        <code className="xx_large_text">
+                            {Number(
+                                stats.bitcoin_treasury_sats,
+                            ).toLocaleString()}{" "}
+                            Sats
+                        </code>
                     </div>
                     <div className="db_cell">
                         <label>

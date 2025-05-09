@@ -16,17 +16,19 @@ test.describe("Report and transfer to user", () => {
         await page.goto("/");
         // Registration flow
         await page.getByRole("button", { name: "CONNECT" }).click();
-        await page.getByRole("button", { name: "PASSWORD" }).click();
-        await page.getByPlaceholder("Enter your password...").fill("joe");
+        await page.getByRole("button", { name: "SEED PHRASE" }).click();
+        await page.getByPlaceholder("Enter your seed phrase...").fill("joe");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.waitForTimeout(1000);
-        await page.getByPlaceholder("Enter your password...").fill("joe");
-        await page.getByPlaceholder("Repeat your password...").fill("joe");
+        await page.getByPlaceholder("Enter your seed phrase...").fill("joe");
+        await page.getByPlaceholder("Repeat your seed phrase...").fill("joe");
         await page.getByRole("button", { name: "JOIN" }).click();
         exec(
             "dfx --identity local-minter ledger transfer --amount 1 --memo 0 a8caaf21598f17df5a17ce655b3a39298559b76f23ea1b2afddd312d0abb04e8",
         );
-        await page.getByRole("button", { name: "MINT CREDITS" }).click();
+        await page
+            .getByRole("button", { name: "MINT CREDITS WITH ICP" })
+            .click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
         await page.getByPlaceholder("alphanumeric").fill("joe");
         await page.getByRole("button", { name: "SAVE" }).click();
@@ -52,9 +54,9 @@ test.describe("Report and transfer to user", () => {
 
     test("Registration by invite 1 and create a post", async ({ page }) => {
         await page.goto(inviteLink1);
-        await page.getByRole("button", { name: "PASSWORD" }).click();
-        await page.getByPlaceholder("Enter your password...").fill("jane");
-        await page.getByPlaceholder("Repeat your password...").fill("jane");
+        await page.getByRole("button", { name: "SEED PHRASE" }).click();
+        await page.getByPlaceholder("Enter your seed phrase...").fill("jane");
+        await page.getByPlaceholder("Repeat your seed phrase...").fill("jane");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.getByPlaceholder("alphanumeric").fill("jane");
         await page.getByRole("button", { name: "SAVE" }).click();
@@ -69,9 +71,9 @@ test.describe("Report and transfer to user", () => {
 
     test("Registration by invite 2 and create a post", async ({ page }) => {
         await page.goto(inviteLink2);
-        await page.getByRole("button", { name: "PASSWORD" }).click();
-        await page.getByPlaceholder("Enter your password...").fill("kyle");
-        await page.getByPlaceholder("Repeat your password...").fill("kyle");
+        await page.getByRole("button", { name: "SEED PHRASE" }).click();
+        await page.getByPlaceholder("Enter your seed phrase...").fill("kyle");
+        await page.getByPlaceholder("Repeat your seed phrase...").fill("kyle");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.getByPlaceholder("alphanumeric").fill("kyle");
         await page.getByRole("button", { name: "SAVE" }).click();
@@ -127,8 +129,8 @@ test.describe("Report and transfer to user", () => {
     }) => {
         await page.goto("/");
         await page.getByRole("button", { name: "CONNECT" }).click();
-        await page.getByRole("button", { name: "PASSWORD" }).click();
-        await page.getByPlaceholder("Enter your password...").fill("jane");
+        await page.getByRole("button", { name: "SEED PHRASE" }).click();
+        await page.getByPlaceholder("Enter your seed phrase...").fill("jane");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.waitForTimeout(1000);
 
@@ -152,8 +154,8 @@ test.describe("Report and transfer to user", () => {
     test("Report user", async ({ page }) => {
         await page.goto("/");
         await page.getByRole("button", { name: "CONNECT" }).click();
-        await page.getByRole("button", { name: "PASSWORD" }).click();
-        await page.getByPlaceholder("Enter your password...").fill("jane");
+        await page.getByRole("button", { name: "SEED PHRASE" }).click();
+        await page.getByPlaceholder("Enter your seed phrase...").fill("jane");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.waitForTimeout(1000);
         await page.goto("/#/user/kyle");
@@ -194,8 +196,8 @@ test.describe("Report and transfer to user", () => {
     test("Token transfer to user", async ({ page }) => {
         await page.goto("/");
         await page.getByRole("button", { name: "CONNECT" }).click();
-        await page.getByRole("button", { name: "PASSWORD" }).click();
-        await page.getByPlaceholder("Enter your password...").fill("jane");
+        await page.getByRole("button", { name: "SEED PHRASE" }).click();
+        await page.getByPlaceholder("Enter your seed phrase...").fill("jane");
         await page.getByRole("button", { name: "JOIN" }).click();
         await page.waitForTimeout(1000);
         await page.getByTestId("toggle-user-section").click();

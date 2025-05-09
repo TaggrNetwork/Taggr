@@ -8,31 +8,33 @@ import { Ed25519KeyIdentity } from "@dfinity/identity";
 export const authMethods = [
     {
         icon: <Incognito />,
-        label: "Password",
+        label: "Seed Phrase",
         description:
             "This connection method is based on a secret (your seed phrase) stored in your browser. It is convenient, self-custodial, but less secure.",
         login: async (confirmationRequired?: boolean): Promise<JSX.Element> => (
             <SeedPhraseForm
                 classNameArg="spaced"
-                callback={async (password: string) => {
-                    if (!password) return;
-                    let seed = await hash(password, HASH_ITERATIONS);
+                callback={async (seedphrase: string) => {
+                    if (!seedphrase) return;
+                    let seed = await hash(seedphrase, HASH_ITERATIONS);
                     let identity = Ed25519KeyIdentity.generate(seed);
-                    const isSecurePassword = (password: string): boolean =>
+                    const isSecurePassword = (seedphrase: string): boolean =>
                         /^(?=.*?[A-Z])(?=.*?[0-9])(?=.*?[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(
-                            password,
+                            seedphrase,
                         );
                     if (
                         MAINNET_MODE &&
-                        !isSecurePassword(password) &&
+                        !isSecurePassword(seedphrase) &&
+                        !isBIP39SeedPhrase(seedphrase) &&
                         !(await window.api.query("user", [
                             identity.getPrincipal().toString(),
                         ])) &&
                         !confirm(
-                            "Your password is insecure and will eventually be guessed. " +
-                                "A secure password should contain at least 8 symbols such as " +
-                                "uppercase and lowercase letters, symbols and digits. " +
-                                "Do you want to continue with an insecure password?",
+                            "Your seed phrase is insecure and will eventually be guessed. " +
+                                "A secure seed phrase should be a valid BIP-39 phrase or " +
+                                "contain at least 8 symbols such as uppercase and lowercase " +
+                                "letters, symbols and digits. " +
+                                "Do you want to continue with an insecure seed phrase?",
                         )
                     ) {
                         return;
@@ -141,3 +143,26 @@ export const LoginMasks = ({
         </div>
     );
 };
+
+/**
+ * Validates if a string looks like a BIP-39 seed phrase
+ * @param phrase The phrase to validate
+ * @returns boolean indicating if the phrase appears to be a valid BIP-39 seed phrase
+ */
+function isBIP39SeedPhrase(phrase: string): boolean {
+    const normalizedPhrase = phrase.trim().replace(/\s+/g, " ");
+    const words = normalizedPhrase.split(" ");
+    // Check word count (must be 12, 15, 18, 21 or 24 words)
+    const validWordCounts = [12, 15, 18, 21, 24];
+    if (!validWordCounts.includes(words.length)) {
+        return false;
+    }
+
+    // Check each word (simple length validation)
+    // BIP-39 words are typically 3-8 characters
+    const invalidWords = words.filter(
+        (word) => word.length < 3 || word.length > 8 || !/^[a-z]+$/.test(word),
+    );
+
+    return invalidWords.length === 0;
+}
