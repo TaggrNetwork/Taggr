@@ -717,7 +717,7 @@ mod tests {
 
         // Invalid transaction (amount overflow) error
         let overflow_amount = u64::MAX;
-        let overflow_transactions = vec![Transaction {
+        let overflow_transactions = [Transaction {
             timestamp: 100,
             from: account1.clone(),
             to: account2.clone(),

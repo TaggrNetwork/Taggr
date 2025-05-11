@@ -2263,11 +2263,10 @@ impl State {
     }
 
     pub fn change_principal(&mut self, new_principal: Principal) -> Result<(), String> {
-        let old_principal = self
+        let old_principal = *self
             .principal_change_requests
             .get(&new_principal)
-            .ok_or("no request found")?
-            .clone();
+            .ok_or("no request found")?;
 
         if self.voted_on_emergency_proposal(old_principal) {
             return Err("pending proposal with the current principal as voter exists".into());
