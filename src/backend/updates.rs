@@ -81,7 +81,13 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    // Remove the log line breaking the layout
+    mutate(|s| {
+        let info_logs = s.logger.events.get_mut("INFO").unwrap();
+        info_logs.retain(|event| !event.message.contains("Removed inactive controllers"));
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}

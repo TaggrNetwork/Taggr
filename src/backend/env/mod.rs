@@ -1764,7 +1764,7 @@ impl State {
         }
         self.logger.info(format!(
             "Removed inactive controllers from realms {}.",
-            realms_cleaned.join(",")
+            realms_cleaned.join(", ")
         ));
 
         self.accounting.clean_up();
