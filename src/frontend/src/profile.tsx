@@ -269,48 +269,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 {label}
             </span>
         );
-    const followees =
-        profile.followees.length > 0 ? (
-            <div className="db_cell">
-                FOLLOWS
-                {placeholder(
-                    // we need to subtract 1 because every user follows themselves by default
-                    profile.followees.length - 1,
-                    <>
-                        <h2>Follows</h2>
-                        {followeeList(
-                            profile.followees.filter((id) => id != profile.id),
-                        )}
-                    </>,
-                )}
-            </div>
-        ) : null;
-    const followers =
-        profile.followers.length > 0 ? (
-            <div className="db_cell">
-                FOLLOWERS
-                {placeholder(
-                    profile.followers.length,
-                    <>
-                        <h2>Followers</h2>
-                        <UserList ids={profile.followers} />
-                    </>,
-                )}
-            </div>
-        ) : null;
-    const feeds =
-        profile.feeds.length > 0
-            ? commaSeparated(
-                  profile.feeds.map((feed) => {
-                      let feedRepr = feed.join("+");
-                      return (
-                          <a key={feedRepr} href={`#/feed/${feedRepr}`}>
-                              {feedRepr}
-                          </a>
-                      );
-                  }),
-              )
-            : null;
 
     const accountingList = (
         <>
@@ -415,8 +373,80 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     POSTS
                     <code>{profile.num_posts.toLocaleString()}</code>
                 </div>
-                {followees}
-                {followers}
+                {profile.followees.length > 0 && (
+                    <div className="db_cell">
+                        FOLLOWS
+                        {placeholder(
+                            // we need to subtract 1 because every user follows themselves by default
+                            profile.followees.length - 1,
+                            <>
+                                <h2>Follows</h2>
+                                {followeeList(
+                                    profile.followees.filter(
+                                        (id) => id != profile.id,
+                                    ),
+                                )}
+                            </>,
+                        )}
+                    </div>
+                )}
+                {profile.followers.length > 0 && (
+                    <div className="db_cell">
+                        FOLLOWERS
+                        {placeholder(
+                            profile.followers.length,
+                            <>
+                                <h2>Followers</h2>
+                                <UserList ids={profile.followers} />
+                            </>,
+                        )}
+                    </div>
+                )}
+                {profile.feeds.length > 0 && (
+                    <div className="db_cell">
+                        FEEDS
+                        {placeholder(
+                            profile.feeds.length,
+                            commaSeparated(
+                                profile.feeds.map((feed) => {
+                                    let feedRepr = feed.join("+");
+                                    return (
+                                        <a
+                                            key={feedRepr}
+                                            href={`#/feed/${feedRepr}`}
+                                        >
+                                            {feedRepr}
+                                        </a>
+                                    );
+                                }),
+                            ),
+                        )}
+                    </div>
+                )}
+                {profile.realms.length > 0 && (
+                    <div className="db_cell">
+                        JOINED REALMS
+                        {placeholder(
+                            profile.realms.length,
+                            <RealmList
+                                classNameArg="centered"
+                                ids={profile.realms}
+                            />,
+                        )}
+                    </div>
+                )}
+                {profile.controlled_realms.length > 0 && (
+                    <div className="db_cell">
+                        CONTROLLS REALMS
+                        {placeholder(
+                            profile.controlled_realms.length,
+                            <RealmList
+                                classNameArg="centered"
+                                ids={profile.controlled_realms}
+                            />,
+                        )}
+                    </div>
+                )}
                 {profile.accounting.length > 0 && (
                     <div className="db_cell">
                         ACCOUNTING
@@ -433,25 +463,6 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     <code>{`${profile.cycles.toLocaleString()}`}</code>
                 </div>
             </div>
-            <hr />
-            {(feeds || profile.realms.length > 0) && (
-                <>
-                    <h2>Interests</h2>
-                    {feeds}
-                    <RealmList classNameArg="top_spaced" ids={profile.realms} />
-                    <hr />
-                </>
-            )}
-            {profile.controlled_realms.length > 0 && (
-                <>
-                    <h2>Controls realms</h2>
-                    <RealmList
-                        classNameArg="top_spaced"
-                        ids={profile.controlled_realms}
-                    />
-                    <hr />
-                </>
-            )}
         </div>
     );
 };

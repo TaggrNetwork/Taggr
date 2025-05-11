@@ -886,6 +886,10 @@ a.accent,
     margin-bottom: 0.3em;
 }
 
+.spaced {
+    padding: 0.5em;
+}
+
 .top_spaced {
     margin-top: 1em;
 }
@@ -1061,10 +1065,6 @@ label svg {
 
     .prime img {
         border-radius: 0;
-    }
-
-    .spaced {
-        padding: 0.5em;
     }
 
     .stands_out,
