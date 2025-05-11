@@ -696,7 +696,9 @@ export const Form = ({
                                 onChange={(e) =>
                                     setPoll({
                                         ...poll,
-                                        options: e.target.value.split("\n"),
+                                        options: e.target.value
+                                            .split("\n")
+                                            .map((v) => v.trim()),
                                     })
                                 }
                             ></textarea>

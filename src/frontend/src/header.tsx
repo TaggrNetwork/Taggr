@@ -8,6 +8,7 @@ import {
     popUp,
     ButtonWithLoading,
     pfpUrl,
+    bigScreen,
 } from "./common";
 import { LoginMasks } from "./authentication";
 import {
@@ -187,7 +188,11 @@ export const Header = ({
 const UserSection = ({ user }: { user: UserType }) => {
     return (
         <div className="bottom_spaced stands_out">
-            <div className="row_container icon_bar top_spaced vcentered">
+            <div
+                className={`
+                ${bigScreen() ? "row_container icon_bar" : "dynamic_table tripple"}
+                top_spaced vcentered`}
+            >
                 <>
                     <div title={user.name} className="icon_link">
                         <img
