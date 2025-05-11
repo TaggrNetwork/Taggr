@@ -90,6 +90,7 @@ input[type="color"] {
 
 #stack {
     flex: 1;
+    margin-top: 0.5em;
     margin-bottom: 3em;
 }
 
