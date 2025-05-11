@@ -79,9 +79,10 @@ export const Landing = () => {
             {!user && !realm && (
                 <div className="spaced vertically_spaced text_centered">
                     <h1>WELCOME ABOARD</h1>
-                    <span>
-                        To the Future of Decentralized Social Networking.
-                    </span>
+                    <p>To the Future of Decentralized Social Networking.</p>
+                    <button onClick={() => (location.href = "#/whitepaper")}>
+                        LEARN MORE
+                    </button>
                 </div>
             )}
             {!user && !window.hideRealmless && (
