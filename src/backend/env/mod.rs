@@ -2162,6 +2162,7 @@ impl State {
 
     pub fn recent_tags(&self, realm_id: Option<RealmId>, n: usize) -> Vec<(String, u64)> {
         let mut tags: HashMap<String, u64> = Default::default();
+        let muted_tags: BTreeSet<String> = vec!["taggr".into()].into_iter().collect();
         for post in self
             .last_posts(realm_id, 0, 0, false)
             // We only count tags occurrences on root posts, if they have comments or reactions
@@ -2170,7 +2171,7 @@ impl State {
             })
             .take_while(|post| !post.archived)
         {
-            for tag in &post.tags {
+            for tag in post.tags.difference(&muted_tags) {
                 if !tags.contains_key(tag) {
                     tags.insert(tag.clone(), 1);
                 }

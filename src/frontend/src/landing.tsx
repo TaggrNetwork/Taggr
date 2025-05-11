@@ -142,8 +142,6 @@ export const TagCloud = ({
     realm: string;
 }) => {
     const tagsToDisplay = bigScreen() ? 60 : 30;
-    const muted = new Set();
-    muted.add("taggr");
 
     const shuffle = (array: any[], seed = 1) => {
         const seededRandom = (max: number) => {
@@ -169,7 +167,6 @@ export const TagCloud = ({
                   200,
               )) || []
             : window.backendCache.recent_tags;
-        tags = tags.filter((val) => !muted.has(val[0].toLowerCase()));
         tags.sort((a, b) => (a[1] > b[1] ? -1 : 1));
         tags = shuffle(tags.slice(0, tagsToDisplay));
         const occurences = tags.map(([_, N]) => Number(N));
