@@ -28,7 +28,7 @@ const themes: { [name: string]: Theme } = {
         code: "White",
         clickable: "#4CB381",
         accent: "Gold",
-        light_factor: 4,
+        light_factor: 8,
         dark_factor: 7,
     },
     calm: {

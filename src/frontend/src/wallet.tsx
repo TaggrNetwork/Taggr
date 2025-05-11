@@ -29,7 +29,7 @@ export const Wallet = () => {
         window.backendCache.config;
 
     return (
-        <>
+        <div className="spaced">
             <hr />
             {user.cycles <= 200 && (
                 <div className="banner bottom_spaced">
@@ -323,7 +323,7 @@ export const Wallet = () => {
                     <Icrc1TokensWallet />
                 </>
             )}
-        </>
+        </div>
     );
 };
 

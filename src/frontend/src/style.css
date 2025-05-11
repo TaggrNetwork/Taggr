@@ -90,6 +90,7 @@ input[type="color"] {
 
 #stack {
     flex: 1;
+    margin-top: 0.5em;
     margin-bottom: 3em;
 }
 
@@ -320,6 +321,23 @@ article {
     margin-bottom: 1em;
 }
 
+.drop_down {
+    background: $light_background;
+    border-radius: 10px;
+    padding-top: 1em;
+    padding-bottom: 1em;
+    margin: 0.5em;
+}
+
+.triangle {
+    position: absolute;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    background-color: $light_background;
+    transform-origin: center center;
+}
+
 .video-container iframe,
 .video-container object,
 .video-container embed {
@@ -467,7 +485,6 @@ footer {
 header {
     display: flex;
     height: 2em;
-    margin-bottom: 1em;
 }
 
 .yt_preview {
@@ -869,6 +886,10 @@ a.accent,
     margin-bottom: 0.3em;
 }
 
+.spaced {
+    padding: 0.5em;
+}
+
 .top_spaced {
     margin-top: 1em;
 }
@@ -899,6 +920,7 @@ a.accent,
 .banner {
     background: $accent;
     color: black;
+    border-radius: 5px;
 }
 
 .banner,
@@ -1045,10 +1067,6 @@ label svg {
         border-radius: 0;
     }
 
-    .spaced {
-        padding: 0.5em;
-    }
-
     .stands_out,
     .feed_item {
         border-radius: 0;
@@ -1098,20 +1116,12 @@ label svg {
         font-size: 80%;
     }
 
-    .icon_link {
-        font-size: small;
-    }
-
     .desktop_only {
         display: none;
     }
 
     .prime h1 {
         font-size: 200%;
-    }
-
-    .icon_link {
-        font-size: x-small;
     }
 }
 

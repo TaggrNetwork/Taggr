@@ -540,10 +540,13 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                         );
                                         return;
                                     }
-                                    await window.api.call<any>(
+                                    let response = await window.api.call<any>(
                                         "request_principal_change",
                                         principal.trim(),
                                     );
+                                    if ("Err" in response) {
+                                        return showPopUp("error", response.Err);
+                                    }
                                     localStorage.clear();
                                     location.href = "/";
                                 }}

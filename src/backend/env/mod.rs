@@ -1791,7 +1791,7 @@ impl State {
         }
         self.logger.info(format!(
             "Removed inactive controllers from realms {}.",
-            realms_cleaned.join(",")
+            realms_cleaned.join(", ")
         ));
 
         self.accounting.clean_up(now);
@@ -2226,6 +2226,7 @@ impl State {
 
     pub fn recent_tags(&self, realm_id: Option<RealmId>, n: usize) -> Vec<(String, u64)> {
         let mut tags: HashMap<String, u64> = Default::default();
+        let muted_tags: BTreeSet<String> = vec!["taggr".into()].into_iter().collect();
         for post in self
             .last_posts(realm_id, 0, 0, false)
             // We only count tags occurrences on root posts, if they have comments or reactions
@@ -2234,7 +2235,7 @@ impl State {
             })
             .take_while(|post| !post.archived)
         {
-            for tag in &post.tags {
+            for tag in post.tags.difference(&muted_tags) {
                 if !tags.contains_key(tag) {
                     tags.insert(tag.clone(), 1);
                 }
@@ -2305,11 +2306,32 @@ impl State {
         (required_tokens.max(token::base()), already_locked_tokens)
     }
 
-    pub fn change_principal(&mut self, new_principal: Principal) -> Result<bool, String> {
-        let old_principal = match self.principal_change_requests.remove(&new_principal) {
-            Some(value) => value,
-            None => return Ok(false),
-        };
+    pub fn request_principal_change(
+        &mut self,
+        caller: Principal,
+        new_principal: String,
+    ) -> Result<(), String> {
+        let new_principal =
+            Principal::from_text(new_principal).map_err(|_| "can't parse principal")?;
+        if new_principal == Principal::anonymous() || self.principals.contains_key(&new_principal) {
+            return Err("invalid principal".into());
+        }
+        self.principal_change_requests
+            .retain(|_, principal| principal != &caller);
+        if self.principal_change_requests.len() > 200 {
+            return Err("too many principal requests pending; try again later".into());
+        }
+        self.principal_change_requests.insert(new_principal, caller);
+
+        Ok(())
+    }
+
+    pub fn change_principal(&mut self, new_principal: Principal) -> Result<(), String> {
+        let old_principal = *self
+            .principal_change_requests
+            .get(&new_principal)
+            .ok_or("no request found")?;
+
         if self.voted_on_emergency_proposal(old_principal) {
             return Err("pending proposal with the current principal as voter exists".into());
         }
@@ -2346,7 +2368,10 @@ impl State {
             )
             .expect("transfer failed");
         }
-        Ok(true)
+
+        self.principal_change_requests.remove(&new_principal);
+
+        Ok(())
     }
 
     pub fn principal_to_user(&self, principal: Principal) -> Option<&User> {
@@ -3412,48 +3437,140 @@ pub(crate) mod tests {
     #[test]
     fn test_principal_change() {
         mutate(|state| {
-            for i in 1..3 {
-                let p = pr(i);
-                create_user(state, p);
-                insert_balance(state, p, i as u64 * 111 * 100);
-                let user = state.principal_to_user_mut(pr(i)).unwrap();
-                user.change_rewards(i as i64 * 111, "test");
+            state.init();
+
+            // Setup: Create test users
+            let alice_principal = pr(10);
+            let bob_principal = pr(11);
+            let alice_id = create_user(state, alice_principal);
+            create_user(state, bob_principal);
+
+            // Add tokens to Alice
+            insert_balance(state, alice_principal, 1234);
+            state
+                .principal_to_user_mut(alice_principal)
+                .unwrap()
+                .change_rewards(100, "test");
+
+            // Store Alice's account info
+            let alice_old_account = account(alice_principal);
+            let alice_account_string = state
+                .principal_to_user(alice_principal)
+                .unwrap()
+                .account
+                .clone();
+
+            // Test principals
+            let valid_principal_str =
+                "yh4uw-lqajx-4dxcu-rwe6s-kgfyk-6dicz-yisbt-pjg7v-to2u5-morox-hae";
+            let valid_principal = Principal::from_text(valid_principal_str).unwrap();
+
+            // Test 1: Request validation
+            // Invalid principal string
+            assert_eq!(
+                state.request_principal_change(alice_principal, "invalid-principal".to_string()),
+                Err("can't parse principal".into())
+            );
+
+            // Anonymous principal
+            assert_eq!(
+                state.request_principal_change(alice_principal, Principal::anonymous().to_text()),
+                Err("invalid principal".into())
+            );
+
+            // Already assigned principal
+            assert_eq!(
+                state.request_principal_change(alice_principal, bob_principal.to_text()),
+                Err("invalid principal".into())
+            );
+
+            // Test 2: Request limits
+            // Fill up requests to the limit
+            for i in 0..256 {
+                state.principal_change_requests.insert(pr(i), pr(i));
             }
 
-            let user = state.principal_to_user_mut(pr(1)).unwrap();
-            user.stalwart = true;
-            let user_id = user.id;
+            // Try exceeding the limit
+            assert_eq!(
+                state.request_principal_change(alice_principal, valid_principal_str.to_string()),
+                Err("too many principal requests pending; try again later".into())
+            );
 
-            let new_principal_str: String =
-                "yh4uw-lqajx-4dxcu-rwe6s-kgfyk-6dicz-yisbt-pjg7v-to2u5-morox-hae".into();
-            let new_principal = Principal::from_text(new_principal_str).unwrap();
-            assert_eq!(state.change_principal(new_principal), Ok(false));
-            state.principal_change_requests.insert(new_principal, pr(1));
+            // Clear requests for further testing
+            state.principal_change_requests.clear();
 
-            state.emergency_votes.insert(pr(1), 1);
-            match state.change_principal(new_principal) {
-                Err(err)
-                    if err
-                        .contains("pending proposal with the current principal as voter exist") => {
-                }
-                val => panic!("unexpected outcome: {:?}", val),
-            };
+            // Test 3: Valid request
+            assert!(state
+                .request_principal_change(alice_principal, valid_principal_str.to_string())
+                .is_ok());
+            assert!(state
+                .principal_change_requests
+                .contains_key(&valid_principal));
+            assert_eq!(
+                state.principal_change_requests.get(&valid_principal),
+                Some(&alice_principal)
+            );
+
+            // Test 4: Change principal errors
+            // Without a request
+            state.principal_change_requests.clear();
+            assert_eq!(
+                state.change_principal(valid_principal),
+                Err("no request found".into())
+            );
+
+            // Re-add the request
+            assert!(state
+                .request_principal_change(alice_principal, valid_principal_str.to_string())
+                .is_ok());
+
+            // With emergency vote
+            state.emergency_votes.insert(alice_principal, 1);
+            assert_eq!(
+                state.change_principal(valid_principal),
+                Err("pending proposal with the current principal as voter exists".into())
+            );
             state.emergency_votes.clear();
 
-            state.principal_change_requests.insert(new_principal, pr(1));
+            // Test 5: Successful change
+            assert_eq!(state.change_principal(valid_principal), Ok(()));
 
-            assert_eq!(state.principals.len(), 2);
-            assert_eq!(state.change_principal(new_principal), Ok(true));
-            assert_eq!(state.principals.len(), 2);
+            // Verify change results
+            // Old principal no longer valid
+            assert!(state.principal_to_user(alice_principal).is_none());
 
-            assert_eq!(state.principal_to_user(new_principal).unwrap().id, user_id);
-            assert!(!state.balances.contains_key(&account(pr(1))));
-            assert_eq!(*state.balances.get(&account(new_principal)).unwrap(), 11100);
-            let user = state.users.get(&user_id).unwrap();
-            assert_eq!(user.principal, new_principal);
+            // User has new principal
+            let alice_after = state.principal_to_user(valid_principal).unwrap();
+            assert_eq!(alice_after.id, alice_id);
+            assert_eq!(alice_after.principal, valid_principal);
+
+            // Account updated
+            let new_account_string = alice_after.account.clone();
+            assert_ne!(alice_account_string, new_account_string);
             assert_eq!(
-                user.account,
-                AccountIdentifier::new(&user.principal, &DEFAULT_SUBACCOUNT).to_string()
+                new_account_string,
+                AccountIdentifier::new(&valid_principal, &DEFAULT_SUBACCOUNT).to_string()
+            );
+
+            // Balance transferred
+            assert!(!state.balances.contains_key(&alice_old_account));
+            assert_eq!(
+                *state.balances.get(&account(valid_principal)).unwrap(),
+                1234
+            );
+
+            // Request removed
+            assert!(!state
+                .principal_change_requests
+                .contains_key(&valid_principal));
+
+            // Test 6: Anonymous principal change
+            state
+                .principal_change_requests
+                .insert(Principal::anonymous(), bob_principal);
+            assert_eq!(
+                state.change_principal(Principal::anonymous()),
+                Err("wrong principal".into())
             );
         });
     }

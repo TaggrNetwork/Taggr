@@ -612,7 +612,7 @@ export const BurgerButton = ({
     testId = null,
     styleArg,
 }: {
-    onClick: () => void;
+    onClick: (event: React.MouseEvent) => void;
     pressed: boolean;
     testId?: any;
     styleArg?: { [name: string]: string };
@@ -1257,3 +1257,50 @@ export function createChunks<T>(arr: T[], size: number) {
         arr.slice(size * i, size + size * i),
     );
 }
+
+export const DropDown = ({
+    children,
+    // absolute x-offset in the viewport
+    offset,
+}: {
+    children: React.ReactNode;
+    offset: number;
+}) => {
+    if (
+        !children ||
+        (Array.isArray(children) && children.filter(Boolean).length == 0)
+    )
+        return null;
+
+    let localOffset = 0;
+    const rect = document.getElementById("header")?.getBoundingClientRect();
+    if (rect) {
+        localOffset =
+            offset - rect.left - 3 /* no idea why these 3px are needed */;
+    }
+
+    return (
+        <div
+            className="drop_down"
+            style={{
+                position: "relative",
+            }}
+        >
+            {localOffset > 0 && (
+                <div
+                    className="triangle"
+                    style={{
+                        position: "absolute",
+                        top: "-8px", // Move it up to stick out from the top
+                        left: `${localOffset}px`,
+                        width: "20px",
+                        height: "20px",
+                        transform: `rotate(45deg)`,
+                        transformOrigin: "center center",
+                    }}
+                />
+            )}
+            {children}
+        </div>
+    );
+};

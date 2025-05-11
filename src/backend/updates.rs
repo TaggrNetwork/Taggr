@@ -81,7 +81,13 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    // Remove the log line breaking the layout
+    mutate(|s| {
+        let info_logs = s.logger.events.get_mut("INFO").unwrap();
+        info_logs.retain(|event| !event.message.contains("Removed inactive controllers"));
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {
@@ -190,21 +196,10 @@ fn update_last_activity() {
 
 #[export_name = "canister_update request_principal_change"]
 fn request_principal_change() {
-    let principal: String = parse(&arg_data_raw());
-    mutate(|state| {
-        let principal = Principal::from_text(principal).expect("can't parse principal");
-        if principal == Principal::anonymous() || state.principals.contains_key(&principal) {
-            return;
-        }
-        let caller = caller();
-        state
-            .principal_change_requests
-            .retain(|_, principal| principal != &caller);
-        if state.principal_change_requests.len() <= 500 {
-            state.principal_change_requests.insert(principal, caller);
-        }
-    });
-    reply_raw(&[]);
+    let new_principal: String = parse(&arg_data_raw());
+    reply(mutate(|state| {
+        state.request_principal_change(caller(), new_principal)
+    }))
 }
 
 #[export_name = "canister_update confirm_principal_change"]
@@ -404,11 +399,7 @@ async fn add_post(
             extension,
         )
     })?;
-    let call_name = format!("blobs_storing_for_{}", post_id);
-    canisters::open_call(&call_name);
-    let result = Post::save_blobs(post_id, blobs).await;
-    canisters::close_call(&call_name);
-    result.map(|_| post_id)
+    Post::save_blobs(post_id, blobs).await.map(|_| post_id)
 }
 
 #[update]
