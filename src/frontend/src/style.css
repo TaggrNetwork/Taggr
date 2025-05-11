@@ -320,6 +320,23 @@ article {
     margin-bottom: 1em;
 }
 
+.drop_down {
+    background: $light_background;
+    border-radius: 10px;
+    padding-top: 1em;
+    padding-bottom: 1em;
+    margin: 0.5em;
+}
+
+.triangle {
+    position: absolute;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    background-color: $light_background;
+    transform-origin: center center;
+}
+
 .video-container iframe,
 .video-container object,
 .video-container embed {
@@ -467,7 +484,6 @@ footer {
 header {
     display: flex;
     height: 2em;
-    margin-bottom: 1em;
 }
 
 .yt_preview {

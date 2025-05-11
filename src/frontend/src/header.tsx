@@ -9,6 +9,7 @@ import {
     ButtonWithLoading,
     pfpUrl,
     bigScreen,
+    DropDown,
 } from "./common";
 import { LoginMasks } from "./authentication";
 import {
@@ -43,6 +44,7 @@ export const Header = ({
     const [showRealms, toggleRealms] = React.useState(false);
     const [showLinks, toggleLinks] = React.useState(false);
     const [messages, setMessages] = React.useState(0);
+    const [offset, setOffset] = React.useState(0);
 
     const realm = currentRealm();
 
@@ -102,32 +104,9 @@ export const Header = ({
                 <div className="vcentered max_width_col flex_ended">
                     {!subtle && user && (
                         <>
-                            {user.realms.length > 0 && !subtle && (
-                                <IconToggleButton
-                                    pressed={showRealms}
-                                    onClick={() => {
-                                        toggleRealms(!showRealms);
-                                        toggleUserSection(false);
-                                        toggleLinks(false);
-                                    }}
-                                    icon={<Realm />}
-                                    testId="toggle-realms"
-                                />
-                            )}
-                            <IconToggleButton
-                                pressed={showUserSection}
-                                onClick={() => {
-                                    toggleUserSection(!showUserSection);
-                                    toggleRealms(false);
-                                    toggleLinks(false);
-                                }}
-                                icon={<User />}
-                                testId="toggle-user-section"
-                            />
                             <IconToggleButton
                                 title="Inbox"
                                 pressed={location.href.includes("inbox")}
-                                classNameArg="right_half_spaced"
                                 onClick={() => (location.href = "#/inbox")}
                                 icon={
                                     <>
@@ -142,21 +121,47 @@ export const Header = ({
                                     </>
                                 }
                             />
+                            {user.realms.length > 0 && (
+                                <IconToggleButton
+                                    pressed={showRealms}
+                                    onClick={(event) => {
+                                        toggleRealms(!showRealms);
+                                        toggleUserSection(false);
+                                        toggleLinks(false);
+                                        setOffset(getOffset(event));
+                                    }}
+                                    icon={<Realm />}
+                                    testId="toggle-realms"
+                                />
+                            )}
+                            <IconToggleButton
+                                pressed={showUserSection}
+                                onClick={(event) => {
+                                    toggleUserSection(!showUserSection);
+                                    toggleRealms(false);
+                                    toggleLinks(false);
+                                    setOffset(getOffset(event));
+                                }}
+                                icon={<User />}
+                                testId="toggle-user-section"
+                            />
+                            <BurgerButton
+                                pressed={showLinks}
+                                onClick={(event) => {
+                                    console.log(typeof event.currentTarget);
+                                    toggleRealms(false);
+                                    toggleUserSection(false);
+                                    toggleLinks(!showLinks);
+                                    setOffset(getOffset(event));
+                                }}
+                                testId="toggle-links"
+                            />
                             <button
-                                className="active"
+                                className="active left_half_spaced"
                                 onClick={() => (location.href = "#/new")}
                             >
                                 POST
                             </button>
-                            <BurgerButton
-                                pressed={showLinks}
-                                onClick={() => {
-                                    toggleRealms(false);
-                                    toggleUserSection(false);
-                                    toggleLinks(!showLinks);
-                                }}
-                                testId="toggle-links"
-                            />
                         </>
                     )}
                     {!window.getPrincipalId() &&
@@ -172,26 +177,30 @@ export const Header = ({
                         )}
                 </div>
             </header>
-            {showUserSection && <UserSection user={user} />}
-            {showLinks && <Links />}
-            {showRealms && (
-                <RealmList
-                    classNameArg="top_spaced stands_out centered"
-                    ids={user.realms}
-                />
-            )}
+            <DropDown offset={offset}>
+                {showUserSection && <UserSection user={user} />}
+                {showLinks && <Links />}
+                {showRealms && (
+                    <RealmList classNameArg="centered" ids={user.realms} />
+                )}
+            </DropDown>
             {realm && <RealmHeader name={realm} />}
         </>
     );
 };
 
+function getOffset(event: React.MouseEvent) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const position = rect.left;
+    return position;
+}
+
 const UserSection = ({ user }: { user: UserType }) => {
     return (
-        <div className="bottom_spaced stands_out">
+        <>
             <div
-                className={`
-                ${bigScreen() ? "row_container icon_bar" : "dynamic_table tripple"}
-                top_spaced vcentered`}
+                className={`${bigScreen() ? "row_container icon_bar" : "dynamic_table tripple"}
+                vcentered`}
             >
                 <>
                     <div title={user.name} className="icon_link">
@@ -240,6 +249,6 @@ const UserSection = ({ user }: { user: UserType }) => {
                 </a>
             </div>
             <Wallet />
-        </div>
+        </>
     );
 };

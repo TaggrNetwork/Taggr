@@ -84,7 +84,7 @@ export const Landing = () => {
                     </span>
                 </div>
             )}
-            {!user && <Links />}
+            {!user && <Links classNameArg="vertically_spaced" />}
             <Search />
             <TagCloud heartbeat={feed} realm={realm} />
             <PostFeed
@@ -215,12 +215,13 @@ export const TagCloud = ({
     );
 };
 
-export const Links = () => {
+export const Links = ({ classNameArg }: { classNameArg?: string }) => {
     return (
         <div
-            className={`${
-                bigScreen() ? "row_container icon_bar" : "dynamic_table tripple"
-            } vertically_spaced spaced`}
+            className={`
+                ${bigScreen() ? "row_container icon_bar" : "dynamic_table tripple"}
+                ${classNameArg}
+            `}
         >
             <a title="WHITE PAPER" className="icon_link" href="/#/whitepaper">
                 <Document /> WHITE PAPER
