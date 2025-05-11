@@ -285,13 +285,9 @@ test.describe("Regular users flow", () => {
         await expect(page.locator("div:has-text('POSTS') > code")).toHaveText(
             "2",
         );
-        await page.getByRole("heading", { name: "Interests" }).click();
-        await expect(
-            page
-                .locator(
-                    '[class="realm_span clickable padded_rounded right_half_spaced top_half_spaced"]',
-                )
-                .first(),
-        ).toHaveText("WONDERLAND");
+        await page.locator("div:has-text('JOINED REALMS') > span").click();
+        await expect(page.locator('[class="popup_body"]').first()).toHaveText(
+            "WONDERLAND",
+        );
     });
 });
