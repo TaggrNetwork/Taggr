@@ -29,7 +29,7 @@ export const Landing = () => {
     const user = window.user;
     const realm = currentRealm();
     const [feed, setFeed] = React.useState(
-        (!currentRealm() && user && user.settings.tab) || HOT,
+        user ? user.settings.tab || NEW : HOT,
     );
 
     let labels: [JSX.Element, string][] = [[<All />, ALL]];
