@@ -688,15 +688,15 @@ impl State {
             None | Some(&[]) => return Box::new(std::iter::empty()),
             Some(ids) => ids.iter().collect::<BTreeSet<_>>(),
         };
-        Box::new(
-            self.last_posts(domain, None, offset, 0, false)
-                .filter(move |post| {
-                    post.realm
-                        .as_ref()
-                        .map(|id| realm_ids.contains(&id))
-                        .unwrap_or_default()
-                }),
-        )
+
+        let iterators: Vec<Box<dyn Iterator<Item = &'_ Post>>> = realm_ids
+            .iter()
+            .map(move |realm_id| {
+                self.last_posts(domain.clone(), Some(realm_id.to_string()), offset, 0, false)
+            })
+            .collect();
+
+        Box::new(IteratorMerger::new(MergeStrategy::Or, iterators))
     }
 
     pub fn hot_posts(
@@ -2271,7 +2271,7 @@ impl State {
         domain: String,
         realm_id: Option<RealmId>,
         offset: PostId,
-        genesis: Time,
+        watermark: Time,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         let iter: Box<dyn Iterator<Item = _>> =
@@ -2300,7 +2300,7 @@ impl State {
 
         let iter = iter
             .filter_map(move |i| Post::get(self, &i))
-            .take_while(move |post| post.creation_timestamp() >= genesis)
+            .take_while(move |post| post.creation_timestamp() >= watermark)
             .filter(move |post| !post.is_deleted());
 
         // Depending on the domain, we might need to respect the realm blacklist.
