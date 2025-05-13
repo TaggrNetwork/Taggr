@@ -387,15 +387,16 @@ impl User {
         Box::new(
             IteratorMerger::new(MergeStrategy::Or, iterators.into_iter().collect()).filter(
                 move |post| {
-                    self.followees.contains(&post.user)
-                        || self.should_see(state, post)
-                            && post
-                                .realm
-                                .as_ref()
-                                .map(|realm_id| {
-                                    self.show_posts_in_realms || self.realms.contains(realm_id)
-                                })
-                                .unwrap_or(true)
+                    self.should_see(state, post)
+                        && post
+                            .realm
+                            .as_ref()
+                            .map(|realm_id| {
+                                // We only show posts from followees in realms the user is not a
+                                // member of if the corresponding setting is enabled.
+                                self.show_posts_in_realms || self.realms.contains(realm_id)
+                            })
+                            .unwrap_or(true)
                 },
             ),
         )
