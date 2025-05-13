@@ -144,7 +144,6 @@ pub struct Realm {
     // Root posts assigned to the realm
     pub posts: Vec<PostId>,
     pub adult_content: bool,
-    #[serde(default)]
     pub comments_filtering: bool,
 }
 
@@ -2162,7 +2161,7 @@ impl State {
             }
             None => {
                 let wl = cfg.realm_whitelist.clone();
-                let bl = cfg.realm_whitelist.clone();
+                let bl = cfg.realm_blacklist.clone();
                 // If the realm id was not provided, we can only return posts, that are:
                 // - are realm-less, if the domain has a empty whitelist,
                 // - are not in a realm that's black-listed for this domain,
@@ -4507,6 +4506,93 @@ pub(crate) mod tests {
                     .unwrap();
                 assert!(post_visible(state));
             }
+        });
+    }
+
+    #[test]
+    fn test_personal_feed_with_blacklisted_domain() {
+        mutate(|state| {
+            state.init();
+
+            // create a post author and one post for its principal
+            let p = pr(0);
+            let user_id = create_user(state, p);
+            state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .change_credits(2000, CreditsDelta::Plus, "")
+                .unwrap();
+
+            let realm_id = "DEMO".to_string();
+            create_realm(state, p, realm_id.clone()).unwrap();
+
+            let mut cfg = DomainConfig::default();
+            cfg.realm_blacklist.insert(realm_id.clone());
+            state.domains.insert("nodemo".into(), cfg);
+
+            let mut cfg = DomainConfig::default();
+            cfg.realm_whitelist.insert(realm_id.clone());
+            state.domains.insert("demo".into(), cfg);
+
+            // Join realm DEMO
+            assert!(!state
+                .principal_to_user(p)
+                .unwrap()
+                .realms
+                .contains(&realm_id));
+            assert!(state.toggle_realm_membership(p, realm_id.clone()));
+
+            // Crete two post outside and inside the DEMO realm
+            let post_id_1 =
+                Post::create(state, "message1".to_string(), &[], p, 0, None, None, None).unwrap();
+            let post_id_2 = Post::create(
+                state,
+                "message2".to_string(),
+                &[],
+                p,
+                0,
+                None,
+                Some(realm_id),
+                None,
+            )
+            .unwrap();
+
+            // Check user posts
+            let user = state.principal_to_user(p).unwrap();
+            let iter = user.posts(Some(&"nodemo".to_string()), state, 0, false);
+            assert_eq!(iter.count(), 1);
+
+            // make sure we see both posts sent to localhost domain because it is a wildcard domain
+            let feed = state
+                .users
+                .get(&user_id)
+                .unwrap()
+                .personal_feed("localhost".into(), state, 0)
+                .map(|post| post.id)
+                .collect::<Vec<_>>();
+            assert_eq!(feed.len(), 2);
+
+            // make sure only the post 1 is visible in the nodemo domain
+            let feed = state
+                .users
+                .get(&user_id)
+                .unwrap()
+                .personal_feed("nodemo".into(), state, 0)
+                .map(|post| post.id)
+                .collect::<Vec<_>>();
+            assert_eq!(feed.len(), 1);
+            assert!(feed.contains(&post_id_1));
+
+            // make sure only the post 2 is visible in the demo domain
+            let feed = state
+                .users
+                .get(&user_id)
+                .unwrap()
+                .personal_feed("demo".into(), state, 0)
+                .map(|post| post.id)
+                .collect::<Vec<_>>();
+            assert_eq!(feed.len(), 1);
+            assert!(feed.contains(&post_id_2));
         });
     }
 
