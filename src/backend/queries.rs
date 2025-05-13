@@ -285,8 +285,8 @@ fn user() {
                 cfg.realm_whitelist.contains(realm_id)
                     || cfg.realm_whitelist.is_empty() && !cfg.realm_blacklist.contains(realm_id)
             };
-            user.realms.retain(|id| visible_realm(id));
-            user.controlled_realms.retain(|id| visible_realm(id));
+            user.realms.retain(&visible_realm);
+            user.controlled_realms.retain(&visible_realm);
         }
         reply(user);
     });

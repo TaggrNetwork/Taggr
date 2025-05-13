@@ -2299,7 +2299,7 @@ impl State {
                 (0..last_id)
                     .rev()
                     .filter_map(move |i| Post::get(self, &i))
-                    .filter(move |p| domain_filter(&p)),
+                    .filter(move |p| domain_filter(p)),
             ));
         }
 
