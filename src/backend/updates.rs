@@ -109,10 +109,10 @@ fn sync_post_upgrade_fixtures() {
         s.domains.insert("taggr.network".into(), cfg.clone());
 
         // TODO remove before release
-        s.domains.insert(
-            "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io".into(),
-            DomainConfig::default(),
-        );
+        let mut cfg = DomainConfig::default();
+        cfg.realm_blacklist.insert("DEMO".into());
+        s.domains
+            .insert("e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io".into(), cfg);
         let mut cfg = DomainConfig::default();
         cfg.owner = Some(0);
         cfg.realm_whitelist.insert("DEMO".into());

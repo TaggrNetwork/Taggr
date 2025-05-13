@@ -3877,6 +3877,8 @@ pub(crate) mod tests {
     #[test]
     fn test_realm_change() {
         mutate(|state| {
+            state.init();
+
             state.realms.insert("TEST".into(), Realm::default());
             state.realms.insert("TEST2".into(), Realm::default());
 
@@ -3939,7 +3941,7 @@ pub(crate) mod tests {
 
     fn realm_posts(state: &State, name: &str) -> Vec<PostId> {
         state
-            .last_posts("domain".into(), None, 0, 0, true)
+            .last_posts("localhost".into(), None, 0, 0, true)
             .filter(|post| post.realm.as_ref() == Some(&name.to_string()))
             .map(|post| post.id)
             .collect::<Vec<_>>()
@@ -4061,6 +4063,8 @@ pub(crate) mod tests {
     #[actix_rt::test]
     async fn test_realms() {
         let (p1, realm_name) = mutate(|state| {
+            state.init();
+
             let p0 = pr(0);
             let p1 = pr(1);
             let _u0 = create_user_with_params(state, p0, "user1", 1000);
@@ -4445,6 +4449,8 @@ pub(crate) mod tests {
     #[test]
     fn test_inverse_filter() {
         mutate(|state| {
+            state.init();
+
             // create a post author and one post for its principal
             let p = pr(0);
             let post_author_id = create_user_with_credits(state, p, 2000);
@@ -4470,7 +4476,7 @@ pub(crate) mod tests {
             let post_visible = |state: &State| {
                 let inverse_filters = state.principal_to_user(caller).map(|user| &user.filters);
                 state
-                    .last_posts("domain".into(), None, 0, 0, true)
+                    .last_posts("localhost".into(), None, 0, 0, true)
                     .filter(|post| {
                         inverse_filters
                             .map(|filters| !post.matches_filters(filters))
@@ -4508,9 +4514,6 @@ pub(crate) mod tests {
     fn test_personal_feed() {
         mutate(|state| {
             state.init();
-            state
-                .domains
-                .insert("domain".into(), DomainConfig::default());
 
             // create a post author and one post for its principal
             let p = pr(0);
@@ -4533,7 +4536,7 @@ pub(crate) mod tests {
             assert!(state
                 .user(&user_id.to_string())
                 .unwrap()
-                .personal_feed("domain".into(), state, 0)
+                .personal_feed("localhost".into(), state, 0)
                 .next()
                 .is_none());
 
@@ -4546,7 +4549,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed("domain".into(), state, 0)
+                .personal_feed("localhost".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 1);
@@ -4563,7 +4566,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed("domain".into(), state, 0)
+                .personal_feed("localhost".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 1);
@@ -4589,7 +4592,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed("domain".into(), state, 0)
+                .personal_feed("localhost".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -4616,7 +4619,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed("domain".into(), state, 0)
+                .personal_feed("localhost".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -4632,7 +4635,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed("domain".into(), state, 0)
+                .personal_feed("localhost".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 3);
@@ -4647,7 +4650,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed("domain".into(), state, 0)
+                .personal_feed("localhost".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert_eq!(feed.len(), 2);
@@ -4661,7 +4664,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed("domain".into(), state, 0)
+                .personal_feed("localhost".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert!(feed.contains(&post_id));
@@ -4672,7 +4675,7 @@ pub(crate) mod tests {
                 .users
                 .get(&user_id)
                 .unwrap()
-                .personal_feed("domain".into(), state, 0)
+                .personal_feed("localhost".into(), state, 0)
                 .map(|post| post.id)
                 .collect::<Vec<_>>();
             assert!(!feed.contains(&post_id));
