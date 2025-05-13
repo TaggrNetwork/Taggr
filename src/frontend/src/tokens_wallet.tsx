@@ -341,7 +341,7 @@ export const Icrc1TokensWallet = () => {
                                     }
                                     await loadBalances([canisterId]); // Refresh balance
                                 }}
-                                label={"Send"}
+                                label={"SEND"}
                             ></ButtonWithLoading>
                             <ButtonWithLoading
                                 testId={canisterId + "-remove"}

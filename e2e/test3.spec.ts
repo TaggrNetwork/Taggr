@@ -115,14 +115,16 @@ test.describe("Regular users flow, part two", () => {
             await expect(page).toHaveTitle("TAGGR");
 
             await page.getByRole("button", { name: "CONNECT" }).click();
-            await page.getByRole("button", { name: "PASSWORD" }).click();
-            await page.getByPlaceholder("Enter your password...").fill("1");
+            await page.getByRole("button", { name: "SEED PHRASE" }).click();
+            await page.getByPlaceholder("Enter your seed phrase...").fill("1");
             await page.getByRole("button", { name: "JOIN" }).click();
             await page.waitForTimeout(1000);
-            await page.getByPlaceholder("Enter your password...").fill("1");
-            await page.getByPlaceholder("Repeat your password...").fill("1");
+            await page.getByPlaceholder("Enter your seed phrase...").fill("1");
+            await page.getByPlaceholder("Repeat your seed phrase...").fill("1");
             await page.getByRole("button", { name: "JOIN" }).click();
-            await page.getByRole("button", { name: "MINT CREDITS" }).click();
+            await page
+                .getByRole("button", { name: "MINT CREDITS WITH ICP" })
+                .click();
             const value = await page
                 .getByTestId("invoice-amount")
                 .textContent();
