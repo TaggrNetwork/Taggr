@@ -46,13 +46,12 @@ export const RealmList = ({
     ids?: string[];
     classNameArg?: string;
 }) => {
-    const effIDs = availableRealms(ids);
-    if (effIDs.length == 0) return null;
+    if (ids.length == 0) return null;
     const [realmsData, setRealmsData] = React.useState<Realm[]>([]);
     const [loaded, setLoaded] = React.useState(false);
 
     const loadData = async () => {
-        setRealmsData((await window.api.query("realms", effIDs)) || []);
+        setRealmsData((await window.api.query("realms", ids)) || []);
         setLoaded(true);
     };
 
@@ -70,7 +69,7 @@ export const RealmList = ({
             {realmsData.map((data, i) => (
                 <RealmSpan
                     key={i}
-                    name={effIDs[i]}
+                    name={ids[i]}
                     background={data.label_color}
                     classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
                 />
@@ -1318,24 +1317,6 @@ export const DropDown = ({
 
 export function domain(): RealmId {
     return window.location.hostname;
-}
-
-// Returns realms available under the current domain:
-// - if a whitelist is specified, it return only realms from this list,
-// - if a blacklist is specified, returns all realms not on that list.
-// If no config found, returns all domains.
-export function availableRealms(ids: RealmId[]): RealmId[] {
-    const config = window.backendCache.domains[domain()];
-    if (!config) return ids;
-
-    const wl = config.realm_whitelist;
-    const bl = config.realm_blacklist;
-
-    const result = ids.filter((realmID) =>
-        wl.length > 0 ? wl.includes(realmID) : !bl.includes(realmID),
-    );
-
-    return result;
 }
 
 // Checks if the realm is supported in the current domain

@@ -263,7 +263,7 @@ fn user_tags() {
 
 #[export_name = "canister_query user"]
 fn user() {
-    let input: Vec<String> = parse(&arg_data_raw());
+    let (domain, input): (String, Vec<String>) = parse(&arg_data_raw());
     let own_profile_fetch = input.is_empty();
     mutate(|state| {
         let handle = input.into_iter().next();
@@ -279,6 +279,14 @@ fn user() {
         } else {
             user.bookmarks.clear();
             user.notifications.clear();
+        }
+        if let Some(cfg) = state.domains.get(&domain) {
+            let visible_realm = |realm_id: &RealmId| {
+                cfg.realm_whitelist.contains(realm_id)
+                    || cfg.realm_whitelist.is_empty() && !cfg.realm_blacklist.contains(realm_id)
+            };
+            user.realms.retain(|id| visible_realm(id));
+            user.controlled_realms.retain(|id| visible_realm(id));
         }
         reply(user);
     });

@@ -11,7 +11,7 @@ export const Recovery = () => {
     const [state, setState] = React.useState(0);
 
     const loadData = async () => {
-        const user = await window.api.query<any>("user", []);
+        const user = await window.api.query<any>("user", "", []);
         setUser(user);
         if (user != undefined) {
             setState(1);

@@ -33,7 +33,9 @@ export const Profile = ({ handle }: { handle: string }) => {
     const [tab, setTab] = React.useState("LAST");
 
     const updateState = async () => {
-        const profile = await window.api.query<User>("user", [handle]);
+        const profile = await window.api.query<User>("user", domain(), [
+            handle,
+        ]);
         if (!profile) {
             setStatus(-1);
             return;

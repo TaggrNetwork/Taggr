@@ -26,7 +26,6 @@ import {
     KNOWN_USER,
     showPopUp,
     domain,
-    realmAllowed,
 } from "./common";
 import { Settings } from "./settings";
 import { Welcome, WelcomeInvited } from "./welcome";
@@ -355,7 +354,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
         if (window.location.href.includes("recovery")) {
             document.getElementById("logo_container")?.remove();
             renderFrame(<React.StrictMode>{<Recovery />}</React.StrictMode>);
-            window.user = await api.query<any>("user", []);
+            window.user = await api.query<any>("user", "", []);
             return;
         }
 
@@ -373,16 +372,12 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
 
         if (api) {
             window.reloadUser = async () => {
-                let data = await api.query<User>("user", []);
+                let data = await api.query<User>("user", domain(), []);
                 if (data) {
                     localStorage.setItem(KNOWN_USER, "1");
-                    const realms = data.realms;
-                    realms.reverse();
-                    data.realms = realms.filter(realmAllowed);
-
                     let userIds = data.followees.concat(data.followers);
                     populateUserNameCache(userIds);
-
+                    data.realms.reverse();
                     window.user = data;
                     if (600000 < microSecsSince(window.user.last_activity)) {
                         window.lastVisit = window.user.last_activity;

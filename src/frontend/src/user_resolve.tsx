@@ -35,7 +35,7 @@ export const userNameToIds = async (names: string[]) => {
             names.map((name) =>
                 name in cachedNames
                     ? { id: cachedNames[name] }
-                    : window.api.query<User>("user", [name]),
+                    : window.api.query<User>("user", "", [name]),
             ),
         )
     )

@@ -18,7 +18,7 @@ export const Journal = ({ handle }: { handle: string }) => {
     const [profile, setProfile] = React.useState({} as User);
 
     const loadState = () =>
-        window.api.query<User>("user", [handle]).then((profile) => {
+        window.api.query<User>("user", "", [handle]).then((profile) => {
             if (profile) {
                 setProfile(profile);
                 setTitle(`${profile.name}'s profile`);

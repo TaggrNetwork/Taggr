@@ -26,7 +26,7 @@ export const authMethods = [
                         MAINNET_MODE &&
                         !isSecurePassword(seedphrase) &&
                         !isBIP39SeedPhrase(seedphrase) &&
-                        !(await window.api.query("user", [
+                        !(await window.api.query("user", "", [
                             identity.getPrincipal().toString(),
                         ])) &&
                         !confirm(
