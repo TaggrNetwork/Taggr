@@ -84,7 +84,9 @@ export const Landing = () => {
                     </span>
                 </div>
             )}
-            {!user && <Links classNameArg="vertically_spaced" />}
+            {!user && !window.monoRealm && (
+                <Links classNameArg="vertically_spaced" />
+            )}
             <Search />
             <TagCloud heartbeat={feed} realm={realm} />
             <PostFeed

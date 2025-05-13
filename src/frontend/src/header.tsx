@@ -116,7 +116,7 @@ export const Header = ({
                                     </>
                                 }
                             />
-                            {user.realms.length > 0 && (
+                            {user.realms.length > 0 && !window.monoRealm && (
                                 <IconToggleButton
                                     pressed={showRealms}
                                     onClick={(event) => {
@@ -140,17 +140,19 @@ export const Header = ({
                                 icon={<User />}
                                 testId="toggle-user-section"
                             />
-                            <BurgerButton
-                                pressed={showLinks}
-                                onClick={(event) => {
-                                    console.log(typeof event.currentTarget);
-                                    toggleRealms(false);
-                                    toggleUserSection(false);
-                                    toggleLinks(!showLinks);
-                                    setOffset(getOffset(event));
-                                }}
-                                testId="toggle-links"
-                            />
+                            {!window.monoRealm && (
+                                <BurgerButton
+                                    pressed={showLinks}
+                                    onClick={(event) => {
+                                        console.log(typeof event.currentTarget);
+                                        toggleRealms(false);
+                                        toggleUserSection(false);
+                                        toggleLinks(!showLinks);
+                                        setOffset(getOffset(event));
+                                    }}
+                                    testId="toggle-links"
+                                />
+                            )}
                             <button
                                 className="active left_half_spaced"
                                 onClick={() => (location.href = "#/new")}
