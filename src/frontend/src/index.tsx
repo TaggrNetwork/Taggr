@@ -26,6 +26,7 @@ import {
     KNOWN_USER,
     showPopUp,
     domain,
+    realmAllowed,
 } from "./common";
 import { Settings } from "./settings";
 import { Welcome, WelcomeInvited } from "./welcome";
@@ -37,7 +38,7 @@ import { Config, User, Stats, DomainConfig } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
-import { populateUserNameCacheSpeculatively } from "./user_resolve";
+import { populateUserNameCache } from "./user_resolve";
 import { Roadmap } from "./roadmap";
 import { LinksPage } from "./links";
 import { ApiGenerator } from "./api";
@@ -374,10 +375,15 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
             window.reloadUser = async () => {
                 let data = await api.query<User>("user", []);
                 if (data) {
-                    populateUserNameCacheSpeculatively();
-                    window.user = data;
                     localStorage.setItem(KNOWN_USER, "1");
-                    window.user.realms.reverse();
+                    const realms = data.realms;
+                    realms.reverse();
+                    data.realms = realms.filter(realmAllowed);
+
+                    let userIds = data.followees.concat(data.followers);
+                    populateUserNameCache(userIds);
+
+                    window.user = data;
                     if (600000 < microSecsSince(window.user.last_activity)) {
                         window.lastVisit = window.user.last_activity;
                         api.call("update_last_activity");

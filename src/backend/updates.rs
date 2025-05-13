@@ -84,11 +84,6 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|s| {
-        // Needed for the local development.
-        let mut cfg = DomainConfig::default();
-        cfg.realm_whitelist.insert("DIAMOND-HANDS".into());
-        s.domains.insert("localhost".into(), cfg);
-
         // DAO controlled domains
         s.domains.insert(
             "6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io".into(),
@@ -117,7 +112,20 @@ fn sync_post_upgrade_fixtures() {
         s.domains.insert(
             "e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io".into(),
             DomainConfig::default(),
-        )
+        );
+        let mut cfg = DomainConfig::default();
+        cfg.owner = Some(0);
+        cfg.realm_whitelist.insert("DEMO".into());
+        s.domains.insert("cyphersociety.org".into(), cfg.clone());
+
+        s.init();
+
+        // TDOO testing only; remove later
+        s.domains
+            .get_mut("localhost")
+            .unwrap()
+            .realm_whitelist
+            .insert("DAO".into());
     });
 }
 
