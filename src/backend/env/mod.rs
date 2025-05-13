@@ -2137,31 +2137,6 @@ impl State {
         Ok(())
     }
 
-    /// Returns an iterator that is
-    /// - simply the list of all posts if no whitelist is specified,
-    /// - a merge iterator over all posts from all white-listed realms of the given domain.
-    pub fn domain_post_iter<'a>(
-        &'a self,
-        domain: &String,
-    ) -> Box<dyn Iterator<Item = PostId> + 'a> {
-        let Some(cfg) = self.domains.get(domain) else {
-            return Box::new(std::iter::empty());
-        };
-
-        if cfg.realm_whitelist.is_empty() {
-            return Box::new(self.root_posts_index.iter().rev().copied());
-        }
-
-        let iterators: Vec<Box<dyn Iterator<Item = &'a PostId>>> = cfg
-            .realm_whitelist
-            .iter()
-            .filter_map(move |id| self.realms.get(id))
-            .map(|realm| Box::new(realm.posts.iter().rev()) as Box<dyn Iterator<Item = &'a PostId>>)
-            .collect();
-
-        Box::new(IteratorMerger::new(MergeStrategy::Or, iterators).copied())
-    }
-
     /// Creates a post filter based on the current domain and selected realm.
     /// If domain is inavlid no filter is returned.
     #[allow(clippy::type_complexity)]
@@ -2274,45 +2249,100 @@ impl State {
         watermark: Time,
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let iter: Box<dyn Iterator<Item = _>> =
-            match realm_id.and_then(|realm_id| self.realms.get(&realm_id)) {
-                Some(realm) => Box::new(
+        let Some(cfg) = self.domains.get(&domain) else {
+            return Box::new(std::iter::empty());
+        };
+
+        // This is generic filter that needs to be applied on all non-empty iterators.
+        let post_filter = |iter: Box<dyn Iterator<Item = &'a Post> + 'a>| {
+            Box::new(
+                iter.take_while(move |post| post.creation_timestamp() >= watermark)
+                    .filter(move |post| !post.is_deleted()),
+            )
+        };
+
+        // Realm specified.
+        if let Some(realm_id) = realm_id.as_ref() {
+            // If the specified realm does not satisfy the domain config, we have no data.
+            if cfg.realm_blacklist.contains(realm_id)
+                || !cfg.realm_whitelist.is_empty() && !cfg.realm_whitelist.contains(realm_id)
+            {
+                return Box::new(std::iter::empty());
+            };
+
+            // If realm is ok, simply iterate over all posts of this realm.
+            if let Some(realm) = self.realms.get(realm_id) {
+                return post_filter(Box::new(
                     realm
                         .posts
                         .iter()
                         .rev()
-                        .skip_while(move |post_id| offset > 0 && *post_id > &offset)
-                        .copied(),
-                ),
-                _ => {
-                    if with_comments {
-                        let last_id = if offset > 0 {
-                            offset
-                        } else {
-                            self.next_post_id
-                        };
-                        Box::new((0..last_id).rev())
-                    } else {
-                        self.domain_post_iter(&domain)
-                    }
-                }
-            };
-
-        let iter = iter
-            .filter_map(move |i| Post::get(self, &i))
-            .take_while(move |post| post.creation_timestamp() >= watermark)
-            .filter(move |post| !post.is_deleted());
-
-        // Depending on the domain, we might need to respect the realm blacklist.
-        match self.domains.get(&domain) {
-            Some(cfg) if !cfg.realm_blacklist.is_empty() => Box::new(iter.filter(move |post| {
-                post.realm
-                    .as_ref()
-                    .map(|id| !cfg.realm_blacklist.contains(id))
-                    .unwrap_or(true)
-            })),
-            _ => Box::new(iter),
+                        .skip_while(move |post_id| offset > 0 && post_id > &&offset)
+                        .filter_map(move |i| Post::get(self, i)),
+                ));
+            }
         }
+
+        // If realm is not set, we need a domain-specific filter.
+        let Some(domain_filter) = self.domain_realm_post_filter(&domain, None) else {
+            return Box::new(std::iter::empty());
+        };
+
+        // If we need to iterate over all posts including comments, apply domain filter.
+        if with_comments {
+            let last_id = if offset > 0 {
+                offset
+            } else {
+                self.next_post_id
+            };
+            return post_filter(Box::new(
+                (0..last_id)
+                    .rev()
+                    .filter_map(move |i| Post::get(self, &i))
+                    .filter(move |p| domain_filter(&p)),
+            ));
+        }
+
+        // If we only iterate over root posts and the domain config has no white list, accept all
+        // posts except those with black-listed realms.
+        if cfg.realm_whitelist.is_empty() {
+            return post_filter(Box::new(
+                self.root_posts_index
+                    .iter()
+                    .rev()
+                    .skip_while(move |post_id| offset > 0 && post_id > &&offset)
+                    .copied()
+                    .filter_map(move |i| Post::get(self, &i))
+                    .filter(move |p| {
+                        p.realm
+                            .as_ref()
+                            .map(|realm_id| !cfg.realm_blacklist.contains(realm_id))
+                            .unwrap_or(true)
+                    }),
+            ));
+        }
+
+        // If the domain config specifies a whitelist return a merger iterator over these realms.
+        let iterators: Vec<Box<dyn Iterator<Item = &'a PostId>>> = cfg
+            .realm_whitelist
+            .iter()
+            .filter_map(move |id| self.realms.get(id))
+            .map(|realm| {
+                Box::new(
+                    realm
+                        .posts
+                        .iter()
+                        .rev()
+                        .skip_while(move |post_id| offset > 0 && post_id > &&offset),
+                ) as Box<dyn Iterator<Item = &'a PostId>>
+            })
+            .collect();
+
+        post_filter(Box::new(
+            IteratorMerger::new(MergeStrategy::Or, iterators)
+                .copied()
+                .filter_map(move |i| Post::get(self, &i)),
+        ))
     }
 
     pub fn recent_tags(
