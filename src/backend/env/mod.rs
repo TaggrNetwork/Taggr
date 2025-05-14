@@ -3232,6 +3232,150 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn test_domain_realm_post_filter() {
+        mutate(|state| {
+            state.init();
+
+            state.realms.insert("REALM1".into(), Realm::default());
+            state.realms.insert("REALM2".into(), Realm::default());
+            state.realms.insert("REALM3".into(), Realm::default());
+
+            let p = pr(0);
+            create_user(state, p);
+            state.toggle_realm_membership(p, "REALM1".to_string());
+            state.toggle_realm_membership(p, "REALM2".to_string());
+            state.toggle_realm_membership(p, "REALM3".to_string());
+
+            // Create test domains with different configurations
+            let mut whitelist_config = DomainConfig::default();
+            whitelist_config
+                .realm_whitelist
+                .insert("REALM1".to_string());
+            whitelist_config
+                .realm_whitelist
+                .insert("REALM2".to_string());
+            state
+                .domains
+                .insert("whitelist_domain".to_string(), whitelist_config);
+
+            let mut blacklist_config = DomainConfig::default();
+            blacklist_config
+                .realm_blacklist
+                .insert("REALM3".to_string());
+            state
+                .domains
+                .insert("blacklist_domain".to_string(), blacklist_config);
+
+            // Empty config (both blacklist and whitelist are empty)
+            let empty_config = DomainConfig::default();
+            state
+                .domains
+                .insert("empty_config_domain".to_string(), empty_config);
+
+            // Create test posts with different realms
+            let mut post_ids = vec![];
+            for i in 1..=3 {
+                post_ids.push(
+                    Post::create(
+                        state,
+                        "post".to_string(),
+                        &[],
+                        p,
+                        0,
+                        None,
+                        Some(format!("REALM{}", i)),
+                        None,
+                    )
+                    .unwrap(),
+                );
+            }
+            let no_realm_id =
+                Post::create(state, "post".to_string(), &[], p, 0, None, None, None).unwrap();
+
+            let post_realm3 = Post::get(state, &post_ids.pop().unwrap()).unwrap();
+            let post_realm2 = Post::get(state, &post_ids.pop().unwrap()).unwrap();
+            let post_realm1 = Post::get(state, &post_ids.pop().unwrap()).unwrap();
+
+            let post_no_realm = Post::get(state, &no_realm_id).unwrap();
+
+            // Test whitelist domain with specific realm
+            if let Some(filter) = state.domain_realm_post_filter(
+                &"whitelist_domain".to_string(),
+                Some(&"REALM1".to_string()),
+            ) {
+                assert!(filter(post_realm1));
+                assert!(!filter(post_realm2));
+                assert!(!filter(post_realm3));
+                assert!(!filter(post_no_realm));
+            } else {
+                panic!("Filter should be Some");
+            }
+
+            // Test whitelist domain with no specific realm
+            if let Some(filter) =
+                state.domain_realm_post_filter(&"whitelist_domain".to_string(), None)
+            {
+                assert!(filter(post_realm1));
+                assert!(filter(post_realm2));
+                assert!(!filter(post_realm3));
+                assert!(!filter(post_no_realm));
+            } else {
+                panic!("Filter should be Some");
+            }
+
+            // Test blacklist domain with specific realm
+            if let Some(filter) = state.domain_realm_post_filter(
+                &"blacklist_domain".to_string(),
+                Some(&"REALM1".to_string()),
+            ) {
+                assert!(filter(post_realm1));
+                assert!(!filter(post_realm3));
+            } else {
+                panic!("Filter should be Some");
+            }
+
+            // Test blacklist domain with no specific realm
+            if let Some(filter) =
+                state.domain_realm_post_filter(&"blacklist_domain".to_string(), None)
+            {
+                assert!(filter(post_realm1));
+                assert!(filter(post_realm2));
+                assert!(!filter(post_realm3));
+                assert!(filter(post_no_realm));
+            } else {
+                panic!("Filter should be Some");
+            }
+
+            // Test empty config domain with specific realm
+            if let Some(filter) = state.domain_realm_post_filter(
+                &"empty_config_domain".to_string(),
+                Some(&"REALM1".to_string()),
+            ) {
+                assert!(filter(post_realm1));
+                assert!(!filter(post_realm2));
+            } else {
+                panic!("Filter should be Some");
+            }
+
+            // Test empty config domain with no specific realm
+            if let Some(filter) =
+                state.domain_realm_post_filter(&"empty_config_domain".to_string(), None)
+            {
+                assert!(filter(post_realm1));
+                assert!(filter(post_realm2));
+                assert!(filter(post_realm3));
+                assert!(filter(post_no_realm)); // Posts with no realm should pass with empty config
+            } else {
+                panic!("Filter should be Some");
+            }
+
+            // Test non-existent domain
+            let filter = state.domain_realm_post_filter(&"nonexistent_domain".to_string(), None);
+            assert!(filter.is_none());
+        });
+    }
+
+    #[test]
     fn test_revenue_from_icp() {
         mutate(|state| {
             state.e8s_for_one_xdr = 13510000;
