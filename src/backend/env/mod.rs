@@ -3113,20 +3113,18 @@ impl State {
         domain: String,
         order: String,
     ) -> Box<dyn Iterator<Item = (&'_ RealmId, &'_ Realm)> + '_> {
-        let realm_vp = read(|state| {
-            state
-                .users
-                .values()
-                .fold(BTreeMap::default(), |mut acc, user| {
-                    let vp = (user.total_balance() as f32).sqrt() as u64;
-                    user.realms.iter().for_each(|realm_id| {
-                        acc.entry(realm_id.clone())
-                            .and_modify(|realm_vp| *realm_vp += vp)
-                            .or_insert(vp);
-                    });
-                    acc
-                })
-        });
+        let realm_vp = self
+            .users
+            .values()
+            .fold(BTreeMap::default(), |mut acc, user| {
+                let vp = (user.total_balance() as f32).sqrt() as u64;
+                user.realms.iter().for_each(|realm_id| {
+                    acc.entry(realm_id.clone())
+                        .and_modify(|realm_vp| *realm_vp += vp)
+                        .or_insert(vp);
+                });
+                acc
+            });
         let mut realms = self
             .available_realms(domain)
             .filter_map(|realm_id| self.realms.get(realm_id).map(|realm| (realm_id, realm)))
@@ -3154,6 +3152,7 @@ impl State {
                 _ => Reverse(realm.last_update),
             });
         }
+
         Box::new(realms.into_iter())
     }
 }

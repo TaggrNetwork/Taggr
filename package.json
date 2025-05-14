@@ -2,7 +2,10 @@
     "name": "taggr",
     "version": "0.1.0",
     "description": "Decentralized Social Network",
-    "keywords": ["TypeScript", "Canister"],
+    "keywords": [
+        "TypeScript",
+        "Canister"
+    ],
     "scripts": {
         "build": "webpack",
         "postbuild": "find dist/frontend -name '*.js' -exec gzip -9n {} +",

@@ -696,7 +696,12 @@ export const Realms = () => {
     const loadRealms = async () => {
         const data =
             (filter
-                ? await window.api.query<any>("realm_search", domain(), filter)
+                ? await window.api.query<any>(
+                      "realm_search",
+                      domain(),
+                      order,
+                      filter,
+                  )
                 : await window.api.query<any>(
                       "all_realms",
                       domain(),
