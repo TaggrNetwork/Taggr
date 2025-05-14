@@ -244,6 +244,7 @@ const reloadCache = async () => {
         domains: domains || {},
     };
     const domainCfg = (domains || {})[domain()];
+    if (!domainCfg) return alert("Fatal error: no domain config found.");
     window.monoRealm =
         domainCfg.realm_whitelist.length == 1
             ? domainCfg.realm_whitelist[0]

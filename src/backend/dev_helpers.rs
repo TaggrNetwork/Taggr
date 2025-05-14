@@ -10,11 +10,14 @@ use serde_bytes::ByteBuf;
 use std::time::Duration;
 
 #[update]
-async fn reset() {
+async fn reset(canister_id: String) {
     clear_buckets().await;
     STATE.with(|cell| {
         let mut state: State = Default::default();
         state.init();
+        state
+            .domains
+            .insert(format!("{canister_id}.localhost"), DomainConfig::default());
         state.memory.init();
         // as expected in E2E tests
         {
