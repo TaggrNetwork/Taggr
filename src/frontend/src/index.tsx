@@ -25,6 +25,7 @@ import {
     expandMeta,
     KNOWN_USER,
     showPopUp,
+    domain,
 } from "./common";
 import { Settings } from "./settings";
 import { Welcome, WelcomeInvited } from "./welcome";
@@ -32,11 +33,11 @@ import { Proposals } from "./proposals";
 import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
-import { Config, User, Stats } from "./types";
+import { Config, User, Stats, DomainConfig } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
-import { populateUserNameCacheSpeculatively } from "./user_resolve";
+import { populateUserNameCache } from "./user_resolve";
 import { Roadmap } from "./roadmap";
 import { LinksPage } from "./links";
 import { ApiGenerator } from "./api";
@@ -90,6 +91,7 @@ const App = () => {
     const auth = (content: React.ReactNode) =>
         window.getPrincipalId() ? content : <Unauthorized />;
     const [handler = "", param, param2] = parseHash();
+
     let subtle = false;
     let inboxMode = false;
     let content = null;
@@ -97,6 +99,7 @@ const App = () => {
     // If we're in a realm, but navigate outside of realm routes, reset the UI.
     if (
         currentRealm() &&
+        !window.hideRealmless &&
         ["#/realm/", "#/feed", "#/post/", "#/thread", "#/new"].every(
             (prefix: string) => !location.hash.startsWith(prefix),
         )
@@ -111,6 +114,9 @@ const App = () => {
         setRealmUI(param.toUpperCase());
     }
 
+    if (window.monoRealm) setRealmUI(window.monoRealm);
+    if (window.defaultRealm && !currentRealm()) setRealmUI(window.defaultRealm);
+
     if (handler == "whitepaper") {
         content = <Whitepaper />;
     } else if (handler == "settings") {
@@ -123,8 +129,8 @@ const App = () => {
             <WelcomeInvited />
         );
     } else if (
-        (handler == "wallet" || (window.getPrincipalId() && !window.user)) &&
-        !window.realm
+        handler == "wallet" ||
+        (window.getPrincipalId() && !window.user)
     ) {
         content = <Welcome />;
     } else if (handler == "post") {
@@ -236,10 +242,11 @@ const App = () => {
 
 const reloadCache = async () => {
     window.backendCache = window.backendCache || { users: [], recent_tags: [] };
-    const [recent_tags, stats, config] = await Promise.all([
-        window.api.query<[string, any][]>("recent_tags", "", 500),
+    const [recent_tags, stats, config, domains] = await Promise.all([
+        window.api.query<[string, any][]>("recent_tags", domain(), "", 500),
         window.api.query<Stats>("stats"),
         window.api.query<Config>("config"),
+        window.api.query<{ [domain: string]: DomainConfig }>("domains"),
     ]);
     if (!config) console.error("Config wasn't loaded!");
     if (!stats) console.error("Stats weren't loaded!");
@@ -247,7 +254,14 @@ const reloadCache = async () => {
         recent_tags: recent_tags || [],
         stats: stats || ({} as Stats),
         config: config || ({} as Config),
+        domains: domains || {},
     };
+    const domainCfg = (domains || {})[domain()];
+    if (!domainCfg) return alert("Fatal error: no domain config found.");
+    const wlLen = domainCfg.realm_whitelist.length;
+    window.monoRealm = wlLen == 1 ? domainCfg.realm_whitelist[0] : null;
+    window.defaultRealm = wlLen >= 1 ? domainCfg.realm_whitelist[0] : null;
+    window.hideRealmless = !!(window.monoRealm || window.defaultRealm);
     const last_upgrade = window.backendCache.stats?.last_release?.timestamp;
     if (!last_upgrade) return;
     else if (window.lastSavedUpgrade == 0) {
@@ -354,7 +368,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
         if (window.location.href.includes("recovery")) {
             document.getElementById("logo_container")?.remove();
             renderFrame(<React.StrictMode>{<Recovery />}</React.StrictMode>);
-            window.user = await api.query<any>("user", []);
+            window.user = await api.query<any>("user", "", []);
             return;
         }
 
@@ -372,12 +386,13 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
 
         if (api) {
             window.reloadUser = async () => {
-                let data = await api.query<User>("user", []);
+                let data = await api.query<User>("user", domain(), []);
                 if (data) {
-                    populateUserNameCacheSpeculatively();
-                    window.user = data;
                     localStorage.setItem(KNOWN_USER, "1");
-                    window.user.realms.reverse();
+                    let userIds = data.followees.concat(data.followers);
+                    populateUserNameCache(userIds);
+                    data.realms.reverse();
+                    window.user = data;
                     if (600000 < microSecsSince(window.user.last_activity)) {
                         window.lastVisit = window.user.last_activity;
                         api.call("update_last_activity");

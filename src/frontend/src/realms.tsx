@@ -11,6 +11,7 @@ import {
     ToggleButton,
     foregroundColor,
     showPopUp,
+    domain,
 } from "./common";
 import { Content } from "./content";
 import { Close } from "./icons";
@@ -522,23 +523,34 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
     );
 };
 
-export const RealmHeader = ({ name }: { name: string }) => {
+export const RealmHeader = ({
+    name,
+    heartbeat,
+}: {
+    name: string;
+    heartbeat: any;
+}) => {
     const [realm, setRealm] = React.useState<Realm>();
+    const [loading, setLoading] = React.useState(false);
     const [showInfo, toggleInfo] = React.useState(false);
 
     const loadRealm = async () => {
-        let result = (await window.api.query<Realm[]>("realms", [name])) || [];
+        setLoading(true);
+        let result = await window.api.query<Realm[]>("realms", [name]);
+        setLoading(false);
+        if (!result || result.length == 0) return;
         setRealm(result[0]);
     };
 
     React.useEffect(() => {
         loadRealm();
         toggleInfo(false);
-    }, [name]);
+    }, [name, heartbeat]);
 
     setTitle(`realm ${name}`);
 
-    if (!realm) return <Loading />;
+    if (loading) return <Loading />;
+    if (!realm) return null;
 
     const colors = {
         background: realm.label_color,
@@ -546,7 +558,7 @@ export const RealmHeader = ({ name }: { name: string }) => {
     };
     const user = window.user;
     return (
-        <>
+        <div className="top_spaced">
             <HeadBar
                 title={
                     <div
@@ -569,15 +581,19 @@ export const RealmHeader = ({ name }: { name: string }) => {
                 styleArg={colors}
                 content={
                     <>
-                        <ButtonWithLoading
-                            styleArg={colors}
-                            testId="realm-close-button"
-                            onClick={async () => {
-                                window.realm = "";
-                                location.href = "/#/home";
-                            }}
-                            label={<Close styleArg={{ fill: colors.color }} />}
-                        />
+                        {!window.monoRealm && window.defaultRealm != name && (
+                            <ButtonWithLoading
+                                styleArg={colors}
+                                testId="realm-close-button"
+                                onClick={async () => {
+                                    window.realm = "";
+                                    location.href = "/#/home";
+                                }}
+                                label={
+                                    <Close styleArg={{ fill: colors.color }} />
+                                }
+                            />
+                        )}
                         <BurgerButton
                             styleArg={colors}
                             onClick={() => toggleInfo(!showInfo)}
@@ -666,7 +682,7 @@ export const RealmHeader = ({ name }: { name: string }) => {
                     )}
                 </div>
             )}
-        </>
+        </div>
     );
 };
 
@@ -680,8 +696,13 @@ export const Realms = () => {
     const loadRealms = async () => {
         const data =
             (filter
-                ? await window.api.query<any>("realm_search", filter)
-                : await window.api.query<any>("all_realms", order, page)) || [];
+                ? await window.api.query<any>("realm_search", domain(), filter)
+                : await window.api.query<any>(
+                      "all_realms",
+                      domain(),
+                      order,
+                      page,
+                  )) || [];
         if (data.length == 0) {
             setNoMoreData(true);
         }

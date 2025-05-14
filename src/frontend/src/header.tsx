@@ -78,12 +78,7 @@ export const Header = ({
             {STAGING_MODE && (
                 <div className="banner vertically_spaced">
                     THIS IS THE STAGING VERSION OF{" "}
-                    <a
-                        href={`https://${window.backendCache.config.domains[0]}`}
-                    >
-                        {window.backendCache.config.name.toUpperCase()}
-                    </a>
-                    !
+                    {window.backendCache.config.name.toUpperCase()}!
                 </div>
             )}
             <header className="spaced top_half_spaced vcentered">
@@ -121,7 +116,7 @@ export const Header = ({
                                     </>
                                 }
                             />
-                            {user.realms.length > 0 && (
+                            {user.realms.length > 0 && !window.monoRealm && (
                                 <IconToggleButton
                                     pressed={showRealms}
                                     onClick={(event) => {
@@ -145,17 +140,19 @@ export const Header = ({
                                 icon={<User />}
                                 testId="toggle-user-section"
                             />
-                            <BurgerButton
-                                pressed={showLinks}
-                                onClick={(event) => {
-                                    console.log(typeof event.currentTarget);
-                                    toggleRealms(false);
-                                    toggleUserSection(false);
-                                    toggleLinks(!showLinks);
-                                    setOffset(getOffset(event));
-                                }}
-                                testId="toggle-links"
-                            />
+                            {!window.monoRealm && (
+                                <BurgerButton
+                                    pressed={showLinks}
+                                    onClick={(event) => {
+                                        console.log(typeof event.currentTarget);
+                                        toggleRealms(false);
+                                        toggleUserSection(false);
+                                        toggleLinks(!showLinks);
+                                        setOffset(getOffset(event));
+                                    }}
+                                    testId="toggle-links"
+                                />
+                            )}
                             <button
                                 className="active left_half_spaced"
                                 onClick={() => (location.href = "#/new")}
@@ -184,7 +181,7 @@ export const Header = ({
                     <RealmList classNameArg="centered" ids={user.realms} />
                 )}
             </DropDown>
-            {realm && <RealmHeader name={realm} />}
+            {realm && <RealmHeader name={realm} heartbeat={location.href} />}
         </>
     );
 };

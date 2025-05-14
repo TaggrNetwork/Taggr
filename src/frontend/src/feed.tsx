@@ -1,5 +1,5 @@
 import * as React from "react";
-import { currentRealm, HeadBar, setTitle } from "./common";
+import { currentRealm, domain, HeadBar, setTitle } from "./common";
 import { ToggleButton } from "./common";
 import { PostFeed } from "./post_feed";
 import { PostId } from "./types";
@@ -14,6 +14,7 @@ export const Feed = ({ params }: { params: string[] }) => {
                 feedLoader={async (page: number, offset: PostId) => {
                     return await window.api.query(
                         "posts_by_tags",
+                        domain(),
                         currentRealm(),
                         filter,
                         page,

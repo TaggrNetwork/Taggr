@@ -1,5 +1,12 @@
 import * as React from "react";
-import { bigScreen, Loading, NotFound, setTitle, ShareButton } from "./common";
+import {
+    bigScreen,
+    domain,
+    Loading,
+    NotFound,
+    setTitle,
+    ShareButton,
+} from "./common";
 import { Content } from "./content";
 import { PostFeed } from "./post_feed";
 import { PostId, User } from "./types";
@@ -11,7 +18,7 @@ export const Journal = ({ handle }: { handle: string }) => {
     const [profile, setProfile] = React.useState({} as User);
 
     const loadState = () =>
-        window.api.query<User>("user", [handle]).then((profile) => {
+        window.api.query<User>("user", "", [handle]).then((profile) => {
             if (profile) {
                 setProfile(profile);
                 setTitle(`${profile.name}'s profile`);
@@ -69,7 +76,13 @@ export const Journal = ({ handle }: { handle: string }) => {
                     useList={true}
                     journal={true}
                     feedLoader={async (page: number, offset: PostId) =>
-                        await window.api.query("journal", handle, page, offset)
+                        await window.api.query(
+                            "journal",
+                            domain(),
+                            handle,
+                            page,
+                            offset,
+                        )
                     }
                 />
             )}

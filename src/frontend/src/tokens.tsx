@@ -405,7 +405,7 @@ export const TransactionsView = ({
 
     const loadUser = async () => {
         if (!icrcAccount) return;
-        const profile = await window.api.query<User>("user", [icrcAccount]);
+        const profile = await window.api.query<User>("user", "", [icrcAccount]);
         if (!profile) {
             return;
         }

@@ -4,18 +4,14 @@ import { Loading, commaSeparated, pfpUrl } from "./common";
 
 export const USER_CACHE: UserData = {};
 
-export const populateUserNameCacheSpeculatively = async () =>
-    await populateUserNameCache([], undefined, true);
-
 export const populateUserNameCache = async (
     ids: UserId[],
     loadingCallback = (_arg: boolean) => {},
-    speculative?: boolean,
 ) => {
     const misses = ids.filter(
         (id) => id < Number.MAX_SAFE_INTEGER && !(id in USER_CACHE),
     );
-    if (!speculative && misses.length == 0) return;
+    if (misses.length == 0) return;
     loadingCallback(true);
     const data = (await window.api.query<UserData>("users_data", misses)) || {};
     loadingCallback(false);
@@ -39,7 +35,7 @@ export const userNameToIds = async (names: string[]) => {
             names.map((name) =>
                 name in cachedNames
                     ? { id: cachedNames[name] }
-                    : window.api.query<User>("user", [name]),
+                    : window.api.query<User>("user", "", [name]),
             ),
         )
     )

@@ -107,7 +107,9 @@ export const ProposalMask = ({
     const validateAndSaveProposal = async () => {
         switch (proposalType) {
             case ProposalType.AddRealmController:
-                const user = await window.api.query<User>("user", [userName]);
+                const user = await window.api.query<User>("user", "", [
+                    userName,
+                ]);
                 if (!user) {
                     showPopUp("error", `No user ${userName} found!`);
                     return;

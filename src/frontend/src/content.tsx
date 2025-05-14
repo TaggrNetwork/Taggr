@@ -169,8 +169,8 @@ const linkRenderer =
 
                     // Internal links
                     if (
-                        window.backendCache.config.domains.some((domain) =>
-                            url.hostname.includes(domain),
+                        Object.keys(window.backendCache.domains).some(
+                            (domain) => url.hostname.includes(domain),
                         )
                     ) {
                         const nonMarkdownLink = label == url.href;

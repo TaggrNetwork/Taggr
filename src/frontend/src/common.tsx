@@ -16,6 +16,7 @@ import {
     Post,
     PostId,
     Realm,
+    RealmId,
     Report,
     User,
     UserFilter,
@@ -148,6 +149,15 @@ export const interleaved = (
             {curr}
         </>
     ));
+
+export const NotAllowed = () => (
+    <div className="text_centered vertically_spaced">
+        <h1 style={{ fontSize: "4em" }}>
+            <code>403</code>
+        </h1>
+        Not available on {domain()}
+    </div>
+);
 
 export const NotFound = () => (
     <div className="text_centered vertically_spaced">
@@ -1304,3 +1314,21 @@ export const DropDown = ({
         </div>
     );
 };
+
+export function domain(): RealmId {
+    return window.location.hostname;
+}
+
+// Checks if the realm is supported in the current domain
+export function realmAllowed(id?: RealmId) {
+    const config = window.backendCache.domains[domain()];
+    if (!config) return true;
+
+    const wl = config.realm_whitelist;
+    const bl = config.realm_blacklist;
+
+    // If we have no realm id, we are fine if whitelist is empty.
+    if (!id) return wl.length == 0;
+
+    return wl.length > 0 ? wl.includes(id) : !bl.includes(id);
+}
