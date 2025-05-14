@@ -392,6 +392,9 @@ declare global {
         uiInitialized: boolean;
         // Domains with a single whitelisted realm
         monoRealm: string | null;
+        // Domains with a whitelist, uses the first realm as default
+        defaultRealm: string | null;
+        hideRealmless: boolean;
         backendCache: {
             recent_tags: [string, number][];
             stats: Stats;

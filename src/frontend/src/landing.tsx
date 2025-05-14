@@ -84,7 +84,7 @@ export const Landing = () => {
                     </span>
                 </div>
             )}
-            {!user && !window.monoRealm && (
+            {!user && !window.hideRealmless && (
                 <Links classNameArg="vertically_spaced" />
             )}
             <Search />

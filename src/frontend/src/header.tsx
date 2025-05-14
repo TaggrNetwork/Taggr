@@ -181,7 +181,7 @@ export const Header = ({
                     <RealmList classNameArg="centered" ids={user.realms} />
                 )}
             </DropDown>
-            {realm && <RealmHeader name={realm} />}
+            {realm && <RealmHeader name={realm} heartbeat={location.href} />}
         </>
     );
 };

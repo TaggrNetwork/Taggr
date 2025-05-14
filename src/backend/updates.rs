@@ -121,11 +121,10 @@ fn sync_post_upgrade_fixtures() {
         s.init();
 
         // TDOO testing only; remove later
-        s.domains
-            .get_mut("localhost")
-            .unwrap()
-            .realm_whitelist
-            .insert("DAO".into());
+        // let cfg = s.domains.get_mut("localhost").unwrap();
+        // cfg.realm_whitelist.insert("DAO".into());
+        // cfg.realm_whitelist.insert("DIAMOND-HANDS".into());
+        // cfg.realm_whitelist.insert("TAGGRDEV".into());
     });
 }
 

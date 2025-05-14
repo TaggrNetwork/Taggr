@@ -96,6 +96,18 @@ const App = () => {
     let inboxMode = false;
     let content = null;
 
+    // If we're in a realm, but navigate outside of realm routes, reset the UI.
+    if (
+        currentRealm() &&
+        !window.hideRealmless &&
+        ["#/realm/", "#/feed", "#/post/", "#/thread", "#/new"].every(
+            (prefix: string) => !location.hash.startsWith(prefix),
+        )
+    ) {
+        window.realm = "";
+        window.uiInitialized = false;
+    }
+
     setTitle(handler);
     setUI();
     if (handler == "realm" && currentRealm() != param) {
@@ -103,6 +115,7 @@ const App = () => {
     }
 
     if (window.monoRealm) setRealmUI(window.monoRealm);
+    if (window.defaultRealm && !currentRealm()) setRealmUI(window.defaultRealm);
 
     if (handler == "whitepaper") {
         content = <Whitepaper />;
@@ -245,10 +258,10 @@ const reloadCache = async () => {
     };
     const domainCfg = (domains || {})[domain()];
     if (!domainCfg) return alert("Fatal error: no domain config found.");
-    window.monoRealm =
-        domainCfg.realm_whitelist.length == 1
-            ? domainCfg.realm_whitelist[0]
-            : null;
+    const wlLen = domainCfg.realm_whitelist.length;
+    window.monoRealm = wlLen == 1 ? domainCfg.realm_whitelist[0] : null;
+    window.defaultRealm = wlLen >= 1 ? domainCfg.realm_whitelist[0] : null;
+    window.hideRealmless = !!(window.monoRealm || window.defaultRealm);
     const last_upgrade = window.backendCache.stats?.last_release?.timestamp;
     if (!last_upgrade) return;
     else if (window.lastSavedUpgrade == 0) {

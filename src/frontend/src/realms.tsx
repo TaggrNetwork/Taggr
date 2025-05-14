@@ -523,7 +523,13 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
     );
 };
 
-export const RealmHeader = ({ name }: { name: string }) => {
+export const RealmHeader = ({
+    name,
+    heartbeat,
+}: {
+    name: string;
+    heartbeat: any;
+}) => {
     const [realm, setRealm] = React.useState<Realm>();
     const [loading, setLoading] = React.useState(false);
     const [showInfo, toggleInfo] = React.useState(false);
@@ -539,7 +545,7 @@ export const RealmHeader = ({ name }: { name: string }) => {
     React.useEffect(() => {
         loadRealm();
         toggleInfo(false);
-    }, [name]);
+    }, [name, heartbeat]);
 
     setTitle(`realm ${name}`);
 
@@ -552,7 +558,7 @@ export const RealmHeader = ({ name }: { name: string }) => {
     };
     const user = window.user;
     return (
-        <>
+        <div className="top_spaced">
             <HeadBar
                 title={
                     <div
@@ -575,7 +581,7 @@ export const RealmHeader = ({ name }: { name: string }) => {
                 styleArg={colors}
                 content={
                     <>
-                        {!window.monoRealm && (
+                        {!window.monoRealm && window.defaultRealm != name && (
                             <ButtonWithLoading
                                 styleArg={colors}
                                 testId="realm-close-button"
@@ -676,7 +682,7 @@ export const RealmHeader = ({ name }: { name: string }) => {
                     )}
                 </div>
             )}
-        </>
+        </div>
     );
 };
 
