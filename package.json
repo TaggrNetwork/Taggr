@@ -2,10 +2,7 @@
     "name": "taggr",
     "version": "0.1.0",
     "description": "Decentralized Social Network",
-    "keywords": [
-        "TypeScript",
-        "Canister"
-    ],
+    "keywords": ["TypeScript", "Canister"],
     "scripts": {
         "build": "webpack",
         "postbuild": "find dist/frontend -name '*.js' -exec gzip -9n {} +",
@@ -34,7 +31,6 @@
         "ts-loader": "9.5.0",
         "typescript": "5.8.3",
         "webpack": "^5.96.1",
-        "webpack-bundle-analyzer": "^4.10.2",
         "webpack-cli": "5.1.4",
         "webpack-dev-server": "^5.1.0"
     },
