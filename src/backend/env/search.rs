@@ -295,8 +295,8 @@ fn remove_markdown(md: &str) -> String {
     result
 }
 
-pub fn realm_search<'a>(
-    state: &'a mut State,
+pub fn realm_search(
+    state: &mut State,
     realm_ids: Vec<RealmId>,
     query: String,
 ) -> Vec<(String, Realm)> {
