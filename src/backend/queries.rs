@@ -1,4 +1,6 @@
-use crate::env::{invoices::principal_to_subaccount, proposals::Payload, tip::Tip, user::UserFilter,};
+use crate::env::{
+    invoices::principal_to_subaccount, proposals::Payload, tip::Tip, user::UserFilter,
+};
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
 

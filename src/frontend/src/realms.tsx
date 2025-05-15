@@ -77,9 +77,10 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         setRealm(realm);
         setStrings(realm);
         if (realm.theme) setTheme(JSON.parse(realm.theme));
+        return realm;
     };
 
-    const loadTokens = async () => {
+    const loadTokens = async (realm?: Realm) => {
         const canisterIds: string[] = [CANISTER_ID];
         if (realm?.native_token) {
             canisterIds.push(realm.native_token);
@@ -115,15 +116,15 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
     };
 
     React.useEffect(() => {
-        if (editing) loadRealm();
-        loadTokens();
+        if (editing) loadRealm().then((r) => loadTokens(r));
+        else loadTokens();
     }, []);
 
     const realmTokenInfo = (token: string): JSX.Element => {
         const metadata = canistersMetaData[token];
         return (
-            (metadata && (
-                <span>
+            metadata && (
+                <span key={token}>
                     <code>{metadata.symbol}</code>
                     &nbsp;
                     <img
@@ -135,7 +136,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         src={metadata.logo}
                     />
                 </span>
-            )) || <></>
+            )
         );
     };
 
@@ -393,29 +394,27 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                 defaultValue={realm.native_token || ""}
                                 onBlur={async (e) => {
                                     const canisterId = e.target.value;
-                                    if (!canisterId) {
-                                        return;
-                                    }
                                     try {
-                                        Principal.fromText(canisterId); // Try catch
-                                        const metadata =
-                                            await getCanistersMetaData([
-                                                canisterId,
-                                            ]);
-                                        if (!metadata) {
-                                            return alert(
-                                                "Could not find canister metadata",
-                                            );
+                                        if (canisterId) {
+                                            Principal.fromText(canisterId);
+                                            const metadata =
+                                                await getCanistersMetaData([
+                                                    canisterId,
+                                                ]);
+                                            if (!metadata) {
+                                                return alert(
+                                                    "Could not find canister metadata",
+                                                );
+                                            }
+                                            canistersMetaData[canisterId] =
+                                                metadata.get(
+                                                    canisterId,
+                                                ) as Icrc1Canister;
+                                            setCanisterMetaData({
+                                                ...canistersMetaData,
+                                            });
                                         }
                                         realm.native_token = canisterId;
-
-                                        canistersMetaData[canisterId] =
-                                            metadata.get(
-                                                canisterId,
-                                            ) as Icrc1Canister;
-                                        setCanisterMetaData({
-                                            ...canistersMetaData,
-                                        });
                                         setRealm({ ...realm });
                                     } catch (e) {
                                         return alert(e);
@@ -457,10 +456,14 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                 defaultValue={realm.tokens?.toString() || ""}
                                 onBlur={async (e) => {
                                     const canisterIds =
-                                        e.target.value?.split(",") || [];
+                                        e.target.value
+                                            ?.split(",")
+                                            .filter(Boolean) || [];
                                     try {
-                                        canisterIds.forEach((canisterId) =>
-                                            Principal.fromText(canisterId),
+                                        canisterIds.forEach(
+                                            (canisterId) =>
+                                                canisterId &&
+                                                Principal.fromText(canisterId),
                                         ); // Try catch
                                         const metadata =
                                             await getCanistersMetaData(

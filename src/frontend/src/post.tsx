@@ -541,7 +541,10 @@ const PostInfo = ({
 
         await populateUserNameCache(ids, setLoading);
 
-        await realmPromise.then((realm) => loadExternalTipsData(realm));
+        // Async don't wait
+        realmPromise
+            .then((realm) => loadExternalTipsData(realm))
+            .catch(console.error);
 
         setLoaded(true);
     };
@@ -586,19 +589,18 @@ const PostInfo = ({
 
         setExternalTipsLoading(false);
 
-        if (USER_COMMON_CACHE[post.user]) {
-            return setPostUser(USER_COMMON_CACHE[post.user]);
-        }
-        // Load post user if cache missed
-        return (
-            post.user !== window.user?.id &&
-            window.api
+        if (post.user !== window.user?.id) {
+            if (USER_COMMON_CACHE[post.user]) {
+                return setPostUser(USER_COMMON_CACHE[post.user]);
+            }
+            // Load post user if cache missed
+            return window.api
                 .query<User>("user", [USER_CACHE[post.user]])
                 .then((user) => {
                     setPostUser(user);
                     populateUserCommonCache(user);
-                })
-        );
+                });
+        }
     };
 
     let initial = false;
