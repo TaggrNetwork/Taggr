@@ -330,6 +330,7 @@ export type Stats = {
 export type Config = {
     proposal_escrow_amount_xdr: number;
     staging: string;
+    staging_dev2: string;
     weekly_auction_size_tokens: number;
     user_report_validity_days: number;
     downvote_counting_period_days: number;
