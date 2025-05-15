@@ -40,10 +40,15 @@ pub fn btc_network() -> BitcoinNetwork {
     }
 }
 
+// Sets the treasury address, if it's empty.
 pub async fn update_treasury_address() {
+    if !read(|state| state.bitcoin_treasury_address.is_empty()) {
+        return;
+    }
+
     let main_address = get_address(DERIVATION_PATH.clone())
         .await
-        .expect("couldn't create treasury address");
+        .expect("couldn't get treasury address");
     mutate(|state| state.bitcoin_treasury_address = main_address)
 }
 

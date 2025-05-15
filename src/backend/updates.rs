@@ -73,6 +73,7 @@ fn post_upgrade() {
     // post upgrade logic goes here
     set_timer(Duration::from_millis(0), move || {
         spawn(async_post_upgrade_fixtures());
+        spawn(bitcoin::update_treasury_address());
     });
 
     ic_cdk::println!(
@@ -108,33 +109,16 @@ fn sync_post_upgrade_fixtures() {
         cfg.owner = Some(305); // mechaquan
         s.domains.insert("taggr.network".into(), cfg.clone());
 
-        // TODO remove before release
+        // Will be used for testing
         let mut cfg = DomainConfig::default();
-        cfg.realm_blacklist.insert("DEMO".into());
-        s.domains
-            .insert("e4i5g-biaaa-aaaao-ai7ja-cai.icp0.io".into(), cfg);
-        let mut cfg = DomainConfig::default();
-        cfg.owner = Some(0);
-        cfg.realm_whitelist.insert("DEMO".into());
-        s.domains.insert("cyphersociety.org".into(), cfg.clone());
-
-        s.init();
-
-        // TDOO testing only; remove later
-        // let cfg = s.domains.get_mut("localhost").unwrap();
-        // cfg.realm_whitelist.insert("DAO".into());
-        // cfg.realm_whitelist.insert("DIAMOND-HANDS".into());
-        // cfg.realm_whitelist.insert("TAGGRDEV".into());
+        cfg.owner = Some(0); // X
+        cfg.realm_whitelist.insert("DIAMOND-HANDS".into());
+        s.domains.insert("cyphersociety".into(), cfg);
     });
 }
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {
-    // TODO: remove both lines after release
-    bitcoin::update_treasury_address().await;
-    #[cfg(not(feature = "dev"))]
-    State::fetch_xdr_rate().await;
-}
+async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES
