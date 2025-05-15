@@ -67,7 +67,7 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
             ),
             ("Cache-Control".to_string(), "public".to_string()),
         ],
-        include_bytes!("../../dist/frontend/favicon.ico").to_vec(),
+        include_bytes!("../../src/frontend/assets/favicon.ico").to_vec(),
     );
 
     add_asset(
@@ -76,7 +76,7 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
             ("Content-Type".to_string(), "image/png".to_string()),
             ("Cache-Control".to_string(), "public".to_string()),
         ],
-        include_bytes!("../../dist/frontend/apple-touch-icon.png").to_vec(),
+        include_bytes!("../../src/frontend/assets/apple-touch-icon.png").to_vec(),
     );
 
     add_asset(
@@ -85,7 +85,7 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
             ("Content-Type".to_string(), "image/jpeg".to_string()),
             ("Cache-Control".to_string(), "public".to_string()),
         ],
-        include_bytes!("../../dist/frontend/social-image.jpg").to_vec(),
+        include_bytes!("../../src/frontend/assets/social-image.jpg").to_vec(),
     );
 
     add_asset(
@@ -94,7 +94,7 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
             "Content-Type".to_string(),
             "application/font-woff2".to_string(),
         )],
-        include_bytes!("../../dist/frontend/font-regular.woff2").to_vec(),
+        include_bytes!("../../src/frontend/assets/font-regular.woff2").to_vec(),
     );
 
     add_asset(
@@ -103,7 +103,13 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
             "Content-Type".to_string(),
             "application/font-woff2".to_string(),
         )],
-        include_bytes!("../../dist/frontend/font-bold.woff2").to_vec(),
+        include_bytes!("../../src/frontend/assets/font-bold.woff2").to_vec(),
+    );
+
+    add_asset(
+        &["/WHITEPAPER.md"],
+        vec![("Content-Type".to_string(), "text/markdown".to_string())],
+        include_bytes!("../../src/frontend/assets/WHITEPAPER.md").to_vec(),
     );
 
     add_asset(

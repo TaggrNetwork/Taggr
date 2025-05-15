@@ -200,7 +200,7 @@ fn domains() {
 fn all_realms() {
     let page_size = 20;
     let (domain, order, page): (String, String, usize) = parse(&arg_data_raw());
-    read(|state| {
+    mutate(|state| {
         reply(
             state
                 .sorted_realms(domain, order)
@@ -524,9 +524,15 @@ fn proposal_escrow_balance_required() {
 
 #[export_name = "canister_query realm_search"]
 fn realm_search() {
-    let (domain, query): (String, String) = parse(&arg_data_raw());
+    let (domain, order, query): (String, String, String) = parse(&arg_data_raw());
     // It's ok to mutate the data to avoid cloning, because we're in a query method.
-    mutate(|state| reply(env::search::realm_search(domain, state, query)));
+    mutate(|state| {
+        let ids = state
+            .sorted_realms(domain, order)
+            .map(|(id, _)| id.clone())
+            .collect::<Vec<_>>();
+        reply(env::search::realm_search(state, ids, query))
+    })
 }
 
 #[query]

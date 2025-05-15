@@ -79,16 +79,19 @@ export const Landing = () => {
             {!user && !realm && (
                 <div className="spaced vertically_spaced text_centered">
                     <h1>WELCOME ABOARD</h1>
-                    <span>
-                        To the Future of Decentralized Social Networking.
-                    </span>
+                    <p>To the Future of Decentralized Social Networking.</p>
+                    <button onClick={() => (location.href = "#/whitepaper")}>
+                        LEARN MORE
+                    </button>
                 </div>
             )}
             {!user && !window.hideRealmless && (
                 <Links classNameArg="vertically_spaced" />
             )}
             <Search />
-            <TagCloud heartbeat={feed} realm={realm} />
+            {user && user.settings.tagCloud && (
+                <TagCloud heartbeat={feed} realm={realm} />
+            )}
             <PostFeed
                 heartbeat={feed}
                 refreshRateSecs={10 * 60}

@@ -295,18 +295,26 @@ fn remove_markdown(md: &str) -> String {
     result
 }
 
-pub fn realm_search(domain: String, state: &mut State, query: String) -> Vec<(String, Realm)> {
+pub fn realm_search(
+    state: &mut State,
+    realm_ids: Vec<RealmId>,
+    query: String,
+) -> Vec<(String, Realm)> {
     let query = &query.to_lowercase();
-    state
-        .available_realms(domain)
-        .cloned()
-        .collect::<Vec<_>>()
+    realm_ids
         .into_iter()
-        .filter_map(move |id| state.realms.remove(&id).map(|realm| (id, realm)))
+        .filter_map(|realm_id| {
+            state
+                .realms
+                .remove(&realm_id)
+                .map(|realm| (realm_id, realm))
+        })
         .filter(|(realm_id, realm)| {
             realm_id.to_lowercase().contains(query)
                 || realm.description.to_lowercase().contains(query)
         })
+        // Don't show all realms, otherwise we panic on a too large reponse size
+        .take(100)
         .map(|(key, mut realm)| {
             realm.num_posts = realm.posts.len();
             realm.posts.clear();

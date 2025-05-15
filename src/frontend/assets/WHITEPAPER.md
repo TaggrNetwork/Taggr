@@ -1,14 +1,36 @@
 # $name
 
-$name aims to serve as a public good, providing decentralized and censorship-resistant services for content publishing and communication.
-It operates on the public computing infrastructure powered by the [Internet Computer](https://internetcomputer.org).
+## Introduction
 
-## Key Points
+$name is a fully decentralized social media platform that lives on a public distributed compute network powered by the [Internet Computer](https://internetcomputer.org). Unlike traditional social media platforms controlled by corporations, $name is owned and governed entirely by its users.
+
+The most important key points of $name are:
 
 -   $name combines features of forums and blogs.
 -   $name is tokenized and is owned and governed by its token holders.
 -   $name is completely ad-free and generates revenue.
 -   $name uses its revenue to reward content producers, token holders (pro-rata) and to cover storage and compute costs.
+
+### The Economic Model
+
+$name operates with a sustainable economic model:
+
+1. **Getting Started**: New users start with credits (worth approximately $1.39 in value) after making a small payment in either Bitcoin or ICP cryptocurrency.
+
+2. **Credits System**: These credits are gradually consumed when you interact with the platform – posting content, reacting to posts, creating polls, etc.
+
+3. **Revenue Flow**: When you spend credits:
+
+    - Some are directed to content creators as rewards
+    - The remainder goes to $name's Treasury as platform revenue
+    - This revenue is shared with token holders
+
+4. **Token Utility**: Holding $token_symbol tokens provides:
+    - Governance rights (you can vote on platform upgrades)
+    - A share of platform revenue
+    - Incentives for the developers to keep improving $name
+
+This structure creates a virtuous cycle: users fund the platform through normal usage, content creators are rewarded, and token holders receive revenue – all without relying on advertisements or data harvesting.
 
 ## Usage Costs
 
@@ -162,7 +184,7 @@ It autonomously creates new storage canisters when space runs out.
 $name tops up canisters with low credits using ICP from the Treasury.
 The [dashboard](/#/dashboard) provides information on system status and past events.
 
-## The Taggr Network Neuron
+## The $name Network Neuron
 
 $name DAO votes on NNS proposals with neuron [$neuron_id](http://dashboard.internetcomputer.org/neuron/$neuron_id) and doesn't follow anyone.
 

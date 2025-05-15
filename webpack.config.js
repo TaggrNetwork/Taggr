@@ -3,7 +3,6 @@ const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyPlugin = require("copy-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
-const { BundleAnalyzerPlugin } = require("webpack-bundle-analyzer");
 
 const isDevelopment = process.env.NODE_ENV !== "production";
 const NETWORK = process.env.DFX_NETWORK || (isDevelopment ? "local" : "ic");
@@ -89,10 +88,6 @@ module.exports = {
         ],
     },
     plugins: [
-        new BundleAnalyzerPlugin({
-            analyzerMode: "static",
-            openAnalyzer: false,
-        }),
         new HtmlWebpackPlugin({
             template: path.join(__dirname, asset_entry),
             cache: false,
