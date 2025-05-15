@@ -276,6 +276,17 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 {user && (
                     <>
                         <div className="bottom_half_spaced">
+                            Enable the tag cloud on the home screen
+                        </div>
+                        <select
+                            value={settings.tagCloud || "false"}
+                            className="bottom_spaced"
+                            onChange={(event) => setSetting("tagCloud", event)}
+                        >
+                            <option value="true">YES</option>
+                            <option value="false">NO</option>
+                        </select>
+                        <div className="bottom_half_spaced">
                             Enable ICRC tokens in the wallet
                         </div>
                         <select

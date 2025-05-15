@@ -89,7 +89,9 @@ export const Landing = () => {
                 <Links classNameArg="vertically_spaced" />
             )}
             <Search />
-            <TagCloud heartbeat={feed} realm={realm} />
+            {user && user.settings.tagCloud && (
+                <TagCloud heartbeat={feed} realm={realm} />
+            )}
             <PostFeed
                 heartbeat={feed}
                 refreshRateSecs={10 * 60}
