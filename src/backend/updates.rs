@@ -117,6 +117,11 @@ fn sync_post_upgrade_fixtures() {
         cfg.owner = Some(0); // X
         cfg.realm_whitelist.insert("DIAMOND-HANDS".into());
         s.domains.insert("cyphersociety".into(), cfg);
+
+        s.domains.insert(
+            "2ogwt-7aaaa-aaaam-aedoa-cai.icp0.io".into(),
+            DomainConfig::default(),
+        );
     });
 }
 
