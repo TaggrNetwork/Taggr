@@ -1,3 +1,4 @@
+import { Principal } from "@dfinity/principal";
 import * as React from "react";
 import { Form } from "./form";
 import { Content } from "./content";
@@ -24,11 +25,15 @@ import {
     tokens,
     bucket_image_url,
     currentRealm,
-    parseNumber,
     noiseControlBanner,
     showPopUp,
     realmAllowed,
     NotAllowed,
+    getCanistersMetaData,
+    numberToUint8Array,
+    loadExternalTips,
+    Popup,
+    shortenTokensAmount,
 } from "./common";
 import {
     reaction2icon,
@@ -47,8 +52,26 @@ import {
     More,
 } from "./icons";
 import { ProposalView } from "./proposals";
-import { Feature, Post, PostId, Realm, UserId } from "./types";
-import { UserLink, UserList, populateUserNameCache } from "./user_resolve";
+import {
+    Feature,
+    Icrc1Canister,
+    Post,
+    PostId,
+    PostTip,
+    Realm,
+    User,
+    UserId,
+} from "./types";
+import {
+    USER_CACHE,
+    USER_COMMON_CACHE,
+    UserLink,
+    UserList,
+    populateUserCommonCache,
+    populateUserNameCache,
+} from "./user_resolve";
+import { CANISTER_ID } from "./env";
+import { TokenSelect } from "./token-select";
 
 export const PostView = ({
     id,
@@ -481,26 +504,111 @@ const PostInfo = ({
     const [realmData, setRealmData] = React.useState<Realm | null>();
     const [loaded, setLoaded] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
+    const [externalTipsLoading, setExternalTipsLoading] = React.useState(false);
+    const [externalTips, setExternalTips] = React.useState<PostTip[]>([]);
+    const [canistersMetaData, setCanisterMetaData] = React.useState<
+        Record<string, Icrc1Canister>
+    >({}); // All tokens data
+    const [allowedTippingCanisterIds, setAllowedTippingCanisterIds] =
+        React.useState<string[]>([]); // Allowed tipping tokens
+    const [selectedTippingCanisterId, setSelectedTippingCanisterId] =
+        React.useState(CANISTER_ID); // Default is Taggr
+    const [postUser, setPostUser] = React.useState<Pick<
+        User,
+        "principal"
+    > | null>(null); // Only need principal in this view
+    const [showTipPopup, setShowTipPopup] = React.useState(false);
+    const [tipping, setTipping] = React.useState(false);
+    const [tippingAmount, setTippingAmount] = React.useState(0.1);
 
     const loadData = async () => {
         // Load realm data asynchronously
-        post.realm &&
-            window.api
-                .query<Realm[]>("realms", [post.realm])
-                .then((realmData) => setRealmData((realmData || [])[0]));
-        const ids: UserId[] = []
+        const realmPromise = post.realm
+            ? window.api
+                  .query<Realm[]>("realms", [post.realm])
+                  .then((realmData) => {
+                      setRealmData(realmData?.at(0));
+                      return realmData?.at(0);
+                  })
+            : Promise.resolve(undefined);
+        const ids: UserId[] = [post.user]
             // @ts-ignore
             .concat(...Object.values(reactions))
             // @ts-ignore
             .concat(post.watchers)
             // @ts-ignore
             .concat(Object.keys(post.tips).map(Number));
+
         await populateUserNameCache(ids, setLoading);
+
+        // Async don't wait
+        realmPromise
+            .then((realm) => loadExternalTipsData(realm))
+            .catch(console.error);
+
         setLoaded(true);
     };
 
+    const loadExternalTipsData = async (realm: Realm | undefined) => {
+        const allTokenIds = [CANISTER_ID];
+        const allowedTippingCanisterIds = [CANISTER_ID];
+        if (realm?.native_token) {
+            allowedTippingCanisterIds.push(realm.native_token);
+            allTokenIds.push(realm.native_token);
+        }
+        if (realm?.tokens) {
+            allowedTippingCanisterIds.push(...realm.tokens);
+            allTokenIds.push(...realm.tokens);
+        }
+
+        // Load external tips if there are any
+        if (post.has_external_tip) {
+            setExternalTipsLoading(true);
+            await loadExternalTips(post.id).then(async (tips) => {
+                const senderIds = [
+                    ...new Set(tips.map(({ sender_id }) => sender_id)),
+                ];
+                allTokenIds.push(...tips.map((tip) => tip.canister_id));
+
+                await populateUserNameCache(senderIds).catch(console.error);
+                setExternalTips(tips);
+            });
+        }
+
+        const metadata = await getCanistersMetaData([
+            ...new Set(allTokenIds),
+        ]).catch(() => new Map<string, Icrc1Canister>());
+
+        setCanisterMetaData(Object.fromEntries(metadata));
+
+        setAllowedTippingCanisterIds(
+            [...new Set(allowedTippingCanisterIds)].filter(
+                (canisterId) => !!metadata.get(canisterId),
+            ),
+        );
+
+        setExternalTipsLoading(false);
+
+        if (post.user !== window.user?.id) {
+            if (USER_COMMON_CACHE[post.user]) {
+                return setPostUser(USER_COMMON_CACHE[post.user]);
+            }
+            // Load post user if cache missed
+            return window.api
+                .query<User>("user", [USER_CACHE[post.user]])
+                .then((user) => {
+                    setPostUser(user);
+                    populateUserCommonCache(user);
+                });
+        }
+    };
+
+    let initial = false;
     React.useEffect(() => {
-        loadData();
+        if (!initial) {
+            initial = true;
+            loadData().finally(() => (initial = false));
+        }
     }, []);
 
     const user = window.user;
@@ -537,13 +645,116 @@ const PostInfo = ({
             );
     }
 
+    const onTokenSelectionChange = (canisterId: string) => {
+        setSelectedTippingCanisterId(canisterId);
+
+        const canister = canistersMetaData[canisterId];
+        if (!canister) {
+            return alert(`Could not find canister data for ${canisterId}`);
+        }
+        setTippingAmount(
+            +(canister.fee / Math.pow(10, canister.decimals)).toFixed(
+                canister.decimals,
+            ),
+        );
+    };
+
+    const finalizeTip = async () => {
+        setTipping(true);
+        try {
+            const canisterId = selectedTippingCanisterId; // Store constant for whole function which has 2 separate canister calls (3 in total)
+            const canister = canistersMetaData[canisterId];
+            if (!canister) {
+                return alert(`Could not find canister data for ${canisterId}`);
+            }
+
+            const amount = +(
+                tippingAmount * Math.pow(10, canister.decimals)
+            ).toFixed(0);
+            if (!amount || isNaN(amount)) return;
+            if (
+                !confirm(
+                    `Transfer ${tippingAmount} ${canister.symbol} to @${
+                        post.meta.author_name
+                    } as a tip?`,
+                )
+            )
+                return;
+
+            if (canister.symbol !== token_symbol) {
+                let transferResponse = await window.api.icrc_transfer(
+                    Principal.fromText(canisterId),
+                    Principal.fromText(postUser?.principal || ""),
+                    amount,
+                    canister.fee,
+                    numberToUint8Array(post.id),
+                );
+
+                if (isNaN(transferResponse as number)) {
+                    return alert(
+                        transferResponse ||
+                            "Something went wrong with transfer!",
+                    );
+                }
+
+                // Add to view in "optimistic" manner to improve speed
+                const optimisticPostTip: PostTip = {
+                    amount,
+                    canister_id: canisterId,
+                    id: -1, // Replace -1 with real id later
+                    index: +transferResponse,
+                    post_id: post.id,
+                    sender_id: window.user.id,
+                };
+                setExternalTips([...externalTips, optimisticPostTip]);
+                setTipping(false); // Show as it's not loading anymore ;)
+
+                let addTipResponse = await window.api.call<{
+                    Ok: PostTip;
+                    Err: string;
+                }>(
+                    "add_external_icrc_transaction",
+                    canisterId,
+                    +transferResponse,
+                    post.id,
+                );
+                if ("Err" in (addTipResponse || {}) || !addTipResponse) {
+                    throw new Error(addTipResponse?.Err);
+                }
+
+                // Add tip from repsonse and replace optimistic one
+                setExternalTips([
+                    ...externalTips.filter(({ id }) => id !== -1),
+                    addTipResponse.Ok,
+                ]);
+            } else {
+                let response = await window.api.call<any>(
+                    "tip",
+                    post.id,
+                    amount,
+                );
+                if ("Err" in response) {
+                    alert(`Error: ${response.Err}`);
+                } else await callback();
+            }
+        } catch (e: any) {
+            setExternalTips(externalTips.filter(({ id }) => id !== -1)); // Remove optimistic tip
+            return showPopUp("error", e?.message || e);
+        } finally {
+            setTipping(false);
+        }
+    };
+
     const postAuthor = user?.id == post.user;
     const realmController =
         user && user.controlled_realms.includes(post.realm || "");
     const { token_symbol, token_decimals } = window.backendCache.config;
     if (loading || !loaded) return <Loading />;
     return (
-        <div className="left_half_spaced right_half_spaced top_spaced">
+        <div
+            className="left_half_spaced right_half_spaced top_spaced"
+            data-testid="post-menu"
+        >
             {user && (
                 <>
                     {realmAccessError}
@@ -614,41 +825,63 @@ const PostInfo = ({
                             testId="bookmark-post"
                         />
                         {!postAuthor && (
-                            <ButtonWithLoading
-                                title="Tip"
-                                classNameArg="max_width_col"
-                                onClick={async () => {
-                                    const amount =
-                                        parseNumber(
-                                            prompt(
-                                                `Tip @${post.meta.author_name} with ${token_symbol}:`,
-                                                "0.1",
-                                            ) || "",
-                                            token_decimals,
-                                        ) || NaN;
-                                    if (isNaN(amount)) return;
-                                    if (
-                                        !confirm(
-                                            `Transfer ${tokens(
-                                                amount,
-                                                token_decimals,
-                                            )} ${token_symbol} to @${
-                                                post.meta.author_name
-                                            } as a tip?`,
-                                        )
-                                    )
-                                        return;
-                                    let response = await window.api.call<any>(
-                                        "tip",
-                                        post.id,
-                                        amount,
-                                    );
-                                    if ("Err" in response) {
-                                        showPopUp("error", response.Err);
-                                    } else await callback();
-                                }}
-                                label={<Coin />}
-                            />
+                            <>
+                                <Popup
+                                    show={showTipPopup}
+                                    html={
+                                        <div>
+                                            Tip @{post.meta.author_name} with{" "}
+                                            <TokenSelect
+                                                canisters={allowedTippingCanisterIds.map(
+                                                    (canisterId) => [
+                                                        canisterId,
+                                                        canistersMetaData[
+                                                            canisterId
+                                                        ],
+                                                    ],
+                                                )}
+                                                onSelectionChange={
+                                                    onTokenSelectionChange
+                                                }
+                                                selectedCanisterId={
+                                                    selectedTippingCanisterId
+                                                }
+                                            />
+                                            <input
+                                                style={{ display: "block" }}
+                                                className="top_spaced"
+                                                type="number"
+                                                value={tippingAmount}
+                                                onChange={async (e) => {
+                                                    const amount =
+                                                        +e.target.value;
+                                                    if (isNaN(amount)) {
+                                                        return;
+                                                    }
+                                                    setTippingAmount(amount);
+                                                }}
+                                            />
+                                        </div>
+                                    }
+                                    onConfirm={async () => {
+                                        setShowTipPopup(false);
+                                        await finalizeTip();
+                                    }}
+                                    onCancel={() => setShowTipPopup(false)}
+                                    confirmLabel="SEND"
+                                />
+                                <button
+                                    title="Tip"
+                                    className="max_width_col"
+                                    onClick={() => setShowTipPopup(true)}
+                                >
+                                    {tipping ? (
+                                        <Loading spaced={false} />
+                                    ) : (
+                                        <Coin />
+                                    )}
+                                </button>
+                            </>
                         )}
                         {realmController && isRoot(post) && (
                             <ButtonWithLoading
@@ -818,6 +1051,46 @@ const PostInfo = ({
                         )}
                     </div>
                 )}
+                {externalTips.length > 0 &&
+                    Object.keys(canistersMetaData).length > 0 && (
+                        <div>
+                            <b>EXTERNAL TIPS</b>:{" "}
+                            {commaSeparated(
+                                externalTips.map((tip) => (
+                                    <span key={tip.id}>
+                                        <code>
+                                            {shortenTokensAmount(
+                                                tip.amount,
+                                                canistersMetaData[
+                                                    tip.canister_id
+                                                ]?.decimals || 0,
+                                            )}
+                                            {canistersMetaData[tip.canister_id]
+                                                ?.symbol || ""}
+                                        </code>
+                                        <img
+                                            src={
+                                                canistersMetaData[
+                                                    tip.canister_id
+                                                ]?.logo || ""
+                                            }
+                                            className="vertically_aligned "
+                                            style={{ height: 16 }}
+                                        />{" "}
+                                        from{" "}
+                                        {
+                                            <UserLink
+                                                id={tip.sender_id}
+                                                profile={true}
+                                                pfp={false}
+                                            />
+                                        }
+                                    </span>
+                                )),
+                            )}
+                        </div>
+                    )}
+                {externalTipsLoading && <Loading spaced={false} />}
                 {Object.keys(reactions).length > 0 && (
                     <div className="top_spaced">
                         {Object.entries(reactions).map(([reactId, users]) => (
@@ -948,7 +1221,7 @@ const PostBar = ({
                 )}
                 {!showEmojis && (
                     <>
-                        {post.tips.length > 0 && (
+                        {(post.tips.length > 0 || post.has_external_tip) && (
                             <Coin classNameArg="accent right_quarter_spaced" />
                         )}
                         {post.reposts.length > 0 && (
