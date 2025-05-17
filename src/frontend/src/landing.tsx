@@ -1,7 +1,7 @@
 import * as React from "react";
 import { PostFeed } from "./post_feed";
 import { Search } from "./search";
-import { bigScreen, currentRealm, domain, Loading } from "./common";
+import { bigScreen, currentRealm, domain, Loading, showPopUp } from "./common";
 import {
     New,
     User,
@@ -54,7 +54,15 @@ export const Landing = () => {
                     key={id}
                     data-testid={`tab-${id}`}
                     onClick={() => {
-                        if (user && feed == id) setFiltered(!filtered);
+                        if (user && feed == id) {
+                            showPopUp(
+                                "info",
+                                "Displaying all new posts " +
+                                    (filtered ? "without" : "filtered by") +
+                                    " user filters",
+                            );
+                            setFiltered(!filtered);
+                        }
                         if (user && !currentRealm()) {
                             user.settings.tab = id;
                             window.api.call<any>(
