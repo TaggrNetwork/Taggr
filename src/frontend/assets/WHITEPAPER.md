@@ -116,7 +116,7 @@ In both cases, participating stalwarts share rewards from the penalty fee, cappe
 $name is governed via proposals.
 Any user with an account age of `$min_stalwart_account_age_weeks`  weeks and a token balance with a value of at least  `$proposal_escrow_amount_usd` USD can create a proposal.
 This number of user's tokens will get locked upon proposal creation and released again after the proposal is executed, cancelled or rejected \_without a controversy*.
-If the proposal was rejectd as controversial, the locked tokens get burned.
+If the proposal was rejected as controversial, the locked tokens get burned.
 Controversial rejections are proposal rejections with a rejected/adopted ratio under  `$proposal_controversy_threshold%`.
 
 There are proposals for upgrading the main smart contract, minting new tokens for funding & rewards, and transferring ICP out of the treasury for off-chain activities of the DAO.
@@ -159,7 +159,7 @@ The amount of tokens that every user gets distributed is simply the result of co
 To determine a fair market price, $name auctions between `$weekly_auction_size_tokens_min`  and  `$weekly_auction_size_tokens_max` tokens each week.
 Each user can create a bid by specifying the amount of tokens and the price in ICP they're willing to pay per 1 token.
 If all tokens can be sold, $name distributed the tokens to bidders according to the parameters of their bids.
-The price derived from these bids represent the market price of one token.
+The price derived from these bids represents the market price of one token.
 
 ### Random rewards
 
