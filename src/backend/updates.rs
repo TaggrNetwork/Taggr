@@ -1,7 +1,6 @@
 use crate::env::{
     proposals::{Payload, Release},
     user::{Mode, UserFilter},
-    DomainConfig,
 };
 
 use super::*;
@@ -34,6 +33,7 @@ fn init() {
         state.timers.last_daily = time();
         state.timers.last_hourly = time();
         state.auction.amount = CONFIG.weekly_auction_size_tokens_max;
+        state.init();
     });
     set_timer(Duration::from_millis(0), || {
         spawn(State::fetch_xdr_rate());
@@ -85,35 +85,12 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|s| {
-        // DAO controlled domains
-        s.domains.insert(
-            "6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io".into(),
-            DomainConfig::default(),
-        );
-        s.domains.insert(
-            "6qfxa-ryaaa-aaaai-qbhsq-cai.ic0.app".into(),
-            DomainConfig::default(),
-        );
+        // Fix the domain for testing
+        if let Some(cfg) = s.domains.remove("cyphersociety".into()) {
+            s.domains.insert("cyphersociety.org".into(), cfg);
+        }
 
-        // Currently supported domains
-        let mut cfg = DomainConfig::default();
-        cfg.owner = Some(0); // X
-        s.domains.insert("taggr.link".into(), cfg);
-
-        let mut cfg = DomainConfig::default();
-        cfg.owner = Some(8); // radudaniel
-        s.domains.insert("taggr.wtf".into(), cfg.clone());
-        s.domains.insert("taggr.blog".into(), cfg);
-
-        let mut cfg = DomainConfig::default();
-        cfg.owner = Some(305); // mechaquan
-        s.domains.insert("taggr.network".into(), cfg.clone());
-
-        // Will be used for testing
-        let mut cfg = DomainConfig::default();
-        cfg.owner = Some(0); // X
-        cfg.realm_whitelist.insert("DIAMOND-HANDS".into());
-        s.domains.insert("cyphersociety".into(), cfg);
+        s.init();
     });
 }
 
@@ -135,6 +112,12 @@ fn prod_release() -> bool {
 #[update]
 async fn get_neuron_info() -> Result<String, String> {
     get_full_neuron(CONFIG.neuron_id).await
+}
+
+#[export_name = "canister_update set_domain_config"]
+fn set_domain_config() {
+    let (domain, cfg): (String, DomainConfig) = parse(&arg_data_raw());
+    mutate(|state| reply(state.set_domain_config(caller(), domain, cfg)))
 }
 
 #[export_name = "canister_update vote_on_poll"]

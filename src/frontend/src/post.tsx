@@ -49,6 +49,7 @@ import {
 import { ProposalView } from "./proposals";
 import { Feature, Post, PostId, Realm, UserId } from "./types";
 import { UserLink, UserList, populateUserNameCache } from "./user_resolve";
+import { DEFAULT_REACTION_HOLD_TIME } from "./settings";
 
 export const PostView = ({
     id,
@@ -878,7 +879,7 @@ const PostBar = ({
     const delay =
         user && "tap_and_hold" in user.settings
             ? Number(user.settings.tap_and_hold)
-            : 750;
+            : DEFAULT_REACTION_HOLD_TIME;
 
     const unreact = () => {
         if (Number(new Date()) - timeStart < delay) {

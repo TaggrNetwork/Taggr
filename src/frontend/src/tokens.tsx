@@ -3,6 +3,7 @@ import {
     ButtonWithLoading,
     CopyToClipboard,
     HeadBar,
+    hoursTillNext,
     Loading,
     MoreButton,
     NotFound,
@@ -231,7 +232,11 @@ const AuctionCard = ({}) => {
     const [parsedBidSize, setParsedBidSize] = React.useState(0);
     const [payment, setPayment] = React.useState(0);
 
-    const { token_symbol, token_decimals } = window.backendCache.config;
+    const { token_symbol, token_decimals, name } = window.backendCache.config;
+    const distributionCountdown = hoursTillNext(
+        604800000000000,
+        window.backendCache.stats.last_weekly_chores,
+    );
 
     const loadData = async () => {
         const [auction, account] =
@@ -268,10 +273,13 @@ const AuctionCard = ({}) => {
             </p>
             <p>
                 This is the decentralized auction establishing the market price
-                of {token_symbol}.
+                of {token_symbol}. Users create their bids during a week, then{" "}
+                {name} sells the available tokens to the bidders with the
+                highest bids. The next sale is in{" "}
+                <code>{distributionCountdown}</code> hours.
             </p>
             {window.user && (
-                <div className="stands_out padded_rounded">
+                <div className="stands_out padded_rounded vertically_spaced">
                     To participate in the auction, create a bid here.
                     <div className="column_container top_spaced">
                         <input

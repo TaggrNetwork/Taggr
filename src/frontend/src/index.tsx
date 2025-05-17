@@ -42,6 +42,7 @@ import { Roadmap } from "./roadmap";
 import { LinksPage } from "./links";
 import { ApiGenerator } from "./api";
 import { MAINNET_MODE } from "./env";
+import { Domains } from "./domains";
 
 const { hash, pathname } = location;
 
@@ -195,6 +196,8 @@ const App = () => {
         content = <Dashboard />;
     } else if (handler == "search") {
         content = <Search initQuery={param} />;
+    } else if (handler == "domains") {
+        content = <Domains />;
     } else if (handler == "links") {
         content = <LinksPage />;
     } else if (handler == "distribution") {

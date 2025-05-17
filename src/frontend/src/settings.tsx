@@ -14,6 +14,8 @@ import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
 import { MAINNET_MODE } from "./env";
 
+export const DEFAULT_REACTION_HOLD_TIME = 350;
+
 export const Settings = ({ invite }: { invite?: string }) => {
     const user = window.user;
     const [principal, setPrincipal] = React.useState(window.getPrincipalId());
@@ -249,7 +251,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             value={
                                 "tap_and_hold" in settings
                                     ? Number(settings.tap_and_hold)
-                                    : 750
+                                    : DEFAULT_REACTION_HOLD_TIME
                             }
                             onChange={(event) =>
                                 setSetting("tap_and_hold", event)

@@ -80,10 +80,9 @@ async fn clear_buckets() {
 }
 
 #[update]
-fn replace_user_principal(principal: String, user_id: UserId) {
+fn replace_user_principal(principal: Principal, user_id: UserId) {
     mutate(|state| {
         use crate::token::Account;
-        let principal = Principal::from_text(principal).unwrap();
         state.principals.insert(principal, user_id);
         let user_principal = state.principal_to_user(principal).unwrap().principal;
         let balance = state
