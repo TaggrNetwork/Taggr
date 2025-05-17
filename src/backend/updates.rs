@@ -85,35 +85,9 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|s| {
-        // DAO controlled domains
-        s.domains.insert(
-            "6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io".into(),
-            DomainConfig::default(),
-        );
-        s.domains.insert(
-            "6qfxa-ryaaa-aaaai-qbhsq-cai.ic0.app".into(),
-            DomainConfig::default(),
-        );
-
-        // Currently supported domains
-        let mut cfg = DomainConfig::default();
-        cfg.owner = Some(0); // X
-        s.domains.insert("taggr.link".into(), cfg);
-
-        let mut cfg = DomainConfig::default();
-        cfg.owner = Some(8); // radudaniel
-        s.domains.insert("taggr.wtf".into(), cfg.clone());
-        s.domains.insert("taggr.blog".into(), cfg);
-
-        let mut cfg = DomainConfig::default();
-        cfg.owner = Some(305); // mechaquan
-        s.domains.insert("taggr.network".into(), cfg.clone());
-
-        // Will be used for testing
-        let mut cfg = DomainConfig::default();
-        cfg.owner = Some(0); // X
-        cfg.realm_whitelist.insert("DIAMOND-HANDS".into());
-        s.domains.insert("cyphersociety".into(), cfg);
+        // Fix the domain for texting
+        let cfg = s.domains.remove("cyphersociety".into()).unwrap();
+        s.domains.insert("cyphersociety.org".into(), cfg);
     });
 }
 
