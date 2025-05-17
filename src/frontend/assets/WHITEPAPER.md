@@ -52,10 +52,10 @@ Below is a breakdown of costs.
 
 Notes:
 
-1. Each response to a post increases the author's rewards by `$response_reward`.
+1. Each response to a post increases post author's rewards by `$response_reward`.
 2. Inactive users' credits decrease by `$inactivity_penalty` per week after `$inactivity_duration_weeks` weeks of inactivity.
 3. Users with negative reward balances don't participate in reward distributions or mining.
-4. To curb the inorganic behaviour, $name automatically charges excess fees for all posts above `$max_posts_per_day`  per rolling 24h interval and for all comments above  `$max_comments_per_hour` per hour.
+4. To curb the inorganic behavior, $name automatically charges excess fees for all posts above `$max_posts_per_day`  per rolling 24h interval and for all comments above  `$max_comments_per_hour` per hour.
 The fee is computed by multiplying `$excess_penalty` with the number of excessive items. If the excessive items contain images, the computed excess fee is additionally charged per image.
 
 ## Rewards and Revenue Distribution
@@ -63,12 +63,12 @@ The fee is computed by multiplying `$excess_penalty` with the number of excessiv
 -   During positive interactions, users can receive rewards from other users.
 -   Rewards are converted to ICP and distributed to users every Friday if the user did not opt into mining mode.
 -   Earned rewards points are converted to ICP at the ratio `$credits_per_xdr` rewards / `$usd_per_xdr` USD.
--   Additionally, users owning tokens and being active within the last `$voting_power_activity_weeks` weeks receive a share of $name's revenue proportionate to their token holdings.
+-   Additionally, users owning tokens and being active within the last `$voting_power_activity_weeks` weeks receive a share of $name's revenue pro-rata to their token holdings.
 -   New rewards received by users with credit balance lower than `$credits_per_xdr` are automatically converted to credits and are used to top up the credit balance of these users.
 
 ## Stalwarts
 
-Stalwarts represent the union of top `$stalwart_percentage%` of users with the highest $`$token_symbol`  balance, active during the last  `$min_stalwart_activity_weeks` consecutive weeks and possessing accounts older than `$min_stalwart_account_age_weeks` weeks.
+Stalwarts represent the top `$stalwart_percentage%` of users with the highest $`$token_symbol`  balance, active during the last  `$min_stalwart_activity_weeks` consecutive weeks and possessing accounts older than `$min_stalwart_account_age_weeks` weeks.
 They are considered trusted community members, authorized to carry out moderating actions.
 
 ## Realms
@@ -77,7 +77,7 @@ Realms are sub-communities centered around specific topics.
 Each realm can establish its terms and conditions, breaching which can lead to:
 
 -   Flagging of the user's post to stalwarts.
--   Moving the post from a realm by the realm controller, incurring penalties.
+-   Moving the post from a realm by the realm controller, incurring realm-specific penalties.
 
 Upon joining a realm, users implicitly agree to its terms and conditions.
 
@@ -89,7 +89,7 @@ Decentralization does not equate to lawlessness!
 Content and behavior permitted on $name aligns with community-approved moderation guidelines.
 Content and behavior not permitted on $name falls into one of the following categories:
 
--   Content and behavior that jeopardize $name as a public service (e.g., those illegal in many jurisdictions).
+-   Content and behavior that jeopardize $name as a public service (e.g., those illegal in relevant jurisdictions).
 -   Content or behavior detrimental to the community, sustainability, or decentralization of $name.
 -   Content created with malicious intent, such as gaming the $name system.
 -   Content and behavior that violate realm-specific rules.
@@ -115,22 +115,17 @@ In both cases, participating stalwarts share rewards from the penalty fee, cappe
 
 $name is governed via proposals.
 Any user with an account age of `$min_stalwart_account_age_weeks`  weeks and a token balance with a value of at least  `$proposal_escrow_amount_usd` USD can create a proposal.
-This number of user's tokens will get locked upon proposal creation and released again after the proposal is executed, cancelled or rejected \_without a controversy*.
+This number of user's tokens will get locked upon proposal creation and released again after the proposal is executed, cancelled or rejected *without a controversy*.
 If the proposal was rejected as controversial, the locked tokens get burned.
 Controversial rejections are proposal rejections with a rejected/adopted ratio under  `$proposal_controversy_threshold%`.
 
-There are proposals for upgrading the main smart contract, minting new tokens for funding & rewards, and transferring ICP out of the treasury for off-chain activities of the DAO.
+There are proposals for upgrading the main smart contract, minting new tokens for funding and rewards, and transferring ICP out of the treasury for off-chain activities of the DAO.
 
 A proposal succeeds if `$proposal_approval_threshold%` of users approve it or fails if `(100 - $proposal_approval_threshold)%` of users reject it.
 Only tokens of registered users active within `$voting_power_activity_weeks` weeks count as participating votes.
 The total voting power of all registered users required to adopt or reject a proposal decreases daily by `1%` while the proposal remains open.
 This is achieved by multiplying the total available voting power by a factor `d%`, where `d` is the number of days the proposal remains open.
 This ensures any proposal eventually passes within `100` days.
-
-For any pending proposal, the following holds until it gets adopted, rejected, or cancelled:
-
--   the $$token_symbol tokens of voters who voted on that proposal are locked and cannot be transferred;
--   the rewards and the token minting are deferred for everyone.
 
 ## Tokenomics
 
@@ -158,7 +153,7 @@ The amount of tokens that every user gets distributed is simply the result of co
 
 To determine a fair market price, $name auctions between `$weekly_auction_size_tokens_min`  and  `$weekly_auction_size_tokens_max` tokens each week.
 Each user can create a bid by specifying the amount of tokens and the price in ICP they're willing to pay per 1 token.
-If all tokens can be sold, $name distributed the tokens to bidders according to the parameters of their bids.
+If there are enough bids to sell out all tokens in the weekly auction, $name mints and distributes tokens to bidders with highest bids according to the sizes of their bids.
 The price derived from these bids represents the market price of one token.
 
 ### Random rewards
@@ -179,10 +174,10 @@ Currently vesting tokens: `$vesting_tokens_of_x`.
 
 ## Autonomy
 
-$name is designed for full autonomy, guided by decentralization.
-It autonomously creates new storage canisters when space runs out.
-$name tops up canisters with low credits using ICP from the Treasury.
-The [dashboard](/#/dashboard) provides information on system status and past events.
+$name is designed for full autonomy.
+For example, it autonomously creates new storage canisters when space runs out in existing ones.
+$name tops up its canisters using ICP from the Treasury.
+The [dashboard](/#/dashboard) provides the full information on system status and past events.
 
 ## The $name Network Neuron
 
@@ -198,7 +193,7 @@ $name canister's `get_neuron_info` method confirms this:
 
 #### Voting
 
-Proposals categorized as "Governance", "Network Economics", "Replica Version Management," and "SNS & Community Fund" are displayed as posts with polls.
+Proposals categorized as "Governance" and "SNS & Community Fund" are displayed as posts with polls.
 $name canister votes on these proposals after 3 days, weighted by voters' token balances.
 
 Other proposals are automatically rejected.
