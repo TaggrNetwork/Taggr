@@ -2701,6 +2701,29 @@ impl State {
         }
     }
 
+    pub fn set_domain_config(
+        &mut self,
+        principal: Principal,
+        domain: String,
+        mut cfg: DomainConfig,
+    ) -> Result<(), String> {
+        let caller = self.principal_to_user(principal).ok_or("no user found")?;
+        let current_cfg = self.domains.get(&domain).ok_or("no domain found")?;
+
+        if current_cfg.owner != Some(caller.id) {
+            return Err("unauthorized".into());
+        }
+
+        // Black and white lists are mutually exclusive.
+        if !cfg.realm_whitelist.is_empty() {
+            cfg.realm_blacklist.clear();
+        }
+
+        self.domains.insert(domain, cfg);
+
+        Ok(())
+    }
+
     pub fn vote_on_poll(
         &mut self,
         principal: Principal,

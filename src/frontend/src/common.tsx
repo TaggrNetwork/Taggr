@@ -46,6 +46,7 @@ export const RealmList = ({
     ids?: string[];
     classNameArg?: string;
 }) => {
+    console.log(ids);
     if (ids.length == 0) return null;
     const [realmsData, setRealmsData] = React.useState<Realm[]>([]);
     const [loaded, setLoaded] = React.useState(false);

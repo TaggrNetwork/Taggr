@@ -1,7 +1,6 @@
 use crate::env::{
     proposals::{Payload, Release},
     user::{Mode, UserFilter},
-    DomainConfig,
 };
 
 use super::*;
@@ -34,6 +33,7 @@ fn init() {
         state.timers.last_daily = time();
         state.timers.last_hourly = time();
         state.auction.amount = CONFIG.weekly_auction_size_tokens_max;
+        state.init();
     });
     set_timer(Duration::from_millis(0), || {
         spawn(State::fetch_xdr_rate());
@@ -85,9 +85,10 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|s| {
-        // Fix the domain for texting
-        let cfg = s.domains.remove("cyphersociety".into()).unwrap();
-        s.domains.insert("cyphersociety.org".into(), cfg);
+        // Fix the domain for testing
+        if let Some(cfg) = s.domains.remove("cyphersociety".into()) {
+            s.domains.insert("cyphersociety.org".into(), cfg);
+        }
 
         s.init();
     });
@@ -111,6 +112,12 @@ fn prod_release() -> bool {
 #[update]
 async fn get_neuron_info() -> Result<String, String> {
     get_full_neuron(CONFIG.neuron_id).await
+}
+
+#[export_name = "canister_update set_domain_config"]
+fn set_domain_config() {
+    let (domain, cfg): (String, DomainConfig) = parse(&arg_data_raw());
+    mutate(|state| reply(state.set_domain_config(caller(), domain, cfg)))
 }
 
 #[export_name = "canister_update vote_on_poll"]

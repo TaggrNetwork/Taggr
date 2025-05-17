@@ -14,6 +14,7 @@ import {
     Link,
     Roadmap,
     CashCoin,
+    Globe,
 } from "./icons";
 import { PostId } from "./types";
 
@@ -49,36 +50,34 @@ export const Landing = () => {
     const title = (
         <div className="vertically_spaced small_text row_container centered">
             {labels.map(([icon, id]: [JSX.Element, string]) => (
-                <>
-                    <button
-                        key={id}
-                        data-testid={`tab-${id}`}
-                        onClick={() => {
-                            if (user && feed == id) setFiltered(!filtered);
-                            if (user && !currentRealm()) {
-                                user.settings.tab = id;
-                                window.api.call<any>(
-                                    "update_user_settings",
-                                    user.settings,
-                                );
-                            }
-                            setFeed(id);
-                        }}
-                        className={
-                            `vcentered ${feed == id ? "active" : "unselected"} ` +
-                            `${bigScreen() ? "small_text" : "smaller_text"}`
+                <button
+                    key={id}
+                    data-testid={`tab-${id}`}
+                    onClick={() => {
+                        if (user && feed == id) setFiltered(!filtered);
+                        if (user && !currentRealm()) {
+                            user.settings.tab = id;
+                            window.api.call<any>(
+                                "update_user_settings",
+                                user.settings,
+                            );
                         }
-                    >
-                        {icon}&nbsp; {id}
-                        {user && feed == NEW && id == NEW && (
-                            <span
-                                className={`${filtered ? "inactive" : undefined} left_half_spaced`}
-                            >
-                                &#10035;
-                            </span>
-                        )}
-                    </button>
-                </>
+                        setFeed(id);
+                    }}
+                    className={
+                        `vcentered ${feed == id ? "active" : "unselected"} ` +
+                        `${bigScreen() ? "small_text" : "smaller_text"}`
+                    }
+                >
+                    {icon}&nbsp; {id}
+                    {user && feed == NEW && id == NEW && (
+                        <span
+                            className={`${filtered ? "inactive" : undefined} left_half_spaced`}
+                        >
+                            &#10035;
+                        </span>
+                    )}
+                </button>
             ))}
         </div>
     );
@@ -255,6 +254,9 @@ export const Links = ({ classNameArg }: { classNameArg?: string }) => {
             </a>
             <a title="LINK" className="icon_link" href="/#/links">
                 <Link /> LINKS
+            </a>
+            <a title="DOMAINS" className="icon_link" href="/#/domains">
+                <Globe /> DOMAINS
             </a>
             <a
                 title="DISTRIBUTION"
