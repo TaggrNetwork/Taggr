@@ -14,12 +14,10 @@ import {
     Link,
     Roadmap,
     CashCoin,
-    All,
 } from "./icons";
 import { PostId } from "./types";
 
 const NEW = "NEW";
-const ALL = "ALL";
 const HOT = "HOT";
 const REALMS = "REALMS";
 const BEST_IN_REALMS = "BEST IN REALMS";
@@ -28,11 +26,12 @@ const FOR_ME = "FOR ME";
 export const Landing = () => {
     const user = window.user;
     const realm = currentRealm();
+    const [filtered, setFiltered] = React.useState(true);
     const [feed, setFeed] = React.useState(
-        user ? user.settings.tab || NEW : HOT,
+        currentRealm() ? NEW : user?.settings.tab || HOT,
     );
 
-    let labels: [JSX.Element, string][] = [[<All />, ALL]];
+    let labels: [JSX.Element, string][] = [];
 
     if (user) labels.push([<New />, NEW]);
 
@@ -50,26 +49,36 @@ export const Landing = () => {
     const title = (
         <div className="vertically_spaced small_text row_container centered">
             {labels.map(([icon, id]: [JSX.Element, string]) => (
-                <button
-                    key={id}
-                    data-testid={`tab-${id}`}
-                    onClick={() => {
-                        if (user && !currentRealm()) {
-                            user.settings.tab = id;
-                            window.api.call<any>(
-                                "update_user_settings",
-                                user.settings,
-                            );
+                <>
+                    <button
+                        key={id}
+                        data-testid={`tab-${id}`}
+                        onClick={() => {
+                            if (user && feed == id) setFiltered(!filtered);
+                            if (user && !currentRealm()) {
+                                user.settings.tab = id;
+                                window.api.call<any>(
+                                    "update_user_settings",
+                                    user.settings,
+                                );
+                            }
+                            setFeed(id);
+                        }}
+                        className={
+                            `vcentered ${feed == id ? "active" : "unselected"} ` +
+                            `${bigScreen() ? "small_text" : "smaller_text"}`
                         }
-                        setFeed(id);
-                    }}
-                    className={
-                        `vcentered ${feed == id ? "active" : "unselected"} ` +
-                        `${bigScreen() ? "small_text" : "smaller_text"}`
-                    }
-                >
-                    {icon}&nbsp; {id}
-                </button>
+                    >
+                        {icon}&nbsp; {id}
+                        {user && feed == NEW && id == NEW && (
+                            <span
+                                className={`${filtered ? "inactive" : undefined} left_half_spaced`}
+                            >
+                                &#10035;
+                            </span>
+                        )}
+                    </button>
+                </>
             ))}
         </div>
     );
@@ -93,7 +102,7 @@ export const Landing = () => {
                 <TagCloud heartbeat={feed} realm={realm} />
             )}
             <PostFeed
-                heartbeat={feed}
+                heartbeat={feed + filtered}
                 refreshRateSecs={10 * 60}
                 title={title}
                 feedLoader={async (page: number, offset: PostId) => {
@@ -134,8 +143,7 @@ export const Landing = () => {
                         realm,
                         page,
                         offset,
-                        feed ==
-                            NEW /* apply noise filter on NEW but not on ALL */,
+                        filtered,
                     );
                 }}
             />
