@@ -88,6 +88,8 @@ fn sync_post_upgrade_fixtures() {
         // Fix the domain for texting
         let cfg = s.domains.remove("cyphersociety".into()).unwrap();
         s.domains.insert("cyphersociety.org".into(), cfg);
+
+        s.init();
     });
 }
 
