@@ -32,9 +32,7 @@ export const Landing = () => {
         currentRealm() ? NEW : user?.settings.tab || HOT,
     );
 
-    let labels: [JSX.Element, string][] = [];
-
-    if (user) labels.push([<New />, NEW]);
+    let labels: [JSX.Element, string][] = [[<New />, NEW]];
 
     labels.push([<Fire />, HOT]);
 
