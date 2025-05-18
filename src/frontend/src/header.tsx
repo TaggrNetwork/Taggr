@@ -200,7 +200,11 @@ const UserSection = ({ user }: { user: UserType }) => {
                 vcentered`}
             >
                 <>
-                    <div title={user.name} className="icon_link">
+                    <div
+                        title={user.name}
+                        className="icon_link"
+                        onClick={() => (location.href = `/#/user/${user.name}`)}
+                    >
                         <img
                             className="bottom_half_spaced"
                             src={pfpUrl(user.id)}
