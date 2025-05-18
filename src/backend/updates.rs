@@ -85,12 +85,21 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|s| {
-        // Fix the domain for testing
-        if let Some(cfg) = s.domains.remove("cyphersociety".into()) {
-            s.domains.insert("cyphersociety.org".into(), cfg);
-        }
-
-        s.init();
+        // Fix controlled realms list for all users.
+        s.realms
+            .iter()
+            .map(|(realm_id, realm)| (realm_id.clone(), realm.controllers.clone()))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .for_each(|(realm_id, controllers)| {
+                for user_id in controllers.iter() {
+                    s.users
+                        .get_mut(user_id)
+                        .unwrap()
+                        .controlled_realms
+                        .insert(realm_id.clone());
+                }
+            });
     });
 }
 

@@ -817,11 +817,10 @@ impl State {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn create_realm(
         &mut self,
         principal: Principal,
-        name: String,
+        realm_id: RealmId,
         mut realm: Realm,
     ) -> Result<(), String> {
         let Realm {
@@ -833,49 +832,56 @@ impl State {
             return Err("no controllers specified".into());
         }
 
-        if name.len() > CONFIG.max_realm_name {
+        if realm_id.len() > CONFIG.max_realm_name {
             return Err("realm name too long".into());
         }
 
-        if name
+        if realm_id
             .chars()
             .any(|c| !char::is_alphanumeric(c) && c != '_' && c != '-')
         {
             return Err("realm name should be an alpha-numeric string".into());
         }
 
-        if name.chars().all(|c| char::is_ascii_digit(&c)) {
+        if realm_id.chars().all(|c| char::is_ascii_digit(&c)) {
             return Err("realm name should have at least on character".into());
         }
 
-        if CONFIG.name.to_lowercase() == name.to_lowercase()
-            || self.realms.contains_key(&name)
-            || CONFIG.dao_realm.to_lowercase() == name.to_lowercase()
+        if CONFIG.name.to_lowercase() == realm_id.to_lowercase()
+            || self.realms.contains_key(&realm_id)
+            || CONFIG.dao_realm.to_lowercase() == realm_id.to_lowercase()
         {
             return Err("realm name taken".into());
         }
 
-        let user = self.principal_to_user(principal).ok_or("no user found")?;
+        let user = self
+            .principal_to_user_mut(principal)
+            .ok_or("no user found")?;
+        user.controlled_realms.insert(realm_id.clone());
         let user_id = user.id;
         let user_name = user.name.clone();
 
-        self.charge(user_id, CONFIG.realm_cost, format!("new realm /{}", name))
-            .map_err(|err| {
-                format!(
-                    "couldn't charge {} credits for realm creation: {}",
-                    CONFIG.realm_cost, err
-                )
-            })?;
+        self.charge(
+            user_id,
+            CONFIG.realm_cost,
+            format!("new realm /{}", realm_id),
+        )
+        .map_err(|err| {
+            format!(
+                "couldn't charge {} credits for realm creation: {}",
+                CONFIG.realm_cost, err
+            )
+        })?;
 
         realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(*cleanup_penalty);
         realm.last_update = time();
         realm.created = time();
 
-        self.realms.insert(name.clone(), realm);
+        self.realms.insert(realm_id.clone(), realm);
 
         self.logger.info(format!(
             "@{} created realm [{1}](/#/realm/{1}) 🏰",
-            user_name, name
+            user_name, realm_id
         ));
 
         Ok(())
@@ -4275,6 +4281,12 @@ pub(crate) mod tests {
             );
 
             assert_eq!(create_realm(state, p0, name.clone(),), Ok(()));
+
+            assert!(state
+                .principal_to_user(p0)
+                .unwrap()
+                .controlled_realms
+                .contains(&name));
 
             let user0 = state.users.get_mut(&_u0).unwrap();
             user0.change_credits(1000, CreditsDelta::Plus, "").unwrap();
