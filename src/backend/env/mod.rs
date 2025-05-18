@@ -690,9 +690,7 @@ impl State {
 
         let iterators: Vec<Box<dyn Iterator<Item = &'_ Post>>> = realm_ids
             .iter()
-            .map(move |realm_id| {
-                self.last_posts(domain.clone(), Some(realm_id.to_string()), offset, 0, false)
-            })
+            .map(move |realm_id| self.last_posts(domain.clone(), Some(realm_id), offset, 0, false))
             .collect();
 
         Box::new(IteratorMerger::new(MergeStrategy::Or, iterators))
@@ -701,15 +699,15 @@ impl State {
     pub fn hot_posts(
         &self,
         domain: String,
-        realm: Option<RealmId>,
+        realm: Option<&RealmId>,
         offset: PostId,
         filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
-            .last_posts(domain, realm.clone(), offset, 0, false)
+            .last_posts(domain, realm, offset, 0, false)
             .filter(|post| {
                 // we exclude NSFW posts unless the query comes for the realm of the post
-                (!post.with_meta(self).1.nsfw || post.realm.as_ref() == realm.as_ref())
+                (!post.with_meta(self).1.nsfw || post.realm.as_ref() == realm)
                     && !matches!(post.extension, Some(Extension::Proposal(_)))
                     && filter.map(|f| f(post)).unwrap_or(true)
             })
@@ -2243,7 +2241,7 @@ impl State {
     pub fn last_posts<'a>(
         &'a self,
         domain: String,
-        realm_id: Option<RealmId>,
+        realm_id: Option<&RealmId>,
         offset: PostId,
         watermark: Time,
         with_comments: bool,
@@ -2261,7 +2259,7 @@ impl State {
         };
 
         // Realm specified.
-        if let Some(realm_id) = realm_id.as_ref() {
+        if let Some(realm_id) = realm_id {
             // If the specified realm does not satisfy the domain config, we have no data.
             if cfg.realm_blacklist.contains(realm_id)
                 || !cfg.realm_whitelist.is_empty() && !cfg.realm_whitelist.contains(realm_id)
@@ -2347,7 +2345,7 @@ impl State {
     pub fn recent_tags(
         &self,
         domain: String,
-        realm_id: Option<RealmId>,
+        realm_id: Option<&RealmId>,
         n: usize,
     ) -> Vec<(String, u64)> {
         let mut tags: HashMap<String, u64> = Default::default();
@@ -4644,7 +4642,7 @@ pub(crate) mod tests {
                     .last_posts("localhost".into(), None, 0, 0, true)
                     .filter(|post| {
                         inverse_filters
-                            .map(|filters| !post.matches_filters(filters))
+                            .map(|filters| !post.matches_filters(None, filters))
                             .unwrap_or(true)
                     })
                     .any(|post| post.id == post_id)

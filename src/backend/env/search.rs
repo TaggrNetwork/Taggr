@@ -133,7 +133,7 @@ pub fn search(domain: String, state: &State, mut query: String) -> Vec<SearchRes
         [realm, word] if realm.starts_with('/') => {
             let realm = &realm[1..].to_uppercase();
             state
-                .last_posts(domain, Some(realm.to_string()), 0, 0, true)
+                .last_posts(domain, Some(realm), 0, 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
                     let search_body = body.to_lowercase();
                     if let Some(i) = search_body.find(word) {

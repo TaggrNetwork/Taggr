@@ -151,8 +151,8 @@ impl User {
         self.draft.take();
     }
 
-    pub fn should_see(&self, state: &State, post: &Post) -> bool {
-        !post.matches_filters(&self.filters)
+    pub fn should_see(&self, state: &State, realm: Option<&RealmId>, post: &Post) -> bool {
+        !post.matches_filters(realm, &self.filters)
             && state
                 .users
                 .get(&post.user)
@@ -387,7 +387,7 @@ impl User {
         Box::new(
             IteratorMerger::new(MergeStrategy::Or, iterators.into_iter().collect()).filter(
                 move |post| {
-                    self.should_see(state, post)
+                    self.should_see(state, None, post)
                         && post
                             .realm
                             .as_ref()
