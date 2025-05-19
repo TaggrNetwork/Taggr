@@ -2715,7 +2715,17 @@ impl State {
         let current_cfg = self.domains.get(&domain).ok_or("no domain found")?;
 
         if current_cfg.owner != Some(caller.id) {
-            return Err("unauthorized".into());
+            return Err("not authorized".into());
+        }
+
+        let max_realm_number = 15;
+
+        if cfg.realm_whitelist.len() > max_realm_number {
+            return Err("whitelist too long".into());
+        }
+
+        if cfg.realm_blacklist.len() > max_realm_number {
+            return Err("blacklist too long".into());
         }
 
         // Black and white lists are mutually exclusive.

@@ -399,7 +399,7 @@ declare global {
             recent_tags: [string, number][];
             stats: Stats;
             config: Config;
-            domains: { [domain: string]: DomainConfig };
+            domainConfig: DomainConfig;
         };
     }
 }

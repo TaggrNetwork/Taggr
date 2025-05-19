@@ -1321,7 +1321,7 @@ export function domain(): RealmId {
 
 // Checks if the realm is supported in the current domain
 export function realmAllowed(id?: RealmId) {
-    const config = window.backendCache.domains[domain()];
+    const config = window.backendCache.domainConfig;
     if (!config) return true;
 
     const wl = config.realm_whitelist;

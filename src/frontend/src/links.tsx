@@ -2,18 +2,9 @@ import { HeadBar, REPO } from "./common";
 
 export const LinksPage = ({}) => {
     const { token_symbol, staging } = window.backendCache.config;
-    const domains: string[] = Object.keys(window.backendCache.domains);
     return (
         <div className="spaced">
             <HeadBar title="LINKS" shareLink="links" />
-            <h2>Taggr domains</h2>
-            <ul>
-                {domains.map((domain) => (
-                    <li key={domain}>
-                        <a href={`#/domain/${domain}`}>{domain}</a>
-                    </li>
-                ))}
-            </ul>
             <h2>Price Listings</h2>
             <ul>
                 <li>

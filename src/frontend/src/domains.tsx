@@ -9,10 +9,18 @@ import { DomainConfig } from "./types";
 import { UserLink } from "./user_resolve";
 
 export const Domains = ({}) => {
-    const domains = window.backendCache.domains;
+    const [domainConfigs, setDomainConfigs] = React.useState<{
+        [domain: string]: DomainConfig;
+    }>();
+
+    React.useEffect(() => {
+        window.api
+            .query<any>("domains")
+            .then((cfgs) => setDomainConfigs(cfgs || {}));
+    }, []);
     const user = window.user;
     const userDomains = user
-        ? Object.entries(window.backendCache.domains).filter(
+        ? Object.entries(domainConfigs || {}).filter(
               ([_, cfg]) => cfg.owner == user.id,
           )
         : [];
@@ -21,7 +29,7 @@ export const Domains = ({}) => {
             <HeadBar title="DOMAINS" shareLink="domains" />
             <h2>Taggr domains</h2>
             <ul>
-                {Object.entries(domains).map(([domain, cfg]) => (
+                {Object.entries(domainConfigs || {}).map(([domain, cfg]) => (
                     <li key={domain}>
                         <a href={`#/domain/${domain}`}>{domain}</a>
                         <ul>
