@@ -250,7 +250,7 @@ impl Proposal {
                     if let Some(realm) = state.realms.get_mut(&realm_id.to_uppercase()) {
                         realm.controllers.insert(*user_id);
                         state.logger.info(format!(
-                            "User `{}` was added via proposal execution to the realm /{}",
+                            "User `@{}` was added via proposal execution to the realm /{}",
                             user_id, realm_id
                         ));
                     }
