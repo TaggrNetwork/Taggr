@@ -2739,7 +2739,7 @@ impl State {
 
         match command.as_str() {
             "insert" => {
-                if self.domains.get(&domain).is_some() {
+                if self.domains.contains_key(&domain) {
                     return Err("domain exists".into());
                 }
 
@@ -3315,8 +3315,10 @@ pub(crate) mod tests {
             }
 
             // TEST CASE 1: Insert new domain config
-            let mut config = DomainConfig::default();
-            config.owner = Some(owner_id);
+            let mut config = DomainConfig {
+                owner: Some(owner_id),
+                ..Default::default()
+            };
             config.realm_whitelist.insert("REALM1".to_string());
             config.realm_whitelist.insert("REALM2".to_string());
 
@@ -3370,8 +3372,10 @@ pub(crate) mod tests {
             assert!(stored_config.realm_whitelist.contains("REALM2"));
 
             // TEST CASE 2: Update domain config
-            let mut updated_config = DomainConfig::default();
-            updated_config.owner = Some(owner_id);
+            let mut updated_config = DomainConfig {
+                owner: Some(owner_id),
+                ..Default::default()
+            };
             updated_config.realm_whitelist.insert("REALM3".to_string());
 
             // Test: Update by non-owner
@@ -3402,8 +3406,10 @@ pub(crate) mod tests {
             assert!(stored_config.realm_whitelist.contains("REALM3"));
 
             // TEST CASE 3: Whitelist/blacklist limits
-            let mut oversized_config = DomainConfig::default();
-            oversized_config.owner = Some(owner_id);
+            let mut oversized_config = DomainConfig {
+                owner: Some(owner_id),
+                ..Default::default()
+            };
 
             // Add more than 15 realms to whitelist
             for i in 1..=16 {
@@ -3491,8 +3497,10 @@ pub(crate) mod tests {
             );
 
             // TEST CASE 7: Whitelist and blacklist mutual exclusivity
-            let mut mixed_config = DomainConfig::default();
-            mixed_config.owner = Some(owner_id);
+            let mut mixed_config = DomainConfig {
+                owner: Some(owner_id),
+                ..Default::default()
+            };
             mixed_config.realm_whitelist.insert("REALM1".to_string());
             mixed_config.realm_blacklist.insert("REALM2".to_string());
 
