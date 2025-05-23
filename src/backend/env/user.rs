@@ -604,9 +604,6 @@ impl User {
                 if !current_pfp.genesis {
                     state.charge(user_id, CONFIG.identity_change_cost, "avataggr change")?;
                 }
-                state
-                    .logger
-                    .info(format!("@{} changed their avataggr 🎭", current_name));
                 pfp.genesis = false;
             }
             let Some(user) = state.principal_to_user_mut(caller) else {
