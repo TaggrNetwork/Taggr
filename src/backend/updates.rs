@@ -125,8 +125,8 @@ async fn get_neuron_info() -> Result<String, String> {
 
 #[export_name = "canister_update set_domain_config"]
 fn set_domain_config() {
-    let (domain, cfg): (String, DomainConfig) = parse(&arg_data_raw());
-    mutate(|state| reply(state.set_domain_config(caller(), domain, cfg)))
+    let (domain, cfg, command): (String, DomainConfig, String) = parse(&arg_data_raw());
+    mutate(|state| reply(state.change_domain_config(caller(), domain, cfg, command)))
 }
 
 #[export_name = "canister_update vote_on_poll"]

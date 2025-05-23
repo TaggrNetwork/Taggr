@@ -473,7 +473,7 @@ impl User {
             );
             return Ok(());
         }
-        Err("not enough credits".into())
+        Err(format!("not enough credits (required: {amount})"))
     }
 
     pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {

@@ -12,12 +12,13 @@ export const Domains = ({}) => {
     const [domainConfigs, setDomainConfigs] = React.useState<{
         [domain: string]: DomainConfig;
     }>();
+    const [heartbeat, setHeartbeat] = React.useState(0);
 
     React.useEffect(() => {
         window.api
             .query<any>("domains")
             .then((cfgs) => setDomainConfigs(cfgs || {}));
-    }, []);
+    }, [heartbeat]);
     const user = window.user;
     const userDomains = user
         ? Object.entries(domainConfigs || {}).filter(
@@ -26,12 +27,21 @@ export const Domains = ({}) => {
         : [];
     return (
         <div className="spaced">
-            <HeadBar title="DOMAINS" shareLink="domains" />
+            <HeadBar
+                title="DOMAINS"
+                shareLink="domains"
+                menu={true}
+                content={
+                    <NewDomainForm
+                        callback={() => setHeartbeat(heartbeat + 1)}
+                    />
+                }
+            />
             <h2>Taggr domains</h2>
             <ul>
                 {Object.entries(domainConfigs || {}).map(([domain, cfg]) => (
                     <li key={domain}>
-                        <a href={`#/domain/${domain}`}>{domain}</a>
+                        <a href={`https://${domain}`}>{domain}</a>
                         <ul>
                             <li>
                                 Owner:{" "}
@@ -70,11 +80,19 @@ export const Domains = ({}) => {
                 ))}
             </ul>
             {userDomains.length > 0 && (
-                <div>
-                    <h3>Your domains</h3>
-                    {userDomains.map(([domain, cfg]) => (
-                        <DomainForm domain={domain} initCfg={cfg} />
-                    ))}
+                <div className="vertically_spaced">
+                    <h2>Your domains</h2>
+                    {
+                        // @ts-ignore
+                        userDomains.map(([domain, cfg]) => (
+                            <DomainForm
+                                key={domain}
+                                domain={domain}
+                                initCfg={cfg}
+                                callback={() => setHeartbeat(heartbeat + 1)}
+                            />
+                        ))
+                    }
                 </div>
             )}
         </div>
@@ -83,9 +101,11 @@ export const Domains = ({}) => {
 
 const DomainForm = ({
     domain,
+    callback,
     initCfg,
 }: {
     domain: string;
+    callback: () => void;
     initCfg: DomainConfig;
 }) => {
     const [whitelist, setWhitelist] = React.useState<string>(
@@ -116,23 +136,178 @@ const DomainForm = ({
                 onChange={(event) => setBlacklist(event.target.value)}
                 rows={4}
             ></textarea>
-            <ButtonWithLoading
-                label="SUBMIT"
-                onClick={async () => {
-                    const response = await window.api.call<any>(
-                        "set_domain_config",
-                        domain,
-                        {
-                            owner: initCfg.owner,
-                            realm_whitelist: extractRealmIds(whitelist),
-                            realm_blacklist: extractRealmIds(blacklist),
-                        },
-                    );
-                    if ("Err" in response) {
-                        return showPopUp("error", response.Err);
-                    }
-                }}
+            <div className="row_container">
+                <ButtonWithLoading
+                    classNameArg="max_width_col"
+                    label="REMOVE"
+                    onClick={async () => {
+                        const response = await window.api.call<any>(
+                            "set_domain_config",
+                            domain,
+                            { realm_whitelist: [], realm_blacklist: [] },
+                            "remove",
+                        );
+                        if ("Err" in response) {
+                            return showPopUp("error", response.Err);
+                        } else {
+                            showPopUp("success", "Domain removed");
+                        }
+                        callback();
+                    }}
+                />
+                <ButtonWithLoading
+                    classNameArg="max_width_col"
+                    label="SUBMIT"
+                    onClick={async () => {
+                        const response = await window.api.call<any>(
+                            "set_domain_config",
+                            domain,
+                            {
+                                owner: initCfg.owner,
+                                realm_whitelist: extractRealmIds(whitelist),
+                                realm_blacklist: extractRealmIds(blacklist),
+                            },
+                            "update",
+                        );
+                        if ("Err" in response) showPopUp("error", response.Err);
+                        else showPopUp("success", "Config updated");
+                    }}
+                />
+            </div>
+        </div>
+    );
+};
+
+const NewDomainForm = ({ callback }: { callback: () => void }) => {
+    const [domain, setDomain] = React.useState("");
+    const [domainAdded, setDomainAdded] = React.useState(false);
+
+    return (
+        <div className="column_container">
+            <h2>Add your domain</h2>
+            <input
+                type="text"
+                value={domain}
+                className="bottom_spaced"
+                placeholder="Domain name, e.g. hostname.com"
+                onChange={(event) => setDomain(event.target.value)}
             />
+            {!domainAdded && (
+                <ButtonWithLoading
+                    classNameArg="active"
+                    onClick={async () => {
+                        const parts = domain.split(".");
+                        if (
+                            parts.length != 2 ||
+                            parts[0].length == 0 ||
+                            parts[1].length == 0
+                        ) {
+                            showPopUp("error", "Domain name invalid");
+                            return;
+                        }
+                        const response = await window.api.call<any>(
+                            "set_domain_config",
+                            domain,
+                            {
+                                realm_whitelist: [],
+                                realm_blacklist: [],
+                            },
+                            "insert",
+                        );
+                        if ("Err" in response) showPopUp("error", response.Err);
+                        else {
+                            showPopUp("success", "Domain added");
+                            setDomainAdded(true);
+                        }
+                        callback();
+                    }}
+                    label={"ADD"}
+                />
+            )}
+            {domainAdded && (
+                <div className="selectable">
+                    <h2>Set up instructions</h2>
+                    <ol>
+                        <li>
+                            Copy these instructions and save them in case you
+                            need them later again.
+                        </li>
+                        <li>
+                            Configure the DNS settings of your domain and add
+                            the following records:
+                        </li>
+                        <ol>
+                            <li>
+                                Add a <code>ANAME</code> or <code>ALIAS</code>{" "}
+                                record with value{" "}
+                                <code>{`${domain}.icp1.io`}</code>. If your
+                                registrar does not support these record types,
+                                ping the <code>icp1.io</code> domain and add a{" "}
+                                <code>A</code> record with name <code>@</code>{" "}
+                                and the IP address you observed in the ping
+                                output.
+                            </li>
+                            <li>
+                                Add a <code>TXT</code> record with name{" "}
+                                <code>_canister_id</code> and value{" "}
+                                <code>
+                                    {window.backendCache.stats.canister_id}
+                                </code>
+                                .
+                            </li>
+                            <li>
+                                Add a <code>CNAME</code> record with name{" "}
+                                <code>_acme-challenge</code> and value{" "}
+                                <code>_acme-challenge.{domain}.icp2.io</code>.
+                            </li>
+                        </ol>
+                        <li>
+                            Wait about 10 minutes until the changes propagate
+                            through the Internet.
+                        </li>
+                        <li>
+                            Execute this command in the terminal:
+                            <code>
+                                <pre>
+                                    {`curl -sL -X POST \\
+    -H 'Content-Type: application/json' \\
+    https://icp0.io/registrations \\
+    --data @- <<EOF
+    {
+      "name": "${domain}"
+    }
+EOF`}
+                                </pre>
+                            </code>
+                        </li>
+                        <li>
+                            If the call was successful, you will get a JSON
+                            response that contains the request ID in the body,
+                            which you can use to query the status of your
+                            registration request:
+                            <code>
+                                <pre>{`{"id":"REQUEST_ID"}`}</pre>
+                            </code>
+                        </li>
+                        <li>
+                            Track the progress of your registration request by
+                            issuing the following command and replacing
+                            REQUEST_ID with the ID you received in the previous
+                            step.
+                            <code>
+                                <pre>{`curl -sL -X GET https://icp0.io/registrations/REQUEST_ID`}</pre>
+                            </code>
+                        </li>
+                        <li>
+                            For more details, consult the{" "}
+                            <a href="https://internetcomputer.org/docs/building-apps/frontends/custom-domains/using-custom-domains">
+                                official documentation
+                            </a>
+                            .
+                        </li>
+                    </ol>
+                </div>
+            )}
         </div>
     );
 };
