@@ -103,7 +103,7 @@ export const Landing = () => {
                 <Links classNameArg="vertically_spaced" />
             )}
             <Search />
-            {user && user.settings.tagCloud && (
+            {user && user.settings.tagCloud == "true" && (
                 <TagCloud heartbeat={feed} realm={realm} />
             )}
             <PostFeed

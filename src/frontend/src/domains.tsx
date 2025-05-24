@@ -249,7 +249,7 @@ const NewDomainForm = ({ callback }: { callback: () => void }) => {
                             </li>
                             <li>
                                 Add a <code>TXT</code> record with name{" "}
-                                <code>_canister_id</code> and value{" "}
+                                <code>_canister-id</code> and value{" "}
                                 <code>
                                     {window.backendCache.stats.canister_id}
                                 </code>
