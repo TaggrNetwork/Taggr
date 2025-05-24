@@ -690,9 +690,7 @@ impl State {
 
         let iterators: Vec<Box<dyn Iterator<Item = &'_ Post>>> = realm_ids
             .iter()
-            .map(move |realm_id| {
-                self.last_posts(domain.clone(), Some(realm_id.to_string()), offset, 0, false)
-            })
+            .map(move |realm_id| self.last_posts(domain.clone(), Some(realm_id), offset, 0, false))
             .collect();
 
         Box::new(IteratorMerger::new(MergeStrategy::Or, iterators))
@@ -701,15 +699,15 @@ impl State {
     pub fn hot_posts(
         &self,
         domain: String,
-        realm: Option<RealmId>,
+        realm: Option<&RealmId>,
         offset: PostId,
         filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
-            .last_posts(domain, realm.clone(), offset, 0, false)
+            .last_posts(domain, realm, offset, 0, false)
             .filter(|post| {
                 // we exclude NSFW posts unless the query comes for the realm of the post
-                (!post.with_meta(self).1.nsfw || post.realm.as_ref() == realm.as_ref())
+                (!post.with_meta(self).1.nsfw || post.realm.as_ref() == realm)
                     && !matches!(post.extension, Some(Extension::Proposal(_)))
                     && filter.map(|f| f(post)).unwrap_or(true)
             })
@@ -819,11 +817,10 @@ impl State {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn create_realm(
         &mut self,
         principal: Principal,
-        name: String,
+        realm_id: RealmId,
         mut realm: Realm,
     ) -> Result<(), String> {
         let Realm {
@@ -835,49 +832,50 @@ impl State {
             return Err("no controllers specified".into());
         }
 
-        if name.len() > CONFIG.max_realm_name {
+        if realm_id.len() > CONFIG.max_realm_name {
             return Err("realm name too long".into());
         }
 
-        if name
+        if realm_id
             .chars()
             .any(|c| !char::is_alphanumeric(c) && c != '_' && c != '-')
         {
             return Err("realm name should be an alpha-numeric string".into());
         }
 
-        if name.chars().all(|c| char::is_ascii_digit(&c)) {
+        if realm_id.chars().all(|c| char::is_ascii_digit(&c)) {
             return Err("realm name should have at least on character".into());
         }
 
-        if CONFIG.name.to_lowercase() == name.to_lowercase()
-            || self.realms.contains_key(&name)
-            || CONFIG.dao_realm.to_lowercase() == name.to_lowercase()
+        if CONFIG.name.to_lowercase() == realm_id.to_lowercase()
+            || self.realms.contains_key(&realm_id)
+            || CONFIG.dao_realm.to_lowercase() == realm_id.to_lowercase()
         {
             return Err("realm name taken".into());
         }
 
-        let user = self.principal_to_user(principal).ok_or("no user found")?;
+        let user = self
+            .principal_to_user_mut(principal)
+            .ok_or("no user found")?;
+        user.controlled_realms.insert(realm_id.clone());
         let user_id = user.id;
         let user_name = user.name.clone();
 
-        self.charge(user_id, CONFIG.realm_cost, format!("new realm /{}", name))
-            .map_err(|err| {
-                format!(
-                    "couldn't charge {} credits for realm creation: {}",
-                    CONFIG.realm_cost, err
-                )
-            })?;
+        self.charge(
+            user_id,
+            CONFIG.realm_cost,
+            format!("new realm /{}", realm_id),
+        )?;
 
         realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(*cleanup_penalty);
         realm.last_update = time();
         realm.created = time();
 
-        self.realms.insert(name.clone(), realm);
+        self.realms.insert(realm_id.clone(), realm);
 
         self.logger.info(format!(
             "@{} created realm [{1}](/#/realm/{1}) 🏰",
-            user_name, name
+            user_name, realm_id
         ));
 
         Ok(())
@@ -2243,7 +2241,7 @@ impl State {
     pub fn last_posts<'a>(
         &'a self,
         domain: String,
-        realm_id: Option<RealmId>,
+        realm_id: Option<&RealmId>,
         offset: PostId,
         watermark: Time,
         with_comments: bool,
@@ -2261,7 +2259,7 @@ impl State {
         };
 
         // Realm specified.
-        if let Some(realm_id) = realm_id.as_ref() {
+        if let Some(realm_id) = realm_id {
             // If the specified realm does not satisfy the domain config, we have no data.
             if cfg.realm_blacklist.contains(realm_id)
                 || !cfg.realm_whitelist.is_empty() && !cfg.realm_whitelist.contains(realm_id)
@@ -2347,7 +2345,7 @@ impl State {
     pub fn recent_tags(
         &self,
         domain: String,
-        realm_id: Option<RealmId>,
+        realm_id: Option<&RealmId>,
         n: usize,
     ) -> Vec<(String, u64)> {
         let mut tags: HashMap<String, u64> = Default::default();
@@ -2701,17 +2699,31 @@ impl State {
         }
     }
 
-    pub fn set_domain_config(
+    pub fn change_domain_config(
         &mut self,
         principal: Principal,
         domain: String,
         mut cfg: DomainConfig,
+        command: String,
     ) -> Result<(), String> {
         let caller = self.principal_to_user(principal).ok_or("no user found")?;
-        let current_cfg = self.domains.get(&domain).ok_or("no domain found")?;
+        let caller_id = caller.id;
+        if ["remove", "update"].contains(&command.as_str()) {
+            let current_cfg = self.domains.get(&domain).ok_or("no domain found")?;
 
-        if current_cfg.owner != Some(caller.id) {
-            return Err("unauthorized".into());
+            if current_cfg.owner != Some(caller_id) {
+                return Err("not authorized".into());
+            }
+        }
+
+        let max_realm_number = 15;
+
+        if cfg.realm_whitelist.len() > max_realm_number {
+            return Err("whitelist too long".into());
+        }
+
+        if cfg.realm_blacklist.len() > max_realm_number {
+            return Err("blacklist too long".into());
         }
 
         // Black and white lists are mutually exclusive.
@@ -2719,9 +2731,34 @@ impl State {
             cfg.realm_blacklist.clear();
         }
 
-        self.domains.insert(domain, cfg);
+        match command.as_str() {
+            "insert" => {
+                if self.domains.contains_key(&domain) {
+                    return Err("domain exists".into());
+                }
 
-        Ok(())
+                self.principal_to_user_mut(principal)
+                    .ok_or("no user found")?
+                    .change_credits(
+                        CONFIG.domain_cost,
+                        CreditsDelta::Minus,
+                        "domain config creation",
+                    )?;
+
+                cfg.owner = Some(caller_id);
+                self.domains.insert(domain, cfg);
+                Ok(())
+            }
+            "remove" => {
+                self.domains.remove(&domain);
+                Ok(())
+            }
+            "update" => {
+                self.domains.insert(domain, cfg);
+                Ok(())
+            }
+            _ => Err("invalid command".into()),
+        }
     }
 
     pub fn vote_on_poll(
@@ -3251,6 +3288,234 @@ pub(crate) mod tests {
         state
             .new_user(p, 0, name.to_string(), Some(credits))
             .unwrap()
+    }
+
+    #[test]
+    fn test_change_domain_config() {
+        mutate(|state| {
+            state.init();
+
+            // Create test users
+            let owner_principal = pr(1);
+            let owner_id = create_user_with_credits(state, owner_principal, 2000);
+
+            let non_owner_principal = pr(2);
+            let _ = create_user_with_credits(state, non_owner_principal, 2000);
+
+            // Create test realms for whitelist/blacklist testing
+            for i in 1..=20 {
+                let realm_id = format!("REALM{}", i);
+                state.realms.insert(realm_id, Realm::default());
+            }
+
+            // TEST CASE 1: Insert new domain config
+            let mut config = DomainConfig {
+                owner: Some(owner_id),
+                ..Default::default()
+            };
+            config.realm_whitelist.insert("REALM1".to_string());
+            config.realm_whitelist.insert("REALM2".to_string());
+
+            // Test: Insert with insufficient credits
+            let user = state.principal_to_user_mut(owner_principal).unwrap();
+            user.change_credits(2000 - CONFIG.domain_cost + 1, CreditsDelta::Minus, "test")
+                .unwrap();
+
+            assert_eq!(
+                state.change_domain_config(
+                    owner_principal,
+                    "test.domain".to_string(),
+                    config.clone(),
+                    "insert".to_string()
+                ),
+                Err("not enough credits (required: 1000)".into())
+            );
+
+            // Restore credits
+            let user = state.principal_to_user_mut(owner_principal).unwrap();
+            user.change_credits(2 * CONFIG.domain_cost, CreditsDelta::Plus, "test")
+                .unwrap();
+
+            // Test: Insert with valid parameters
+            assert_eq!(
+                state.change_domain_config(
+                    owner_principal,
+                    "test.domain".to_string(),
+                    config.clone(),
+                    "insert".to_string()
+                ),
+                Ok(())
+            );
+
+            assert_eq!(
+                state.change_domain_config(
+                    owner_principal,
+                    "test.domain".to_string(),
+                    config.clone(),
+                    "insert".to_string()
+                ),
+                Err("domain exists".into())
+            );
+
+            // Verify domain was added
+            assert!(state.domains.contains_key("test.domain"));
+            let stored_config = state.domains.get("test.domain").unwrap();
+            assert_eq!(stored_config.owner, Some(owner_id));
+            assert_eq!(stored_config.realm_whitelist.len(), 2);
+            assert!(stored_config.realm_whitelist.contains("REALM1"));
+            assert!(stored_config.realm_whitelist.contains("REALM2"));
+
+            // TEST CASE 2: Update domain config
+            let mut updated_config = DomainConfig {
+                owner: Some(owner_id),
+                ..Default::default()
+            };
+            updated_config.realm_whitelist.insert("REALM3".to_string());
+
+            // Test: Update by non-owner
+            assert_eq!(
+                state.change_domain_config(
+                    non_owner_principal,
+                    "test.domain".to_string(),
+                    updated_config.clone(),
+                    "update".to_string()
+                ),
+                Err("not authorized".into())
+            );
+
+            // Test: Update by owner
+            assert_eq!(
+                state.change_domain_config(
+                    owner_principal,
+                    "test.domain".to_string(),
+                    updated_config.clone(),
+                    "update".to_string()
+                ),
+                Ok(())
+            );
+
+            // Verify domain was updated
+            let stored_config = state.domains.get("test.domain").unwrap();
+            assert_eq!(stored_config.realm_whitelist.len(), 1);
+            assert!(stored_config.realm_whitelist.contains("REALM3"));
+
+            // TEST CASE 3: Whitelist/blacklist limits
+            let mut oversized_config = DomainConfig {
+                owner: Some(owner_id),
+                ..Default::default()
+            };
+
+            // Add more than 15 realms to whitelist
+            for i in 1..=16 {
+                oversized_config
+                    .realm_whitelist
+                    .insert(format!("REALM{}", i));
+            }
+
+            // Test: Insert with oversized whitelist
+            assert_eq!(
+                state.change_domain_config(
+                    owner_principal,
+                    "oversized.domain".to_string(),
+                    oversized_config.clone(),
+                    "insert".to_string()
+                ),
+                Err("whitelist too long".into())
+            );
+
+            // Reset whitelist and create oversized blacklist
+            oversized_config.realm_whitelist.clear();
+            for i in 1..=16 {
+                oversized_config
+                    .realm_blacklist
+                    .insert(format!("REALM{}", i));
+            }
+
+            // Test: Insert with oversized blacklist
+            assert_eq!(
+                state.change_domain_config(
+                    owner_principal,
+                    "oversized.domain".to_string(),
+                    oversized_config.clone(),
+                    "insert".to_string()
+                ),
+                Err("blacklist too long".into())
+            );
+
+            // TEST CASE 4: Remove domain config
+            // Test: Remove by non-owner
+            assert_eq!(
+                state.change_domain_config(
+                    non_owner_principal,
+                    "test.domain".to_string(),
+                    DomainConfig::default(),
+                    "remove".to_string()
+                ),
+                Err("not authorized".into())
+            );
+
+            // Test: Remove by owner
+            assert_eq!(
+                state.change_domain_config(
+                    owner_principal,
+                    "test.domain".to_string(),
+                    DomainConfig::default(),
+                    "remove".to_string()
+                ),
+                Ok(())
+            );
+
+            // Verify domain was removed
+            assert!(!state.domains.contains_key("test.domain"));
+
+            // TEST CASE 5: Invalid command
+            assert_eq!(
+                state.change_domain_config(
+                    owner_principal,
+                    "test.domain".to_string(),
+                    DomainConfig::default(),
+                    "invalid".to_string()
+                ),
+                Err("invalid command".into())
+            );
+
+            // TEST CASE 6: Non-existent domain
+            assert_eq!(
+                state.change_domain_config(
+                    owner_principal,
+                    "nonexistent.domain".to_string(),
+                    DomainConfig::default(),
+                    "update".to_string()
+                ),
+                Err("no domain found".into())
+            );
+
+            // TEST CASE 7: Whitelist and blacklist mutual exclusivity
+            let mut mixed_config = DomainConfig {
+                owner: Some(owner_id),
+                ..Default::default()
+            };
+            mixed_config.realm_whitelist.insert("REALM1".to_string());
+            mixed_config.realm_blacklist.insert("REALM2".to_string());
+
+            // Test: Insert with both whitelist and blacklist
+            let user = state.principal_to_user_mut(owner_principal).unwrap();
+            user.change_credits(CONFIG.domain_cost, CreditsDelta::Plus, "test")
+                .unwrap();
+            let result = state.change_domain_config(
+                owner_principal,
+                "mixed.domain".to_string(),
+                mixed_config.clone(),
+                "insert".to_string(),
+            );
+            assert!(result.is_ok());
+
+            // Verify blacklist was cleared due to whitelist presence
+            let stored_config = state.domains.get("mixed.domain").unwrap();
+            assert_eq!(stored_config.realm_whitelist.len(), 1);
+            assert!(stored_config.realm_whitelist.contains("REALM1"));
+            assert_eq!(stored_config.realm_blacklist.len(), 0);
+        });
     }
 
     #[test]
@@ -4251,10 +4516,7 @@ pub(crate) mod tests {
 
             assert_eq!(
                 create_realm(state, p1, name.clone(),),
-                Err(
-                    "couldn't charge 1000 credits for realm creation: not enough credits"
-                        .to_string()
-                )
+                Err("not enough credits (required: 1000)".to_string())
             );
 
             assert_eq!(
@@ -4277,6 +4539,12 @@ pub(crate) mod tests {
             );
 
             assert_eq!(create_realm(state, p0, name.clone(),), Ok(()));
+
+            assert!(state
+                .principal_to_user(p0)
+                .unwrap()
+                .controlled_realms
+                .contains(&name));
 
             let user0 = state.users.get_mut(&_u0).unwrap();
             user0.change_credits(1000, CreditsDelta::Plus, "").unwrap();
@@ -4644,7 +4912,7 @@ pub(crate) mod tests {
                     .last_posts("localhost".into(), None, 0, 0, true)
                     .filter(|post| {
                         inverse_filters
-                            .map(|filters| !post.matches_filters(filters))
+                            .map(|filters| !post.matches_filters(None, filters))
                             .unwrap_or(true)
                     })
                     .any(|post| post.id == post_id)
@@ -5113,7 +5381,7 @@ pub(crate) mod tests {
                 .unwrap();
             assert_eq!(
                 state.react(pr(10), post_id, 10, 0),
-                Err("not enough credits".into())
+                Err("not enough credits (required: 2)".into())
             );
 
             // Create a new user and a new post

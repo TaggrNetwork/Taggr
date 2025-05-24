@@ -1,6 +1,6 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowDown, RealmSpan, timeAgo } from "./common";
+import { ArrowDown, domain, RealmSpan, timeAgo } from "./common";
 import remarkGfm from "remark-gfm";
 import { BlogTitle } from "./types";
 import { previewImg } from "./image_preview";
@@ -168,11 +168,7 @@ const linkRenderer =
                     const url = new URL(props.href);
 
                     // Internal links
-                    if (
-                        Object.keys(window.backendCache.domains).some(
-                            (domain) => url.hostname.includes(domain),
-                        )
-                    ) {
+                    if (url.hostname == domain()) {
                         const nonMarkdownLink = label == url.href;
                         let link = url.href.replace(url.origin + "/", "");
                         props.href = (link.startsWith("#") ? "" : "#/") + link;

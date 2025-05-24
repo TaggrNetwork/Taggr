@@ -151,8 +151,8 @@ impl User {
         self.draft.take();
     }
 
-    pub fn should_see(&self, state: &State, post: &Post) -> bool {
-        !post.matches_filters(&self.filters)
+    pub fn should_see(&self, state: &State, realm: Option<&RealmId>, post: &Post) -> bool {
+        !post.matches_filters(realm, &self.filters)
             && state
                 .users
                 .get(&post.user)
@@ -387,7 +387,7 @@ impl User {
         Box::new(
             IteratorMerger::new(MergeStrategy::Or, iterators.into_iter().collect()).filter(
                 move |post| {
-                    self.should_see(state, post)
+                    self.should_see(state, None, post)
                         && post
                             .realm
                             .as_ref()
@@ -473,7 +473,7 @@ impl User {
             );
             return Ok(());
         }
-        Err("not enough credits".into())
+        Err(format!("not enough credits (required: {amount})"))
     }
 
     pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {
@@ -604,9 +604,6 @@ impl User {
                 if !current_pfp.genesis {
                     state.charge(user_id, CONFIG.identity_change_cost, "avataggr change")?;
                 }
-                state
-                    .logger
-                    .info(format!("@{} changed their avataggr 🎭", current_name));
                 pfp.genesis = false;
             }
             let Some(user) = state.principal_to_user_mut(caller) else {

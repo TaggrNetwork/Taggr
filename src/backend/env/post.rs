@@ -725,7 +725,7 @@ impl Post {
         }
     }
 
-    pub fn matches_filters(&self, filters: &Filters) -> bool {
+    pub fn matches_filters(&self, realm: Option<&RealmId>, filters: &Filters) -> bool {
         filters.users.contains(&self.user)
             || filters.tags.intersection(&self.tags).count() > 0
             || self
@@ -733,6 +733,9 @@ impl Post {
                 .as_ref()
                 .map(|id| filters.realms.contains(id))
                 .unwrap_or_default()
+                // If a user muted a realm, but then requests posts from inside it, we cannot
+                // respect the filter.
+                && self.realm.as_ref() != realm
     }
 
     pub fn crypt(state: &mut State, id: PostId, seed: &str) {

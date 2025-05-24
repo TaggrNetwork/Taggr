@@ -79,6 +79,7 @@ pub struct Config {
 
     pub num_hot_posts: usize,
 
+    pub domain_cost: Credits,
     pub feature_cost: Credits,
     pub post_cost: Credits,
     pub blob_cost: Credits,
@@ -250,6 +251,7 @@ pub const CONFIG: &Config = &Config {
     #[cfg(not(feature = "staging"))]
     min_credits_for_inviting: 50,
 
+    domain_cost: 1000,
     feature_cost: 1000,
     post_cost: 2,
     blob_cost: 20,

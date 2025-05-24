@@ -85,12 +85,21 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|s| {
-        // Fix the domain for testing
-        if let Some(cfg) = s.domains.remove("cyphersociety".into()) {
-            s.domains.insert("cyphersociety.org".into(), cfg);
-        }
-
-        s.init();
+        // Fix controlled realms list for all users.
+        s.realms
+            .iter()
+            .map(|(realm_id, realm)| (realm_id.clone(), realm.controllers.clone()))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .for_each(|(realm_id, controllers)| {
+                for user_id in controllers.iter() {
+                    s.users
+                        .get_mut(user_id)
+                        .unwrap()
+                        .controlled_realms
+                        .insert(realm_id.clone());
+                }
+            });
     });
 }
 
@@ -116,8 +125,8 @@ async fn get_neuron_info() -> Result<String, String> {
 
 #[export_name = "canister_update set_domain_config"]
 fn set_domain_config() {
-    let (domain, cfg): (String, DomainConfig) = parse(&arg_data_raw());
-    mutate(|state| reply(state.set_domain_config(caller(), domain, cfg)))
+    let (domain, cfg, command): (String, DomainConfig, String) = parse(&arg_data_raw());
+    mutate(|state| reply(state.change_domain_config(caller(), domain, cfg, command)))
 }
 
 #[export_name = "canister_update vote_on_poll"]

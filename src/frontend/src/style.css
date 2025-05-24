@@ -382,7 +382,8 @@ button {
     font-size: small;
 }
 
-.icon_link svg {
+.icon_link svg,
+.icon_link img {
     padding-bottom: 0.5rem;
 }
 

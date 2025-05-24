@@ -245,22 +245,25 @@ const App = () => {
 
 const reloadCache = async () => {
     window.backendCache = window.backendCache || { users: [], recent_tags: [] };
-    const [recent_tags, stats, config, domains] = await Promise.all([
+    const [recent_tags, stats, config, domainCfgResp] = await Promise.all([
         window.api.query<[string, any][]>("recent_tags", domain(), "", 500),
         window.api.query<Stats>("stats"),
         window.api.query<Config>("config"),
-        window.api.query<{ [domain: string]: DomainConfig }>("domains"),
+        window.api.query<any>("domain_config", domain()),
     ]);
     if (!config) console.error("Config wasn't loaded!");
     if (!stats) console.error("Stats weren't loaded!");
+    if ("Err" in domainCfgResp) {
+        showPopUp("error", domainCfgResp.Err);
+        return;
+    }
     window.backendCache = {
         recent_tags: recent_tags || [],
         stats: stats || ({} as Stats),
         config: config || ({} as Config),
-        domains: domains || {},
+        domainConfig: domainCfgResp.Ok || ({} as DomainConfig),
     };
-    const domainCfg = (domains || {})[domain()];
-    if (!domainCfg) return alert("Fatal error: no domain config found.");
+    const domainCfg = window.backendCache.domainConfig;
     const wlLen = domainCfg.realm_whitelist.length;
     window.monoRealm = wlLen == 1 ? domainCfg.realm_whitelist[0] : null;
     window.defaultRealm = wlLen >= 1 ? domainCfg.realm_whitelist[0] : null;

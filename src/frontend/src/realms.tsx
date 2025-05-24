@@ -611,7 +611,11 @@ export const RealmHeader = ({
                     <Restrictions realm={realm} />
                     <code>{realm.num_posts}</code> posts,{" "}
                     <code>{realm.num_members}</code> members, controlled by:{" "}
-                    <UserList ids={realm.controllers} />
+                    {realm.controllers.length == 0 ? (
+                        "no one"
+                    ) : (
+                        <UserList ids={realm.controllers} />
+                    )}
                     {user && (
                         <div className="row_container top_spaced flex_ended">
                             {realm.controllers.includes(user.id) && (

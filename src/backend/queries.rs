@@ -191,9 +191,15 @@ fn realms() {
     })
 }
 
+#[export_name = "canister_query domain_config"]
+fn domain_config() {
+    let domain: String = parse(&arg_data_raw());
+    read(|state| reply(state.domains.get(&domain).ok_or("no config found")));
+}
+
 #[export_name = "canister_query domains"]
 fn domains() {
-    read(|state| reply(&state.domains));
+    read(|state| reply(&state.domains))
 }
 
 #[export_name = "canister_query all_realms"]
@@ -303,8 +309,13 @@ fn invites() {
     read(|state| reply(invite::invites_by_principal(state, caller()).collect::<Vec<_>>()));
 }
 
-fn personal_filter(state: &State, user: Option<&User>, post: &Post) -> bool {
-    user.map(|user| user.should_see(state, post))
+fn personal_filter(
+    state: &State,
+    realm: Option<&RealmId>,
+    user: Option<&User>,
+    post: &Post,
+) -> bool {
+    user.map(|user| user.should_see(state, realm, post))
         .unwrap_or(true)
 }
 
@@ -365,12 +376,13 @@ fn hot_realm_posts() {
 fn hot_posts() {
     let (domain, realm, page, offset, filtered): (String, String, usize, PostId, bool) =
         parse(&arg_data_raw());
+    let realm = optional(realm);
     read(|state| {
         let user = state.principal_to_user(caller());
         reply(
             state
-                .hot_posts(domain, optional(realm), offset, None)
-                .filter(|post| !filtered || personal_filter(state, user, post))
+                .hot_posts(domain, realm.as_ref(), offset, None)
+                .filter(|post| !filtered || personal_filter(state, realm.as_ref(), user, post))
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
                 .map(|post| post.with_meta(state))
@@ -387,7 +399,7 @@ fn realms_posts() {
         reply(
             state
                 .realms_posts(domain, caller(), offset)
-                .filter(|post| personal_filter(state, user, post))
+                .filter(|post| personal_filter(state, None, user, post))
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
                 .map(|post| post.with_meta(state))
@@ -400,18 +412,19 @@ fn realms_posts() {
 fn last_posts() {
     let (domain, realm, page, offset, filtered): (String, String, usize, PostId, bool) =
         parse(&arg_data_raw());
+    let realm = optional(realm);
     read(|state| {
         let user = state.principal_to_user(caller());
         reply(
             state
                 .last_posts(
                     domain,
-                    optional(realm),
+                    realm.as_ref(),
                     offset,
                     0,
                     /* with_comments = */ false,
                 )
-                .filter(|post| !filtered || personal_filter(state, user, post))
+                .filter(|post| !filtered || personal_filter(state, realm.as_ref(), user, post))
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
                 .map(|post| post.with_meta(state))
@@ -474,7 +487,8 @@ fn thread() {
 #[export_name = "canister_query recent_tags"]
 fn recent_tags() {
     let (domain, realm, n): (String, String, usize) = parse(&arg_data_raw());
-    read(|state| reply(state.recent_tags(domain, optional(realm), n)));
+    let realm = optional(realm);
+    read(|state| reply(state.recent_tags(domain, realm.as_ref(), n)));
 }
 
 #[export_name = "canister_query validate_proposal"]

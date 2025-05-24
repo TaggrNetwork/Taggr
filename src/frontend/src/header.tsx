@@ -200,17 +200,14 @@ const UserSection = ({ user }: { user: UserType }) => {
                 vcentered`}
             >
                 <>
-                    <div title={user.name} className="icon_link">
-                        <img
-                            className="bottom_half_spaced"
-                            src={pfpUrl(user.id)}
-                            height={20}
-                            width={20}
-                        />
-                        <a href={`/#/user/${user.name}`}>
-                            {user.name.toUpperCase()}
-                        </a>
-                    </div>
+                    <a
+                        title={user.name}
+                        className="icon_link"
+                        href={`/#/user/${user.name}`}
+                    >
+                        <img src={pfpUrl(user.id)} height={16} width={16} />
+                        {user.name.toUpperCase()}
+                    </a>
                     <a
                         title="JOURNAL"
                         className="icon_link"
