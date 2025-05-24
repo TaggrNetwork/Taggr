@@ -865,13 +865,7 @@ impl State {
             user_id,
             CONFIG.realm_cost,
             format!("new realm /{}", realm_id),
-        )
-        .map_err(|err| {
-            format!(
-                "couldn't charge {} credits for realm creation: {}",
-                CONFIG.realm_cost, err
-            )
-        })?;
+        )?;
 
         realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(*cleanup_penalty);
         realm.last_update = time();
@@ -4522,10 +4516,7 @@ pub(crate) mod tests {
 
             assert_eq!(
                 create_realm(state, p1, name.clone(),),
-                Err(
-                    "couldn't charge 1000 credits for realm creation: not enough credits (required: 1000)"
-                        .to_string()
-                )
+                Err("not enough credits (required: 1000)".to_string())
             );
 
             assert_eq!(
