@@ -27,6 +27,26 @@
             sizes="180x180"
             href="https://6qfxa-ryaaa-aaaai-qbhsq-cai.raw.ic0.app/_/raw/apple-touch-icon.png"
         />
+        <link
+            rel="preload"
+            href="font-regular.woff2"
+            as="font"
+            type="font/woff2"
+            crossorigin
+        />
+        <link
+            rel="preload"
+            href="font-bold.woff2"
+            as="font"
+            type="font/woff2"
+            crossorigin
+        />
+        <link rel="preload" href="react.js" as="script" />
+        <link rel="preload" href="index.js" as="script" />
+        <link rel="preload" href="app-components.js" as="script" />
+        <link rel="preload" href="vendors.js" as="script" />
+        <link rel="preload" href="dfinity.js" as="script" />
+
         <meta name="apple-mobile-web-app-title" content="TAGGR" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -37,6 +57,7 @@
                 src: url("font-regular.woff2") format("woff2");
                 font-weight: normal;
                 font-style: normal;
+                font-display: swap;
             }
 
             @font-face {
@@ -44,6 +65,7 @@
                 src: url("font-bold.woff2") format("woff2");
                 font-weight: bold;
                 font-style: normal;
+                font-display: swap;
             }
         </style>
         <style id="style">

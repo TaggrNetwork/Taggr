@@ -306,7 +306,7 @@ const Footer = ({}) => (
     </footer>
 );
 
-const updateDoc = () => {
+const updateDoc = async () => {
     document.getElementById("logo_container")?.remove();
     const scroll_up_button = document.createElement("div");
     scroll_up_button.id = "scroll_up_button";
@@ -388,7 +388,8 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
             const frames = Array.from(stack.children);
             frames.forEach((frame) => frame.remove());
         };
-        await reloadCache();
+
+        const futures = [reloadCache()];
 
         if (api) {
             window.reloadUser = async () => {
@@ -410,10 +411,14 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
                 await window.reloadUser();
                 await reloadCache();
             }, REFRESH_RATE_SECS * 1000);
-            await confirmPrincipalChange();
-            await window.reloadUser();
+
+            futures.push(confirmPrincipalChange().then(window.reloadUser));
         }
-        updateDoc();
+
+        futures.push(updateDoc());
+
+        await Promise.all(futures);
+
         App();
 
         footerRoot.render(

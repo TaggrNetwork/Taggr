@@ -61,6 +61,46 @@ module.exports = {
                 extractComments: false,
             }),
         ],
+        splitChunks: {
+            chunks: "all",
+            cacheGroups: {
+                // Vendor chunk for node_modules
+                vendor: {
+                    test: /[\\/]node_modules[\\/]/,
+                    name: "vendors",
+                    chunks: "all",
+                    priority: 20,
+                    minSize: 20000,
+                },
+                // React-specific chunk
+                react: {
+                    test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+                    name: "react",
+                    chunks: "all",
+                    priority: 30,
+                },
+                // DFINITY/IC libraries
+                dfinity: {
+                    test: /[\\/]node_modules[\\/]@dfinity[\\/]/,
+                    name: "dfinity",
+                    chunks: "all",
+                    priority: 25,
+                },
+                // App components in single chunk
+                appComponents: {
+                    test: /[\\/]src[\\/]frontend[\\/]src[\\/](?!index\.tsx$).*\.tsx$/,
+                    name: "app-components",
+                    chunks: "all",
+                    priority: 15,
+                },
+                // Default chunk for remaining code
+                default: {
+                    minChunks: 2,
+                    priority: 1,
+                    reuseExistingChunk: true,
+                },
+            },
+        },
     },
     resolve: {
         extensions: [".js", ".ts", ".jsx", ".tsx"],
@@ -70,8 +110,10 @@ module.exports = {
     },
     output: {
         filename: "[name].js",
+        chunkFilename: "[name].chunk.js",
         path: path.join(__dirname, "dist", frontendDirectory),
-        chunkFormat: false,
+        chunkFormat: "array-push",
+        crossOriginLoading: "anonymous",
         clean: true,
     },
     module: {
@@ -91,7 +133,6 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: path.join(__dirname, asset_entry),
             cache: false,
-            chunks: ["index"],
             minify: isDevelopment
                 ? false
                 : {
