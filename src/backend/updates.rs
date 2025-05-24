@@ -83,25 +83,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    mutate(|s| {
-        // Fix controlled realms list for all users.
-        s.realms
-            .iter()
-            .map(|(realm_id, realm)| (realm_id.clone(), realm.controllers.clone()))
-            .collect::<Vec<_>>()
-            .into_iter()
-            .for_each(|(realm_id, controllers)| {
-                for user_id in controllers.iter() {
-                    s.users
-                        .get_mut(user_id)
-                        .unwrap()
-                        .controlled_realms
-                        .insert(realm_id.clone());
-                }
-            });
-    });
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
