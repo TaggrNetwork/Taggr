@@ -59,6 +59,42 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
     );
 
     add_asset(
+        &["/dfinity.js"],
+        vec![
+            ("Content-Type".to_string(), "text/javascript".to_string()),
+            ("Content-Encoding".to_string(), "gzip".to_string()),
+        ],
+        include_bytes!("../../dist/frontend/dfinity.js.gz").to_vec(),
+    );
+
+    add_asset(
+        &["/react.js"],
+        vec![
+            ("Content-Type".to_string(), "text/javascript".to_string()),
+            ("Content-Encoding".to_string(), "gzip".to_string()),
+        ],
+        include_bytes!("../../dist/frontend/react.js.gz").to_vec(),
+    );
+
+    add_asset(
+        &["/vendors.js"],
+        vec![
+            ("Content-Type".to_string(), "text/javascript".to_string()),
+            ("Content-Encoding".to_string(), "gzip".to_string()),
+        ],
+        include_bytes!("../../dist/frontend/vendors.js.gz").to_vec(),
+    );
+
+    add_asset(
+        &["/app-components.js"],
+        vec![
+            ("Content-Type".to_string(), "text/javascript".to_string()),
+            ("Content-Encoding".to_string(), "gzip".to_string()),
+        ],
+        include_bytes!("../../dist/frontend/app-components.js.gz").to_vec(),
+    );
+
+    add_asset(
         &["/favicon.ico"],
         vec![
             (
