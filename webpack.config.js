@@ -113,6 +113,7 @@ module.exports = {
         chunkFilename: "[name].chunk.js",
         path: path.join(__dirname, "dist", frontendDirectory),
         chunkFormat: "array-push",
+        crossOriginLoading: "anonymous",
         clean: true,
     },
     module: {
