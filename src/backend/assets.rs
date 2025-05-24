@@ -90,25 +90,34 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
 
     add_asset(
         &["/font-regular.woff2"],
-        vec![(
-            "Content-Type".to_string(),
-            "application/font-woff2".to_string(),
-        )],
+        vec![
+            (
+                "Content-Type".to_string(),
+                "application/font-woff2".to_string(),
+            ),
+            ("Cache-Control".to_string(), "public".to_string()),
+        ],
         include_bytes!("../../src/frontend/assets/font-regular.woff2").to_vec(),
     );
 
     add_asset(
         &["/font-bold.woff2"],
-        vec![(
-            "Content-Type".to_string(),
-            "application/font-woff2".to_string(),
-        )],
+        vec![
+            (
+                "Content-Type".to_string(),
+                "application/font-woff2".to_string(),
+            ),
+            ("Cache-Control".to_string(), "public".to_string()),
+        ],
         include_bytes!("../../src/frontend/assets/font-bold.woff2").to_vec(),
     );
 
     add_asset(
         &["/WHITEPAPER.md"],
-        vec![("Content-Type".to_string(), "text/markdown".to_string())],
+        vec![
+            ("Content-Type".to_string(), "text/markdown".to_string()),
+            ("Cache-Control".to_string(), "public".to_string()),
+        ],
         include_bytes!("../../src/frontend/assets/WHITEPAPER.md").to_vec(),
     );
 
