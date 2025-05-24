@@ -65,7 +65,7 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
                 "Content-Type".to_string(),
                 "image/vnd.microsoft.icon".to_string(),
             ),
-            ("Cache-Control".to_string(), "public".to_string()),
+            ("Cache-Control".to_string(), "immutable".to_string()),
         ],
         include_bytes!("../../src/frontend/assets/favicon.ico").to_vec(),
     );
@@ -74,7 +74,7 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
         &["/_/raw/apple-touch-icon.png"],
         vec![
             ("Content-Type".to_string(), "image/png".to_string()),
-            ("Cache-Control".to_string(), "public".to_string()),
+            ("Cache-Control".to_string(), "immutable".to_string()),
         ],
         include_bytes!("../../src/frontend/assets/apple-touch-icon.png").to_vec(),
     );
@@ -83,7 +83,7 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
         &["/_/raw/social-image.jpg"],
         vec![
             ("Content-Type".to_string(), "image/jpeg".to_string()),
-            ("Cache-Control".to_string(), "public".to_string()),
+            ("Cache-Control".to_string(), "immutable".to_string()),
         ],
         include_bytes!("../../src/frontend/assets/social-image.jpg").to_vec(),
     );
@@ -95,7 +95,7 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
                 "Content-Type".to_string(),
                 "application/font-woff2".to_string(),
             ),
-            ("Cache-Control".to_string(), "public".to_string()),
+            ("Cache-Control".to_string(), "immutable".to_string()),
         ],
         include_bytes!("../../src/frontend/assets/font-regular.woff2").to_vec(),
     );
@@ -107,17 +107,14 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
                 "Content-Type".to_string(),
                 "application/font-woff2".to_string(),
             ),
-            ("Cache-Control".to_string(), "public".to_string()),
+            ("Cache-Control".to_string(), "immutable".to_string()),
         ],
         include_bytes!("../../src/frontend/assets/font-bold.woff2").to_vec(),
     );
 
     add_asset(
         &["/WHITEPAPER.md"],
-        vec![
-            ("Content-Type".to_string(), "text/markdown".to_string()),
-            ("Cache-Control".to_string(), "public".to_string()),
-        ],
+        vec![("Content-Type".to_string(), "text/markdown".to_string())],
         include_bytes!("../../src/frontend/assets/WHITEPAPER.md").to_vec(),
     );
 

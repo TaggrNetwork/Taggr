@@ -165,9 +165,8 @@ fn http_request(req: HttpRequest) -> HttpResponse {
             } else {
                 HttpResponse {
                     status_code: 200,
-                    headers: Default::default(),
-                    body: Default::default(),
                     upgrade: Some(true),
+                    ..Default::default()
                 }
             }
         }
