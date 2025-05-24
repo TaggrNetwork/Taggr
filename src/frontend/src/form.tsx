@@ -636,9 +636,11 @@ export const Form = ({
                                                 setRealm(event.target.value)
                                             }
                                         >
-                                            <option value="">
-                                                {window.backendCache.config.name.toUpperCase()}
-                                            </option>
+                                            {!window.hideRealmless && (
+                                                <option value="">
+                                                    {window.backendCache.config.name.toUpperCase()}
+                                                </option>
+                                            )}
                                             {user.realms.map((name) => (
                                                 <option key={name} value={name}>
                                                     {name}
