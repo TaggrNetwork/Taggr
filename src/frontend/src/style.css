@@ -54,8 +54,13 @@ input[type="color"] {
     -webkit-user-select: text;
 }
 
-.popup_body {
+.popup_body,
+pre,
+code {
     overflow: hidden;
+}
+
+.popup_body {
     margin-top: 1em;
     padding: 1em;
     border-radius: 15px;

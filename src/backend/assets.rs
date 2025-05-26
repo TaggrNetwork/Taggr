@@ -25,10 +25,7 @@ fn assets<'a>() -> &'a mut HashMap<String, (Headers, Vec<u8>)> {
 
 pub static INDEX_HTML: &[u8] = include_bytes!("../../dist/frontend/index.html");
 pub fn index_html_headers() -> Headers {
-    vec![(
-        "Content-Type".to_string(),
-        "text/html; charset=UTF-8".to_string(),
-    )]
+    vec![("Content-Type".into(), "text/html; charset=UTF-8".into())]
 }
 
 pub fn load(domains: &HashMap<String, DomainConfig>) {
@@ -52,72 +49,87 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
     add_asset(
         &["/index.js"],
         vec![
-            ("Content-Type".to_string(), "text/javascript".to_string()),
-            ("Content-Encoding".to_string(), "gzip".to_string()),
+            ("Content-Type".into(), "text/javascript".into()),
+            ("Content-Encoding".into(), "gzip".into()),
         ],
         include_bytes!("../../dist/frontend/index.js.gz").to_vec(),
     );
 
     add_asset(
-        &["/favicon.ico"],
+        &["/dfinity.js"],
         vec![
-            (
-                "Content-Type".to_string(),
-                "image/vnd.microsoft.icon".to_string(),
-            ),
-            ("Cache-Control".to_string(), "public".to_string()),
+            ("Content-Type".into(), "text/javascript".into()),
+            ("Content-Encoding".into(), "gzip".into()),
         ],
+        include_bytes!("../../dist/frontend/dfinity.js.gz").to_vec(),
+    );
+
+    add_asset(
+        &["/react.js"],
+        vec![
+            ("Content-Type".into(), "text/javascript".into()),
+            ("Content-Encoding".into(), "gzip".into()),
+        ],
+        include_bytes!("../../dist/frontend/react.js.gz").to_vec(),
+    );
+
+    add_asset(
+        &["/vendors.js"],
+        vec![
+            ("Content-Type".into(), "text/javascript".into()),
+            ("Content-Encoding".into(), "gzip".into()),
+        ],
+        include_bytes!("../../dist/frontend/vendors.js.gz").to_vec(),
+    );
+
+    add_asset(
+        &["/app-components.js"],
+        vec![
+            ("Content-Type".into(), "text/javascript".into()),
+            ("Content-Encoding".into(), "gzip".into()),
+        ],
+        include_bytes!("../../dist/frontend/app-components.js.gz").to_vec(),
+    );
+
+    add_asset(
+        &["/favicon.ico"],
+        vec![("Content-Type".into(), "image/vnd.microsoft.icon".into())],
         include_bytes!("../../src/frontend/assets/favicon.ico").to_vec(),
     );
 
     add_asset(
         &["/_/raw/apple-touch-icon.png"],
-        vec![
-            ("Content-Type".to_string(), "image/png".to_string()),
-            ("Cache-Control".to_string(), "public".to_string()),
-        ],
+        vec![("Content-Type".into(), "image/png".into())],
         include_bytes!("../../src/frontend/assets/apple-touch-icon.png").to_vec(),
     );
 
     add_asset(
         &["/_/raw/social-image.jpg"],
-        vec![
-            ("Content-Type".to_string(), "image/jpeg".to_string()),
-            ("Cache-Control".to_string(), "public".to_string()),
-        ],
+        vec![("Content-Type".into(), "image/jpeg".into())],
         include_bytes!("../../src/frontend/assets/social-image.jpg").to_vec(),
     );
 
     add_asset(
         &["/font-regular.woff2"],
-        vec![(
-            "Content-Type".to_string(),
-            "application/font-woff2".to_string(),
-        )],
+        vec![("Content-Type".into(), "application/font-woff2".into())],
         include_bytes!("../../src/frontend/assets/font-regular.woff2").to_vec(),
     );
 
     add_asset(
         &["/font-bold.woff2"],
-        vec![(
-            "Content-Type".to_string(),
-            "application/font-woff2".to_string(),
-        )],
+        vec![("Content-Type".into(), "application/font-woff2".into())],
         include_bytes!("../../src/frontend/assets/font-bold.woff2").to_vec(),
     );
 
     add_asset(
         &["/WHITEPAPER.md"],
-        vec![("Content-Type".to_string(), "text/markdown".to_string())],
+        vec![("Content-Type".into(), "text/markdown".into())],
         include_bytes!("../../src/frontend/assets/WHITEPAPER.md").to_vec(),
     );
 
     add_asset(
         &["/.well-known/ii-alternative-origins"],
-        vec![
-            ("Content-Type".to_string(), "application/json".to_string()),
-            ("Cache-Control".to_string(), "public".to_string()),
-        ],
+        vec![("Content-Type".into(), "application/json".into())],
         format!(
             "{{\"alternativeOrigins\": [ {} ]}}",
             domains
@@ -191,7 +203,7 @@ pub fn export_token_supply(total_supply: u128) {
     ] {
         add_asset(
             &[format!("/api/v1/{}", path).as_str()],
-            vec![("Content-Type".to_string(), "application/json".to_string())],
+            vec![("Content-Type".into(), "application/json".into())],
             format!("{}", *tokens as f64 / token::base() as f64)
                 .as_bytes()
                 .to_vec(),
@@ -209,7 +221,7 @@ fn certificate_header(path: &str) -> (String, String) {
     use serde::Serialize;
     tree.serialize(&mut serializer).expect("couldn't serialize");
     (
-        "IC-Certificate".to_string(),
+        "IC-Certificate".into(),
         format!(
             "certificate=:{}:, tree=:{}:",
             general_purpose::STANDARD.encode(certificate),

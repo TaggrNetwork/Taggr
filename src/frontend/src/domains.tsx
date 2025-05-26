@@ -114,6 +114,7 @@ const DomainForm = ({
     const [blacklist, setBlacklist] = React.useState<string>(
         initCfg.realm_blacklist.join("\n"),
     );
+    const [instructions, showInstructions] = React.useState(false);
     const extractRealmIds = (value: string) =>
         value.trim().toUpperCase().split("\n").filter(Boolean);
     const blUsed = extractRealmIds(blacklist).length > 0;
@@ -136,7 +137,16 @@ const DomainForm = ({
                 onChange={(event) => setBlacklist(event.target.value)}
                 rows={4}
             ></textarea>
+            {instructions && <DomainInstructions domain={domain} />}
             <div className="row_container">
+                {!instructions && (
+                    <button
+                        className="max_width_col"
+                        onClick={() => showInstructions(true)}
+                    >
+                        SHOW INSTRUCTIONS
+                    </button>
+                )}
                 <ButtonWithLoading
                     classNameArg="max_width_col"
                     label="REMOVE"
@@ -196,15 +206,6 @@ const NewDomainForm = ({ callback }: { callback: () => void }) => {
                 <ButtonWithLoading
                     classNameArg="active"
                     onClick={async () => {
-                        const parts = domain.split(".");
-                        if (
-                            parts.length != 2 ||
-                            parts[0].length == 0 ||
-                            parts[1].length == 0
-                        ) {
-                            showPopUp("error", "Domain name invalid");
-                            return;
-                        }
                         const response = await window.api.call<any>(
                             "set_domain_config",
                             domain,
@@ -224,52 +225,48 @@ const NewDomainForm = ({ callback }: { callback: () => void }) => {
                     label={"ADD"}
                 />
             )}
-            {domainAdded && (
-                <div className="selectable">
-                    <h2>Set up instructions</h2>
-                    <ol>
-                        <li>
-                            Copy these instructions and save them in case you
-                            need them later again.
-                        </li>
-                        <li>
-                            Configure the DNS settings of your domain and add
-                            the following records:
-                        </li>
-                        <ol>
-                            <li>
-                                Add a <code>ANAME</code> or <code>ALIAS</code>{" "}
-                                record with value{" "}
-                                <code>{`${domain}.icp1.io`}</code>. If your
-                                registrar does not support these record types,
-                                ping the <code>icp1.io</code> domain and add a{" "}
-                                <code>A</code> record with name <code>@</code>{" "}
-                                and the IP address you observed in the ping
-                                output.
-                            </li>
-                            <li>
-                                Add a <code>TXT</code> record with name{" "}
-                                <code>_canister-id</code> and value{" "}
-                                <code>
-                                    {window.backendCache.stats.canister_id}
-                                </code>
-                                .
-                            </li>
-                            <li>
-                                Add a <code>CNAME</code> record with name{" "}
-                                <code>_acme-challenge</code> and value{" "}
-                                <code>_acme-challenge.{domain}.icp2.io</code>.
-                            </li>
-                        </ol>
-                        <li>
-                            Wait about 10 minutes until the changes propagate
-                            through the Internet.
-                        </li>
-                        <li>
-                            Execute this command in the terminal:
-                            <code>
-                                <pre>
-                                    {`curl -sL -X POST \\
+            {domainAdded && <DomainInstructions domain={domain} />}
+        </div>
+    );
+};
+
+const DomainInstructions = ({ domain }: { domain: string }) => (
+    <div className="selectable bottom_spaced">
+        <h2>Set up instructions</h2>
+        <ol>
+            <li>
+                Configure the DNS settings of your domain and add the following
+                records:
+            </li>
+            <ol>
+                <li>
+                    Add a <code>ANAME</code> or <code>ALIAS</code> record with
+                    value <code>{`${domain}.icp1.io`}</code>. If your registrar
+                    does not support these record types, ping the{" "}
+                    <code>icp1.io</code> domain and add a <code>A</code> record
+                    with name <code>@</code> and the IP address you observed in
+                    the ping output.
+                </li>
+                <li>
+                    Add a <code>TXT</code> record with name{" "}
+                    <code>_canister-id</code> and value{" "}
+                    <code>{window.backendCache.stats.canister_id}</code>.
+                </li>
+                <li>
+                    Add a <code>CNAME</code> record with name{" "}
+                    <code>_acme-challenge</code> and value{" "}
+                    <code>_acme-challenge.{domain}.icp2.io</code>.
+                </li>
+            </ol>
+            <li>
+                Wait about 10 minutes until the changes propagate through the
+                Internet.
+            </li>
+            <li>
+                Execute this command in the terminal:
+                <code>
+                    <pre>
+                        {`curl -sL -X POST \\
     -H 'Content-Type: application/json' \\
     https://icp0.io/registrations \\
     --data @- <<EOF
@@ -277,37 +274,32 @@ const NewDomainForm = ({ callback }: { callback: () => void }) => {
       "name": "${domain}"
     }
 EOF`}
-                                </pre>
-                            </code>
-                        </li>
-                        <li>
-                            If the call was successful, you will get a JSON
-                            response that contains the request ID in the body,
-                            which you can use to query the status of your
-                            registration request:
-                            <code>
-                                <pre>{`{"id":"REQUEST_ID"}`}</pre>
-                            </code>
-                        </li>
-                        <li>
-                            Track the progress of your registration request by
-                            issuing the following command and replacing
-                            REQUEST_ID with the ID you received in the previous
-                            step.
-                            <code>
-                                <pre>{`curl -sL -X GET https://icp0.io/registrations/REQUEST_ID`}</pre>
-                            </code>
-                        </li>
-                        <li>
-                            For more details, consult the{" "}
-                            <a href="https://internetcomputer.org/docs/building-apps/frontends/custom-domains/using-custom-domains">
-                                official documentation
-                            </a>
-                            .
-                        </li>
-                    </ol>
-                </div>
-            )}
-        </div>
-    );
-};
+                    </pre>
+                </code>
+            </li>
+            <li>
+                If the call was successful, you will get a JSON response that
+                contains the request ID in the body, which you can use to query
+                the status of your registration request:
+                <code>
+                    <pre>{`{"id":"REQUEST_ID"}`}</pre>
+                </code>
+            </li>
+            <li>
+                Track the progress of your registration request by issuing the
+                following command and replacing REQUEST_ID with the ID you
+                received in the previous step.
+                <code>
+                    <pre>{`curl -sL -X GET https://icp0.io/registrations/REQUEST_ID`}</pre>
+                </code>
+            </li>
+            <li>
+                For more details, consult the{" "}
+                <a href="https://internetcomputer.org/docs/building-apps/frontends/custom-domains/using-custom-domains">
+                    official documentation
+                </a>
+                .
+            </li>
+        </ol>
+    </div>
+);

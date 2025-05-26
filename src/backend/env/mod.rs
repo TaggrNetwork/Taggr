@@ -2708,6 +2708,14 @@ impl State {
     ) -> Result<(), String> {
         let caller = self.principal_to_user(principal).ok_or("no user found")?;
         let caller_id = caller.id;
+
+        if domain.len() > 40
+            || !domain.contains(".")
+            || domain.split(".").any(|part| part.is_empty())
+        {
+            return Err("invaild domain".into());
+        }
+
         if ["remove", "update"].contains(&command.as_str()) {
             let current_cfg = self.domains.get(&domain).ok_or("no domain found")?;
 
