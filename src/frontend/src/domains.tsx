@@ -196,15 +196,6 @@ const NewDomainForm = ({ callback }: { callback: () => void }) => {
                 <ButtonWithLoading
                     classNameArg="active"
                     onClick={async () => {
-                        const parts = domain.split(".");
-                        if (
-                            parts.length != 2 ||
-                            parts[0].length == 0 ||
-                            parts[1].length == 0
-                        ) {
-                            showPopUp("error", "Domain name invalid");
-                            return;
-                        }
                         const response = await window.api.call<any>(
                             "set_domain_config",
                             domain,
