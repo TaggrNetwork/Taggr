@@ -37,6 +37,11 @@ export const getDefaultRealm = (cfg: DomainConfig) => {
     return cfg.sub_config.WhiteListedRealms[0];
 };
 
+export const getJournal = (cfg: DomainConfig) => {
+    if (!("Journal" in cfg.sub_config)) return null;
+    return cfg.sub_config.Journal;
+};
+
 export type PFP = {
     nonce: number;
     palette_nonce: number;

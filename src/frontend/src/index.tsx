@@ -39,6 +39,7 @@ import {
     DomainConfig,
     getMonoRealm,
     getDefaultRealm,
+    getJournal,
 } from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
@@ -105,14 +106,19 @@ const App = () => {
     window.lastActivity = new Date();
     const auth = (content: React.ReactNode) =>
         window.principalId ? content : <Unauthorized />;
-    const [handler = "", param, param2] = parseHash();
+    let [handler = "", param, param2] = parseHash();
 
     let subtle = false;
     let inboxMode = false;
     let content = null;
 
+    const journal = getJournal(window.backendCache.domainConfig);
+    if (!handler && journal != null) {
+        handler = "journal";
+        param = journal.toString();
+    }
     // If we're in a realm, but navigate outside of realm routes, reset the UI.
-    if (
+    else if (
         currentRealm() &&
         !window.hideRealmless &&
         ["#/realm/", "#/feed", "#/post/", "#/thread", "#/new"].every(
@@ -290,7 +296,11 @@ const reloadCache = async () => {
     const domainCfg = window.backendCache.domainConfig;
     window.monoRealm = getMonoRealm(domainCfg);
     window.defaultRealm = getDefaultRealm(domainCfg);
-    window.hideRealmless = !!(window.monoRealm || window.defaultRealm);
+    window.hideRealmless = !!(
+        window.monoRealm ||
+        window.defaultRealm ||
+        getJournal(domainCfg)
+    );
     const last_upgrade = window.backendCache.stats?.last_release?.timestamp;
     if (!last_upgrade) return;
     else if (window.lastSavedUpgrade == 0) {
