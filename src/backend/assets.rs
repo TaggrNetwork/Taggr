@@ -1,6 +1,6 @@
 use crate::{
     config::CONFIG,
-    env::{token, DomainConfig},
+    env::{domains::DomainConfig, token},
     id,
     metadata::set_index_metadata,
 };

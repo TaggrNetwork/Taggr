@@ -16,6 +16,7 @@ use crate::{assets, id, mutate, read, time};
 use candid::CandidType;
 use candid::Principal;
 use config::CONFIG;
+use domains::{available_realms, domain_realm_post_filter, DomainConfig, DomainSubConfig};
 use ic_cdk::api::management_canister::main::raw_rand;
 use ic_cdk::api::performance_counter;
 use ic_cdk::api::stable::stable_size;
@@ -38,6 +39,7 @@ pub mod bitcoin;
 pub mod canisters;
 pub mod config;
 pub mod delegations;
+pub mod domains;
 pub mod features;
 pub mod invite;
 pub mod invoices;
@@ -76,14 +78,6 @@ pub struct Event {
     pub timestamp: u64,
     pub level: String,
     pub message: String,
-}
-
-#[derive(Default, Clone, Deserialize, Serialize)]
-pub struct DomainConfig {
-    // If a domain config has no owner, it is managed by the DAO
-    pub owner: Option<UserId>,
-    pub realm_whitelist: HashSet<RealmId>,
-    pub realm_blacklist: HashSet<RealmId>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -211,7 +205,6 @@ pub struct State {
 
     pub pfps: HashSet<String>,
 
-    #[serde(default)]
     pub domains: HashMap<String, DomainConfig>,
 
     // This runtime flag has to be set in order to mint new tokens.
@@ -2146,46 +2139,6 @@ impl State {
         Ok(())
     }
 
-    /// Creates a post filter based on the current domain and selected realm.
-    /// If domain is inavlid no filter is returned.
-    #[allow(clippy::type_complexity)]
-    pub fn domain_realm_post_filter(
-        &self,
-        domain: &String,
-        realm_id: Option<&RealmId>,
-    ) -> Option<Box<dyn Fn(&Post) -> bool>> {
-        let cfg = self.domains.get(domain)?;
-
-        match realm_id {
-            Some(id) => {
-                let wl = &cfg.realm_whitelist;
-                let bl = &cfg.realm_blacklist;
-                // If the realm is specified, but is on a black list or is not on a non-empty
-                // white-list, we have no filter.
-                if bl.contains(id.as_str()) || !wl.is_empty() && !wl.contains(id.as_str()) {
-                    return None;
-                }
-                let id = id.clone();
-                // The realm is ok for the given domain, simply filter post by realm id.
-                Some(Box::new(move |p: &Post| p.realm.as_ref() == Some(&id)))
-            }
-            None => {
-                let wl = cfg.realm_whitelist.clone();
-                let bl = cfg.realm_blacklist.clone();
-                // If the realm id was not provided, we can only return posts, that are:
-                // - are realm-less, if the domain has a empty whitelist,
-                // - are not in a realm that's black-listed for this domain,
-                // - are in a realm and this realm is white-listed for this domain
-                return Some(Box::new(move |p: &Post| {
-                    p.realm
-                        .as_ref()
-                        .map(|id| wl.contains(id) || wl.is_empty() && !bl.contains(id))
-                        .unwrap_or(wl.is_empty())
-                }));
-            }
-        }
-    }
-
     pub fn posts_by_tags_and_users<'a>(
         &'a self,
         domain: &String,
@@ -2194,7 +2147,7 @@ impl State {
         tags_and_users: &'a [String],
         with_comments: bool,
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
-        let Some(domain_filter) = self.domain_realm_post_filter(domain, realm_id.as_ref()) else {
+        let Some(domain_filter) = domain_realm_post_filter(self, domain, realm_id.as_ref()) else {
             return Box::new(std::iter::empty());
         };
 
@@ -2273,9 +2226,7 @@ impl State {
         // Realm specified.
         if let Some(realm_id) = realm_id {
             // If the specified realm does not satisfy the domain config, we have no data.
-            if cfg.realm_blacklist.contains(realm_id)
-                || !cfg.realm_whitelist.is_empty() && !cfg.realm_whitelist.contains(realm_id)
-            {
+            if !cfg.realm_visible(realm_id) {
                 return Box::new(std::iter::empty());
             };
 
@@ -2293,7 +2244,7 @@ impl State {
         }
 
         // If realm is not set, we need a domain-specific filter.
-        let Some(domain_filter) = self.domain_realm_post_filter(&domain, None) else {
+        let Some(domain_filter) = domain_realm_post_filter(self, &domain, None) else {
             return Box::new(std::iter::empty());
         };
 
@@ -2312,10 +2263,10 @@ impl State {
             ));
         }
 
-        // If we only iterate over root posts and the domain config has no white list, accept all
-        // posts except those with black-listed realms.
-        if cfg.realm_whitelist.is_empty() {
-            return post_filter(Box::new(
+        match &cfg.sub_config {
+            // If we only iterate over root posts and the domain config has no white list, accept all
+            // posts except those with black-listed realms.
+            DomainSubConfig::BlackListedRealms(list) => post_filter(Box::new(
                 self.root_posts_index
                     .iter()
                     .rev()
@@ -2325,33 +2276,42 @@ impl State {
                     .filter(move |p| {
                         p.realm
                             .as_ref()
-                            .map(|realm_id| !cfg.realm_blacklist.contains(realm_id))
+                            .map(|realm_id| !list.contains(realm_id))
                             .unwrap_or(true)
                     }),
-            ));
+            )),
+            // If the domain config specifies a whitelist return a merger iterator over these realms.
+            DomainSubConfig::WhiteListedRealms(list) => {
+                let iterators: Vec<Box<dyn Iterator<Item = &'a PostId>>> = list
+                    .iter()
+                    .filter_map(move |id| self.realms.get(id))
+                    .map(|realm| {
+                        Box::new(
+                            realm
+                                .posts
+                                .iter()
+                                .rev()
+                                .skip_while(move |post_id| offset > 0 && post_id > &&offset),
+                        ) as Box<dyn Iterator<Item = &'a PostId>>
+                    })
+                    .collect();
+
+                post_filter(Box::new(
+                    IteratorMerger::new(MergeStrategy::Or, iterators)
+                        .copied()
+                        .filter_map(move |i| Post::get(self, &i)),
+                ))
+            }
+            // In journal mode we simply show all user's posts
+            DomainSubConfig::Journal(user_id) => {
+                Box::new(self.users.get(user_id).expect("no user found").posts(
+                    Some(&domain),
+                    self,
+                    offset,
+                    with_comments,
+                ))
+            }
         }
-
-        // If the domain config specifies a whitelist return a merger iterator over these realms.
-        let iterators: Vec<Box<dyn Iterator<Item = &'a PostId>>> = cfg
-            .realm_whitelist
-            .iter()
-            .filter_map(move |id| self.realms.get(id))
-            .map(|realm| {
-                Box::new(
-                    realm
-                        .posts
-                        .iter()
-                        .rev()
-                        .skip_while(move |post_id| offset > 0 && post_id > &&offset),
-                ) as Box<dyn Iterator<Item = &'a PostId>>
-            })
-            .collect();
-
-        post_filter(Box::new(
-            IteratorMerger::new(MergeStrategy::Or, iterators)
-                .copied()
-                .filter_map(move |i| Post::get(self, &i)),
-        ))
     }
 
     pub fn recent_tags(
@@ -2708,76 +2668,6 @@ impl State {
             reports::finalize_report(self, &report, &domain, penalty, user_id, subject)
         } else {
             Ok(())
-        }
-    }
-
-    pub fn change_domain_config(
-        &mut self,
-        principal: Principal,
-        domain: String,
-        mut cfg: DomainConfig,
-        command: String,
-    ) -> Result<(), String> {
-        let caller = self.principal_to_user(principal).ok_or("user not found")?;
-        let caller_id = caller.id;
-
-        if domain.len() > 40
-            || !domain.contains(".")
-            || domain.split(".").any(|part| part.is_empty())
-        {
-            return Err("invaild domain".into());
-        }
-
-        if ["remove", "update"].contains(&command.as_str()) {
-            let current_cfg = self.domains.get(&domain).ok_or("no domain found")?;
-
-            if current_cfg.owner != Some(caller_id) {
-                return Err("not authorized".into());
-            }
-        }
-
-        let max_realm_number = 15;
-
-        if cfg.realm_whitelist.len() > max_realm_number {
-            return Err("whitelist too long".into());
-        }
-
-        if cfg.realm_blacklist.len() > max_realm_number {
-            return Err("blacklist too long".into());
-        }
-
-        // Black and white lists are mutually exclusive.
-        if !cfg.realm_whitelist.is_empty() {
-            cfg.realm_blacklist.clear();
-        }
-
-        match command.as_str() {
-            "insert" => {
-                if self.domains.contains_key(&domain) {
-                    return Err("domain exists".into());
-                }
-
-                self.principal_to_user_mut(principal)
-                    .ok_or("user not found")?
-                    .change_credits(
-                        CONFIG.domain_cost,
-                        CreditsDelta::Minus,
-                        "domain config creation",
-                    )?;
-
-                cfg.owner = Some(caller_id);
-                self.domains.insert(domain, cfg);
-                Ok(())
-            }
-            "remove" => {
-                self.domains.remove(&domain);
-                Ok(())
-            }
-            "update" => {
-                self.domains.insert(domain, cfg);
-                Ok(())
-            }
-            _ => Err("invalid command".into()),
         }
     }
 
@@ -3172,30 +3062,6 @@ impl State {
         Ok(())
     }
 
-    /// Returns realms available under the current domain:
-    ///  - if a whitelist is specified, it return only realms from this list,
-    ///  - if a blacklist is specified, returns all realms not on that list.
-    ///
-    /// If no config found, returns all domains.
-    pub fn available_realms(&self, domain: String) -> Box<dyn Iterator<Item = &'_ RealmId> + '_> {
-        let Some(config) = self.domains.get(&domain) else {
-            return Box::new(std::iter::empty());
-        };
-        let wl = &config.realm_whitelist;
-        let bl = &config.realm_blacklist;
-        let iter = self.realms.iter();
-        return Box::new(
-            iter.filter(move |(realm_id, _)| {
-                if wl.is_empty() {
-                    !bl.contains(realm_id.as_str())
-                } else {
-                    wl.contains(realm_id.as_str())
-                }
-            })
-            .map(|(id, _)| id),
-        );
-    }
-
     /// Returns the list of all available realms to be displayed on the UI, depending on the
     /// sorting criteria.
     pub fn sorted_realms(
@@ -3215,8 +3081,7 @@ impl State {
                 });
                 acc
             });
-        let mut realms = self
-            .available_realms(domain)
+        let mut realms = available_realms(self, domain)
             .filter_map(|realm_id| self.realms.get(realm_id).map(|realm| (realm_id, realm)))
             .collect::<Vec<_>>();
         if order != "name" {
@@ -3281,7 +3146,7 @@ pub(crate) mod tests {
         Principal::from_slice(&n.to_be_bytes())
     }
 
-    fn create_realm(state: &mut State, user: Principal, name: String) -> Result<(), String> {
+    pub fn create_realm(state: &mut State, user: Principal, name: String) -> Result<(), String> {
         let realm = Realm {
             description: "Test description".into(),
             controllers: vec![0].into_iter().collect(),
@@ -3318,378 +3183,6 @@ pub(crate) mod tests {
         state
             .new_user(p, 0, name.to_string(), Some(credits))
             .unwrap()
-    }
-
-    #[test]
-    fn test_change_domain_config() {
-        mutate(|state| {
-            state.init();
-
-            // Create test users
-            let owner_principal = pr(1);
-            let owner_id = create_user_with_credits(state, owner_principal, 2000);
-
-            let non_owner_principal = pr(2);
-            let _ = create_user_with_credits(state, non_owner_principal, 2000);
-
-            // Create test realms for whitelist/blacklist testing
-            for i in 1..=20 {
-                let realm_id = format!("REALM{}", i);
-                state.realms.insert(realm_id, Realm::default());
-            }
-
-            // TEST CASE 1: Insert new domain config
-            let mut config = DomainConfig {
-                owner: Some(owner_id),
-                ..Default::default()
-            };
-            config.realm_whitelist.insert("REALM1".to_string());
-            config.realm_whitelist.insert("REALM2".to_string());
-
-            // Test: Insert with insufficient credits
-            let user = state.principal_to_user_mut(owner_principal).unwrap();
-            user.change_credits(2000 - CONFIG.domain_cost + 1, CreditsDelta::Minus, "test")
-                .unwrap();
-
-            assert_eq!(
-                state.change_domain_config(
-                    owner_principal,
-                    "test.domain".to_string(),
-                    config.clone(),
-                    "insert".to_string()
-                ),
-                Err("not enough credits (required: 1000)".into())
-            );
-
-            // Restore credits
-            let user = state.principal_to_user_mut(owner_principal).unwrap();
-            user.change_credits(2 * CONFIG.domain_cost, CreditsDelta::Plus, "test")
-                .unwrap();
-
-            // Test: Insert with valid parameters
-            assert_eq!(
-                state.change_domain_config(
-                    owner_principal,
-                    "test.domain".to_string(),
-                    config.clone(),
-                    "insert".to_string()
-                ),
-                Ok(())
-            );
-
-            assert_eq!(
-                state.change_domain_config(
-                    owner_principal,
-                    "test.domain".to_string(),
-                    config.clone(),
-                    "insert".to_string()
-                ),
-                Err("domain exists".into())
-            );
-
-            // Verify domain was added
-            assert!(state.domains.contains_key("test.domain"));
-            let stored_config = state.domains.get("test.domain").unwrap();
-            assert_eq!(stored_config.owner, Some(owner_id));
-            assert_eq!(stored_config.realm_whitelist.len(), 2);
-            assert!(stored_config.realm_whitelist.contains("REALM1"));
-            assert!(stored_config.realm_whitelist.contains("REALM2"));
-
-            // TEST CASE 2: Update domain config
-            let mut updated_config = DomainConfig {
-                owner: Some(owner_id),
-                ..Default::default()
-            };
-            updated_config.realm_whitelist.insert("REALM3".to_string());
-
-            // Test: Update by non-owner
-            assert_eq!(
-                state.change_domain_config(
-                    non_owner_principal,
-                    "test.domain".to_string(),
-                    updated_config.clone(),
-                    "update".to_string()
-                ),
-                Err("not authorized".into())
-            );
-
-            // Test: Update by owner
-            assert_eq!(
-                state.change_domain_config(
-                    owner_principal,
-                    "test.domain".to_string(),
-                    updated_config.clone(),
-                    "update".to_string()
-                ),
-                Ok(())
-            );
-
-            // Verify domain was updated
-            let stored_config = state.domains.get("test.domain").unwrap();
-            assert_eq!(stored_config.realm_whitelist.len(), 1);
-            assert!(stored_config.realm_whitelist.contains("REALM3"));
-
-            // TEST CASE 3: Whitelist/blacklist limits
-            let mut oversized_config = DomainConfig {
-                owner: Some(owner_id),
-                ..Default::default()
-            };
-
-            // Add more than 15 realms to whitelist
-            for i in 1..=16 {
-                oversized_config
-                    .realm_whitelist
-                    .insert(format!("REALM{}", i));
-            }
-
-            // Test: Insert with oversized whitelist
-            assert_eq!(
-                state.change_domain_config(
-                    owner_principal,
-                    "oversized.domain".to_string(),
-                    oversized_config.clone(),
-                    "insert".to_string()
-                ),
-                Err("whitelist too long".into())
-            );
-
-            // Reset whitelist and create oversized blacklist
-            oversized_config.realm_whitelist.clear();
-            for i in 1..=16 {
-                oversized_config
-                    .realm_blacklist
-                    .insert(format!("REALM{}", i));
-            }
-
-            // Test: Insert with oversized blacklist
-            assert_eq!(
-                state.change_domain_config(
-                    owner_principal,
-                    "oversized.domain".to_string(),
-                    oversized_config.clone(),
-                    "insert".to_string()
-                ),
-                Err("blacklist too long".into())
-            );
-
-            // TEST CASE 4: Remove domain config
-            // Test: Remove by non-owner
-            assert_eq!(
-                state.change_domain_config(
-                    non_owner_principal,
-                    "test.domain".to_string(),
-                    DomainConfig::default(),
-                    "remove".to_string()
-                ),
-                Err("not authorized".into())
-            );
-
-            // Test: Remove by owner
-            assert_eq!(
-                state.change_domain_config(
-                    owner_principal,
-                    "test.domain".to_string(),
-                    DomainConfig::default(),
-                    "remove".to_string()
-                ),
-                Ok(())
-            );
-
-            // Verify domain was removed
-            assert!(!state.domains.contains_key("test.domain"));
-
-            // TEST CASE 5: Invalid command
-            assert_eq!(
-                state.change_domain_config(
-                    owner_principal,
-                    "test.domain".to_string(),
-                    DomainConfig::default(),
-                    "invalid".to_string()
-                ),
-                Err("invalid command".into())
-            );
-
-            // TEST CASE 6: Non-existent domain
-            assert_eq!(
-                state.change_domain_config(
-                    owner_principal,
-                    "nonexistent.domain".to_string(),
-                    DomainConfig::default(),
-                    "update".to_string()
-                ),
-                Err("no domain found".into())
-            );
-
-            // TEST CASE 7: Whitelist and blacklist mutual exclusivity
-            let mut mixed_config = DomainConfig {
-                owner: Some(owner_id),
-                ..Default::default()
-            };
-            mixed_config.realm_whitelist.insert("REALM1".to_string());
-            mixed_config.realm_blacklist.insert("REALM2".to_string());
-
-            // Test: Insert with both whitelist and blacklist
-            let user = state.principal_to_user_mut(owner_principal).unwrap();
-            user.change_credits(CONFIG.domain_cost, CreditsDelta::Plus, "test")
-                .unwrap();
-            let result = state.change_domain_config(
-                owner_principal,
-                "mixed.domain".to_string(),
-                mixed_config.clone(),
-                "insert".to_string(),
-            );
-            assert!(result.is_ok());
-
-            // Verify blacklist was cleared due to whitelist presence
-            let stored_config = state.domains.get("mixed.domain").unwrap();
-            assert_eq!(stored_config.realm_whitelist.len(), 1);
-            assert!(stored_config.realm_whitelist.contains("REALM1"));
-            assert_eq!(stored_config.realm_blacklist.len(), 0);
-        });
-    }
-
-    #[test]
-    fn test_domain_realm_post_filter() {
-        mutate(|state| {
-            state.init();
-
-            state.realms.insert("REALM1".into(), Realm::default());
-            state.realms.insert("REALM2".into(), Realm::default());
-            state.realms.insert("REALM3".into(), Realm::default());
-
-            let p = pr(0);
-            create_user(state, p);
-            state.toggle_realm_membership(p, "REALM1".to_string());
-            state.toggle_realm_membership(p, "REALM2".to_string());
-            state.toggle_realm_membership(p, "REALM3".to_string());
-
-            // Create test domains with different configurations
-            let mut whitelist_config = DomainConfig::default();
-            whitelist_config
-                .realm_whitelist
-                .insert("REALM1".to_string());
-            whitelist_config
-                .realm_whitelist
-                .insert("REALM2".to_string());
-            state
-                .domains
-                .insert("whitelist_domain".to_string(), whitelist_config);
-
-            let mut blacklist_config = DomainConfig::default();
-            blacklist_config
-                .realm_blacklist
-                .insert("REALM3".to_string());
-            state
-                .domains
-                .insert("blacklist_domain".to_string(), blacklist_config);
-
-            // Empty config (both blacklist and whitelist are empty)
-            let empty_config = DomainConfig::default();
-            state
-                .domains
-                .insert("empty_config_domain".to_string(), empty_config);
-
-            // Create test posts with different realms
-            let mut post_ids = vec![];
-            for i in 1..=3 {
-                post_ids.push(
-                    Post::create(
-                        state,
-                        "post".to_string(),
-                        &[],
-                        p,
-                        0,
-                        None,
-                        Some(format!("REALM{}", i)),
-                        None,
-                    )
-                    .unwrap(),
-                );
-            }
-            let no_realm_id =
-                Post::create(state, "post".to_string(), &[], p, 0, None, None, None).unwrap();
-
-            let post_realm3 = Post::get(state, &post_ids.pop().unwrap()).unwrap();
-            let post_realm2 = Post::get(state, &post_ids.pop().unwrap()).unwrap();
-            let post_realm1 = Post::get(state, &post_ids.pop().unwrap()).unwrap();
-
-            let post_no_realm = Post::get(state, &no_realm_id).unwrap();
-
-            // Test whitelist domain with specific realm
-            if let Some(filter) = state.domain_realm_post_filter(
-                &"whitelist_domain".to_string(),
-                Some(&"REALM1".to_string()),
-            ) {
-                assert!(filter(post_realm1));
-                assert!(!filter(post_realm2));
-                assert!(!filter(post_realm3));
-                assert!(!filter(post_no_realm));
-            } else {
-                panic!("Filter should be Some");
-            }
-
-            // Test whitelist domain with no specific realm
-            if let Some(filter) =
-                state.domain_realm_post_filter(&"whitelist_domain".to_string(), None)
-            {
-                assert!(filter(post_realm1));
-                assert!(filter(post_realm2));
-                assert!(!filter(post_realm3));
-                assert!(!filter(post_no_realm));
-            } else {
-                panic!("Filter should be Some");
-            }
-
-            // Test blacklist domain with specific realm
-            if let Some(filter) = state.domain_realm_post_filter(
-                &"blacklist_domain".to_string(),
-                Some(&"REALM1".to_string()),
-            ) {
-                assert!(filter(post_realm1));
-                assert!(!filter(post_realm3));
-            } else {
-                panic!("Filter should be Some");
-            }
-
-            // Test blacklist domain with no specific realm
-            if let Some(filter) =
-                state.domain_realm_post_filter(&"blacklist_domain".to_string(), None)
-            {
-                assert!(filter(post_realm1));
-                assert!(filter(post_realm2));
-                assert!(!filter(post_realm3));
-                assert!(filter(post_no_realm));
-            } else {
-                panic!("Filter should be Some");
-            }
-
-            // Test empty config domain with specific realm
-            if let Some(filter) = state.domain_realm_post_filter(
-                &"empty_config_domain".to_string(),
-                Some(&"REALM1".to_string()),
-            ) {
-                assert!(filter(post_realm1));
-                assert!(!filter(post_realm2));
-            } else {
-                panic!("Filter should be Some");
-            }
-
-            // Test empty config domain with no specific realm
-            if let Some(filter) =
-                state.domain_realm_post_filter(&"empty_config_domain".to_string(), None)
-            {
-                assert!(filter(post_realm1));
-                assert!(filter(post_realm2));
-                assert!(filter(post_realm3));
-                assert!(filter(post_no_realm)); // Posts with no realm should pass with empty config
-            } else {
-                panic!("Filter should be Some");
-            }
-
-            // Test non-existent domain
-            let filter = state.domain_realm_post_filter(&"nonexistent_domain".to_string(), None);
-            assert!(filter.is_none());
-        });
     }
 
     #[test]
@@ -4970,93 +4463,6 @@ pub(crate) mod tests {
                     .unwrap();
                 assert!(post_visible(state));
             }
-        });
-    }
-
-    #[test]
-    fn test_personal_feed_with_blacklisted_domain() {
-        mutate(|state| {
-            state.init();
-
-            // create a post author and one post for its principal
-            let p = pr(0);
-            let user_id = create_user(state, p);
-            state
-                .principal_to_user_mut(p)
-                .unwrap()
-                .change_credits(2000, CreditsDelta::Plus, "")
-                .unwrap();
-
-            let realm_id = "DEMO".to_string();
-            create_realm(state, p, realm_id.clone()).unwrap();
-
-            let mut cfg = DomainConfig::default();
-            cfg.realm_blacklist.insert(realm_id.clone());
-            state.domains.insert("nodemo".into(), cfg);
-
-            let mut cfg = DomainConfig::default();
-            cfg.realm_whitelist.insert(realm_id.clone());
-            state.domains.insert("demo".into(), cfg);
-
-            // Join realm DEMO
-            assert!(!state
-                .principal_to_user(p)
-                .unwrap()
-                .realms
-                .contains(&realm_id));
-            assert!(state.toggle_realm_membership(p, realm_id.clone()));
-
-            // Crete two post outside and inside the DEMO realm
-            let post_id_1 =
-                Post::create(state, "message1".to_string(), &[], p, 0, None, None, None).unwrap();
-            let post_id_2 = Post::create(
-                state,
-                "message2".to_string(),
-                &[],
-                p,
-                0,
-                None,
-                Some(realm_id),
-                None,
-            )
-            .unwrap();
-
-            // Check user posts
-            let user = state.principal_to_user(p).unwrap();
-            let iter = user.posts(Some(&"nodemo".to_string()), state, 0, false);
-            assert_eq!(iter.count(), 1);
-
-            // make sure we see both posts sent to localhost domain because it is a wildcard domain
-            let feed = state
-                .users
-                .get(&user_id)
-                .unwrap()
-                .personal_feed("localhost".into(), state, 0)
-                .map(|post| post.id)
-                .collect::<Vec<_>>();
-            assert_eq!(feed.len(), 2);
-
-            // make sure only the post 1 is visible in the nodemo domain
-            let feed = state
-                .users
-                .get(&user_id)
-                .unwrap()
-                .personal_feed("nodemo".into(), state, 0)
-                .map(|post| post.id)
-                .collect::<Vec<_>>();
-            assert_eq!(feed.len(), 1);
-            assert!(feed.contains(&post_id_1));
-
-            // make sure only the post 2 is visible in the demo domain
-            let feed = state
-                .users
-                .get(&user_id)
-                .unwrap()
-                .personal_feed("demo".into(), state, 0)
-                .map(|post| post.id)
-                .collect::<Vec<_>>();
-            assert_eq!(feed.len(), 1);
-            assert!(feed.contains(&post_id_2));
         });
     }
 

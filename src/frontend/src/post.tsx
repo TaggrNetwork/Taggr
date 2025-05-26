@@ -101,7 +101,7 @@ export const PostView = ({
             return;
         }
 
-        if (!realmAllowed(data.realm)) {
+        if (data.realm && !realmAllowed(data.realm)) {
             setNotAllowed(true);
             return;
         }

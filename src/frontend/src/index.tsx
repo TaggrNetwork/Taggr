@@ -32,7 +32,14 @@ import { Proposals } from "./proposals";
 import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
-import { Config, User, Stats, DomainConfig } from "./types";
+import {
+    Config,
+    User,
+    Stats,
+    DomainConfig,
+    getMonoRealm,
+    getDefaultRealm,
+} from "./types";
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
@@ -281,9 +288,8 @@ const reloadCache = async () => {
         domainConfig: domainCfgResp.Ok || ({} as DomainConfig),
     };
     const domainCfg = window.backendCache.domainConfig;
-    const wlLen = domainCfg.realm_whitelist.length;
-    window.monoRealm = wlLen == 1 ? domainCfg.realm_whitelist[0] : null;
-    window.defaultRealm = wlLen >= 1 ? domainCfg.realm_whitelist[0] : null;
+    window.monoRealm = getMonoRealm(domainCfg);
+    window.defaultRealm = getDefaultRealm(domainCfg);
     window.hideRealmless = !!(window.monoRealm || window.defaultRealm);
     const last_upgrade = window.backendCache.stats?.last_release?.timestamp;
     if (!last_upgrade) return;

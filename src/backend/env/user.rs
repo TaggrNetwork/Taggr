@@ -253,7 +253,7 @@ impl User {
     ) -> Box<dyn Iterator<Item = &'a Post> + 'a> {
         let filter = match domain {
             None => Box::new(|_: &Post| true),
-            Some(domain) => match state.domain_realm_post_filter(domain, None) {
+            Some(domain) => match domain_realm_post_filter(state, domain, None) {
                 Some(filter) => filter,
                 None => return Box::new(std::iter::empty()),
             },
