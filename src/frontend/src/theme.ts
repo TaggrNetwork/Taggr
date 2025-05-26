@@ -55,7 +55,7 @@ const themes: { [name: string]: Theme } = {
     light: {
         text: "#101010",
         background: "#EAEAEA",
-        code: "black",
+        code: "DarkGreen",
         clickable: "#0066EE",
         accent: "MediumSeaGreen",
     },
