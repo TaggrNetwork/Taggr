@@ -10,10 +10,31 @@ export type ICP = {
     e8s: BigInt | number;
 };
 
+export type DomainSubConfig =
+    | {
+          ["Journal"]: UserId;
+      }
+    | {
+          ["BlackListedRealms"]: RealmId[];
+      }
+    | {
+          ["WhiteListedRealms"]: RealmId[];
+      };
+
 export type DomainConfig = {
     owner: UserId;
-    realm_whitelist: RealmId[];
-    realm_blacklist: RealmId[];
+    sub_config: DomainSubConfig;
+};
+
+export const getMonoRealm = (cfg: DomainConfig) => {
+    if (!("WhiteListedRealms" in cfg.sub_config)) return null;
+    const whiteList = cfg.sub_config.WhiteListedRealms;
+    return whiteList.length == 1 ? whiteList[0] : null;
+};
+
+export const getDefaultRealm = (cfg: DomainConfig) => {
+    if (!("WhiteListedRealms" in cfg.sub_config)) return null;
+    return cfg.sub_config.WhiteListedRealms[0];
 };
 
 export type PFP = {

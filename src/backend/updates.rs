@@ -1,4 +1,5 @@
 use crate::env::{
+    domains::{change_domain_config, DomainConfig, DomainSubConfig},
     proposals::{Payload, Release},
     user::{Mode, UserFilter},
 };
@@ -83,7 +84,19 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|s| {
+        for c in s.domains.values_mut() {
+            if !c.realm_whitelist.is_empty() {
+                c.sub_config =
+                    DomainSubConfig::WhiteListedRealms(std::mem::take(&mut c.realm_whitelist))
+            } else if !c.realm_blacklist.is_empty() {
+                c.sub_config =
+                    DomainSubConfig::BlackListedRealms(std::mem::take(&mut c.realm_blacklist))
+            }
+        }
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -108,7 +121,7 @@ async fn get_neuron_info() -> Result<String, String> {
 #[export_name = "canister_update set_domain_config"]
 fn set_domain_config() {
     let (domain, cfg, command): (String, DomainConfig, String) = parse(&arg_data_raw());
-    mutate(|state| reply(state.change_domain_config(caller(), domain, cfg, command)))
+    mutate(|state| reply(change_domain_config(state, caller(), domain, cfg, command)))
 }
 
 #[export_name = "canister_update vote_on_poll"]

@@ -1,6 +1,6 @@
 use crate::{
     config::CONFIG,
-    env::{token, DomainConfig},
+    env::{domains::DomainConfig, token},
     metadata::set_index_metadata,
 };
 use base64::{engine::general_purpose, Engine as _};
