@@ -34,6 +34,7 @@ import {
     loadExternalTips,
     Popup,
     shortenTokensAmount,
+    icpSwapLogoFallback,
 } from "./common";
 import {
     reaction2icon,
@@ -1069,7 +1070,10 @@ const PostInfo = ({
                                             src={
                                                 canistersMetaData[
                                                     tip.canister_id
-                                                ]?.logo || ""
+                                                ]?.logo ||
+                                                icpSwapLogoFallback(
+                                                    tip.canister_id,
+                                                )
                                             }
                                             className="vertically_aligned "
                                             style={{ height: 16 }}
