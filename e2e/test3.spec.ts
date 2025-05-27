@@ -106,8 +106,8 @@ test.describe("Regular users flow, part two", () => {
     });
 
     test.describe("Tips", () => {
-        test('Logout and login with "1" user', async () => {
-            // Logout and register "1" user
+        test('Logout and login with "eye" user', async () => {
+            // Logout and register "eye" user
             await page.getByTestId("toggle-user-section").click();
             await expect(page.locator(`a[title="SIGN OUT"]`)).toBeVisible();
             await page.locator(`a[title="SIGN OUT"]`).click();
@@ -116,11 +116,17 @@ test.describe("Regular users flow, part two", () => {
 
             await page.getByRole("button", { name: "CONNECT" }).click();
             await page.getByRole("button", { name: "SEED PHRASE" }).click();
-            await page.getByPlaceholder("Enter your seed phrase...").fill("1");
+            await page
+                .getByPlaceholder("Enter your seed phrase...")
+                .fill("eye");
             await page.getByRole("button", { name: "JOIN" }).click();
             await page.waitForTimeout(1000);
-            await page.getByPlaceholder("Enter your seed phrase...").fill("1");
-            await page.getByPlaceholder("Repeat your seed phrase...").fill("1");
+            await page
+                .getByPlaceholder("Enter your seed phrase...")
+                .fill("eye");
+            await page
+                .getByPlaceholder("Repeat your seed phrase...")
+                .fill("eye");
             await page.getByRole("button", { name: "JOIN" }).click();
             await page
                 .getByRole("button", { name: "MINT CREDITS WITH ICP" })
@@ -129,7 +135,7 @@ test.describe("Regular users flow, part two", () => {
                 .getByTestId("invoice-amount")
                 .textContent();
             exec(
-                `dfx --identity local-minter ledger transfer --amount ${value} --memo 0 061f95b2447df3afd65e84d572a26a4af898e015f1a1bbccd2348e9c04b4bb4b`,
+                `dfx --identity local-minter ledger transfer --amount ${value} --memo 0 2b1ff8b6e4c144995612338d39882f9f64a03dee10a510fc66d4851977c8055b`,
             );
             await page.getByRole("button", { name: "CHECK BALANCE" }).click();
 
@@ -143,9 +149,9 @@ test.describe("Regular users flow, part two", () => {
         });
 
         test("Find post and tip it", async () => {
-            // Mint 5 Taggr to tipper "1"
+            // Mint 5 Taggr to tipper "eye"
             exec(
-                `dfx canister call taggr mint_tokens '("m3uoe-djcwl-qxrq5-2z4pn-flt5v-y3c2e-cxxp3-v2np5-idczn-cspi4-fae", 500 : nat64)'`,
+                `dfx canister call taggr mint_tokens '("z3op7-26h47-s3hut-kozti-x52qw-2nigo-exxzv-thpcx-jiphh-ra4gq-yqe", 500 : nat64)'`,
             );
             await page.goto("/");
             await page.getByTestId("toggle-user-section").click();

@@ -45,7 +45,6 @@ pub fn create_post_tip(
     from_principal: Principal,
     index: u64,
 ) -> Result<Tip, String> {
-    let post = Post::get(state, &post_id).ok_or("post not found")?;
     let receiver_id = state
         .principal_to_user(to_principal)
         .ok_or("receiver not found")?
@@ -54,6 +53,7 @@ pub fn create_post_tip(
         .principal_to_user(from_principal)
         .map(|sender| (sender.id, sender.name.clone()))
         .ok_or("sender not found")?;
+    let post = Post::get(state, &post_id).ok_or("post not found")?;
     let realm = post
         .realm
         .as_ref()
@@ -129,26 +129,13 @@ pub fn create_post_tip(
     Ok(tip)
 }
 
-fn convert_memo_to_u64(memo: Option<Vec<u8>>) -> Result<PostId, String> {
+fn convert_memo_to_u64(memo: Option<Vec<u8>>) -> Result<u64, String> {
     let memo_value = memo.ok_or("memo is not defined")?;
 
-    let mut vec = memo_value.clone();
-
-    // Add leading zeros if needed
-    let current_len = vec.len();
-    if current_len < 8 {
-        let zeros_to_add = 8 - current_len;
-        vec.splice(0..0, vec![0; zeros_to_add]);
-    }
-
-    let mut num = 0u64;
-
-    // Combine bytes in little-endian order
-    for &byte in vec.iter() {
-        num = (num << 8) | byte as u64; // Shift left and add byte
-    }
-
-    Ok(num)
+    let mut padded = [0u8; 8];
+    let len = std::cmp::min(memo_value.len(), 8);
+    padded[8 - len..].copy_from_slice(&memo_value[..len]);
+    Ok(u64::from_be_bytes(padded))
 }
 
 #[cfg(test)]
