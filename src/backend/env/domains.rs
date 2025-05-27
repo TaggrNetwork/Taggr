@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use crate::assets;
+
 use super::{
     config::CONFIG,
     post::Post,
@@ -154,19 +156,17 @@ pub fn change_domain_config(
                 )?;
 
             cfg.owner = Some(caller_id);
-            state.domains.insert(domain, cfg);
-            Ok(())
+            state.domains.insert(domain, cfg)
         }
-        "remove" => {
-            state.domains.remove(&domain);
-            Ok(())
-        }
-        "update" => {
-            state.domains.insert(domain, cfg);
-            Ok(())
-        }
-        _ => Err("invalid command".into()),
-    }
+        "remove" => state.domains.remove(&domain),
+        "update" => state.domains.insert(domain, cfg),
+        _ => return Err("invalid command".into()),
+    };
+
+    assets::add_domains(&state.domains);
+    assets::certify();
+
+    Ok(())
 }
 
 /// Returns realms available under the current domain:

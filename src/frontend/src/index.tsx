@@ -25,6 +25,8 @@ import {
     expandMeta,
     showPopUp,
     domain,
+    onCanonicalDomain,
+    getCanonicalDomain,
 } from "./common";
 import { Settings } from "./settings";
 import { Welcome } from "./welcome";
@@ -147,6 +149,10 @@ const App = () => {
             <LoginMasks signUp={true} />
         );
     } else if (handler == "welcome") {
+        if (MAINNET_MODE && !onCanonicalDomain()) {
+            location.href = `https://${getCanonicalDomain()}/#/welcome/${param}`;
+            return;
+        }
         subtle = true;
         content = window.principalId ? (
             <Settings invite={param} />
