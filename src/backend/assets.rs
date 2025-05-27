@@ -141,6 +141,12 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
         .to_vec(),
     );
 
+    add_domains(domains);
+
+    certify();
+}
+
+pub fn add_domains(domains: &HashMap<String, DomainConfig>) {
     add_asset(
         &["/.well-known/ic-domains"],
         Default::default(),
@@ -152,8 +158,6 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
             .as_bytes()
             .to_vec(),
     );
-
-    certify();
 }
 
 pub fn root_hash() -> [u8; 32] {

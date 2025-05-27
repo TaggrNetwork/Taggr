@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use crate::assets;
+
 use super::{
     config::CONFIG,
     post::Post,
@@ -155,6 +157,10 @@ pub fn change_domain_config(
 
             cfg.owner = Some(caller_id);
             state.domains.insert(domain, cfg);
+
+            assets::add_domains(&state.domains);
+            assets::certify();
+
             Ok(())
         }
         "remove" => {
