@@ -15,9 +15,10 @@ async fn reset(canister_id: String) {
     STATE.with(|cell| {
         let mut state: State = Default::default();
         state.init();
-        state
-            .domains
-            .insert(format!("{canister_id}.localhost"), DomainConfig::default());
+        state.domains.insert(
+            format!("{canister_id}.localhost"),
+            crate::domains::DomainConfig::default(),
+        );
         state.memory.init();
         // as expected in E2E tests
         {

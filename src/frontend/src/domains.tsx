@@ -51,29 +51,37 @@ export const Domains = ({}) => {
                                     <UserLink id={cfg.owner} pfp={false} />
                                 )}
                             </li>
-                            {cfg.realm_whitelist.length > 0 && (
+                            {"WhiteListedRealms" in cfg.sub_config && (
                                 <li>
                                     White-listed realms:{" "}
                                     {commaSeparated(
-                                        cfg.realm_whitelist.map((id) => (
-                                            <a
-                                                href={`#/realm/${id}`}
-                                            >{`/${id}`}</a>
-                                        )),
+                                        cfg.sub_config.WhiteListedRealms.map(
+                                            (id) => (
+                                                <a
+                                                    href={`#/realm/${id}`}
+                                                >{`/${id}`}</a>
+                                            ),
+                                        ),
                                     )}
                                 </li>
                             )}
-                            {cfg.realm_blacklist.length > 0 && (
-                                <li>
-                                    Black-listed realms:{" "}
-                                    {commaSeparated(
-                                        cfg.realm_blacklist.map((id) => (
-                                            <a
-                                                href={`#/realm/${id}`}
-                                            >{`/${id}`}</a>
-                                        )),
-                                    )}
-                                </li>
+                            {"BlackListedRealms" in cfg.sub_config &&
+                                cfg.sub_config.BlackListedRealms.length > 0 && (
+                                    <li>
+                                        Black-listed realms:{" "}
+                                        {commaSeparated(
+                                            cfg.sub_config.BlackListedRealms.map(
+                                                (id) => (
+                                                    <a
+                                                        href={`#/realm/${id}`}
+                                                    >{`/${id}`}</a>
+                                                ),
+                                            ),
+                                        )}
+                                    </li>
+                                )}
+                            {"Journal" in cfg.sub_config && (
+                                <li>Redirects to the hournal.</li>
                             )}
                         </ul>
                     </li>
@@ -108,35 +116,71 @@ const DomainForm = ({
     callback: () => void;
     initCfg: DomainConfig;
 }) => {
+    const [cfgType, setCfgType] = React.useState<string>(
+        "WhiteListedRealms" in initCfg.sub_config
+            ? "whitelist"
+            : "BlackListedRealms" in initCfg.sub_config
+              ? "blacklist"
+              : "journal",
+    );
     const [whitelist, setWhitelist] = React.useState<string>(
-        initCfg.realm_whitelist.join("\n"),
+        "WhiteListedRealms" in initCfg.sub_config
+            ? initCfg.sub_config.WhiteListedRealms.join("\n")
+            : "",
     );
     const [blacklist, setBlacklist] = React.useState<string>(
-        initCfg.realm_blacklist.join("\n"),
+        "BlackListedRealms" in initCfg.sub_config
+            ? initCfg.sub_config.BlackListedRealms.join("\n")
+            : "",
     );
     const [instructions, showInstructions] = React.useState(false);
     const extractRealmIds = (value: string) =>
         value.trim().toUpperCase().split("\n").filter(Boolean);
-    const blUsed = extractRealmIds(blacklist).length > 0;
-    const wlUsed = extractRealmIds(whitelist).length > 0;
     return (
         <div className="stands_out top_spaced column_container">
             <h4>{domain}</h4>
-            WHITE-LIST (comma-separated):
-            <textarea
-                disabled={blUsed}
-                className={`small_text bottom_spaced ${blUsed ? "inactive" : ""}`}
-                value={whitelist}
-                onChange={(event) => setWhitelist(event.target.value)}
-                rows={4}
-            ></textarea>
-            BLACK-LIST (comma-separated):
-            <textarea
-                className={`small_text bottom_spaced ${wlUsed ? "inactive" : ""}`}
-                value={blacklist}
-                onChange={(event) => setBlacklist(event.target.value)}
-                rows={4}
-            ></textarea>
+            <select
+                value={cfgType}
+                className="bottom_spaced"
+                onChange={(event) => setCfgType(event.target.value)}
+            >
+                <option value="journal">JOURNAL</option>
+                <option value="whitelist">REALM WHITE LIST</option>
+                <option value="blacklist">REALM BLACK LIST</option>
+            </select>
+            {cfgType == "journal" && (
+                <p>This domain will only display the journal of the owner.</p>
+            )}
+            {cfgType == "whitelist" && (
+                <>
+                    <p>
+                        This domain will only display posts from the realms that
+                        are white-listed below.
+                    </p>
+                    WHITE-LIST (comma-separated):
+                    <textarea
+                        className="small_text bottom_spaced"
+                        value={whitelist}
+                        onChange={(event) => setWhitelist(event.target.value)}
+                        rows={4}
+                    ></textarea>
+                </>
+            )}
+            {cfgType == "blacklist" && (
+                <>
+                    <p>
+                        This domain will only display all posts except from the
+                        realms that are black-listed below.
+                    </p>
+                    BLACK-LIST (comma-separated):
+                    <textarea
+                        className="small_text bottom_spaced"
+                        value={blacklist}
+                        onChange={(event) => setBlacklist(event.target.value)}
+                        rows={4}
+                    ></textarea>
+                </>
+            )}
             {instructions && <DomainInstructions domain={domain} />}
             <div className="row_container">
                 {!instructions && (
@@ -154,7 +198,7 @@ const DomainForm = ({
                         const response = await window.api.call<any>(
                             "set_domain_config",
                             domain,
-                            { realm_whitelist: [], realm_blacklist: [] },
+                            {},
                             "remove",
                         );
                         if ("Err" in response) {
@@ -169,18 +213,32 @@ const DomainForm = ({
                     classNameArg="max_width_col"
                     label="SUBMIT"
                     onClick={async () => {
+                        const cfg: DomainConfig = {
+                            owner: initCfg.owner,
+                            sub_config: {} as any,
+                        };
+                        if (cfgType == "journal") {
+                            cfg.sub_config = {
+                                Journal: initCfg.owner,
+                            };
+                        } else if (cfgType == "whitelist") {
+                            cfg.sub_config = {
+                                WhiteListedRealms: extractRealmIds(whitelist),
+                            };
+                        } else {
+                            cfg.sub_config = {
+                                BlackListedRealms: extractRealmIds(blacklist),
+                            };
+                        }
                         const response = await window.api.call<any>(
                             "set_domain_config",
                             domain,
-                            {
-                                owner: initCfg.owner,
-                                realm_whitelist: extractRealmIds(whitelist),
-                                realm_blacklist: extractRealmIds(blacklist),
-                            },
+                            cfg,
                             "update",
                         );
                         if ("Err" in response) showPopUp("error", response.Err);
                         else showPopUp("success", "Config updated");
+                        callback();
                     }}
                 />
             </div>
@@ -209,10 +267,7 @@ const NewDomainForm = ({ callback }: { callback: () => void }) => {
                         const response = await window.api.call<any>(
                             "set_domain_config",
                             domain,
-                            {
-                                realm_whitelist: [],
-                                realm_blacklist: [],
-                            },
+                            {},
                             "insert",
                         );
                         if ("Err" in response) showPopUp("error", response.Err);

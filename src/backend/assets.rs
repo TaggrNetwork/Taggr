@@ -1,6 +1,6 @@
 use crate::{
     config::CONFIG,
-    env::{token, DomainConfig},
+    env::{domains::DomainConfig, token},
     metadata::set_index_metadata,
 };
 use base64::{engine::general_purpose, Engine as _};
@@ -154,6 +154,12 @@ taggr.link"
         .to_vec(),
     );
 
+    add_domains(domains);
+
+    certify();
+}
+
+pub fn add_domains(domains: &HashMap<String, DomainConfig>) {
     add_asset(
         &["/.well-known/ic-domains"],
         Default::default(),
@@ -165,8 +171,6 @@ taggr.link"
             .as_bytes()
             .to_vec(),
     );
-
-    certify();
 }
 
 pub fn root_hash() -> [u8; 32] {
