@@ -101,7 +101,7 @@ export const Welcome = () => {
                                     Ed25519KeyIdentity.generate(seed);
                                 if (
                                     identity.getPrincipal().toString() !=
-                                    window.getPrincipalId()
+                                    window.principalId
                                 ) {
                                     showPopUp(
                                         "error",
@@ -121,7 +121,7 @@ export const Welcome = () => {
                                 <h2>New user detected</h2>
                                 Your {name} principal:{" "}
                                 <CopyToClipboard
-                                    value={window.getPrincipalId()}
+                                    value={window.principalId}
                                     displayMap={(principal) =>
                                         bigScreen()
                                             ? principal

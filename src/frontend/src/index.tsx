@@ -43,6 +43,7 @@ import { LinksPage } from "./links";
 import { ApiGenerator } from "./api";
 import { MAINNET_MODE } from "./env";
 import { Domains } from "./domains";
+import { Delegate, onCanonicalDomain } from "./delegation";
 
 const { hash, pathname } = location;
 
@@ -90,7 +91,7 @@ const renderFrame = (content: React.ReactNode) => {
 const App = () => {
     window.lastActivity = new Date();
     const auth = (content: React.ReactNode) =>
-        window.getPrincipalId() ? content : <Unauthorized />;
+        window.principalId ? content : <Unauthorized />;
     const [handler = "", param, param2] = parseHash();
 
     let subtle = false;
@@ -122,16 +123,16 @@ const App = () => {
         content = <Whitepaper />;
     } else if (handler == "settings") {
         content = auth(<Settings />);
-    } else if (handler == "welcome" && !window.user) {
-        subtle = !window.getPrincipalId();
-        content = window.getPrincipalId() ? (
+    } else if (onCanonicalDomain() && handler == "welcome" && !window.user) {
+        subtle = !window.principalId;
+        content = window.principalId ? (
             <Settings invite={param} />
         ) : (
             <WelcomeInvited />
         );
     } else if (
-        handler == "wallet" ||
-        (window.getPrincipalId() && !window.user)
+        onCanonicalDomain() &&
+        (handler == "wallet" || (window.principalId && !window.user))
     ) {
         content = <Welcome />;
     } else if (handler == "post") {
@@ -184,6 +185,9 @@ const App = () => {
     } else if (handler == "inbox") {
         content = auth(<Inbox />);
         inboxMode = true;
+    } else if (handler == "delegate") {
+        subtle = true;
+        content = <Delegate domain={param} principal={param2} />;
     } else if (handler == "transaction") {
         content = <TransactionView id={parseInt(param)} />;
     } else if (handler == "transactions") {
@@ -286,7 +290,7 @@ const reloadCache = async () => {
 
 const confirmPrincipalChange = async () => {
     if (
-        !window.getPrincipalId() ||
+        !window.principalId ||
         !(await window.api.query<boolean>("migration_pending"))
     )
         return;
@@ -362,11 +366,8 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
             }
         }
         const api = ApiGenerator(MAINNET_MODE, identity);
-        if (identity)
-            window._delegatePrincipalId = identity.getPrincipal().toString();
+        if (identity) window.principalId = identity.getPrincipal().toString();
         window.api = api;
-        window.getPrincipalId = () =>
-            localStorage.getItem("delegator") || window._delegatePrincipalId;
 
         /*
          *  RECOVERY SHORTCUT
@@ -393,7 +394,7 @@ AuthClient.create({ idleOptions: { disableIdle: true } }).then(
 
         if (api) {
             window.reloadUser = async () => {
-                let data = await api.query<User>("user", domain(), []);
+                const data = await api.query<User>("user", domain(), []);
                 if (data) {
                     localStorage.setItem(KNOWN_USER, "1");
                     let userIds = data.followees.concat(data.followers);

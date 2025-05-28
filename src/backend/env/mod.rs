@@ -262,6 +262,10 @@ pub struct State {
     pub weekly_chores_delay_votes: HashSet<UserId>,
 
     pub timers: Timers,
+
+    #[serde(default)]
+    // Maps temporal session principals created on custom domains to actual user principals.
+    delegations: HashMap<Principal, Principal>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -315,6 +319,25 @@ pub enum Destination {
 }
 
 impl State {
+    /// Sets a session principal for a user.
+    pub fn set_delegation(&mut self, session_principal: String) -> Result<(), String> {
+        let caller = ic_cdk::caller();
+        if self.principal_to_user(caller).is_none() {
+            return Err("user not found".into());
+        }
+        self.delegations.insert(
+            Principal::from_text(session_principal)
+                .map_err(|err| format!("couldn't parse the principal id: {err}"))?,
+            caller,
+        );
+        Ok(())
+    }
+
+    /// Returns the associated user principal if it exists or returns itself if not.
+    pub fn resolve_delegate(&self, caller: Principal) -> Principal {
+        self.delegations.get(&caller).copied().unwrap_or(caller)
+    }
+
     pub fn toggle_account_activation(
         &mut self,
         caller: Principal,

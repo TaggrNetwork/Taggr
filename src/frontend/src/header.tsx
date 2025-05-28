@@ -5,13 +5,11 @@ import {
     IconToggleButton,
     RealmList,
     signOut,
-    popUp,
     ButtonWithLoading,
     pfpUrl,
     bigScreen,
     DropDown,
 } from "./common";
-import { LoginMasks } from "./authentication";
 import {
     Bell,
     Gear,
@@ -27,6 +25,7 @@ import { STAGING_MODE } from "./env";
 import { User as UserType } from "./types";
 import { Wallet } from "./wallet";
 import { Links } from "./landing";
+import { connect } from "./authentication";
 
 let interval: any = null;
 
@@ -161,14 +160,12 @@ export const Header = ({
                             </button>
                         </>
                     )}
-                    {!window.getPrincipalId() &&
+                    {!window.user &&
                         // Don't show connect button on invite links
                         !location.href.includes("welcome") && (
                             <ButtonWithLoading
                                 classNameArg="active"
-                                onClick={async () =>
-                                    await popUp(<LoginMasks />)
-                                }
+                                onClick={connect}
                                 label="CONNECT"
                             />
                         )}

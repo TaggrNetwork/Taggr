@@ -18,7 +18,7 @@ export const DEFAULT_REACTION_HOLD_TIME = 350;
 
 export const Settings = ({ invite }: { invite?: string }) => {
     const user = window.user;
-    const [principal, setPrincipal] = React.useState(window.getPrincipalId());
+    const [principal, setPrincipal] = React.useState(window.principalId);
     const [name, setName] = React.useState("");
     const [pfp, setPfp] = React.useState<PFP>({
         nonce: 0,
@@ -531,7 +531,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                         {
                             <ButtonWithLoading
                                 classNameArg={
-                                    principal != window.getPrincipalId()
+                                    principal != window.principalId
                                         ? ""
                                         : "inactive"
                                 }

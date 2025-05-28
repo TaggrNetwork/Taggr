@@ -1157,7 +1157,6 @@ export const signOut = async () => {
     localStorage.setItem(KNOWN_USER, "1");
     sessionStorage.clear();
     window.authClient.logout();
-    window._delegatePrincipalId = "";
     restartApp();
     return true;
 };
@@ -1212,7 +1211,7 @@ export const SeedPhraseForm = ({
                     />
                 )}
                 <div className="row_container">
-                    {window.getPrincipalId() && (
+                    {window.principalId && (
                         <ButtonWithLoading onClick={signOut} label="SIGN OUT" />
                     )}
                     <ButtonWithLoading

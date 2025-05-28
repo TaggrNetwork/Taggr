@@ -1,9 +1,17 @@
 import * as React from "react";
-import { ButtonWithLoading, KNOWN_USER, restartApp, showPopUp } from "./common";
+import {
+    ButtonWithLoading,
+    domain,
+    KNOWN_USER,
+    popUp,
+    restartApp,
+    showPopUp,
+} from "./common";
 import { HASH_ITERATIONS, SeedPhraseForm, hash } from "./common";
 import { Infinity, Incognito, Ticket } from "./icons";
-import { II_URL, II_DERIVATION_URL, MAINNET_MODE } from "./env";
+import { II_URL, MAINNET_MODE } from "./env";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
+import { getCanonicalDomain, onCanonicalDomain } from "./delegation";
 
 export const authMethods = [
     {
@@ -83,7 +91,7 @@ export const authMethods = [
                 onSuccess: restartApp,
                 identityProvider: II_URL,
                 maxTimeToLive: BigInt(30 * 24 * 3600000000000),
-                derivationOrigin: II_DERIVATION_URL,
+                derivationOrigin: window.location.origin,
             });
             return null;
         },
@@ -166,3 +174,16 @@ function isBIP39SeedPhrase(phrase: string): boolean {
 
     return invalidWords.length === 0;
 }
+
+export const connect = async () => {
+    if (onCanonicalDomain()) return await popUp(<LoginMasks />);
+
+    // Generate a temporal identity
+    const randomSeed = crypto.getRandomValues(new Uint8Array(32));
+    let identity = Ed25519KeyIdentity.generate(randomSeed);
+    let serializedIdentity = JSON.stringify(identity.toJSON());
+    localStorage.setItem("IDENTITY", serializedIdentity);
+    location.href = `https://${getCanonicalDomain()}/#/delegate/${domain()}/${identity.getPrincipal().toString()}`;
+
+    return null;
+};

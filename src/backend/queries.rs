@@ -1,4 +1,7 @@
-use crate::env::{invoices::principal_to_subaccount, proposals::Payload};
+use crate::{
+    caller,
+    env::{invoices::principal_to_subaccount, proposals::Payload},
+};
 
 use super::*;
 use candid::Principal;
@@ -9,10 +12,7 @@ use env::{
     user::UserId,
     State,
 };
-use ic_cdk::{
-    api::{self, call::arg_data_raw},
-    caller,
-};
+use ic_cdk::api::{self, call::arg_data_raw};
 use ic_cdk_macros::query;
 use ic_ledger_types::AccountIdentifier;
 use serde_bytes::ByteBuf;
@@ -26,7 +26,7 @@ fn check_invite() {
 #[export_name = "canister_query migration_pending"]
 fn migration_pending() {
     read(|state| {
-        reply(state.principal_change_requests.contains_key(&caller()));
+        reply(state.principal_change_requests.contains_key(&caller(state)));
     });
 }
 
@@ -36,7 +36,7 @@ fn auction() {
         reply((
             &state.auction,
             // user's canister subaccount for the ICP deposit
-            AccountIdentifier::new(&id(), &principal_to_subaccount(&caller())).to_string(),
+            AccountIdentifier::new(&id(), &principal_to_subaccount(&caller(state))).to_string(),
         ))
     })
 }
@@ -69,7 +69,7 @@ fn users_data() {
     read(|state| {
         let ids: Vec<UserId> = parse(&arg_data_raw());
         let iter: Box<dyn Iterator<Item = &UserId>> = if ids.is_empty() {
-            match state.principal_to_user(caller()) {
+            match state.principal_to_user(caller(state)) {
                 Some(user) => Box::new(user.followees.iter().chain(user.followers.iter())),
                 _ => Box::new(std::iter::empty()),
             }
@@ -306,7 +306,7 @@ fn tags_cost() {
 
 #[export_name = "canister_query invites"]
 fn invites() {
-    read(|state| reply(invite::invites_by_principal(state, caller()).collect::<Vec<_>>()));
+    read(|state| reply(invite::invites_by_principal(state, caller(state)).collect::<Vec<_>>()));
 }
 
 fn personal_filter(
@@ -378,7 +378,7 @@ fn hot_posts() {
         parse(&arg_data_raw());
     let realm = optional(realm);
     read(|state| {
-        let user = state.principal_to_user(caller());
+        let user = state.principal_to_user(caller(state));
         reply(
             state
                 .hot_posts(domain, realm.as_ref(), offset, None)
@@ -395,10 +395,10 @@ fn hot_posts() {
 fn realms_posts() {
     let (domain, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     read(|state| {
-        let user = state.principal_to_user(caller());
+        let user = state.principal_to_user(caller(state));
         reply(
             state
-                .realms_posts(domain, caller(), offset)
+                .realms_posts(domain, caller(state), offset)
                 .filter(|post| personal_filter(state, None, user, post))
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
@@ -414,7 +414,7 @@ fn last_posts() {
         parse(&arg_data_raw());
     let realm = optional(realm);
     read(|state| {
-        let user = state.principal_to_user(caller());
+        let user = state.principal_to_user(caller(state));
         reply(
             state
                 .last_posts(
@@ -458,7 +458,7 @@ fn posts_by_tags() {
 fn personal_feed() {
     let (domain, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
     read(|state| {
-        reply(match state.principal_to_user(caller()) {
+        reply(match state.principal_to_user(caller(state)) {
             None => Default::default(),
             Some(user) => user
                 .personal_feed(domain, state, offset)
@@ -532,7 +532,7 @@ fn search() {
 #[export_name = "canister_query proposal_escrow_balance_required"]
 fn proposal_escrow_balance_required() {
     reply(read(|state| {
-        state.proposal_escrow_balance_required(caller())
+        state.proposal_escrow_balance_required(caller(state))
     }))
 }
 
@@ -570,6 +570,6 @@ fn stable_mem_read(page: u64) -> Vec<(u64, Blob)> {
 fn resolve_handle<'a>(state: &'a State, handle: Option<&'a String>) -> Option<&'a User> {
     match handle {
         Some(handle) => state.user(handle),
-        None => Some(state.principal_to_user(caller())?),
+        None => Some(state.principal_to_user(caller(state))?),
     }
 }
