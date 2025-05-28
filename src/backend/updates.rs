@@ -4,10 +4,13 @@ use crate::env::{
 };
 
 use super::*;
+use candid::Nat;
+use canisters::GetTransactionsArgs;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
     post::{Extension, Post, PostId},
+    tip::create_post_tip,
     user::{Draft, User, UserId},
     State,
 };
@@ -22,7 +25,7 @@ use ic_cdk::{
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
-use std::{collections::HashSet, time::Duration};
+use std::{collections::HashSet, convert::TryFrom, time::Duration};
 use user::Pfp;
 
 #[init]
@@ -622,6 +625,64 @@ fn create_bid() {
 #[export_name = "canister_update cancel_bid"]
 fn cancel_bid() {
     spawn(async { reply(auction::cancel_bid(caller()).await) });
+}
+
+#[export_name = "canister_update add_external_icrc_transaction"]
+fn add_external_icrc_transaction() {
+    let (canister_id_as_str, start_index, post_id): (String, u64, PostId) = parse(&arg_data_raw());
+
+    let canister_id = Principal::from_text(canister_id_as_str).unwrap();
+    // DoS protection
+    if let Err(error) = mutate(|state| {
+        let sender_id = state
+            .principal_to_user(caller())
+            .expect("user not found")
+            .id;
+        state.charge(
+            sender_id,
+            CONFIG.tipping_cost,
+            format!("external tipping for post {}", post_id),
+        )
+    }) {
+        return reply(error);
+    }
+
+    spawn(async move {
+        let args = GetTransactionsArgs {
+            start: Nat::from(start_index),
+            length: Nat::from(1_u128),
+        };
+        let response = canisters::icrc_transactions(canister_id, args).await;
+        if let Some(transaction) = response
+            .expect("Failed to retrive transactions")
+            .transactions
+            .first()
+        {
+            match &transaction.transfer {
+                Some(transfer) => reply(mutate(|state| {
+                    let amount = u128::try_from(&transfer.amount.0).expect("Wrong amount");
+                    let memo = transfer.memo.as_ref().unwrap().0.to_vec();
+                    ic_cdk::println!("icrc transaction memo {:?}", memo); // TODO: remove
+                    create_post_tip(
+                        state,
+                        post_id,
+                        canister_id,
+                        amount,
+                        Some(memo),
+                        transfer.to.owner,
+                        transfer.from.owner,
+                        start_index,
+                    )
+                })),
+                None => reply("Transaction is not a transfer!"),
+            }
+        } else {
+            reply(format!(
+                "We could not find transaction at index {}",
+                start_index
+            ))
+        }
+    });
 }
 
 pub fn caller() -> Principal {
