@@ -127,13 +127,24 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
         include_bytes!("../../src/frontend/assets/WHITEPAPER.md").to_vec(),
     );
 
+    // Due to a limitation in II, we need to keep the number of origins below 10.
+    let origins = "6qfxa-ryaaa-aaaai-qbhsq-cai.ic0.app
+6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io
+taggr.blog
+taggr.network
+taggr.wtf
+taggr.link"
+        .split("\n")
+        .map(|v| v.to_string())
+        .collect::<Vec<_>>();
+
     add_asset(
         &["/.well-known/ii-alternative-origins"],
         vec![("Content-Type".into(), "application/json".into())],
         format!(
             "{{\"alternativeOrigins\": [ {} ]}}",
-            domains
-                .keys()
+            origins
+                .iter()
                 .chain(std::iter::once(&CONFIG.staging.to_string()))
                 .map(|domain| format!("\"https://{}\"", &domain))
                 .collect::<Vec<_>>()
