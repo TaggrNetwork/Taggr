@@ -613,12 +613,12 @@ export const ProposalView = ({
                                     "You're rejecting the proposal. Please confirm.",
                                 ) && (await vote(proposal, false))
                             }
-                            classNameArg="max_width_col large_text"
+                            classNameArg="max_width_col"
                             label="REJECT"
                         />
                         <ButtonWithLoading
                             onClick={() => vote(proposal, true)}
-                            classNameArg="max_width_col large_text"
+                            classNameArg="max_width_col"
                             label="ACCEPT"
                         />
                     </div>
@@ -636,7 +636,7 @@ export const ProposalView = ({
                         await window.api.call("cancel_proposal", proposal.id);
                         await loadState();
                     }}
-                    classNameArg="top_spaced max_width_col large_text"
+                    classNameArg="top_spaced max_width_col"
                     label="CANCEL"
                 />
             )}

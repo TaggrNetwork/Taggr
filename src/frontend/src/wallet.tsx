@@ -239,7 +239,6 @@ export const Wallet = () => {
                 <h2 className="max_width_col">{token_symbol}</h2>
                 {!user.cold_wallet && coldWalletFunctionalityAvailable && (
                     <ButtonWithLoading
-                        classNameArg="fat"
                         onClick={async () => {
                             const actor = await getActor();
                             const response = await actor.link_cold_wallet(
@@ -257,7 +256,6 @@ export const Wallet = () => {
                 )}
                 {user.cold_wallet && (
                     <ButtonWithLoading
-                        classNameArg="fat"
                         onClick={async () => {
                             if (
                                 !confirm(

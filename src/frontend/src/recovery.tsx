@@ -36,7 +36,7 @@ export const Recovery = () => {
     return (
         <>
             <HeadBar title="RECOVERY" />
-            Your principal id: {window.getPrincipalId()}
+            Your principal id: {window.principalId}
             <div className="spaced">
                 <h2>Status</h2>
                 <code data-testid="status">{status}</code>

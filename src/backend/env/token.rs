@@ -198,7 +198,7 @@ fn icrc1_supported_standards() -> Vec<Standard> {
 
 #[update]
 fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
-    let owner = caller();
+    let owner = read(|s| caller(s));
     if owner == Principal::anonymous() {
         return Err(TransferError::GenericError(GenericError {
             error_code: 0,
