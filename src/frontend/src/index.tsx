@@ -23,12 +23,11 @@ import {
     currentRealm,
     loadFeed,
     expandMeta,
-    KNOWN_USER,
     showPopUp,
     domain,
 } from "./common";
 import { Settings } from "./settings";
-import { Welcome, WelcomeInvited } from "./welcome";
+import { Welcome } from "./welcome";
 import { Proposals } from "./proposals";
 import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
@@ -43,7 +42,12 @@ import { LinksPage } from "./links";
 import { ApiGenerator } from "./api";
 import { MAINNET_MODE } from "./env";
 import { Domains } from "./domains";
-import { Delegate, onCanonicalDomain } from "./delegation";
+import {
+    Delegate,
+    DELEGATION_DOMAIN,
+    DELEGATION_PRINCIPAL,
+} from "./delegation";
+import { LoginMasks } from "./authentication";
 
 const { hash, pathname } = location;
 
@@ -64,6 +68,8 @@ const footerRoot = createRoot(document.getElementById("footer") as Element);
 const stack = document.getElementById("stack") as HTMLElement;
 
 const renderFrame = (content: React.ReactNode) => {
+    document.getElementById("logo_container")?.remove();
+
     // This resets the stack.
     if (location.hash == "#/home") {
         window.resetUI();
@@ -123,18 +129,23 @@ const App = () => {
         content = <Whitepaper />;
     } else if (handler == "settings") {
         content = auth(<Settings />);
-    } else if (onCanonicalDomain() && handler == "welcome" && !window.user) {
-        subtle = !window.principalId;
+    } else if (handler == "sign-in") {
+        subtle = true;
+        content = <LoginMasks />;
+    } else if (handler == "sign-up") {
+        subtle = true;
+        content = window.principalId ? (
+            <Welcome />
+        ) : (
+            <LoginMasks signUp={true} />
+        );
+    } else if (handler == "welcome") {
+        subtle = true;
         content = window.principalId ? (
             <Settings invite={param} />
         ) : (
-            <WelcomeInvited />
+            <LoginMasks invite={true} signUp={true} />
         );
-    } else if (
-        onCanonicalDomain() &&
-        (handler == "wallet" || (window.principalId && !window.user))
-    ) {
-        content = <Welcome />;
     } else if (handler == "post") {
         const id = parseInt(param);
         const version = parseInt(param2);
@@ -187,7 +198,9 @@ const App = () => {
         inboxMode = true;
     } else if (handler == "delegate") {
         subtle = true;
-        content = <Delegate domain={param} principal={param2} />;
+        if (param) localStorage.setItem(DELEGATION_DOMAIN, param);
+        if (param2) localStorage.setItem(DELEGATION_PRINCIPAL, param2);
+        content = window.user ? <Delegate /> : <LoginMasks />;
     } else if (handler == "transaction") {
         content = <TransactionView id={parseInt(param)} />;
     } else if (handler == "transactions") {
@@ -311,7 +324,6 @@ const Footer = ({}) => (
 );
 
 const updateDoc = async () => {
-    document.getElementById("logo_container")?.remove();
     const scroll_up_button = document.createElement("div");
     scroll_up_button.id = "scroll_up_button";
     scroll_up_button.innerHTML = "<span>&#9650;</span>";
@@ -353,79 +365,87 @@ const updateDoc = async () => {
     });
 };
 
-AuthClient.create({ idleOptions: { disableIdle: true } }).then(
-    async (authClient) => {
-        window.authClient = authClient;
-        let identity;
-        if (await authClient.isAuthenticated()) {
-            identity = authClient.getIdentity();
-        } else if (localStorage.getItem("IDENTITY")) {
-            const serializedIdentity = localStorage.getItem("IDENTITY");
-            if (serializedIdentity) {
-                identity = Ed25519KeyIdentity.fromJSON(serializedIdentity);
-            }
+export const instantiateApi = async () => {
+    const authClient = await AuthClient.create({
+        idleOptions: { disableIdle: true },
+    });
+
+    window.authClient = authClient;
+    let identity;
+    if (await authClient.isAuthenticated()) {
+        identity = authClient.getIdentity();
+    } else if (localStorage.getItem("IDENTITY")) {
+        const serializedIdentity = localStorage.getItem("IDENTITY");
+        if (serializedIdentity) {
+            identity = Ed25519KeyIdentity.fromJSON(serializedIdentity);
         }
-        const api = ApiGenerator(MAINNET_MODE, identity);
-        if (identity) window.principalId = identity.getPrincipal().toString();
-        window.api = api;
+    }
+    const api = ApiGenerator(MAINNET_MODE, identity);
+    if (identity) window.principalId = identity.getPrincipal().toString();
+    window.api = api;
+    return identity;
+};
 
-        /*
-         *  RECOVERY SHORTCUT
-         */
-        if (window.location.href.includes("recovery")) {
-            document.getElementById("logo_container")?.remove();
-            renderFrame(<React.StrictMode>{<Recovery />}</React.StrictMode>);
-            window.user = await api.query<any>("user", "", []);
-            return;
+const bootstrap = async () => {
+    const identity = await instantiateApi();
+
+    /*
+     *  RECOVERY SHORTCUT
+     */
+    if (window.location.href.includes("recovery")) {
+        renderFrame(<React.StrictMode>{<Recovery />}</React.StrictMode>);
+        window.user = await window.api.query<any>("user", "", []);
+        return;
+    }
+
+    window.mainnet_api = ApiGenerator(true, identity);
+    window.lastSavedUpgrade = 0;
+    window.lastVisit = BigInt(0);
+    window.reloadCache = reloadCache;
+    window.setUI = setUI;
+    window.resetUI = () => {
+        window.uiInitialized = false;
+        const frames = Array.from(stack.children);
+        frames.forEach((frame) => frame.remove());
+    };
+
+    const futures = [reloadCache()];
+
+    window.reloadUser = async () => {
+        if (!window.api) return;
+
+        const data = await window.api.query<User>("user", domain(), []);
+        if (data) {
+            let userIds = data.followees.concat(data.followers);
+            populateUserNameCache(userIds);
+            data.realms.reverse();
+            window.user = data;
+            if (600000 < microSecsSince(window.user.last_activity)) {
+                window.lastVisit = window.user.last_activity;
+                window.api.call("update_last_activity");
+            } else if (window.lastVisit == BigInt(0))
+                window.lastVisit = window.user.last_activity;
         }
+    };
 
-        window.mainnet_api = ApiGenerator(true, identity);
-        window.lastSavedUpgrade = 0;
-        window.lastVisit = BigInt(0);
-        window.reloadCache = reloadCache;
-        window.setUI = setUI;
-        window.resetUI = () => {
-            window.uiInitialized = false;
-            const frames = Array.from(stack.children);
-            frames.forEach((frame) => frame.remove());
-        };
+    setInterval(async () => {
+        await window.reloadUser();
+        await reloadCache();
+    }, REFRESH_RATE_SECS * 1000);
 
-        const futures = [reloadCache()];
+    futures.push(confirmPrincipalChange().then(window.reloadUser));
 
-        if (api) {
-            window.reloadUser = async () => {
-                const data = await api.query<User>("user", domain(), []);
-                if (data) {
-                    localStorage.setItem(KNOWN_USER, "1");
-                    let userIds = data.followees.concat(data.followers);
-                    populateUserNameCache(userIds);
-                    data.realms.reverse();
-                    window.user = data;
-                    if (600000 < microSecsSince(window.user.last_activity)) {
-                        window.lastVisit = window.user.last_activity;
-                        api.call("update_last_activity");
-                    } else if (window.lastVisit == BigInt(0))
-                        window.lastVisit = window.user.last_activity;
-                }
-            };
-            setInterval(async () => {
-                await window.reloadUser();
-                await reloadCache();
-            }, REFRESH_RATE_SECS * 1000);
+    futures.push(updateDoc());
 
-            futures.push(confirmPrincipalChange().then(window.reloadUser));
-        }
+    await Promise.all(futures);
 
-        futures.push(updateDoc());
+    App();
 
-        await Promise.all(futures);
+    footerRoot.render(
+        <React.StrictMode>
+            <Footer />
+        </React.StrictMode>,
+    );
+};
 
-        App();
-
-        footerRoot.render(
-            <React.StrictMode>
-                <Footer />
-            </React.StrictMode>,
-        );
-    },
-);
+bootstrap();

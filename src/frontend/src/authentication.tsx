@@ -2,16 +2,20 @@ import * as React from "react";
 import {
     ButtonWithLoading,
     domain,
-    KNOWN_USER,
-    popUp,
     restartApp,
     showPopUp,
+    signOut,
 } from "./common";
-import { HASH_ITERATIONS, SeedPhraseForm, hash } from "./common";
+import { HASH_ITERATIONS, hash } from "./common";
 import { Infinity, Incognito, Ticket } from "./icons";
-import { II_URL, MAINNET_MODE } from "./env";
+import { II_URL } from "./env";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
-import { getCanonicalDomain, onCanonicalDomain } from "./delegation";
+import {
+    DELEGATION_PRINCIPAL,
+    getCanonicalDomain,
+    onCanonicalDomain,
+} from "./delegation";
+import { instantiateApi } from ".";
 
 export const authMethods = [
     {
@@ -19,7 +23,7 @@ export const authMethods = [
         label: "Seed Phrase",
         description:
             "This connection method is based on a secret (your seed phrase) stored in your browser. It is convenient, self-custodial, but less secure.",
-        login: async (confirmationRequired?: boolean): Promise<JSX.Element> => (
+        login: async (signUp?: boolean): Promise<JSX.Element> => (
             <SeedPhraseForm
                 classNameArg="spaced"
                 callback={async (seedphrase: string) => {
@@ -31,7 +35,7 @@ export const authMethods = [
                             seedphrase,
                         );
                     if (
-                        MAINNET_MODE &&
+                        signUp &&
                         !isSecurePassword(seedphrase) &&
                         !isBIP39SeedPhrase(seedphrase) &&
                         !(await window.api.query("user", "", [
@@ -50,9 +54,9 @@ export const authMethods = [
                     let serializedIdentity = JSON.stringify(identity.toJSON());
                     localStorage.setItem("IDENTITY", serializedIdentity);
                     localStorage.setItem("SEED_PHRASE", "true");
-                    restartApp();
+                    await finalize(signUp);
                 }}
-                confirmationRequired={confirmationRequired}
+                confirmationRequired={signUp}
             />
         ),
     },
@@ -76,7 +80,7 @@ export const authMethods = [
         label: "Internet Identity",
         description:
             "This connection method is using an NNS-controlled authentication service hosted on IC and based on biometric and other secure options.",
-        login: async () => {
+        login: async (signUp?: boolean) => {
             if (
                 (location.href.includes(".raw") ||
                     location.href.includes("share.")) &&
@@ -88,7 +92,7 @@ export const authMethods = [
                 return null;
             }
             window.authClient.login({
-                onSuccess: restartApp,
+                onSuccess: () => finalize(signUp),
                 identityProvider: II_URL,
                 maxTimeToLive: BigInt(30 * 24 * 3600000000000),
                 derivationOrigin: window.location.origin,
@@ -98,56 +102,83 @@ export const authMethods = [
     },
 ];
 
+const finalize = async (signUp?: boolean) => {
+    if (!signUp) {
+        await instantiateApi();
+        await window.reloadUser();
+        if (window.user)
+            location.href = localStorage.getItem(DELEGATION_PRINCIPAL)
+                ? "#/delegate"
+                : "#/";
+        else showPopUp("error", "User not found");
+    } else restartApp();
+};
+
 export const LoginMasks = ({
-    confirmationRequired,
-    parentCallback,
+    signUp,
+    invite,
 }: {
-    confirmationRequired?: boolean;
-    parentCallback?: () => void;
+    signUp?: boolean;
+    invite?: boolean;
 }) => {
     const [mask, setMask] = React.useState<JSX.Element>();
-    const inviteMode = confirmationRequired;
-    const knownUser = localStorage.getItem(KNOWN_USER) == "1";
     const methods =
-        inviteMode || knownUser
+        invite || !signUp
             ? authMethods.filter((method) => method.label != "Invite")
             : authMethods;
 
-    React.useEffect(() => {
-        const logo = document.getElementById("connect_logo");
-        if (!logo || !parentCallback) return;
-        logo.innerHTML = window.backendCache.config.logo;
-    }, []);
-
-    return mask ? (
-        mask
-    ) : (
+    return (
         <div className="vertically_spaced text_centered column_container">
-            <span id="connect_logo"></span>
-            <p className="vertically_spaced">Choose your connection method.</p>
-            {methods.map((method) => (
-                <div className="left_spaced right_spaced bottom_spaced">
-                    <ButtonWithLoading
-                        key={method.label}
-                        classNameArg="active large_text"
-                        styleArg={{ width: "100%" }}
-                        onClick={async () => {
-                            let mask = await method.login(confirmationRequired);
-                            if (mask) {
-                                setMask(mask);
-                            }
-                        }}
-                        label={
-                            <>
-                                {method.icon} {method.label}
-                            </>
-                        }
-                    />
-                    {!knownUser && (
-                        <p className="small_text">{method.description}</p>
-                    )}{" "}
-                </div>
-            ))}
+            <h1>{signUp ? "Sign-up" : "Sign-in"}</h1>
+            {mask ? (
+                mask
+            ) : (
+                <>
+                    {invite || signUp ? (
+                        <p className="vertically_spaced">
+                            {invite && (
+                                <span>
+                                    Welcome! You were invited to{" "}
+                                    {window.backendCache.config.name}!
+                                </span>
+                            )}
+                            <span>
+                                Select one of the available authentication
+                                methods to create your user account.
+                            </span>
+                        </p>
+                    ) : (
+                        <p className="vertically_spaced">
+                            Choose your authentication method.
+                        </p>
+                    )}
+                    {methods.map((method) => (
+                        <div className="left_spaced right_spaced bottom_spaced">
+                            <ButtonWithLoading
+                                key={method.label}
+                                classNameArg="active"
+                                styleArg={{ width: "100%" }}
+                                onClick={async () => {
+                                    let mask = await method.login(signUp);
+                                    if (mask) {
+                                        setMask(mask);
+                                    }
+                                }}
+                                label={
+                                    <>
+                                        {method.icon} {method.label}
+                                    </>
+                                }
+                            />
+                            {signUp && (
+                                <p className="small_text">
+                                    {method.description}
+                                </p>
+                            )}{" "}
+                        </div>
+                    ))}
+                </>
+            )}
         </div>
     );
 };
@@ -176,7 +207,10 @@ function isBIP39SeedPhrase(phrase: string): boolean {
 }
 
 export const connect = async () => {
-    if (onCanonicalDomain()) return await popUp(<LoginMasks />);
+    if (onCanonicalDomain()) {
+        location.href = "#/sign-in";
+        return;
+    }
 
     // Generate a temporal identity
     const randomSeed = crypto.getRandomValues(new Uint8Array(32));
@@ -186,4 +220,83 @@ export const connect = async () => {
     location.href = `https://${getCanonicalDomain()}/#/delegate/${domain()}/${identity.getPrincipal().toString()}`;
 
     return null;
+};
+
+export const SeedPhraseForm = ({
+    callback,
+    confirmationRequired,
+    classNameArg,
+}: {
+    callback: (arg: string) => Promise<void>;
+    confirmationRequired?: boolean;
+    classNameArg?: string;
+}) => {
+    const [value, setValue] = React.useState("");
+    const [confirmedValue, setConfirmedValue] = React.useState("");
+    const field = React.useRef<HTMLInputElement>();
+    React.useEffect(() => {
+        let current = field.current;
+        current?.focus();
+    }, []);
+    return (
+        <>
+            <p>
+                Please enter your seed phrase{" "}
+                {confirmationRequired && <>and confirm it</>}
+            </p>
+            <div
+                className={`${classNameArg} column_container vertically_spaced`}
+            >
+                <input
+                    ref={field as unknown as any}
+                    onChange={(e) => setValue(e.target.value)}
+                    onKeyPress={async (e) => {
+                        if (!confirmationRequired && e.charCode == 13) {
+                            let button =
+                                document.getElementById("login-button");
+                            button?.click();
+                        }
+                    }}
+                    className="max_width_col bottom_spaced"
+                    type="password"
+                    placeholder="Enter your seed phrase..."
+                />
+                {confirmationRequired && (
+                    <input
+                        onChange={(e) => setConfirmedValue(e.target.value)}
+                        className="max_width_col bottom_spaced"
+                        type="password"
+                        placeholder="Repeat your seed phrase..."
+                    />
+                )}
+                <div className="row_container">
+                    {window.principalId && (
+                        <ButtonWithLoading
+                            classNameArg="max_width_col"
+                            onClick={signOut}
+                            label="SIGN OUT"
+                        />
+                    )}
+                    <ButtonWithLoading
+                        id="login-button"
+                        classNameArg="active left_half_spaced max_width_col"
+                        onClick={async () => {
+                            if (
+                                confirmationRequired &&
+                                value != confirmedValue
+                            ) {
+                                showPopUp(
+                                    "error",
+                                    "Seed phrases do not match.",
+                                );
+                                return;
+                            }
+                            await callback(value);
+                        }}
+                        label="CONTINUE"
+                    />
+                </div>
+            </div>
+        </>
+    );
 };

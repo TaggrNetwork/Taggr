@@ -21,11 +21,12 @@ import {
     User,
 } from "./icons";
 import { RealmHeader } from "./realms";
-import { STAGING_MODE } from "./env";
+import { MAINNET_MODE, STAGING_MODE } from "./env";
 import { User as UserType } from "./types";
 import { Wallet } from "./wallet";
 import { Links } from "./landing";
 import { connect } from "./authentication";
+import { getCanonicalDomain } from "./delegation";
 
 let interval: any = null;
 
@@ -160,15 +161,22 @@ export const Header = ({
                             </button>
                         </>
                     )}
-                    {!window.user &&
-                        // Don't show connect button on invite links
-                        !location.href.includes("welcome") && (
+                    {!window.user && !subtle && (
+                        <>
+                            <ButtonWithLoading
+                                classNameArg="right_half_spaced"
+                                onClick={async () => {
+                                    location.href = `${MAINNET_MODE ? "https://" + getCanonicalDomain() : ""}/#/sign-up`;
+                                }}
+                                label="SIGN UP"
+                            />
                             <ButtonWithLoading
                                 classNameArg="active"
                                 onClick={connect}
-                                label="CONNECT"
+                                label="SIGN IN"
                             />
-                        )}
+                        </>
+                    )}
                 </div>
             </header>
             <DropDown offset={offset}>
