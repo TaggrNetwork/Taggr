@@ -201,9 +201,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 />
                 {
                     <div
-                        className={`bottom_spaced row_container gap ${user?.previous_names?.length > 0 ? "" : "hidden"}`}
+                        className={`bottom_spaced ${user?.previous_names?.length > 0 ? "" : "hidden"}`}
                     >
-                        <div className="bottom_half_spaced">Show Aliases</div>
                         <input
                             type="checkbox"
                             checked={settings.show_aliases !== "off"}
@@ -212,6 +211,12 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             }
                             id="show_aliases"
                         />
+                        <label
+                            className="left_half_spaced"
+                            htmlFor="show_aliases"
+                        >
+                            Show Aliases
+                        </label>
                     </div>
                 }
                 {user && pfp && (
