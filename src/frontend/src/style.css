@@ -817,6 +817,11 @@ a.reply_tag {
     flex-wrap: wrap;
 }
 
+.gap {
+    column-gap: 1em;
+    row-gap: 1em;
+}
+
 .max_width_col {
     flex: 1;
 }
@@ -1200,6 +1205,10 @@ div.thumbnails img {
     position: relative;
     display: flex;
     justify-content: center;
+}
+
+.hidden {
+    display: none;
 }
 
 div.thumbnails {
