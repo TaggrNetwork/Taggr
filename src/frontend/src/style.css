@@ -1202,6 +1202,10 @@ div.thumbnails img {
     justify-content: center;
 }
 
+.hidden {
+    display: none;
+}
+
 div.thumbnails {
     width: 100%;
     bottom: 0;
