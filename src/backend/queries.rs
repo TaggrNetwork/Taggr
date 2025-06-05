@@ -1,7 +1,4 @@
-use crate::{
-    caller,
-    env::{invoices::principal_to_subaccount, proposals::Payload},
-};
+use crate::env::{invoices::principal_to_subaccount, proposals::Payload};
 
 use super::*;
 use candid::Principal;
@@ -16,6 +13,14 @@ use ic_cdk::api::{self, call::arg_data_raw};
 use ic_cdk_macros::query;
 use ic_ledger_types::AccountIdentifier;
 use serde_bytes::ByteBuf;
+
+// Returns the delegate principal if one exists or returns the canonical one otherwise.
+fn caller(state: &State) -> Principal {
+    let canonical_principal = ic_cdk::caller();
+    state
+        .resolve_delegate(canonical_principal)
+        .unwrap_or(canonical_principal)
+}
 
 #[export_name = "canister_query check_invite"]
 fn check_invite() {

@@ -1,5 +1,5 @@
 use super::MINUTE;
-use crate::*;
+use crate::{updates::raw_caller, *};
 use assets::{add_value_to_certify, certify, root_hash};
 use base64::{engine::general_purpose, Engine as _};
 use candid::{CandidType, Deserialize, Principal};
@@ -18,7 +18,6 @@ use icrc_ledger_types::{
 };
 use serde::Serialize;
 use serde_bytes::ByteBuf;
-use updates::caller;
 
 type Timestamp = u64;
 
@@ -198,7 +197,12 @@ fn icrc1_supported_standards() -> Vec<Standard> {
 
 #[update]
 fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
-    let owner = read(|s| caller(s));
+    let owner = read(raw_caller).map_err(|err| {
+        TransferError::GenericError(GenericError {
+            error_code: 69,
+            message: err,
+        })
+    })?;
     if owner == Principal::anonymous() {
         return Err(TransferError::GenericError(GenericError {
             error_code: 0,

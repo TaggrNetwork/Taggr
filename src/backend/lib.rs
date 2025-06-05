@@ -56,10 +56,6 @@ fn optional(s: String) -> Option<String> {
     }
 }
 
-pub fn caller(state: &State) -> Principal {
-    state.resolve_delegate(ic_cdk::caller())
-}
-
 pub fn performance_counter(_n: u32) -> u64 {
     #[cfg(test)]
     return 0;

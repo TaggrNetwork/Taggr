@@ -1,6 +1,7 @@
 use crate::{
     config::CONFIG,
     env::{token, DomainConfig},
+    id,
     metadata::set_index_metadata,
 };
 use base64::{engine::general_purpose, Engine as _};
@@ -133,7 +134,7 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
         format!(
             "{{\"alternativeOrigins\": [ {} ]}}",
             ["ic0.app", "icp0.io"]
-                .map(|domain| format!("\"https://{}.{domain}\"", ic_cdk::id()))
+                .map(|domain| format!("\"https://{}.{domain}\"", id()))
                 .join(",")
         )
         .as_bytes()
