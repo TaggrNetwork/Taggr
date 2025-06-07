@@ -9,6 +9,7 @@ import {
     pfpUrl,
     bigScreen,
     DropDown,
+    getCanonicalDomain,
 } from "./common";
 import {
     Bell,
@@ -26,7 +27,6 @@ import { User as UserType } from "./types";
 import { Wallet } from "./wallet";
 import { Links } from "./landing";
 import { connect } from "./authentication";
-import { getCanonicalDomain } from "./delegation";
 
 let interval: any = null;
 

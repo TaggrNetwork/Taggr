@@ -5,16 +5,14 @@ import {
     restartApp,
     showPopUp,
     signOut,
+    getCanonicalDomain,
+    onCanonicalDomain,
 } from "./common";
 import { HASH_ITERATIONS, hash } from "./common";
 import { Infinity, Incognito, Ticket } from "./icons";
 import { II_URL } from "./env";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
-import {
-    DELEGATION_PRINCIPAL,
-    getCanonicalDomain,
-    onCanonicalDomain,
-} from "./delegation";
+import { DELEGATION_PRINCIPAL } from "./delegation";
 import { instantiateApi } from ".";
 
 export const authMethods = [

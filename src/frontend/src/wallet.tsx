@@ -13,6 +13,8 @@ import {
     tokens,
     ICP_DEFAULT_FEE,
     showPopUp,
+    onCanonicalDomain,
+    UnavailableOnCustomDomains,
 } from "./common";
 import { Principal } from "@dfinity/principal";
 import { CANISTER_ID } from "./env";
@@ -24,6 +26,9 @@ export const Wallet = () => {
     const [user, setUser] = React.useState(window.user);
     const mintCredits = async (kilo_credits: number) =>
         await window.api.call("mint_credits_with_icp", kilo_credits);
+
+    if (!onCanonicalDomain())
+        return <UnavailableOnCustomDomains classNameArg="vertically_spaced" />;
 
     let { token_symbol, token_decimals, transaction_fee } =
         window.backendCache.config;

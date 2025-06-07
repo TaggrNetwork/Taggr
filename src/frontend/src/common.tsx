@@ -1250,3 +1250,20 @@ export function realmAllowed(id?: RealmId) {
 
     return wl.length > 0 ? wl.includes(id) : !bl.includes(id);
 }
+
+export const UnavailableOnCustomDomains = ({
+    classNameArg,
+}: {
+    classNameArg?: string;
+}) => (
+    <div className={`banner ${classNameArg}`}>
+        This functionality is unavailable on {domain()}. Please switch to the{" "}
+        <a href={`https://${getCanonicalDomain()}`}>canonical domain</a>.
+    </div>
+);
+
+export const getCanonicalDomain = () =>
+    `${window.backendCache.stats.canister_id}.icp0.io`;
+
+export const onCanonicalDomain = () =>
+    !MAINNET_MODE || domain() == getCanonicalDomain();

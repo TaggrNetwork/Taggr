@@ -1,11 +1,10 @@
 import {
     ButtonWithLoading,
-    domain,
     NotAllowed,
+    onCanonicalDomain,
     showPopUp,
     signOut,
 } from "./common";
-import { MAINNET_MODE } from "./env";
 
 export const DELEGATION_DOMAIN = "delegation_domain";
 export const DELEGATION_PRINCIPAL = "DELEGATION_PRINCIPAL";
@@ -53,9 +52,3 @@ export const Delegate = ({}: {}) => {
         </div>
     );
 };
-
-export const getCanonicalDomain = () =>
-    `${window.backendCache.stats.canister_id}.icp0.io`;
-
-export const onCanonicalDomain = () =>
-    !MAINNET_MODE || domain() == getCanonicalDomain();
