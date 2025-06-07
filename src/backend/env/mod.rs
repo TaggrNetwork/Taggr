@@ -262,6 +262,10 @@ pub struct State {
     pub weekly_chores_delay_votes: HashSet<UserId>,
 
     pub timers: Timers,
+
+    #[serde(default)]
+    // Maps temporal session principals (delegates) created on custom domains to canonical user principals.
+    delegations: HashMap<Principal, Principal>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -315,12 +319,31 @@ pub enum Destination {
 }
 
 impl State {
+    /// Sets a session principal for a user.
+    pub fn set_delegation(&mut self, session_principal: String) -> Result<(), String> {
+        let caller = ic_cdk::caller();
+        if self.principal_to_user(caller).is_none() {
+            return Err("user not found".into());
+        }
+        self.delegations.insert(
+            Principal::from_text(session_principal)
+                .map_err(|err| format!("couldn't parse the principal id: {err}"))?,
+            caller,
+        );
+        Ok(())
+    }
+
+    /// Returns the delegate principal if one exists
+    pub fn resolve_delegate(&self, caller: Principal) -> Option<Principal> {
+        self.delegations.get(&caller).copied()
+    }
+
     pub fn toggle_account_activation(
         &mut self,
         caller: Principal,
         seed: String,
     ) -> Result<usize, String> {
-        let user = self.principal_to_user_mut(caller).ok_or("no user found")?;
+        let user = self.principal_to_user_mut(caller).ok_or("user not found")?;
         user.change_credits(
             CONFIG.feature_cost,
             CreditsDelta::Minus,
@@ -407,7 +430,7 @@ impl State {
         if self.principal_to_user(caller).is_some() {
             return Err("this wallet is linked already".into());
         }
-        let user = self.users.get_mut(&user_id).ok_or("no user found")?;
+        let user = self.users.get_mut(&user_id).ok_or("user not found")?;
         if user.cold_wallet.is_some() {
             return Err("this user has already a cold wallet".into());
         }
@@ -495,7 +518,10 @@ impl State {
         post_id: PostId,
         reason: String,
     ) -> Result<(), String> {
-        let controller = self.principal_to_user(principal).ok_or("no user found")?.id;
+        let controller = self
+            .principal_to_user(principal)
+            .ok_or("user not found")?
+            .id;
         let post = Post::get(self, &post_id).ok_or("no post found")?;
         if post.parent.is_some() {
             return Err("only root posts can be moved out of realms".into());
@@ -509,7 +535,7 @@ impl State {
         if !realm.controllers.contains(&controller) {
             return Err("only realm controller can clean up".into());
         }
-        let user = self.users.get_mut(&post_user).ok_or("no user found")?;
+        let user = self.users.get_mut(&post_user).ok_or("user not found")?;
         let user_principal = user.principal;
         let realm_member = user.realms.contains(&realm_id);
         let msg = format!(
@@ -552,7 +578,7 @@ impl State {
     }
 
     fn spend_to_user_rewards<T: ToString>(&mut self, user_id: UserId, amount: Credits, log: T) {
-        let user = self.users.get_mut(&user_id).expect("no user found");
+        let user = self.users.get_mut(&user_id).expect("user not found");
         user.change_rewards(amount as i64, log);
         self.burned_cycles = self.burned_cycles.saturating_sub(amount as i64);
     }
@@ -587,7 +613,7 @@ impl State {
         if amount < 1 {
             return Err("non-positive amount".into());
         }
-        let user = self.users.get_mut(&id).ok_or("no user found")?;
+        let user = self.users.get_mut(&id).ok_or("user not found")?;
         user.change_credits(amount, CreditsDelta::Minus, log)?;
         self.burned_cycles = self
             .burned_cycles
@@ -763,7 +789,7 @@ impl State {
             comments_filtering,
             ..
         } = realm;
-        let user = self.principal_to_user(principal).ok_or("no user found")?;
+        let user = self.principal_to_user(principal).ok_or("user not found")?;
         let user_id = user.id;
         let user_name = user.name.clone();
         let realm = self.realms.get_mut(&realm_id).ok_or("no realm found")?;
@@ -782,12 +808,12 @@ impl State {
             let mut old_names = Vec::default();
             let mut new_names = Vec::default();
             for user_id in &realm.controllers {
-                let controller = self.users.get_mut(user_id).expect("no user found");
+                let controller = self.users.get_mut(user_id).expect("user not found");
                 controller.controlled_realms.remove(&realm_id);
                 old_names.push(controller.name.clone());
             }
             for user_id in &controllers {
-                let controller = self.users.get_mut(user_id).expect("no user found");
+                let controller = self.users.get_mut(user_id).expect("user not found");
                 controller.controlled_realms.insert(realm_id.clone());
                 new_names.push(controller.name.clone());
             }
@@ -856,7 +882,7 @@ impl State {
 
         let user = self
             .principal_to_user_mut(principal)
-            .ok_or("no user found")?;
+            .ok_or("user not found")?;
         user.controlled_realms.insert(realm_id.clone());
         let user_id = user.id;
         let user_name = user.name.clone();
@@ -887,13 +913,13 @@ impl State {
         post_id: PostId,
         amount: u64,
     ) -> Result<(), String> {
-        let tipper = self.principal_to_user(principal).ok_or("no user found")?;
+        let tipper = self.principal_to_user(principal).ok_or("user not found")?;
         let tipper_id = tipper.id;
         let tipper_name = tipper.name.clone();
         // DoS protection
         self.charge(tipper_id, CONFIG.tipping_cost, "tipping".to_string())?; // DoS protection
         let author_id = Post::get(self, &post_id).ok_or("post not found")?.user;
-        let author = self.users.get(&author_id).ok_or("no user found")?;
+        let author = self.users.get(&author_id).ok_or("user not found")?;
         token::transfer(
             self,
             time(),
@@ -982,7 +1008,7 @@ impl State {
         if !pfp.genesis && self.pfps.contains(&hash) {
             return Err("avataggr is not unique".into());
         }
-        self.users.get_mut(&user_id).ok_or("no user found")?.pfp = pfp;
+        self.users.get_mut(&user_id).ok_or("user not found")?.pfp = pfp;
         self.pfps.insert(hash);
         Ok(())
     }
@@ -999,7 +1025,7 @@ impl State {
             return Err("credits per user are not a multiple of credits".into());
         }
         let min_credits = CONFIG.min_credits_for_inviting;
-        let user = self.principal_to_user(principal).ok_or("no user found")?;
+        let user = self.principal_to_user(principal).ok_or("user not found")?;
         if credits_per_user < min_credits {
             return Err(format!(
                 "smallest invite must contain {} credits",
@@ -1695,7 +1721,7 @@ impl State {
                 state.minting_mode = false;
                 state
                     .principal_to_user_mut(winner_principal)
-                    .expect("no user found")
+                    .expect("user not found")
                     .notify(format!(
                         "Congratulations! You received `{}` ${} as a weekly random reward! 🎲",
                         CONFIG.random_reward_amount / base(),
@@ -2002,7 +2028,7 @@ impl State {
         let (user_id, principal, rewards) = mutate(|state| {
             let user = state
                 .principal_to_user_mut(principal)
-                .ok_or("no user found".to_string())?;
+                .ok_or("user not found".to_string())?;
 
             let id = user.id;
             let principal = user.principal;
@@ -2471,7 +2497,7 @@ impl State {
             .remove(&old_principal)
             .ok_or("no principal found")?;
         self.principals.insert(new_principal, user_id);
-        let user = self.users.get_mut(&user_id).expect("no user found");
+        let user = self.users.get_mut(&user_id).expect("user not found");
         assert_eq!(user.principal, old_principal);
         user.principal = new_principal;
         user.account = AccountIdentifier::new(&new_principal, &DEFAULT_SUBACCOUNT).to_string();
@@ -2644,7 +2670,7 @@ impl State {
         id: u64,
         vote: bool,
     ) -> Result<(), String> {
-        let reporter = self.principal_to_user(principal).ok_or("no user found")?;
+        let reporter = self.principal_to_user(principal).ok_or("user not found")?;
         let reporter_id = reporter.id;
         if !reporter.stalwart {
             return Err("only stalwarts can vote on reports".into());
@@ -2674,7 +2700,7 @@ impl State {
                     .users
                     .get_mut(&id)
                     .and_then(|u| u.report.as_mut())
-                    .ok_or("no user found")?;
+                    .ok_or("user not found")?;
                 report.vote(stalwarts, reporter_id, vote)?;
                 (
                     id,
@@ -2689,7 +2715,7 @@ impl State {
             if domain == "post" && report.rejected() {
                 self.users
                     .get_mut(&user_id)
-                    .expect("no user found")
+                    .expect("user not found")
                     .post_reports
                     .remove(&id);
             }
@@ -2706,7 +2732,7 @@ impl State {
         mut cfg: DomainConfig,
         command: String,
     ) -> Result<(), String> {
-        let caller = self.principal_to_user(principal).ok_or("no user found")?;
+        let caller = self.principal_to_user(principal).ok_or("user not found")?;
         let caller_id = caller.id;
 
         if domain.len() > 40
@@ -2746,7 +2772,7 @@ impl State {
                 }
 
                 self.principal_to_user_mut(principal)
-                    .ok_or("no user found")?
+                    .ok_or("user not found")?
                     .change_credits(
                         CONFIG.domain_cost,
                         CreditsDelta::Minus,
@@ -2779,7 +2805,7 @@ impl State {
     ) -> Result<(), String> {
         let user_id = self
             .principal_to_user(principal)
-            .ok_or_else(|| "no user found".to_string())?
+            .ok_or_else(|| "user not found".to_string())?
             .id;
         if let Some(realm_id) = Post::get(self, &post_id).and_then(|post| post.realm.as_ref()) {
             if self
@@ -2847,7 +2873,7 @@ impl State {
                     "This post was reported. Please review the report!",
                     Predicate::ReportOpen(id),
                 );
-                let post_author = self.users.get_mut(&post_user).expect("no user found");
+                let post_author = self.users.get_mut(&post_user).expect("user not found");
                 post_author.post_reports.insert(id, time());
                 post_author.notify(format!(
                     "Your [post](#/post/{}) was reported. Consider deleting it to avoid rewards and credit penalties. The reason for the report: {}",
@@ -2855,7 +2881,7 @@ impl State {
                 ));
             }
             "misbehaviour" => {
-                let misbehaving_user = self.users.get_mut(&id).ok_or("no user found")?;
+                let misbehaving_user = self.users.get_mut(&id).ok_or("user not found")?;
                 if misbehaving_user
                     .report
                     .as_ref()
@@ -2906,7 +2932,13 @@ impl State {
         let costs: Credits = CONFIG.post_cost
             + reaction_costs.iter().map(|(_, cost)| *cost).sum::<u64>()
             + comments_tree_penalty;
-        if costs > self.users.get(&post.user).ok_or("no user found")?.credits() {
+        if costs
+            > self
+                .users
+                .get(&post.user)
+                .ok_or("user not found")?
+                .credits()
+        {
             return Err(format!(
                 "not enough credits (this post requires {} credits to be deleted)",
                 costs
@@ -2940,7 +2972,7 @@ impl State {
         )?;
 
         // subtract all rewards from rewards
-        let user = self.users.get_mut(&post.user).expect("no user found");
+        let user = self.users.get_mut(&post.user).expect("user not found");
         user.change_rewards(
             -rewards_penalty,
             format!("deletion of post [{0}](#/post/{0})", post.id),
@@ -3033,7 +3065,11 @@ impl State {
                 post.realm.as_ref(),
                 log.clone(),
             )?;
-            let credit_balance = self.users.get(&post.user).expect("no user found").credits();
+            let credit_balance = self
+                .users
+                .get(&post.user)
+                .expect("user not found")
+                .credits();
             if credit_balance > 0 {
                 self.charge_in_realm(
                     post.user,
@@ -4519,7 +4555,7 @@ pub(crate) mod tests {
             // simple creation and description change edge cases
             assert_eq!(
                 create_realm(state, pr(2), name.clone(),),
-                Err("no user found".to_string())
+                Err("user not found".to_string())
             );
 
             assert_eq!(
@@ -4576,7 +4612,7 @@ pub(crate) mod tests {
 
             assert_eq!(
                 state.edit_realm(pr(2), name.clone(), Realm::default()),
-                Err("no user found".to_string())
+                Err("user not found".to_string())
             );
 
             assert_eq!(

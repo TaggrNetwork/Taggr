@@ -7,6 +7,8 @@ import {
     ICP_LEDGER_ID,
     hex,
     showPopUp,
+    onCanonicalDomain,
+    UnavailableOnCustomDomains,
 } from "./common";
 import { PFP, User, UserFilter, UserId } from "./types";
 import { Principal } from "@dfinity/principal";
@@ -18,7 +20,7 @@ export const DEFAULT_REACTION_HOLD_TIME = 350;
 
 export const Settings = ({ invite }: { invite?: string }) => {
     const user = window.user;
-    const [principal, setPrincipal] = React.useState(window.getPrincipalId());
+    const [principal, setPrincipal] = React.useState(window.principalId);
     const [name, setName] = React.useState("");
     const [pfp, setPfp] = React.useState<PFP>({
         nonce: 0,
@@ -462,40 +464,51 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             activation/deactivation costs{" "}
                             {window.backendCache.config.feature_cost} credits.
                         </p>
-                        <input
-                            placeholder="Encryption password"
-                            className="bottom_spaced"
-                            type="password"
-                            value={encKey}
-                            onChange={(event) => setEncKey(event.target.value)}
-                        />
-                        <ButtonWithLoading
-                            classNameArg={encKey ? "" : "inactive"}
-                            onClick={async () => {
-                                const seed = hex(
-                                    Array.from(await hash(encKey, 1)),
-                                );
-                                const result: any = await window.api.call(
-                                    "crypt",
-                                    seed,
-                                );
-                                const prefix = user.deactivated ? "de" : "en";
-                                if (result && "Ok" in result) {
-                                    showPopUp(
-                                        "success",
-                                        `${result.Ok} posts sucessfully ${prefix}crypted!`,
-                                        5,
-                                    );
-                                } else {
-                                    showPopUp(
-                                        "error",
-                                        `${prefix}cryption failed (${result?.Err || "wrong password?"})`,
-                                        5,
-                                    );
-                                }
-                            }}
-                            label={`${user.deactivated ? "AC" : "DEAC"}TIVATE`}
-                        />
+                        {onCanonicalDomain() ? (
+                            <>
+                                <input
+                                    placeholder="Encryption password"
+                                    className="bottom_spaced"
+                                    type="password"
+                                    value={encKey}
+                                    onChange={(event) =>
+                                        setEncKey(event.target.value)
+                                    }
+                                />
+                                <ButtonWithLoading
+                                    classNameArg={encKey ? "" : "inactive"}
+                                    onClick={async () => {
+                                        const seed = hex(
+                                            Array.from(await hash(encKey, 1)),
+                                        );
+                                        const result: any =
+                                            await window.api.call(
+                                                "crypt",
+                                                seed,
+                                            );
+                                        const prefix = user.deactivated
+                                            ? "de"
+                                            : "en";
+                                        if (result && "Ok" in result) {
+                                            showPopUp(
+                                                "success",
+                                                `${result.Ok} posts sucessfully ${prefix}crypted!`,
+                                                5,
+                                            );
+                                        } else {
+                                            showPopUp(
+                                                "error",
+                                                `${prefix}cryption failed (${result?.Err || "wrong password?"})`,
+                                                5,
+                                            );
+                                        }
+                                    }}
+                                    label={`${user.deactivated ? "AC" : "DEAC"}TIVATE`}
+                                />
+                            </>
+                        ) : (
+                            <UnavailableOnCustomDomains />
+                        )}
                         <h2>Principal Change</h2>
                         You can change your principal as follows:
                         <ol>
@@ -518,54 +531,64 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                 confirm the principal change.
                             </li>
                         </ol>
-                        <div className="bottom_half_spaced">New principal</div>
-                        <input
-                            placeholder="Your principal"
-                            className="bottom_spaced"
-                            type="text"
-                            value={principal}
-                            onChange={(event) =>
-                                setPrincipal(event.target.value)
-                            }
-                        />
-                        {
-                            <ButtonWithLoading
-                                classNameArg={
-                                    principal != window.getPrincipalId()
-                                        ? ""
-                                        : "inactive"
-                                }
-                                onClick={async () => {
-                                    const accountBalance =
-                                        await window.api.account_balance(
-                                            ICP_LEDGER_ID,
-                                            {
-                                                owner: Principal.fromText(
-                                                    user.principal,
-                                                ),
-                                            },
-                                        );
-                                    if (accountBalance > 0) {
-                                        showPopUp(
-                                            "warning",
-                                            "Your ICP balance is not empty. Please withdraw all funds before changing the principal.",
-                                            5,
-                                        );
-                                        return;
+                        {onCanonicalDomain() ? (
+                            <>
+                                <div className="bottom_half_spaced">
+                                    New principal
+                                </div>
+                                <input
+                                    placeholder="Your principal"
+                                    className="bottom_spaced"
+                                    type="text"
+                                    value={principal}
+                                    onChange={(event) =>
+                                        setPrincipal(event.target.value)
                                     }
-                                    let response = await window.api.call<any>(
-                                        "request_principal_change",
-                                        principal.trim(),
-                                    );
-                                    if ("Err" in response) {
-                                        return showPopUp("error", response.Err);
+                                />
+                                <ButtonWithLoading
+                                    classNameArg={
+                                        principal != window.principalId
+                                            ? ""
+                                            : "inactive"
                                     }
-                                    localStorage.clear();
-                                    location.href = "/";
-                                }}
-                                label="CHANGE PRINCIPAL"
-                            />
-                        }
+                                    onClick={async () => {
+                                        const accountBalance =
+                                            await window.api.account_balance(
+                                                ICP_LEDGER_ID,
+                                                {
+                                                    owner: Principal.fromText(
+                                                        user.principal,
+                                                    ),
+                                                },
+                                            );
+                                        if (accountBalance > 0) {
+                                            showPopUp(
+                                                "warning",
+                                                "Your ICP balance is not empty. Please withdraw all funds before changing the principal.",
+                                                5,
+                                            );
+                                            return;
+                                        }
+                                        let response =
+                                            await window.api.call<any>(
+                                                "request_principal_change",
+                                                principal.trim(),
+                                            );
+                                        if ("Err" in response) {
+                                            return showPopUp(
+                                                "error",
+                                                response.Err,
+                                            );
+                                        }
+                                        localStorage.clear();
+                                        location.href = "/";
+                                    }}
+                                    label="CHANGE PRINCIPAL"
+                                />
+                            </>
+                        ) : (
+                            <UnavailableOnCustomDomains />
+                        )}
                     </div>
                 )}
             </div>

@@ -29,6 +29,7 @@ import {
     showPopUp,
     realmAllowed,
     NotAllowed,
+    onCanonicalDomain,
 } from "./common";
 import {
     reaction2icon,
@@ -614,7 +615,7 @@ const PostInfo = ({
                             }
                             testId="bookmark-post"
                         />
-                        {!postAuthor && (
+                        {!postAuthor && onCanonicalDomain() && (
                             <ButtonWithLoading
                                 title="Tip"
                                 classNameArg="max_width_col"

@@ -1,6 +1,6 @@
 import { test, expect, Page } from "@playwright/test";
 import { resolve } from "node:path";
-import { exec } from "./command";
+import { exec, mkPwd } from "./command";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
@@ -17,19 +17,20 @@ test.describe("Upgrades & token transfer flow", () => {
     test("Registration", async () => {
         await page.goto("/");
         // Registration flow
-        await page.getByRole("button", { name: "CONNECT" }).click();
+        await page.getByRole("button", { name: "SIGN UP" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
-        await page.getByPlaceholder("Enter your seed phrase...").fill("eve");
-        await page.getByRole("button", { name: "JOIN" }).click();
-        await page.waitForTimeout(1000);
-        await page.getByPlaceholder("Enter your seed phrase...").fill("eve");
-        await page.getByPlaceholder("Repeat your seed phrase...").fill("eve");
-        await page.getByRole("button", { name: "JOIN" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("eve"));
+        await page
+            .getByPlaceholder("Repeat your seed phrase...")
+            .fill(mkPwd("eve"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
         const stalwartPrincipal =
-            "qjuij-xy6vt-yssaf-dar36-pqa7n-5plk4-3dfy3-ppec7-exsio-qy6xh-7qe";
+            "v5znh-suak4-idmlq-uaq6k-iiygt-7d7de-jq7pf-dpzmt-zhmle-akfo2-mqe";
         await expect(page.getByText(stalwartPrincipal)).toBeVisible();
         exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 2e670a6cf5ec1a1387dc8e02da3279f8e9221c2191b6f7532f449bb439538f20",
+            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 2cf73bb8c2acb69a7c18dda7fc1f2c4bf923a9fa7552e454e5eb656bd2e0ada4",
         );
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
@@ -57,9 +58,13 @@ test.describe("Upgrades & token transfer flow", () => {
     test("Registration by invite and rewarding a post", async ({ page }) => {
         await page.goto(inviteLink);
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
-        await page.getByPlaceholder("Enter your seed phrase...").fill("pete");
-        await page.getByPlaceholder("Repeat your seed phrase...").fill("pete");
-        await page.getByRole("button", { name: "JOIN" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("pete"));
+        await page
+            .getByPlaceholder("Repeat your seed phrase...")
+            .fill(mkPwd("pete"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.getByPlaceholder("alphanumeric").fill("pete");
         await page.getByRole("button", { name: "SAVE" }).click();
 
@@ -80,7 +85,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.getByPlaceholder("ICP per 1 TAGGR").fill("0.01");
         await page.getByPlaceholder("Number of TAGGR tokens").fill("15");
         exec(
-            "dfx --identity local-minter ledger transfer --amount 0.15 --memo 0 2e670a6cf5ec1a1387dc8e02da3279f8e9221c2191b6f7532f449bb439538f20",
+            "dfx --identity local-minter ledger transfer --amount 0.15 --memo 0 2cf73bb8c2acb69a7c18dda7fc1f2c4bf923a9fa7552e454e5eb656bd2e0ada4",
         );
         await page.getByRole("button", { name: "BID FOR 15 TAGGR" }).click();
         await page.waitForTimeout(1000);
@@ -133,8 +138,10 @@ test.describe("Upgrades & token transfer flow", () => {
     test("Recovery proposal", async ({ page }) => {
         await page.goto("/#/recovery");
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
-        await page.getByPlaceholder("Enter your seed phrase...").fill("eve");
-        await page.getByRole("button", { name: "JOIN" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("eve"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
 
         // Make sure the recovery page is visible
         await expect(

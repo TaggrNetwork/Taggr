@@ -1,5 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
-import { exec } from "./command";
+import { exec, mkPwd } from "./command";
 
 test.describe.configure({ mode: "serial" });
 
@@ -15,16 +15,17 @@ test.describe("Report and transfer to user", () => {
     test("Registration", async () => {
         await page.goto("/");
         // Registration flow
-        await page.getByRole("button", { name: "CONNECT" }).click();
+        await page.getByRole("button", { name: "SIGN UP" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
-        await page.getByPlaceholder("Enter your seed phrase...").fill("joe");
-        await page.getByRole("button", { name: "JOIN" }).click();
-        await page.waitForTimeout(1000);
-        await page.getByPlaceholder("Enter your seed phrase...").fill("joe");
-        await page.getByPlaceholder("Repeat your seed phrase...").fill("joe");
-        await page.getByRole("button", { name: "JOIN" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("joe"));
+        await page
+            .getByPlaceholder("Repeat your seed phrase...")
+            .fill(mkPwd("joe"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
         exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 a8caaf21598f17df5a17ce655b3a39298559b76f23ea1b2afddd312d0abb04e8",
+            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 618d9a553ef134a2176a6141b3d512d76a32b0671dc2a23fdd4a532e74767821",
         );
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
@@ -32,8 +33,6 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "CREATE USER" }).click();
         await page.getByPlaceholder("alphanumeric").fill("joe");
         await page.getByRole("button", { name: "SAVE" }).click();
-        exec("dfx canister call taggr make_stalwart '(\"joe\")'");
-        await page.waitForTimeout(500);
     });
 
     test("Create two invites", async () => {
@@ -55,9 +54,13 @@ test.describe("Report and transfer to user", () => {
     test("Registration by invite 1 and create a post", async ({ page }) => {
         await page.goto(inviteLink1);
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
-        await page.getByPlaceholder("Enter your seed phrase...").fill("jane");
-        await page.getByPlaceholder("Repeat your seed phrase...").fill("jane");
-        await page.getByRole("button", { name: "JOIN" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("jane"));
+        await page
+            .getByPlaceholder("Repeat your seed phrase...")
+            .fill(mkPwd("jane"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.getByPlaceholder("alphanumeric").fill("jane");
         await page.getByRole("button", { name: "SAVE" }).click();
 
@@ -72,9 +75,13 @@ test.describe("Report and transfer to user", () => {
     test("Registration by invite 2 and create a post", async ({ page }) => {
         await page.goto(inviteLink2);
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
-        await page.getByPlaceholder("Enter your seed phrase...").fill("kyle");
-        await page.getByPlaceholder("Repeat your seed phrase...").fill("kyle");
-        await page.getByRole("button", { name: "JOIN" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("kyle"));
+        await page
+            .getByPlaceholder("Repeat your seed phrase...")
+            .fill(mkPwd("kyle"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.getByPlaceholder("alphanumeric").fill("kyle");
         await page.getByRole("button", { name: "SAVE" }).click();
 
@@ -128,10 +135,12 @@ test.describe("Report and transfer to user", () => {
         page,
     }) => {
         await page.goto("/");
-        await page.getByRole("button", { name: "CONNECT" }).click();
+        await page.getByRole("button", { name: "SIGN IN" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
-        await page.getByPlaceholder("Enter your seed phrase...").fill("jane");
-        await page.getByRole("button", { name: "JOIN" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("jane"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.waitForTimeout(1000);
 
         await page.goto("/#/settings");
@@ -142,7 +151,7 @@ test.describe("Report and transfer to user", () => {
         await page.getByPlaceholder("ICP per 1 TAGGR").fill("0.01");
         await page.getByPlaceholder("Number of TAGGR tokens").fill("15");
         exec(
-            "dfx --identity local-minter ledger transfer --amount 0.15 --memo 0 756c3ee29e97e7f0a4a9e5c153f88b9f3c12dd43394c4298bbc9f4de3fc84121",
+            "dfx --identity local-minter ledger transfer --amount 0.15 --memo 0 68295789e2bd9fc83a81df85c0bafd7e05b4111890ab3f444cb482b414f41922",
         );
         await page.getByRole("button", { name: "BID FOR 15 TAGGR" }).click();
         await page.waitForTimeout(1000);
@@ -152,11 +161,14 @@ test.describe("Report and transfer to user", () => {
     });
 
     test("Report user", async ({ page }) => {
+        exec("dfx canister call taggr make_stalwart '(\"joe\")'");
         await page.goto("/");
-        await page.getByRole("button", { name: "CONNECT" }).click();
+        await page.getByRole("button", { name: "SIGN IN" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
-        await page.getByPlaceholder("Enter your seed phrase...").fill("jane");
-        await page.getByRole("button", { name: "JOIN" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("jane"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.waitForTimeout(1000);
         await page.goto("/#/user/kyle");
         await page.getByTestId("profile-burger-menu").click();
@@ -195,10 +207,12 @@ test.describe("Report and transfer to user", () => {
 
     test("Token transfer to user", async ({ page }) => {
         await page.goto("/");
-        await page.getByRole("button", { name: "CONNECT" }).click();
+        await page.getByRole("button", { name: "SIGN IN" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
-        await page.getByPlaceholder("Enter your seed phrase...").fill("jane");
-        await page.getByRole("button", { name: "JOIN" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("jane"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.waitForTimeout(1000);
         await page.getByTestId("toggle-user-section").click();
 
@@ -211,7 +225,7 @@ test.describe("Report and transfer to user", () => {
                 ) {
                     // Joe's principal
                     await dialog.accept(
-                        "62pp3-suqb6-5endn-psc4d-2ytvb-xatk2-5pp6u-qwhpd-u3ko3-npsin-qae",
+                        "evuet-jp2tc-7uwe3-dpgmg-xxr4f-duv55-36d7t-i5nxm-vgc33-cddq3-wae",
                     );
                 }
                 if (dialog.message().includes("Enter the amount")) {
@@ -231,8 +245,8 @@ test.describe("Report and transfer to user", () => {
         await transferExecuted;
 
         await page.goto("/#/user/joe");
-        await expect(page.locator("div:has-text('TOKENS') > a")).toHaveText(
-            "5",
-        );
+        await expect(
+            page.locator("div.db_cell:has-text('TOKENS') > a"),
+        ).toHaveText("5");
     });
 });

@@ -382,9 +382,7 @@ declare global {
         lastVisit: BigInt;
         api: Backend;
         mainnet_api: Backend;
-        getPrincipalId: () => string;
-        // Holds the principal of the delegate signing key (the signing key living in the browser)
-        _delegatePrincipalId: string;
+        principalId: string;
         realm: string;
         user: User;
         scrollUpButton: HTMLElement;

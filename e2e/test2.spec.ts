@@ -1,6 +1,6 @@
 import { test, expect, Page } from "@playwright/test";
 import { resolve } from "node:path";
-import { exec } from "./command";
+import { exec, mkPwd } from "./command";
 
 test.describe.configure({ mode: "serial" });
 
@@ -16,19 +16,20 @@ test.describe("Regular users flow", () => {
         await page.goto("/");
 
         // Registration flow
-        await page.getByRole("button", { name: "CONNECT" }).click();
+        await page.getByRole("button", { name: "SIGN UP" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
-        await page.getByPlaceholder("Enter your seed phrase...").fill("alice");
-        await page.getByRole("button", { name: "JOIN" }).click();
-        await page.waitForTimeout(1000);
-        await page.getByPlaceholder("Enter your seed phrase...").fill("alice");
-        await page.getByPlaceholder("Repeat your seed phrase...").fill("alice");
-        await page.getByRole("button", { name: "JOIN" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("alice"));
+        await page
+            .getByPlaceholder("Repeat your seed phrase...")
+            .fill(mkPwd("alice"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
         const alicePrincipal =
-            "afqmt-iuwxe-fcmq2-gidf2-tqzx2-beg3a-jq7tp-he6c6-xr67k-rtnl7-aqe";
+            "xkqsg-2iln4-5zio6-xn4ja-s34n3-g63uk-kc6ex-wklca-7kfzz-67won-yqe";
         await expect(page.getByText(alicePrincipal)).toBeVisible();
         exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 ce8d1d9b278bf41f444a8e1686559f33029602274363e8f13a43e06461f312ab",
+            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 61f26763dc3d33d1d9f2114ba8361602fb0f72bfa50bab30255f65a52c30adf0",
         );
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
@@ -56,10 +57,12 @@ test.describe("Regular users flow", () => {
 
     test("Login and post", async () => {
         // Login flow
-        await page.getByRole("button", { name: "CONNECT" }).click();
+        await page.getByRole("button", { name: "SIGN IN" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
-        await page.getByPlaceholder("Enter your seed phrase...").fill("alice");
-        await page.getByRole("button", { name: "JOIN" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("alice"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.getByTestId("toggle-user-section").click();
         const profileButton = page.getByRole("link", { name: /.*ALICE.*/ });
         await expect(profileButton).toBeVisible();
@@ -224,9 +227,13 @@ test.describe("Regular users flow", () => {
     test("Registration by invite", async () => {
         await page.goto(inviteLink);
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
-        await page.getByPlaceholder("Enter your seed phrase...").fill("bob");
-        await page.getByPlaceholder("Repeat your seed phrase...").fill("bob");
-        await page.getByRole("button", { name: "JOIN" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("bob"));
+        await page
+            .getByPlaceholder("Repeat your seed phrase...")
+            .fill(mkPwd("bob"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.getByPlaceholder("alphanumeric").fill("bob");
         await page
             .getByPlaceholder("tell us what we should know about you")

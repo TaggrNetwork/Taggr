@@ -5,13 +5,12 @@ import {
     IconToggleButton,
     RealmList,
     signOut,
-    popUp,
     ButtonWithLoading,
     pfpUrl,
     bigScreen,
     DropDown,
+    getCanonicalDomain,
 } from "./common";
-import { LoginMasks } from "./authentication";
 import {
     Bell,
     Gear,
@@ -23,10 +22,11 @@ import {
     User,
 } from "./icons";
 import { RealmHeader } from "./realms";
-import { STAGING_MODE } from "./env";
+import { MAINNET_MODE, STAGING_MODE } from "./env";
 import { User as UserType } from "./types";
 import { Wallet } from "./wallet";
 import { Links } from "./landing";
+import { connect } from "./authentication";
 
 let interval: any = null;
 
@@ -161,17 +161,22 @@ export const Header = ({
                             </button>
                         </>
                     )}
-                    {!window.getPrincipalId() &&
-                        // Don't show connect button on invite links
-                        !location.href.includes("welcome") && (
+                    {!window.user && !subtle && (
+                        <>
+                            <ButtonWithLoading
+                                classNameArg="right_half_spaced"
+                                onClick={async () => {
+                                    location.href = `${MAINNET_MODE ? "https://" + getCanonicalDomain() : ""}/#/sign-up`;
+                                }}
+                                label="SIGN UP"
+                            />
                             <ButtonWithLoading
                                 classNameArg="active"
-                                onClick={async () =>
-                                    await popUp(<LoginMasks />)
-                                }
-                                label="CONNECT"
+                                onClick={connect}
+                                label="SIGN IN"
                             />
-                        )}
+                        </>
+                    )}
                 </div>
             </header>
             <DropDown offset={offset}>

@@ -14,6 +14,8 @@ import {
     commaSeparated,
     REPO,
     showPopUp,
+    onCanonicalDomain,
+    UnavailableOnCustomDomains,
 } from "./common";
 import * as React from "react";
 import { HourGlass } from "./icons";
@@ -72,17 +74,22 @@ const ProposalForm = ({}) => {
     return (
         <>
             <h2>New Proposal Form</h2>
-            {userBalance > balance ? (
-                <Form
-                    proposalCreation={true}
-                    submitCallback={newPostCallback}
-                />
+            {onCanonicalDomain() ? (
+                userBalance > balance ? (
+                    <Form
+                        proposalCreation={true}
+                        submitCallback={newPostCallback}
+                    />
+                ) : (
+                    <div className="banner">
+                        To open a new proposal, you need to have a least{" "}
+                        {token(balance)}{" "}
+                        {window.backendCache.config.token_symbol} on your
+                        balance.
+                    </div>
+                )
             ) : (
-                <div className="banner">
-                    To open a new proposal, you need to have a least{" "}
-                    {token(balance)} {window.backendCache.config.token_symbol}{" "}
-                    on your balance.
-                </div>
+                <UnavailableOnCustomDomains />
             )}
         </>
     );
@@ -604,42 +611,53 @@ export const ProposalView = ({
                     />
                 </div>
             </div>
-            {window.user && open && !voted && (
-                <>
-                    <div className="row_container">
-                        <ButtonWithLoading
-                            onClick={async () =>
-                                confirm(
-                                    "You're rejecting the proposal. Please confirm.",
-                                ) && (await vote(proposal, false))
-                            }
-                            classNameArg="max_width_col large_text"
-                            label="REJECT"
-                        />
-                        <ButtonWithLoading
-                            onClick={() => vote(proposal, true)}
-                            classNameArg="max_width_col large_text"
-                            label="ACCEPT"
-                        />
-                    </div>
-                </>
-            )}
-            {window.user && window.user.id == proposal.proposer && open && (
-                <ButtonWithLoading
-                    onClick={async () => {
-                        if (
-                            !confirm(
-                                "You're canceling the proposal. Please confirm.",
-                            )
-                        )
-                            return;
-                        await window.api.call("cancel_proposal", proposal.id);
-                        await loadState();
-                    }}
-                    classNameArg="top_spaced max_width_col large_text"
-                    label="CANCEL"
-                />
-            )}
+            {window.user &&
+                open &&
+                (onCanonicalDomain() ? (
+                    <>
+                        {!voted && (
+                            <>
+                                <div className="row_container">
+                                    <ButtonWithLoading
+                                        onClick={async () =>
+                                            confirm(
+                                                "You're rejecting the proposal. Please confirm.",
+                                            ) && (await vote(proposal, false))
+                                        }
+                                        classNameArg="max_width_col"
+                                        label="REJECT"
+                                    />
+                                    <ButtonWithLoading
+                                        onClick={() => vote(proposal, true)}
+                                        classNameArg="max_width_col"
+                                        label="ACCEPT"
+                                    />
+                                </div>
+                            </>
+                        )}
+                        {window.user.id == proposal.proposer && (
+                            <ButtonWithLoading
+                                onClick={async () => {
+                                    if (
+                                        !confirm(
+                                            "You're canceling the proposal. Please confirm.",
+                                        )
+                                    )
+                                        return;
+                                    await window.api.call(
+                                        "cancel_proposal",
+                                        proposal.id,
+                                    );
+                                    await loadState();
+                                }}
+                                classNameArg="top_spaced max_width_col"
+                                label="CANCEL"
+                            />
+                        )}
+                    </>
+                ) : (
+                    <UnavailableOnCustomDomains />
+                ))}
         </div>
     );
 };
