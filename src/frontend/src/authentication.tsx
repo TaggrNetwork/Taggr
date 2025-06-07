@@ -211,7 +211,7 @@ function isBIP39SeedPhrase(phrase: string): boolean {
     return invalidWords.length === 0;
 }
 
-export const connect = async () => {
+export const connect = () => {
     if (onCanonicalDomain()) {
         location.href = "#/sign-in";
         return;

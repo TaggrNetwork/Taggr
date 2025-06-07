@@ -5,7 +5,6 @@ import {
     IconToggleButton,
     RealmList,
     signOut,
-    ButtonWithLoading,
     pfpUrl,
     bigScreen,
     DropDown,
@@ -163,18 +162,17 @@ export const Header = ({
                     )}
                     {!window.user && !subtle && (
                         <>
-                            <ButtonWithLoading
-                                classNameArg="right_half_spaced"
-                                onClick={async () => {
+                            <button
+                                className="right_half_spaced"
+                                onClick={() => {
                                     location.href = `${MAINNET_MODE ? "https://" + getCanonicalDomain() : ""}/#/sign-up`;
                                 }}
-                                label="SIGN UP"
-                            />
-                            <ButtonWithLoading
-                                classNameArg="active"
-                                onClick={connect}
-                                label="SIGN IN"
-                            />
+                            >
+                                SIGN UP
+                            </button>
+                            <button className="active" onClick={connect}>
+                                SIGN IN
+                            </button>
                         </>
                     )}
                 </div>
