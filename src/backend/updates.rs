@@ -303,11 +303,11 @@ fn transfer_credits() {
     reply(mutate(|state| {
         let sender = state
             .principal_to_user(caller(state))
-            .ok_or("no user found")?;
+            .ok_or("user not found")?;
 
         sender.validate_send_credits(state)?;
 
-        let recipient_name = &state.users.get(&recipient).ok_or("no user found")?.name;
+        let recipient_name = &state.users.get(&recipient).ok_or("user not found")?.name;
         state.credit_transfer(
             sender.id,
             recipient,
@@ -521,7 +521,7 @@ fn toggle_following_post() {
     let user_id = read(|state| {
         state
             .principal_to_user(caller(state))
-            .expect("no user found")
+            .expect("user not found")
             .id
     });
     reply(
@@ -600,7 +600,7 @@ fn toggle_filter() {
             if let Some(user) = state.principal_to_user_mut(caller(state)) {
                 user.toggle_filter(filter, value)
             } else {
-                Err("no user found".into())
+                Err("user not found".into())
             },
         );
     })
