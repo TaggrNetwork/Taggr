@@ -35,6 +35,7 @@ export const Welcome = () => {
     const [payment, setPayment] = React.useState("");
     const [loadingInvoice, setLoadingInvoice] = React.useState(false);
 
+    // If an existing user gets here (e.g. by using sign up), just redirect them to the landing page.
     if (window.user) {
         location.href = "#/";
     }
