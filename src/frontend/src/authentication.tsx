@@ -101,7 +101,11 @@ export const authMethods = [
 ];
 
 const finalize = async (signUp?: boolean) => {
-    if (!signUp) {
+    if (
+        // in recovery mode, we do not instantiate this function
+        window.reloadUser &&
+        !signUp
+    ) {
         await instantiateApi();
         await window.reloadUser();
         if (window.user)
@@ -151,7 +155,10 @@ export const LoginMasks = ({
                         </p>
                     )}
                     {methods.map((method) => (
-                        <div className="left_spaced right_spaced bottom_spaced">
+                        <div
+                            key={method.label}
+                            className="left_spaced right_spaced bottom_spaced"
+                        >
                             <ButtonWithLoading
                                 key={method.label}
                                 classNameArg="active"

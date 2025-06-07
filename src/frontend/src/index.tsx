@@ -435,9 +435,9 @@ const bootstrap = async () => {
 
     futures.push(confirmPrincipalChange().then(window.reloadUser));
 
-    futures.push(updateDoc());
-
     await Promise.all(futures);
+
+    updateDoc();
 
     App();
 
