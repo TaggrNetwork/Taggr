@@ -15,9 +15,6 @@ export const Inbox = () => {
     const [showArchive, setShowArchive] = React.useState(false);
     const ids = Object.keys(inbox);
     ids.reverse();
-    if (ids.length == 0) {
-        location.href = "#/";
-    }
 
     const closeNotification = (k: number, callback?: () => void) => {
         window.api.call("clear_notifications", [k]);
