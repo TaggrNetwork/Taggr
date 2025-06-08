@@ -17,9 +17,7 @@ use serde_bytes::ByteBuf;
 // Returns the delegate principal if one exists or returns the canonical one otherwise.
 fn caller(state: &State) -> Principal {
     let canonical_principal = ic_cdk::caller();
-    state
-        .resolve_delegation(canonical_principal)
-        .unwrap_or(canonical_principal)
+    delegations::resolve_delegation(state, canonical_principal).unwrap_or(canonical_principal)
 }
 
 #[export_name = "canister_query check_invite"]

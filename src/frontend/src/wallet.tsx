@@ -28,7 +28,12 @@ export const Wallet = () => {
         await window.api.call("mint_credits_with_icp", kilo_credits);
 
     if (!onCanonicalDomain())
-        return <UnavailableOnCustomDomains classNameArg="vertically_spaced" />;
+        return (
+            <UnavailableOnCustomDomains
+                component="User wallet"
+                classNameArg="top_spaced"
+            />
+        );
 
     let { token_symbol, token_decimals, transaction_fee } =
         window.backendCache.config;

@@ -37,6 +37,7 @@ pub mod auction;
 pub mod bitcoin;
 pub mod canisters;
 pub mod config;
+pub mod delegations;
 pub mod features;
 pub mod invite;
 pub mod invoices;
@@ -319,36 +320,6 @@ pub enum Destination {
 }
 
 impl State {
-    /// Sets a session principal for a user.
-    pub fn set_delegation(
-        &mut self,
-        domain: String,
-        caller: Principal,
-        session_principal: String,
-        now: Time,
-    ) -> Result<(), String> {
-        if self.principal_to_user(caller).is_none() {
-            return Err("user not found".into());
-        }
-        if !self.domains.contains_key(&domain) {
-            return Err("domain not found".into());
-        }
-        self.delegations.insert(
-            Principal::from_text(session_principal)
-                .map_err(|err| format!("couldn't parse the principal id: {err}"))?,
-            (caller, domain, now),
-        );
-        Ok(())
-    }
-
-    /// Returns the delegate principal if one exists
-    pub fn resolve_delegation(&self, caller: Principal) -> Option<Principal> {
-        self.delegations
-            .get(&caller)
-            .map(|(principal, _, _)| principal)
-            .copied()
-    }
-
     pub fn toggle_account_activation(
         &mut self,
         caller: Principal,

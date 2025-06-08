@@ -1252,12 +1252,14 @@ export function realmAllowed(id?: RealmId) {
 }
 
 export const UnavailableOnCustomDomains = ({
+    component = "This functionality",
     classNameArg,
 }: {
+    component?: string;
     classNameArg?: string;
 }) => (
     <div className={`banner ${classNameArg}`}>
-        This functionality is unavailable on {domain()}. Please switch to the{" "}
+        {component} is unavailable on {domain()}. Please switch to the{" "}
         <a href={`https://${getCanonicalDomain()}`}>canonical domain</a>.
     </div>
 );
