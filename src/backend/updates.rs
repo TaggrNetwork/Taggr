@@ -36,7 +36,7 @@ fn canonical_principal() -> Principal {
 /// otherwise returns the raw principal.
 pub fn raw_caller(state: &State) -> Result<Principal, String> {
     let principal = canonical_principal();
-    if state.resolve_delegate(principal).is_some() {
+    if state.resolve_delegation(principal).is_some() {
         return Err("operation not supported on custom domains".into());
     }
     Ok(principal)
@@ -45,7 +45,7 @@ pub fn raw_caller(state: &State) -> Result<Principal, String> {
 /// Returns the principal for the provided delegate.
 fn caller(state: &State) -> Principal {
     let principal = canonical_principal();
-    state.resolve_delegate(principal).unwrap_or(principal)
+    state.resolve_delegation(principal).unwrap_or(principal)
 }
 
 #[init]
@@ -130,8 +130,10 @@ async fn get_neuron_info() -> Result<String, String> {
 
 #[export_name = "canister_update set_delegation"]
 fn set_delegation() {
-    let session_principal: String = parse(&arg_data_raw());
-    mutate(|state| reply(state.set_delegation(session_principal)))
+    let (domain, session_principal): (String, String) = parse(&arg_data_raw());
+    reply(mutate(|state| {
+        state.set_delegation(domain, raw_caller(state)?, session_principal, time())
+    }))
 }
 
 #[export_name = "canister_update set_domain_config"]

@@ -38,6 +38,7 @@ export const Delegate = ({}: {}) => {
 
                         const response = await window.api.call<any>(
                             "set_delegation",
+                            domain,
                             principal,
                         );
                         if (response && "Err" in response) {

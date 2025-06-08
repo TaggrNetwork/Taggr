@@ -265,7 +265,7 @@ pub struct State {
 
     #[serde(default)]
     // Maps temporal session principals (delegates) created on custom domains to canonical user principals.
-    delegations: HashMap<Principal, Principal>,
+    delegations: HashMap<Principal, (Principal, String, Time)>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -320,22 +320,33 @@ pub enum Destination {
 
 impl State {
     /// Sets a session principal for a user.
-    pub fn set_delegation(&mut self, session_principal: String) -> Result<(), String> {
-        let caller = ic_cdk::caller();
+    pub fn set_delegation(
+        &mut self,
+        domain: String,
+        caller: Principal,
+        session_principal: String,
+        now: Time,
+    ) -> Result<(), String> {
         if self.principal_to_user(caller).is_none() {
             return Err("user not found".into());
+        }
+        if !self.domains.contains_key(&domain) {
+            return Err("domain not found".into());
         }
         self.delegations.insert(
             Principal::from_text(session_principal)
                 .map_err(|err| format!("couldn't parse the principal id: {err}"))?,
-            caller,
+            (caller, domain, now),
         );
         Ok(())
     }
 
     /// Returns the delegate principal if one exists
-    pub fn resolve_delegate(&self, caller: Principal) -> Option<Principal> {
-        self.delegations.get(&caller).copied()
+    pub fn resolve_delegation(&self, caller: Principal) -> Option<Principal> {
+        self.delegations
+            .get(&caller)
+            .map(|(principal, _, _)| principal)
+            .copied()
     }
 
     pub fn toggle_account_activation(
@@ -1883,6 +1894,10 @@ impl State {
                 CONFIG.realm_inactivity_timeout_days,
             ));
         }
+
+        // Remove all sessions older than 4 weeks.
+        self.delegations
+            .retain(|_, (_, _, time)| *time + WEEK * 4 > now);
     }
 
     fn charge_for_inactivity(&mut self, now: u64) {

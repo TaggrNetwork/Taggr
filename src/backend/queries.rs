@@ -18,7 +18,7 @@ use serde_bytes::ByteBuf;
 fn caller(state: &State) -> Principal {
     let canonical_principal = ic_cdk::caller();
     state
-        .resolve_delegate(canonical_principal)
+        .resolve_delegation(canonical_principal)
         .unwrap_or(canonical_principal)
 }
 
