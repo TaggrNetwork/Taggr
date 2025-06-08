@@ -25,6 +25,29 @@ use serde_bytes::ByteBuf;
 use std::{collections::HashSet, time::Duration};
 use user::Pfp;
 
+// Returns the canonical principal (the caller) and checks that it's not anonymous.
+fn canonical_principal() -> Principal {
+    let principal = ic_cdk::caller();
+    assert_ne!(principal, Principal::anonymous(), "authentication required");
+    principal
+}
+
+/// Returns an error if there is a pending delegate principal;
+/// otherwise returns the raw principal.
+pub fn raw_caller(state: &State) -> Result<Principal, String> {
+    let principal = canonical_principal();
+    if delegations::resolve_delegation(state, principal).is_some() {
+        return Err("operation not supported on custom domains".into());
+    }
+    Ok(principal)
+}
+
+/// Returns the principal for the provided delegate.
+fn caller(state: &State) -> Principal {
+    let principal = canonical_principal();
+    delegations::resolve_delegation(state, principal).unwrap_or(principal)
+}
+
 #[init]
 fn init() {
     mutate(|state| {
@@ -105,23 +128,33 @@ async fn get_neuron_info() -> Result<String, String> {
     get_full_neuron(CONFIG.neuron_id).await
 }
 
+#[export_name = "canister_update set_delegation"]
+fn set_delegation() {
+    let (domain, session_principal): (String, String) = parse(&arg_data_raw());
+    reply(mutate(|state| {
+        delegations::set_delegation(state, domain, raw_caller(state)?, session_principal, time())
+    }))
+}
+
 #[export_name = "canister_update set_domain_config"]
 fn set_domain_config() {
     let (domain, cfg, command): (String, DomainConfig, String) = parse(&arg_data_raw());
-    mutate(|state| reply(state.change_domain_config(caller(), domain, cfg, command)))
+    mutate(|state| reply(state.change_domain_config(caller(state), domain, cfg, command)))
 }
 
 #[export_name = "canister_update vote_on_poll"]
 fn vote_on_poll() {
     let (post_id, vote, anonymously): (PostId, u16, bool) = parse(&arg_data_raw());
-    mutate(|state| reply(state.vote_on_poll(caller(), api::time(), post_id, vote, anonymously)));
+    mutate(|state| {
+        reply(state.vote_on_poll(caller(state), api::time(), post_id, vote, anonymously))
+    });
 }
 
 #[export_name = "canister_update report"]
 fn report() {
     mutate(|state| {
         let (domain, id, reason): (String, u64, String) = parse(&arg_data_raw());
-        reply(state.report(caller(), domain, id, reason))
+        reply(state.report(caller(state), domain, id, reason))
     });
 }
 
@@ -129,7 +162,7 @@ fn report() {
 fn vote_on_report() {
     mutate(|state| {
         let (domain, id, vote): (String, u64, bool) = parse(&arg_data_raw());
-        reply(state.vote_on_report(caller(), domain, id, vote))
+        reply(state.vote_on_report(caller(state), domain, id, vote))
     });
 }
 
@@ -137,7 +170,7 @@ fn vote_on_report() {
 fn clear_notifications() {
     mutate(|state| {
         let ids: Vec<u64> = parse(&arg_data_raw());
-        if let Some(user) = state.principal_to_user_mut(caller()) {
+        if let Some(user) = state.principal_to_user_mut(caller(state)) {
             user.clear_notifications(ids)
         }
         reply_raw(&[]);
@@ -148,43 +181,45 @@ fn clear_notifications() {
 fn crypt() {
     let seed: String = parse(&arg_data_raw());
     reply(mutate(|state| {
-        state.toggle_account_activation(caller(), seed)
+        state.toggle_account_activation(raw_caller(state)?, seed)
     }))
 }
 
 #[update]
 fn link_cold_wallet(user_id: UserId) -> Result<(), String> {
-    mutate(|state| state.link_cold_wallet(caller(), user_id))
+    mutate(|state| state.link_cold_wallet(raw_caller(state)?, user_id))
 }
 
 #[update]
 fn unlink_cold_wallet() -> Result<(), String> {
-    mutate(|state| state.unlink_cold_wallet(caller()))
+    mutate(|state| state.unlink_cold_wallet(raw_caller(state)?))
 }
 
 #[export_name = "canister_update withdraw_rewards"]
 fn withdraw_rewards() {
     spawn(async {
-        reply(State::withdraw_rewards(caller()).await);
+        reply(State::withdraw_rewards(read(caller)).await);
     })
 }
 
 #[export_name = "canister_update tip"]
 fn tip() {
     let (post_id, amount): (PostId, u64) = parse(&arg_data_raw());
-    reply(mutate(|state| state.tip(caller(), post_id, amount)));
+    reply(mutate(|state| {
+        state.tip(raw_caller(state)?, post_id, amount)
+    }));
 }
 
 #[export_name = "canister_update react"]
 fn react() {
     let (post_id, reaction): (PostId, u16) = parse(&arg_data_raw());
-    mutate(|state| reply(state.react(caller(), post_id, reaction, api::time())));
+    mutate(|state| reply(state.react(caller(state), post_id, reaction, api::time())));
 }
 
 #[export_name = "canister_update update_last_activity"]
 fn update_last_activity() {
     mutate(|state| {
-        if let Some(user) = state.principal_to_user_mut(caller()) {
+        if let Some(user) = state.principal_to_user_mut(caller(state)) {
             user.last_activity = api::time()
         }
     });
@@ -195,13 +230,13 @@ fn update_last_activity() {
 fn request_principal_change() {
     let new_principal: String = parse(&arg_data_raw());
     reply(mutate(|state| {
-        state.request_principal_change(caller(), new_principal)
+        state.request_principal_change(raw_caller(state)?, new_principal)
     }))
 }
 
 #[export_name = "canister_update confirm_principal_change"]
 fn confirm_principal_change() {
-    reply(mutate(|state| state.change_principal(caller())));
+    reply(mutate(|state| state.change_principal(raw_caller(state)?)));
 }
 
 #[export_name = "canister_update update_user"]
@@ -217,7 +252,7 @@ fn update_user() {
         Pfp,
     ) = parse(&arg_data_raw());
     reply(User::update(
-        caller(),
+        read(caller),
         optional(new_name),
         about,
         principals,
@@ -232,32 +267,35 @@ fn update_user() {
 #[export_name = "canister_update update_user_settings"]
 fn update_user_settings() {
     let settings: std::collections::BTreeMap<String, String> = parse(&arg_data_raw());
-    reply(User::update_settings(caller(), settings))
+    reply(User::update_settings(read(caller), settings))
 }
 
 #[export_name = "canister_update update_wallet_tokens"]
 fn update_wallet_tokens() {
     let ids: HashSet<CanisterId> = parse(&arg_data_raw());
-    reply(User::update_wallet_tokens(caller(), ids))
+    reply(User::update_wallet_tokens(read(caller), ids))
 }
 
 #[export_name = "canister_update create_feature"]
 fn create_feature() {
     let post_id: PostId = parse(&arg_data_raw());
-    reply(features::create_feature(caller(), post_id));
+    reply(features::create_feature(read(caller), post_id));
 }
 
 #[export_name = "canister_update toggle_feature_support"]
 fn toggle_feature_support() {
     let post_id: PostId = parse(&arg_data_raw());
-    reply(features::toggle_feature_support(caller(), post_id));
+    reply(features::toggle_feature_support(read(caller), post_id));
 }
 
 #[export_name = "canister_update create_user"]
 fn create_user() {
     let (name, invite): (String, String) = parse(&arg_data_raw());
     spawn(async {
-        reply(user::create_user(caller(), name, optional(invite)).await);
+        reply(match read(raw_caller) {
+            Ok(caller) => user::create_user(caller, name, optional(invite)).await,
+            Err(err) => Err(err),
+        })
     });
 }
 
@@ -265,11 +303,13 @@ fn create_user() {
 fn transfer_credits() {
     let (recipient, amount): (UserId, Credits) = parse(&arg_data_raw());
     reply(mutate(|state| {
-        let sender = state.principal_to_user(caller()).ok_or("no user found")?;
+        let sender = state
+            .principal_to_user(caller(state))
+            .ok_or("user not found")?;
 
         sender.validate_send_credits(state)?;
 
-        let recipient_name = &state.users.get(&recipient).ok_or("no user found")?.name;
+        let recipient_name = &state.users.get(&recipient).ok_or("user not found")?.name;
         state.credit_transfer(
             sender.id,
             recipient,
@@ -292,20 +332,20 @@ fn transfer_credits() {
 fn mint_credits_with_icp() {
     spawn(async {
         let kilo_credits: u64 = parse(&arg_data_raw());
-        reply(State::mint_credits_with_icp(caller(), kilo_credits).await)
+        reply(State::mint_credits_with_icp(read(caller), kilo_credits).await)
     });
 }
 
 #[export_name = "canister_update mint_credits_with_btc"]
 fn mint_credits_with_btc() {
-    spawn(async { reply(State::mint_credits_with_btc(caller()).await) });
+    spawn(async { reply(State::mint_credits_with_btc(read(caller)).await) });
 }
 
 #[export_name = "canister_update create_invite"]
 fn create_invite() {
     let (credits, credits_per_user, realm_id): (Credits, Option<Credits>, Option<RealmId>) =
         parse(&arg_data_raw());
-    mutate(|state| reply(state.create_invite(caller(), credits, credits_per_user, realm_id)));
+    mutate(|state| reply(state.create_invite(caller(state), credits, credits_per_user, realm_id)));
 }
 
 #[export_name = "canister_update update_invite"]
@@ -313,19 +353,19 @@ fn update_invite() {
     let (invite_code, credits, realm_id): (String, Option<Credits>, Option<RealmId>) =
         parse(&arg_data_raw());
 
-    mutate(|state| reply(state.update_invite(caller(), invite_code, credits, realm_id)));
+    mutate(|state| reply(state.update_invite(caller(state), invite_code, credits, realm_id)));
 }
 
 #[export_name = "canister_update delay_weekly_chores"]
 fn delay_weekly_chores() {
-    reply(mutate(|state| state.delay_weekly_chores(caller())))
+    reply(mutate(|state| state.delay_weekly_chores(caller(state))))
 }
 
 #[export_name = "canister_update create_proposal"]
 fn create_proposal() {
     let (post_id, payload): (PostId, Payload) = parse(&arg_data_raw());
     reply(mutate(|state| {
-        proposals::create_proposal(state, caller(), post_id, payload, time())
+        proposals::create_proposal(state, raw_caller(state)?, post_id, payload, time())
     }))
 }
 
@@ -339,7 +379,7 @@ fn propose_release(
     mutate(|state| {
         proposals::create_proposal(
             state,
-            caller(),
+            raw_caller(state)?,
             post_id,
             proposals::Payload::Release(Release {
                 commit,
@@ -355,23 +395,18 @@ fn propose_release(
 #[export_name = "canister_update vote_on_proposal"]
 fn vote_on_proposal() {
     let (proposal_id, vote, data): (u32, bool, String) = parse(&arg_data_raw());
-    mutate(|state| {
-        reply(proposals::vote_on_proposal(
-            state,
-            time(),
-            caller(),
-            proposal_id,
-            vote,
-            &data,
-        ))
-    })
+    reply(mutate(|state| {
+        proposals::vote_on_proposal(state, time(), raw_caller(state)?, proposal_id, vote, &data)
+    }))
 }
 
 #[export_name = "canister_update cancel_proposal"]
 fn cancel_proposal() {
     let proposal_id: u32 = parse(&arg_data_raw());
-    mutate(|state| proposals::cancel_proposal(state, caller(), proposal_id));
-    reply(());
+    reply(mutate(|state| {
+        proposals::cancel_proposal(state, raw_caller(state)?, proposal_id);
+        Ok::<(), String>(())
+    }));
 }
 
 #[update]
@@ -389,7 +424,7 @@ async fn add_post(
             state,
             body,
             &blobs,
-            caller(),
+            caller(state),
             api::time(),
             parent,
             realm,
@@ -403,7 +438,7 @@ async fn add_post(
 /// This method initiates an asynchronous post creation.
 fn add_post_data(body: String, realm: Option<RealmId>, extension: Option<Blob>) {
     mutate(|state| {
-        if let Some(user) = state.principal_to_user_mut(caller()) {
+        if let Some(user) = state.principal_to_user_mut(caller(state)) {
             user.draft = Some(Draft {
                 body,
                 realm,
@@ -418,7 +453,7 @@ fn add_post_data(body: String, realm: Option<RealmId>, extension: Option<Blob>) 
 /// This method adds a blob to a post being created
 fn add_post_blob(id: String, blob: Blob) -> Result<(), String> {
     mutate(|state| {
-        if let Some(user) = state.principal_to_user_mut(caller()) {
+        if let Some(user) = state.principal_to_user_mut(caller(state)) {
             let credits = user.credits();
             if let Some(draft) = user.draft.as_mut() {
                 if credits < (draft.blobs.len() + 1) as u64 * CONFIG.blob_cost {
@@ -442,7 +477,7 @@ async fn commit_post() -> Result<PostId, String> {
         blobs,
     })) = mutate(|state| {
         state
-            .principal_to_user_mut(caller())
+            .principal_to_user_mut(caller(state))
             .map(|user| user.draft.take())
     }) {
         add_post(body, blobs, None, realm, extension).await
@@ -459,14 +494,14 @@ async fn edit_post(
     patch: String,
     realm: Option<RealmId>,
 ) -> Result<(), String> {
-    Post::edit(id, body, blobs, patch, realm, caller(), api::time()).await
+    Post::edit(id, body, blobs, patch, realm, read(caller), api::time()).await
 }
 
 #[export_name = "canister_update delete_post"]
 fn delete_post() {
     mutate(|state| {
         let (post_id, versions): (PostId, Vec<String>) = parse(&arg_data_raw());
-        reply(state.delete_post(caller(), post_id, versions))
+        reply(state.delete_post(caller(state), post_id, versions))
     });
 }
 
@@ -474,7 +509,7 @@ fn delete_post() {
 fn toggle_bookmark() {
     mutate(|state| {
         let post_id: PostId = parse(&arg_data_raw());
-        if let Some(user) = state.principal_to_user_mut(caller()) {
+        if let Some(user) = state.principal_to_user_mut(caller(state)) {
             reply(user.toggle_bookmark(post_id));
             return;
         };
@@ -485,7 +520,12 @@ fn toggle_bookmark() {
 #[export_name = "canister_update toggle_following_post"]
 fn toggle_following_post() {
     let post_id: PostId = parse(&arg_data_raw());
-    let user_id = read(|state| state.principal_to_user(caller()).expect("no user found").id);
+    let user_id = read(|state| {
+        state
+            .principal_to_user(caller(state))
+            .expect("user not found")
+            .id
+    });
     reply(
         mutate(|state| Post::mutate(state, &post_id, |post| Ok(post.toggle_following(user_id))))
             .unwrap_or_default(),
@@ -495,7 +535,7 @@ fn toggle_following_post() {
 #[export_name = "canister_update toggle_following_user"]
 fn toggle_following_user() {
     let followee_id: UserId = parse(&arg_data_raw());
-    mutate(|state| reply(state.toggle_following_user(caller(), followee_id)))
+    mutate(|state| reply(state.toggle_following_user(caller(state), followee_id)))
 }
 
 #[export_name = "canister_update toggle_following_feed"]
@@ -504,7 +544,7 @@ fn toggle_following_feed() {
         let tags: Vec<String> = parse(&arg_data_raw());
         reply(
             state
-                .principal_to_user_mut(caller())
+                .principal_to_user_mut(caller(state))
                 .map(|user| user.toggle_following_feed(&tags))
                 .unwrap_or_default(),
         )
@@ -515,7 +555,7 @@ fn toggle_following_feed() {
 fn edit_realm() {
     mutate(|state| {
         let (name, realm): (String, Realm) = parse(&arg_data_raw());
-        reply(state.edit_realm(caller(), name, realm))
+        reply(state.edit_realm(caller(state), name, realm))
     })
 }
 
@@ -523,7 +563,7 @@ fn edit_realm() {
 fn realm_clean_up() {
     mutate(|state| {
         let (post_id, reason): (PostId, String) = parse(&arg_data_raw());
-        reply(state.clean_up_realm(caller(), post_id, reason))
+        reply(state.clean_up_realm(caller(state), post_id, reason))
     });
 }
 
@@ -531,7 +571,7 @@ fn realm_clean_up() {
 fn create_realm() {
     mutate(|state| {
         let (name, realm): (String, Realm) = parse(&arg_data_raw());
-        reply(state.create_realm(caller(), name, realm))
+        reply(state.create_realm(caller(state), name, realm))
     })
 }
 
@@ -539,7 +579,7 @@ fn create_realm() {
 fn toggle_realm_membership() {
     mutate(|state| {
         let name: String = parse(&arg_data_raw());
-        reply(state.toggle_realm_membership(caller(), name))
+        reply(state.toggle_realm_membership(caller(state), name))
     })
 }
 
@@ -547,7 +587,7 @@ fn toggle_realm_membership() {
 fn toggle_blacklist() {
     mutate(|state| {
         let user_id: UserId = parse(&arg_data_raw());
-        if let Some(user) = state.principal_to_user_mut(caller()) {
+        if let Some(user) = state.principal_to_user_mut(caller(state)) {
             user.toggle_blacklist(user_id);
         }
     });
@@ -558,11 +598,13 @@ fn toggle_blacklist() {
 fn toggle_filter() {
     mutate(|state| {
         let (filter, value): (String, String) = parse(&arg_data_raw());
-        reply(if let Some(user) = state.principal_to_user_mut(caller()) {
-            user.toggle_filter(filter, value)
-        } else {
-            Err("no user found".into())
-        });
+        reply(
+            if let Some(user) = state.principal_to_user_mut(caller(state)) {
+                user.toggle_filter(filter, value)
+            } else {
+                Err("user not found".into())
+            },
+        );
     })
 }
 
@@ -571,7 +613,7 @@ async fn set_emergency_release(binary: ByteBuf) {
     mutate(|state| {
         if binary.is_empty()
             || state
-                .principal_to_user(caller())
+                .principal_to_user(raw_caller(state).unwrap())
                 .map(|user| user.account_age(WEEK) < CONFIG.min_stalwart_account_age_weeks)
                 .unwrap_or_default()
         {
@@ -585,7 +627,7 @@ async fn set_emergency_release(binary: ByteBuf) {
 #[export_name = "canister_update confirm_emergency_release"]
 fn confirm_emergency_release() {
     mutate(|state| {
-        let principal = caller();
+        let principal = raw_caller(state).unwrap();
         if let Some(user) = state.principal_to_user(principal) {
             let user_balance = user.balance;
             let user_cold_balance = user.cold_balance;
@@ -615,19 +657,13 @@ fn force_emergency_upgrade() -> bool {
 fn create_bid() {
     spawn(async {
         let (amount, e8s_per_token): (u64, u64) = parse(&arg_data_raw());
-        reply(auction::create_bid(caller(), amount, e8s_per_token).await)
+        reply(auction::create_bid(read(caller), amount, e8s_per_token).await)
     });
 }
 
 #[export_name = "canister_update cancel_bid"]
 fn cancel_bid() {
-    spawn(async { reply(auction::cancel_bid(caller()).await) });
-}
-
-pub fn caller() -> Principal {
-    let caller = ic_cdk::caller();
-    assert_ne!(caller, Principal::anonymous(), "authentication required");
-    caller
+    spawn(async { reply(auction::cancel_bid(read(caller)).await) });
 }
 
 #[update]

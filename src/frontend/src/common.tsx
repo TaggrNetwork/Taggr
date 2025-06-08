@@ -357,7 +357,7 @@ export const ButtonWithLoading = ({
             id={id}
             title={title}
             disabled={disabled || loading}
-            className={`fat ${
+            className={`large_text ${
                 loading || disabled
                     ? classNameArg?.replaceAll("active", "")
                     : classNameArg
@@ -1039,8 +1039,6 @@ export function pfpUrl(userId: UserId) {
     );
 }
 
-export const KNOWN_USER = "KNOWN_USER";
-
 export const InfoPopup = ({
     type,
     message,
@@ -1153,90 +1151,10 @@ export const showPopUp = (
 
 export const signOut = async () => {
     localStorage.clear();
-    // We know this user is not new.
-    localStorage.setItem(KNOWN_USER, "1");
     sessionStorage.clear();
     window.authClient.logout();
-    window._delegatePrincipalId = "";
     restartApp();
     return true;
-};
-
-export const SeedPhraseForm = ({
-    callback,
-    confirmationRequired,
-    classNameArg,
-}: {
-    callback: (arg: string) => Promise<void>;
-    confirmationRequired?: boolean;
-    classNameArg?: string;
-}) => {
-    const [value, setValue] = React.useState("");
-    const [confirmedValue, setConfirmedValue] = React.useState("");
-    const field = React.useRef<HTMLInputElement>();
-    React.useEffect(() => {
-        let current = field.current;
-        current?.focus();
-    }, []);
-    return (
-        <>
-            <p>
-                Please enter your seed phrase{" "}
-                {confirmationRequired && <>and confirm it</>}
-            </p>
-            <div
-                className={`${classNameArg} ${
-                    confirmationRequired ? "column_container" : "row_container"
-                } vertically_spaced`}
-            >
-                <input
-                    ref={field as unknown as any}
-                    onChange={(e) => setValue(e.target.value)}
-                    onKeyPress={async (e) => {
-                        if (!confirmationRequired && e.charCode == 13) {
-                            let button =
-                                document.getElementById("login-button");
-                            button?.click();
-                        }
-                    }}
-                    className="max_width_col"
-                    type="seedphrase"
-                    placeholder="Enter your seed phrase..."
-                />
-                {confirmationRequired && (
-                    <input
-                        onChange={(e) => setConfirmedValue(e.target.value)}
-                        className="max_width_col top_spaced bottom_spaced"
-                        type="seedphrase"
-                        placeholder="Repeat your seed phrase..."
-                    />
-                )}
-                <div className="row_container">
-                    {window.getPrincipalId() && (
-                        <ButtonWithLoading onClick={signOut} label="SIGN OUT" />
-                    )}
-                    <ButtonWithLoading
-                        id="login-button"
-                        classNameArg="active left_half_spaced right_half_spaced"
-                        onClick={async () => {
-                            if (
-                                confirmationRequired &&
-                                value != confirmedValue
-                            ) {
-                                showPopUp(
-                                    "error",
-                                    "Seed phrases do not match.",
-                                );
-                                return;
-                            }
-                            await callback(value);
-                        }}
-                        label="JOIN"
-                    />
-                </div>
-            </div>
-        </>
-    );
 };
 
 export const restartApp = async () => {
@@ -1332,3 +1250,22 @@ export function realmAllowed(id?: RealmId) {
 
     return wl.length > 0 ? wl.includes(id) : !bl.includes(id);
 }
+
+export const UnavailableOnCustomDomains = ({
+    component = "This functionality",
+    classNameArg,
+}: {
+    component?: string;
+    classNameArg?: string;
+}) => (
+    <div className={`banner ${classNameArg}`}>
+        {component} is unavailable on {domain()}. Please switch to the{" "}
+        <a href={`https://${getCanonicalDomain()}`}>canonical domain</a>.
+    </div>
+);
+
+export const getCanonicalDomain = () =>
+    `${window.backendCache.stats.canister_id}.icp0.io`;
+
+export const onCanonicalDomain = () =>
+    !MAINNET_MODE || domain() == getCanonicalDomain();

@@ -1,6 +1,6 @@
 import { test, expect, Page } from "@playwright/test";
 import { resolve } from "node:path";
-import { exec } from "./command";
+import { exec, mkPwd } from "./command";
 
 test.describe.configure({ mode: "serial" });
 
@@ -15,20 +15,21 @@ test.describe("Regular users flow, part two", () => {
         await page.goto("/");
 
         // Registration flow
-        await page.getByRole("button", { name: "CONNECT" }).click();
+        await page.getByRole("button", { name: "SIGN UP" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
-        await page.getByPlaceholder("Enter your seed phrase...").fill("john");
-        await page.getByRole("button", { name: "JOIN" }).click();
-        await page.waitForTimeout(1000);
-        await page.getByPlaceholder("Enter your seed phrase...").fill("john");
-        await page.getByPlaceholder("Repeat your seed phrase...").fill("john");
-        await page.getByRole("button", { name: "JOIN" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("john"));
+        await page
+            .getByPlaceholder("Repeat your seed phrase...")
+            .fill(mkPwd("john"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
             .click();
         const value = await page.getByTestId("invoice-amount").textContent();
         exec(
-            `dfx --identity local-minter ledger transfer --amount ${value} --memo 0 6b7ebd22b3ad442ffd64168b44068e6093b3a2f3f17230974e89ae60eef2ae8d`,
+            `dfx --identity local-minter ledger transfer --amount ${value} --memo 0 c1d0a8187a351972e4f69d00be36ef3e150e0250ecd75c091b57f5b1c70ac563`,
         );
         await page.getByRole("button", { name: "CHECK BALANCE" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();

@@ -13,6 +13,8 @@ import {
     tokens,
     ICP_DEFAULT_FEE,
     showPopUp,
+    onCanonicalDomain,
+    UnavailableOnCustomDomains,
 } from "./common";
 import { Principal } from "@dfinity/principal";
 import { CANISTER_ID } from "./env";
@@ -24,6 +26,14 @@ export const Wallet = () => {
     const [user, setUser] = React.useState(window.user);
     const mintCredits = async (kilo_credits: number) =>
         await window.api.call("mint_credits_with_icp", kilo_credits);
+
+    if (!onCanonicalDomain())
+        return (
+            <UnavailableOnCustomDomains
+                component="User wallet"
+                classNameArg="top_spaced"
+            />
+        );
 
     let { token_symbol, token_decimals, transaction_fee } =
         window.backendCache.config;
@@ -239,7 +249,6 @@ export const Wallet = () => {
                 <h2 className="max_width_col">{token_symbol}</h2>
                 {!user.cold_wallet && coldWalletFunctionalityAvailable && (
                     <ButtonWithLoading
-                        classNameArg="fat"
                         onClick={async () => {
                             const actor = await getActor();
                             const response = await actor.link_cold_wallet(
@@ -257,7 +266,6 @@ export const Wallet = () => {
                 )}
                 {user.cold_wallet && (
                     <ButtonWithLoading
-                        classNameArg="fat"
                         onClick={async () => {
                             if (
                                 !confirm(
