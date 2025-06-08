@@ -9,6 +9,7 @@ import {
     USD_PER_XDR,
     signOut,
     showPopUp,
+    ButtonWithLoading,
 } from "./common";
 
 type ICPInvoice = {
@@ -65,9 +66,7 @@ export const Welcome = () => {
     };
 
     const logOutButton = (
-        <button className="right_spaced" onClick={signOut}>
-            SIGN OUT
-        </button>
+        <ButtonWithLoading onClick={signOut} label="SIGN OUT" />
     );
 
     const { name, blob_cost, post_cost } = window.backendCache.config;
@@ -140,21 +139,19 @@ export const Welcome = () => {
                 {!loadingInvoice && (
                     <>
                         {!invoice && (
-                            <>
-                                {logOutButton}
-                                <button
-                                    className="active vertically_spaced left_spaced"
+                            <div className="column_container vertically_spaced">
+                                <ButtonWithLoading
+                                    classNameArg="active bottom_spaced"
                                     onClick={checkICPPayment}
-                                >
-                                    MINT CREDITS WITH ICP
-                                </button>
-                                <button
-                                    className="active vertically_spaced left_spaced"
+                                    label="MINT CREDITS WITH ICP"
+                                />
+                                <ButtonWithLoading
+                                    classNameArg="active bottom_spaced"
                                     onClick={checkBTCPayment}
-                                >
-                                    MINT CREDITS WITH BITCOIN
-                                </button>
-                            </>
+                                    label="MINT CREDITS WITH BITCOIN"
+                                />
+                                {logOutButton}
+                            </div>
                         )}
                         {invoice && (
                             <>
@@ -236,27 +233,28 @@ export const Welcome = () => {
                                             </p>
                                         )}
                                         <br />
-                                        <br />
-                                        {logOutButton}
-                                        <button
-                                            className="right_spaced"
-                                            onClick={() => {
-                                                setBTCInvoice(null);
-                                                setICPInvoice(null);
-                                            }}
-                                        >
-                                            CHANGE PAYMENT
-                                        </button>
-                                        <button
-                                            className="active"
-                                            onClick={
-                                                payment == "icp"
-                                                    ? checkICPPayment
-                                                    : checkBTCPayment
-                                            }
-                                        >
-                                            CHECK BALANCE
-                                        </button>
+                                        <div className="column_container">
+                                            <button
+                                                className="active bottom_spaced large_text"
+                                                onClick={
+                                                    payment == "icp"
+                                                        ? checkICPPayment
+                                                        : checkBTCPayment
+                                                }
+                                            >
+                                                CHECK BALANCE
+                                            </button>
+                                            <button
+                                                className="bottom_spaced large_text"
+                                                onClick={() => {
+                                                    setBTCInvoice(null);
+                                                    setICPInvoice(null);
+                                                }}
+                                            >
+                                                CHANGE PAYMENT
+                                            </button>
+                                            {logOutButton}
+                                        </div>
                                     </>
                                 )}
                             </>
