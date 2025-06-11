@@ -7,7 +7,7 @@ use super::{
 use crate::{env::NeuronId, id, mutate, read};
 use candid::{
     utils::{ArgumentDecoder, ArgumentEncoder},
-    CandidType, Principal,
+    CandidType, Nat, Principal,
 };
 use ic_cdk::api::{
     self,
@@ -24,6 +24,7 @@ use ic_cdk::{api::call::call_raw, notify};
 use ic_ledger_types::{Tokens, MAINNET_GOVERNANCE_CANISTER_ID};
 use ic_xrc_types::{Asset, GetExchangeRateRequest, GetExchangeRateResult};
 use serde::{Deserialize, Serialize};
+use serde_bytes::ByteBuf;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -35,6 +36,43 @@ thread_local! {
     static CALLS: RefCell<HashMap<String, i32>> = Default::default();
     // A timestamp of the last upgrading attempt
     static UPGRADE_TIMESTAMP: RefCell<u64> = Default::default();
+}
+
+#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
+pub struct GetTransactionsArgs {
+    pub start: Nat,
+    pub length: Nat,
+}
+
+#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
+pub struct IcrcAccount {
+    pub owner: Principal,
+    pub subaccount: Option<[u8; 32]>,
+}
+
+#[derive(
+    Serialize, Deserialize, CandidType, Clone, Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Default,
+)]
+#[serde(transparent)]
+pub struct IcrcMemo(pub ByteBuf);
+
+#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
+pub struct IcrcTransfer {
+    pub amount: Nat,
+    pub from: IcrcAccount,
+    pub to: IcrcAccount,
+    pub memo: Option<IcrcMemo>,
+    pub fee: Option<Nat>,
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+pub struct IcrcTransactionRecord {
+    pub transfer: Option<IcrcTransfer>,
+}
+
+#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
+pub struct GetTransactionsResult {
+    pub transactions: Vec<IcrcTransactionRecord>,
 }
 
 // Panics if an upgrade was initiated within the last 5 minutes. If something goes wrong
@@ -249,6 +287,20 @@ pub async fn coins_for_one_xdr(coin: &str) -> Result<u64, String> {
         .map_err(|err| format!("couldn't get canister status: {:?}", err))
         // I did not dig into why all responses are x10
         .map(|result| result.rate / 10)
+}
+
+pub async fn get_transactions(
+    canister_id: Principal,
+    args: GetTransactionsArgs,
+) -> Result<GetTransactionsResult, String> {
+    let (response,): (GetTransactionsResult,) =
+        call_canister(canister_id, "get_transactions", (args,))
+            .await
+            .map_err(|e| {
+                ic_cdk::println!("Failed to call ledger: {:?}", e);
+                format!("Failed to call ledger: {:?}", e)
+            })?;
+    Ok(response)
 }
 
 pub async fn call_canister_raw(id: Principal, method: &str, args: &[u8]) -> CallResult<Vec<u8>> {

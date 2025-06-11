@@ -1,6 +1,7 @@
 use super::{
     features::Feature,
     post::{Post, PostId},
+    tip::{Tip, TipId},
     token::Transaction,
 };
 use ic_cdk::api::stable::{stable_grow, stable_read, stable_size, stable_write};
@@ -27,6 +28,8 @@ pub struct Memory {
     pub ledger: ObjectManager<u32, Transaction>,
     #[serde(skip)]
     api_ref: Rc<RefCell<Api>>,
+    #[serde(default)]
+    pub tips: ObjectManager<TipId, Tip>,
 }
 
 // We leave the first 16 bytes reserved for the heap coordinates (offset + length)
@@ -85,6 +88,7 @@ impl Memory {
         self.posts.init(Rc::clone(&self.api_ref));
         self.features.init(Rc::clone(&self.api_ref));
         self.ledger.init(Rc::clone(&self.api_ref));
+        self.tips.init(Rc::clone(&self.api_ref));
     }
 
     #[cfg(test)]

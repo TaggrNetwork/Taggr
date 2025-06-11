@@ -30,6 +30,7 @@ use sha2::{Digest, Sha256};
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::convert::TryFrom;
+use tip::TipId;
 use token::base;
 use user::{Pfp, User, UserId};
 
@@ -51,6 +52,7 @@ pub mod proposals;
 pub mod reports;
 pub mod search;
 pub mod storage;
+pub mod tip;
 pub mod token;
 pub mod user;
 
@@ -126,7 +128,7 @@ pub struct Stats {
 
 pub type RealmId = String;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct Realm {
     pub cleanup_penalty: Credits,
     pub controllers: BTreeSet<UserId>,
@@ -146,6 +148,8 @@ pub struct Realm {
     pub posts: Vec<PostId>,
     pub adult_content: bool,
     pub comments_filtering: bool,
+    /// Tokens allowed to appear in realm like tips
+    pub tokens: Option<BTreeSet<Principal>>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -267,6 +271,10 @@ pub struct State {
     #[serde(default)]
     // Maps temporal session principals (delegates) created on custom domains to canonical user principals.
     delegations: HashMap<Principal, (Principal, String, Time)>,
+
+    // Map of post id to sorted of tip ids and external index
+    #[serde(default)]
+    pub post_tip_indexes: BTreeMap<PostId, Vec<TipId>>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -769,6 +777,7 @@ impl State {
             cleanup_penalty,
             adult_content,
             comments_filtering,
+            tokens,
             ..
         } = realm;
         let user = self.principal_to_user(principal).ok_or("user not found")?;
@@ -783,6 +792,9 @@ impl State {
         }
         if !logo.is_empty() {
             realm.logo = logo;
+        }
+        if tokens.as_ref().map_or(false, |t| t.len() > 50) {
+            return Err("tokens count below 50".into());
         }
         let description_change = realm.description != description;
         realm.description = description;
@@ -813,6 +825,7 @@ impl State {
         realm.last_setting_update = time();
         realm.adult_content = adult_content;
         realm.comments_filtering = comments_filtering;
+        realm.tokens = tokens;
         if description_change {
             self.notify_with_filter(
                 &|user| user.realms.contains(&realm_id),
@@ -4611,9 +4624,12 @@ pub(crate) mod tests {
                 Err("not authorized".to_string())
             );
 
+            let mut tokens = BTreeSet::new();
+            tokens.insert(pr(99));
             let realm = Realm {
                 controllers,
                 description: "New test description".into(),
+                tokens: Some(tokens.clone()),
                 ..Default::default()
             };
             assert_eq!(state.edit_realm(p0, name.clone(), realm), Ok(()));
@@ -4621,6 +4637,11 @@ pub(crate) mod tests {
             assert_eq!(
                 state.realms.get(&name).unwrap().description,
                 new_description
+            );
+
+            assert_eq!(
+                state.realms.get(&name).unwrap().tokens,
+                Some(tokens.clone()),
             );
 
             // wrong user and wrong realm joining
@@ -4791,6 +4812,7 @@ pub(crate) mod tests {
                 .unwrap()
                 .realms
                 .contains(&"TAGGRDAO".to_string()));
+
             (p1, realm_name)
         });
 
