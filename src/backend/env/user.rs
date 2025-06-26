@@ -321,13 +321,18 @@ impl User {
         self.last_activity + n * time_units > now
     }
 
-    pub fn valid_info(about: &str, settings: &BTreeMap<String, String>) -> bool {
+    pub fn valid_info(
+        about: &str,
+        principals: &[String],
+        settings: &BTreeMap<String, String>,
+    ) -> bool {
         about.len()
             + settings
                 .keys()
                 .chain(settings.values())
                 .map(|v| v.len())
                 .sum::<usize>()
+            + principals.iter().map(|v| v.len()).sum::<usize>()
             < CONFIG.max_user_info_length
     }
 
@@ -355,6 +360,10 @@ impl User {
     }
 
     pub fn toggle_following_feed(&mut self, tags: &[String]) -> bool {
+        if tags.iter().any(|t| t.len() > 50) {
+            return false;
+        }
+
         let tags = tags.iter().map(|tag| tag.to_lowercase()).collect();
         if let Some(i) = covered_by_feeds(&self.feeds, &tags, true) {
             self.feeds.remove(i);
@@ -549,7 +558,7 @@ impl User {
     ) -> Result<(), String> {
         mutate(|state| {
             if let Some(user) = state.principal_to_user_mut(caller) {
-                if !User::valid_info(&user.about, &settings) {
+                if !User::valid_info(&user.about, &[], &settings) {
                     return Err("inputs too long".to_string());
                 }
                 user.settings = settings;
@@ -586,7 +595,7 @@ impl User {
 
         mutate(|state| {
             let user = state.principal_to_user(caller).ok_or("user not found")?;
-            if !User::valid_info(&about, &user.settings) {
+            if !User::valid_info(&about, &principals, &user.settings) {
                 return Err("inputs too long".to_string());
             }
             let user_id = user.id;
@@ -654,7 +663,7 @@ impl User {
     }
 
     pub fn update_wallet_tokens(caller: Principal, ids: HashSet<CanisterId>) -> Result<(), String> {
-        if ids.len() > 250 {
+        if ids.len() > 50 {
             return Err("too many tokens".into());
         }
         mutate(|state| {

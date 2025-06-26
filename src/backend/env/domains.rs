@@ -52,7 +52,7 @@ impl DomainConfig {
     pub fn validate(&self) -> Result<(), String> {
         match &self.sub_config {
             DomainSubConfig::WhiteListedRealms(realms) if realms.is_empty() => {
-                return Err("whitelist list empty".into());
+                Err("whitelist list empty".into())
             }
             DomainSubConfig::WhiteListedRealms(realms)
             | DomainSubConfig::BlackListedRealms(realms) => {

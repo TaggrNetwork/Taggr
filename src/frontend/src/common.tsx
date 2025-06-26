@@ -1271,9 +1271,3 @@ export const getCanonicalDomain = () =>
 
 export const onCanonicalDomain = () =>
     !MAINNET_MODE || domain() == getCanonicalDomain();
-
-// On non-canonical domains, it redirects to the route on the canonical domain.
-export const redirectToCanonicalDomain = (route: string) => {
-    if (!onCanonicalDomain())
-        location.href = `${MAINNET_MODE ? "https://" + getCanonicalDomain() : ""}/#/${route}`;
-};

@@ -142,6 +142,32 @@ pub struct Realm {
     pub comments_filtering: bool,
 }
 
+impl Realm {
+    fn validate(&self) -> Result<(), String> {
+        if self.logo.len() > CONFIG.max_realm_logo_len {
+            return Err("logo too big".into());
+        }
+
+        if self.label_color.len() > 10 {
+            return Err("label color invalid".into());
+        }
+
+        if self.description.len() > 2000 {
+            return Err("description too long".into());
+        }
+
+        if self.theme.len() > 400 {
+            return Err("theme invalid".into());
+        }
+
+        if self.whitelist.len() > 100 {
+            return Err("whitelist too long".into());
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct TagIndex {
     pub subscribers: usize,
@@ -318,6 +344,10 @@ impl State {
         caller: Principal,
         seed: String,
     ) -> Result<usize, String> {
+        if seed.len() > 300 {
+            return Err("seed too long".into());
+        }
+
         let user = self.principal_to_user_mut(caller).ok_or("user not found")?;
         user.change_credits(
             CONFIG.feature_cost,
@@ -493,6 +523,10 @@ impl State {
         post_id: PostId,
         reason: String,
     ) -> Result<(), String> {
+        if reason.len() > CONFIG.max_report_length {
+            return Err("reason too long".into());
+        }
+
         let controller = self
             .principal_to_user(principal)
             .ok_or("user not found")?
@@ -718,7 +752,7 @@ impl State {
         Box::new(hot_posts.into_iter())
     }
 
-    pub fn toggle_realm_membership(&mut self, principal: Principal, name: String) -> bool {
+    pub fn toggle_realm_membership(&mut self, principal: Principal, realm_id: RealmId) -> bool {
         let user_id = match self.principal_to_user(principal) {
             Some(user) => user.id,
             _ => return false,
@@ -728,19 +762,19 @@ impl State {
             return false;
         };
 
-        let Some(realm) = self.realms.get_mut(&name) else {
+        let Some(realm) = self.realms.get_mut(&realm_id) else {
             return false;
         };
 
-        if user.realms.contains(&name) {
-            user.realms.retain(|realm| realm != &name);
+        if user.realms.contains(&realm_id) {
+            user.realms.retain(|realm| realm != &realm_id);
             realm.num_members -= 1;
             return false;
         }
 
         realm.num_members += 1;
-        user.realms.push(name.clone());
-        user.filters.realms.remove(&name);
+        user.realms.push(realm_id.clone());
+        user.filters.realms.remove(&realm_id);
         true
     }
 
@@ -751,6 +785,8 @@ impl State {
         realm_id: String,
         realm: Realm,
     ) -> Result<(), String> {
+        realm.validate()?;
+
         let Realm {
             logo,
             label_color,
@@ -824,6 +860,8 @@ impl State {
         realm_id: RealmId,
         mut realm: Realm,
     ) -> Result<(), String> {
+        realm.validate()?;
+
         let Realm {
             controllers,
             cleanup_penalty,
@@ -855,18 +893,22 @@ impl State {
             return Err("realm name taken".into());
         }
 
-        let user = self
-            .principal_to_user_mut(principal)
-            .ok_or("user not found")?;
-        user.controlled_realms.insert(realm_id.clone());
-        let user_id = user.id;
-        let user_name = user.name.clone();
+        let user_id = self
+            .principal_to_user(principal)
+            .ok_or("user not found")?
+            .id;
 
         self.charge(
             user_id,
             CONFIG.realm_cost,
             format!("new realm /{}", realm_id),
         )?;
+
+        let user = self
+            .principal_to_user_mut(principal)
+            .ok_or("user not found")?;
+        user.controlled_realms.insert(realm_id.clone());
+        let user_name = user.name.clone();
 
         realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(*cleanup_penalty);
         realm.last_update = time();
@@ -2795,6 +2837,10 @@ impl State {
         post_id: PostId,
         versions: Vec<String>,
     ) -> Result<(), String> {
+        if versions.iter().any(|v| v.len() > 16) {
+            return Err("wrong hashes".into());
+        }
+
         let post = Post::get(self, &post_id).ok_or("no post found")?.clone();
         if self.principal_to_user(principal).map(|user| user.id) != Some(post.user) {
             return Err("not authorized".into());
@@ -2916,7 +2962,7 @@ impl State {
             .principal_to_user(principal)
             .ok_or("no user for principal found")?;
 
-        if user.credits() <= delta.abs() as u64 {
+        if user.credits() <= delta.unsigned_abs() {
             return Err("not enough credits".into());
         }
 
@@ -4837,7 +4883,7 @@ pub(crate) mod tests {
                 .unwrap();
             assert_eq!(
                 state.react(pr(10), post_id, 10, 0),
-                Err("not enough credits (required: 2)".into())
+                Err("not enough credits".into())
             );
 
             // Create a new user and a new post
