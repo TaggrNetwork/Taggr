@@ -611,7 +611,7 @@ impl State {
         log: T,
         notification: Option<String>,
     ) -> Result<(), String> {
-        let sender = self.users.get_mut(&sender_id).expect("no sender found");
+        let sender = self.users.get_mut(&sender_id).ok_or("no sender found")?;
         sender.change_credits(
             amount.checked_add(fee).ok_or("wrong credit amount")?,
             CreditsDelta::Minus,
@@ -1001,6 +1001,15 @@ impl State {
         }
         let min_credits = CONFIG.min_credits_for_inviting;
         let user = self.principal_to_user(principal).ok_or("user not found")?;
+
+        let min_age_days = 7;
+        if user.invited_by.is_some() && user.account_age(DAY) < min_age_days {
+            return Err(format!(
+                "cannot create invites from account with age below {} days",
+                min_age_days
+            ));
+        }
+
         if credits_per_user < min_credits {
             return Err(format!(
                 "smallest invite must contain {} credits",
