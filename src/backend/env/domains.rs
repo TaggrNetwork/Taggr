@@ -48,6 +48,31 @@ impl DomainConfig {
             _ => true,
         }
     }
+
+    pub fn validate(&self) -> Result<(), String> {
+        match &self.sub_config {
+            DomainSubConfig::WhiteListedRealms(realms) if realms.is_empty() => {
+                return Err("whitelist list empty".into());
+            }
+            DomainSubConfig::WhiteListedRealms(realms)
+            | DomainSubConfig::BlackListedRealms(realms) => {
+                let max_realm_number = 15;
+                if realms.len() > max_realm_number {
+                    return Err("realm list too long".into());
+                }
+
+                if realms
+                    .iter()
+                    .any(|realm_id| realm_id.len() > CONFIG.max_realm_name)
+                {
+                    return Err("realm name too long".into());
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
 }
 
 /// Creates a post filter based on the current domain and selected realm.
@@ -112,6 +137,8 @@ pub fn change_domain_config(
     mut cfg: DomainConfig,
     command: String,
 ) -> Result<(), String> {
+    cfg.validate()?;
+
     let caller = state.principal_to_user(principal).ok_or("no user found")?;
     let caller_id = caller.id;
 
@@ -125,19 +152,6 @@ pub fn change_domain_config(
         if current_cfg.owner != Some(caller_id) {
             return Err("not authorized".into());
         }
-    }
-
-    match &cfg.sub_config {
-        DomainSubConfig::WhiteListedRealms(realms) if realms.is_empty() => {
-            return Err("whitelist list empty".into());
-        }
-        DomainSubConfig::WhiteListedRealms(realms) | DomainSubConfig::BlackListedRealms(realms) => {
-            let max_realm_number = 15;
-            if realms.len() > max_realm_number {
-                return Err("realm list too long".into());
-            }
-        }
-        _ => {}
     }
 
     match command.as_str() {
