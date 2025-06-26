@@ -213,6 +213,18 @@ impl Proposal {
         if approvals * 100 >= voting_power * CONFIG.proposal_approval_threshold as u64 {
             match &mut self.payload {
                 Payload::Release(release) => {
+                    // Invalidate all pending release proposals because they were competing for the
+                    // next upgrade.
+                    state
+                        .proposals
+                        .iter_mut()
+                        .filter(|p| {
+                            p.status == Status::Open && matches!(p.payload, Payload::Release(_))
+                        })
+                        .for_each(|proposal| {
+                            proposal.status = Status::Cancelled;
+                        });
+
                     for feature_id in &release.closed_features {
                         if let Err(err) = features::close_feature(state, *feature_id) {
                             state
@@ -394,19 +406,6 @@ pub fn create_proposal(
     let proposer = user.id;
     let proposer_name = user.name.clone();
 
-    // invalidate some previous proposals depending on their type
-    state
-        .proposals
-        .iter_mut()
-        .filter(|p| {
-            p.status == Status::Open
-                && matches!(p.payload, Payload::Release(_))
-                && matches!(payload, Payload::Release(_))
-        })
-        .for_each(|proposal| {
-            proposal.status = Status::Cancelled;
-        });
-
     if let Payload::Release(release) = &mut payload {
         let mut hasher = Sha256::new();
         hasher.update(&release.binary);
@@ -458,8 +457,9 @@ pub fn vote_on_proposal(
         .get_mut(proposal_id as usize)
         .ok_or_else(|| "no proposals founds".to_string())?;
     if proposal.status != Status::Open {
+        let status = proposal.status.clone();
         state.proposals = proposals;
-        return Err("last proposal is not open".into());
+        return Err(format!("proposal status is {:?}", status));
     }
     if let Err(err) = proposal.vote(state, caller, approved, data) {
         state.proposals = proposals;
@@ -486,12 +486,13 @@ pub(super) fn execute_proposal(
     proposal_id: u32,
     time: u64,
 ) -> Result<(), String> {
-    let mut proposals = std::mem::take(&mut state.proposals);
-    let proposal = proposals
-        .get_mut(proposal_id as usize)
-        .ok_or_else(|| "no proposals founds".to_string())?;
+    let index = state
+        .proposals
+        .iter()
+        .position(|proposal| proposal.id == proposal_id)
+        .ok_or("no proposal found")?;
+    let mut proposal = std::mem::take(&mut state.proposals[index]);
     if proposal.status != Status::Open {
-        state.proposals = proposals;
         return Err("last proposal is not open".into());
     }
     let previous_state = proposal.status.clone();
@@ -504,7 +505,7 @@ pub(super) fn execute_proposal(
     if previous_state != proposal.status {
         state.denotify_users(&|user| user.active_within(1, WEEK, time) && user.balance > 0);
     }
-    state.proposals = proposals;
+    state.proposals[index] = proposal;
     result
 }
 
@@ -623,6 +624,8 @@ pub mod tests {
     #[test]
     fn test_proposal_canceling() {
         mutate(|state| {
+            state.init();
+
             // create voters, make each of them earn some rewards
             for i in 1..=2 {
                 let p = pr(i);
@@ -719,13 +722,31 @@ pub mod tests {
             )
             .expect("couldn't create proposal");
 
+            // Both proposals are open and compete for the next upgrade.
             assert_eq!(
                 state.proposals.get(upgrade_id as usize).unwrap().status,
-                Status::Cancelled
+                Status::Open
             );
             assert_eq!(
                 state.proposals.get(upgrade_id2 as usize).unwrap().status,
                 Status::Open
+            );
+
+            // Vote for the second proposal.
+            let data =
+                &"4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a".to_string();
+            assert!(vote_on_proposal(state, time(), pr(1), upgrade_id2, true, data).is_ok());
+
+            // Make sure the second is executed, while the first one is cancelled.
+            assert_eq!(state.proposals.len(), 5);
+            assert_eq!(
+                state.proposals.get(upgrade_id2 as usize).unwrap().status,
+                Status::Executed
+            );
+            assert_eq!(state.proposals.len(), 5);
+            assert_eq!(
+                state.proposals.get(upgrade_id as usize).unwrap().status,
+                Status::Cancelled
             );
         });
     }
@@ -789,7 +810,7 @@ pub mod tests {
 
             assert_eq!(
                 vote_on_proposal(state, time(), proposer, id, false, data),
-                Err("last proposal is not open".into())
+                Err("proposal status is Executed".into())
             );
 
             // create a new proposal
@@ -863,7 +884,7 @@ pub mod tests {
             );
             assert_eq!(
                 vote_on_proposal(state, time(), pr(9), prop_id, true, data),
-                Err("last proposal is not open".into())
+                Err("proposal status is Executed".into())
             );
 
             // New section to test ReleaseInfo conversion
