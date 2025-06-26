@@ -2902,24 +2902,28 @@ impl State {
         reaction: u16,
         time: Time,
     ) -> Result<(), String> {
-        let delta: i64 = match CONFIG.reactions.iter().find(|(id, _)| id == &reaction) {
-            Some((_, delta)) => *delta,
-            _ => return Err("unknown reaction".into()),
-        };
-        let user = self
-            .principal_to_user(principal)
-            .ok_or("no user for principal found")?;
-        let user_id = user.id;
-        let user_credits = user.credits();
-        let user_balance = user.total_balance();
-        let user_controversial = user.controversial();
         let post = Post::get(self, &post_id).ok_or("post not found")?.clone();
         if post.is_deleted() {
             return Err("post deleted".into());
         }
+
+        let delta: i64 = match CONFIG.reactions.iter().find(|(id, _)| id == &reaction) {
+            Some((_, delta)) => *delta,
+            _ => return Err("unknown reaction".into()),
+        };
+
+        let user = self
+            .principal_to_user(principal)
+            .ok_or("no user for principal found")?;
+
+        if user.credits() <= delta.abs() as u64 {
+            return Err("not enough credits".into());
+        }
+
         if post.user == user.id {
             return Err("reactions to own posts are forbidden".into());
         }
+
         if post
             .reactions
             .values()
@@ -2928,6 +2932,11 @@ impl State {
         {
             return Err("multiple reactions are forbidden".into());
         }
+
+        let user_id = user.id;
+        let user_credits = user.credits();
+        let user_balance = user.total_balance();
+        let user_controversial = user.controversial();
 
         let log = format!("reaction to post [{0}](#/post/{0})", post_id);
         // Users initiate a credit transfer for upvotes, but burn their own credits on
@@ -2942,14 +2951,16 @@ impl State {
                 return Err("you cannot react on posts of users who blocked you".into());
             }
 
-            let user = self.users.get_mut(&post.user).expect("user not found");
-            user.change_rewards(delta, log.clone());
             self.charge_in_realm(
                 user_id,
                 delta.unsigned_abs().min(user_credits),
                 post.realm.as_ref(),
                 log.clone(),
             )?;
+            self.users
+                .get_mut(&post.user)
+                .expect("user not found")
+                .change_rewards(delta, log.clone());
             let credit_balance = self
                 .users
                 .get(&post.user)
