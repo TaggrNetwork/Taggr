@@ -8,7 +8,7 @@ import {
     pfpUrl,
     bigScreen,
     DropDown,
-    getCanonicalDomain,
+    redirectToCanonicalDomain,
 } from "./common";
 import {
     Bell,
@@ -21,7 +21,7 @@ import {
     User,
 } from "./icons";
 import { RealmHeader } from "./realms";
-import { MAINNET_MODE, STAGING_MODE } from "./env";
+import { STAGING_MODE } from "./env";
 import { User as UserType } from "./types";
 import { Wallet } from "./wallet";
 import { Links } from "./landing";
@@ -164,9 +164,9 @@ export const Header = ({
                         <>
                             <button
                                 className="right_half_spaced"
-                                onClick={() => {
-                                    location.href = `${MAINNET_MODE ? "https://" + getCanonicalDomain() : ""}/#/sign-up`;
-                                }}
+                                onClick={() =>
+                                    redirectToCanonicalDomain("sign-up")
+                                }
                             >
                                 SIGN UP
                             </button>
