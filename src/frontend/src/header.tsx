@@ -164,9 +164,9 @@ export const Header = ({
                         <>
                             <button
                                 className="right_half_spaced"
-                                onClick={() => {
-                                    location.href = `${MAINNET_MODE ? "https://" + getCanonicalDomain() : ""}/#/sign-up`;
-                                }}
+                                onClick={() =>
+                                    (location.href = `${MAINNET_MODE ? "https://" + getCanonicalDomain() : ""}/#/sign-up`)
+                                }
                             >
                                 SIGN UP
                             </button>

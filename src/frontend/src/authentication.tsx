@@ -211,6 +211,8 @@ function isBIP39SeedPhrase(phrase: string): boolean {
     return invalidWords.length === 0;
 }
 
+// On canonical domain it shows the sign-in page. On all other domains, it
+// redirects for authorization of a delegation principal.
 export const connect = () => {
     if (onCanonicalDomain()) {
         location.href = "#/sign-in";

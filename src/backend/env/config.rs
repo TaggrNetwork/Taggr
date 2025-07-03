@@ -289,7 +289,7 @@ pub const CONFIG: &Config = &Config {
 
     max_post_length: 100000,
     max_tag_length: 30,
-    max_user_info_length: 500,
+    max_user_info_length: 1000,
     max_blob_size_bytes: 460800,
 
     online_activity_minutes: 10 * 60000000000_u64,

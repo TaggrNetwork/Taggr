@@ -1,4 +1,5 @@
 use crate::env::{
+    domains::{change_domain_config, DomainConfig, DomainSubConfig},
     proposals::{Payload, Release},
     user::{Mode, UserFilter},
 };
@@ -106,7 +107,20 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    // Migrates domain configs to a new data structure.
+    mutate(|s| {
+        for c in s.domains.values_mut() {
+            if !c.realm_whitelist.is_empty() {
+                c.sub_config =
+                    DomainSubConfig::WhiteListedRealms(std::mem::take(&mut c.realm_whitelist))
+            } else if !c.realm_blacklist.is_empty() {
+                c.sub_config =
+                    DomainSubConfig::BlackListedRealms(std::mem::take(&mut c.realm_blacklist))
+            }
+        }
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -139,7 +153,15 @@ fn set_delegation() {
 #[export_name = "canister_update set_domain_config"]
 fn set_domain_config() {
     let (domain, cfg, command): (String, DomainConfig, String) = parse(&arg_data_raw());
-    mutate(|state| reply(state.change_domain_config(caller(state), domain, cfg, command)))
+    mutate(|state| {
+        reply(change_domain_config(
+            state,
+            caller(state),
+            domain,
+            cfg,
+            command,
+        ))
+    })
 }
 
 #[export_name = "canister_update vote_on_poll"]
@@ -437,6 +459,15 @@ async fn add_post(
 #[update]
 /// This method initiates an asynchronous post creation.
 fn add_post_data(body: String, realm: Option<RealmId>, extension: Option<Blob>) {
+    let realm_len = realm.as_ref().map(|id| id.len()).unwrap_or_default();
+    let blob_len = extension
+        .as_ref()
+        .map(|blob| blob.len())
+        .unwrap_or_default();
+    if blob_len > CONFIG.max_blob_size_bytes || realm_len > CONFIG.max_realm_name {
+        return;
+    }
+
     mutate(|state| {
         if let Some(user) = state.principal_to_user_mut(caller(state)) {
             user.draft = Some(Draft {
@@ -452,6 +483,10 @@ fn add_post_data(body: String, realm: Option<RealmId>, extension: Option<Blob>) 
 #[update]
 /// This method adds a blob to a post being created
 fn add_post_blob(id: String, blob: Blob) -> Result<(), String> {
+    if blob.is_empty() || blob.len() > CONFIG.max_blob_size_bytes {
+        return Err("blob too big".into());
+    }
+
     mutate(|state| {
         if let Some(user) = state.principal_to_user_mut(caller(state)) {
             let credits = user.credits();
@@ -578,8 +613,8 @@ fn create_realm() {
 #[export_name = "canister_update toggle_realm_membership"]
 fn toggle_realm_membership() {
     mutate(|state| {
-        let name: String = parse(&arg_data_raw());
-        reply(state.toggle_realm_membership(caller(state), name))
+        let realm_id: RealmId = parse(&arg_data_raw());
+        reply(state.toggle_realm_membership(caller(state), realm_id))
     })
 }
 

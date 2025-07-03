@@ -290,12 +290,8 @@ fn user() {
             user.notifications.clear();
         }
         if let Some(cfg) = state.domains.get(&domain) {
-            let visible_realm = |realm_id: &RealmId| {
-                cfg.realm_whitelist.contains(realm_id)
-                    || cfg.realm_whitelist.is_empty() && !cfg.realm_blacklist.contains(realm_id)
-            };
-            user.realms.retain(&visible_realm);
-            user.controlled_realms.retain(&visible_realm);
+            user.realms.retain(|id| cfg.realm_visible(id));
+            user.controlled_realms.retain(|id| cfg.realm_visible(id));
         }
         reply(user);
     });

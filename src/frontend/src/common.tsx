@@ -1238,17 +1238,19 @@ export function domain(): RealmId {
 }
 
 // Checks if the realm is supported in the current domain
-export function realmAllowed(id?: RealmId) {
+export function realmAllowed(id: RealmId) {
     const config = window.backendCache.domainConfig;
     if (!config) return true;
 
-    const wl = config.realm_whitelist;
-    const bl = config.realm_blacklist;
+    if ("WhiteListedRealms" in config.sub_config) {
+        return config.sub_config.WhiteListedRealms.includes(id);
+    }
 
-    // If we have no realm id, we are fine if whitelist is empty.
-    if (!id) return wl.length == 0;
+    if ("BlackListedRealms" in config.sub_config) {
+        return !config.sub_config.BlackListedRealms.includes(id);
+    }
 
-    return wl.length > 0 ? wl.includes(id) : !bl.includes(id);
+    return true;
 }
 
 export const UnavailableOnCustomDomains = ({
