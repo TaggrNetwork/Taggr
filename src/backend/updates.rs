@@ -1,5 +1,5 @@
 use crate::env::{
-    domains::{change_domain_config, DomainConfig, DomainSubConfig},
+    domains::{change_domain_config, DomainConfig},
     proposals::{Payload, Release},
     user::{Mode, UserFilter},
 };
@@ -107,20 +107,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    // Migrates domain configs to a new data structure.
-    mutate(|s| {
-        for c in s.domains.values_mut() {
-            if !c.realm_whitelist.is_empty() {
-                c.sub_config =
-                    DomainSubConfig::WhiteListedRealms(std::mem::take(&mut c.realm_whitelist))
-            } else if !c.realm_blacklist.is_empty() {
-                c.sub_config =
-                    DomainSubConfig::BlackListedRealms(std::mem::take(&mut c.realm_blacklist))
-            }
-        }
-    })
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
