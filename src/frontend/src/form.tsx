@@ -142,9 +142,9 @@ export const Form = ({
             let extension: Extension | undefined = undefined;
             if (poll) {
                 // Trim
-                poll.options = poll.options.filter(
-                    (option: string) => !!option,
-                );
+                poll.options = poll.options
+                    .filter((option: string) => !!option)
+                    .map((option) => option.trim());
                 extension = { Poll: poll };
             } else if (repost != undefined) {
                 extension = { Repost: repost };
@@ -698,9 +698,7 @@ export const Form = ({
                                 onChange={(e) =>
                                     setPoll({
                                         ...poll,
-                                        options: e.target.value
-                                            .split("\n")
-                                            .map((v) => v.trim()),
+                                        options: e.target.value.split("\n"),
                                     })
                                 }
                             ></textarea>
