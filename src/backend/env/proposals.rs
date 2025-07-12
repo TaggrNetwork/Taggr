@@ -348,7 +348,7 @@ impl Payload {
                 if *tokens > max_funding_amount {
                     return Err(format!(
                         "funding amount is higher than the configured maximum of {} tokens",
-                        max_funding_amount
+                        max_funding_amount / token::base()
                     ));
                 }
             }

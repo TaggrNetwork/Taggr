@@ -335,7 +335,7 @@ pub const CONFIG: &Config = &Config {
         (12, 1),
     ],
 
-    max_funding_amount: 100000,
+    max_funding_amount: 500000,
 
     neuron_id: 16737374299031693047,
 
