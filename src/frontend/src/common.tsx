@@ -357,7 +357,7 @@ export const ButtonWithLoading = ({
             id={id}
             title={title}
             disabled={disabled || loading}
-            className={`large_text ${
+            className={`medium_text ${
                 loading || disabled
                     ? classNameArg?.replaceAll("active", "")
                     : classNameArg

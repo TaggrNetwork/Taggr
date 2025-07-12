@@ -185,7 +185,7 @@ const DomainForm = ({
             <div className="row_container">
                 {!instructions && (
                     <button
-                        className="max_width_col"
+                        className="max_width_col medium_text"
                         onClick={() => showInstructions(true)}
                     >
                         SHOW INSTRUCTIONS
