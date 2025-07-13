@@ -159,7 +159,7 @@ const DomainForm = ({
                     </p>
                     WHITE-LIST (comma-separated):
                     <textarea
-                        className="small_text bottom_spaced"
+                        className="small_text bottom_spaced top_half_spaced"
                         value={whitelist}
                         onChange={(event) => setWhitelist(event.target.value)}
                         rows={4}
@@ -174,7 +174,7 @@ const DomainForm = ({
                     </p>
                     BLACK-LIST (comma-separated):
                     <textarea
-                        className="small_text bottom_spaced"
+                        className="small_text bottom_spaced top_half_spaced"
                         value={blacklist}
                         onChange={(event) => setBlacklist(event.target.value)}
                         rows={4}
