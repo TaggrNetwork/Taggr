@@ -194,12 +194,6 @@ fn realms() {
     })
 }
 
-#[export_name = "canister_query domain_config"]
-fn domain_config() {
-    let domain: String = parse(&arg_data_raw());
-    read(|state| reply(state.domains.get(&domain).ok_or("no config found")));
-}
-
 #[export_name = "canister_query domains"]
 fn domains() {
     read(|state| reply(&state.domains))

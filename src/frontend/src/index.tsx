@@ -114,7 +114,7 @@ const App = () => {
     let inboxMode = false;
     let content = null;
 
-    const journal = getJournal(window.backendCache.domainConfig);
+    const journal = getJournal(window.backendCache.domains[domain()]);
     if (!handler && journal != null) {
         handler = "journal";
         param = journal.toString();
@@ -281,25 +281,22 @@ const App = () => {
 
 const reloadCache = async () => {
     window.backendCache = window.backendCache || { users: [], recent_tags: [] };
-    const [recent_tags, stats, config, domainCfgResp] = await Promise.all([
+    const [recent_tags, stats, config, domainsCfgResp] = await Promise.all([
         window.api.query<[string, any][]>("recent_tags", domain(), "", 500),
         window.api.query<Stats>("stats"),
         window.api.query<Config>("config"),
-        window.api.query<any>("domain_config", domain()),
+        window.api.query<any>("domains", domain()),
     ]);
     if (!config) console.error("Config wasn't loaded!");
     if (!stats) console.error("Stats weren't loaded!");
-    if ("Err" in domainCfgResp) {
-        showPopUp("error", domainCfgResp.Err);
-        return;
-    }
     window.backendCache = {
         recent_tags: recent_tags || [],
         stats: stats || ({} as Stats),
         config: config || ({} as Config),
-        domainConfig: domainCfgResp.Ok || ({} as DomainConfig),
+        domains: domainsCfgResp || ({} as { [domain: string]: DomainConfig }),
     };
-    const domainCfg = window.backendCache.domainConfig;
+    const domainCfg =
+        window.backendCache.domains[domain() || getCanonicalDomain()];
     window.monoRealm = getMonoRealm(domainCfg);
     window.defaultRealm = getDefaultRealm(domainCfg);
     window.hideRealmless = !!(

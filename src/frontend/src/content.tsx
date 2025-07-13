@@ -168,7 +168,12 @@ const linkRenderer =
                     const url = new URL(props.href);
 
                     // Internal links
-                    if (url.hostname == domain()) {
+                    if (
+                        url.hostname == domain() ||
+                        Object.keys(window.backendCache.domains).includes(
+                            url.hostname,
+                        )
+                    ) {
                         const nonMarkdownLink = label == url.href;
                         let link = url.href.replace(url.origin + "/", "");
                         props.href = (link.startsWith("#") ? "" : "#/") + link;
