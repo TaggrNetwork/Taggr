@@ -18,7 +18,7 @@ export const Delegate = ({}: {}) => {
     return (
         <div className="stands_out centered larger_text column_container">
             <p>
-                Hello {window.user.name}, you are signin into{" "}
+                Hello {window.user.name}, you are signing into{" "}
                 {window.backendCache.config.name} from the custom domain{" "}
                 <b>{domain}</b>.
             </p>

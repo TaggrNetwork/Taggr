@@ -82,7 +82,7 @@ const ProposalForm = ({}) => {
                     />
                 ) : (
                     <div className="banner">
-                        To open a new proposal, you need to have a least{" "}
+                        To open a new proposal, you need to have at least{" "}
                         {token(balance)}{" "}
                         {window.backendCache.config.token_symbol} on your
                         balance.

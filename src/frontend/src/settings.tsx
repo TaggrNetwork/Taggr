@@ -492,7 +492,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                         if (result && "Ok" in result) {
                                             showPopUp(
                                                 "success",
-                                                `${result.Ok} posts sucessfully ${prefix}crypted!`,
+                                                `${result.Ok} posts successfully ${prefix}crypted!`,
                                                 5,
                                             );
                                         } else {

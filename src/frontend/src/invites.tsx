@@ -122,7 +122,7 @@ export const Invites = () => {
                             drops below the amount attached to the invite.
                         </li>
                         <li>
-                            In an invite specifies a realm, users joining via
+                            If an invite specifies a realm, users joining via
                             this invite will automatically join the realm.
                         </li>
                         <li>

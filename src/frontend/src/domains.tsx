@@ -81,7 +81,7 @@ export const Domains = ({}) => {
                                     </li>
                                 )}
                             {"Journal" in cfg.sub_config && (
-                                <li>Redirects to the hournal.</li>
+                                <li>Redirects to the journal.</li>
                             )}
                         </ul>
                     </li>

@@ -56,7 +56,7 @@ export const Roadmap = () => {
                 All features are sorted by the voting power of the supporters.
                 The order of features signalizes their priority as defined by
                 DAO's support. When creating a new feature request, be clear and
-                consise, link all previous discussions and design documents.
+                concise, link all previous discussions and design documents.
             </div>
             <div className="text_centered vertically_spaced">
                 {["OPEN", "IMPLEMENTED"].map((id) => (
