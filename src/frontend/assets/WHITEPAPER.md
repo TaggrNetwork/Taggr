@@ -1,4 +1,4 @@
-# $name
+# $name: a decentralized social network.
 
 ## Introduction
 
@@ -226,10 +226,10 @@ The result of `add_post` contains the new post's ID or an error message.
 
 $name's DAO has a bug bounty program with classifications and rewards in `$token_symbol`.
 
-| SEV | DESCRIPTION                                                                                                                           | BOUNTY |
-| :-: | ------------------------------------------------------------------------------------------------------------------------------------- | -----: |
-|  0  | Bugs enabling unsanctioned state mutations affecting assets like credits, rewards, tokens, Treasury, or critically endangering $name. | `1000` |
-|  1  | Bugs enabling unsanctioned state mutations affecting data, with moderate impact on decentralization or autonomy.                      |  `400` |
-|  2  | Bugs enabling unsanctioned state mutations without substantial impact on $name.                                                       |  `100` |
+| SEV | DESCRIPTION                                                                                                                                                                                   | BOUNTY |
+| :-: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -----: |
+|  0  | Bugs enabling unsanctioned state mutations critically affecting and endangering $name with a negligible attack cost.                                                                          | `1000` |
+|  1  | Bugs enabling unsanctioned state mutations affecting data, with moderate impact on decentralization or autonomy with moderate attack costs or taking a significant amount of time to execute. |  `400` |
+|  2  | Bugs enabling unsanctioned state mutations without substantial impact on $name.                                                                                                               |  `100` |
 
 Report bugs to stalwarts immediately if they fall under any of these categories.
