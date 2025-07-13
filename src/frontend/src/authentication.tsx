@@ -83,7 +83,7 @@ export const authMethods = [
                 (location.href.includes(".raw") ||
                     location.href.includes("share.")) &&
                 confirm(
-                    "You're using the uncertified insecure frontend. Do you want to be re-routed to the certified one?",
+                    "You're using an uncertified, insecure frontend. Do you want to be re-routed to the certified one?",
                 )
             ) {
                 location.href = location.href.replace(".raw", "");

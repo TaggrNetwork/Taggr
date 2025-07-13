@@ -81,7 +81,7 @@ export const Domains = ({}) => {
                                     </li>
                                 )}
                             {"Journal" in cfg.sub_config && (
-                                <li>Redirects to the hournal.</li>
+                                <li>Redirects to the journal.</li>
                             )}
                         </ul>
                     </li>
@@ -159,7 +159,7 @@ const DomainForm = ({
                     </p>
                     WHITE-LIST (comma-separated):
                     <textarea
-                        className="small_text bottom_spaced"
+                        className="small_text bottom_spaced top_half_spaced"
                         value={whitelist}
                         onChange={(event) => setWhitelist(event.target.value)}
                         rows={4}
@@ -174,7 +174,7 @@ const DomainForm = ({
                     </p>
                     BLACK-LIST (comma-separated):
                     <textarea
-                        className="small_text bottom_spaced"
+                        className="small_text bottom_spaced top_half_spaced"
                         value={blacklist}
                         onChange={(event) => setBlacklist(event.target.value)}
                         rows={4}
@@ -185,7 +185,7 @@ const DomainForm = ({
             <div className="row_container">
                 {!instructions && (
                     <button
-                        className="max_width_col"
+                        className="max_width_col medium_text"
                         onClick={() => showInstructions(true)}
                     >
                         SHOW INSTRUCTIONS

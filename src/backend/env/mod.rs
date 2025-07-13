@@ -1620,12 +1620,24 @@ impl State {
             mutate(|state| {
                 state.timers.last_daily += DAY;
                 state.timers.daily_pending = false;
-                state.logger.debug(format!(
-                    "Pending BTC invoices: `{}`, pending NNS proposals: `{}`, pending polls: `{}`.",
+                let (btc, nns, polls) = (
                     state.accounting.pending_btc_invoices.len(),
                     state.pending_nns_proposals.len(),
                     state.pending_polls.len(),
-                ));
+                );
+                if btc > 0 {
+                    state
+                        .logger
+                        .debug(format!("Pending BTC invoices: `{}`.", btc,));
+                }
+                if nns > 0 {
+                    state
+                        .logger
+                        .debug(format!("Pending NNS proposals: `{}`.", nns,));
+                }
+                if polls > 0 {
+                    state.logger.debug(format!("Pending polls: `{}`.", polls));
+                }
                 log(state, "Daily", 1000);
             });
         }

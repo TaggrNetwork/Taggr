@@ -27,7 +27,7 @@ export const LinksPage = ({}) => {
                     <a href="https://beacondex.link">BEACON exchange</a>
                 </li>
             </ul>
-            <h2>Community maintained resources</h2>
+            <h2>Community-maintained resources</h2>
             <ul>
                 <li>
                     <a href={`#/realm/000_WELCOME_TO_TAGGR`}>

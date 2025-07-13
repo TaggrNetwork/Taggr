@@ -443,7 +443,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 )}
                 {profile.controlled_realms.length > 0 && (
                     <div className="db_cell">
-                        CONTROLLS REALMS
+                        CONTROLS REALMS
                         {placeholder(
                             profile.controlled_realms.length,
                             <RealmList

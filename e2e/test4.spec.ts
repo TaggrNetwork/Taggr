@@ -192,8 +192,8 @@ test.describe("Report and transfer to user", () => {
     });
 
     test("Confirm the report", async () => {
-        await page.reload();
         await page.goto("/#/inbox");
+        await page.reload();
         await expect(page.getByText("reported")).toBeVisible();
 
         await page.goto("/#/user/kyle");

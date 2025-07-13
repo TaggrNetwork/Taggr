@@ -357,7 +357,7 @@ export const ButtonWithLoading = ({
             id={id}
             title={title}
             disabled={disabled || loading}
-            className={`large_text ${
+            className={`medium_text ${
                 loading || disabled
                     ? classNameArg?.replaceAll("active", "")
                     : classNameArg
@@ -1233,13 +1233,11 @@ export const DropDown = ({
     );
 };
 
-export function domain(): RealmId {
-    return window.location.hostname;
-}
+export const domain = () => window.location.hostname;
 
 // Checks if the realm is supported in the current domain
 export function realmAllowed(id: RealmId) {
-    const config = window.backendCache.domainConfig;
+    const config = window.backendCache.domains[domain()];
     if (!config) return true;
 
     if ("WhiteListedRealms" in config.sub_config) {

@@ -29,12 +29,6 @@ pub struct DomainConfig {
     // If a domain config has no owner, it is managed by the DAO
     #[serde(default)]
     pub owner: Option<UserId>,
-    // TODO: delete
-    #[serde(default)]
-    pub realm_whitelist: HashSet<RealmId>,
-    // TODO: delete
-    #[serde(default)]
-    pub realm_blacklist: HashSet<RealmId>,
 
     #[serde(default)]
     pub sub_config: DomainSubConfig,

@@ -269,7 +269,7 @@ export const Wallet = () => {
                         onClick={async () => {
                             if (
                                 !confirm(
-                                    "Unlinking of the cold wallet leads to the reduction of your voting power. " +
+                                    "Unlinking the cold wallet reduces your voting power. " +
                                         "\n\n" +
                                         "Please confirm the unlinking.",
                                 )

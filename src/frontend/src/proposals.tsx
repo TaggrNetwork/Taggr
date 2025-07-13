@@ -82,7 +82,7 @@ const ProposalForm = ({}) => {
                     />
                 ) : (
                     <div className="banner">
-                        To open a new proposal, you need to have a least{" "}
+                        To open a new proposal, you need to have at least{" "}
                         {token(balance)}{" "}
                         {window.backendCache.config.token_symbol} on your
                         balance.
@@ -236,21 +236,8 @@ export const ProposalMask = ({
                     </div>
                 </div>
             )}
-            {proposalType == ProposalType.Rewards && (
-                <div className="spaced column_container">
-                    <div className="vcentered bottom_half_spaced">
-                        PRINCIPAL
-                        <input
-                            type="text"
-                            className="left_spaced max_width_col"
-                            onChange={async (ev) => {
-                                setReceiver(ev.target.value.toString());
-                            }}
-                        />
-                    </div>
-                </div>
-            )}
-            {proposalType == ProposalType.Funding && (
+            {(proposalType == ProposalType.Funding ||
+                proposalType == ProposalType.Rewards) && (
                 <div className="spaced column_container">
                     <div className="vcentered bottom_half_spaced">
                         PRINCIPAL
@@ -262,16 +249,18 @@ export const ProposalMask = ({
                             }}
                         />
                     </div>
-                    <div className="vcentered bottom_half_spaced">
-                        TOKEN AMOUNT
-                        <input
-                            type="text"
-                            className="left_spaced max_width_col"
-                            onChange={async (ev) => {
-                                setFundingAmount(Number(ev.target.value));
-                            }}
-                        />
-                    </div>
+                    {proposalType == ProposalType.Funding && (
+                        <div className="vcentered bottom_half_spaced">
+                            TOKEN AMOUNT
+                            <input
+                                type="text"
+                                className="left_spaced max_width_col"
+                                onChange={async (ev) => {
+                                    setFundingAmount(Number(ev.target.value));
+                                }}
+                            />
+                        </div>
+                    )}
                 </div>
             )}
             {proposalType == ProposalType.Release && (
@@ -534,9 +523,12 @@ export const ProposalView = ({
                 <>
                     <div className="bottom_half_spaced">
                         RECEIVER:{" "}
-                        <code className="breakable">
+                        <a
+                            className="breakable"
+                            href={`#/transactions/${proposal.payload.Rewards.receiver.toString()}`}
+                        >
                             {proposal.payload.Rewards.receiver.toString()}
-                        </code>
+                        </a>
                     </div>
                     {proposal.status == "Executed" && (
                         <div className="bottom_spaced">
@@ -552,9 +544,12 @@ export const ProposalView = ({
                 <>
                     <div className="bottom_half_spaced">
                         RECEIVER:{" "}
-                        <code className="breakable">
-                            {proposal.payload.Funding[0].toString()}
-                        </code>
+                        <a
+                            className="breakable"
+                            href={`#/transactions/${proposal.payload.Funding[0].toString()}`}
+                        >
+                            {proposal.payload.Funding[0]}
+                        </a>
                     </div>
                     <div className="bottom_spaced">
                         AMOUNT:{" "}

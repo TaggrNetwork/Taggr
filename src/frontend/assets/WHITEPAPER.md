@@ -1,4 +1,4 @@
-# $name
+# $name: a decentralized social network.
 
 ## Introduction
 
@@ -130,19 +130,19 @@ This ensures any proposal eventually passes within `100` days.
 ## Tokenomics
 
 The utility of the `$token_symbol` token is the $name governance and a share in $name's revenue.
-$name has a maximal supply of `$maximum_supply` tokens.
+$name has a maximum supply of `$maximum_supply` tokens.
 
 ### Supply Increase
 
 New tokens can only be mined by users or minted via minting proposals.
-Once the maximal supply is reached, both the weekly minting and minting proposals will be suspended.
+Once the maximum supply is reached, both the weekly minting and minting proposals will be suspended.
 
 ### Supply Decrease
 
 When a `$token_symbol` transfer transaction gets executed, the fee of `$fee` gets burned.
-Once the maximal supply is reached, it can go below the maximum again after enough fees are burned via transfer transactions.
+Once the maximum supply is reached, it can go below the maximum again after enough fees are burned via transfer transactions.
 In this case, the minting will be activated again.
-This will make the supply keep an equilibrium around the maximal supply.
+This will make the supply keep an equilibrium around the maximum supply.
 
 ### Distribution of mined tokens
 
@@ -226,10 +226,10 @@ The result of `add_post` contains the new post's ID or an error message.
 
 $name's DAO has a bug bounty program with classifications and rewards in `$token_symbol`.
 
-| SEV | DESCRIPTION                                                                                                                           | BOUNTY |
-| :-: | ------------------------------------------------------------------------------------------------------------------------------------- | -----: |
-|  0  | Bugs enabling unsanctioned state mutations affecting assets like credits, rewards, tokens, Treasury, or critically endangering $name. | `1000` |
-|  1  | Bugs enabling unsanctioned state mutations affecting data, with moderate impact on decentralization or autonomy.                      |  `400` |
-|  2  | Bugs enabling unsanctioned state mutations without substantial impact on $name.                                                       |  `100` |
+| SEV | DESCRIPTION                                                                                                                                                                                   | BOUNTY |
+| :-: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -----: |
+|  0  | Bugs enabling unsanctioned state mutations critically affecting and endangering $name with a negligible attack cost.                                                                          | `1000` |
+|  1  | Bugs enabling unsanctioned state mutations affecting data, with moderate impact on decentralization or autonomy with moderate attack costs or taking a significant amount of time to execute. |  `400` |
+|  2  | Bugs enabling unsanctioned state mutations without substantial impact on $name.                                                                                                               |  `100` |
 
 Report bugs to stalwarts immediately if they fall under any of these categories.
