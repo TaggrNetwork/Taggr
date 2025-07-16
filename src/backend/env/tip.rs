@@ -96,15 +96,12 @@ fn create_post_tip(
 pub async fn try_tip(
     post_id: PostId,
     canister_id: Principal,
-    from_principal: Principal,
+    caller: Principal,
     start_index: u64,
 ) -> Result<Tip, String> {
     // DoS protection
     mutate(|state| {
-        let sender_id = state
-            .principal_to_user(from_principal)
-            .expect("user not found")
-            .id;
+        let sender_id = state.principal_to_user(caller).expect("user not found").id;
         state.charge(
             sender_id,
             CONFIG.tipping_cost,
@@ -126,6 +123,9 @@ pub async fn try_tip(
             Some(transfer) => mutate(|state| {
                 let amount = u128::try_from(&transfer.amount.0).expect("Wrong amount");
                 let memo = transfer.memo.as_ref().unwrap().0.to_vec();
+                if caller != transfer.from.owner {
+                    return Err("caller different to tx sender".into());
+                }
                 create_post_tip(
                     state,
                     post_id,
@@ -161,6 +161,8 @@ mod tests {
     use super::*;
     use crate::env::tests::{create_user, pr};
 
+    /// ### Returns
+    /// post_id, post_owner, receiver, realm_id
     fn setup() -> (u64, Principal, Principal, RealmId) {
         // Create users, realm and post
         mutate(|state| {

@@ -511,7 +511,7 @@ export const tokens = (n: number, decimals: number, hideDecimals?: boolean) => {
     });
 };
 
-/** Remove tail zeros */
+// Remove tail zeros
 export const shortenTokensAmount = (n: number, decimals: number) => {
     return tokens(n, decimals)
         .replace(/([\.,\,]\d*?[1-9])0+$/, "$1")
@@ -1398,7 +1398,7 @@ type LocalStorageData = {
     data: any;
     updated_at: string;
 };
-/** Helper for stale local storage data */
+// Helper for stale local storage data
 export function getFromLocalStorage<T>(
     cacheKey: string,
     staleness = 0,
@@ -1416,7 +1416,7 @@ export function getFromLocalStorage<T>(
     }
     return null;
 }
-/** Helper for stale local storage data */
+// Helper for stale local storage data
 export function cacheLocalStorage(cacheKey: string, data: object) {
     localStorage.setItem(
         cacheKey,
@@ -1480,7 +1480,7 @@ export const Popup = ({
     );
 };
 
-/** Using IC-explorer */
+// Using IC-explorer
 export const getUserTokensFromIcExplorer = async (
     principal: string,
 ): Promise<IcExplorerUserTokenInfo[]> => {

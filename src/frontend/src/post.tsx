@@ -694,6 +694,13 @@ const PostInfo = ({
                     post.id,
                 );
                 if ("Err" in (addTipResponse || {}) || !addTipResponse) {
+                    setExternalTips(
+                        externalTips.filter(
+                            ({ canister_id, index }) =>
+                                index !== optimisticPostTip.index ||
+                                canisterId !== canister_id,
+                        ),
+                    );
                     throw new Error(addTipResponse?.Err);
                 }
 

@@ -44,12 +44,6 @@ pub struct GetTransactionsArgs {
     pub length: Nat,
 }
 
-#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
-pub struct IcrcAccount {
-    pub owner: Principal,
-    pub subaccount: Option<[u8; 32]>,
-}
-
 #[derive(
     Serialize, Deserialize, CandidType, Clone, Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Default,
 )]
@@ -59,8 +53,8 @@ pub struct IcrcMemo(pub ByteBuf);
 #[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
 pub struct IcrcTransfer {
     pub amount: Nat,
-    pub from: IcrcAccount,
-    pub to: IcrcAccount,
+    pub from: Account,
+    pub to: Account,
     pub memo: Option<IcrcMemo>,
     pub fee: Option<Nat>,
 }
