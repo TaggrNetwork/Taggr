@@ -411,7 +411,11 @@ const bootstrap = async () => {
      *  RECOVERY SHORTCUT
      */
     if (window.location.href.includes("recovery")) {
-        renderFrame(<React.StrictMode>{<Recovery />}</React.StrictMode>);
+        createRoot(document.body as HTMLElement).render(
+            <React.StrictMode>
+                <Recovery />
+            </React.StrictMode>,
+        );
         window.user = await window.api.query<any>("user", "", []);
         return;
     }
