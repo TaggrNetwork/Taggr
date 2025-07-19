@@ -16,7 +16,6 @@ import {
     Post,
     PostId,
     Realm,
-    RealmId,
     Report,
     User,
     UserFilter,
@@ -293,7 +292,7 @@ export const ShareButton = ({
     return (
         <button
             title={`Share link to ${fullUlr}`}
-            className={classNameArg}
+            className={`medium_text ${classNameArg}`}
             style={styleArg}
             onClick={async (_) => {
                 await navigator.clipboard.writeText(fullUlr);
@@ -401,7 +400,7 @@ export const ToggleButton = ({
     return (
         <button
             title={on ? onTitle : offTitle}
-            className={`${classNameArg}`}
+            className={`medium_text ${classNameArg}`}
             onClick={(e) => {
                 e.preventDefault();
                 setStatus(on ? -1 : 1);
@@ -1235,17 +1234,23 @@ export const DropDown = ({
 
 export const domain = () => window.location.hostname;
 
-// Checks if the realm is supported in the current domain
-export function realmAllowed(id: RealmId) {
+// Checks if the post is supported on the current domain
+export function postAllowed(post: Post) {
     const config = window.backendCache.domains[domain()];
     if (!config) return true;
 
+    const downvoteId = 1;
+    const downvotes = post.reactions[downvoteId]?.length;
+    if (downvotes > config.max_downvotes) return false;
+
+    if (!post.realm) return true;
+
     if ("WhiteListedRealms" in config.sub_config) {
-        return config.sub_config.WhiteListedRealms.includes(id);
+        return config.sub_config.WhiteListedRealms.includes(post.realm);
     }
 
     if ("BlackListedRealms" in config.sub_config) {
-        return !config.sub_config.BlackListedRealms.includes(id);
+        return !config.sub_config.BlackListedRealms.includes(post.realm);
     }
 
     return true;

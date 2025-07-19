@@ -276,9 +276,11 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             }, 500);
                         }}
                     />
-                    <div className="top_half_spaced">
-                        Valid users: <UserList ids={realm.controllers} />
-                    </div>
+                    {realm.controllers.length > 0 && (
+                        <div className="top_half_spaced">
+                            Valid users: <UserList ids={realm.controllers} />
+                        </div>
+                    )}
                 </div>
                 <hr />
                 <h2>Realm contributor settings</h2>
@@ -303,9 +305,11 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             }, 500);
                         }}
                     />
-                    <div className="top_half_spaced">
-                        Valid users: <UserList ids={realm.whitelist} />
-                    </div>
+                    {realm.whitelist.length > 0 && (
+                        <div className="top_half_spaced">
+                            Valid users: <UserList ids={realm.whitelist} />
+                        </div>
+                    )}
                 </div>
 
                 {whitelist.length == 0 && (
@@ -620,7 +624,7 @@ export const RealmHeader = ({
                         <div className="row_container top_spaced flex_ended">
                             {realm.controllers.includes(user.id) && (
                                 <button
-                                    className="right_half_spaced"
+                                    className="medium_text right_half_spaced"
                                     onClick={() => {
                                         location.href = `/#/realm/${name}/edit`;
                                         toggleInfo(false);
@@ -743,7 +747,7 @@ export const Realms = () => {
                 content={
                     user && (
                         <button
-                            className="active"
+                            className="medium_text active"
                             onClick={() => (location.href = "/#/realms/create")}
                         >
                             CREATE

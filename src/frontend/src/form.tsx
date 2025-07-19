@@ -143,8 +143,8 @@ export const Form = ({
             if (poll) {
                 // Trim
                 poll.options = poll.options
-                    .filter((option: string) => !!option)
-                    .map((option) => option.trim());
+                    .map((option) => option.trim())
+                    .filter((option: string) => !!option);
                 extension = { Poll: poll };
             } else if (repost != undefined) {
                 extension = { Repost: repost };

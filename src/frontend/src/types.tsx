@@ -24,6 +24,7 @@ export type DomainSubConfig =
 export type DomainConfig = {
     owner: UserId;
     sub_config: DomainSubConfig;
+    max_downvotes: number;
 };
 
 export const getMonoRealm = (cfg: DomainConfig) => {

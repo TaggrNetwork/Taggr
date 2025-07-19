@@ -107,7 +107,13 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        for config in state.domains.values_mut() {
+            config.max_downvotes = CONFIG.default_max_downvotes_for_domains;
+        }
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}

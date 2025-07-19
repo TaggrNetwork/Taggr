@@ -27,11 +27,13 @@ impl Default for DomainSubConfig {
 #[derive(Default, Clone, Deserialize, Serialize)]
 pub struct DomainConfig {
     // If a domain config has no owner, it is managed by the DAO
-    #[serde(default)]
     pub owner: Option<UserId>,
 
-    #[serde(default)]
     pub sub_config: DomainSubConfig,
+
+    // Maximum number of downvotes on posts that will be displayed.
+    #[serde(default)]
+    pub max_downvotes: u32,
 }
 
 impl DomainConfig {
@@ -164,6 +166,7 @@ pub fn change_domain_config(
                 )?;
 
             cfg.owner = Some(caller_id);
+            cfg.max_downvotes = CONFIG.default_max_downvotes_for_domains;
             state.domains.insert(domain, cfg)
         }
         "remove" => state.domains.remove(&domain),

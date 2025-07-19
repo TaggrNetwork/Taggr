@@ -85,6 +85,8 @@ const applyTheme = (palette: Theme) => {
     );
     const element = document.getElementsByName("theme-color")[0];
     if (element) element.setAttribute("content", effPalette.background);
+    const app = document.getElementById("app");
+    if (app) app.style.display = "block";
 };
 
 export const setTheme = (name: string) => applyTheme(getTheme(name));

@@ -116,6 +116,9 @@ const DomainForm = ({
     callback: () => void;
     initCfg: DomainConfig;
 }) => {
+    const [maxDownvotes, setMaxDownvotes] = React.useState(
+        initCfg.max_downvotes,
+    );
     const [cfgType, setCfgType] = React.useState<string>(
         "WhiteListedRealms" in initCfg.sub_config
             ? "whitelist"
@@ -181,6 +184,15 @@ const DomainForm = ({
                     ></textarea>
                 </>
             )}
+            <div className="row_container spaced vcentered">
+                <span>Maximum number of downvotes for posts displayed:</span>
+                <input
+                    className="left_spaced max_width_col"
+                    type="number"
+                    value={maxDownvotes}
+                    onChange={(e) => setMaxDownvotes(Number(e.target.value))}
+                />
+            </div>
             {instructions && <DomainInstructions domain={domain} />}
             <div className="row_container">
                 {!instructions && (
@@ -215,6 +227,7 @@ const DomainForm = ({
                     onClick={async () => {
                         const cfg: DomainConfig = {
                             owner: initCfg.owner,
+                            max_downvotes: maxDownvotes,
                             sub_config: {} as any,
                         };
                         if (cfgType == "journal") {
