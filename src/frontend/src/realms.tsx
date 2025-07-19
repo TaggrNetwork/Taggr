@@ -276,9 +276,11 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             }, 500);
                         }}
                     />
-                    <div className="top_half_spaced">
-                        Valid users: <UserList ids={realm.controllers} />
-                    </div>
+                    {realm.controllers.length > 0 && (
+                        <div className="top_half_spaced">
+                            Valid users: <UserList ids={realm.controllers} />
+                        </div>
+                    )}
                 </div>
                 <hr />
                 <h2>Realm contributor settings</h2>
@@ -303,9 +305,11 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             }, 500);
                         }}
                     />
-                    <div className="top_half_spaced">
-                        Valid users: <UserList ids={realm.whitelist} />
-                    </div>
+                    {realm.whitelist.length > 0 && (
+                        <div className="top_half_spaced">
+                            Valid users: <UserList ids={realm.whitelist} />
+                        </div>
+                    )}
                 </div>
 
                 {whitelist.length == 0 && (
