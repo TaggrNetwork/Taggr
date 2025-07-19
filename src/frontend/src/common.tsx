@@ -293,7 +293,7 @@ export const ShareButton = ({
     return (
         <button
             title={`Share link to ${fullUlr}`}
-            className={classNameArg}
+            className={`medium_text ${classNameArg}`}
             style={styleArg}
             onClick={async (_) => {
                 await navigator.clipboard.writeText(fullUlr);
@@ -401,7 +401,7 @@ export const ToggleButton = ({
     return (
         <button
             title={on ? onTitle : offTitle}
-            className={`${classNameArg}`}
+            className={`medium_text ${classNameArg}`}
             onClick={(e) => {
                 e.preventDefault();
                 setStatus(on ? -1 : 1);

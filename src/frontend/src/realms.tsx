@@ -620,7 +620,7 @@ export const RealmHeader = ({
                         <div className="row_container top_spaced flex_ended">
                             {realm.controllers.includes(user.id) && (
                                 <button
-                                    className="right_half_spaced"
+                                    className="medium_text right_half_spaced"
                                     onClick={() => {
                                         location.href = `/#/realm/${name}/edit`;
                                         toggleInfo(false);
@@ -743,7 +743,7 @@ export const Realms = () => {
                 content={
                     user && (
                         <button
-                            className="active"
+                            className="medium_text active"
                             onClick={() => (location.href = "/#/realms/create")}
                         >
                             CREATE
