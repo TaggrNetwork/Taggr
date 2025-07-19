@@ -27,7 +27,7 @@ import {
     parseNumber,
     noiseControlBanner,
     showPopUp,
-    realmAllowed,
+    postAllowed,
     NotAllowed,
     onCanonicalDomain,
 } from "./common";
@@ -101,10 +101,7 @@ export const PostView = ({
             return;
         }
 
-        if (data.realm && !realmAllowed(data.realm)) {
-            setNotAllowed(true);
-            return;
-        }
+        if (!postAllowed(data)) setNotAllowed(true);
 
         let effBody = data.body;
         if (version != undefined && !isNaN(version)) {
@@ -125,8 +122,6 @@ export const PostView = ({
     React.useEffect(() => {
         loadData(data);
     }, [id, version, data]);
-
-    if (notAllowed) return <NotAllowed />;
 
     if (!post) {
         if (notFound) return <NotFound />;
@@ -201,6 +196,7 @@ export const PostView = ({
         isComment || focused || (!isFeedItem && !repost) || isThreadView;
     const costTable = reactionCosts();
     const isInactive =
+        notAllowed ||
         objectReduce(
             post.reactions,
             (acc, id, users) => acc + costTable[id as any] * users.length,
@@ -319,6 +315,7 @@ export const PostView = ({
                         NSFW
                     </div>
                 )}
+                {notAllowed && <NotAllowed />}
                 {deleted && (
                     <div className="deleted small_text">
                         <h3>Post deleted</h3>
@@ -333,7 +330,7 @@ export const PostView = ({
                         </ol>
                     </div>
                 )}
-                {!isNSFW && !post.encrypted && (
+                {!isNSFW && !post.encrypted && !notAllowed && (
                     <article onClick={goInside}>
                         <Content
                             blogTitle={blogTitle}

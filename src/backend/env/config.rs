@@ -79,6 +79,8 @@ pub struct Config {
 
     pub num_hot_posts: usize,
 
+    pub default_max_downvotes_for_domains: u32,
+
     pub domain_cost: Credits,
     pub feature_cost: Credits,
     pub post_cost: Credits,
@@ -251,6 +253,8 @@ pub const CONFIG: &Config = &Config {
     #[cfg(not(feature = "staging"))]
     min_credits_for_inviting: 50,
 
+    default_max_downvotes_for_domains: 15,
+
     domain_cost: 1000,
     feature_cost: 1000,
     post_cost: 2,
@@ -314,10 +318,10 @@ pub const CONFIG: &Config = &Config {
         (52, 5),
         (51, 5),
         (50, 5),
-        // thumb down
         // star, pirate
         (100, 10),
         (101, 10),
+        // thumb down
         (1, -3),
     ],
 
