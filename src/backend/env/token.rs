@@ -27,7 +27,7 @@ type Memo = Vec<u8>;
 
 pub type Token = u64;
 
-#[derive(CandidType, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
+#[derive(CandidType, Clone, Serialize, Deserialize, Hash, Eq, PartialEq, Debug)]
 pub struct Account {
     pub owner: Principal,
     pub subaccount: Option<Subaccount>,
