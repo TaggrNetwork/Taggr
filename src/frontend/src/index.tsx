@@ -132,13 +132,12 @@ const App = () => {
     }
 
     setTitle(handler);
-    setUI();
-    if (handler == "realm" && currentRealm() != param) {
-        setRealmUI(param.toUpperCase());
-    }
-
     if (window.monoRealm) setRealmUI(window.monoRealm);
-    if (window.defaultRealm && !currentRealm()) setRealmUI(window.defaultRealm);
+    else if (window.defaultRealm && !currentRealm())
+        setRealmUI(window.defaultRealm);
+    else if (handler == "realm" && currentRealm() != param) {
+        setRealmUI(param.toUpperCase());
+    } else setUI();
 
     if (handler == "whitepaper") {
         content = <Whitepaper />;
