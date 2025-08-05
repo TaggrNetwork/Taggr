@@ -311,14 +311,17 @@ export const UserInfo = ({ profile }: { profile: User }) => {
 
     return (
         <div className="spaced">
-            {profile.previous_names.length > 0 && (
-                <div className="bottom_spaced">
-                    AKA:{" "}
-                    {commaSeparated(
-                        profile.previous_names.map((handle) => <b>{handle}</b>),
-                    )}
-                </div>
-            )}
+            {profile.previous_names.length > 0 &&
+                profile.settings.show_aliases !== "off" && (
+                    <div className="bottom_spaced">
+                        AKA:{" "}
+                        {commaSeparated(
+                            profile.previous_names.map((handle) => (
+                                <b>{handle}</b>
+                            )),
+                        )}
+                    </div>
+                )}
             {profile.about ? (
                 <>
                     <Content classNameArg="larger_text" value={profile.about} />

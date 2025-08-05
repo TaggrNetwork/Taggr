@@ -170,6 +170,22 @@ export const Settings = ({ invite }: { invite?: string }) => {
         await window.reloadUser();
     };
 
+    const handleCheckboxSetting = (
+        key: string,
+        event: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+        const { checked } = event.target;
+        switch (checked) {
+            case true:
+                event.target.value = "on";
+                break;
+            case false:
+                event.target.value = "off";
+                break;
+        }
+        setSetting(key, event);
+    };
+
     return (
         <>
             <HeadBar title="SETTINGS" shareLink="setting" />
@@ -185,6 +201,26 @@ export const Settings = ({ invite }: { invite?: string }) => {
                     placeholder="alphanumeric"
                     onChange={namePicker}
                 />
+                {
+                    <div
+                        className={`bottom_spaced ${user?.previous_names?.length > 0 ? "" : "hidden"}`}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={settings.show_aliases !== "off"}
+                            onChange={(e) =>
+                                handleCheckboxSetting("show_aliases", e)
+                            }
+                            id="show_aliases"
+                        />
+                        <label
+                            className="left_half_spaced"
+                            htmlFor="show_aliases"
+                        >
+                            Show Aliases
+                        </label>
+                    </div>
+                }
                 {user && pfp && (
                     <>
                         <div className="bottom_half_spaced">Avataggr</div>
