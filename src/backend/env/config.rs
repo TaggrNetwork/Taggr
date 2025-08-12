@@ -72,7 +72,6 @@ pub struct Config {
 
     pub feed_page_size: usize,
 
-    pub reporting_penalty_post: Credits,
     pub reporting_penalty_misbehaviour: Credits,
 
     pub minimal_tip: Credits,
@@ -245,7 +244,6 @@ pub const CONFIG: &Config = &Config {
 
     feed_page_size: 30,
 
-    reporting_penalty_post: 200,
     reporting_penalty_misbehaviour: 1000,
 
     #[cfg(feature = "staging")]

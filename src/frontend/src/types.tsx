@@ -180,7 +180,6 @@ export type Post = {
     children: PostId[];
     reposts: PostId[];
     user: UserId;
-    report?: Report;
     body: string;
     effBody: string;
     reactions: { [id: number]: UserId[] };
@@ -389,7 +388,6 @@ export type Config = {
     feed_page_size: number;
     reactions: [number, number][];
     token_decimals: number;
-    reporting_penalty_post: number;
     reporting_penalty_misbehaviour: number;
 };
 

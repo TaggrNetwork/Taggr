@@ -19,8 +19,6 @@ import {
     setTitle,
     ButtonWithLoading,
     bigScreen,
-    FlagButton,
-    ReportBanner,
     tokens,
     bucket_image_url,
     currentRealm,
@@ -202,9 +200,6 @@ export const PostView = ({
             (acc, id, users) => acc + costTable[id as any] * users.length,
             0,
         ) < 0;
-    const user = window.user;
-    const showReport =
-        post.report && !post.report.closed && user && user.stalwart;
     const deleted = post.hashes.length > 0;
     const commentAsPost = isComment && !isCommentView;
     const realmPost =
@@ -257,13 +252,6 @@ export const PostView = ({
             className={classNameArg}
             data-testid="post-body"
         >
-            {showReport && post.report && (
-                <ReportBanner
-                    id={post.id}
-                    reportArg={post.report}
-                    domain="post"
-                />
-            )}
             <div
                 ref={refPost as any}
                 className={`post_box ${isInactive ? "inactive" : ""} ${
@@ -669,9 +657,6 @@ const PostInfo = ({
                                 }}
                                 label={<Close />}
                             />
-                        )}
-                        {!postAuthor && (
-                            <FlagButton id={post.id} domain="post" />
                         )}
                         {postAuthor && (
                             <>

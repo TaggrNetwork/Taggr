@@ -110,8 +110,9 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
-        for config in state.domains.values_mut() {
-            config.max_downvotes = CONFIG.default_max_downvotes_for_domains;
+        for user in state.users.values_mut() {
+            user.notifications
+                .retain(|_, (n, _)| !matches!(n, env::user::Notification::Conditional(_, _)));
         }
     })
 }
@@ -169,16 +170,16 @@ fn vote_on_poll() {
 #[export_name = "canister_update report"]
 fn report() {
     mutate(|state| {
-        let (domain, id, reason): (String, u64, String) = parse(&arg_data_raw());
-        reply(state.report(caller(state), domain, id, reason))
+        let (id, reason): (u64, String) = parse(&arg_data_raw());
+        reply(state.report(caller(state), id, reason))
     });
 }
 
 #[export_name = "canister_update vote_on_report"]
 fn vote_on_report() {
     mutate(|state| {
-        let (domain, id, vote): (String, u64, bool) = parse(&arg_data_raw());
-        reply(state.vote_on_report(caller(state), domain, id, vote))
+        let (id, vote): (u64, bool) = parse(&arg_data_raw());
+        reply(state.vote_on_report(caller(state), id, vote))
     });
 }
 

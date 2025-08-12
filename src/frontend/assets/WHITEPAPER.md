@@ -98,15 +98,13 @@ This policy is intentionally broad and necessitates social consensus among stalw
 
 **Posts contravening this policy are subject to moderation.**
 
-## Moderation
+## User penalties
 
-Moderation on $name is decentralized; anyone can initiate it, and stalwarts can execute it.
-Whenever a post or user is reported, all stalwarts receive notifications and are expected to validate or dismiss the report.
-Once `$report_confirmation_percentage%` of stalwarts concur on the report's validity, it is closed.
-For confirmed reports:
-
--   The violating user loses `$reporting_penalty_post` (post report) or `$reporting_penalty_misbehaviour` (user report) rewards, along with an equivalent amount of credits.
--   The reporter receives half of this penalty as rewards.
+Any misbehaving user can be reported on $name.
+Whenever a user is reported, all stalwarts receive notifications and are expected to validate or dismiss the report.
+Once `$report_confirmation_percentage%`of stalwarts concur on the report's validity, it is closed.
+For confirmed reports, the reported user loses`$reporting_penalty_misbehaviour` rewards, along with an equivalent amount of credits.
+The reporter receives half of this penalty as rewards.
 
 If stalwarts dismiss the report, the reporter loses half the penalty as credits and rewards.
 In both cases, participating stalwarts share rewards from the penalty fee, capped at `$stalwart_moderation_reward`.
