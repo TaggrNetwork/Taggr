@@ -83,27 +83,12 @@ Upon joining a realm, users implicitly agree to its terms and conditions.
 
 Currently, `$realm_revenue_percentage%` of revenue generated inside the realm is shared with its controllers.
 
-## Content and Behavior Policy
-
-Decentralization does not equate to lawlessness!
-Content and behavior permitted on $name aligns with community-approved moderation guidelines.
-Content and behavior not permitted on $name falls into one of the following categories:
-
--   Content and behavior that jeopardize $name as a public service (e.g., those illegal in relevant jurisdictions).
--   Content or behavior detrimental to the community, sustainability, or decentralization of $name.
--   Content created with malicious intent, such as gaming the $name system.
--   Content and behavior that violate realm-specific rules.
-
-This policy is intentionally broad and necessitates social consensus among stalwarts.
-
-**Posts contravening this policy are subject to moderation.**
-
 ## User penalties
 
-Any misbehaving user can be reported on $name.
+Any misbehaving user can be reported to stalwarts.
 Whenever a user is reported, all stalwarts receive notifications and are expected to validate or dismiss the report.
-Once `$report_confirmation_percentage%`of stalwarts concur on the report's validity, it is closed.
-For confirmed reports, the reported user loses`$reporting_penalty_misbehaviour` rewards, along with an equivalent amount of credits.
+Once `$report_confirmation_percentage%` of stalwarts concur on the report's validity, it is closed.
+For confirmed reports, the reported user loses `$reporting_penalty_misbehaviour` rewards, along with an equivalent amount of credits.
 The reporter receives half of this penalty as rewards.
 
 If stalwarts dismiss the report, the reporter loses half the penalty as credits and rewards.
