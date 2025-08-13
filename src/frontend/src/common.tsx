@@ -708,15 +708,7 @@ export function CopyToClipboard({
     );
 }
 
-export const FlagButton = ({
-    id,
-    domain,
-    text,
-}: {
-    id: number;
-    domain: string;
-    text?: boolean;
-}) => (
+export const FlagButton = ({ id, text }: { id: number; text?: boolean }) => (
     <ButtonWithLoading
         title="Flag post"
         classNameArg="max_width_col"
@@ -727,19 +719,13 @@ export const FlagButton = ({
             while (!success) {
                 reason =
                     prompt(
-                        `You are reporting this ${
-                            domain == "post" ? "post" : "user"
-                        } to stalwarts. ` +
-                            (domain == "user"
-                                ? `It is recommended to talk to stalwarts first. `
-                                : "") +
+                        `You are reporting this user to stalwarts. ` +
+                            `It is recommended to talk to stalwarts first. ` +
                             `Reporting is a SERIOUS measure. ` +
-                            `If there is a chance to convince a user to stop misbehaving, please do this without a report! ` +
+                            `If there is a chance to convince the user to stop misbehaving, please do this without a report! ` +
                             `If the report gets rejected, you'll lose ` +
                             window.backendCache.config[
-                                domain == "post"
-                                    ? "reporting_penalty_post"
-                                    : "reporting_penalty_misbehaviour"
+                                "reporting_penalty_misbehaviour"
                             ] +
                             ` credits and rewards. If you want to continue, please justify the report very well.`,
                         reason,
@@ -758,7 +744,6 @@ export const FlagButton = ({
             if (reason) {
                 let response = await window.api.call<{ [name: string]: any }>(
                     "report",
-                    domain,
                     id,
                     reason,
                 );
@@ -776,11 +761,9 @@ export const FlagButton = ({
 export const ReportBanner = ({
     id,
     reportArg,
-    domain,
 }: {
     id: number;
     reportArg: Report;
-    domain: string;
 }) => {
     const [report, setReport] = React.useState(reportArg);
     const { confirmed_by, rejected_by } = report;
@@ -794,8 +777,8 @@ export const ReportBanner = ({
     return (
         <div className="banner">
             <strong>
-                This {domain == "post" ? "post" : "user"} was REPORTED. Please
-                confirm the deletion or reject the report.
+                This user was REPORTED. Please confirm the deletion or reject
+                the report.
             </strong>
             <Content value={report.reason} post={false} />
             {!tookAction && (
@@ -810,20 +793,16 @@ export const ReportBanner = ({
                             onClick={async () => {
                                 let result = await window.api.call<{
                                     [name: string]: any;
-                                }>("vote_on_report", domain, id, val);
+                                }>("vote_on_report", id, val);
                                 if (result && "Err" in result) {
                                     showPopUp("error", result.Err);
                                     return;
                                 }
-                                const updatedReport =
-                                    domain == "post"
-                                        ? (await loadPosts([id]))[0].report
-                                        : (
-                                              await window.api.query<User>(
-                                                  "user",
-                                                  [id.toString()],
-                                              )
-                                          )?.report;
+                                const updatedReport = (
+                                    await window.api.query<User>("user", [
+                                        id.toString(),
+                                    ])
+                                )?.report;
                                 if (updatedReport) setReport(updatedReport);
                             }}
                             label={label}

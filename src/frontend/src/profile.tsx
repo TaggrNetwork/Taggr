@@ -119,11 +119,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                         <>
                             {user && user.id != profile.id && (
                                 <>
-                                    <FlagButton
-                                        id={profile.id}
-                                        domain="misbehaviour"
-                                        text={true}
-                                    />
+                                    <FlagButton id={profile.id} text={true} />
                                     <ToggleButton
                                         offLabel="BLOCK"
                                         onLabel="UNBLOCK"
@@ -215,11 +211,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                 }
             />
             {showReport && profile.report && (
-                <ReportBanner
-                    id={profile.id}
-                    reportArg={profile.report}
-                    domain="misbehaviour"
-                />
+                <ReportBanner id={profile.id} reportArg={profile.report} />
             )}
             <UserInfo profile={profile} />
             {profile.deactivated ? (

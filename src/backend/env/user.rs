@@ -40,6 +40,7 @@ pub enum CreditsDelta {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Predicate {
+    // TODO: delete
     ReportOpen(PostId),
     UserReportOpen(UserId),
     Proposal(PostId),
@@ -458,31 +459,34 @@ impl User {
         delta: CreditsDelta,
         log: T,
     ) -> Result<(), String> {
-        if delta == CreditsDelta::Minus && amount <= self.cycles || delta == CreditsDelta::Plus {
-            if delta == CreditsDelta::Plus {
-                self.cycles = self
-                    .cycles
-                    .checked_add(amount)
-                    .ok_or("wrong positive delta amount")?;
-            } else {
-                self.cycles = self
-                    .cycles
-                    .checked_sub(amount)
-                    .ok_or("wrong negative delta amount")?;
-            }
-            self.add_accounting_log(
-                time(),
-                "CRE".to_string(),
-                if delta == CreditsDelta::Plus {
-                    amount as i64
-                } else {
-                    -(amount as i64)
-                },
-                log.to_string(),
-            );
-            return Ok(());
+        if delta == CreditsDelta::Minus && amount > self.cycles {
+            return Err(format!("not enough credits (required: {amount})"));
         }
-        Err(format!("not enough credits (required: {amount})"))
+
+        if delta == CreditsDelta::Plus {
+            self.cycles = self
+                .cycles
+                .checked_add(amount)
+                .ok_or("wrong positive delta amount")?;
+        } else {
+            self.cycles = self
+                .cycles
+                .checked_sub(amount)
+                .ok_or("wrong negative delta amount")?;
+        }
+
+        self.add_accounting_log(
+            time(),
+            "CRE".to_string(),
+            if delta == CreditsDelta::Plus {
+                amount as i64
+            } else {
+                -(amount as i64)
+            },
+            log.to_string(),
+        );
+
+        Ok(())
     }
 
     pub fn change_rewards<T: ToString>(&mut self, amount: i64, log: T) {

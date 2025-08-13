@@ -66,15 +66,9 @@ impl Report {
     }
 }
 
-pub fn finalize_report(
-    state: &mut State,
-    report: &Report,
-    domain: &str,
-    penalty: Credits,
-    user_id: UserId,
-    subject: String,
-) -> Result<(), String> {
-    let mut confirmed_user_report = false;
+pub fn finalize_report(state: &mut State, report: &Report, user_id: UserId) -> Result<(), String> {
+    let subject = format!("user [{0}](#/user/{0})", user_id);
+    let penalty = CONFIG.reporting_penalty_misbehaviour;
     let (sponsor_id, unit) = if report.confirmed_by.len() > report.rejected_by.len() {
         // penalty for the user
         let user = state.users.get_mut(&user_id).ok_or("no user found")?;
@@ -104,7 +98,6 @@ pub fn finalize_report(
                 None,
             )
             .map_err(|err| format!("couldn't reward reporter: {}", err))?;
-        confirmed_user_report = domain == "misbehaviour";
         state.logger.info(format!(
             "Report of {} was confirmed by `{}%` of stalwarts: {}",
             subject, CONFIG.report_confirmation_percentage, &report.reason
@@ -160,10 +153,6 @@ pub fn finalize_report(
             .expect("couldn't charge user");
     }
     state.denotify_users(&|u| u.stalwart);
-    let user = state.users.get(&user_id).ok_or("no user found")?;
-    if confirmed_user_report && user.credits() > 0 {
-        state.charge(user_id, user.credits(), "penalty for misbehaviour")?;
-    }
     Ok(())
 }
 
@@ -176,9 +165,10 @@ mod tests {
     #[test]
     fn test_reporting() {
         mutate(|state| {
+            state.init();
             let p = pr(0);
-            let u1 = create_user(state, p);
-            let user = state.users.get_mut(&u1).unwrap();
+            let user_id = create_user(state, p);
+            let user = state.users.get_mut(&user_id).unwrap();
             user.change_rewards(100, "");
 
             assert_eq!(user.notifications.len(), 1);
@@ -195,16 +185,6 @@ mod tests {
             let user = state.principal_to_user_mut(reporter).unwrap();
             user.change_credits(1000, CreditsDelta::Plus, "").unwrap();
 
-            let post_id =
-                Post::create(state, "bad post".to_string(), &[], p, 0, None, None, None).unwrap();
-
-            let user = state.users.get(&u1).unwrap();
-            assert_eq!(user.credits(), 1000 - CONFIG.post_cost);
-
-            let p = Post::get(state, &post_id).unwrap();
-            assert!(p.report.is_none());
-
-            assert_eq!(user.credits(), 1000 - CONFIG.post_cost);
             // The reporter can only be a user with at least one post.
             let _ = Post::create(
                 state,
@@ -218,7 +198,7 @@ mod tests {
             );
 
             assert_eq!(
-                state.report(reporter, "post".into(), post_id, String::new()),
+                state.report(reporter, user_id, String::new()),
                 Err("no reports with low token balance".into())
             );
 
@@ -236,27 +216,25 @@ mod tests {
                 .unwrap();
             assert_eq!(reporter_user.credits(), 0);
             assert_eq!(
-                state.report(reporter, "post".into(), post_id, String::new()),
-                Err("at least 100 credits needed for this report".into())
+                state.report(reporter, user_id, String::new()),
+                Err("at least 500 credits needed for this report".into())
             );
-            let p = Post::get(state, &post_id).unwrap();
-            assert!(&p.report.is_none());
 
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
             reporter_user
                 .change_credits(1000, CreditsDelta::Plus, "")
                 .unwrap();
             assert_eq!(reporter_user.credits(), 1000);
-            state
-                .report(reporter, "post".into(), post_id, String::new())
+            state.report(reporter, user_id, String::new()).unwrap();
+
+            let report = state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .report
+                .clone()
                 .unwrap();
 
-            let post_author = state.principal_to_user_mut(pr(0)).unwrap();
-            assert!(post_author.post_reports.contains_key(&post_id));
-
             // make sure the reporter is correct
-            let p = Post::get(state, &post_id).unwrap();
-            let report = &p.report.clone().unwrap();
             assert!(report.reporter == state.principal_to_user(reporter).unwrap().id);
 
             // Another user cannot overwrite the report
@@ -264,80 +242,86 @@ mod tests {
             token::mint(state, account(pr(8)), CONFIG.transaction_fee * 1000, "");
             state.minting_mode = false;
             assert_eq!(
-                state.report(pr(8), "post".into(), post_id, String::new()),
-                Err("this post is already reported".into())
+                state.report(pr(8), user_id, String::new()),
+                Err("this user is already reported".into())
             );
             // the reporter is still the same
+            let report = state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .report
+                .clone()
+                .unwrap();
             assert!(report.reporter == state.principal_to_user(reporter).unwrap().id);
 
             // stalwart 3 confirmed the report
-            state
-                .vote_on_report(pr(3), "post".into(), post_id, true)
+            state.vote_on_report(pr(3), user_id, true).unwrap();
+            let report = state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .report
+                .clone()
                 .unwrap();
-            let p = Post::get(state, &post_id).unwrap();
-            let report = &p.report.clone().unwrap();
             assert_eq!(report.confirmed_by.len(), 1);
             assert_eq!(report.rejected_by.len(), 0);
             // repeated confirmation is a noop
-            assert!(state
-                .vote_on_report(pr(3), "post".into(), post_id, true)
-                .is_err());
-            let p = Post::get(state, &post_id).unwrap();
-            let report = &p.report.clone().unwrap();
+            assert!(state.vote_on_report(pr(3), user_id, true).is_err());
+            let report = state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .report
+                .clone()
+                .unwrap();
             assert_eq!(report.confirmed_by.len(), 1);
             assert!(!report.closed);
 
             // stalwart 6 rejected the report
-            state
-                .vote_on_report(pr(6), "post".into(), post_id, false)
+            state.vote_on_report(pr(6), user_id, false).unwrap();
+            let report = state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .report
+                .clone()
                 .unwrap();
-            let p = Post::get(state, &post_id).unwrap();
-            let report = &p.report.clone().unwrap();
             assert_eq!(report.confirmed_by.len(), 1);
             assert_eq!(report.rejected_by.len(), 1);
             assert!(!report.closed);
 
-            // make sure post still exists
-            assert_eq!(&p.body, "bad post");
-
             // stalwarts 12 & 13 confirmed too
-            state
-                .vote_on_report(pr(12), "post".into(), post_id, true)
+            state.vote_on_report(pr(12), user_id, true).unwrap();
+            let report = state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .report
+                .clone()
                 .unwrap();
-            let p = Post::get(state, &post_id).unwrap();
-            let report = &p.report.clone().unwrap();
             assert_eq!(report.confirmed_by.len(), 2);
             assert_eq!(report.rejected_by.len(), 1);
 
             // stalwart has no karma to reward
             assert_eq!(state.principal_to_user(pr(3)).unwrap().rewards(), 0);
 
-            state
-                .vote_on_report(pr(13), "post".into(), post_id, true)
+            state.vote_on_report(pr(13), user_id, true).unwrap();
+            let report = state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .report
+                .clone()
                 .unwrap();
-            let p = Post::get(state, &post_id).unwrap();
-            let report = &p.report.clone().unwrap();
             assert_eq!(report.confirmed_by.len(), 3);
             assert_eq!(report.rejected_by.len(), 1);
 
             // make sure the report is closed and post deleted
             assert!(report.closed);
-            assert_eq!(&p.body, "");
-            let post_author = state.principal_to_user_mut(pr(0)).unwrap();
-            // The report is still pending
-            assert!(post_author.post_reports.contains_key(&post_id));
 
-            let user = state.users.get(&u1).unwrap();
-            assert_eq!(
-                user.credits(),
-                1000 - CONFIG.reporting_penalty_post - CONFIG.post_cost
-            );
-            assert_eq!(user.rewards(), -100);
+            let user = state.users.get(&user_id).unwrap();
+            assert_eq!(user.credits(), 1000 - CONFIG.reporting_penalty_misbehaviour);
+            assert_eq!(user.rewards(), -900);
 
             let reporter = state.principal_to_user(reporter).unwrap();
             assert_eq!(
                 reporter.rewards() as Credits,
-                CONFIG.reporting_penalty_post / 2
+                CONFIG.reporting_penalty_misbehaviour / 2
             );
             // stalwarts rewarded too
             assert_eq!(
@@ -358,72 +342,68 @@ mod tests {
 
         mutate(|state| {
             let p = pr(100);
-            let u = create_user(state, p);
-            let user = state.users.get_mut(&u).unwrap();
+            let user_id = create_user(state, p);
+            let user = state.users.get_mut(&user_id).unwrap();
             user.change_rewards(100, "");
 
-            let post_id =
-                Post::create(state, "good post".to_string(), &[], p, 0, None, None, None).unwrap();
-
-            let user = state.users.get(&u).unwrap();
-            assert_eq!(user.credits(), 1000 - CONFIG.post_cost);
+            let user = state.users.get(&user_id).unwrap();
+            assert_eq!(user.credits(), 1000);
 
             let reporter = pr(7);
-            state
-                .report(reporter, "post".into(), post_id, String::new())
-                .unwrap();
+            state.report(reporter, user_id, String::new()).unwrap();
             // set credits to 1777
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
             reporter_user
                 .change_credits(1777 - reporter_user.credits(), CreditsDelta::Plus, "")
                 .unwrap();
             assert_eq!(reporter_user.credits(), 1777);
-            assert_eq!(reporter_user.rewards(), 100);
+            assert_eq!(reporter_user.rewards(), 500);
 
-            state
-                .vote_on_report(pr(6), "post".into(), post_id, false)
+            state.vote_on_report(pr(6), user_id, false).unwrap();
+            let report = state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .report
+                .clone()
                 .unwrap();
-            let p = Post::get(state, &post_id).unwrap();
-            let report = &p.report.clone().unwrap();
             assert_eq!(report.confirmed_by.len(), 0);
             assert_eq!(report.rejected_by.len(), 1);
             assert!(!report.closed);
-            assert_eq!(&p.body, "good post");
 
-            state
-                .vote_on_report(pr(9), "post".into(), post_id, false)
+            state.vote_on_report(pr(9), user_id, false).unwrap();
+
+            let report = state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .report
+                .clone()
                 .unwrap();
-
-            let post_author = state.principal_to_user_mut(pr(100)).unwrap();
-            assert!(post_author.post_reports.contains_key(&post_id));
-
-            let p = Post::get(state, &post_id).unwrap();
-            let report = &p.report.clone().unwrap();
             assert_eq!(report.confirmed_by.len(), 0);
             assert_eq!(report.rejected_by.len(), 2);
 
-            state
-                .vote_on_report(pr(10), "post".into(), post_id, false)
-                .unwrap();
+            // credits still available
+            let user = state.users.get(&user_id).unwrap();
+            assert_eq!(user.credits(), 1000);
+            state.vote_on_report(pr(10), user_id, false).unwrap();
 
-            let p = Post::get(state, &post_id).unwrap();
-            let report = &p.report.clone().unwrap();
+            let report = state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .report
+                .clone()
+                .unwrap();
             assert_eq!(report.confirmed_by.len(), 0);
             assert_eq!(report.rejected_by.len(), 3);
             assert!(report.closed);
 
-            // report removed from the post
-            let post_author = state.principal_to_user_mut(pr(100)).unwrap();
-            assert!(!post_author.post_reports.contains_key(&post_id));
-
             // karma and credits stay untouched
-            let user = state.users.get(&u).unwrap();
-            assert_eq!(user.credits(), 1000 - CONFIG.post_cost);
+            let user = state.users.get(&user_id).unwrap();
+            assert_eq!(user.credits(), 1000);
             assert_eq!(user.rewards(), 100);
 
             // reported got penalized
             let reporter = state.principal_to_user(reporter).unwrap();
-            let unit = CONFIG.reporting_penalty_post / 2;
+            let unit = CONFIG.reporting_penalty_misbehaviour / 2;
             assert_eq!(reporter.credits(), 1777 - 2 * unit);
 
             assert_eq!(

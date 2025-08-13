@@ -205,7 +205,10 @@ pub fn available_realms(
 
 #[cfg(test)]
 mod tests {
-    use crate::{env::Realm, mutate};
+    use crate::{
+        env::{realms::tests::create_realm, Realm},
+        mutate,
+    };
 
     use super::*;
     use crate::tests::*;

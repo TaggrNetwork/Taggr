@@ -1,10 +1,8 @@
 use std::cmp::{Ordering, PartialOrd};
 
-use super::reports::ReportState;
 use super::*;
 use super::{storage::Storage, user::UserId};
 use crate::mutate;
-use crate::reports::Report;
 use ic_cdk::caller;
 use serde::{Deserialize, Serialize};
 
@@ -75,7 +73,6 @@ pub struct Post {
     pub files: BTreeMap<String, (u64, usize)>,
     pub tree_size: u32,
     pub tree_update: u64,
-    pub report: Option<Report>,
     pub tips: Vec<(UserId, u64)>,
     pub extension: Option<Extension>,
     pub realm: Option<String>,
@@ -147,7 +144,6 @@ impl Post {
             reposts: Default::default(),
             tree_size: 0,
             tree_update: timestamp,
-            report: None,
             extension,
             archived: false,
             encrypted: false,
@@ -300,22 +296,6 @@ impl Post {
         Ok(())
     }
 
-    pub fn vote_on_report(
-        &mut self,
-        stalwarts: usize,
-        stalwart: UserId,
-        confirmed: bool,
-    ) -> Result<(), String> {
-        if self.user == stalwart {
-            return Err("no voting on own posts".into());
-        }
-        let report = self.report.as_mut().ok_or("no report found".to_string())?;
-        if let ReportState::Confirmed = report.vote(stalwarts, stalwart, confirmed)? {
-            self.delete(vec![self.body.clone()]);
-        }
-        Ok(())
-    }
-
     pub fn is_deleted(&self) -> bool {
         !self.hashes.is_empty()
     }
@@ -334,9 +314,6 @@ impl Post {
                 format!("{:x}", hasher.finalize())
             })
             .collect();
-        if let Some(report) = self.report.as_mut() {
-            report.closed = true;
-        }
     }
 
     pub fn costs(&self, state: &State, blobs: usize) -> Credits {
@@ -1065,7 +1042,7 @@ mod tests {
             assert_eq!(state.posts.len(), 10);
             // Trigger post archiving
             archive_cold_posts(state, 5).unwrap();
-            assert!(state.memory.health("B").starts_with("boundary=949B"));
+            assert!(state.memory.health("B").starts_with("boundary=909B"));
             assert!(state.memory.health("B").ends_with("segments=0"));
 
             // Make sure we have the right numbers in cold and hot memories
@@ -1107,7 +1084,7 @@ mod tests {
             assert!(!Post::get(state, &3).unwrap().archived);
             assert_eq!(state.posts.len(), 8);
             assert_eq!(state.memory.posts.len(), 3);
-            assert!(state.memory.health("B").starts_with("boundary=949B"));
+            assert!(state.memory.health("B").starts_with("boundary=909B"));
             assert!(state.memory.health("B").ends_with("segments=2"));
 
             // Archive posts again
@@ -1116,7 +1093,7 @@ mod tests {
             assert_eq!(state.memory.posts.len(), 6);
             // Segments were reduced, becasue the new post 10 fits into a gap left from one of the
             // old posts
-            assert!(state.memory.health("B").starts_with("boundary=1327B"));
+            assert!(state.memory.health("B").starts_with("boundary=1271B"));
             assert!(state.memory.health("B").ends_with("segments=1"));
         });
     }
