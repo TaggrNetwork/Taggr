@@ -1,6 +1,6 @@
 use candid::Nat;
 
-use super::{canisters::GetTransactionsArgs, *};
+use super::*;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Tip {
@@ -92,7 +92,6 @@ fn create_post_tip(
     Ok(tip)
 }
 
-#[allow(clippy::too_many_arguments)]
 pub async fn try_tip(
     post_id: PostId,
     canister_id: Principal,
@@ -109,36 +108,33 @@ pub async fn try_tip(
         )
     })?;
 
-    let args = GetTransactionsArgs {
+    let args = canisters::GetBlocksArgs {
         start: Nat::from(start_index),
-        length: Nat::from(1_u128),
+        length: Nat::from(1_u64),
     };
-    let response = canisters::get_transactions(canister_id, args).await;
-    if let Some(transaction) = response
+    let response = canisters::get_icrc3_get_blocks(canister_id, args).await;
+    if let Some(block_with_id) = response
         .expect("Failed to retrive transactions")
-        .transactions
+        .blocks
         .first()
     {
-        match &transaction.transfer {
-            Some(transfer) => mutate(|state| {
-                let amount = u128::try_from(&transfer.amount.0).expect("Wrong amount");
-                let memo = transfer.memo.as_ref().unwrap().0.to_vec();
-                if caller != transfer.from.owner {
-                    return Err("caller different to tx sender".into());
-                }
-                create_post_tip(
-                    state,
-                    post_id,
-                    canister_id,
-                    amount,
-                    Some(memo),
-                    transfer.to.owner,
-                    transfer.from.owner,
-                    start_index,
-                )
-            }),
-            None => Err("Transaction is not a transfer!".into()),
-        }
+        let transfer = canisters::convert_icrc3_block_to_transfer(&block_with_id.block)?;
+        let amount = u128::try_from(&transfer.amount.0)
+            .ok()
+            .ok_or("amount not found")?;
+        let memo = Some(transfer.memo.as_ref().unwrap().0.to_vec());
+        mutate(|state| {
+            create_post_tip(
+                state,
+                post_id,
+                canister_id,
+                amount,
+                memo,
+                transfer.to.owner,
+                transfer.from.owner,
+                start_index,
+            )
+        })
     } else {
         Err(format!(
             "We could not find transaction at index {}",
