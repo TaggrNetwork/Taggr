@@ -1078,7 +1078,7 @@ export const InfoPopup = ({
     }
 
     // Capitalize the message and add punctation if needed.
-    let formattedMessage = message[0].toUpperCase() + message.slice(1);
+    let formattedMessage = message[0]?.toUpperCase() + message.slice(1);
     if (
         ![".", "!", "?"].includes(formattedMessage[formattedMessage.length - 1])
     )
