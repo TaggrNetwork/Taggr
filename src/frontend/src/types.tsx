@@ -397,7 +397,9 @@ export type Config = {
 };
 
 export type Theme = { [name: string]: any };
-export type UserData = { [id: UserId]: string };
+export type UserData = {
+    [id: UserId]: [string, string];
+};
 
 export interface PostTip {
     amount: number;

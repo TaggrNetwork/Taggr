@@ -98,7 +98,7 @@ export const Form = ({
     const textarea = React.useRef<HTMLTextAreaElement>();
     const form = React.useRef();
     const tags = window.backendCache.recent_tags.map(([tag]) => tag);
-    const users = Object.values(USER_CACHE);
+    const users = Object.values(USER_CACHE).map(([name]) => name);
     const user = window.user;
     const realms = user ? user.realms : [];
     const { max_post_length, max_blob_size_bytes } = window.backendCache.config;

@@ -336,8 +336,9 @@ export const Icrc1TokensWallet = () => {
                                         info.fee,
                                     );
                                     if (isNaN(+(response || ""))) {
-                                        return alert(
-                                            `Error: ${JSON.stringify(response)}`,
+                                        return showPopUp(
+                                            "error",
+                                            JSON.stringify(response),
                                         );
                                     }
                                     await loadBalances([canisterId]); // Refresh balance

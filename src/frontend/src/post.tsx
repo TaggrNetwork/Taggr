@@ -60,15 +60,12 @@ import {
     PostId,
     PostTip,
     Realm,
-    User,
     UserId,
 } from "./types";
 import {
     USER_CACHE,
-    USER_COMMON_CACHE,
     UserLink,
     UserList,
-    populateUserCommonCache,
     populateUserNameCache,
 } from "./user_resolve";
 import { CANISTER_ID } from "./env";
@@ -500,10 +497,6 @@ const PostInfo = ({
         React.useState<string[]>([]); // Allowed tipping tokens
     const [selectedTippingCanisterId, setSelectedTippingCanisterId] =
         React.useState(CANISTER_ID); // Default is Taggr
-    const [postUser, setPostUser] = React.useState<Pick<
-        User,
-        "principal"
-    > | null>(null); // Only need principal in this view
     const [showTipPopup, setShowTipPopup] = React.useState(false);
     const [tipping, setTipping] = React.useState(false);
     const [tippingAmount, setTippingAmount] = React.useState(0.1);
@@ -524,7 +517,11 @@ const PostInfo = ({
             // @ts-ignore
             .concat(post.watchers)
             // @ts-ignore
-            .concat(Object.keys(post.tips).map(Number));
+            .concat(Object.keys(post.tips).map(Number))
+            // External tip senders
+            .concat(
+                post.external_tips?.map(({ sender_id }) => sender_id) || [],
+            );
 
         await populateUserNameCache(ids, setLoading);
 
@@ -538,19 +535,15 @@ const PostInfo = ({
     /** Load canister data of external tips */
     const loadExternalTipsData = async (realm: Realm | undefined) => {
         const externalTips = post.external_tips || [];
-        const allTokenIds = [CANISTER_ID];
+        const allTokenIds = [
+            CANISTER_ID,
+            ...externalTips.map(({ canister_id }) => canister_id),
+        ];
         const allowedTippingCanisterIds = [CANISTER_ID];
         if (realm?.tokens) {
             allowedTippingCanisterIds.push(...realm.tokens);
             allTokenIds.push(...realm.tokens);
         }
-
-        const senderIds = [
-            ...new Set(externalTips.map(({ sender_id }) => sender_id)),
-        ];
-        allTokenIds.push(...externalTips.map((tip) => tip.canister_id));
-
-        await populateUserNameCache(senderIds).catch(console.error);
 
         const metadata = await getCanistersMetaData([
             ...new Set(allTokenIds),
@@ -565,19 +558,6 @@ const PostInfo = ({
         );
 
         setExternalTips(externalTips);
-
-        if (post.user !== window.user?.id) {
-            if (USER_COMMON_CACHE[post.user]) {
-                return setPostUser(USER_COMMON_CACHE[post.user]);
-            }
-            // Load post user if cache missed
-            return window.api
-                .query<User>("user", "", [USER_CACHE[post.user]])
-                .then((user) => {
-                    setPostUser(user);
-                    populateUserCommonCache(user);
-                });
-        }
     };
 
     let initial = false;
@@ -627,7 +607,10 @@ const PostInfo = ({
 
         const canister = canistersMetaData[canisterId];
         if (!canister) {
-            return alert(`Could not find canister data for ${canisterId}`);
+            return showPopUp(
+                "error",
+                `Could not find canister data for ${canisterId}`,
+            );
         }
         setTippingAmount(
             +(canister.fee / Math.pow(10, canister.decimals)).toFixed(
@@ -642,7 +625,10 @@ const PostInfo = ({
             const canisterId = selectedTippingCanisterId; // Store constant for whole function which has 2 separate canister calls (3 in total)
             const canister = canistersMetaData[canisterId];
             if (!canister) {
-                return alert(`Could not find canister data for ${canisterId}`);
+                return showPopUp(
+                    "error",
+                    `Could not find canister data for ${canisterId}`,
+                );
             }
 
             const amount = +(
@@ -661,15 +647,15 @@ const PostInfo = ({
             if (canister.symbol !== token_symbol) {
                 let transferResponse = await window.api.icrc_transfer(
                     Principal.fromText(canisterId),
-                    Principal.fromText(postUser?.principal || ""),
+                    Principal.fromText(USER_CACHE[post.user]?.at(1) || ""),
                     amount,
                     canister.fee,
                     numberToUint8Array(post.id),
                 );
 
-                if (isNaN(transferResponse as number)) {
-                    return alert(
-                        transferResponse ||
+                if (Number.isNaN(transferResponse as number)) {
+                    throw new Error(
+                        transferResponse.toString() ||
                             "Something went wrong with transfer!",
                     );
                 }
@@ -701,7 +687,9 @@ const PostInfo = ({
                                 canisterId !== canister_id,
                         ),
                     );
-                    throw new Error(addTipResponse?.Err);
+                    throw new Error(
+                        addTipResponse?.Err || "Could not add tip to post.",
+                    );
                 }
 
                 // Add tip from repsonse and replace optimistic one
@@ -718,7 +706,7 @@ const PostInfo = ({
                     amount,
                 );
                 if ("Err" in response) {
-                    alert(`Error: ${response.Err}`);
+                    throw new Error(response.Err);
                 } else await callback();
             }
         } catch (e: any) {

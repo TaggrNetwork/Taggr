@@ -43,22 +43,10 @@ fn create_post_tip(
         .map(|sender| (sender.id, sender.name.clone()))
         .ok_or("sender not found")?;
     let post = Post::get(state, &post_id).ok_or("post not found")?;
-    let realm = post
-        .realm
-        .as_ref()
-        .and_then(|id| state.realms.get(id))
-        .ok_or("realm not found")?;
     let memo_u64 = convert_memo_to_u64(memo)?;
 
     if post.user != receiver_id {
         return Err("receiver does not match with post creator".to_string());
-    }
-    if realm
-        .tokens
-        .as_ref()
-        .map_or(false, |tokens| !tokens.contains(&canister_id))
-    {
-        return Err("token is not allowed to tip in realm".to_string());
     }
 
     if memo_u64 != post_id {
@@ -155,7 +143,10 @@ fn convert_memo_to_u64(memo: Option<Vec<u8>>) -> Result<u64, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::env::tests::{create_user, pr};
+    use crate::env::{
+        realms::create_realm,
+        tests::{create_user, pr},
+    };
 
     /// ### Returns
     /// post_id, post_owner, receiver, realm_id
@@ -174,16 +165,16 @@ mod tests {
                 .unwrap();
 
             let realm_name = "test-realm".to_string();
-            state
-                .create_realm(
-                    p,
-                    realm_name.clone(),
-                    Realm {
-                        controllers: vec![user_id].into_iter().collect(),
-                        ..Default::default()
-                    },
-                )
-                .expect("realm creation failed");
+            create_realm(
+                state,
+                p,
+                realm_name.clone(),
+                Realm {
+                    controllers: vec![user_id].into_iter().collect(),
+                    ..Default::default()
+                },
+            )
+            .expect("realm creation failed");
 
             state.toggle_realm_membership(p, realm_name.clone());
 
@@ -281,28 +272,6 @@ mod tests {
             assert_eq!(r.err(), Some("sender not found".to_string()));
         });
 
-        // Realm not found
-        mutate(|state| {
-            // Mock uknown realm
-            state.posts.get_mut(&post_id).expect("post not found").realm =
-                Some("uknown-realm".to_string());
-
-            let r = create_post_tip(
-                state,
-                post_id,
-                canister_id,
-                1,
-                Some(vec![0, 0, 0, 0]),
-                principal,
-                principal_2,
-                0,
-            );
-            assert_eq!(r.err(), Some("realm not found".to_string()));
-
-            // Move back correct realm
-            state.posts.get_mut(&post_id).expect("post not found").realm = Some(realm_id);
-        });
-
         // Receiver does not match with post creator
         mutate(|state| {
             let r = create_post_tip(
@@ -318,25 +287,6 @@ mod tests {
             assert_eq!(
                 r.err(),
                 Some("receiver does not match with post creator".to_string())
-            );
-        });
-
-        // Token is not as native or under tokens
-        mutate(|state| {
-            let random_canister_id = pr(200);
-            let r = create_post_tip(
-                state,
-                post_id,
-                random_canister_id, // Tip is in different token
-                1,
-                Some(vec![0, 0, 0, 0]),
-                principal,
-                principal_2,
-                0,
-            );
-            assert_eq!(
-                r.err(),
-                Some("token is not allowed to tip in realm".to_string())
             );
         });
 

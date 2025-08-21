@@ -14,7 +14,7 @@ import { PostId, User, Post } from "./types";
 import { loadPosts } from "./common";
 import { FollowButton } from "./profile";
 import { Pin } from "./icons";
-import { populateUserCommonCache, UserLink } from "./user_resolve";
+import { UserLink } from "./user_resolve";
 
 export const Journal = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
@@ -27,7 +27,6 @@ export const Journal = ({ handle }: { handle: string }) => {
                 setProfile(profile);
                 setTitle(`${profile.name}'s profile`);
                 setStatus(1);
-                populateUserCommonCache(profile);
             } else {
                 setStatus(-1);
             }

@@ -455,20 +455,6 @@ pub(crate) mod tests {
                 Err("realm name taken".to_string())
             );
 
-            let mut tokens = BTreeSet::new();
-            tokens.insert(pr(99));
-            let realm = Realm {
-                controllers: controllers.clone(),
-                tokens: Some(tokens.clone()),
-                ..Default::default()
-            };
-            assert_eq!(state.edit_realm(p0, name.clone(), realm), Ok(()));
-
-            assert_eq!(
-                state.realms.get(&name).unwrap().tokens,
-                Some(tokens.clone()),
-            );
-
             assert_eq!(
                 state.realms.get(&name).unwrap().description,
                 "Test description".to_string()
@@ -496,12 +482,20 @@ pub(crate) mod tests {
                 Err("not authorized".to_string())
             );
 
+            let mut tokens = BTreeSet::new();
+            tokens.insert(pr(99));
             let realm = Realm {
                 controllers,
                 description: "New test description".into(),
+                tokens: Some(tokens.clone()),
                 ..Default::default()
             };
             assert_eq!(state.edit_realm(p0, name.clone(), realm), Ok(()));
+
+            assert_eq!(
+                state.realms.get(&name).unwrap().tokens,
+                Some(tokens.clone()),
+            );
 
             assert_eq!(
                 state.realms.get(&name).unwrap().description,

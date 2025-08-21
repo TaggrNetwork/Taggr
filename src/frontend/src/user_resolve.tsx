@@ -3,16 +3,12 @@ import { UserId, UserData, User } from "./types";
 import { Loading, commaSeparated, pfpUrl } from "./common";
 
 export const USER_CACHE: UserData = {};
-export const USER_COMMON_CACHE: Record<
-    number,
-    Pick<User, "name" | "principal">
-> = {}; // Unchangable things, store whenever possible
 
 export const populateUserNameCache = async (
     ids: UserId[],
     loadingCallback = (_arg: boolean) => {},
 ) => {
-    const misses = ids.filter(
+    const misses = [...new Set(ids)].filter(
         (id) => id < Number.MAX_SAFE_INTEGER && !(id in USER_CACHE),
     );
     if (misses.length == 0) return;
@@ -20,24 +16,15 @@ export const populateUserNameCache = async (
     const data = (await window.api.query<UserData>("users_data", misses)) || {};
     loadingCallback(false);
     Object.entries(data).forEach(
-        ([id, name]: [string, string]) => (USER_CACHE[Number(id)] = name),
+        ([id, data]) => (USER_CACHE[Number(id)] = data),
     );
-};
-
-export const populateUserCommonCache = (user: User | null) => {
-    if (user) {
-        USER_COMMON_CACHE[user.id] = {
-            name: user.name,
-            principal: user.principal,
-        };
-    }
 };
 
 export const userNameToIds = async (names: string[]) => {
     if (names.length == 0) return [];
     names = names.map((name) => name.trim().replace("@", ""));
     const cachedNames = Object.entries(USER_CACHE).reduce(
-        (acc, [id, name]) => {
+        (acc, [id, [name]]) => {
             acc[name] = Number(id);
             return acc;
         },
@@ -48,9 +35,7 @@ export const userNameToIds = async (names: string[]) => {
             names.map((name) =>
                 name in cachedNames
                     ? { id: cachedNames[name] }
-                    : window.api
-                          .query<User>("user", "", [name])
-                          .then(populateUserCommonCache),
+                    : window.api.query<User>("user", "", [name]),
             ),
         )
     )
@@ -75,13 +60,12 @@ export const UserLink = ({
 }) => {
     const [loading, setLoading] = React.useState(false);
     const [userName, setUserName] = React.useState<string | null>(
-        name || USER_CACHE[id] || null,
+        name || USER_CACHE[id]?.at(0) || null,
     );
 
     const loadUserName = async () => {
-        if (name) USER_CACHE[id] = name;
+        if (name) setUserName(name);
         else await populateUserNameCache([id], setLoading);
-        setUserName(USER_CACHE[id]);
     };
 
     React.useEffect(() => {
@@ -89,7 +73,7 @@ export const UserLink = ({
     }, []);
 
     React.useEffect(() => {
-        setUserName(USER_CACHE[id]);
+        setUserName(name || USER_CACHE[id]?.at(0) || null);
     }, [id]);
 
     if (loading) return <Loading spaced={false} />;

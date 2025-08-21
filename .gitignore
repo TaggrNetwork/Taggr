@@ -25,3 +25,6 @@ playwright-report/
 
 # PocketIC binary
 tests/pocket-ic
+
+# reviews
+/reviews

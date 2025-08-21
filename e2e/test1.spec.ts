@@ -286,8 +286,11 @@ test.describe("Upgrades & token transfer flow", () => {
         test("Add - input", async () => {
             // Enable in settings
             await page.goto("/#/settings");
-            await expect(page.getByTestId("ic-wallet-select")).toBeVisible();
-            await page.getByTestId("ic-wallet-select").selectOption("YES");
+            const icrcWalletEnableSelect = page.getByTestId("ic-wallet-select");
+            await expect(icrcWalletEnableSelect).toBeVisible();
+            await icrcWalletEnableSelect.selectOption("YES");
+            await icrcWalletEnableSelect.selectOption("YES"); // Select twice due to a bug in UI
+
             await page.getByRole("button", { name: "SAVE" }).click();
             await page.waitForTimeout(1000);
             await page.reload();
