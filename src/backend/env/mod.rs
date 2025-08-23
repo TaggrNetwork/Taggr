@@ -69,6 +69,8 @@ pub const HOUR: u64 = 60 * MINUTE;
 pub const DAY: u64 = 24 * HOUR;
 pub const WEEK: u64 = 7 * DAY;
 
+pub const MAX_USER_ID: UserId = 9_007_199_254_740_991; // Number.MAX_SAFE_INTEGER in JS
+
 #[derive(CandidType, Debug, Serialize, Deserialize)]
 pub struct NeuronId {
     pub id: u64,
@@ -598,7 +600,7 @@ impl State {
         }
         if self.principal_to_user(id()).is_none() {
             let canister_id = id();
-            let system_user_id = UserId::MAX;
+            let system_user_id = MAX_USER_ID;
             let system_user = User::new(canister_id, system_user_id, time(), id().to_text());
             self.users.insert(system_user_id, system_user);
             self.principals.insert(canister_id, system_user_id);

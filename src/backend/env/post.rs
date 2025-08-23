@@ -231,7 +231,7 @@ impl Post {
             }
             poll.voters.insert(user_id);
             poll.votes.entry(vote).or_default().insert(if anonymously {
-                UserId::MAX
+                MAX_USER_ID - 1
             } else {
                 user_id
             });

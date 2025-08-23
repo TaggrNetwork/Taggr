@@ -145,7 +145,7 @@ pub struct User {
 impl User {
     /// Returns true if the user is organic (not a system account).
     pub fn organic(&self) -> bool {
-        self.id < UserId::MAX
+        self.id < MAX_USER_ID
     }
 
     pub fn deactivate(&mut self) {
