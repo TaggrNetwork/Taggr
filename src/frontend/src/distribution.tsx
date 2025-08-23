@@ -5,7 +5,7 @@ import { Content } from "./content";
 
 export const Distribution = () => {
     const [reports, setReports] = React.useState<Summary[]>([]);
-    const [tab, setTab] = React.useState("minting");
+    const [tab, setTab] = React.useState("mint");
 
     const loadData = async () => {
         const reports =
