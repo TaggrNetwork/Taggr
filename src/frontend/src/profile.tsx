@@ -19,6 +19,7 @@ import {
     pfpUrl,
     showPopUp,
     domain,
+    tagList,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -403,19 +404,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                         FEEDS
                         {placeholder(
                             profile.feeds.length,
-                            commaSeparated(
-                                profile.feeds.map((feed) => {
-                                    let feedRepr = feed.join("+");
-                                    return (
-                                        <a
-                                            key={feedRepr}
-                                            href={`#/feed/${feedRepr}`}
-                                        >
-                                            {feedRepr}
-                                        </a>
-                                    );
-                                }),
-                            ),
+                            tagList(profile.feeds),
                         )}
                     </div>
                 )}

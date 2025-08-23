@@ -137,6 +137,18 @@ export const hoursTillNext = (interval: number, last: BigInt) =>
 export const commaSeparated = (items: (JSX.Element | string)[] = []) =>
     items.length == 0 ? [] : interleaved(items, <span>, </span>);
 
+export const tagList = (tags: string[][]) =>
+    commaSeparated(
+        tags.map((feed) => {
+            let feedRepr = feed.join("+");
+            return (
+                <a key={feedRepr} href={`#/feed/${feedRepr}`}>
+                    {feedRepr}
+                </a>
+            );
+        }),
+    );
+
 export const interleaved = (
     items: (JSX.Element | string)[],
     link: JSX.Element,
