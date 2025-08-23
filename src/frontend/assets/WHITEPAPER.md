@@ -83,6 +83,20 @@ Upon joining a realm, users implicitly agree to its terms and conditions.
 
 Currently, `$realm_revenue_percentage%` of revenue generated inside the realm is shared with its controllers.
 
+## Domains
+
+$name has one frontend served by the smart contract, but this frontend is configured according to the domain it is loaded from. This architecture is designed to push censorship decisions down to the edges of the content delivery chain.
+
+Domains are centralized pieces of infrastructure owned by concrete individuals who live in different jurisdictions. Each domain owner should decide themselves what content can or cannot be served via domains they are responsible for. This decentralized approach to content moderation respects local laws and cultural sensitivities while maintaining the core decentralized nature of $name.
+
+Each domain can be configured with its own moderation settings, including:
+
+- Blocking or whitelisting certain realms
+- Hiding posts that have received a certain number of downvotes
+- Applying custom content filters based on the domain owner's preferences and local regulations
+
+All these settings are defined and controlled by the owner of each domain, allowing for a diverse ecosystem of $name access points with varying content policies while preserving the underlying decentralized social network.
+
 ## User penalties
 
 Any misbehaving user can be reported to stalwarts.
