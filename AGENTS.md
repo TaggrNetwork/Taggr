@@ -28,36 +28,41 @@ Taggr is a fully decentralized social media platform built on the Internet Compu
 ## 3. Key Architectural Components
 
 ### Memory Management
-- Custom allocator system using stable memory for persistent storage
-- ObjectManager for serializing/deserializing objects to/from stable memory
-- Memory growth and management handled through stable memory operations
+
+-   Custom allocator system using stable memory for persistent storage
+-   ObjectManager for serializing/deserializing objects to/from stable memory
+-   Memory growth and management handled through stable memory operations
 
 ### Core Modules
-- **users.rs:** User management, balances, notifications, filters
-- **posts.rs:** Post creation, extensions (polls, proposals, reposts)
-- **domains.rs:** Domain configuration and realm filtering
-- **memory.rs:** Memory allocation and management
-- **pfp.rs:** Profile picture generation with deterministic palettes
+
+-   **users.rs:** User management, balances, notifications, filters
+-   **posts.rs:** Post creation, extensions (polls, proposals, reposts)
+-   **domains.rs:** Domain configuration and realm filtering
+-   **memory.rs:** Memory allocation and management
+-   **pfp.rs:** Profile picture generation with deterministic palettes
 
 ### HTTP Interface
-- Serves profile pictures, metadata, and API endpoints
-- Handles routing for different content types (images, JSON, HTML)
-- Implements caching strategies for static assets
-- Provides social media metadata for link previews
-- Uses asset certification for security
+
+-   Serves profile pictures, metadata, and API endpoints
+-   Handles routing for different content types (images, JSON, HTML)
+-   Implements caching strategies for static assets
+-   Provides social media metadata for link previews
+-   Uses asset certification for security
 
 ### Query System
-- Extensive query methods for posts, users, realms, transactions
-- Pagination support with configurable page sizes (CONFIG.feed_page_size)
-- Complex filtering and sorting capabilities
-- Search functionality across content
-- Delegation support for principal resolution
+
+-   Extensive query methods for posts, users, realms, transactions
+-   Pagination support with configurable page sizes (CONFIG.feed_page_size)
+-   Complex filtering and sorting capabilities
+-   Search functionality across content
+-   Delegation support for principal resolution
 
 ### Economic Model
-- Users have balances (credits, tokens, rewards)
-- Credit transfers with fees
-- Revenue sharing mechanisms
-- Auction system for token distribution
+
+-   Users have balances (credits, tokens, rewards)
+-   Credit transfers with fees
+-   Revenue sharing mechanisms
+-   Auction system for token distribution
 
 ## 4. Project Structure
 
@@ -101,13 +106,14 @@ Taggr is a fully decentralized social media platform built on the Internet Compu
 
 ## 5. Canisters
 
-- **`taggr`**: Main backend canister with core business logic
-- **`bucket`**: Storage canister for handling large blobs and assets
-- **`frontend`**: Asset canister serving the compiled React application
+-   **`taggr`**: Main backend canister with core business logic
+-   **`bucket`**: Storage canister for handling large blobs and assets
+-   **`frontend`**: Asset canister serving the compiled React application
 
 ## 6. Development Workflows
 
 ### Backend (Rust)
+
 ```bash
 # Build with specific features
 FEATURES=dev ./build.sh taggr
@@ -120,6 +126,7 @@ cargo test --test integration_tests
 ```
 
 ### Frontend (React)
+
 ```bash
 # Start development server
 npm start
@@ -132,6 +139,7 @@ npm run test:e2e
 ```
 
 ### Full Project (Makefile)
+
 ```bash
 # Start local replica
 make start
@@ -149,40 +157,44 @@ make staging_deploy
 ## 7. Key Data Types
 
 **Backend (Rust):**
-- `UserId`: User identifier
-- `PostId`: Post identifier (u64)
-- `Principal`: Internet Computer principal
-- `Credits`, `Token`: Economic units
-- `Extension`: Post extensions (Poll, Proposal, Repost, Feature)
+
+-   `UserId`: User identifier
+-   `PostId`: Post identifier (u64)
+-   `Principal`: Internet Computer principal
+-   `Credits`, `Token`: Economic units
+-   `Extension`: Post extensions (Poll, Proposal, Repost, Feature)
 
 **Frontend (TypeScript):**
-- Mirrors Rust types in `types.tsx`
-- PostId, DomainConfig, UserFilter, Extension types
+
+-   Mirrors Rust types in `types.tsx`
+-   PostId, DomainConfig, UserFilter, Extension types
 
 ## 8. HTTP API Endpoints
 
 Key HTTP endpoints include:
-- `/pfp/{user_id}`: Profile pictures with caching
-- `/api/v1/proposals`: Proposal data with pagination
-- `/api/v1/metadata`: Token and platform metadata
-- Various routes for posts, users, realms with metadata for social sharing
+
+-   `/pfp/{user_id}`: Profile pictures with caching
+-   `/api/v1/proposals`: Proposal data with pagination
+-   `/api/v1/metadata`: Token and platform metadata
+-   Various routes for posts, users, realms with metadata for social sharing
 
 ## 9. Query Methods
 
 Important query methods:
-- `posts`: Retrieve posts by IDs
-- `user`: Get user profile data
-- `realms`: Fetch realm information
-- `transactions`: Access transaction history
-- `hot_posts`, `last_posts`: Various feed views
-- `search`: Content search functionality
+
+-   `posts`: Retrieve posts by IDs
+-   `user`: Get user profile data
+-   `realms`: Fetch realm information
+-   `transactions`: Access transaction history
+-   `hot_posts`, `last_posts`: Various feed views
+-   `search`: Content search functionality
 
 ## 10. Memory and Storage Patterns
 
-- Custom allocator manages objects in stable memory
-- ObjectManager provides CRUD operations for serializable types
-- Bucket canister handles large binary data (images, assets)
-- Memory growth is managed through stable_grow operations
+-   Custom allocator manages objects in stable memory
+-   ObjectManager provides CRUD operations for serializable types
+-   Bucket canister handles large binary data (images, assets)
+-   Memory growth is managed through stable_grow operations
 
 ## 11. Important Considerations
 

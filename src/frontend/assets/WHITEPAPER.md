@@ -91,9 +91,9 @@ Domains are centralized pieces of infrastructure owned by concrete individuals w
 
 Each domain can be configured with its own moderation settings, including:
 
-- Blocking or whitelisting certain realms
-- Hiding posts that have received a certain number of downvotes
-- Applying custom content filters based on the domain owner's preferences and local regulations
+-   Blocking or whitelisting certain realms
+-   Hiding posts that have received a certain number of downvotes
+-   Applying custom content filters based on the domain owner's preferences and local regulations
 
 All these settings are defined and controlled by the owner of each domain, allowing for a diverse ecosystem of $name access points with varying content policies while preserving the underlying decentralized social network.
 

@@ -81,26 +81,22 @@ export const UserLink = ({
 
     return (
         <span className={`${classNameArg} user_link no_wrap`}>
-            {validUserId(id) && (
-                <>
-                    {pfp && (
-                        <img
-                            className="pfp"
-                            src={pfpUrl(id)}
-                            height={pfpSize}
-                            width={pfpSize}
-                        />
-                    )}
-                    {userName || validUserId(id) ? (
-                        <a href={`#/${profile ? "user" : "journal"}/${id}`}>
-                            {userName || id}
-                        </a>
-                    ) : (
-                        "N/A"
-                    )}
-                </>
+            {pfp && validUserId(id) && (
+                <img
+                    className="pfp"
+                    src={pfpUrl(id)}
+                    height={pfpSize}
+                    width={pfpSize}
+                />
             )}
-            {BigInt(id) >= u64max && (
+            {userName || validUserId(id) ? (
+                <a href={`#/${profile ? "user" : "journal"}/${id}`}>
+                    {userName || id}
+                </a>
+            ) : (
+                "N/A"
+            )}
+            {BigInt(id) == u64max && (
                 <span className="accent">
                     {window.backendCache.config.name.toUpperCase()}
                 </span>
@@ -109,10 +105,12 @@ export const UserLink = ({
     );
 };
 
-const u64max = BigInt("18446744073709551615");
+export const u64max = BigInt("18446744073709551615");
 
-// In some cases we use anonymous user ids by using very large numbers (close to max uint64)
-const validUserId = (id: number | null) => id != null && BigInt(id) < u64max;
+// In some cases we use anonymous user ids by using very large numbers (close to max uint64).
+// Hence, we reserve the last 100 ids for these pruposes.
+const validUserId = (id: number | null) =>
+    id != null && BigInt(id) < u64max - BigInt(100);
 
 export const UserList = ({
     ids = [],

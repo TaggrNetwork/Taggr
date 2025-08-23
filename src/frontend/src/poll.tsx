@@ -2,7 +2,7 @@ import * as React from "react";
 import { ButtonWithLoading, showPopUp, token } from "./common";
 import { Content } from "./content";
 import { Poll, PostId } from "./types";
-import { UserList } from "./user_resolve";
+import { u64max, UserList } from "./user_resolve";
 
 export const PollView = ({
     poll,
@@ -140,7 +140,7 @@ export const PollView = ({
                                 const list = poll.votes[vote] || [];
                                 list.push(
                                     anonymously
-                                        ? Number.MAX_SAFE_INTEGER
+                                        ? Number(u64max - BigInt(1))
                                         : user_id,
                                 );
                                 poll.votes[vote] = list;

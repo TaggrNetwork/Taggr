@@ -294,7 +294,7 @@ test.describe("Regular users flow", () => {
         await expect(page.locator("div:has-text('POSTS') > code")).toHaveText(
             "2",
         );
-        await page.locator("div:has-text('JOINED REALMS') > span").click();
+        await page.locator("div:has-text('JOINED REALMS') > code").click();
         await expect(page.locator('[class="popup_body"]').first()).toHaveText(
             "WONDERLAND",
         );

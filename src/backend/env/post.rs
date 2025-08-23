@@ -514,7 +514,7 @@ impl Post {
             },
         };
         if let Some(realm_id) = &realm {
-            if parent.is_none() && !user.realms.contains(realm_id) {
+            if user.organic() && parent.is_none() && !user.realms.contains(realm_id) {
                 return Err(format!("not a member of the realm {}", realm_id));
             }
             if let Some(realm) = state.realms.get(realm_id) {
