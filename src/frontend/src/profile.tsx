@@ -20,6 +20,7 @@ import {
     showPopUp,
     domain,
     tagList,
+    TabBar,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -68,19 +69,11 @@ export const Profile = ({ handle }: { handle: string }) => {
         profile.report && !profile.report.closed && user && user.stalwart;
 
     const title = (
-        <div className="text_centered vertically_spaced">
-            {["LAST", "TAGS", "REWARDED"].map((id) => (
-                <button
-                    key={id}
-                    onClick={() => setTab(id)}
-                    className={
-                        "medium_text " + (tab == id ? "active" : "unselected")
-                    }
-                >
-                    {id}
-                </button>
-            ))}
-        </div>
+        <TabBar
+            tabs={["LAST", "TAGS", "REWARDED"]}
+            activeTab={tab}
+            onTabChange={setTab}
+        />
     );
 
     return (

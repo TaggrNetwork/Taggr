@@ -98,6 +98,31 @@ export const MoreButton = ({
     </div>
 );
 
+export const TabBar = ({
+    tabs,
+    activeTab,
+    onTabChange,
+}: {
+    tabs: string[];
+    activeTab: string;
+    onTabChange: (tab: string) => void;
+}) => (
+    <div className="text_centered vertically_spaced">
+        {tabs.map((id) => (
+            <button
+                key={id}
+                onClick={() => onTabChange(id)}
+                className={
+                    "medium_text " +
+                    (activeTab == id ? "active" : "unselected")
+                }
+            >
+                {id.toUpperCase()}
+            </button>
+        ))}
+    </div>
+);
+
 export const FileUploadInput = ({
     classNameArg,
     callback,
