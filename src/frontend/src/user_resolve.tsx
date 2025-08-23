@@ -112,7 +112,10 @@ export const UserLink = ({
 
 export const systemUserId = Number.MAX_SAFE_INTEGER;
 
-const validUserId = (id: number | null) => id != null && id != systemUserId;
+// Valid user IDs are non-null and less than systemUserId - 1000;
+// this excludes system users and potential future special users.
+const validUserId = (id: number | null) =>
+    id != null && id < systemUserId - 1000;
 
 export const UserList = ({
     ids = [],
