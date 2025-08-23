@@ -96,7 +96,7 @@ export const UserLink = ({
             ) : (
                 "N/A"
             )}
-            {BigInt(id) == u64max && (
+            {id != null && BigInt(id) == u64max && (
                 <span className="accent">
                     {window.backendCache.config.name.toUpperCase()}
                 </span>

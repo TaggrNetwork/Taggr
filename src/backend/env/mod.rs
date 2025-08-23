@@ -83,6 +83,7 @@ pub struct Event {
 
 #[derive(Serialize, Deserialize)]
 pub struct Stats {
+    realms: usize,
     e8s_revenue_per_1k: u64,
     e8s_for_one_xdr: u64,
     bitcoin_treasury_sats: u64,
@@ -605,21 +606,16 @@ impl State {
         if !self.realms.contains_key(CONFIG.dao_realm) {
             self.realms.insert(
                 CONFIG.dao_realm.to_string(),
-                Realm {
-                    description:
-                        "The default DAO realm. The controller list is updated weekly according to the stalwarts list.".to_string(),
-                    ..Default::default()
-                },
+                Realm::new(
+                    "The default DAO realm. ".to_string()
+                        + "The controller list is updated weekly according to the stalwarts list.",
+                ),
             );
         }
         if !self.realms.contains_key(CONFIG.stalwarts_realm) {
             self.realms.insert(
                 CONFIG.stalwarts_realm.to_string(),
-                Realm {
-                    description: "The default stalwarts realm. Only stalwarts can post here."
-                        .to_string(),
-                    ..Default::default()
-                },
+                Realm::new("The default stalwarts realm. Only stalwarts can post here.".into()),
             );
         }
         if self.auction.amount == 0 {
@@ -771,75 +767,6 @@ impl State {
                 ) + "Please read the new description to avoid potential penalties for rules violation!",
             );
         }
-        Ok(())
-    }
-
-    pub fn create_realm(
-        &mut self,
-        principal: Principal,
-        realm_id: RealmId,
-        mut realm: Realm,
-    ) -> Result<(), String> {
-        realm.validate()?;
-
-        let Realm {
-            controllers,
-            cleanup_penalty,
-            ..
-        } = &realm;
-        if controllers.is_empty() {
-            return Err("no controllers specified".into());
-        }
-
-        if realm_id.len() > CONFIG.max_realm_name {
-            return Err("realm name too long".into());
-        }
-
-        if realm_id
-            .chars()
-            .any(|c| !char::is_alphanumeric(c) && c != '_' && c != '-')
-        {
-            return Err("realm name should be an alpha-numeric string".into());
-        }
-
-        if realm_id.chars().all(|c| char::is_ascii_digit(&c)) {
-            return Err("realm name should have at least on character".into());
-        }
-
-        if CONFIG.name.to_lowercase() == realm_id.to_lowercase()
-            || self.realms.contains_key(&realm_id)
-        {
-            return Err("realm name taken".into());
-        }
-
-        let user_id = self
-            .principal_to_user(principal)
-            .ok_or("user not found")?
-            .id;
-
-        self.charge(
-            user_id,
-            CONFIG.realm_cost,
-            format!("new realm /{}", realm_id),
-        )?;
-
-        let user = self
-            .principal_to_user_mut(principal)
-            .ok_or("user not found")?;
-        user.controlled_realms.insert(realm_id.clone());
-        let user_name = user.name.clone();
-
-        realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(*cleanup_penalty);
-        realm.last_update = time();
-        realm.created = time();
-
-        self.realms.insert(realm_id.clone(), realm);
-
-        self.logger.info(format!(
-            "@{} created realm [{1}](/#/realm/{1}) 🏰",
-            user_name, realm_id
-        ));
-
         Ok(())
     }
 
@@ -1826,6 +1753,9 @@ impl State {
         }
 
         for realm_id in inactive_realm_ids {
+            if CONFIG.dao_realm == realm_id || CONFIG.stalwarts_realm == realm_id {
+                continue;
+            }
             let realm = self.realms.remove(&realm_id).expect("no realm found");
             for controller_id in &realm.controllers {
                 if let Some(user) = self.users.get_mut(controller_id) {
@@ -2558,6 +2488,7 @@ impl State {
         let volume_week = last_week_txs.into_iter().map(|(_, tx)| tx.amount).sum();
 
         Stats {
+            realms: self.realms.len(),
             bitcoin_treasury_address: self.bitcoin_treasury_address.clone(),
             bitcoin_treasury_sats: self.bitcoin_treasury_sats,
             fees_burned: self.token_fees_burned,

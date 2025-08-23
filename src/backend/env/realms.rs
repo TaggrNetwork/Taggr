@@ -1,6 +1,7 @@
 use crate::{
     config::CONFIG,
     env::post::{self, Post},
+    time,
 };
 use candid::Principal;
 use serde::{Deserialize, Serialize};
@@ -37,6 +38,13 @@ pub struct Realm {
 }
 
 impl Realm {
+    pub fn new(description: String) -> Self {
+        Self {
+            description,
+            label_color: "#000000".into(),
+            ..Default::default()
+        }
+    }
     pub fn validate(&self) -> Result<(), String> {
         if self.logo.len() > CONFIG.max_realm_logo_len {
             return Err("logo too big".into());
@@ -60,6 +68,77 @@ impl Realm {
 
         Ok(())
     }
+}
+
+pub fn create_realm(
+    state: &mut State,
+    principal: Principal,
+    realm_id: RealmId,
+    mut realm: Realm,
+) -> Result<(), String> {
+    realm.validate()?;
+
+    let Realm {
+        controllers,
+        cleanup_penalty,
+        ..
+    } = &realm;
+    if controllers.is_empty() {
+        return Err("no controllers specified".into());
+    }
+
+    if realm_id.len() > CONFIG.max_realm_name {
+        return Err("realm name too long".into());
+    }
+
+    if realm_id
+        .chars()
+        .any(|c| !char::is_alphanumeric(c) && c != '_' && c != '-')
+    {
+        return Err("realm name should be an alpha-numeric string".into());
+    }
+
+    if realm_id.chars().all(|c| char::is_ascii_digit(&c)) {
+        return Err("realm name should have at least on character".into());
+    }
+
+    if CONFIG.name.to_lowercase() == realm_id.to_lowercase() || state.realms.contains_key(&realm_id)
+    {
+        return Err("realm name taken".into());
+    }
+
+    let user_id = state
+        .principal_to_user(principal)
+        .ok_or("user not found")?
+        .id;
+
+    state.charge(
+        user_id,
+        CONFIG.realm_cost,
+        format!("new realm /{}", realm_id),
+    )?;
+
+    let user = state
+        .principal_to_user_mut(principal)
+        .ok_or("user not found")?;
+    user.controlled_realms.insert(realm_id.clone());
+    let user_name = user.name.clone();
+
+    realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(*cleanup_penalty);
+    realm.last_update = time();
+    realm.created = time();
+    if realm.label_color.is_empty() {
+        realm.label_color = "#000000".into();
+    }
+
+    state.realms.insert(realm_id.clone(), realm);
+
+    state.logger.info(format!(
+        "@{} created realm [{1}](/#/realm/{1}) 🏰",
+        user_name, realm_id
+    ));
+
+    Ok(())
 }
 
 pub fn clean_up_realm(
@@ -136,7 +215,7 @@ pub(crate) mod tests {
             controllers: vec![0].into_iter().collect(),
             ..Default::default()
         };
-        state.create_realm(user, name, realm)
+        super::create_realm(state, user, name, realm)
     }
 
     fn realm_posts(state: &State, name: &str) -> Vec<PostId> {
@@ -349,7 +428,7 @@ pub(crate) mod tests {
             );
 
             assert_eq!(
-                state.create_realm(p0, name.clone(), Realm::default()),
+                super::create_realm(state, p0, name.clone(), Realm::default()),
                 Err("no controllers specified".to_string())
             );
 

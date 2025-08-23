@@ -594,7 +594,7 @@ fn realm_clean_up() {
 fn create_realm() {
     mutate(|state| {
         let (name, realm): (String, Realm) = parse(&arg_data_raw());
-        reply(state.create_realm(caller(state), name, realm))
+        reply(realms::create_realm(state, caller(state), name, realm))
     })
 }
 

@@ -24,6 +24,7 @@ import {
     HourGlass,
     Online,
     Post,
+    Realm,
     StorageCanister,
     Treasury,
     User,
@@ -121,6 +122,12 @@ export const Dashboard = ({}) => {
                             <Comment /> COMMENTS
                         </label>
                         {show(stats.comments)}
+                    </div>
+                    <div className="db_cell">
+                        <label>
+                            <Realm /> REALMS
+                        </label>
+                        {show(stats.realms)}
                     </div>
                     <div className="db_cell">
                         <label>

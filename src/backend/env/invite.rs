@@ -130,6 +130,7 @@ pub fn validate_user_invites_credits(
 #[cfg(test)]
 pub(crate) mod tests {
     use crate::{
+        env::realms::create_realm,
         mutate,
         realms::Realm,
         tests::{create_user, create_user_with_credits, pr},
@@ -143,16 +144,16 @@ pub(crate) mod tests {
         principal: Principal,
     ) -> (UserId, String, RealmId) {
         let id = create_user_with_credits(state, principal, 2000);
-        state
-            .create_realm(
-                principal,
-                "test".into(),
-                Realm {
-                    controllers: vec![id].into_iter().collect(),
-                    ..Default::default()
-                },
-            )
-            .expect("realm creation failed");
+        create_realm(
+            state,
+            principal,
+            "test".into(),
+            Realm {
+                controllers: vec![id].into_iter().collect(),
+                ..Default::default()
+            },
+        )
+        .expect("realm creation failed");
         state
             .create_invite(principal, 200, Some(50), Some("test".to_string()))
             .expect("invite creation failed");

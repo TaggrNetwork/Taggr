@@ -839,9 +839,11 @@ export const ReportBanner = ({
                                     return;
                                 }
                                 const updatedReport = (
-                                    await window.api.query<User>("user", [
-                                        id.toString(),
-                                    ])
+                                    await window.api.query<User>(
+                                        "user",
+                                        domain(),
+                                        [id.toString()],
+                                    )
                                 )?.report;
                                 if (updatedReport) setReport(updatedReport);
                             }}
