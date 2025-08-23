@@ -1521,19 +1521,17 @@ impl State {
                     state.pending_nns_proposals.len(),
                     state.pending_polls.len(),
                 );
+                let mut log_line = String::new();
                 if btc > 0 {
-                    state
-                        .logger
-                        .debug(format!("Pending BTC invoices: `{}`.", btc,));
+                    log_line.push_str(&format!("Pending BTC invoices: `{}`. ", btc,));
                 }
                 if nns > 0 {
-                    state
-                        .logger
-                        .debug(format!("Pending NNS proposals: `{}`.", nns,));
+                    log_line.push_str(&format!("Pending NNS proposals: `{}`. ", nns,));
                 }
                 if polls > 0 {
-                    state.logger.debug(format!("Pending polls: `{}`.", polls));
+                    log_line.push_str(&format!("Pending polls: `{}`.", polls,));
                 }
+                state.logger.debug(log_line);
                 log(state, "Daily", 1000);
             });
         }
