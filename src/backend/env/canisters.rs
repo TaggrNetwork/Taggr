@@ -286,8 +286,12 @@ pub async fn top_up() {
     // top up the main canister
     match cycles(id()).await {
         Ok((cycles, cycles_per_day)) => {
-            if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
-                let xdrs = (CONFIG.canister_survival_period_days * cycles_per_day
+            let min_cycles_balance = 10_000_000_000_000;
+            if cycles < min_cycles_balance
+                || cycles / cycles_per_day < CONFIG.canister_survival_period_days
+            {
+                let xdrs = ((CONFIG.canister_survival_period_days * cycles_per_day)
+                    .max(min_cycles_balance)
                     / ICP_CYCLES_PER_XDR)
                     // Circuit breaker: Never top up for more than ~75$ at once.
                     .min(50);
