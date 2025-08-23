@@ -607,8 +607,7 @@ impl State {
                 CONFIG.dao_realm.to_string(),
                 Realm {
                     description:
-                        "The default DAO realm. Stalwarts are added and removed by default."
-                            .to_string(),
+                        "The default DAO realm. The controller list is updated weekly according to the stalwarts list.".to_string(),
                     ..Default::default()
                 },
             );
@@ -617,9 +616,8 @@ impl State {
             self.realms.insert(
                 CONFIG.stalwarts_realm.to_string(),
                 Realm {
-                    description:
-                        "The default stalwarts realm. Stalwarts are added and removed by default."
-                            .to_string(),
+                    description: "The default stalwarts realm. Only stalwarts can post here."
+                        .to_string(),
                     ..Default::default()
                 },
             );
