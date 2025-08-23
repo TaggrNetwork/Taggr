@@ -113,8 +113,7 @@ export const TabBar = ({
                 key={id}
                 onClick={() => onTabChange(id)}
                 className={
-                    "medium_text " +
-                    (activeTab == id ? "active" : "unselected")
+                    "medium_text " + (activeTab == id ? "active" : "unselected")
                 }
             >
                 {id.toUpperCase()}
@@ -784,7 +783,11 @@ export const FlagButton = ({ id, text }: { id: number; text?: boolean }) => (
                     id,
                     reason,
                 );
-                if (response && "Err" in response) {
+                if (!response) {
+                    showPopUp("error", "Call failed");
+                    return;
+                }
+                if ("Err" in response) {
                     showPopUp("error", response.Err);
                     return;
                 }

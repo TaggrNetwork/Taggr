@@ -5,7 +5,6 @@ use self::invoices::{ICPInvoice, USER_ICP_SUBACCOUNT};
 use self::post::{archive_cold_posts, Extension, Post, PostId};
 use self::post_iterators::{IteratorMerger, MergeStrategy};
 use self::proposals::{Payload, ReleaseInfo, Status};
-use self::reports::Report;
 use self::token::{account, TransferArgs};
 use self::user::{Filters, Mode, Notification, Predicate, UserFilter};
 use crate::assets::export_token_supply;
@@ -521,6 +520,10 @@ impl State {
             return Err("non-positive amount".into());
         }
         let user = self.users.get_mut(&id).ok_or("user not found")?;
+        // don't charge for system messages
+        if !user.organic() {
+            return Ok(());
+        }
         user.change_credits(amount, CreditsDelta::Minus, log)?;
         self.burned_cycles = self
             .burned_cycles
@@ -592,6 +595,13 @@ impl State {
                 .logger
                 .critical(format!("the token ledger is inconsistent: {}", err)),
         }
+        if self.principal_to_user(id()).is_none() {
+            let canister_id = id();
+            let system_user_id = UserId::MAX;
+            let system_user = User::new(canister_id, system_user_id, time(), id().to_text());
+            self.users.insert(system_user_id, system_user);
+            self.principals.insert(canister_id, system_user_id);
+        }
         if !self.realms.contains_key(CONFIG.dao_realm) {
             self.realms.insert(
                 CONFIG.dao_realm.to_string(),
@@ -603,15 +613,16 @@ impl State {
                 },
             );
         }
-        if self.principal_to_user(id()).is_none() {
-            let canister_id = id();
-            let system_user_id = UserId::MAX;
-            let mut system_user =
-                User::new(canister_id, system_user_id, time(), Default::default());
-            system_user.realms.push(CONFIG.dao_realm.into());
-            system_user.realms.push("NNS-GOV".into());
-            self.users.insert(system_user_id, system_user);
-            self.principals.insert(canister_id, system_user_id);
+        if !self.realms.contains_key(CONFIG.stalwarts_realm) {
+            self.realms.insert(
+                CONFIG.stalwarts_realm.to_string(),
+                Realm {
+                    description:
+                        "The default stalwarts realm. Stalwarts are added and removed by default."
+                            .to_string(),
+                    ..Default::default()
+                },
+            );
         }
         if self.auction.amount == 0 {
             self.auction.amount = CONFIG.weekly_auction_size_tokens_max;
@@ -799,7 +810,6 @@ impl State {
 
         if CONFIG.name.to_lowercase() == realm_id.to_lowercase()
             || self.realms.contains_key(&realm_id)
-            || CONFIG.dao_realm.to_lowercase() == realm_id.to_lowercase()
         {
             return Err("realm name taken".into());
         }
@@ -1022,7 +1032,7 @@ impl State {
         self.users.values_mut().for_each(|user| {
             user.notify(format!("CRITICAL SYSTEM ERROR: {}", message.to_string()))
         });
-        let _ = Post::create(
+        if let Err(message) = Post::create(
             self,
             format!("# CRITICAL SYSTEM ERROR! 🚨\n\n{}", message.to_string()),
             Default::default(),
@@ -1031,7 +1041,10 @@ impl State {
             None,
             Some(CONFIG.dao_realm.into()),
             None,
-        );
+        ) {
+            self.logger
+                .error(format!("Couldn't post critical error: {}", message));
+        }
     }
 
     fn notify_with_predicate<T: AsRef<str>>(
@@ -1902,6 +1915,7 @@ impl State {
 
         for u in users {
             if !u.governance
+                || !u.organic()
                 || u.is_bot()
                 || u.controversial()
                 || now.saturating_sub(u.timestamp) < WEEK * CONFIG.min_stalwart_account_age_weeks
@@ -1956,13 +1970,20 @@ impl State {
             return;
         }
 
+        let current_stalwarts = self
+            .users
+            .values()
+            .filter(|u| u.stalwart)
+            .map(|u| u.id)
+            .collect::<Vec<_>>();
+
+        if let Some(realm) = self.realms.get_mut(CONFIG.stalwarts_realm) {
+            realm.controllers = current_stalwarts.iter().copied().collect();
+            realm.whitelist = current_stalwarts.iter().copied().collect();
+        }
+
         if let Some(realm) = self.realms.get_mut(CONFIG.dao_realm) {
-            for user_id in joined {
-                realm.controllers.insert(user_id);
-            }
-            for user_id in left {
-                realm.controllers.remove(&user_id);
-            }
+            realm.controllers = current_stalwarts.iter().copied().collect();
         }
 
         self.logger.info(format!(
@@ -2588,35 +2609,6 @@ impl State {
         }
     }
 
-    pub fn vote_on_report(
-        &mut self,
-        principal: Principal,
-        user_id: u64,
-        vote: bool,
-    ) -> Result<(), String> {
-        let reporter = self.principal_to_user(principal).ok_or("user not found")?;
-        let reporter_id = reporter.id;
-        if !reporter.stalwart {
-            return Err("only stalwarts can vote on reports".into());
-        }
-        let stalwarts = self.users.values().filter(|u| u.stalwart).count();
-        if reporter_id == user_id {
-            return Err("votes on own reports are not accepted".into());
-        }
-        let report = self
-            .users
-            .get_mut(&user_id)
-            .and_then(|u| u.report.as_mut())
-            .ok_or("user not found")?;
-        report.vote(stalwarts, reporter_id, vote)?;
-        let report = report.clone();
-        if report.closed {
-            reports::finalize_report(self, &report, user_id)
-        } else {
-            Ok(())
-        }
-    }
-
     pub fn vote_on_poll(
         &mut self,
         principal: Principal,
@@ -2642,56 +2634,6 @@ impl State {
         Post::mutate(self, &post_id, |post| {
             post.vote_on_poll(user_id, time, vote, anonymously)
         })
-    }
-
-    pub fn report(&mut self, principal: Principal, id: u64, reason: String) -> Result<(), String> {
-        if reason.len() > CONFIG.max_report_length {
-            return Err("reason too long".into());
-        }
-        let credits_required = CONFIG.reporting_penalty_misbehaviour / 2;
-        let user_id = match self.principal_to_user(principal) {
-            Some(user) if user.total_balance() < 10 * CONFIG.transaction_fee => {
-                return Err("no reports with low token balance".into())
-            }
-            Some(user) if user.rewards() < 0 => {
-                return Err("no reports with negative reward balance possible".into())
-            }
-            Some(user) if user.credits() >= credits_required => user.id,
-            _ => {
-                return Err(format!(
-                    "at least {} credits needed for this report",
-                    credits_required
-                ))
-            }
-        };
-        let report = Report {
-            reporter: user_id,
-            reason,
-            timestamp: time(),
-            ..Default::default()
-        };
-
-        let misbehaving_user = self.users.get_mut(&id).ok_or("user not found")?;
-        if misbehaving_user
-            .report
-            .as_ref()
-            .map(|r| !r.closed)
-            .unwrap_or_default()
-        {
-            return Err("this user is already reported".into());
-        }
-        misbehaving_user.report = Some(report);
-        let user_name = misbehaving_user.name.clone();
-        self.notify_with_predicate(
-            &|u| u.stalwart && u.id != id,
-            format!(
-                "The user @{} was reported. Please open their profile and review the report!",
-                user_name
-            ),
-            Predicate::UserReportOpen(id),
-        );
-
-        Ok(())
     }
 
     pub fn delete_post(

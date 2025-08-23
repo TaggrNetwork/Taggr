@@ -66,6 +66,73 @@ impl Report {
     }
 }
 
+pub fn report(
+    state: &mut State,
+    principal: Principal,
+    id: u64,
+    reason: String,
+) -> Result<PostId, String> {
+    if reason.len() > CONFIG.max_report_length {
+        return Err("reason too long".into());
+    }
+    let credits_required = CONFIG.reporting_penalty_misbehaviour / 2;
+    let user_id = match state.principal_to_user(principal) {
+        Some(user) if user.total_balance() < 10 * CONFIG.transaction_fee => {
+            return Err("no reports with low token balance".into())
+        }
+        Some(user) if user.rewards() < 0 => {
+            return Err("no reports with negative reward balance possible".into())
+        }
+        Some(user) if user.credits() >= credits_required => user.id,
+        _ => {
+            return Err(format!(
+                "at least {} credits needed for this report",
+                credits_required
+            ))
+        }
+    };
+    let report = Report {
+        reporter: user_id,
+        reason: reason.clone(),
+        timestamp: time(),
+        ..Default::default()
+    };
+
+    let misbehaving_user = state.users.get_mut(&id).ok_or("user not found")?;
+    if misbehaving_user
+        .report
+        .as_ref()
+        .map(|r| !r.closed)
+        .unwrap_or_default()
+    {
+        return Err("this user is already reported".into());
+    }
+    misbehaving_user.report = Some(report);
+    let user_name = misbehaving_user.name.clone();
+
+    let post_id = Post::create(
+        state,
+        format!("# New User Report ⚠️\n\nUser @{user_name} was reported for misbehavior. Please review and discuss the report here.\n\n> {reason}"),
+        Default::default(),
+        super::id(),
+        time(),
+        None,
+        Some(CONFIG.stalwarts_realm.into()),
+        None,
+    )
+    .expect("couldn't create report post");
+
+    state.notify_with_predicate(
+        &|u| u.stalwart && u.id != id,
+        format!(
+            "The user @{user_name} was reported. Please [review](#/user/{user_name}) and [discuss](#/post/{post_id}) their report!",
+        ),
+        Predicate::UserReportOpen(id),
+    );
+
+    Ok(post_id)
+}
+
 pub fn finalize_report(state: &mut State, report: &Report, user_id: UserId) -> Result<(), String> {
     let subject = format!("user [{0}](#/user/{0})", user_id);
     let penalty = CONFIG.reporting_penalty_misbehaviour;
@@ -156,6 +223,35 @@ pub fn finalize_report(state: &mut State, report: &Report, user_id: UserId) -> R
     Ok(())
 }
 
+pub fn vote_on_report(
+    state: &mut State,
+    principal: Principal,
+    user_id: u64,
+    vote: bool,
+) -> Result<(), String> {
+    let reporter = state.principal_to_user(principal).ok_or("user not found")?;
+    let reporter_id = reporter.id;
+    if !reporter.stalwart {
+        return Err("only stalwarts can vote on reports".into());
+    }
+    let stalwarts = state.users.values().filter(|u| u.stalwart).count();
+    if reporter_id == user_id {
+        return Err("votes on own reports are not accepted".into());
+    }
+    let report = state
+        .users
+        .get_mut(&user_id)
+        .and_then(|u| u.report.as_mut())
+        .ok_or("user not found")?;
+    report.vote(stalwarts, reporter_id, vote)?;
+    let report = report.clone();
+    if report.closed {
+        reports::finalize_report(state, &report, user_id)
+    } else {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -198,7 +294,7 @@ mod tests {
             );
 
             assert_eq!(
-                state.report(reporter, user_id, String::new()),
+                report(state, reporter, user_id, String::new()),
                 Err("no reports with low token balance".into())
             );
 
@@ -216,7 +312,7 @@ mod tests {
                 .unwrap();
             assert_eq!(reporter_user.credits(), 0);
             assert_eq!(
-                state.report(reporter, user_id, String::new()),
+                report(state, reporter, user_id, String::new()),
                 Err("at least 500 credits needed for this report".into())
             );
 
@@ -225,9 +321,9 @@ mod tests {
                 .change_credits(1000, CreditsDelta::Plus, "")
                 .unwrap();
             assert_eq!(reporter_user.credits(), 1000);
-            state.report(reporter, user_id, String::new()).unwrap();
+            report(state, reporter, user_id, String::new()).unwrap();
 
-            let report = state
+            let r = state
                 .principal_to_user_mut(p)
                 .unwrap()
                 .report
@@ -235,14 +331,14 @@ mod tests {
                 .unwrap();
 
             // make sure the reporter is correct
-            assert!(report.reporter == state.principal_to_user(reporter).unwrap().id);
+            assert!(r.reporter == state.principal_to_user(reporter).unwrap().id);
 
             // Another user cannot overwrite the report
             state.minting_mode = true;
             token::mint(state, account(pr(8)), CONFIG.transaction_fee * 1000, "");
             state.minting_mode = false;
             assert_eq!(
-                state.report(pr(8), user_id, String::new()),
+                report(state, pr(8), user_id, String::new()),
                 Err("this user is already reported".into())
             );
             // the reporter is still the same
@@ -255,7 +351,7 @@ mod tests {
             assert!(report.reporter == state.principal_to_user(reporter).unwrap().id);
 
             // stalwart 3 confirmed the report
-            state.vote_on_report(pr(3), user_id, true).unwrap();
+            vote_on_report(state, pr(3), user_id, true).unwrap();
             let report = state
                 .principal_to_user_mut(p)
                 .unwrap()
@@ -265,7 +361,7 @@ mod tests {
             assert_eq!(report.confirmed_by.len(), 1);
             assert_eq!(report.rejected_by.len(), 0);
             // repeated confirmation is a noop
-            assert!(state.vote_on_report(pr(3), user_id, true).is_err());
+            assert!(vote_on_report(state, pr(3), user_id, true).is_err());
             let report = state
                 .principal_to_user_mut(p)
                 .unwrap()
@@ -276,7 +372,7 @@ mod tests {
             assert!(!report.closed);
 
             // stalwart 6 rejected the report
-            state.vote_on_report(pr(6), user_id, false).unwrap();
+            vote_on_report(state, pr(6), user_id, false).unwrap();
             let report = state
                 .principal_to_user_mut(p)
                 .unwrap()
@@ -288,7 +384,7 @@ mod tests {
             assert!(!report.closed);
 
             // stalwarts 12 & 13 confirmed too
-            state.vote_on_report(pr(12), user_id, true).unwrap();
+            vote_on_report(state, pr(12), user_id, true).unwrap();
             let report = state
                 .principal_to_user_mut(p)
                 .unwrap()
@@ -301,7 +397,7 @@ mod tests {
             // stalwart has no karma to reward
             assert_eq!(state.principal_to_user(pr(3)).unwrap().rewards(), 0);
 
-            state.vote_on_report(pr(13), user_id, true).unwrap();
+            vote_on_report(state, pr(13), user_id, true).unwrap();
             let report = state
                 .principal_to_user_mut(p)
                 .unwrap()
@@ -350,7 +446,7 @@ mod tests {
             assert_eq!(user.credits(), 1000);
 
             let reporter = pr(7);
-            state.report(reporter, user_id, String::new()).unwrap();
+            report(state, reporter, user_id, String::new()).unwrap();
             // set credits to 1777
             let reporter_user = state.principal_to_user_mut(reporter).unwrap();
             reporter_user
@@ -359,7 +455,7 @@ mod tests {
             assert_eq!(reporter_user.credits(), 1777);
             assert_eq!(reporter_user.rewards(), 500);
 
-            state.vote_on_report(pr(6), user_id, false).unwrap();
+            vote_on_report(state, pr(6), user_id, false).unwrap();
             let report = state
                 .principal_to_user_mut(p)
                 .unwrap()
@@ -370,7 +466,7 @@ mod tests {
             assert_eq!(report.rejected_by.len(), 1);
             assert!(!report.closed);
 
-            state.vote_on_report(pr(9), user_id, false).unwrap();
+            vote_on_report(state, pr(9), user_id, false).unwrap();
 
             let report = state
                 .principal_to_user_mut(p)
@@ -384,7 +480,7 @@ mod tests {
             // credits still available
             let user = state.users.get(&user_id).unwrap();
             assert_eq!(user.credits(), 1000);
-            state.vote_on_report(pr(10), user_id, false).unwrap();
+            vote_on_report(state, pr(10), user_id, false).unwrap();
 
             let report = state
                 .principal_to_user_mut(p)

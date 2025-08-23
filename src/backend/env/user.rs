@@ -291,8 +291,7 @@ impl User {
         }
     }
 
-    pub fn toggle_filter(&mut self, filter: String, mut value: String) -> Result<(), String> {
-        value = value.trim().to_lowercase();
+    pub fn toggle_filter(&mut self, filter: String, value: String) -> Result<(), String> {
         match filter.as_str() {
             "user" => match value.parse() {
                 Err(_) => Err("cannot parse user id".to_string()),
@@ -305,8 +304,9 @@ impl User {
                 }
             },
             "tag" => {
+                let value = value.trim().to_lowercase();
                 if !self.filters.tags.remove(&value) {
-                    self.filters.tags.insert(value.to_lowercase());
+                    self.filters.tags.insert(value.clone());
                     self.feeds.retain(|feed| !feed.contains(&value));
                 }
                 Ok(())

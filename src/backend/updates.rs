@@ -164,7 +164,7 @@ fn vote_on_poll() {
 fn report() {
     mutate(|state| {
         let (id, reason): (u64, String) = parse(&arg_data_raw());
-        reply(state.report(caller(state), id, reason))
+        reply(reports::report(state, caller(state), id, reason))
     });
 }
 
@@ -172,7 +172,7 @@ fn report() {
 fn vote_on_report() {
     mutate(|state| {
         let (id, vote): (u64, bool) = parse(&arg_data_raw());
-        reply(state.vote_on_report(caller(state), id, vote))
+        reply(reports::vote_on_report(state, caller(state), id, vote))
     });
 }
 
