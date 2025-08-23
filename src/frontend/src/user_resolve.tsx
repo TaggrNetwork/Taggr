@@ -81,27 +81,38 @@ export const UserLink = ({
 
     return (
         <span className={`${classNameArg} user_link no_wrap`}>
-            {pfp && validUserId(id) && (
-                <img
-                    className="pfp"
-                    src={pfpUrl(id)}
-                    height={pfpSize}
-                    width={pfpSize}
-                />
+            {validUserId(id) && (
+                <>
+                    {pfp && (
+                        <img
+                            className="pfp"
+                            src={pfpUrl(id)}
+                            height={pfpSize}
+                            width={pfpSize}
+                        />
+                    )}
+                    {userName || validUserId(id) ? (
+                        <a href={`#/${profile ? "user" : "journal"}/${id}`}>
+                            {userName || id}
+                        </a>
+                    ) : (
+                        "N/A"
+                    )}
+                </>
             )}
-            {userName || validUserId(id) ? (
-                <a href={`#/${profile ? "user" : "journal"}/${id}`}>
-                    {userName || id}
-                </a>
-            ) : (
-                "N/A"
+            {BigInt(id) >= u64max && (
+                <span className="accent">
+                    {window.backendCache.config.name.toUpperCase()}
+                </span>
             )}
         </span>
     );
 };
 
+const u64max = BigInt("18446744073709551615");
+
 // In some cases we use anonymous user ids by using very large numbers (close to max uint64)
-const validUserId = (id: number | null) => id != null && id < 1_000_000_000;
+const validUserId = (id: number | null) => id != null && BigInt(id) < u64max;
 
 export const UserList = ({
     ids = [],

@@ -560,34 +560,40 @@ impl Post {
         post.valid(blobs)?;
         let future_id = state.next_post_id;
         let is_comment = parent.is_some();
-        let excess_factor = user
-            .posts(None, state, 0, is_comment)
-            .take_while(|post| post.timestamp() + if is_comment { HOUR } else { DAY } > timestamp)
-            .count()
-            .saturating_sub(if is_comment {
-                CONFIG.max_comments_per_hour
-            } else {
-                CONFIG.max_posts_per_day
-            });
-        if excess_factor > 0 {
-            let excess_penalty = CONFIG.excess_penalty * excess_factor as Credits;
+
+        if user.organic() {
+            let excess_factor = user
+                .posts(None, state, 0, is_comment)
+                .take_while(|post| {
+                    post.timestamp() + if is_comment { HOUR } else { DAY } > timestamp
+                })
+                .count()
+                .saturating_sub(if is_comment {
+                    CONFIG.max_comments_per_hour
+                } else {
+                    CONFIG.max_posts_per_day
+                });
+            if excess_factor > 0 {
+                let excess_penalty = CONFIG.excess_penalty * excess_factor as Credits;
+                state.charge_in_realm(
+                    user_id,
+                    excess_penalty + blobs.len() as Credits * excess_penalty,
+                    realm.as_ref(),
+                    "excessive posting penalty",
+                )?;
+            }
             state.charge_in_realm(
                 user_id,
-                excess_penalty + blobs.len() as Credits * excess_penalty,
+                costs,
                 realm.as_ref(),
-                "excessive posting penalty",
+                format!(
+                    "new {0} [{1}](#/post/{1})",
+                    if parent.is_some() { "comment" } else { "post" },
+                    future_id
+                ),
             )?;
         }
-        state.charge_in_realm(
-            user_id,
-            costs,
-            realm.as_ref(),
-            format!(
-                "new {0} [{1}](#/post/{1})",
-                if parent.is_some() { "comment" } else { "post" },
-                future_id
-            ),
-        )?;
+
         let user = state.users.get_mut(&user_id).expect("no user found");
         user.posts.push(future_id);
         // reorder realms

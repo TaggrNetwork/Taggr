@@ -77,7 +77,7 @@ export const authMethods = [
         icon: <Infinity />,
         label: "Internet Identity",
         description:
-            "This connection method is using an NNS-controlled authentication service hosted on IC and based on biometric and other secure options.",
+            "Passkey-based decentralized authentication service hosted on IC.",
         login: async (signUp?: boolean) => {
             if (
                 (location.href.includes(".raw") ||

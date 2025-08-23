@@ -54,10 +54,10 @@ fn caller(state: &State) -> Principal {
 fn init() {
     mutate(|state| {
         state.memory.init();
-        state.timers.last_weekly = time();
-        state.timers.last_daily = time();
-        state.timers.last_hourly = time();
-        state.auction.amount = CONFIG.weekly_auction_size_tokens_max;
+        let now = time();
+        state.timers.last_weekly = now;
+        state.timers.last_daily = now;
+        state.timers.last_hourly = now;
         state.init();
     });
     set_timer(Duration::from_millis(0), || {

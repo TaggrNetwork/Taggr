@@ -246,7 +246,7 @@ pub struct Logger {
 }
 
 impl Logger {
-    pub fn critical<T: ToString>(&mut self, message: T) {
+    fn critical<T: ToString>(&mut self, message: T) {
         self.log(message, "CRITICAL".to_string());
     }
 
@@ -602,6 +602,19 @@ impl State {
                     ..Default::default()
                 },
             );
+        }
+        if self.principal_to_user(id()).is_none() {
+            let canister_id = id();
+            let system_user_id = UserId::MAX;
+            let mut system_user =
+                User::new(canister_id, system_user_id, time(), Default::default());
+            system_user.realms.push(CONFIG.dao_realm.into());
+            system_user.realms.push("NNS-GOV".into());
+            self.users.insert(system_user_id, system_user);
+            self.principals.insert(canister_id, system_user_id);
+        }
+        if self.auction.amount == 0 {
+            self.auction.amount = CONFIG.weekly_auction_size_tokens_max;
         }
         self.last_upgrade = time();
         self.timers.last_hourly = time();
@@ -1004,11 +1017,21 @@ impl State {
         Ok(())
     }
 
-    fn critical<T: ToString>(&mut self, message: T) {
+    pub fn critical<T: ToString>(&mut self, message: T) {
         self.logger.critical(message.to_string());
         self.users.values_mut().for_each(|user| {
             user.notify(format!("CRITICAL SYSTEM ERROR: {}", message.to_string()))
         });
+        let _ = Post::create(
+            self,
+            format!("# CRITICAL SYSTEM ERROR! 🚨\n\n{}", message.to_string()),
+            Default::default(),
+            id(),
+            time(),
+            None,
+            Some(CONFIG.dao_realm.into()),
+            None,
+        );
     }
 
     fn notify_with_predicate<T: AsRef<str>>(
@@ -1050,7 +1073,6 @@ impl State {
                             .find(|p| p.post_id == *post_id)
                             .map(|p| p.status != Status::Open)
                             .unwrap_or_default(),
-                        _ => unreachable!(),
                     };
                     if current_status != *read_status {
                         notifications.push((user.id, *id, current_status));

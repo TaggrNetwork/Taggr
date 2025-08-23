@@ -143,6 +143,11 @@ pub struct User {
 }
 
 impl User {
+    /// Returns true if the user is organic (not a system account).
+    pub fn organic(&self) -> bool {
+        self.id < UserId::MAX
+    }
+
     pub fn deactivate(&mut self) {
         self.active_weeks = 0;
         self.notifications.clear();
