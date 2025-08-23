@@ -64,7 +64,7 @@ const FeedExtender = ({
             )}
             {!extending && (
                 <button
-                    className="max_width_col"
+                    className="medium_text max_width_col"
                     onClick={() => setExtending(!extending)}
                 >
                     EXTEND
