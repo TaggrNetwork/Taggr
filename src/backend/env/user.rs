@@ -40,8 +40,6 @@ pub enum CreditsDelta {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Predicate {
-    // TODO: delete
-    ReportOpen(PostId),
     UserReportOpen(UserId),
     Proposal(PostId),
 }

@@ -108,14 +108,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    mutate(|state| {
-        for user in state.users.values_mut() {
-            user.notifications
-                .retain(|_, (n, _)| !matches!(n, env::user::Notification::Conditional(_, _)));
-        }
-    })
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
