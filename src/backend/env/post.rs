@@ -231,7 +231,7 @@ impl Post {
             }
             poll.voters.insert(user_id);
             poll.votes.entry(vote).or_default().insert(if anonymously {
-                UserId::MAX
+                MAX_USER_ID - 1
             } else {
                 user_id
             });
@@ -514,12 +514,13 @@ impl Post {
             },
         };
         if let Some(realm_id) = &realm {
-            if parent.is_none() && !user.realms.contains(realm_id) {
+            if user.organic() && parent.is_none() && !user.realms.contains(realm_id) {
                 return Err(format!("not a member of the realm {}", realm_id));
             }
             if let Some(realm) = state.realms.get(realm_id) {
                 let whitelist = &realm.whitelist;
-                if (parent.is_some() && realm.comments_filtering || parent.is_none())
+                if user.organic()
+                    && (parent.is_some() && realm.comments_filtering || parent.is_none())
                     && (!whitelist.is_empty() && !whitelist.contains(&user.id)
                         || whitelist.is_empty() && !user.get_filter().passes(&realm.filter))
                 {
@@ -560,6 +561,7 @@ impl Post {
         post.valid(blobs)?;
         let future_id = state.next_post_id;
         let is_comment = parent.is_some();
+
         let excess_factor = user
             .posts(None, state, 0, is_comment)
             .take_while(|post| post.timestamp() + if is_comment { HOUR } else { DAY } > timestamp)
@@ -588,6 +590,7 @@ impl Post {
                 future_id
             ),
         )?;
+
         let user = state.users.get_mut(&user_id).expect("no user found");
         user.posts.push(future_id);
         // reorder realms

@@ -81,8 +81,7 @@ async fn fetch_proposals() -> Result<Vec<NNSProposal>, String> {
         .collect())
 }
 
-/// Fetches new nns proposal, rejects those that we don't vote on and publishes other ones on
-/// Taggr via the @XBot (TODO: remove Xbot as dependency).
+/// Fetches new nns proposal, rejects those that we don't vote on and publishes other ones.
 pub async fn work(now: u64) {
     // Vote on proposals if pending ones exist
     for (proposal_id, post_id) in read(|state| state.pending_nns_proposals.clone()) {

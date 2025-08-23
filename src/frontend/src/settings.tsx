@@ -9,6 +9,8 @@ import {
     showPopUp,
     onCanonicalDomain,
     UnavailableOnCustomDomains,
+    tagList,
+    RealmList,
 } from "./common";
 import { PFP, User, UserFilter, UserId } from "./types";
 import { Principal } from "@dfinity/principal";
@@ -338,7 +340,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             }
                             rows={4}
                         ></textarea>
-                        <h3>Noise filter</h3>
+                        <h2>Noise filter</h2>
                         <div className="stands_out">
                             <p>The noise filters define:</p>
                             <ul>
@@ -446,15 +448,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
                     label="SAVE"
                 />
                 {user && (
-                    <div className="top_spaced column_container">
-                        <h2>Muted Users</h2>
-                        <div>
-                            <UserList profile={true} ids={user.filters.users} />
-                        </div>
-                        <h2>Blocked Users</h2>
-                        <div>
-                            <UserList profile={true} ids={user.blacklist} />
-                        </div>
+                    <>
+                        <hr />
                         <h2>Account suspension</h2>
                         <p>
                             You can suspend your account and encrypt all your
@@ -509,6 +504,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                         ) : (
                             <UnavailableOnCustomDomains />
                         )}
+                        <hr />
                         <h2>Principal Change</h2>
                         You can change your principal as follows:
                         <ol>
@@ -589,7 +585,49 @@ export const Settings = ({ invite }: { invite?: string }) => {
                         ) : (
                             <UnavailableOnCustomDomains />
                         )}
-                    </div>
+                        <hr />
+                        {user.filters.users.length > 0 && (
+                            <>
+                                <h2>Muted Users</h2>
+                                <div>
+                                    <UserList
+                                        profile={true}
+                                        ids={user.filters.users}
+                                    />
+                                </div>
+                            </>
+                        )}
+                        {user.blacklist.length > 0 && (
+                            <>
+                                <h2>Blocked Users</h2>
+                                <div>
+                                    <UserList
+                                        profile={true}
+                                        ids={user.blacklist}
+                                    />
+                                </div>
+                            </>
+                        )}
+                        {user.filters.tags.length > 0 && (
+                            <>
+                                <h2>Muted Tags</h2>
+                                <div>
+                                    {tagList(
+                                        user.filters.tags.map((tag) => [tag]),
+                                    )}
+                                    ,
+                                </div>
+                            </>
+                        )}
+                        {user.filters.realms.length > 0 && (
+                            <>
+                                <h2>Muted Realms</h2>
+                                <div>
+                                    <RealmList ids={user.filters.realms} />
+                                </div>
+                            </>
+                        )}
+                    </>
                 )}
             </div>
         </>

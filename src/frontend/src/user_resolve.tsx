@@ -79,6 +79,22 @@ export const UserLink = ({
 
     if (loading) return <Loading spaced={false} />;
 
+    let userLabel = <span>N/A</span>;
+
+    // Special case for the system user
+    if (id != null && id == systemUserId)
+        userLabel = (
+            <span className="accent">
+                {window.backendCache.config.name.toUpperCase()}
+            </span>
+        );
+    else if (userName || validUserId(id))
+        userLabel = (
+            <a href={`#/${profile ? "user" : "journal"}/${id}`}>
+                {userName || id}
+            </a>
+        );
+
     return (
         <span className={`${classNameArg} user_link no_wrap`}>
             {pfp && validUserId(id) && (
@@ -89,19 +105,14 @@ export const UserLink = ({
                     width={pfpSize}
                 />
             )}
-            {userName || validUserId(id) ? (
-                <a href={`#/${profile ? "user" : "journal"}/${id}`}>
-                    {userName || id}
-                </a>
-            ) : (
-                "N/A"
-            )}
+            {userLabel}
         </span>
     );
 };
 
-// In some cases we use anonymous user ids by using very large numbers (close to max uint64)
-const validUserId = (id: number | null) => id != null && id < 1_000_000_000;
+export const systemUserId = Number.MAX_SAFE_INTEGER;
+
+const validUserId = (id: number | null) => id != null && id != systemUserId;
 
 export const UserList = ({
     ids = [],

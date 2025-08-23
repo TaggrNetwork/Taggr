@@ -19,6 +19,8 @@ import {
     pfpUrl,
     showPopUp,
     domain,
+    tagList,
+    TabBar,
 } from "./common";
 import { Content } from "./content";
 import { Journal } from "./icons";
@@ -67,19 +69,11 @@ export const Profile = ({ handle }: { handle: string }) => {
         profile.report && !profile.report.closed && user && user.stalwart;
 
     const title = (
-        <div className="text_centered vertically_spaced">
-            {["LAST", "TAGS", "REWARDED"].map((id) => (
-                <button
-                    key={id}
-                    onClick={() => setTab(id)}
-                    className={
-                        "medium_text " + (tab == id ? "active" : "unselected")
-                    }
-                >
-                    {id}
-                </button>
-            ))}
-        </div>
+        <TabBar
+            tabs={["LAST", "TAGS", "REWARDED"]}
+            activeTab={tab}
+            onTabChange={setTab}
+        />
     );
 
     return (
@@ -256,18 +250,16 @@ export const Profile = ({ handle }: { handle: string }) => {
 };
 
 export const UserInfo = ({ profile }: { profile: User }) => {
-    const placeholder = (label: number, content: any) =>
-        status ? (
-            <div className="small_text">{content}</div>
-        ) : (
-            <span
-                className="clickable clickable_color"
-                onClick={() => popUp(content)}
-            >
-                {label}
-            </span>
-        );
-
+    const placeholder = (label: number, content: any) => (
+        <code
+            className={label > 0 ? "clickable_color clickable" : ""}
+            onClick={() => {
+                if (label > 0) popUp(content);
+            }}
+        >
+            {label}
+        </code>
+    );
     const accountingList = (
         <>
             <h2>Rewards and Credits Accounting</h2>
@@ -405,19 +397,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                         FEEDS
                         {placeholder(
                             profile.feeds.length,
-                            commaSeparated(
-                                profile.feeds.map((feed) => {
-                                    let feedRepr = feed.join("+");
-                                    return (
-                                        <a
-                                            key={feedRepr}
-                                            href={`#/feed/${feedRepr}`}
-                                        >
-                                            {feedRepr}
-                                        </a>
-                                    );
-                                }),
-                            ),
+                            tagList(profile.feeds),
                         )}
                     </div>
                 )}

@@ -143,7 +143,6 @@ export const Header = ({
                                 <BurgerButton
                                     pressed={showLinks}
                                     onClick={(event) => {
-                                        console.log(typeof event.currentTarget);
                                         toggleRealms(false);
                                         toggleUserSection(false);
                                         toggleLinks(!showLinks);

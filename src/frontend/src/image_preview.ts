@@ -74,6 +74,10 @@ function mod(n: number, m: number) {
 // Source: https://apex.oracle.com/pls/apex/vmorneau/r/pinch-and-zoom/pinch-and-zoom-js
 const pinchZoom = (imageElement: HTMLImageElement) => {
     let imageElementScale = 1;
+    let currentTranslateX = 0;
+    let currentTranslateY = 0;
+    let isDragging = false;
+    let dragStartTime = 0;
 
     let start: any = {};
 
@@ -85,14 +89,32 @@ const pinchZoom = (imageElement: HTMLImageElement) => {
         );
     };
 
+    // Apply transform with current values
+    const applyTransform = () => {
+        const transform = `translate3d(${currentTranslateX}px, ${currentTranslateY}px, 0) scale(${imageElementScale})`;
+        imageElement.style.transform = transform;
+        imageElement.style.webkitTransform = transform;
+        imageElement.style.zIndex = imageElementScale > 1 ? "9999" : "";
+    };
+
     imageElement.addEventListener("touchstart", (event: any) => {
+        // Two finger pinch
         if (event.touches.length === 2) {
             event.preventDefault(); // Prevent page scroll
-
             // Calculate where the fingers have started on the X and Y axis
             start.x = (event.touches[0].pageX + event.touches[1].pageX) / 2;
             start.y = (event.touches[0].pageY + event.touches[1].pageY) / 2;
             start.distance = distance(event);
+            start.scale = imageElementScale;
+        }
+        // One finger drag when zoomed
+        else if (event.touches.length === 1 && imageElementScale > 1) {
+            event.preventDefault();
+            dragStartTime = Date.now();
+            start.x = event.touches[0].pageX;
+            start.y = event.touches[0].pageY;
+            start.translateX = currentTranslateX;
+            start.translateY = currentTranslateY;
         }
     });
 
@@ -109,31 +131,58 @@ const pinchZoom = (imageElement: HTMLImageElement) => {
                 const deltaDistance = distance(event);
                 scale = deltaDistance / start.distance;
             }
-            imageElementScale = Math.min(Math.max(1, scale), 4);
+            imageElementScale = Math.min(Math.max(1, start.scale * scale), 4);
 
             // Calculate how much the fingers have moved on the X and Y axis
             const deltaX =
-                ((event.touches[0].pageX + event.touches[1].pageX) / 2 -
-                    start.x) *
-                2; // x2 for accelarated movement
+                (event.touches[0].pageX + event.touches[1].pageX) / 2 - start.x;
             const deltaY =
-                ((event.touches[0].pageY + event.touches[1].pageY) / 2 -
-                    start.y) *
-                2; // x2 for accelarated movement
+                (event.touches[0].pageY + event.touches[1].pageY) / 2 - start.y;
+
+            currentTranslateX = deltaX * 2; // x2 for accelarated movement
+            currentTranslateY = deltaY * 2; // x2 for accelarated movement
 
             // Transform the image to make it grow and move with fingers
-            const transform = `translate3d(${deltaX}px, ${deltaY}px, 0) scale(${imageElementScale})`;
-            imageElement.style.transform = transform;
-            imageElement.style.webkitTransform = transform;
-            imageElement.style.zIndex = "9999";
+            applyTransform();
+        } else if (event.touches.length === 1 && imageElementScale > 1) {
+            // One finger drag when zoomed
+            event.preventDefault();
+            isDragging = true;
+
+            const deltaX = event.touches[0].pageX - start.x;
+            const deltaY = event.touches[0].pageY - start.y;
+
+            currentTranslateX = start.translateX + deltaX;
+            currentTranslateY = start.translateY + deltaY;
+
+            applyTransform();
         }
     });
 
-    imageElement.addEventListener("touchend", () => {
-        // Reset image to it's original format
-        imageElement.style.transform = "";
-        imageElement.style.webkitTransform = "";
-        imageElement.style.zIndex = "";
+    imageElement.addEventListener("touchend", (event: any) => {
+        // Check if it was a quick tap (not a drag) and we're zoomed in
+        if (event.touches.length === 0) {
+            const touchDuration = Date.now() - dragStartTime;
+            const wasQuickTap = touchDuration < 200 && !isDragging;
+
+            if (wasQuickTap && imageElementScale > 1) {
+                // Quick tap while zoomed - close preview
+                const preview = document.getElementById("preview");
+                if (preview) {
+                    preview.style.display = "none";
+                }
+                return;
+            }
+
+            // Reset scale to 1 if it's very close (snap to normal size)
+            if (imageElementScale < 1.1) {
+                imageElementScale = 1;
+                currentTranslateX = 0;
+                currentTranslateY = 0;
+                applyTransform();
+            }
+        }
+        isDragging = false;
     });
 };
 

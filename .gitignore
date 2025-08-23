@@ -25,3 +25,4 @@ playwright-report/
 
 # PocketIC binary
 tests/pocket-ic
+.aider*

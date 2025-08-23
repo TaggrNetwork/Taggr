@@ -1,11 +1,11 @@
 import * as React from "react";
-import { ButtonWithLoading, HeadBar, showPopUp } from "./common";
+import { ButtonWithLoading, HeadBar, showPopUp, TabBar } from "./common";
 import { Summary } from "./types";
 import { Content } from "./content";
 
 export const Distribution = () => {
     const [reports, setReports] = React.useState<Summary[]>([]);
-    const [tab, setTab] = React.useState("minting");
+    const [tab, setTab] = React.useState("mint");
 
     const loadData = async () => {
         const reports =
@@ -40,20 +40,11 @@ export const Distribution = () => {
                     )
                 }
             />
-            <div className="text_centered vertically_spaced">
-                {["mint", "dao revenue", "realm revenue"].map((id) => (
-                    <button
-                        key={id}
-                        onClick={() => setTab(id)}
-                        className={
-                            "medium_text " +
-                            (tab == id ? "active" : "unselected")
-                        }
-                    >
-                        {id.toUpperCase()}
-                    </button>
-                ))}
-            </div>
+            <TabBar
+                tabs={["mint", "dao revenue", "realm revenue"]}
+                activeTab={tab}
+                onTabChange={setTab}
+            />
             <div className="column_container spaced">
                 {reports
                     .filter(({ title }) => title.toLowerCase().includes(tab))

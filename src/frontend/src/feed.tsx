@@ -39,6 +39,7 @@ const FeedExtender = ({
     filter: string[];
 }) => {
     const [extending, setExtending] = React.useState(false);
+    const user = window.user;
     return (
         <div className="top_half_spaced row_container flex_ended">
             {extending && (
@@ -63,19 +64,19 @@ const FeedExtender = ({
             )}
             {!extending && (
                 <button
-                    className="max_width_col"
+                    className="medium_text max_width_col"
                     onClick={() => setExtending(!extending)}
                 >
                     EXTEND
                 </button>
             )}
-            {!extending && window.user && (
+            {!extending && user && (
                 <>
                     <ToggleButton
                         classNameArg="max_width_col"
                         offLabel="FOLLOW"
                         onLabel="UNFOLLOW"
-                        currState={() => contains(window.user.feeds, filter)}
+                        currState={() => contains(user.feeds, filter)}
                         toggler={() =>
                             window.api
                                 .call("toggle_following_feed", filter)
@@ -88,7 +89,9 @@ const FeedExtender = ({
                             onLabel="UNMUTE"
                             classNameArg="max_width_col"
                             currState={() =>
-                                window.user.filters.tags.includes(filter[0])
+                                user.filters.tags.includes(
+                                    filter[0].toLowerCase(),
+                                )
                             }
                             toggler={() =>
                                 window.api

@@ -317,6 +317,7 @@ export type LastReleaseInfo = {
 };
 
 export type Stats = {
+    realms: number;
     bitcoin_treasury_sats: number;
     bitcoin_treasury_address: string;
     fees_burned: number;

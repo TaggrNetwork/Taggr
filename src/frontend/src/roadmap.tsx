@@ -1,5 +1,5 @@
 import React from "react";
-import { HeadBar } from "./common";
+import { HeadBar, TabBar } from "./common";
 import { Tokens } from "@dfinity/ledger-icrc/dist/candid/icrc_ledger";
 import { Feature, Meta, Post } from "./types";
 import { newPostCallback } from "./new";
@@ -58,20 +58,11 @@ export const Roadmap = () => {
                 DAO's support. When creating a new feature request, be clear and
                 concise, link all previous discussions and design documents.
             </div>
-            <div className="text_centered vertically_spaced">
-                {["OPEN", "IMPLEMENTED"].map((id) => (
-                    <button
-                        key={id}
-                        onClick={() => setTab(id)}
-                        className={
-                            "medium_text " +
-                            (tab == id ? "active" : "unselected")
-                        }
-                    >
-                        {id}
-                    </button>
-                ))}
-            </div>
+            <TabBar
+                tabs={["OPEN", "IMPLEMENTED"]}
+                activeTab={tab}
+                onTabChange={setTab}
+            />
             <PostFeed
                 heartbeat={posts}
                 useList={true}

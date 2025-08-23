@@ -56,6 +56,8 @@ pub struct Config {
 
     pub dao_realm: &'static str,
 
+    pub stalwarts_realm: &'static str,
+
     pub max_realm_cleanup_penalty: Credits,
 
     pub realm_revenue_percentage: u32,
@@ -207,6 +209,8 @@ pub const CONFIG: &Config = &Config {
     random_reward_amount: 1000,
 
     dao_realm: "DAO",
+
+    stalwarts_realm: "STALWARTS",
 
     realm_revenue_percentage: 5,
 

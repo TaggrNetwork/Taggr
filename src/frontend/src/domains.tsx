@@ -83,6 +83,10 @@ export const Domains = ({}) => {
                             {"Journal" in cfg.sub_config && (
                                 <li>Redirects to the journal.</li>
                             )}
+                            <li>
+                                Downvote threshold:{" "}
+                                <code>{cfg.max_downvotes}</code>
+                            </li>
                         </ul>
                     </li>
                 ))}

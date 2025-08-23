@@ -54,10 +54,10 @@ fn caller(state: &State) -> Principal {
 fn init() {
     mutate(|state| {
         state.memory.init();
-        state.timers.last_weekly = time();
-        state.timers.last_daily = time();
-        state.timers.last_hourly = time();
-        state.auction.amount = CONFIG.weekly_auction_size_tokens_max;
+        let now = time();
+        state.timers.last_weekly = now;
+        state.timers.last_daily = now;
+        state.timers.last_hourly = now;
         state.init();
     });
     set_timer(Duration::from_millis(0), || {
@@ -108,14 +108,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    mutate(|state| {
-        for user in state.users.values_mut() {
-            user.notifications
-                .retain(|_, (n, _)| !matches!(n, env::user::Notification::Conditional(_, _)));
-        }
-    })
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -171,7 +164,7 @@ fn vote_on_poll() {
 fn report() {
     mutate(|state| {
         let (id, reason): (u64, String) = parse(&arg_data_raw());
-        reply(state.report(caller(state), id, reason))
+        reply(reports::report(state, caller(state), id, reason))
     });
 }
 
@@ -179,7 +172,7 @@ fn report() {
 fn vote_on_report() {
     mutate(|state| {
         let (id, vote): (u64, bool) = parse(&arg_data_raw());
-        reply(state.vote_on_report(caller(state), id, vote))
+        reply(reports::vote_on_report(state, caller(state), id, vote))
     });
 }
 
@@ -601,7 +594,7 @@ fn realm_clean_up() {
 fn create_realm() {
     mutate(|state| {
         let (name, realm): (String, Realm) = parse(&arg_data_raw());
-        reply(state.create_realm(caller(state), name, realm))
+        reply(realms::create_realm(state, caller(state), name, realm))
     })
 }
 

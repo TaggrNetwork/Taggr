@@ -98,6 +98,30 @@ export const MoreButton = ({
     </div>
 );
 
+export const TabBar = ({
+    tabs,
+    activeTab,
+    onTabChange,
+}: {
+    tabs: string[];
+    activeTab: string;
+    onTabChange: (tab: string) => void;
+}) => (
+    <div className="text_centered vertically_spaced">
+        {tabs.map((id) => (
+            <button
+                key={id}
+                onClick={() => onTabChange(id)}
+                className={
+                    "medium_text " + (activeTab == id ? "active" : "unselected")
+                }
+            >
+                {id.toUpperCase()}
+            </button>
+        ))}
+    </div>
+);
+
 export const FileUploadInput = ({
     classNameArg,
     callback,
@@ -136,6 +160,18 @@ export const hoursTillNext = (interval: number, last: BigInt) =>
 
 export const commaSeparated = (items: (JSX.Element | string)[] = []) =>
     items.length == 0 ? [] : interleaved(items, <span>, </span>);
+
+export const tagList = (tags: string[][]) =>
+    commaSeparated(
+        tags.map((feed) => {
+            let feedRepr = feed.join("+");
+            return (
+                <a key={feedRepr} href={`#/feed/${feedRepr}`}>
+                    {feedRepr}
+                </a>
+            );
+        }),
+    );
 
 export const interleaved = (
     items: (JSX.Element | string)[],
@@ -747,7 +783,11 @@ export const FlagButton = ({ id, text }: { id: number; text?: boolean }) => (
                     id,
                     reason,
                 );
-                if (response && "Err" in response) {
+                if (!response) {
+                    showPopUp("error", "Call failed");
+                    return;
+                }
+                if ("Err" in response) {
                     showPopUp("error", response.Err);
                     return;
                 }
@@ -799,9 +839,11 @@ export const ReportBanner = ({
                                     return;
                                 }
                                 const updatedReport = (
-                                    await window.api.query<User>("user", [
-                                        id.toString(),
-                                    ])
+                                    await window.api.query<User>(
+                                        "user",
+                                        domain(),
+                                        [id.toString()],
+                                    )
                                 )?.report;
                                 if (updatedReport) setReport(updatedReport);
                             }}

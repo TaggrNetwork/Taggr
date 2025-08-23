@@ -40,8 +40,6 @@ pub enum CreditsDelta {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Predicate {
-    // TODO: delete
-    ReportOpen(PostId),
     UserReportOpen(UserId),
     Proposal(PostId),
 }
@@ -145,6 +143,11 @@ pub struct User {
 }
 
 impl User {
+    /// Returns true if the user is organic (not a system account).
+    pub fn organic(&self) -> bool {
+        self.id < MAX_USER_ID
+    }
+
     pub fn deactivate(&mut self) {
         self.active_weeks = 0;
         self.notifications.clear();
@@ -301,8 +304,9 @@ impl User {
                 }
             },
             "tag" => {
+                let value = value.trim().to_lowercase();
                 if !self.filters.tags.remove(&value) {
-                    self.filters.tags.insert(value.to_lowercase());
+                    self.filters.tags.insert(value.clone());
                     self.feeds.retain(|feed| !feed.contains(&value));
                 }
                 Ok(())
