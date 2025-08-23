@@ -256,18 +256,16 @@ export const Profile = ({ handle }: { handle: string }) => {
 };
 
 export const UserInfo = ({ profile }: { profile: User }) => {
-    const placeholder = (label: number, content: any) =>
-        status ? (
-            <div className="small_text">{content}</div>
-        ) : (
-            <span
-                className="clickable clickable_color"
-                onClick={() => popUp(content)}
-            >
-                {label}
-            </span>
-        );
-
+    const placeholder = (label: number, content: any) => (
+        <code
+            className={label > 0 ? "clickable_color clickable" : ""}
+            onClick={() => {
+                if (label > 0) popUp(content);
+            }}
+        >
+            {label}
+        </code>
+    );
     const accountingList = (
         <>
             <h2>Rewards and Credits Accounting</h2>
