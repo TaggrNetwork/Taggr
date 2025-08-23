@@ -288,7 +288,8 @@ impl User {
         }
     }
 
-    pub fn toggle_filter(&mut self, filter: String, value: String) -> Result<(), String> {
+    pub fn toggle_filter(&mut self, filter: String, mut value: String) -> Result<(), String> {
+        value = value.trim().to_lowercase();
         match filter.as_str() {
             "user" => match value.parse() {
                 Err(_) => Err("cannot parse user id".to_string()),
