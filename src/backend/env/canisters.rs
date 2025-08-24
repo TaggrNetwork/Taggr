@@ -4,10 +4,13 @@ use super::{
     token::{Account, Subaccount, TransferArgs, TransferError},
     Logger, MINUTE,
 };
-use crate::{env::NeuronId, id, mutate, read};
+use crate::{
+    env::{token::account, NeuronId},
+    id, mutate, read,
+};
 use candid::{
     utils::{ArgumentDecoder, ArgumentEncoder},
-    CandidType, Principal,
+    CandidType, Nat, Principal,
 };
 use ic_cdk::api::{
     self,
@@ -23,7 +26,12 @@ use ic_cdk::api::{
 use ic_cdk::{api::call::call_raw, notify};
 use ic_ledger_types::{Tokens, MAINNET_GOVERNANCE_CANISTER_ID};
 use ic_xrc_types::{Asset, GetExchangeRateRequest, GetExchangeRateResult};
+use icrc_ledger_types::{
+    icrc::generic_value::ICRC3Value,
+    icrc3::blocks::{GetBlocksResult, ICRC3GenericBlock},
+};
 use serde::{Deserialize, Serialize};
+use serde_bytes::ByteBuf;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -35,6 +43,35 @@ thread_local! {
     static CALLS: RefCell<HashMap<String, i32>> = Default::default();
     // A timestamp of the last upgrading attempt
     static UPGRADE_TIMESTAMP: RefCell<u64> = Default::default();
+}
+
+#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
+pub struct GetTransactionsArgs {
+    pub start: Nat,
+    pub length: Nat,
+}
+
+#[derive(
+    Serialize, Deserialize, CandidType, Clone, Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Default,
+)]
+#[serde(transparent)]
+pub struct IcrcMemo(pub ByteBuf);
+
+#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
+pub struct IcrcTransfer {
+    pub amount: Nat,
+    pub from: Account,
+    pub to: Account,
+    pub memo: Option<IcrcMemo>,
+    pub fee: Option<Nat>,
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct GetBlocksArgs {
+    /// The index of the first block to fetch.
+    pub start: Nat,
+    /// Max number of blocks to fetch.
+    pub length: Nat,
 }
 
 // Panics if an upgrade was initiated within the last 5 minutes. If something goes wrong
@@ -249,6 +286,97 @@ pub async fn coins_for_one_xdr(coin: &str) -> Result<u64, String> {
         .map_err(|err| format!("couldn't get canister status: {:?}", err))
         // I did not dig into why all responses are x10
         .map(|result| result.rate / 10)
+}
+
+pub async fn get_icrc3_get_blocks(
+    canister_id: Principal,
+    args: GetBlocksArgs,
+) -> Result<GetBlocksResult, String> {
+    let vec_args = vec![args];
+    let (response,): (GetBlocksResult,) =
+        call_canister(canister_id, "icrc3_get_blocks", (vec_args,))
+            .await
+            .map_err(|e| {
+                ic_cdk::println!("Failed to call icrc3_get_blocks: {:?}", e);
+                format!("Failed to call icrc3_get_blocks: {:?}", e)
+            })?;
+    Ok(response)
+}
+
+pub fn convert_icrc3_block_to_transfer(block: &ICRC3GenericBlock) -> Result<IcrcTransfer, String> {
+    let block_map = match block {
+        ICRC3Value::Map(map) => Some(map),
+        _ => None,
+    }
+    .ok_or("block map not found")?;
+
+    let tx = block_map
+        .get("tx")
+        .and_then(|tx| match tx {
+            ICRC3Value::Map(m) => Some(m),
+            _ => None,
+        })
+        .ok_or("tx map not found")?;
+
+    let fee = block_map
+        .get("fee")
+        .or(tx.get("fee"))
+        .and_then(|icrc3_value| match icrc3_value {
+            ICRC3Value::Nat(fee) => Some(fee.clone()),
+            _ => None,
+        });
+    let memo = block_map
+        .get("memo")
+        .or(tx.get("memo"))
+        .and_then(|icrc3_value| match icrc3_value {
+            ICRC3Value::Blob(m) => Some(IcrcMemo(m.clone())),
+            _ => None,
+        });
+    let amount = tx
+        .get("amt")
+        .and_then(|icrc3_value| match icrc3_value {
+            ICRC3Value::Nat(a) => Some(a.clone()),
+            _ => None,
+        })
+        .ok_or("amount not found")?;
+    let from = tx
+        .get("from")
+        .and_then(|icrc3_value| match icrc3_value {
+            ICRC3Value::Array(from_array) => {
+                if let Some(value) = from_array.first() {
+                    return match value {
+                        ICRC3Value::Blob(blob) => Some(Principal::from_slice(blob)),
+                        _ => None,
+                    };
+                }
+                None
+            }
+            _ => None,
+        })
+        .ok_or("from not found")?;
+    let to = tx
+        .get("to")
+        .and_then(|icrc3_value| match icrc3_value {
+            ICRC3Value::Array(from_array) => {
+                if let Some(value) = from_array.first() {
+                    return match value {
+                        ICRC3Value::Blob(blob) => Some(Principal::from_slice(blob)),
+                        _ => None,
+                    };
+                }
+                None
+            }
+            _ => None,
+        })
+        .ok_or("to not found")?;
+
+    Ok(IcrcTransfer {
+        amount,
+        fee,
+        from: account(from),
+        memo,
+        to: account(to),
+    })
 }
 
 pub async fn call_canister_raw(id: Principal, method: &str, args: &[u8]) -> CallResult<Vec<u8>> {
