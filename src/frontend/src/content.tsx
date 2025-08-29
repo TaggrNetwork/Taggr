@@ -344,6 +344,7 @@ const Gallery = ({ children }: any) => {
                         React.cloneElement(picture, {
                             thumbnail: "true",
                             gallery: urls,
+                            alt: "",
                         }),
                     )}
                 </div>
