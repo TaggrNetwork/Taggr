@@ -845,6 +845,10 @@ a.accent,
     margin-bottom: 2em;
 }
 
+.white_svg path {
+    fill: white;
+}
+
 .active path {
     fill: black;
 }

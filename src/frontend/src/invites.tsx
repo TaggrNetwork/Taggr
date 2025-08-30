@@ -18,6 +18,55 @@ interface Invite {
     dirty: boolean;
 }
 
+const InviteQRCard = ({ code }: { code: string }) => {
+    React.useEffect(() => {
+        const logo = document.getElementById(`logo_${code}`);
+        if (!logo) return;
+        logo.innerHTML = window.backendCache.config.logo;
+    }, []);
+    return (
+        <div
+            id={`qr_card_${code}`}
+            className="vertically_spaced column_container framed centered framed"
+            style={{
+                color: "white",
+                background: "black",
+            }}
+        >
+            <span
+                className="white_svg"
+                style={{
+                    width: "100%",
+                    display: "inline-block",
+                    transform: "scale(3)",
+                    transformOrigin: "center",
+                    marginTop: "5em",
+                }}
+                id={`logo_${code}`}
+            ></span>
+            <p className="vertically_spaced">Decentralized Social Network.</p>
+            <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`${location.protocol}//${location.host}/#/welcome/${code}`)}`}
+                alt="QR Code for invite URL"
+                style={{
+                    maxWidth: "250px",
+                    margin: "auto",
+                }}
+                loading="lazy"
+            />
+            <span
+                className="vertically_spaced x_large_text"
+                style={{
+                    fontFamily: "Impact",
+                    color: "orange",
+                }}
+            >
+                JOIN WITH BITCOIN.
+            </span>
+        </div>
+    );
+};
+
 export const Invites = () => {
     const [credits, setCredits] = React.useState(
         window.backendCache.config.min_credits_for_inviting,
@@ -249,6 +298,7 @@ export const Invites = () => {
                                                     value={`${location.protocol}//${location.host}/#/welcome/${code}`}
                                                 />
                                             </div>
+                                            <InviteQRCard code={code} />
                                         </div>
                                     </div>
                                 </div>
