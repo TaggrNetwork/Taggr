@@ -24,7 +24,7 @@ export const Delegate = ({}: {}) => {
             </p>
             <div className="row_container">
                 <button
-                    className="max_width_col right_half_spaced"
+                    className="medium_text max_width_col right_half_spaced"
                     onClick={signOut}
                 >
                     SIGN OUT

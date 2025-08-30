@@ -98,6 +98,8 @@ pub struct User {
     pub name: String,
     pub num_posts: usize,
     pub bookmarks: VecDeque<PostId>,
+    #[serde(default)]
+    pub pinned_posts: VecDeque<PostId>,
     pub about: String,
     pub account: String,
     pub settings: BTreeMap<String, String>,
@@ -210,6 +212,7 @@ impl User {
             timestamp,
             num_posts: 0,
             bookmarks: Default::default(),
+            pinned_posts: Default::default(),
             feeds: Default::default(),
             followees: vec![id].into_iter().collect(),
             followers: Default::default(),
@@ -280,6 +283,16 @@ impl User {
         }
         self.bookmarks.push_front(post_id);
         self.notify_about_post("Added to your bookmarks", post_id);
+        true
+    }
+
+    pub fn toggle_pinned_post(&mut self, post_id: PostId) -> bool {
+        if self.pinned_posts.contains(&post_id) {
+            self.pinned_posts.retain(|id| id != &post_id);
+            return false;
+        }
+        self.pinned_posts.push_front(post_id);
+        self.notify_about_post("Pinned post", post_id);
         true
     }
 
@@ -994,5 +1007,34 @@ mod tests {
             User::update_wallet_tokens(pr(1), canisters),
             Err("too many tokens".into())
         );
+    }
+
+    #[test]
+    fn test_toggle_pinned_post() {
+        let mut user = User::new(pr(1), 1, 0, "test".into());
+
+        // Initially no pinned posts
+        assert!(!user.pinned_posts.contains(&100));
+
+        // Pin a post
+        assert!(user.toggle_pinned_post(100));
+        assert!(user.pinned_posts.contains(&100));
+        assert_eq!(user.pinned_posts.len(), 1);
+
+        // Pin another post
+        assert!(user.toggle_pinned_post(200));
+        assert!(user.pinned_posts.contains(&200));
+        assert_eq!(user.pinned_posts.len(), 2);
+
+        // Unpin first post
+        assert!(!user.toggle_pinned_post(100));
+        assert!(!user.pinned_posts.contains(&100));
+        assert!(user.pinned_posts.contains(&200));
+        assert_eq!(user.pinned_posts.len(), 1);
+
+        // Unpin second post
+        assert!(!user.toggle_pinned_post(200));
+        assert!(!user.pinned_posts.contains(&200));
+        assert_eq!(user.pinned_posts.len(), 0);
     }
 }

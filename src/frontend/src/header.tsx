@@ -151,12 +151,15 @@ export const Header = ({
                                     testId="toggle-links"
                                 />
                             )}
-                            <button
-                                className="active left_half_spaced"
-                                onClick={() => (location.href = "#/new")}
-                            >
-                                POST
-                            </button>
+                            {(!realm ||
+                                (user && user.realms.includes(realm))) && (
+                                <button
+                                    className="active left_half_spaced"
+                                    onClick={() => (location.href = "#/new")}
+                                >
+                                    POST
+                                </button>
+                            )}
                         </>
                     )}
                     {!window.user && !subtle && (
