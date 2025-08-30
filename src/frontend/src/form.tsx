@@ -8,6 +8,7 @@ import {
     Loading,
     IconToggleButton,
     showPopUp,
+    noiseControlBanner,
 } from "./common";
 import {
     Bars,
@@ -22,7 +23,7 @@ import {
     Table,
 } from "./icons";
 import { PostView } from "./post";
-import { Extension, Payload, Poll as PollType, PostId } from "./types";
+import { Extension, Payload, Poll as PollType, PostId, Realm } from "./types";
 import { PollView } from "./poll";
 import { USER_CACHE } from "./user_resolve";
 import { ProposalMask, ProposalType, validateProposal } from "./proposals";
@@ -63,6 +64,7 @@ export const Form = ({
     const draftKey = `draft_for_${comment ? "comment" : "post"}_${postId}`;
     const [value, setValue] = React.useState("");
     const [realm, setRealm] = React.useState(realmArg);
+    const [realmData, setRealmData] = React.useState<Realm | null>();
     const [submitting, setSubmitting] = React.useState(false);
     const [overflowBanner, setOverflowBanner] = React.useState(false);
     const [lines, setLines] = React.useState(3);
@@ -345,7 +347,13 @@ export const Form = ({
         if (urls) setTmpUrls(urls);
     }, [urls]);
 
-    React.useEffect(() => setRealm(realmArg), [realmArg]);
+    React.useEffect(() => {
+        setRealm(realmArg);
+        if (realmArg)
+            window.api.query<Realm[]>("realms", [realmArg]).then((data) => {
+                if (data && data.length) setRealmData(data[0]);
+            });
+    }, [realmArg]);
 
     React.useEffect(() => {
         const effContent = content || localStorage.getItem(draftKey) || "";
@@ -393,7 +401,7 @@ export const Form = ({
     const showPreview = value || isRepost;
 
     const preview = (
-        <div className="max_width_col framed">
+        <div className="max_width_col framed bottom_spaced">
             <article
                 ref={articleRef as unknown as any}
                 className={`bottom_spaced preview max_width_col ${
@@ -447,6 +455,8 @@ export const Form = ({
         </button>
     );
     const tooExpensive = user.cycles < totalCosts;
+    const realmAccessError =
+        realmData && noiseControlBanner("realm", realmData.filter, user);
 
     return (
         <div
@@ -468,6 +478,7 @@ export const Form = ({
                     to create this post.
                 </div>
             )}
+            {realmAccessError}
             {showTextField && !tooExpensive && (
                 <form
                     ref={form as unknown as any}
