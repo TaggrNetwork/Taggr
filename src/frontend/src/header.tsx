@@ -38,7 +38,6 @@ export const Header = ({
     route: string;
     inboxMode: boolean;
 }) => {
-    const user = window.user;
     const [showUserSection, toggleUserSection] = React.useState(false);
     const [showRealms, toggleRealms] = React.useState(false);
     const [showLinks, toggleLinks] = React.useState(false);
@@ -47,7 +46,8 @@ export const Header = ({
 
     const realm = currentRealm();
 
-    const refreshMessageCounter = () =>
+    const refreshMessageCounter = () => {
+        const user = window.user;
         setMessages(
             user
                 ? Object.values(user.notifications).filter(
@@ -55,22 +55,25 @@ export const Header = ({
                   ).length
                 : 0,
         );
+    };
     React.useEffect(() => {
         const logo = document.getElementById("logo");
         if (!logo) return;
         logo.innerHTML = window.backendCache.config.logo;
     }, []);
     React.useEffect(() => {
+        window.reloadUser();
         toggleUserSection(false);
         toggleRealms(false);
         toggleLinks(false);
     }, [route]);
-    React.useEffect(refreshMessageCounter, [user]);
     React.useEffect(() => {
         if (inboxMode) interval = setInterval(refreshMessageCounter, 1000);
         else clearInterval(interval);
         refreshMessageCounter();
     }, [inboxMode]);
+
+    const user = window.user;
 
     return (
         <>
