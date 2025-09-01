@@ -613,11 +613,17 @@ const PostInfo = ({
                                         post.id,
                                     ) || false
                                 }
-                                toggler={() =>
-                                    window.api
-                                        .call("toggle_pinned_post", post.id)
-                                        .then(window.reloadUser)
-                                }
+                                toggler={async () => {
+                                    const result = await window.api.call<{
+                                        [key: string]: any;
+                                    }>("toggle_pinned_post", post.id);
+                                    if (result && "Err" in result)
+                                        showPopUp(
+                                            "error",
+                                            result.Err as string,
+                                        );
+                                    window.reloadUser();
+                                }}
                                 testId="pin-post"
                             />
                         )}

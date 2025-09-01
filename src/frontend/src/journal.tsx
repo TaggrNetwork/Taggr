@@ -13,6 +13,7 @@ import { PostView } from "./post";
 import { PostId, User, Post } from "./types";
 import { loadPosts } from "./common";
 import { FollowButton } from "./profile";
+import { Pin } from "./icons";
 import { UserLink } from "./user_resolve";
 
 export const Journal = ({ handle }: { handle: string }) => {
@@ -86,7 +87,9 @@ export const Journal = ({ handle }: { handle: string }) => {
                 <div className={bigScreen() ? "journal" : undefined}>
                     {hasPinnedPosts && (
                         <>
-                            <h2>Pinned posts</h2>
+                            <h2>
+                                <Pin classNameArg="accent" /> Pinned posts
+                            </h2>
                             {pinnedPosts.map((post) => (
                                 <PostView
                                     key={post.id}

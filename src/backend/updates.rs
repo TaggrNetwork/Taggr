@@ -548,7 +548,7 @@ fn toggle_pinned_post() {
             reply(user.toggle_pinned_post(post_id));
             return;
         };
-        reply(false);
+        reply(Err("User not found".to_string()) as Result<(), String>);
     });
 }
 

@@ -286,14 +286,21 @@ impl User {
         true
     }
 
-    pub fn toggle_pinned_post(&mut self, post_id: PostId) -> bool {
+    pub fn toggle_pinned_post(&mut self, post_id: PostId) -> Result<(), String> {
+        const MAX_PINNED_POSTS: usize = 15;
+
         if self.pinned_posts.contains(&post_id) {
             self.pinned_posts.retain(|id| id != &post_id);
-            return false;
+            return Ok(());
         }
+
+        if self.pinned_posts.len() >= MAX_PINNED_POSTS {
+            return Err(format!("Cannot pin more than {} posts", MAX_PINNED_POSTS));
+        }
+
         self.pinned_posts.push_front(post_id);
         self.notify_about_post("Pinned post", post_id);
-        true
+        Ok(())
     }
 
     pub fn toggle_blacklist(&mut self, user_id: UserId) {
@@ -1017,24 +1024,42 @@ mod tests {
         assert!(!user.pinned_posts.contains(&100));
 
         // Pin a post
-        assert!(user.toggle_pinned_post(100));
+        assert!(user.toggle_pinned_post(100).is_ok());
         assert!(user.pinned_posts.contains(&100));
         assert_eq!(user.pinned_posts.len(), 1);
 
         // Pin another post
-        assert!(user.toggle_pinned_post(200));
+        assert!(user.toggle_pinned_post(200).is_ok());
         assert!(user.pinned_posts.contains(&200));
         assert_eq!(user.pinned_posts.len(), 2);
 
         // Unpin first post
-        assert!(!user.toggle_pinned_post(100));
+        assert!(user.toggle_pinned_post(100).is_ok());
         assert!(!user.pinned_posts.contains(&100));
         assert!(user.pinned_posts.contains(&200));
         assert_eq!(user.pinned_posts.len(), 1);
 
         // Unpin second post
-        assert!(!user.toggle_pinned_post(200));
+        assert!(user.toggle_pinned_post(200).is_ok());
         assert!(!user.pinned_posts.contains(&200));
         assert_eq!(user.pinned_posts.len(), 0);
+
+        // Test pinning limit (15 posts)
+        for i in 1..=15 {
+            assert!(user.toggle_pinned_post(i).is_ok());
+        }
+        assert_eq!(user.pinned_posts.len(), 15);
+
+        // Try to pin 16th post - should fail
+        let result = user.toggle_pinned_post(16);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Cannot pin more than 15 posts");
+        assert_eq!(user.pinned_posts.len(), 15);
+
+        // Unpin one post and try again - should succeed
+        assert!(user.toggle_pinned_post(1).is_ok());
+        assert_eq!(user.pinned_posts.len(), 14);
+        assert!(user.toggle_pinned_post(16).is_ok());
+        assert_eq!(user.pinned_posts.len(), 15);
     }
 }

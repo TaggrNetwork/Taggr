@@ -1147,9 +1147,11 @@ export const showPopUp = (
 ) => {
     const duration = duration_secs * 1000;
     let domElem = document.getElementById("info_popup_container");
-    if (domElem)
-        // Another pop up is in progress.
-        return;
+
+    // If popup already exists, remove it before creating new one
+    if (domElem) {
+        domElem.parentNode?.removeChild(domElem);
+    }
 
     domElem = document.createElement("div");
     domElem.id = "info_popup_container";
