@@ -44,6 +44,7 @@ import {
     Bell,
     BellOff,
     More,
+    Pin,
 } from "./icons";
 import { ProposalView } from "./proposals";
 import { Feature, Post, PostId, Realm, UserId } from "./types";
@@ -600,6 +601,26 @@ const PostInfo = ({
                             }
                             testId="bookmark-post"
                         />
+                        {postAuthor && (
+                            <ToggleButton
+                                offTitle="Pin post"
+                                onTitle="Unpin post"
+                                classNameArg="max_width_col"
+                                offLabel={<Pin />}
+                                onLabel={<Pin classNameArg="accent" />}
+                                currState={() =>
+                                    window.user.pinned_posts?.includes(
+                                        post.id,
+                                    ) || false
+                                }
+                                toggler={() =>
+                                    window.api
+                                        .call("toggle_pinned_post", post.id)
+                                        .then(window.reloadUser)
+                                }
+                                testId="pin-post"
+                            />
+                        )}
                         {!postAuthor && onCanonicalDomain() && (
                             <ButtonWithLoading
                                 title="Tip"

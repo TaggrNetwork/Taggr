@@ -266,6 +266,7 @@ export type User = {
     treasury_e8s: BigInt;
     principal: string;
     bookmarks: number[];
+    pinned_posts: number[];
     last_activity: BigInt;
     governance: boolean;
     settings: {

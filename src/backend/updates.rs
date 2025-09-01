@@ -540,6 +540,18 @@ fn toggle_bookmark() {
     });
 }
 
+#[export_name = "canister_update toggle_pinned_post"]
+fn toggle_pinned_post() {
+    mutate(|state| {
+        let post_id: PostId = parse(&arg_data_raw());
+        if let Some(user) = state.principal_to_user_mut(caller(state)) {
+            reply(user.toggle_pinned_post(post_id));
+            return;
+        };
+        reply(false);
+    });
+}
+
 #[export_name = "canister_update toggle_following_post"]
 fn toggle_following_post() {
     let post_id: PostId = parse(&arg_data_raw());

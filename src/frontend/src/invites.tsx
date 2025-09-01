@@ -7,7 +7,6 @@ import {
     Loading,
     showPopUp,
 } from "./common";
-import { Credits } from "./icons";
 import { UserList } from "./user_resolve";
 
 interface Invite {
@@ -18,6 +17,55 @@ interface Invite {
     inviter_user_id: number;
     dirty: boolean;
 }
+
+const InviteQRCard = ({ code }: { code: string }) => {
+    React.useEffect(() => {
+        const logo = document.getElementById(`logo_${code}`);
+        if (!logo) return;
+        logo.innerHTML = window.backendCache.config.logo;
+    }, []);
+    return (
+        <div
+            id={`qr_card_${code}`}
+            className="vertically_spaced column_container framed centered framed"
+            style={{
+                color: "white",
+                background: "black",
+            }}
+        >
+            <span
+                className="white_svg"
+                style={{
+                    width: "100%",
+                    display: "inline-block",
+                    transform: "scale(3)",
+                    transformOrigin: "center",
+                    marginTop: "5em",
+                }}
+                id={`logo_${code}`}
+            ></span>
+            <p className="vertically_spaced">Decentralized Social Network.</p>
+            <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`${location.protocol}//${location.host}/#/welcome/${code}`)}`}
+                alt="QR Code for invite URL"
+                style={{
+                    maxWidth: "250px",
+                    margin: "auto",
+                }}
+                loading="lazy"
+            />
+            <span
+                className="vertically_spaced x_large_text"
+                style={{
+                    fontFamily: "Impact",
+                    color: "orange",
+                }}
+            >
+                JOIN WITH BITCOIN.
+            </span>
+        </div>
+    );
+};
 
 export const Invites = () => {
     const [credits, setCredits] = React.useState(
@@ -172,37 +220,24 @@ export const Invites = () => {
                 {busy && <Loading />}
                 {!busy && invites.length > 0 && (
                     <div className="column_container">
-                        <table style={{ width: "100%" }}>
-                            <thead>
-                                <tr>
-                                    <th align="left">
-                                        <Credits />
-                                    </th>
-                                    <th align="left">
-                                        <Credits /> Per User
-                                    </th>
-                                    <th align="left">Realm</th>
-                                    <th align="right">Users</th>
-                                    <th align="right">Invite</th>
-                                    <th align="right">URL</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {invites.map(
-                                    ([
-                                        code,
-                                        {
-                                            credits,
-                                            credits_per_user,
-                                            joined_user_ids,
-                                            realm_id,
-                                        },
-                                    ]) => (
-                                        <tr key={code}>
-                                            <td align="left">
+                        {invites.map(
+                            ([
+                                code,
+                                {
+                                    credits,
+                                    credits_per_user,
+                                    joined_user_ids,
+                                    realm_id,
+                                },
+                            ]) => (
+                                <div key={code} className="stands_out spaced">
+                                    <div className="row_container">
+                                        <div className="max_width_col">
+                                            <div className="bottom_half_spaced">
+                                                <strong>Credits:</strong>
                                                 <input
                                                     type="number"
-                                                    style={{ width: "100px" }}
+                                                    className="left_half_spaced max_width_col top_half_spaced"
                                                     defaultValue={credits}
                                                     onBlur={(event) =>
                                                         updateInvite(
@@ -212,14 +247,18 @@ export const Invites = () => {
                                                         )
                                                     }
                                                 />
-                                            </td>
-                                            <td align="left">
+                                            </div>
+                                            <div className="bottom_half_spaced top_half_spaced">
+                                                <strong>
+                                                    Credits Per User:
+                                                </strong>{" "}
                                                 <code>{credits_per_user}</code>
-                                            </td>
-                                            <td align="left">
+                                            </div>
+                                            <div className="bottom_half_spaced">
+                                                <strong>Realm:</strong>
                                                 <input
                                                     type="text"
-                                                    style={{ width: "100px" }}
+                                                    className="max_width_col top_half_spaced"
                                                     defaultValue={
                                                         realm_id || ""
                                                     }
@@ -236,32 +275,35 @@ export const Invites = () => {
                                                         )
                                                     }
                                                 />
-                                            </td>
-                                            <td align="right">
-                                                <UserList
-                                                    ids={joined_user_ids}
-                                                />
-                                            </td>
-                                            <td align="right">
+                                            </div>
+                                            <div className="bottom_half_spaced">
+                                                <strong>Users:</strong>
+                                                <div className="top_half_spaced">
+                                                    <UserList
+                                                        ids={joined_user_ids}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="bottom_half_spaced">
+                                                <strong>Invite Code:</strong>
                                                 <CopyToClipboard
+                                                    classNameArg="left_half_spaced"
                                                     value={code.toUpperCase()}
                                                 />
-                                            </td>
-                                            <td align="right">
+                                            </div>
+                                            <div>
+                                                <strong>URL:</strong>
                                                 <CopyToClipboard
+                                                    classNameArg={`left_half_spaced ${bigScreen() ? "" : "small_text"}`}
                                                     value={`${location.protocol}//${location.host}/#/welcome/${code}`}
-                                                    displayMap={(url) =>
-                                                        bigScreen()
-                                                            ? url
-                                                            : "<too long>"
-                                                    }
                                                 />
-                                            </td>
-                                        </tr>
-                                    ),
-                                )}
-                            </tbody>
-                        </table>
+                                            </div>
+                                            <InviteQRCard code={code} />
+                                        </div>
+                                    </div>
+                                </div>
+                            ),
+                        )}
                         <ButtonWithLoading
                             classNameArg="active"
                             onClick={saveInvites}
@@ -269,7 +311,7 @@ export const Invites = () => {
                             disabled={
                                 !invites.some(([_, invite]) => invite.dirty)
                             }
-                        />{" "}
+                        />
                     </div>
                 )}
             </div>
