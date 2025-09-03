@@ -1493,7 +1493,9 @@ impl State {
                 if polls > 0 {
                     log_line.push_str(&format!("Pending polls: `{}`.", polls,));
                 }
-                state.logger.debug(log_line);
+                if !log_line.is_empty() {
+                    state.logger.debug(log_line);
+                }
                 log(state, "Daily", 1000);
             });
         }

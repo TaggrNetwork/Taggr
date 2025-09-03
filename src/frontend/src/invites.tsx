@@ -34,7 +34,7 @@ const InviteQRCard = ({ code }: { code: string }) => {
             }}
         >
             <span
-                className="white_svg"
+                className="white_svg vertically_spaced"
                 style={{
                     width: "100%",
                     display: "inline-block",
@@ -44,7 +44,7 @@ const InviteQRCard = ({ code }: { code: string }) => {
                 }}
                 id={`logo_${code}`}
             ></span>
-            <p className="vertically_spaced">Decentralized Social Network.</p>
+            <br />
             <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`${location.protocol}//${location.host}/#/welcome/${code}`)}`}
                 alt="QR Code for invite URL"
@@ -54,15 +54,7 @@ const InviteQRCard = ({ code }: { code: string }) => {
                 }}
                 loading="lazy"
             />
-            <span
-                className="vertically_spaced x_large_text"
-                style={{
-                    fontFamily: "Impact",
-                    color: "orange",
-                }}
-            >
-                JOIN WITH BITCOIN.
-            </span>
+            <p className="vertically_spaced">Decentralized Social Network</p>
         </div>
     );
 };

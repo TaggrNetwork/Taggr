@@ -76,6 +76,8 @@ pub struct Proposal {
     pub voting_power: Token,
     #[serde(default)]
     pub escrow_tokens: Token,
+    #[serde(default)]
+    pub finalized: Time,
 }
 
 impl TryFrom<&Proposal> for ReleaseInfo {
@@ -85,7 +87,7 @@ impl TryFrom<&Proposal> for ReleaseInfo {
         match &proposal.payload {
             Payload::Release(Release { commit, hash, .. }) => Ok(ReleaseInfo {
                 post_id: proposal.post_id,
-                timestamp: proposal.timestamp,
+                timestamp: proposal.finalized,
                 commit: commit.clone(),
                 hash: hash.clone(),
             }),
@@ -288,6 +290,7 @@ impl Proposal {
                 _ => {}
             }
 
+            self.finalized = time;
             self.status = Status::Executed;
         }
 
@@ -421,6 +424,7 @@ pub fn create_proposal(
         bulletins: Vec::default(),
         voting_power: 0,
         escrow_tokens,
+        finalized: 0,
         id,
     });
     state.notify_with_predicate(
@@ -908,7 +912,7 @@ pub mod tests {
             assert!(result.is_ok());
             let release_info = result.unwrap();
             assert_eq!(release_info.post_id, proposal.post_id);
-            assert_eq!(release_info.timestamp, proposal.timestamp);
+            assert_eq!(release_info.timestamp, proposal.finalized);
             assert_eq!(release_info.commit, "abcdef1234");
             assert_eq!(
                 release_info.hash,

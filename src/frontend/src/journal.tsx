@@ -100,6 +100,7 @@ export const Journal = ({ handle }: { handle: string }) => {
                                     classNameArg="feed_item"
                                 />
                             ))}
+                            <br />
                             <h2>Latest posts</h2>
                         </>
                     )}
