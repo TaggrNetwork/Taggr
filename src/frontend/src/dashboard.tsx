@@ -7,6 +7,7 @@ import {
     icpCode,
     IcpAccountLink,
     USD_PER_XDR,
+    TabBar,
 } from "./common";
 import { Content } from "./content";
 import {
@@ -50,7 +51,7 @@ const TAB_KEY = "logs_tab";
 export const Dashboard = ({}) => {
     const [logs, setLogs] = React.useState<Log[]>([]);
     const [tab, setTab] = React.useState(
-        Number(localStorage.getItem(TAB_KEY)) || 0,
+        localStorage.getItem(TAB_KEY) || "Social",
     );
 
     React.useEffect(() => {
@@ -67,22 +68,14 @@ export const Dashboard = ({}) => {
     }, []);
 
     const logSelector = (
-        <div className="text_centered vertically_spaced">
-            {["SOCIAL", "TECHNICAL"].map((label, i) => (
-                <button
-                    key={label}
-                    onClick={() => {
-                        localStorage.setItem(TAB_KEY, i.toString());
-                        setTab(i);
-                    }}
-                    className={
-                        "medium_text " + (tab == i ? "active" : "unselected")
-                    }
-                >
-                    {label}
-                </button>
-            ))}
-        </div>
+        <TabBar
+            tabs={["Social", "Technical"]}
+            activeTab={tab}
+            onTabChange={(newTab) => {
+                localStorage.setItem(TAB_KEY, newTab);
+                setTab(newTab);
+            }}
+        />
     );
 
     const { config, stats } = window.backendCache;
@@ -299,8 +292,8 @@ export const Dashboard = ({}) => {
                     value={logs
                         .filter(
                             ({ level }) =>
-                                (tab == 0 && level == "INFO") ||
-                                (tab > 0 && level != "INFO"),
+                                (tab == "Social" && level == "INFO") ||
+                                (tab == "Technical" && level != "INFO"),
                         )
                         .map(
                             ({ timestamp, level, message }) =>
