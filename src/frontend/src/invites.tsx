@@ -34,7 +34,7 @@ const InviteQRCard = ({ code }: { code: string }) => {
             }}
         >
             <span
-                className="white_svg"
+                className="white_svg vertically_spaced"
                 style={{
                     width: "100%",
                     display: "inline-block",
@@ -44,6 +44,7 @@ const InviteQRCard = ({ code }: { code: string }) => {
                 }}
                 id={`logo_${code}`}
             ></span>
+            <br />
             <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`${location.protocol}//${location.host}/#/welcome/${code}`)}`}
                 alt="QR Code for invite URL"
