@@ -125,7 +125,7 @@ pub async fn try_tip(
         })
     } else {
         Err(format!(
-            "We could not find transaction at index {}",
+            "Transaction not found at index {}",
             start_index
         ))
     }
