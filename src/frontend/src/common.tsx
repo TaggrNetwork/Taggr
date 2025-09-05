@@ -1381,17 +1381,10 @@ export async function getCanistersMetaData(canisterIds: string[]) {
 }
 
 export function numberToUint8Array(num: number) {
-    // Create an empty array to hold the bytes
-    const arr: number[] = [];
-
-    // For 32-bit integer, store the number in up to 4 bytes
-    for (let i = 0; i < 4; i++) {
-        arr.push(num & 0xff); // Extract the least significant byte
-        num = num >> 8; // Shift right by 8 bits to get the next byte
-    }
-
-    // Return the Uint8Array
-    return new Uint8Array(arr.reverse()); // Reverse to ensure correct byte order (little-endian)
+    const buffer = new ArrayBuffer(4);
+    const view = new DataView(buffer);
+    view.setUint32(0, num); // Big-endian by default
+    return new Uint8Array(buffer);
 }
 
 type LocalStorageData = {
