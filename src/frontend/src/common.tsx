@@ -1420,59 +1420,6 @@ export function cacheLocalStorage(cacheKey: string, data: object) {
     );
 }
 
-export const Popup = ({
-    html,
-    onConfirm,
-    onCancel,
-    show,
-    confirmLabel = "OK",
-}: {
-    html: any;
-    onConfirm: () => any;
-    onCancel: () => any;
-    show: boolean;
-    confirmLabel?: string;
-}) => {
-    React.useEffect(() => {
-        // Prevent scrolling when popup is open
-        if (show) {
-            document.body.style.overflow = "hidden";
-        } else {
-            document.body.style.overflow = "auto";
-        }
-
-        // Cleanup function
-        return () => {
-            document.body.style.overflow = "auto";
-        };
-    }, [show]);
-
-    if (!show) return null;
-
-    return (
-        <>
-            <div className="popup-overlay" />
-            <div className="popup-container" data-testid="custom-popup">
-                <div className="popup-content">
-                    {html}
-                    <div className="popup-buttons">
-                        <ButtonWithLoading
-                            label={confirmLabel}
-                            onClick={onConfirm}
-                        />
-                        {
-                            <ButtonWithLoading
-                                label={"Cancel"}
-                                onClick={onCancel}
-                            />
-                        }
-                    </div>
-                </div>
-            </div>
-        </>
-    );
-};
-
 // Using IC-explorer
 export const getUserTokensFromIcExplorer = async (
     principal: string,
