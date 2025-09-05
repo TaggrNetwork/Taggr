@@ -1,6 +1,7 @@
 use candid::Nat;
+use icrc_ledger_types::{icrc::generic_value::ICRC3Value, icrc3::blocks::ICRC3GenericBlock};
 
-use super::*;
+use super::{token::Memo, *};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Tip {
@@ -23,36 +24,33 @@ impl Tip {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn create_post_tip(
     state: &mut State,
     post_id: PostId,
     canister_id: Principal,
     amount: u128,
-    memo: Option<Vec<u8>>,
-    to_principal: Principal,
-    from_principal: Principal,
+    memo: Option<Memo>,
+    to: Principal,
+    from: Principal,
     index: u64,
 ) -> Result<Tip, String> {
-    let receiver_id = state
-        .principal_to_user(to_principal)
-        .ok_or("receiver not found")?
-        .id;
-    let (sender_id, sender_name) = state
-        .principal_to_user(from_principal)
-        .map(|sender| (sender.id, sender.name.clone()))
-        .ok_or("sender not found")?;
+    let receiver_id = state.principal_to_user(to).ok_or("receiver not found")?.id;
     let post = Post::get(state, &post_id).ok_or("post not found")?;
-    let memo_u64 = convert_memo_to_u64(memo)?;
-
     if post.user != receiver_id {
         return Err("receiver does not match with post creator".to_string());
     }
 
-    if memo_u64 != post_id {
+    let (sender_id, sender_name) = state
+        .principal_to_user(from)
+        .map(|sender| (sender.id, sender.name.clone()))
+        .ok_or("sender not found")?;
+
+    let memo = memo_to_u64(memo)?;
+
+    if memo != post_id {
         return Err(format!(
             "memo {} does not match with post id {}",
-            memo_u64, post_id
+            memo, post_id
         ));
     }
 
@@ -80,64 +78,142 @@ fn create_post_tip(
     Ok(tip)
 }
 
-pub async fn try_tip(
-    post_id: PostId,
-    canister_id: Principal,
-    caller: Principal,
-    start_index: u64,
-) -> Result<Tip, String> {
-    // DoS protection
-    mutate(|state| {
-        let sender_id = state.principal_to_user(caller).expect("user not found").id;
-        state.charge(
-            sender_id,
-            CONFIG.tipping_cost,
-            format!("external tipping for post {}", post_id),
-        )
-    })?;
-
-    let args = canisters::GetBlocksArgs {
-        start: Nat::from(start_index),
-        length: Nat::from(1_u64),
-    };
-    let response = canisters::get_icrc3_get_blocks(canister_id, args).await;
-    if let Some(block_with_id) = response
-        .expect("Failed to retrive transactions")
-        .blocks
-        .first()
-    {
-        let transfer = canisters::convert_icrc3_block_to_transfer(&block_with_id.block)?;
-        let amount = u128::try_from(&transfer.amount.0)
-            .ok()
-            .ok_or("amount not found")?;
-        let memo = Some(transfer.memo.as_ref().unwrap().0.to_vec());
-        mutate(|state| {
-            create_post_tip(
-                state,
-                post_id,
-                canister_id,
-                amount,
-                memo,
-                transfer.to.owner,
-                transfer.from.owner,
-                start_index,
-            )
-        })
-    } else {
-        Err(format!(
-            "Transaction not found at index {}",
-            start_index
-        ))
-    }
-}
-
-fn convert_memo_to_u64(memo: Option<Vec<u8>>) -> Result<u64, String> {
+fn memo_to_u64(memo: Option<Vec<u8>>) -> Result<u64, String> {
     let memo_value = memo.ok_or("memo is not defined")?;
 
     let mut padded = [0u8; 8];
     let len = std::cmp::min(memo_value.len(), 8);
     padded[8 - len..].copy_from_slice(&memo_value[..len]);
     Ok(u64::from_be_bytes(padded))
+}
+
+pub async fn add_tip(
+    post_id: PostId,
+    canister_id: Principal,
+    caller: Principal,
+    start_index: u64,
+) -> Result<Tip, String> {
+    match try_tip(post_id, canister_id, caller, start_index).await {
+        Ok(tip) => Ok(tip),
+        Err(e) => {
+            // Penalize user for failed tip attempt since inter-canister calls are expensive
+            mutate(|state| {
+                let sender_id = state.principal_to_user(caller).expect("user not found").id;
+                state.charge(
+                    sender_id,
+                    CONFIG.tipping_cost * 50,
+                    format!("external tipping for post {}", post_id),
+                )
+            })?;
+
+            return Err(e);
+        }
+    }
+}
+
+async fn try_tip(
+    post_id: PostId,
+    canister_id: Principal,
+    caller: Principal,
+    start_index: u64,
+) -> Result<Tip, String> {
+    let args = canisters::GetBlocksArgs {
+        start: Nat::from(start_index),
+        length: Nat::from(1_u64),
+    };
+    let response = canisters::get_icrc3_get_blocks(canister_id, args).await?;
+
+    let Some(block_with_id) = response.blocks.first() else {
+        return Err(format!("transaction not found at index {}", start_index));
+    };
+
+    let (amount, from, to, memo) = convert_icrc3_block_to_transfer(&block_with_id.block)?;
+
+    if from.owner != caller {
+        return Err("you are not the transaction initiator".into());
+    }
+
+    mutate(|state| {
+        create_post_tip(
+            state,
+            post_id,
+            canister_id,
+            amount,
+            memo,
+            to.owner,
+            from.owner,
+            start_index,
+        )
+    })
+}
+
+pub fn convert_icrc3_block_to_transfer(
+    block: &ICRC3GenericBlock,
+) -> Result<(u128, Account, Account, Option<Memo>), String> {
+    let block_map = match block {
+        ICRC3Value::Map(map) => Some(map),
+        _ => None,
+    }
+    .ok_or("block map not found")?;
+
+    let tx = block_map
+        .get("tx")
+        .and_then(|tx| match tx {
+            ICRC3Value::Map(m) => Some(m),
+            _ => None,
+        })
+        .ok_or("tx map not found")?;
+
+    let memo = block_map
+        .get("memo")
+        .or(tx.get("memo"))
+        .and_then(|icrc3_value| match icrc3_value {
+            ICRC3Value::Blob(m) => Some(m.clone().to_vec()),
+            _ => None,
+        });
+
+    let amount = tx
+        .get("amt")
+        .and_then(|icrc3_value| match icrc3_value {
+            ICRC3Value::Nat(a) => Some(a.clone()),
+            _ => None,
+        })
+        .ok_or("amount not found")?;
+    let amount = u128::try_from(&amount.0).ok().ok_or("amount not found")?;
+
+    let from = tx
+        .get("from")
+        .and_then(|icrc3_value| match icrc3_value {
+            ICRC3Value::Array(from_array) => {
+                if let Some(value) = from_array.first() {
+                    return match value {
+                        ICRC3Value::Blob(blob) => Some(Principal::from_slice(blob)),
+                        _ => None,
+                    };
+                }
+                None
+            }
+            _ => None,
+        })
+        .ok_or("from not found")?;
+
+    let to = tx
+        .get("to")
+        .and_then(|icrc3_value| match icrc3_value {
+            ICRC3Value::Array(from_array) => {
+                if let Some(value) = from_array.first() {
+                    return match value {
+                        ICRC3Value::Blob(blob) => Some(Principal::from_slice(blob)),
+                        _ => None,
+                    };
+                }
+                None
+            }
+            _ => None,
+        })
+        .ok_or("to not found")?;
+
+    Ok((amount, account(from), account(to), memo))
 }
 
 #[cfg(test)]

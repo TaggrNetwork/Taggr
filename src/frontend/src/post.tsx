@@ -645,7 +645,7 @@ const PostInfo = ({
                 return;
 
             if (canister.symbol !== token_symbol) {
-                let transferResponse = await window.api.icrc_transfer(
+                let transId = await window.api.icrc_transfer(
                     Principal.fromText(canisterId),
                     Principal.fromText(USER_CACHE[post.user]?.at(1) || ""),
                     amount,
@@ -653,9 +653,9 @@ const PostInfo = ({
                     numberToUint8Array(post.id),
                 );
 
-                if (Number.isNaN(transferResponse as number)) {
+                if (Number.isNaN(transId as number)) {
                     throw new Error(
-                        transferResponse.toString() ||
+                        transId.toString() ||
                             "Something went wrong with transfer!",
                     );
                 }
@@ -664,7 +664,7 @@ const PostInfo = ({
                 const optimisticPostTip: PostTip = {
                     amount,
                     canister_id: canisterId,
-                    index: +transferResponse,
+                    index: Number(transId),
                     sender_id: window.user.id,
                 };
                 setExternalTips([...externalTips, optimisticPostTip]);
@@ -676,7 +676,7 @@ const PostInfo = ({
                 }>(
                     "add_external_icrc_transaction",
                     canisterId,
-                    +transferResponse,
+                    Number(transId),
                     post.id,
                 );
                 if ("Err" in (addTipResponse || {}) || !addTipResponse) {
@@ -695,7 +695,7 @@ const PostInfo = ({
                 // Add tip from repsonse and replace optimistic one
                 setExternalTips([
                     ...externalTips.filter(
-                        ({ index }) => index !== +transferResponse,
+                        ({ index }) => index !== Number(transId),
                     ),
                     addTipResponse.Ok,
                 ]);

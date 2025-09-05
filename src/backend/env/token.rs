@@ -23,7 +23,7 @@ type Timestamp = u64;
 
 pub type Subaccount = Vec<u8>;
 
-type Memo = Vec<u8>;
+pub type Memo = Vec<u8>;
 
 pub type Token = u64;
 
