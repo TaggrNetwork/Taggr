@@ -1,5 +1,8 @@
 use candid::Nat;
-use icrc_ledger_types::{icrc::generic_value::ICRC3Value, icrc3::blocks::ICRC3GenericBlock};
+use icrc_ledger_types::{
+    icrc::generic_value::ICRC3Value,
+    icrc3::blocks::{GetBlocksRequest, ICRC3GenericBlock},
+};
 
 use super::{token::Memo, *};
 
@@ -118,7 +121,7 @@ async fn try_tip(
     caller: Principal,
     start_index: u64,
 ) -> Result<Tip, String> {
-    let args = canisters::GetBlocksArgs {
+    let args = GetBlocksRequest {
         start: Nat::from(start_index),
         length: Nat::from(1_u64),
     };
