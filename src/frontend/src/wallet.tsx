@@ -140,7 +140,7 @@ export const Wallet = () => {
                                 ICP_DEFAULT_FEE,
                                 recipient,
                             );
-                            if (typeof response == "string")
+                            if (Number.isNaN(Number(response)))
                                 showPopUp(
                                     "error",
                                     `Transfer failed: ${response}`,
@@ -297,8 +297,8 @@ export const Wallet = () => {
                             token_decimals,
                             transaction_fee,
                         );
-                        if (typeof response == "string")
-                            showPopUp("error", response);
+                        if (Number.isNaN(Number(response)))
+                            showPopUp("error", response as string);
                         await window.reloadUser();
                         setUser(window.user);
                     }}

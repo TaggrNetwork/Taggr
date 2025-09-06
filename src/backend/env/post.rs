@@ -2,6 +2,7 @@ use std::cmp::{Ordering, PartialOrd};
 
 use super::*;
 use super::{storage::Storage, user::UserId};
+use crate::env::tip::Tip;
 use crate::mutate;
 use ic_cdk::caller;
 use serde::{Deserialize, Serialize};
@@ -88,6 +89,9 @@ pub struct Post {
 
     #[serde(default)]
     pub encrypted: bool,
+
+    #[serde(default)]
+    pub external_tips: Vec<Tip>,
 }
 
 impl PartialEq for Post {
@@ -149,6 +153,7 @@ impl Post {
             encrypted: false,
             realm,
             heat,
+            external_tips: Default::default(),
         }
     }
 
@@ -1054,7 +1059,7 @@ mod tests {
             assert_eq!(state.posts.len(), 10);
             // Trigger post archiving
             archive_cold_posts(state, 5).unwrap();
-            assert!(state.memory.health("B").starts_with("boundary=909B"));
+            assert!(state.memory.health("B").starts_with("boundary=984B"));
             assert!(state.memory.health("B").ends_with("segments=0"));
 
             // Make sure we have the right numbers in cold and hot memories
@@ -1096,7 +1101,7 @@ mod tests {
             assert!(!Post::get(state, &3).unwrap().archived);
             assert_eq!(state.posts.len(), 8);
             assert_eq!(state.memory.posts.len(), 3);
-            assert!(state.memory.health("B").starts_with("boundary=909B"));
+            assert!(state.memory.health("B").starts_with("boundary=984B"));
             assert!(state.memory.health("B").ends_with("segments=2"));
 
             // Archive posts again
@@ -1105,7 +1110,7 @@ mod tests {
             assert_eq!(state.memory.posts.len(), 6);
             // Segments were reduced, becasue the new post 10 fits into a gap left from one of the
             // old posts
-            assert!(state.memory.health("B").starts_with("boundary=1271B"));
+            assert!(state.memory.health("B").starts_with("boundary=1376B"));
             assert!(state.memory.health("B").ends_with("segments=1"));
         });
     }

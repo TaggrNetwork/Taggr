@@ -2,9 +2,9 @@ start:
 	ulimit -n 65000 && dfx start --background -qqqq 2>&1 | grep -v sgymv &
 
 staging_deploy:
-	NODE_ENV=production DFX_NETWORK=staging make fe
+	NODE_ENV=production DFX_NETWORK=$(if $(CANISTER),$(CANISTER),staging) make fe
 	FEATURES=staging dfx build
-	FEATURES=staging dfx --identity prod deploy --network staging taggr
+	FEATURES=staging dfx --identity prod deploy --network $(if $(CANISTER),$(CANISTER),staging) taggr
 
 local_deploy:
 	FEATURES=dev dfx deploy

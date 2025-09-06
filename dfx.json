@@ -10,13 +10,21 @@
                 {
                     "name": "candid:service",
                     "visibility": "public",
-                    "networks": ["local", "ic", "staging"]
+                    "networks": ["local", "ic", "staging", "staging2"]
                 }
             ]
         }
     },
     "networks": {
         "staging": {
+            "config": {
+                "API_HOST": "https://icp-api.io",
+                "STATIC_HOST": "https://icp0.io"
+            },
+            "providers": ["https://icp-api.io/"],
+            "type": "persistent"
+        },
+        "staging2": {
             "config": {
                 "API_HOST": "https://icp-api.io",
                 "STATIC_HOST": "https://icp0.io"
