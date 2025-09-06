@@ -176,9 +176,9 @@ test.describe("Regular users flow, part two", () => {
             await expect(postMenu).toBeVisible();
             await postMenu.locator(`button[title="Tip"]`).click();
             // Wait for custom popup and send 1 Taggr
-            const popup = page.getByTestId("custom-popup");
+            const popup = page.getByTestId("popup");
             await expect(popup).toBeVisible();
-            await expect(popup).toHaveText(/Tip @john with.*/);
+            await expect(popup).toHaveText(/Tip john with.*/);
             await popup.locator("input").fill("1"); // Send 1 Taggr to john
 
             popup.getByText("SEND").click();
@@ -216,7 +216,7 @@ test.describe("Regular users flow, part two", () => {
             await expect(postMenu).toBeVisible();
             await postMenu.locator(`button[title="Tip"]`).click();
             // Wait for custom popup and send 1 Taggr
-            const popup = page.getByTestId("custom-popup");
+            const popup = page.getByTestId("popup");
             await expect(popup).toBeVisible();
             await popup.locator("input").fill("1"); // Send 1 Taggr to john
             popup.getByText("SEND").click();

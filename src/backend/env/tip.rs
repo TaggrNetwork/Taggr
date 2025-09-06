@@ -24,6 +24,7 @@ impl Tip {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn create_post_tip(
     state: &mut State,
     post_id: PostId,
@@ -106,7 +107,7 @@ pub async fn add_tip(
                 )
             })?;
 
-            return Err(e);
+            Err(e)
         }
     }
 }

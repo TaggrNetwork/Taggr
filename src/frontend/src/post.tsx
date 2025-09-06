@@ -1322,9 +1322,11 @@ const TippingPopup = ({
             );
         }
         setTippingAmount(
-            Number((canister.fee / Math.pow(10, canister.decimals)).toFixed(
-                canister.decimals,
-            )),
+            Number(
+                (canister.fee / Math.pow(10, canister.decimals)).toFixed(
+                    canister.decimals,
+                ),
+            ),
         );
     };
 
@@ -1339,9 +1341,9 @@ const TippingPopup = ({
                 );
             }
 
-            const amount = Number((
-                tippingAmount * Math.pow(10, canister.decimals)
-            ).toFixed(0));
+            const amount = Number(
+                (tippingAmount * Math.pow(10, canister.decimals)).toFixed(0),
+            );
             if (!amount || isNaN(amount)) return;
             if (
                 !confirm(

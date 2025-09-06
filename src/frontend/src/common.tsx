@@ -895,7 +895,7 @@ export function popUp<T>(content: JSX.Element): null | Promise<T | null> {
         };
 
         createRoot(root).render(
-            <>
+            <div data-testid="popup">
                 <div
                     data-testid="popup-close-button"
                     className="clickable row_container bottom_spaced"
@@ -910,7 +910,7 @@ export function popUp<T>(content: JSX.Element): null | Promise<T | null> {
                         closePreview(arg);
                     },
                 })}
-            </>,
+            </div>,
         );
     });
 
