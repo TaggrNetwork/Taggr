@@ -7,7 +7,7 @@ use super::{
 use crate::{env::NeuronId, id, mutate, read};
 use candid::{
     utils::{ArgumentDecoder, ArgumentEncoder},
-    CandidType, Nat, Principal,
+    CandidType, Principal,
 };
 use ic_cdk::api::{
     self,
@@ -23,7 +23,7 @@ use ic_cdk::api::{
 use ic_cdk::{api::call::call_raw, notify};
 use ic_ledger_types::{Tokens, MAINNET_GOVERNANCE_CANISTER_ID};
 use ic_xrc_types::{Asset, GetExchangeRateRequest, GetExchangeRateResult};
-use icrc_ledger_types::icrc3::blocks::GetBlocksResult;
+use icrc_ledger_types::icrc3::blocks::{GetBlocksRequest, GetBlocksResult};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -36,14 +36,6 @@ thread_local! {
     static CALLS: RefCell<HashMap<String, i32>> = Default::default();
     // A timestamp of the last upgrading attempt
     static UPGRADE_TIMESTAMP: RefCell<u64> = Default::default();
-}
-
-#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
-pub struct GetBlocksArgs {
-    /// The index of the first block to fetch.
-    pub start: Nat,
-    /// Max number of blocks to fetch.
-    pub length: Nat,
 }
 
 // Panics if an upgrade was initiated within the last 5 minutes. If something goes wrong
@@ -262,7 +254,7 @@ pub async fn coins_for_one_xdr(coin: &str) -> Result<u64, String> {
 
 pub async fn get_icrc3_get_blocks(
     canister_id: Principal,
-    args: GetBlocksArgs,
+    args: GetBlocksRequest,
 ) -> Result<GetBlocksResult, String> {
     let vec_args = vec![args];
     let (response,): (GetBlocksResult,) =

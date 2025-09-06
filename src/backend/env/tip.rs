@@ -1,5 +1,8 @@
 use candid::Nat;
-use icrc_ledger_types::{icrc::generic_value::ICRC3Value, icrc3::blocks::ICRC3GenericBlock};
+use icrc_ledger_types::{
+    icrc::generic_value::ICRC3Value,
+    icrc3::blocks::{GetBlocksRequest, ICRC3GenericBlock},
+};
 
 use super::{token::Memo, *};
 
@@ -13,24 +16,13 @@ pub struct Tip {
     index: u64,
 }
 
-impl Tip {
-    pub fn new(sender_id: UserId, canister_id: Principal, amount: u128, index: u64) -> Self {
-        Self {
-            amount,
-            canister_id,
-            sender_id,
-            index,
-        }
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn create_post_tip(
     state: &mut State,
     post_id: PostId,
     canister_id: Principal,
     amount: u128,
-    memo: Option<Memo>,
+    memo: Memo,
     to: Principal,
     from: Principal,
     index: u64,
@@ -59,32 +51,32 @@ fn create_post_tip(
         return Err("tip external index already exists".to_string());
     }
 
-    let tip = Tip::new(sender_id, canister_id, amount, index);
+    let tip = Tip {
+        sender_id,
+        canister_id,
+        amount,
+        index,
+    };
 
     Post::mutate(state, &post_id, |post| {
         post.external_tips.push(tip.clone());
         Ok(())
     })
-    .expect("could not find post");
+    .map_err(|err| format!("failed to add tip to post: {}", err))?;
 
     state
         .users
         .get_mut(&receiver_id)
         .expect("user not found")
-        .notify_about_post(
-            format!("@{} tipped you with for your post", sender_name),
-            post_id,
-        );
+        .notify_about_post(format!("You got a tip from @{}", sender_name), post_id);
 
     Ok(tip)
 }
 
-fn memo_to_u64(memo: Option<Vec<u8>>) -> Result<u64, String> {
-    let memo_value = memo.ok_or("memo is not defined")?;
-
+fn memo_to_u64(memo: Vec<u8>) -> Result<u64, String> {
     let mut padded = [0u8; 8];
-    let len = std::cmp::min(memo_value.len(), 8);
-    padded[8 - len..].copy_from_slice(&memo_value[..len]);
+    let len = std::cmp::min(memo.len(), 8);
+    padded[8 - len..].copy_from_slice(&memo[..len]);
     Ok(u64::from_be_bytes(padded))
 }
 
@@ -103,7 +95,7 @@ pub async fn add_tip(
                 state.charge(
                     sender_id,
                     CONFIG.tipping_cost * 50,
-                    format!("external tipping for post {}", post_id),
+                    format!("failed external tipping for post {}", post_id),
                 )
             })?;
 
@@ -118,11 +110,14 @@ async fn try_tip(
     caller: Principal,
     start_index: u64,
 ) -> Result<Tip, String> {
-    let args = canisters::GetBlocksArgs {
-        start: Nat::from(start_index),
-        length: Nat::from(1_u64),
-    };
-    let response = canisters::get_icrc3_get_blocks(canister_id, args).await?;
+    let response = canisters::get_icrc3_get_blocks(
+        canister_id,
+        GetBlocksRequest {
+            start: Nat::from(start_index),
+            length: Nat::from(1_u64),
+        },
+    )
+    .await?;
 
     let Some(block_with_id) = response.blocks.first() else {
         return Err(format!("transaction not found at index {}", start_index));
@@ -150,53 +145,34 @@ async fn try_tip(
 
 pub fn convert_icrc3_block_to_transfer(
     block: &ICRC3GenericBlock,
-) -> Result<(u128, Account, Account, Option<Memo>), String> {
+) -> Result<(u128, Account, Account, Memo), String> {
     let block_map = match block {
-        ICRC3Value::Map(map) => Some(map),
-        _ => None,
-    }
-    .ok_or("block map not found")?;
+        ICRC3Value::Map(map) => map,
+        _ => return Err("block is not a map".into()),
+    };
 
-    let tx = block_map
-        .get("tx")
-        .and_then(|tx| match tx {
-            ICRC3Value::Map(m) => Some(m),
-            _ => None,
-        })
-        .ok_or("tx map not found")?;
+    let tx = match block_map.get("tx") {
+        Some(ICRC3Value::Map(m)) => m,
+        _ => return Err("tx is not a map".into()),
+    };
 
-    let memo = block_map
-        .get("memo")
-        .or(tx.get("memo"))
-        .and_then(|icrc3_value| match icrc3_value {
-            ICRC3Value::Blob(m) => Some(m.clone().to_vec()),
-            _ => None,
-        });
+    let memo = match block_map.get("memo").or(tx.get("memo")) {
+        Some(ICRC3Value::Blob(m)) => m.clone().to_vec(),
+        _ => return Err("memo not found".into()),
+    };
 
-    let amount = tx
-        .get("amt")
-        .and_then(|icrc3_value| match icrc3_value {
-            ICRC3Value::Nat(a) => Some(a.clone()),
-            _ => None,
-        })
-        .ok_or("amount not found")?;
-    let amount = u128::try_from(&amount.0).ok().ok_or("amount not found")?;
+    let amount = match tx.get("amt") {
+        Some(ICRC3Value::Nat(a)) => u128::try_from(&a.0).ok().ok_or("amount not found")?,
+        _ => return Err("amount not found".into()),
+    };
 
-    let from = tx
-        .get("from")
-        .and_then(|icrc3_value| match icrc3_value {
-            ICRC3Value::Array(from_array) => {
-                if let Some(value) = from_array.first() {
-                    return match value {
-                        ICRC3Value::Blob(blob) => Some(Principal::from_slice(blob)),
-                        _ => None,
-                    };
-                }
-                None
-            }
-            _ => None,
-        })
-        .ok_or("from not found")?;
+    let from = match tx.get("from") {
+        Some(ICRC3Value::Array(from_array)) => match from_array.first() {
+            Some(ICRC3Value::Blob(blob)) => Principal::from_slice(blob),
+            _ => return Err("from value not found".into()),
+        },
+        _ => return Err("from value not found".into()),
+    };
 
     let to = tx
         .get("to")
@@ -296,7 +272,7 @@ mod tests {
                 post_id,
                 canister_id,
                 1,
-                Some(vec![0, 0, 0, 0]),
+                vec![0, 0, 0, 0],
                 principal,
                 principal_2,
                 0,
@@ -311,7 +287,7 @@ mod tests {
                 2, // Uknown post
                 canister_id,
                 1,
-                Some(vec![0, 0, 0, 0]),
+                vec![0, 0, 0, 0],
                 principal,
                 principal_2,
                 0,
@@ -326,7 +302,7 @@ mod tests {
                 post_id,
                 canister_id,
                 1,
-                Some(vec![0, 0, 0, 0]),
+                vec![0, 0, 0, 0],
                 pr(3), // Uknown receiver
                 principal_2,
                 0,
@@ -341,7 +317,7 @@ mod tests {
                 post_id,
                 canister_id,
                 1,
-                Some(vec![0, 0, 0, 0]),
+                vec![0, 0, 0, 0],
                 principal,
                 pr(4), // Uknown sender
                 0,
@@ -356,7 +332,7 @@ mod tests {
                 post_id,
                 canister_id,
                 1,
-                Some(vec![0, 0, 0, 0]),
+                vec![0, 0, 0, 0],
                 principal_2, // Post creator is principal
                 principal_2,
                 0,
@@ -374,7 +350,7 @@ mod tests {
                 post_id,
                 canister_id,
                 1,
-                Some(vec![0, 0, 0, 1]), // Different memo
+                vec![0, 0, 0, 1], // Different memo
                 principal,
                 principal_2,
                 0,
@@ -395,7 +371,7 @@ mod tests {
                 post_id,
                 canister_id,
                 1,
-                Some(vec![0, 0, 0, 0]),
+                vec![0, 0, 0, 0],
                 principal,
                 principal_2,
                 0, // External index 0 already exists
