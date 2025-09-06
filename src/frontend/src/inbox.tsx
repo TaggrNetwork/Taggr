@@ -17,13 +17,13 @@ export const Inbox = () => {
     ids.reverse();
 
     const closeNotification = (k: number, callback?: () => void) => {
-        window.api.call("clear_notifications", [k]);
+        window.api.call("clear_notifications", [k]).then(window.reloadUser);
         clearTimeout(timer);
         setClosing(k);
         timer = setTimeout(() => {
-            if (callback) callback();
             inbox[k][1] = true;
             setInbox({ ...inbox });
+            if (callback) callback();
         }, 80);
     };
 

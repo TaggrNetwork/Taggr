@@ -738,14 +738,23 @@ impl Post {
         let Ok(mut post) = Post::take(state, &id) else {
             return;
         };
-        let encrypt = !post.encrypted;
-        post.body = xor(&post.body, seed, encrypt);
-        post.patches = post
-            .patches
-            .into_iter()
-            .map(|(t, patch)| (t, xor(patch.as_str(), seed, encrypt)))
-            .collect();
-        post.encrypted = encrypt;
+
+        // We never encrypt feature requests and proposals, as they are supposed to be public.
+        let skip = matches!(
+            post.extension,
+            Some(Extension::Feature) | Some(Extension::Proposal(_))
+        );
+        if !skip {
+            let encrypt = !post.encrypted;
+            post.body = xor(&post.body, seed, encrypt);
+            post.patches = post
+                .patches
+                .into_iter()
+                .map(|(t, patch)| (t, xor(patch.as_str(), seed, encrypt)))
+                .collect();
+            post.encrypted = encrypt;
+        }
+
         Post::save(state, post);
     }
 }
@@ -1236,5 +1245,92 @@ mod tests {
         assert!(p
             .valid(vec![("abcdefgh".to_string(), Default::default())].as_slice())
             .is_err());
+    }
+
+    #[test]
+    fn test_post_crypt() {
+        mutate(|state| {
+            let p = pr(0);
+            create_user(state, p);
+            state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .change_credits(2000, CreditsDelta::Plus, "")
+                .unwrap();
+
+            // Test normal post encryption/decryption
+            let id =
+                Post::create(state, "Hello world!".into(), &[], p, 0, None, None, None).unwrap();
+
+            // Add a patch to test patch encryption
+            Post::mutate(state, &id, |post| {
+                post.patches.push((1, "This is a patch".to_string()));
+                Ok(())
+            })
+            .unwrap();
+
+            let original_body = Post::get(state, &id).unwrap().body.clone();
+            let original_patch = Post::get(state, &id).unwrap().patches[0].1.clone();
+            assert!(!Post::get(state, &id).unwrap().encrypted);
+
+            // Test encryption
+            Post::crypt(state, id, "test_seed");
+            let post = Post::get(state, &id).unwrap();
+            assert!(post.encrypted);
+            assert_ne!(post.body, original_body);
+            assert_ne!(post.patches[0].1, original_patch);
+
+            // Test decryption
+            Post::crypt(state, id, "test_seed");
+            let post = Post::get(state, &id).unwrap();
+            assert!(!post.encrypted);
+            assert_eq!(post.body, original_body);
+            assert_eq!(post.patches[0].1, original_patch);
+
+            // Test feature post is not encrypted
+            let feature_id = Post::create(
+                state,
+                "Feature request".into(),
+                &[],
+                p,
+                1,
+                None,
+                None,
+                Some(Extension::Feature),
+            )
+            .unwrap();
+
+            let feature_body = Post::get(state, &feature_id).unwrap().body.clone();
+            assert!(!Post::get(state, &feature_id).unwrap().encrypted);
+
+            Post::crypt(state, feature_id, "test_seed");
+            let post = Post::get(state, &feature_id).unwrap();
+            assert!(!post.encrypted);
+            assert_eq!(post.body, feature_body);
+
+            // Test proposal post is not encrypted
+            let proposal_id = Post::create(
+                state,
+                "Proposal content".into(),
+                &[],
+                p,
+                2,
+                None,
+                None,
+                Some(Extension::Proposal(123)),
+            )
+            .unwrap();
+
+            let proposal_body = Post::get(state, &proposal_id).unwrap().body.clone();
+            assert!(!Post::get(state, &proposal_id).unwrap().encrypted);
+
+            Post::crypt(state, proposal_id, "test_seed");
+            let post = Post::get(state, &proposal_id).unwrap();
+            assert!(!post.encrypted);
+            assert_eq!(post.body, proposal_body);
+
+            // Test with non-existent post ID (should not panic)
+            Post::crypt(state, 999, "test_seed");
+        });
     }
 }

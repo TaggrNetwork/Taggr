@@ -98,6 +98,31 @@ export const authMethods = [
             return null;
         },
     },
+    {
+        icon: <Infinity />,
+        label: "Internet Identity (Legacy)",
+        description:
+            "Decentralized authentication service hosted on IC and based on biometric devices.",
+        login: async (signUp?: boolean) => {
+            if (
+                (location.href.includes(".raw") ||
+                    location.href.includes("share.")) &&
+                confirm(
+                    "You're using an uncertified, insecure frontend. Do you want to be re-routed to the certified one?",
+                )
+            ) {
+                location.href = location.href.replace(".raw", "");
+                return null;
+            }
+            window.authClient.login({
+                onSuccess: () => finalize(signUp),
+                identityProvider: "https://identity.ic0.app",
+                maxTimeToLive: BigInt(30 * 24 * 3600000000000),
+                derivationOrigin: window.location.origin,
+            });
+            return null;
+        },
+    },
 ];
 
 const finalize = async (signUp?: boolean) => {
