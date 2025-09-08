@@ -82,7 +82,7 @@ fn users_data() {
 
         reply(
             iter.filter_map(|id| state.users.get(id))
-                .map(|user| (user.id, (&user.name, &user.principal)))
+                .map(|user| (user.id, &user.name))
                 .collect::<HashMap<_, _>>(),
         );
     });

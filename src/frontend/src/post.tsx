@@ -33,6 +33,7 @@ import {
     shortenTokensAmount,
     icpSwapLogoFallback,
     popUp,
+    domain,
 } from "./common";
 import {
     reaction2icon,
@@ -60,14 +61,10 @@ import {
     PostId,
     PostTip,
     Realm,
+    User,
     UserId,
 } from "./types";
-import {
-    USER_CACHE,
-    UserLink,
-    UserList,
-    populateUserNameCache,
-} from "./user_resolve";
+import { UserLink, UserList, populateUserNameCache } from "./user_resolve";
 import { CANISTER_ID } from "./env";
 import { TokenSelect } from "./token-select";
 
@@ -1310,6 +1307,13 @@ const TippingPopup = ({
     const [selectedTippingCanisterId, setSelectedTippingCanisterId] =
         React.useState(CANISTER_ID);
     const [tippingAmount, setTippingAmount] = React.useState(0.1);
+    const [postAuthor, setPostAuthor] = React.useState<User | null>();
+
+    React.useEffect(() => {
+        window.api
+            .query<User>("user", domain(), [post.user])
+            .then(setPostAuthor);
+    }, []);
 
     const onTokenSelectionChange = (canisterId: string) => {
         setSelectedTippingCanisterId(canisterId);
@@ -1354,11 +1358,14 @@ const TippingPopup = ({
             )
                 return;
 
+            if (!postAuthor)
+                return showPopUp("error", "Could not load post author data.");
+
             const { token_symbol } = window.backendCache.config;
             if (canister.symbol !== token_symbol) {
                 let transId = await window.api.icrc_transfer(
                     Principal.fromText(canisterId),
-                    Principal.fromText(USER_CACHE[post.user]?.at(1) || ""),
+                    Principal.fromText(postAuthor.principal),
                     amount,
                     canister.fee,
                     numberToUint8Array(post.id),

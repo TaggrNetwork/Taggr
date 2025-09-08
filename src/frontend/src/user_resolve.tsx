@@ -8,7 +8,7 @@ export const populateUserNameCache = async (
     ids: UserId[],
     loadingCallback = (_arg: boolean) => {},
 ) => {
-    const misses = [...new Set(ids)].filter(
+    const misses = ids.filter(
         (id) => id < Number.MAX_SAFE_INTEGER && !(id in USER_CACHE),
     );
     if (misses.length == 0) return;
@@ -16,7 +16,7 @@ export const populateUserNameCache = async (
     const data = (await window.api.query<UserData>("users_data", misses)) || {};
     loadingCallback(false);
     Object.entries(data).forEach(
-        ([id, data]) => (USER_CACHE[Number(id)] = data),
+        ([id, name]: [string, string]) => (USER_CACHE[Number(id)] = name),
     );
 };
 
@@ -24,7 +24,7 @@ export const userNameToIds = async (names: string[]) => {
     if (names.length == 0) return [];
     names = names.map((name) => name.trim().replace("@", ""));
     const cachedNames = Object.entries(USER_CACHE).reduce(
-        (acc, [id, [name]]) => {
+        (acc, [id, name]) => {
             acc[name] = Number(id);
             return acc;
         },
@@ -60,12 +60,13 @@ export const UserLink = ({
 }) => {
     const [loading, setLoading] = React.useState(false);
     const [userName, setUserName] = React.useState<string | null>(
-        name || USER_CACHE[id]?.at(0) || null,
+        name || USER_CACHE[id] || null,
     );
 
     const loadUserName = async () => {
-        if (name) setUserName(name);
+        if (name) USER_CACHE[id] = name;
         else await populateUserNameCache([id], setLoading);
+        setUserName(USER_CACHE[id]);
     };
 
     React.useEffect(() => {
@@ -73,7 +74,7 @@ export const UserLink = ({
     }, []);
 
     React.useEffect(() => {
-        setUserName(name || USER_CACHE[id]?.at(0) || null);
+        setUserName(USER_CACHE[id]);
     }, [id]);
 
     if (loading) return <Loading spaced={false} />;
