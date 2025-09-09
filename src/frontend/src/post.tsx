@@ -1311,7 +1311,7 @@ const TippingPopup = ({
 
     React.useEffect(() => {
         window.api
-            .query<User>("user", domain(), [post.user])
+            .query<User>("user", domain(), [post.user.toString()])
             .then(setPostAuthor);
     }, []);
 

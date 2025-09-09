@@ -119,21 +119,20 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
 
     const realmTokenInfo = (token: string): JSX.Element => {
         const metadata = canistersMetaData[token];
+        if (!metadata) return <></>;
         return (
-            metadata && (
-                <span key={token} className="right_spaced">
-                    <code>{metadata.symbol}</code>
-                    &nbsp;
-                    <img
-                        style={{
-                            height: 32,
-                            width: 32,
-                            verticalAlign: "middle",
-                        }}
-                        src={metadata.logo || icpSwapLogoFallback(token)}
-                    />
-                </span>
-            )
+            <span key={token} className="right_spaced">
+                <code>{metadata.symbol}</code>
+                &nbsp;
+                <img
+                    style={{
+                        height: 32,
+                        width: 32,
+                        verticalAlign: "middle",
+                    }}
+                    src={metadata.logo || icpSwapLogoFallback(token)}
+                />
+            </span>
         );
     };
 

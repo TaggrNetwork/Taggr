@@ -292,7 +292,7 @@ export const foregroundColor = (background: string) => {
 export const RealmSpan = ({
     background,
     name,
-    classNameArg = "",
+    classNameArg,
     styleArg,
 }: {
     background: string;
@@ -399,7 +399,7 @@ export const ButtonWithLoading = ({
             className={`medium_text ${
                 loading || disabled
                     ? classNameArg?.replaceAll("active", "")
-                    : classNameArg || ""
+                    : classNameArg
             } ${disabled ? "inactive" : ""}`}
             style={styleArg || null}
             data-testid={testId}
@@ -1364,13 +1364,9 @@ export async function getCanistersMetaData(canisterIds: string[]) {
                 window.api
                     .icrc_metadata(canisterId)
                     .then((meta) => {
-                        if (meta) {
-                            canistersFromStorageMap.set(canisterId, meta);
-                            cacheLocalStorage(
-                                getUserCanisterKey(canisterId),
-                                meta,
-                            );
-                        }
+                        if (!meta) return;
+                        canistersFromStorageMap.set(canisterId, meta);
+                        cacheLocalStorage(getUserCanisterKey(canisterId), meta);
                     })
                     .catch(console.error),
             ),
@@ -1391,6 +1387,7 @@ type LocalStorageData = {
     data: any;
     updated_at: string;
 };
+
 // Helper for stale local storage data
 export function getFromLocalStorage<T>(
     cacheKey: string,
@@ -1409,6 +1406,7 @@ export function getFromLocalStorage<T>(
     }
     return null;
 }
+
 // Helper for stale local storage data
 export function cacheLocalStorage(cacheKey: string, data: object) {
     localStorage.setItem(
@@ -1465,33 +1463,23 @@ export const getUserTokens = async (user: User) => {
     }
     const CACHE_KEY = `user-tokens-v2-${user.id}`;
     const cachedValue = getFromLocalStorage<TokenInfo[]>(CACHE_KEY, 30);
-    if (!cachedValue) {
-        const icExplorerTokens = await getUserTokensFromIcExplorer(
-            user.principal,
-        );
-        const tokensInfo: TokenInfo[] = icExplorerTokens.map(
-            ({
-                amount,
-                ledgerId,
-                subaccount,
-                tokenDecimal,
-                symbol,
-                valueUSD,
-            }) => ({
-                amount,
-                canisterId: ledgerId,
-                decimals: tokenDecimal,
-                subaccount,
-                symbol,
-                usdAmount: valueUSD,
-                logo: `https://api.icexplorer.io/images/${ledgerId}`,
-            }),
-        );
+    if (cachedValue) return cachedValue;
 
-        cacheLocalStorage(CACHE_KEY, tokensInfo);
-        return tokensInfo;
-    }
-    return cachedValue;
+    const icExplorerTokens = await getUserTokensFromIcExplorer(user.principal);
+    const tokensInfo: TokenInfo[] = icExplorerTokens.map(
+        ({ amount, ledgerId, subaccount, tokenDecimal, symbol, valueUSD }) => ({
+            amount,
+            canisterId: ledgerId,
+            decimals: tokenDecimal,
+            subaccount,
+            symbol,
+            usdAmount: valueUSD,
+            logo: `https://api.icexplorer.io/images/${ledgerId}`,
+        }),
+    );
+
+    cacheLocalStorage(CACHE_KEY, tokensInfo);
+    return tokensInfo;
 };
 
 export const icpSwapLogoFallback = (canisterId: string) =>
