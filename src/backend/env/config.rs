@@ -6,6 +6,7 @@ use super::Credits;
 use candid::CandidType;
 use serde::Serialize;
 
+pub const DOWNVOTE_REACTION_ID: u16 = 1;
 pub const ICP_CYCLES_PER_XDR: u64 = 1_000_000_000_000;
 
 #[derive(CandidType, Serialize)]
@@ -80,7 +81,7 @@ pub struct Config {
 
     pub num_hot_posts: usize,
 
-    pub default_max_downvotes_for_domains: u32,
+    pub default_max_downvotes: u32,
 
     pub domain_cost: Credits,
     pub feature_cost: Credits,
@@ -255,7 +256,7 @@ pub const CONFIG: &Config = &Config {
     #[cfg(not(feature = "staging"))]
     min_credits_for_inviting: 50,
 
-    default_max_downvotes_for_domains: 15,
+    default_max_downvotes: 15,
 
     domain_cost: 1000,
     feature_cost: 1000,
@@ -324,7 +325,7 @@ pub const CONFIG: &Config = &Config {
         (100, 10),
         (101, 10),
         // thumb down
-        (1, -3),
+        (DOWNVOTE_REACTION_ID, -3),
     ],
 
     min_positive_reaction_id: 10,

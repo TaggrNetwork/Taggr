@@ -185,12 +185,12 @@ export const interleaved = (
         </>
     ));
 
-export const NotAllowed = () => (
+export const NotAllowed = ({ where }: { where: string }) => (
     <div className="text_centered vertically_spaced">
         <h1 style={{ fontSize: "4em" }}>
             <code>403</code>
         </h1>
-        Not available on {domain()}
+        Not available on {where}
     </div>
 );
 

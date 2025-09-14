@@ -84,7 +84,7 @@ export const Domains = ({}) => {
                                 <li>Redirects to the journal.</li>
                             )}
                             <li>
-                                Downvote threshold:{" "}
+                                Maximum number of downvotes for posts displayed:{" "}
                                 <code>{cfg.max_downvotes}</code>
                             </li>
                         </ul>

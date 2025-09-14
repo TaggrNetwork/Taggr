@@ -155,6 +155,7 @@ export type Realm = {
     filter: UserFilter;
     label_color: string;
     logo: string;
+    max_downvotes: number;
     num_members: number;
     num_posts: number;
     theme: string;
@@ -171,6 +172,7 @@ export type Meta = {
     viewer_blocked: boolean;
     realm_color: string;
     nsfw: boolean;
+    max_downvotes_reached: boolean;
 };
 
 export type Post = {
@@ -353,6 +355,7 @@ export type Stats = {
 };
 
 export type Config = {
+    default_max_downvotes: number;
     proposal_escrow_amount_xdr: number;
     staging: string;
     weekly_auction_size_tokens: number;

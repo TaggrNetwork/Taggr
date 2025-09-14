@@ -4,13 +4,14 @@ import {
     onCanonicalDomain,
     showPopUp,
     signOut,
+    domain as getDomain,
 } from "./common";
 
 export const DELEGATION_DOMAIN = "delegation_domain";
 export const DELEGATION_PRINCIPAL = "DELEGATION_PRINCIPAL";
 
 export const Delegate = ({}: {}) => {
-    if (!onCanonicalDomain()) return <NotAllowed />;
+    if (!onCanonicalDomain()) return <NotAllowed where={getDomain()} />;
 
     const domain = localStorage.getItem(DELEGATION_DOMAIN);
     const principal = localStorage.getItem(DELEGATION_PRINCIPAL);

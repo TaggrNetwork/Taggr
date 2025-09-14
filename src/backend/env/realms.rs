@@ -48,6 +48,8 @@ pub struct Realm {
     pub last_setting_update: u64,
     pub last_update: u64,
     pub logo: String,
+    #[serde(default)]
+    pub max_downvotes: u32,
     pub num_members: u64,
     pub num_posts: usize,
     pub revenue: Credits,
@@ -65,6 +67,7 @@ impl Realm {
         Self {
             description,
             label_color: "#000000".into(),
+            max_downvotes: CONFIG.default_max_downvotes,
             ..Default::default()
         }
     }
@@ -434,7 +437,7 @@ pub(crate) mod tests {
                     p0,
                     "THIS_NAME_IS_IMPOSSIBLY_LONG_AND_WILL_NOT_WORK".to_string()
                 ),
-                Err("realm name too long".to_string())
+                Err("realm name too long: THIS_NAME_IS_IMPOSSIBLY_LONG_AND_WILL_NOT_WORK".into())
             );
 
             assert_eq!(
@@ -444,7 +447,7 @@ pub(crate) mod tests {
 
             assert_eq!(
                 create_realm(state, p0, "TEST NAME".to_string(),),
-                Err("realm name should be an alpha-numeric string".to_string(),)
+                Err("realm name should be an alpha-numeric string: TEST NAME".into())
             );
 
             assert_eq!(create_realm(state, p0, name.clone(),), Ok(()));

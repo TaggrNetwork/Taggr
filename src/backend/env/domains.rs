@@ -164,7 +164,7 @@ pub fn change_domain_config(
                 )?;
 
             cfg.owner = Some(caller_id);
-            cfg.max_downvotes = CONFIG.default_max_downvotes_for_domains;
+            cfg.max_downvotes = CONFIG.default_max_downvotes;
             state.domains.insert(domain, cfg)
         }
         "remove" => state.domains.remove(&domain),
@@ -493,7 +493,7 @@ mod tests {
 
             // Add more than 15 realms to whitelist
             let mut oversized_whitelist = HashSet::new();
-            for i in 1..=16 {
+            for i in 1..=101 {
                 oversized_whitelist.insert(format!("REALM{}", i));
             }
             oversized_config.sub_config = DomainSubConfig::WhiteListedRealms(oversized_whitelist);
@@ -512,7 +512,7 @@ mod tests {
 
             // Reset and create oversized blacklist
             let mut oversized_blacklist = HashSet::new();
-            for i in 1..=16 {
+            for i in 1..=101 {
                 oversized_blacklist.insert(format!("REALM{}", i));
             }
             oversized_config.sub_config = DomainSubConfig::BlackListedRealms(oversized_blacklist);
