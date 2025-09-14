@@ -323,7 +323,10 @@ impl State {
         if self.backup_exists {
             return;
         }
+        // Don't back up invite codes.
+        let invites = std::mem::take(&mut self.invite_codes);
         memory::heap_to_stable(self);
+        self.invite_codes = invites;
         self.memory.init();
         self.backup_exists = true;
         self.logger.debug("Backup created");
@@ -716,6 +719,7 @@ impl State {
             cleanup_penalty,
             adult_content,
             comments_filtering,
+            max_downvotes,
             ..
         } = realm;
         let user = self.principal_to_user(principal).ok_or("user not found")?;
@@ -757,6 +761,7 @@ impl State {
         realm.whitelist = whitelist;
         realm.filter = filter;
         realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty);
+        realm.max_downvotes = max_downvotes;
         realm.last_setting_update = time();
         realm.adult_content = adult_content;
         realm.comments_filtering = comments_filtering;

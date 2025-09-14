@@ -44,6 +44,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         },
         label_color: "#ffffff",
         logo: "",
+        max_downvotes: window.backendCache.config.default_max_downvotes,
         num_members: 0,
         num_posts: 0,
         theme: "",
@@ -93,6 +94,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         cleanup_penalty,
         adult_content,
         comments_filtering,
+        max_downvotes,
     } = realm;
 
     const valid = name && description && controllers.length > 0;
@@ -329,7 +331,8 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                                     className="left_half_spaced"
                                     htmlFor="safe"
                                 >
-                                    Non-controversial users
+                                    Allow posting for non-controversial users
+                                    only
                                 </label>
                             </div>
                         </div>
@@ -404,6 +407,20 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             Allow commenting to everyone
                         </label>
                     </div>
+                </div>
+                <div className="column_container bottom_spaced">
+                    <div className="bottom_half_spaced">
+                        Maximum number of downvotes for posts displayed:
+                    </div>
+                    <input
+                        type="number"
+                        min="0"
+                        value={max_downvotes}
+                        onChange={(e) => {
+                            realm.max_downvotes = Number(e.target.value);
+                            setRealm({ ...realm });
+                        }}
+                    />
                 </div>
                 <hr />
 

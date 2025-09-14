@@ -1,5 +1,6 @@
 use std::cmp::{Ordering, PartialOrd};
 
+use super::config::DOWNVOTE_REACTION_ID;
 use super::*;
 use super::{storage::Storage, user::UserId};
 use crate::mutate;
@@ -49,13 +50,15 @@ pub enum Extension {
     Feature,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Meta<'a> {
     author_name: &'a str,
     author_filters: UserFilter,
     viewer_blocked: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     realm_color: Option<&'a str>,
     pub nsfw: bool,
+    max_downvotes_reached: bool,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -155,19 +158,23 @@ impl Post {
     /// Returns the post with some meta information needed by the UI.
     pub fn with_meta<'a>(&'a self, state: &'a State) -> (&'_ Self, Meta<'_>) {
         let user = state.users.get(&self.user).expect("no user found");
-        let realm = self
-            .realm
-            .as_ref()
-            .and_then(|realm_id| state.realms.get(realm_id));
-        let meta = Meta {
+        let mut meta = Meta {
             author_name: user.name.as_str(),
             author_filters: user.filters.noise.clone(),
             viewer_blocked: state
                 .principal_to_user(caller())
                 .map(|viewer| user.blacklist.contains(&viewer.id))
                 .unwrap_or_default(),
-            realm_color: realm.map(|realm| realm.label_color.as_str()),
-            nsfw: realm.map(|realm| realm.adult_content).unwrap_or_default(),
+            ..Default::default()
+        };
+        if let Some(realm) = self
+            .realm
+            .as_ref()
+            .and_then(|realm_id| state.realms.get(realm_id))
+        {
+            meta.nsfw = realm.adult_content;
+            meta.realm_color = Some(realm.label_color.as_str());
+            meta.max_downvotes_reached = self.downvotes() > realm.max_downvotes;
         };
         (self, meta)
     }
@@ -756,6 +763,13 @@ impl Post {
         }
 
         Post::save(state, post);
+    }
+
+    fn downvotes(&self) -> u32 {
+        self.reactions
+            .get(&DOWNVOTE_REACTION_ID)
+            .map(|r| r.len())
+            .unwrap_or_default() as u32
     }
 }
 
