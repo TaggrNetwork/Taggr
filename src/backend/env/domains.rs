@@ -5,6 +5,7 @@ use crate::assets;
 use super::{
     config::CONFIG,
     post::Post,
+    realms::validate_realm_id,
     user::{CreditsDelta, UserId},
     RealmId, State,
 };
@@ -52,16 +53,13 @@ impl DomainConfig {
             }
             DomainSubConfig::WhiteListedRealms(realms)
             | DomainSubConfig::BlackListedRealms(realms) => {
-                let max_realm_number = 15;
+                let max_realm_number = 100;
                 if realms.len() > max_realm_number {
                     return Err("realm list too long".into());
                 }
 
-                if realms
-                    .iter()
-                    .any(|realm_id| realm_id.len() > CONFIG.max_realm_name)
-                {
-                    return Err("realm name too long".into());
+                for realm_id in realms {
+                    validate_realm_id(realm_id)?;
                 }
 
                 Ok(())

@@ -164,7 +164,7 @@ const DomainForm = ({
                         This domain will only display posts from the realms that
                         are white-listed below.
                     </p>
-                    WHITE-LIST (comma-separated):
+                    WHITE-LIST (one per line):
                     <textarea
                         className="small_text bottom_spaced top_half_spaced"
                         value={whitelist}
@@ -179,7 +179,7 @@ const DomainForm = ({
                         This domain will only display all posts except from the
                         realms that are black-listed below.
                     </p>
-                    BLACK-LIST (comma-separated):
+                    BLACK-LIST (one per line):
                     <textarea
                         className="small_text bottom_spaced top_half_spaced"
                         value={blacklist}

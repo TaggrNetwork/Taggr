@@ -15,6 +15,29 @@ use super::{
 
 pub type RealmId = String;
 
+pub fn validate_realm_id(realm_id: &str) -> Result<(), String> {
+    if realm_id.len() > CONFIG.max_realm_name {
+        return Err(format!("realm name too long: {realm_id}"));
+    }
+
+    if realm_id
+        .chars()
+        .any(|c| !char::is_alphanumeric(c) && c != '_' && c != '-')
+    {
+        return Err(format!(
+            "realm name should be an alpha-numeric string: {realm_id}"
+        ));
+    }
+
+    if realm_id.chars().all(|c| char::is_ascii_digit(&c)) {
+        return Err(format!(
+            "realm name should have at least one character: {realm_id}"
+        ));
+    }
+
+    Ok(())
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct Realm {
     pub cleanup_penalty: Credits,
@@ -87,20 +110,7 @@ pub fn create_realm(
         return Err("no controllers specified".into());
     }
 
-    if realm_id.len() > CONFIG.max_realm_name {
-        return Err("realm name too long".into());
-    }
-
-    if realm_id
-        .chars()
-        .any(|c| !char::is_alphanumeric(c) && c != '_' && c != '-')
-    {
-        return Err("realm name should be an alpha-numeric string".into());
-    }
-
-    if realm_id.chars().all(|c| char::is_ascii_digit(&c)) {
-        return Err("realm name should have at least on character".into());
-    }
+    validate_realm_id(&realm_id)?;
 
     if CONFIG.name.to_lowercase() == realm_id.to_lowercase() || state.realms.contains_key(&realm_id)
     {
