@@ -323,7 +323,10 @@ impl State {
         if self.backup_exists {
             return;
         }
+        // Don't back up invite codes.
+        let invites = std::mem::take(&mut self.invite_codes);
         memory::heap_to_stable(self);
+        self.invite_codes = invites;
         self.memory.init();
         self.backup_exists = true;
         self.logger.debug("Backup created");
