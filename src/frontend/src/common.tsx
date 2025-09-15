@@ -1262,6 +1262,8 @@ export function postAllowed(post: Post) {
     const config = window.backendCache.domains[domain()];
     if (!config) return true;
 
+    if (post.meta.max_downvotes_reached) return false;
+
     const downvoteId = 1;
     const downvotes = post.reactions[downvoteId]?.length;
     if (downvotes > config.max_downvotes) return false;
