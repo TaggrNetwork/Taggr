@@ -122,9 +122,8 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         if (!metadata) return <></>;
         return (
             <span key={token} className="right_spaced">
-                <code>{metadata.symbol}</code>
-                &nbsp;
                 <img
+                    className="right_half_spaced"
                     style={{
                         height: 32,
                         width: 32,
@@ -132,6 +131,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                     }}
                     src={metadata.logo || icpSwapLogoFallback(token)}
                 />
+                <code>{metadata.symbol}</code>
             </span>
         );
     };
@@ -365,76 +365,6 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                     )}
                 </div>
 
-                <div className="column_container bottom_spaced">
-                    <div className="bottom_half_spaced">
-                        Tokens{" "}
-                        {realm.tokens?.length &&
-                            realm.tokens.map((token) => realmTokenInfo(token))}
-                    </div>
-                    {Object.keys(canistersMetaData).length > 0 && (
-                        <div className="row_container">
-                            <TokenSelect
-                                classNameArg="max_width_col"
-                                canisters={Object.keys(canistersMetaData).map(
-                                    (canisterId) => [
-                                        canisterId,
-                                        canistersMetaData[canisterId],
-                                    ],
-                                )}
-                                onSelectionChange={(canisterId) => {
-                                    realm.tokens = [
-                                        ...(realm.tokens || []),
-                                        canisterId,
-                                    ];
-                                    setRealm({ ...realm });
-                                }}
-                            />
-                            &nbsp;
-                            <input
-                                className="max_width_col"
-                                type="text"
-                                defaultValue={realm.tokens?.toString() || ""}
-                                onBlur={async (e) => {
-                                    const canisterIds =
-                                        e.target.value
-                                            ?.split(",")
-                                            .filter(Boolean) || [];
-                                    try {
-                                        canisterIds.forEach(
-                                            (canisterId) =>
-                                                canisterId &&
-                                                Principal.fromText(canisterId),
-                                        ); // Try catch
-                                        const metadata =
-                                            await getCanistersMetaData(
-                                                canisterIds,
-                                            );
-                                        if (!metadata) {
-                                            return alert(
-                                                "Could not find canister metadata",
-                                            );
-                                        }
-                                        realm.tokens = [...canisterIds];
-
-                                        canisterIds.forEach((canisterId) => {
-                                            canistersMetaData[canisterId] =
-                                                metadata.get(
-                                                    canisterId,
-                                                ) as Icrc1Canister;
-                                        });
-                                        setCanisterMetaData({
-                                            ...canistersMetaData,
-                                        });
-                                        setRealm({ ...realm });
-                                    } catch (e) {
-                                        return alert(e);
-                                    }
-                                }}
-                            />
-                        </div>
-                    )}
-                </div>
-
                 {whitelist.length == 0 && (
                     <>
                         <div className="column_container bottom_spaced">
@@ -526,6 +456,78 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         >
                             Allow commenting to everyone
                         </label>
+                    </div>
+                </div>
+                <hr />
+
+                <h2>Tokens enabled for tipping</h2>
+                <div className="column_container ">
+                    {Object.keys(canistersMetaData).length > 0 && (
+                        <div className="column_container ">
+                            <TokenSelect
+                                classNameArg="max_width_col"
+                                canisters={Object.keys(canistersMetaData).map(
+                                    (canisterId) => [
+                                        canisterId,
+                                        canistersMetaData[canisterId],
+                                    ],
+                                )}
+                                onSelectionChange={(canisterId) => {
+                                    if (realm.tokens?.includes(canisterId)) {
+                                        return;
+                                    }
+                                    realm.tokens = [
+                                        ...(realm.tokens || []),
+                                        canisterId,
+                                    ];
+                                    setRealm({ ...realm });
+                                }}
+                            />
+                            <input
+                                type="hidden"
+                                defaultValue={realm.tokens?.toString() || ""}
+                                onBlur={async (e) => {
+                                    const canisterIds =
+                                        e.target.value
+                                            ?.split(",")
+                                            .filter(Boolean) || [];
+                                    try {
+                                        canisterIds.forEach(
+                                            (canisterId) =>
+                                                canisterId &&
+                                                Principal.fromText(canisterId),
+                                        ); // Try catch
+                                        const metadata =
+                                            await getCanistersMetaData(
+                                                canisterIds,
+                                            );
+                                        if (!metadata) {
+                                            return alert(
+                                                "Could not find canister metadata",
+                                            );
+                                        }
+                                        realm.tokens = [...canisterIds];
+
+                                        canisterIds.forEach((canisterId) => {
+                                            canistersMetaData[canisterId] =
+                                                metadata.get(
+                                                    canisterId,
+                                                ) as Icrc1Canister;
+                                        });
+                                        setCanisterMetaData({
+                                            ...canistersMetaData,
+                                        });
+                                        setRealm({ ...realm });
+                                    } catch (e) {
+                                        return alert(e);
+                                    }
+                                }}
+                            />
+                        </div>
+                    )}
+                    <div className="top_spaced vertically_aligned">
+                        {realm.tokens?.length &&
+                            realm.tokens.map((token) => realmTokenInfo(token))}
                     </div>
                 </div>
                 <hr />

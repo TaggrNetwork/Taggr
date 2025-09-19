@@ -105,7 +105,7 @@ export const TokenSelect = ({
         >
             {!selectedCanisterId && (
                 <option key={"main-option"} value={""}>
-                    {""}
+                    SELECT TOKEN
                 </option>
             )}
             {mainCanisters.length > 0 && renderOptions(mainCanisters, "Main")}
