@@ -905,16 +905,6 @@ const PostInfo = ({
                             {commaSeparated(
                                 externalTips.map((tip) => (
                                     <span key={tip.canister_id + tip.index}>
-                                        <code>
-                                            {shortenTokensAmount(
-                                                tip.amount,
-                                                canistersMetaData[
-                                                    tip.canister_id
-                                                ]?.decimals || 0,
-                                            )}
-                                            {canistersMetaData[tip.canister_id]
-                                                ?.symbol || ""}
-                                        </code>
                                         <img
                                             src={
                                                 canistersMetaData[
@@ -924,9 +914,19 @@ const PostInfo = ({
                                                     tip.canister_id,
                                                 )
                                             }
-                                            className="vertically_aligned "
+                                            className="vertically_aligned right_half_spaced"
                                             style={{ height: 16 }}
-                                        />{" "}
+                                        />
+                                        <code>
+                                            {shortenTokensAmount(
+                                                tip.amount,
+                                                canistersMetaData[
+                                                    tip.canister_id
+                                                ]?.decimals || 0,
+                                            )}{" "}
+                                            {canistersMetaData[tip.canister_id]
+                                                ?.symbol || ""}{" "}
+                                        </code>
                                         from{" "}
                                         {
                                             <UserLink
@@ -1341,7 +1341,7 @@ const TippingPopup = ({
         );
     };
 
-    const finalizeTip = async () => {
+    const finalizeTip = async (popUpCallback: () => void) => {
         try {
             const canisterId = selectedTippingCanisterId;
             const canister = canistersMetaData[canisterId];
@@ -1369,59 +1369,9 @@ const TippingPopup = ({
                 return showPopUp("error", "Could not load post author data.");
 
             const { token_symbol } = window.backendCache.config;
-            if (canister.symbol !== token_symbol) {
-                let transId = await window.api.icrc_transfer(
-                    Principal.fromText(canisterId),
-                    Principal.fromText(postAuthor.principal),
-                    amount,
-                    canister.fee,
-                    numberToUint8Array(post.id),
-                );
 
-                if (Number.isNaN(transId as number)) {
-                    throw new Error(
-                        transId.toString() ||
-                            "Something went wrong with transfer!",
-                    );
-                }
-
-                const optimisticPostTip: PostTip = {
-                    amount,
-                    canister_id: canisterId,
-                    index: Number(transId),
-                    sender_id: window.user.id,
-                };
-                setExternalTips([...externalTips, optimisticPostTip]);
-
-                let addTipResponse = await window.api.call<{
-                    Ok: PostTip;
-                    Err: string;
-                }>(
-                    "add_external_icrc_transaction",
-                    canisterId,
-                    Number(transId),
-                    post.id,
-                );
-                if ("Err" in (addTipResponse || {}) || !addTipResponse) {
-                    setExternalTips(
-                        externalTips.filter(
-                            ({ canister_id, index }) =>
-                                index !== optimisticPostTip.index ||
-                                canisterId !== canister_id,
-                        ),
-                    );
-                    throw new Error(
-                        addTipResponse?.Err || "Could not add tip to post.",
-                    );
-                }
-
-                setExternalTips([
-                    ...externalTips.filter(
-                        ({ index }) => index !== Number(transId),
-                    ),
-                    addTipResponse.Ok,
-                ]);
-            } else {
+            // Native token tipping
+            if (canister.symbol === token_symbol) {
                 let response = await window.api.call<any>(
                     "tip",
                     post.id,
@@ -1430,7 +1380,62 @@ const TippingPopup = ({
                 if ("Err" in response) {
                     throw new Error(response.Err);
                 } else await callback();
+                return;
             }
+
+            // ICRC-1 token tipping
+            let transId = await window.api.icrc_transfer(
+                Principal.fromText(canisterId),
+                Principal.fromText(postAuthor.principal),
+                amount,
+                canister.fee,
+                numberToUint8Array(post.id),
+            );
+
+            if (Number.isNaN(transId as number)) {
+                throw new Error(
+                    transId.toString() || "Something went wrong with transfer!",
+                );
+            }
+
+            const optimisticPostTip: PostTip = {
+                amount,
+                canister_id: canisterId,
+                index: Number(transId),
+                sender_id: window.user.id,
+            };
+            setExternalTips([...externalTips, optimisticPostTip]);
+
+            popUpCallback();
+
+            let addTipResponse = await window.api.call<{
+                Ok: PostTip;
+                Err: string;
+            }>(
+                "add_external_icrc_transaction",
+                canisterId,
+                Number(transId),
+                post.id,
+            );
+            if ("Err" in (addTipResponse || {}) || !addTipResponse) {
+                setExternalTips(
+                    externalTips.filter(
+                        ({ canister_id, index }) =>
+                            index !== optimisticPostTip.index ||
+                            canisterId !== canister_id,
+                    ),
+                );
+                throw new Error(
+                    addTipResponse?.Err || "Could not add tip to post.",
+                );
+            }
+
+            setExternalTips([
+                ...externalTips.filter(
+                    ({ index }) => index !== Number(transId),
+                ),
+                addTipResponse.Ok,
+            ]);
         } catch (e: any) {
             return showPopUp("error", e?.message || e);
         }
@@ -1467,10 +1472,7 @@ const TippingPopup = ({
             <ButtonWithLoading
                 classNameArg="active"
                 label={"SEND"}
-                onClick={async () => {
-                    finalizeTip();
-                    parentCallback && parentCallback();
-                }}
+                onClick={() => finalizeTip(parentCallback || (() => {}))}
             />
         </div>
     );
