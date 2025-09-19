@@ -64,7 +64,7 @@ code {
     margin-top: 1em;
     padding: 1em;
     border-radius: 15px;
-    background: $dark_background;
+    background: $background;
     overflow: scroll;
     max-height: 90vh;
     z-index: 1000;
