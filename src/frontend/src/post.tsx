@@ -1454,10 +1454,11 @@ const TippingPopup = ({
             <input
                 className="bottom_spaced"
                 type="number"
+                min="0"
                 value={tippingAmount}
                 onChange={async (e) => {
                     const amount = Number(e.target.value);
-                    if (isNaN(amount)) {
+                    if (isNaN(amount) || amount <= 0) {
                         return;
                     }
                     setTippingAmount(amount);
