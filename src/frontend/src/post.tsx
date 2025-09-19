@@ -64,7 +64,12 @@ import {
     User,
     UserId,
 } from "./types";
-import { UserLink, UserList, populateUserNameCache } from "./user_resolve";
+import {
+    UserLink,
+    UserList,
+    populateUserNameCache,
+    validUserId,
+} from "./user_resolve";
 import { CANISTER_ID } from "./env";
 import { TokenSelect } from "./token-select";
 
@@ -699,33 +704,35 @@ const PostInfo = ({
                                 testId="pin-post"
                             />
                         )}
-                        {!postAuthor && onCanonicalDomain() && (
-                            <>
-                                <ButtonWithLoading
-                                    title="Tip"
-                                    label={<Coin />}
-                                    classNameArg="max_width_col"
-                                    onClick={async () =>
-                                        popUp(
-                                            <TippingPopup
-                                                post={post}
-                                                allowedTippingCanisterIds={
-                                                    allowedTippingCanisterIds
-                                                }
-                                                canistersMetaData={
-                                                    canistersMetaData
-                                                }
-                                                externalTips={externalTips}
-                                                setExternalTips={
-                                                    setExternalTips
-                                                }
-                                                callback={callback}
-                                            />,
-                                        )
-                                    }
-                                />
-                            </>
-                        )}
+                        {!postAuthor &&
+                            onCanonicalDomain() &&
+                            validUserId(post.user) && (
+                                <>
+                                    <ButtonWithLoading
+                                        title="Tip"
+                                        label={<Coin />}
+                                        classNameArg="max_width_col"
+                                        onClick={async () =>
+                                            popUp(
+                                                <TippingPopup
+                                                    post={post}
+                                                    allowedTippingCanisterIds={
+                                                        allowedTippingCanisterIds
+                                                    }
+                                                    canistersMetaData={
+                                                        canistersMetaData
+                                                    }
+                                                    externalTips={externalTips}
+                                                    setExternalTips={
+                                                        setExternalTips
+                                                    }
+                                                    callback={callback}
+                                                />,
+                                            )
+                                        }
+                                    />
+                                </>
+                            )}
                         {realmController && isRoot(post) && (
                             <ButtonWithLoading
                                 title="Remove from realm"
