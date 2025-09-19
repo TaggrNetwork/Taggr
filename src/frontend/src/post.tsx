@@ -1468,7 +1468,7 @@ const TippingPopup = ({
                 classNameArg="active"
                 label={"SEND"}
                 onClick={async () => {
-                    await finalizeTip();
+                    finalizeTip();
                     parentCallback && parentCallback();
                 }}
             />
