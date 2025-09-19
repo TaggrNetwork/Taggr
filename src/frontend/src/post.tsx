@@ -326,7 +326,16 @@ export const PostView = ({
                         NSFW
                     </div>
                 )}
-                {notAllowed && <NotAllowed />}
+                {notAllowed && (
+                    <NotAllowed
+                        // @ts-ignore: realm can't be empty if meta flag is set
+                        where={
+                            post.meta.max_downvotes_reached
+                                ? post.realm
+                                : domain()
+                        }
+                    />
+                )}
                 {deleted && (
                     <div className="deleted small_text">
                         <h3>Post deleted</h3>

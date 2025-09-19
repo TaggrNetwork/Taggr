@@ -5,6 +5,7 @@ use crate::assets;
 use super::{
     config::CONFIG,
     post::Post,
+    realms::validate_realm_id,
     user::{CreditsDelta, UserId},
     RealmId, State,
 };
@@ -52,16 +53,13 @@ impl DomainConfig {
             }
             DomainSubConfig::WhiteListedRealms(realms)
             | DomainSubConfig::BlackListedRealms(realms) => {
-                let max_realm_number = 15;
+                let max_realm_number = 100;
                 if realms.len() > max_realm_number {
                     return Err("realm list too long".into());
                 }
 
-                if realms
-                    .iter()
-                    .any(|realm_id| realm_id.len() > CONFIG.max_realm_name)
-                {
-                    return Err("realm name too long".into());
+                for realm_id in realms {
+                    validate_realm_id(realm_id)?;
                 }
 
                 Ok(())
@@ -166,7 +164,7 @@ pub fn change_domain_config(
                 )?;
 
             cfg.owner = Some(caller_id);
-            cfg.max_downvotes = CONFIG.default_max_downvotes_for_domains;
+            cfg.max_downvotes = CONFIG.default_max_downvotes;
             state.domains.insert(domain, cfg)
         }
         "remove" => state.domains.remove(&domain),
@@ -495,7 +493,7 @@ mod tests {
 
             // Add more than 15 realms to whitelist
             let mut oversized_whitelist = HashSet::new();
-            for i in 1..=16 {
+            for i in 1..=101 {
                 oversized_whitelist.insert(format!("REALM{}", i));
             }
             oversized_config.sub_config = DomainSubConfig::WhiteListedRealms(oversized_whitelist);
@@ -514,7 +512,7 @@ mod tests {
 
             // Reset and create oversized blacklist
             let mut oversized_blacklist = HashSet::new();
-            for i in 1..=16 {
+            for i in 1..=101 {
                 oversized_blacklist.insert(format!("REALM{}", i));
             }
             oversized_config.sub_config = DomainSubConfig::BlackListedRealms(oversized_blacklist);

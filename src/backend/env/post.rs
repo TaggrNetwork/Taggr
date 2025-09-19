@@ -1,5 +1,6 @@
 use std::cmp::{Ordering, PartialOrd};
 
+use super::config::DOWNVOTE_REACTION_ID;
 use super::*;
 use super::{storage::Storage, user::UserId};
 use crate::env::tip::Tip;
@@ -50,13 +51,15 @@ pub enum Extension {
     Feature,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Meta<'a> {
     author_name: &'a str,
     author_filters: UserFilter,
     viewer_blocked: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     realm_color: Option<&'a str>,
     pub nsfw: bool,
+    max_downvotes_reached: bool,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -160,19 +163,23 @@ impl Post {
     /// Returns the post with some meta information needed by the UI.
     pub fn with_meta<'a>(&'a self, state: &'a State) -> (&'_ Self, Meta<'_>) {
         let user = state.users.get(&self.user).expect("no user found");
-        let realm = self
-            .realm
-            .as_ref()
-            .and_then(|realm_id| state.realms.get(realm_id));
-        let meta = Meta {
+        let mut meta = Meta {
             author_name: user.name.as_str(),
             author_filters: user.filters.noise.clone(),
             viewer_blocked: state
                 .principal_to_user(caller())
                 .map(|viewer| user.blacklist.contains(&viewer.id))
                 .unwrap_or_default(),
-            realm_color: realm.map(|realm| realm.label_color.as_str()),
-            nsfw: realm.map(|realm| realm.adult_content).unwrap_or_default(),
+            ..Default::default()
+        };
+        if let Some(realm) = self
+            .realm
+            .as_ref()
+            .and_then(|realm_id| state.realms.get(realm_id))
+        {
+            meta.nsfw = realm.adult_content;
+            meta.realm_color = Some(realm.label_color.as_str());
+            meta.max_downvotes_reached = self.downvotes() > realm.max_downvotes;
         };
         (self, meta)
     }
@@ -743,15 +750,31 @@ impl Post {
         let Ok(mut post) = Post::take(state, &id) else {
             return;
         };
-        let encrypt = !post.encrypted;
-        post.body = xor(&post.body, seed, encrypt);
-        post.patches = post
-            .patches
-            .into_iter()
-            .map(|(t, patch)| (t, xor(patch.as_str(), seed, encrypt)))
-            .collect();
-        post.encrypted = encrypt;
+
+        // We never encrypt feature requests and proposals, as they are supposed to be public.
+        let skip = matches!(
+            post.extension,
+            Some(Extension::Feature) | Some(Extension::Proposal(_))
+        );
+        if !skip {
+            let encrypt = !post.encrypted;
+            post.body = xor(&post.body, seed, encrypt);
+            post.patches = post
+                .patches
+                .into_iter()
+                .map(|(t, patch)| (t, xor(patch.as_str(), seed, encrypt)))
+                .collect();
+            post.encrypted = encrypt;
+        }
+
         Post::save(state, post);
+    }
+
+    fn downvotes(&self) -> u32 {
+        self.reactions
+            .get(&DOWNVOTE_REACTION_ID)
+            .map(|r| r.len())
+            .unwrap_or_default() as u32
     }
 }
 
@@ -1241,5 +1264,92 @@ mod tests {
         assert!(p
             .valid(vec![("abcdefgh".to_string(), Default::default())].as_slice())
             .is_err());
+    }
+
+    #[test]
+    fn test_post_crypt() {
+        mutate(|state| {
+            let p = pr(0);
+            create_user(state, p);
+            state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .change_credits(2000, CreditsDelta::Plus, "")
+                .unwrap();
+
+            // Test normal post encryption/decryption
+            let id =
+                Post::create(state, "Hello world!".into(), &[], p, 0, None, None, None).unwrap();
+
+            // Add a patch to test patch encryption
+            Post::mutate(state, &id, |post| {
+                post.patches.push((1, "This is a patch".to_string()));
+                Ok(())
+            })
+            .unwrap();
+
+            let original_body = Post::get(state, &id).unwrap().body.clone();
+            let original_patch = Post::get(state, &id).unwrap().patches[0].1.clone();
+            assert!(!Post::get(state, &id).unwrap().encrypted);
+
+            // Test encryption
+            Post::crypt(state, id, "test_seed");
+            let post = Post::get(state, &id).unwrap();
+            assert!(post.encrypted);
+            assert_ne!(post.body, original_body);
+            assert_ne!(post.patches[0].1, original_patch);
+
+            // Test decryption
+            Post::crypt(state, id, "test_seed");
+            let post = Post::get(state, &id).unwrap();
+            assert!(!post.encrypted);
+            assert_eq!(post.body, original_body);
+            assert_eq!(post.patches[0].1, original_patch);
+
+            // Test feature post is not encrypted
+            let feature_id = Post::create(
+                state,
+                "Feature request".into(),
+                &[],
+                p,
+                1,
+                None,
+                None,
+                Some(Extension::Feature),
+            )
+            .unwrap();
+
+            let feature_body = Post::get(state, &feature_id).unwrap().body.clone();
+            assert!(!Post::get(state, &feature_id).unwrap().encrypted);
+
+            Post::crypt(state, feature_id, "test_seed");
+            let post = Post::get(state, &feature_id).unwrap();
+            assert!(!post.encrypted);
+            assert_eq!(post.body, feature_body);
+
+            // Test proposal post is not encrypted
+            let proposal_id = Post::create(
+                state,
+                "Proposal content".into(),
+                &[],
+                p,
+                2,
+                None,
+                None,
+                Some(Extension::Proposal(123)),
+            )
+            .unwrap();
+
+            let proposal_body = Post::get(state, &proposal_id).unwrap().body.clone();
+            assert!(!Post::get(state, &proposal_id).unwrap().encrypted);
+
+            Post::crypt(state, proposal_id, "test_seed");
+            let post = Post::get(state, &proposal_id).unwrap();
+            assert!(!post.encrypted);
+            assert_eq!(post.body, proposal_body);
+
+            // Test with non-existent post ID (should not panic)
+            Post::crypt(state, 999, "test_seed");
+        });
     }
 }
