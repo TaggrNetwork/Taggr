@@ -7,6 +7,20 @@ const TerserPlugin = require("terser-webpack-plugin");
 const isDevelopment = process.env.NODE_ENV !== "production";
 const NETWORK = process.env.DFX_NETWORK || (isDevelopment ? "local" : "ic");
 
+function getDfxPort() {
+    try {
+        const { execSync } = require("child_process");
+        const port = execSync("dfx info webserver-port", {
+            encoding: "utf8",
+        }).trim();
+        return port;
+    } catch (error) {
+        throw new Error(
+            'Could not get DFX webserver port. Make sure DFX is running with "dfx start"',
+        );
+    }
+}
+
 function initCanisterEnv() {
     let localCanisters, prodCanisters;
     try {
@@ -170,11 +184,12 @@ module.exports = {
         }),
     ],
     devServer: {
-        host: "localhost",
+        host: "0.0.0.0",
+        allowedHosts: 'all',
         proxy: [
             {
                 context: ["/api"],
-                target: "http://127.0.0.1:8080",
+                target: `http://127.0.0.1:${getDfxPort()}`,
                 changeOrigin: true,
                 pathRewrite: {
                     "^/api": "/api",

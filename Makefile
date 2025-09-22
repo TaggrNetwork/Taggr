@@ -1,6 +1,9 @@
 start:
 	ulimit -n 65000 && dfx start --background -qqqq 2>&1 | grep -v sgymv &
 
+cycles:
+	dfx --identity local-minter ledger fabricate-cycles --all --cycles 1000000000000000
+
 staging_deploy:
 	NODE_ENV=production DFX_NETWORK=$(if $(CANISTER),$(CANISTER),staging) make fe
 	FEATURES=staging dfx build

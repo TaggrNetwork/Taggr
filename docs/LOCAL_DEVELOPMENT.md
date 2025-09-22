@@ -82,6 +82,8 @@ make dev_build
 make local_reinstall
 ```
 
+Use `make cycles` to fabricate cycles for the canister.
+
 Install NNS canisters (see the [DFX docs](https://github.com/dfinity/sdk/blob/master/docs/cli-reference/dfx-nns.md)):
 
 ```shell
@@ -106,7 +108,7 @@ EOF
 Import the key into DFX:
 
 ```shell
-dfx identity import local-minter ~/.config/dfx/local-minter.pem
+dfx identity import local-minter --disable-encryption ~/.config/dfx/local-minter.pem
 ```
 
 Change to the new identity in DFX:
