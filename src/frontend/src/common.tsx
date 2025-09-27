@@ -536,10 +536,16 @@ export const ICPAccountBalance = ({
 }) => {
     const [e8s, setE8s] = React.useState(0 as unknown as BigInt);
     const loadData = async () => {
-        const value = await (typeof address == "string"
-            ? window.api.icp_account_balance(address)
-            : window.api.account_balance(ICP_LEDGER_ID, { owner: address }));
-        setE8s(value);
+        try {
+            const value = await (typeof address == "string"
+                ? window.api.icp_account_balance(address)
+                : window.api.account_balance(ICP_LEDGER_ID, {
+                      owner: address,
+                  }));
+            setE8s(value);
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     React.useEffect(() => {
