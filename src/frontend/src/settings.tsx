@@ -165,7 +165,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         } else if (nameChange) location.href = "/";
         else if (uiRefresh) {
             await window.reloadUser();
-            window.uiInitialized = false;
+            window.resetUI();
             window.setUI();
             updateData(window.user);
         }
