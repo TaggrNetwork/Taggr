@@ -15,9 +15,7 @@ function getDfxPort() {
         }).trim();
         return port;
     } catch (error) {
-        throw new Error(
-            'Could not get DFX webserver port. Make sure DFX is running with "dfx start"',
-        );
+        return "8080";
     }
 }
 
@@ -185,7 +183,7 @@ module.exports = {
     ],
     devServer: {
         host: "0.0.0.0",
-        allowedHosts: 'all',
+        allowedHosts: "all",
         proxy: [
             {
                 context: ["/api"],
