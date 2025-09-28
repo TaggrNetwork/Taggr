@@ -580,8 +580,12 @@ impl State {
     }
 
     pub fn init(&mut self) {
-        self.domains
-            .insert("localhost".into(), DomainConfig::default());
+        #[cfg(any(feature = "dev", test))]
+        {
+            self.domains
+                .insert("localhost".into(), DomainConfig::default());
+        }
+
         assets::load(&self.domains);
         match token::balances_from_ledger(&mut self.memory.ledger.iter().map(|(_, tx)| tx)) {
             Ok((balances, total_fees)) => {
