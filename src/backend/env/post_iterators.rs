@@ -47,7 +47,7 @@ impl<'a, T: Ord> Ord for DelayedIterator<'a, T> {
 
 impl<'a, T: Ord> PartialOrd for DelayedIterator<'a, T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.peek().cmp(&other.peek()))
+        Some(self.cmp(other))
     }
 }
 
@@ -111,7 +111,7 @@ impl<'a, T: Clone + Ord> IteratorMerger<'a, T> {
         let more = iter.advance()?;
         self.values.insert(more);
 
-        return self.next_and();
+        self.next_and()
     }
 
     fn next_or(&mut self) -> Option<&'a T> {

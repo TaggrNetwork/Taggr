@@ -2,7 +2,6 @@
 members = [
     "src/backend",
     "src/bucket",
-    "tests",
 ]
 
 [profile.release]

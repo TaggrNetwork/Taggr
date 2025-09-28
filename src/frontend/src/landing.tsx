@@ -1,7 +1,7 @@
 import * as React from "react";
 import { PostFeed } from "./post_feed";
 import { Search } from "./search";
-import { bigScreen, currentRealm, domain, Loading, showPopUp } from "./common";
+import { bigScreen, currentRealm, domain, showPopUp } from "./common";
 import {
     New,
     User,
@@ -103,9 +103,6 @@ export const Landing = () => {
                 <Links classNameArg="vertically_spaced" />
             )}
             <Search />
-            {user && user.settings.tagCloud == "true" && (
-                <TagCloud heartbeat={feed} realm={realm} />
-            )}
             <PostFeed
                 heartbeat={feed + filtered}
                 refreshRateSecs={10 * 60}
@@ -153,85 +150,6 @@ export const Landing = () => {
                 }}
             />
         </>
-    );
-};
-
-export const TagCloud = ({
-    heartbeat,
-    realm,
-}: {
-    heartbeat: any;
-    realm: string;
-}) => {
-    const tagsToDisplay = bigScreen() ? 60 : 30;
-
-    const shuffle = (array: any[], seed = 1) => {
-        const seededRandom = (max: number) => {
-            // Simple LCG (Linear Congruential Generator)
-            seed = (seed * 1664525 + 1013904223) % 2147483648;
-            return (seed / 2147483648) * max;
-        };
-
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(seededRandom(i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-        return array;
-    };
-
-    const [tags, setTags] = React.useState<[string, number][]>();
-    const loadTags = async () => {
-        // We only load tags inside realms, otherwise we use the backend cache.
-        let tags = realm
-            ? (await window.api.query<[string, number][]>(
-                  "recent_tags",
-                  domain(),
-                  realm,
-                  200,
-              )) || []
-            : window.backendCache.recent_tags;
-        tags.sort((a, b) => (a[1] > b[1] ? -1 : 1));
-        tags = shuffle(tags.slice(0, tagsToDisplay));
-        const occurences = tags.map(([_, N]) => Number(N));
-        const max = Math.max(...occurences);
-        const min = Math.min(...occurences);
-        tags = tags.map(([tag, N]) => [tag, (N - min) / (max - min)]);
-
-        setTags(tags);
-    };
-    React.useEffect(() => {
-        loadTags();
-    }, [heartbeat]);
-    if (tags == null) return <Loading />;
-    if (tags.length == 0) return null;
-    return (
-        <div id="tag_cloud" className="row_container top_spaced">
-            {tags.map(([tag, scale]) => {
-                const shiftGrade = 20;
-                const vertShift =
-                    scale < 0.5
-                        ? Math.floor(Math.random() * shiftGrade) -
-                          shiftGrade / 2
-                        : 0;
-                return (
-                    <a
-                        key={tag}
-                        className="tag"
-                        href={`#/feed/${tag}`}
-                        style={{
-                            position: "relative",
-                            bottom: `${vertShift}px`,
-                            transform: `scale(${3 * scale + 0.6})`,
-                            margin: `${scale * 1.2}rem`,
-                            opacity: `${0.5 + scale * 0.5}`,
-                            zIndex: Math.ceil(scale * 10),
-                        }}
-                    >
-                        {tag}
-                    </a>
-                );
-            })}
-        </div>
     );
 };
 

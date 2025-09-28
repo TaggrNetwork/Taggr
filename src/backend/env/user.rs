@@ -738,11 +738,9 @@ pub async fn create_user(
     if paid_icp_invoice {
         State::mint_credits_with_icp(principal, 0)
             .await
-            .map(|_| (None))
+            .map(|_| None)
     } else {
-        State::mint_credits_with_btc(principal)
-            .await
-            .map(|_| (None))
+        State::mint_credits_with_btc(principal).await.map(|_| None)
     }
 }
 

@@ -1,6 +1,9 @@
 start:
 	ulimit -n 65000 && dfx start --background -qqqq 2>&1 | grep -v sgymv &
 
+cycles:
+	dfx --identity local-minter ledger fabricate-cycles --all --cycles 1000000000000000
+
 staging_deploy:
 	NODE_ENV=production DFX_NETWORK=$(if $(CANISTER),$(CANISTER),staging) make fe
 	FEATURES=staging dfx build
@@ -27,11 +30,8 @@ test:
 	make e2e_build
 	make local_deploy
 	cargo clippy --tests --benches -- -D clippy::all
-	POCKET_IC_MUTE_SERVER=true cargo test -- --test-threads 1
+	cargo test -- --test-threads 1
 	npm run test:e2e
-
-pocket_ic:
-	cd tests && ./download-pocket-ic.sh
 
 fe:
 	npm run build --quiet

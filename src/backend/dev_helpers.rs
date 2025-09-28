@@ -4,7 +4,7 @@ use super::*;
 use crate::env::post::Post;
 use crate::env::token::mint;
 use crate::env::user::UserId;
-use ic_cdk::{caller, spawn};
+use ic_cdk::spawn;
 use ic_cdk_macros::{query, update};
 use ic_cdk_timers::set_timer;
 use serde_bytes::ByteBuf;
@@ -104,15 +104,6 @@ fn replace_user_principal(principal: Principal, user_id: UserId) {
         let user = state.principal_to_user_mut(principal).unwrap();
         user.principal = principal;
     });
-}
-
-#[update]
-fn create_test_user(name: String) -> u64 {
-    mutate(|state| {
-        state
-            .new_test_user(caller(), time(), name.clone(), Some(1_000_000_000))
-            .unwrap()
-    })
 }
 
 #[update]

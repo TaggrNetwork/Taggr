@@ -39,38 +39,25 @@ export const Domains = ({}) => {
             />
             <h2>Taggr domains</h2>
             <ul>
-                {Object.entries(domainConfigs || {}).map(([domain, cfg]) => (
-                    <li key={domain}>
-                        <a href={`https://${domain}`}>{domain}</a>
-                        <ul>
-                            <li>
-                                Owner:{" "}
-                                {cfg.owner == null ? (
-                                    "DAO"
-                                ) : (
-                                    <UserLink id={cfg.owner} pfp={false} />
-                                )}
-                            </li>
-                            {"WhiteListedRealms" in cfg.sub_config && (
+                {Object.entries(domainConfigs || {})
+                    .filter(([domain]) => domain != "localhost")
+                    .map(([domain, cfg]) => (
+                        <li key={domain}>
+                            <a href={`https://${domain}`}>{domain}</a>
+                            <ul>
                                 <li>
-                                    White-listed realms:{" "}
-                                    {commaSeparated(
-                                        cfg.sub_config.WhiteListedRealms.map(
-                                            (id) => (
-                                                <a
-                                                    href={`#/realm/${id}`}
-                                                >{`/${id}`}</a>
-                                            ),
-                                        ),
+                                    Owner:{" "}
+                                    {cfg.owner == null ? (
+                                        "DAO"
+                                    ) : (
+                                        <UserLink id={cfg.owner} pfp={false} />
                                     )}
                                 </li>
-                            )}
-                            {"BlackListedRealms" in cfg.sub_config &&
-                                cfg.sub_config.BlackListedRealms.length > 0 && (
+                                {"WhiteListedRealms" in cfg.sub_config && (
                                     <li>
-                                        Black-listed realms:{" "}
+                                        White-listed realms:{" "}
                                         {commaSeparated(
-                                            cfg.sub_config.BlackListedRealms.map(
+                                            cfg.sub_config.WhiteListedRealms.map(
                                                 (id) => (
                                                     <a
                                                         href={`#/realm/${id}`}
@@ -80,16 +67,32 @@ export const Domains = ({}) => {
                                         )}
                                     </li>
                                 )}
-                            {"Journal" in cfg.sub_config && (
-                                <li>Redirects to the journal.</li>
-                            )}
-                            <li>
-                                Maximum number of downvotes for posts displayed:{" "}
-                                <code>{cfg.max_downvotes}</code>
-                            </li>
-                        </ul>
-                    </li>
-                ))}
+                                {"BlackListedRealms" in cfg.sub_config &&
+                                    cfg.sub_config.BlackListedRealms.length >
+                                        0 && (
+                                        <li>
+                                            Black-listed realms:{" "}
+                                            {commaSeparated(
+                                                cfg.sub_config.BlackListedRealms.map(
+                                                    (id) => (
+                                                        <a
+                                                            href={`#/realm/${id}`}
+                                                        >{`/${id}`}</a>
+                                                    ),
+                                                ),
+                                            )}
+                                        </li>
+                                    )}
+                                {"Journal" in cfg.sub_config && (
+                                    <li>Redirects to the journal.</li>
+                                )}
+                                <li>
+                                    Maximum number of downvotes for posts
+                                    displayed: <code>{cfg.max_downvotes}</code>
+                                </li>
+                            </ul>
+                        </li>
+                    ))}
             </ul>
             {userDomains.length > 0 && (
                 <div className="vertically_spaced">

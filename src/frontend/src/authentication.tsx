@@ -131,6 +131,7 @@ const finalize = async (signUp?: boolean) => {
         window.reloadUser &&
         !signUp
     ) {
+        window.resetUI();
         await instantiateApi();
         await window.reloadUser();
         if (window.user)

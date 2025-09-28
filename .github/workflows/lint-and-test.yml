@@ -17,9 +17,6 @@ jobs:
       - name: Install NPM dependencies
         run: npm ci
 
-      - name: Install PocketIC
-        run: cd tests && ./download-pocket-ic.sh
-
       - name: Build frontend
         run: NODE_ENV=production npm run build --quiet
 

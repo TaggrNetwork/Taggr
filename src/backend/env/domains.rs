@@ -191,14 +191,14 @@ pub fn available_realms(
         return Box::new(std::iter::empty());
     };
     let iter = state.realms.iter();
-    return Box::new(
+    Box::new(
         iter.filter(move |(realm_id, _)| match &config.sub_config {
             DomainSubConfig::WhiteListedRealms(list) => list.contains(realm_id.as_str()),
             DomainSubConfig::BlackListedRealms(list) => !list.contains(realm_id.as_str()),
             _ => true,
         })
         .map(|(id, _)| id),
-    );
+    )
 }
 
 #[cfg(test)]

@@ -88,6 +88,7 @@ impl Memory {
     }
 
     #[cfg(test)]
+    #[allow(static_mut_refs)]
     pub fn init_test_api(&mut self) {
         // Skip if memory is initialized
         if self.posts.initialized {
@@ -220,6 +221,7 @@ impl Allocator {
         }
     }
 
+    #[allow(clippy::manual_div_ceil)]
     fn get_allocation_length(&self, n: u64) -> u64 {
         let block_size = self.block_size_bytes.max(1);
         (n + block_size - 1) / block_size * block_size

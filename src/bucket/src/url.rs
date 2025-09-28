@@ -6,7 +6,7 @@ pub struct UrlParts<'a> {
 /// Parses a URL that IC passes to `http_request` in the format defined
 /// by https://internetcomputer.org/docs/current/references/http-gateway-protocol-spec.
 /// Note that the protocol and host parts of the URL have already been stripped.
-pub fn parse(url: &str) -> UrlParts {
+pub fn parse(url: &str) -> UrlParts<'_> {
     if !url.starts_with('/') {
         return UrlParts { path: "", args: "" };
     }
