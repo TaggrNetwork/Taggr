@@ -2,7 +2,7 @@ use std::path::Path;
 
 use candid::{decode_one, encode_args, encode_one, Principal};
 use ic_cdk::api::management_canister::main::CanisterId;
-use pocket_ic::{ErrorCode, PocketIc, WasmResult};
+use pocket_ic::{PocketIc, RejectCode};
 
 use crate::{controller, get_wasm, setup, setup_from_snapshot};
 
@@ -20,12 +20,9 @@ fn create_test_user(
     );
 
     match result {
-        Ok(reply) => match reply {
-            WasmResult::Reply(blob) => Some(decode_one(&blob).unwrap()),
-            WasmResult::Reject(err) => unreachable!("{}", err),
-        },
+        Ok(blob) => Some(decode_one(&blob).unwrap()),
         Err(err) => {
-            if err.code == ErrorCode::CanisterMethodNotFound {
+            if err.reject_code == RejectCode::DestinationInvalid {
                 return None;
             }
             unreachable!("{}", err);
@@ -44,18 +41,16 @@ fn add_post(
     let realm: Option<u64> = None;
     let extension: Option<Vec<u8>> = None;
 
-    let result = pic
-        .update_call(
-            backend,
-            caller,
-            "add_post",
-            encode_args((body, blobs, parent, realm, extension)).unwrap(),
-        )
-        .unwrap();
+    let result = pic.update_call(
+        backend,
+        caller,
+        "add_post",
+        encode_args((body, blobs, parent, realm, extension)).unwrap(),
+    );
 
     let maybe_post_id: Result<u64, String> = match result {
-        WasmResult::Reply(blob) => decode_one(&blob).unwrap(),
-        WasmResult::Reject(err) => unreachable!("{}", err),
+        Ok(blob) => decode_one(&blob).unwrap(),
+        Err(err) => unreachable!("{}", err),
     };
 
     maybe_post_id
@@ -67,18 +62,16 @@ fn posts(
     caller: Principal,
     post_ids: Vec<u64>,
 ) -> Vec<serde_json::Value> {
-    let result = pic
-        .query_call(
-            backend,
-            caller,
-            "posts",
-            serde_json::json!(post_ids).to_string().as_bytes().to_vec(),
-        )
-        .unwrap();
+    let result = pic.query_call(
+        backend,
+        caller,
+        "posts",
+        serde_json::json!(post_ids).to_string().as_bytes().to_vec(),
+    );
 
     let json: String = match result {
-        WasmResult::Reply(blob) => String::from_utf8(blob).unwrap(),
-        WasmResult::Reject(err) => unreachable!("{}", err),
+        Ok(blob) => String::from_utf8(blob).unwrap(),
+        Err(err) => unreachable!("{}", err),
     };
 
     let posts: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -87,11 +80,11 @@ fn posts(
 }
 
 fn users(pic: &PocketIc, backend: CanisterId, caller: Principal) -> Vec<serde_json::Value> {
-    let result = pic.query_call(backend, caller, "users", vec![]).unwrap();
+    let result = pic.query_call(backend, caller, "users", vec![]);
 
     let json: String = match result {
-        WasmResult::Reply(blob) => String::from_utf8(blob).unwrap(),
-        WasmResult::Reject(err) => unreachable!("{}", err),
+        Ok(blob) => String::from_utf8(blob).unwrap(),
+        Err(err) => unreachable!("{}", err),
     };
 
     let users: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -105,21 +98,19 @@ fn journal(
     caller: Principal,
     user: &str,
 ) -> Vec<serde_json::Value> {
-    let result = pic
-        .query_call(
-            backend,
-            caller,
-            "journal",
-            serde_json::json!([user, 0, 0])
-                .to_string()
-                .as_bytes()
-                .to_vec(),
-        )
-        .unwrap();
+    let result = pic.query_call(
+        backend,
+        caller,
+        "journal",
+        serde_json::json!([user, 0, 0])
+            .to_string()
+            .as_bytes()
+            .to_vec(),
+    );
 
     let json: String = match result {
-        WasmResult::Reply(blob) => String::from_utf8(blob).unwrap(),
-        WasmResult::Reject(err) => unreachable!("{}", err),
+        Ok(blob) => String::from_utf8(blob).unwrap(),
+        Err(err) => unreachable!("{}", err),
     };
 
     let posts: serde_json::Value = serde_json::from_str(&json).unwrap();

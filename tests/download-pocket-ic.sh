@@ -1,6 +1,6 @@
 #!/bin/bash
 
-POCKET_IC_VERSION="6.0.0"
+POCKET_IC_VERSION="10.0.0"
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
   PLATFORM=linux
@@ -12,7 +12,19 @@ else
   exit 1
 fi
 
-curl -Ls https://github.com/dfinity/pocketic/releases/download/${POCKET_IC_VERSION}/pocket-ic-x86_64-${PLATFORM}.gz -o pocket-ic.gz || exit 1
+# Detect architecture
+ARCH=$(uname -m)
+if [[ "$ARCH" == "aarch64" ]] || [[ "$ARCH" == "arm64" ]]; then
+  ARCH="arm64"
+elif [[ "$ARCH" == "x86_64" ]]; then
+  ARCH="x86_64"
+else
+  echo "Unsupported architecture $ARCH"
+  echo "Install PocketIC manually"
+  exit 1
+fi
+
+curl -Ls https://github.com/dfinity/pocketic/releases/download/${POCKET_IC_VERSION}/pocket-ic-${ARCH}-${PLATFORM}.gz -o pocket-ic.gz || exit 1
 
 gunzip -f pocket-ic.gz
 chmod +x pocket-ic

@@ -1,7 +1,6 @@
 use std::convert::TryInto;
 
 use candid::{decode_one, encode_one, CandidType, Principal};
-use pocket_ic::WasmResult;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 
@@ -27,13 +26,11 @@ struct HttpResponse {
 #[test]
 fn test_http_image() {
     let (pic, bucket) = setup("bucket");
-    let result = pic
-        .update_call(bucket, controller(), "write", "lorem".as_bytes().to_vec())
-        .unwrap();
+    let result = pic.update_call(bucket, controller(), "write", "lorem".as_bytes().to_vec());
 
     let offset = match result {
-        WasmResult::Reply(blob) => u64::from_be_bytes(blob.try_into().unwrap()),
-        WasmResult::Reject(err) => unreachable!("{}", err),
+        Ok(blob) => u64::from_be_bytes(blob.try_into().unwrap()),
+        Err(err) => unreachable!("{}", err),
     };
 
     let request = HttpRequest {
@@ -41,18 +38,16 @@ fn test_http_image() {
         headers: vec![],
     };
 
-    let result = pic
-        .query_call(
-            bucket,
-            Principal::anonymous(),
-            "http_request",
-            encode_one(request).unwrap(),
-        )
-        .unwrap();
+    let result = pic.query_call(
+        bucket,
+        Principal::anonymous(),
+        "http_request",
+        encode_one(request).unwrap(),
+    );
 
     let response: HttpResponse = match result {
-        WasmResult::Reply(bytes) => decode_one(&bytes).unwrap(),
-        WasmResult::Reject(err) => unreachable!("{}", err),
+        Ok(bytes) => decode_one(&bytes).unwrap(),
+        Err(err) => unreachable!("{}", err),
     };
 
     assert_eq!(response.body, "lorem".as_bytes(),);
