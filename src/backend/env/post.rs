@@ -21,9 +21,11 @@ static mut CACHE: Option<BTreeMap<PostId, Box<Post>>> = None;
 // when we get a reference to a post and dereference twice, we get a stable reference.
 fn cache<'a>() -> &'a mut BTreeMap<PostId, Box<Post>> {
     unsafe {
+        #[allow(static_mut_refs)]
         if CACHE.is_none() {
             CACHE = Some(Default::default())
         }
+        #[allow(static_mut_refs)]
         CACHE.as_mut().expect("no cache instantiated")
     }
 }
@@ -106,6 +108,7 @@ impl PartialEq for Post {
 impl Eq for Post {}
 
 impl PartialOrd for Post {
+    #[allow(clippy::non_canonical_partial_ord_impl)]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.id.cmp(&other.id))
     }
@@ -161,7 +164,7 @@ impl Post {
     }
 
     /// Returns the post with some meta information needed by the UI.
-    pub fn with_meta<'a>(&'a self, state: &'a State) -> (&'_ Self, Meta<'_>) {
+    pub fn with_meta<'a>(&'a self, state: &'a State) -> (&'a Self, Meta<'a>) {
         let user = state.users.get(&self.user).expect("no user found");
         let mut meta = Meta {
             author_name: user.name.as_str(),
@@ -271,7 +274,7 @@ impl Post {
         }
 
         if !blobs.iter().all(|(key, blob)| {
-            key.len() <= 8 && blob.len() > 0 && blob.len() <= CONFIG.max_blob_size_bytes
+            key.len() <= 8 && !blob.is_empty() && blob.len() <= CONFIG.max_blob_size_bytes
         }) {
             return Err("invalid blobs".into());
         }

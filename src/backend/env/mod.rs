@@ -741,7 +741,7 @@ impl State {
         if !logo.is_empty() {
             realm.logo = logo;
         }
-        if tokens.as_ref().map_or(false, |t| t.len() > 50) {
+        if tokens.as_ref().is_some_and(|t| t.len() > 50) {
             return Err("tokens count above 50".into());
         }
         let description_change = realm.description != description;
@@ -901,7 +901,7 @@ impl State {
         realm_id: Option<RealmId>,
     ) -> Result<(), String> {
         let credits_per_user = credits_per_user_opt.unwrap_or(credits);
-        if credits % credits_per_user != 0 {
+        if !credits.is_multiple_of(credits_per_user) {
             return Err("credits per user are not a multiple of credits".into());
         }
         let min_credits = CONFIG.min_credits_for_inviting;

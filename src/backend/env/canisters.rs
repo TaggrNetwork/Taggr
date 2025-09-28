@@ -166,10 +166,6 @@ pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: boo
 }
 
 pub async fn topup_with_cycles(canister_id: Principal, cycles: u128) -> Result<(), String> {
-    #[derive(CandidType)]
-    struct Args {
-        pub canister_id: Principal,
-    }
     open_call("deposit_cycles");
     let result = deposit_cycles(CanisterIdRecord { canister_id }, cycles).await;
     close_call("deposit_cycles");

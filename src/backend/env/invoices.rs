@@ -17,16 +17,6 @@ use super::{bitcoin, canisters::call_canister, Time};
 
 const INVOICE_MAX_AGE_HOURS: u64 = 24 * super::HOUR;
 
-#[derive(CandidType, Deserialize)]
-struct IcpXdrConversionRate {
-    xdr_permyriad_per_icp: u64,
-}
-
-#[derive(CandidType, Deserialize)]
-struct IcpXdrConversionRateCertifiedResponse {
-    data: IcpXdrConversionRate,
-}
-
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ICPInvoice {
     pub e8s: u64,

@@ -17,11 +17,17 @@ static mut ASSET_HASHES: Option<RbTree<Vec<u8>, Hash>> = None;
 static mut ASSETS: Option<HashMap<String, (Headers, Vec<u8>)>> = None;
 
 fn asset_hashes<'a>() -> &'a mut RbTree<Vec<u8>, Hash> {
-    unsafe { ASSET_HASHES.as_mut().expect("uninitialized") }
+    #[allow(static_mut_refs)]
+    unsafe {
+        ASSET_HASHES.as_mut().expect("uninitialized")
+    }
 }
 
 fn assets<'a>() -> &'a mut HashMap<String, (Headers, Vec<u8>)> {
-    unsafe { ASSETS.as_mut().expect("uninitialized") }
+    #[allow(static_mut_refs)]
+    unsafe {
+        ASSETS.as_mut().expect("uninitialized")
+    }
 }
 
 pub static INDEX_HTML: &[u8] = include_bytes!("../../dist/frontend/index.html");
