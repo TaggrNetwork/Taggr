@@ -109,12 +109,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    #[cfg(not(feature = "dev"))]
-    {
-        mutate(|state| state.domains.remove("localhost".into()));
-    }
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
