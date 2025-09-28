@@ -88,6 +88,7 @@ impl Memory {
     }
 
     #[cfg(test)]
+    #[allow(static_mut_refs)]
     pub fn init_test_api(&mut self) {
         // Skip if memory is initialized
         if self.posts.initialized {
@@ -100,7 +101,6 @@ impl Memory {
             let size = 1024 * 512;
             MEMORY = Some(Vec::with_capacity(size));
             for _ in 0..size {
-                #[allow(static_mut_refs)]
                 MEMORY.as_mut().unwrap().push(0);
             }
         };
@@ -112,13 +112,11 @@ impl Memory {
             unsafe { MEM_END }
         }
         let writer = |offset, buf: &[u8]| {
-            #[allow(static_mut_refs)]
             buf.iter().enumerate().for_each(|(i, byte)| unsafe {
                 MEMORY.as_mut().unwrap()[offset as usize + i] = *byte
             });
         };
         let reader = |offset, buf: &mut [u8]| {
-            #[allow(static_mut_refs)]
             for (i, b) in buf.iter_mut().enumerate() {
                 *b = unsafe { MEMORY.as_ref().unwrap()[offset as usize + i] }
             }

@@ -19,13 +19,12 @@ static mut CACHE: Option<BTreeMap<PostId, Box<Post>>> = None;
 // To work around this issue, we go through one level of indirection and box all posts (put them on
 // to the heap) and then only add the pointers to the boxed value into the cache. This way,
 // when we get a reference to a post and dereference twice, we get a stable reference.
+#[allow(static_mut_refs)]
 fn cache<'a>() -> &'a mut BTreeMap<PostId, Box<Post>> {
     unsafe {
-        #[allow(static_mut_refs)]
         if CACHE.is_none() {
             CACHE = Some(Default::default())
         }
-        #[allow(static_mut_refs)]
         CACHE.as_mut().expect("no cache instantiated")
     }
 }
