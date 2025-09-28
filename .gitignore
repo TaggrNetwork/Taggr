@@ -23,8 +23,5 @@ dist/
 test-results/
 playwright-report/
 
-# PocketIC binary
-tests/pocket-ic
-
 # reviews
 /reviews

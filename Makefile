@@ -30,11 +30,8 @@ test:
 	make e2e_build
 	make local_deploy
 	cargo clippy --tests --benches -- -D clippy::all
-	POCKET_IC_MUTE_SERVER=true cargo test -- --test-threads 1
+	cargo test -- --test-threads 1
 	npm run test:e2e
-
-pocket_ic:
-	cd tests && ./download-pocket-ic.sh
 
 fe:
 	npm run build --quiet
