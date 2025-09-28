@@ -1,9 +1,9 @@
 import { exec } from "./command";
 
+export const canisterId = "uxrrr-q7777-77774-qaaaq-cai";
+
 export default async function setup(): Promise<void> {
     console.debug("Global setup routine");
-
-    const canisterId = "bkyz2-fmaaa-aaaaa-qaaaq-cai";
 
     exec("dfx canister update-settings taggr --add-controller " + canisterId);
     exec(`dfx canister call taggr reset '("${canisterId}")'`);

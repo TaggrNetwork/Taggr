@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { exec, mkPwd } from "./command";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { canisterId } from "./setup";
 
 test.describe.configure({ mode: "serial" });
 
@@ -309,7 +310,7 @@ test.describe("Upgrades & token transfer flow", () => {
             const addTokenDialog = new Promise((resolve, _reject) => {
                 page.once("dialog", async (dialog) => {
                     if (dialog.message().includes("ICRC canister id")) {
-                        await dialog.accept("bkyz2-fmaaa-aaaaa-qaaaq-cai"); // Add Taggr token
+                        await dialog.accept(canisterId); // Add Taggr token
                         resolve(null);
                     }
                 });
@@ -324,37 +325,33 @@ test.describe("Upgrades & token transfer flow", () => {
             // Add token and see it in the list
             await addTokenDialog;
 
-            await expect(
-                page.getByTestId("bkyz2-fmaaa-aaaaa-qaaaq-cai-balance"),
-            ).toHaveText("9.90"); // Token added to the list
+            await expect(page.getByTestId(`${canisterId}-balance`)).toHaveText(
+                "9.90",
+            ); // Token added to the list
         });
 
         test("Send", async () => {
-            const tokenSendBtn = page.getByTestId(
-                "bkyz2-fmaaa-aaaaa-qaaaq-cai-send",
-            );
+            const tokenSendBtn = page.getByTestId(`${canisterId}-send`);
 
             await expect(tokenSendBtn).toBeVisible();
 
             await executeTransfer(page, tokenSendBtn); // Token send button
 
-            await expect(
-                page.getByTestId("bkyz2-fmaaa-aaaaa-qaaaq-cai-balance"),
-            ).toHaveText("4.80"); // Starting balance
+            await expect(page.getByTestId(`${canisterId}-balance`)).toHaveText(
+                "4.80",
+            ); // Starting balance
         });
 
         test("Hide zeros", async () => {
             const tokenHideZeros = page.getByTestId(
                 "canisters-hide-zero-balance",
             );
-            const tokenSendBtn = page.getByTestId(
-                "bkyz2-fmaaa-aaaaa-qaaaq-cai-send",
-            );
+            const tokenSendBtn = page.getByTestId(`${canisterId}-send`);
 
             await executeTransfer(page, tokenSendBtn, "4.70"); // Send all remaining balance
-            await expect(
-                page.getByTestId("bkyz2-fmaaa-aaaaa-qaaaq-cai-balance"),
-            ).toHaveText("0.00"); // 0 balance
+            await expect(page.getByTestId(`${canisterId}-balance`)).toHaveText(
+                "0.00",
+            ); // 0 balance
 
             // Hide zeros
             await expect(tokenHideZeros).toBeVisible();
@@ -362,19 +359,15 @@ test.describe("Upgrades & token transfer flow", () => {
 
             // Token removed from the list
             await expect(
-                page.getByTestId("bkyz2-fmaaa-aaaaa-qaaaq-cai-send"),
+                page.getByTestId(`${canisterId}-send`),
             ).not.toBeVisible();
 
             await tokenHideZeros.click(); // Add zeros back to the list
-            await expect(
-                page.getByTestId("bkyz2-fmaaa-aaaaa-qaaaq-cai-send"),
-            ).toBeVisible();
+            await expect(page.getByTestId(`${canisterId}-send`)).toBeVisible();
         });
 
         test("Remove", async () => {
-            const tokenRemoveBtn = page.getByTestId(
-                "bkyz2-fmaaa-aaaaa-qaaaq-cai-remove",
-            );
+            const tokenRemoveBtn = page.getByTestId(`${canisterId}-remove`);
 
             await expect(tokenRemoveBtn).toBeVisible();
 
@@ -390,9 +383,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
             await tokenRemoveBtn.click(); // Remove token
             await removeTokenDialog;
-            expect(
-                page.getByTestId("bkyz2-fmaaa-aaaaa-qaaaq-cai-remove"),
-            ).not.toBeVisible(); // Row removed
+            expect(page.getByTestId(`${canisterId}-remove`)).not.toBeVisible(); // Row removed
         });
     });
 });
