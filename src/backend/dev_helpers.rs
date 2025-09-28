@@ -4,7 +4,7 @@ use super::*;
 use crate::env::post::Post;
 use crate::env::token::mint;
 use crate::env::user::UserId;
-use ic_cdk::{caller, spawn};
+use ic_cdk::spawn;
 use ic_cdk_macros::{query, update};
 use ic_cdk_timers::set_timer;
 use serde_bytes::ByteBuf;
