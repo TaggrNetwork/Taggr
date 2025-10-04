@@ -158,6 +158,11 @@ const App = () => {
             location.href = `https://${getCanonicalDomain()}/#/welcome/${param}`;
             return;
         }
+        // Redirect signed-in users to home
+        if (window.user) {
+            location.href = "#/";
+            return;
+        }
         subtle = true;
         content = window.principalId ? (
             <Settings invite={param} />
