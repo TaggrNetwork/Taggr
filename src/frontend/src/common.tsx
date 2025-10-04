@@ -1347,8 +1347,7 @@ export function getLocalCanistersMetaData(
         .filter((r) => !!r);
 }
 
-export async function getCanistersMetaData(canisterIds: string[]) {
-    const uniqueCanisterIds = [...new Set(canisterIds)];
+export async function getCanistersMetaData(uniqueCanisterIds: string[]) {
     // Add missing user canisters key for metadata
     const canistersFromStorageMap = new Map<string, Icrc1Canister>(
         getLocalCanistersMetaData(uniqueCanisterIds),

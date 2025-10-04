@@ -115,114 +115,128 @@ export const PostView = ({
 
     const refPost = React.useRef();
 
-    const loadData = async (preloadedData?: Post) => {
-        const data = preloadedData || (await loadPosts([id])).pop();
-        if (!data) {
-            setNotFound(true);
-            return;
-        }
-
-        if (!postAllowed(data)) setNotAllowed(true);
-
-        let effBody = data.body;
-        if (version != undefined && !isNaN(version)) {
-            for (let i = data.patches.length - 1; i >= version; i--) {
-                const [_timestamp, patch] = data.patches[i];
-                effBody = applyPatch(effBody, patch)[0];
+    const loadData = React.useCallback(
+        async (preloadedData?: Post) => {
+            const data = preloadedData || (await loadPosts([id])).pop();
+            if (!data) {
+                setNotFound(true);
+                return;
             }
-        }
-        setBody(effBody);
-        setUrls(filesToUrls(data.files));
-        setPost(data);
-        // I truly do not understand why this is needed on post pages,
-        // but without it, the post page opened from a feed scrolled down
-        // is displayed as scrolled down too.
-        if (prime) window.scrollTo(0, 0);
-    };
+
+            if (!postAllowed(data)) setNotAllowed(true);
+
+            let effBody = data.body;
+            if (version != undefined && !isNaN(version)) {
+                for (let i = data.patches.length - 1; i >= version; i--) {
+                    const [_timestamp, patch] = data.patches[i];
+                    effBody = applyPatch(effBody, patch)[0];
+                }
+            }
+            setBody(effBody);
+            setUrls(filesToUrls(data.files));
+            setPost(data);
+            if (prime) window.scrollTo(0, 0);
+        },
+        [id, version, prime],
+    );
 
     React.useEffect(() => {
         loadData(data);
-    }, [id, version, data]);
+    }, [loadData, data]);
+
+    const commentSubmissionCallback = React.useCallback(
+        async (comment: string, blobs: [string, Uint8Array][]) => {
+            if (!post) return false;
+            const result: any = await window.api.add_post(
+                comment,
+                blobs,
+                [post.id],
+                [],
+                [],
+            );
+            if (result.Err) {
+                showPopUp("error", result.Err);
+                return false;
+            }
+            const commentId = result.Ok;
+            post.children.push(Number(commentId));
+            post.tree_size += 1;
+            setPost({ ...post });
+            toggleInfo(false);
+            toggleComments(true);
+            return true;
+        },
+        [post],
+    );
+
+    const goInside = React.useCallback(
+        (e: any, force?: boolean) => {
+            if (!post) return;
+            if (
+                !force &&
+                ((window.getSelection() || "").toString().length > 0 ||
+                    prime ||
+                    ["A", "IMG", "INPUT"].includes(e.target.tagName) ||
+                    skipClicks(e.target))
+            )
+                return;
+            location.href = `#/post/${post.id}`;
+        },
+        [post, prime],
+    );
+
+    const react = React.useCallback(
+        (id: number) => {
+            if (!post || !window.user) return;
+            let userId = window.user?.id;
+            if (post.user == userId) return;
+            if (!(id in post.reactions)) {
+                post.reactions[id] = [];
+            }
+            let users = post.reactions[id];
+            const allReactionUsers = Object.values(post.reactions).flat();
+            if (allReactionUsers.includes(userId)) {
+                return;
+            }
+            window.api.call<any>("react", post.id, id).then((response) => {
+                if ("Err" in response) showPopUp("error", response.Err);
+                window.reloadUser();
+            });
+            users.push(userId);
+            setPost({ ...post });
+            toggleInfo(commentIncoming);
+        },
+        [post, commentIncoming],
+    );
+
+    const isComment = post ? !isRoot(post) : false;
+    const expanded =
+        isComment || focused || (!isFeedItem && !repost) || isThreadView;
+    const costTable = reactionCosts();
+    const isInactive = React.useMemo(
+        () =>
+            !post ||
+            notAllowed ||
+            objectReduce(
+                post.reactions,
+                (acc, id, users) => acc + costTable[id as any] * users.length,
+                0,
+            ) < 0,
+        [post, notAllowed, costTable],
+    );
+
+    React.useEffect(() => {
+        if (prime && post)
+            setTitle(`Post #${post.id} by @${post.meta.author_name}`);
+    }, [prime, post]);
 
     if (!post) {
         if (notFound) return <NotFound />;
         return <Loading />;
     }
 
-    const commentSubmissionCallback = async (
-        comment: string,
-        blobs: [string, Uint8Array][],
-    ) => {
-        const result: any = await window.api.add_post(
-            comment,
-            blobs,
-            [post.id],
-            [],
-            [],
-        );
-        if (result.Err) {
-            showPopUp("error", result.Err);
-            return false;
-        }
-        const commentId = result.Ok;
-        post.children.push(Number(commentId));
-        post.tree_size += 1;
-        setPost({ ...post });
-        toggleInfo(false);
-        toggleComments(true);
-        return true;
-    };
-
     const showCarret =
         level > ((refPost.current as any)?.clientWidth > 900 ? 13 : 5);
-    const goInside = (e: any, force?: boolean) => {
-        if (
-            !force &&
-            // Selected text is clicked
-            ((window.getSelection() || "").toString().length > 0 ||
-                prime ||
-                ["A", "IMG", "INPUT"].includes(e.target.tagName) ||
-                skipClicks(e.target))
-        )
-            return;
-        location.href = `#/post/${post.id}`;
-    };
-
-    const react = (id: number) => {
-        if (!window.user) return;
-        let userId = window.user?.id;
-        if (post.user == userId) return;
-        if (!(id in post.reactions)) {
-            post.reactions[id] = [];
-        }
-        let users = post.reactions[id];
-        if (
-            Object.values(post.reactions)
-                .reduce((acc, users) => acc.concat(users), [])
-                .includes(userId)
-        ) {
-            return;
-        }
-        window.api.call<any>("react", post.id, id).then((response) => {
-            if ("Err" in response) showPopUp("error", response.Err);
-            window.reloadUser();
-        });
-        users.push(userId);
-        setPost({ ...post });
-        toggleInfo(commentIncoming);
-    };
-
-    const isComment = !isRoot(post);
-    const expanded =
-        isComment || focused || (!isFeedItem && !repost) || isThreadView;
-    const costTable = reactionCosts();
-    const isInactive =
-        notAllowed ||
-        objectReduce(
-            post.reactions,
-            (acc, id, users) => acc + costTable[id as any] * users.length,
-            0,
-        ) < 0;
     const deleted = post.hashes.length > 0;
     const commentAsPost = isComment && !isCommentView;
     const realmPost =
@@ -259,8 +273,6 @@ export const PostView = ({
                   background: realm_color,
               }
             : undefined;
-
-    if (prime) setTitle(`Post #${post.id} by @${post.meta.author_name}`);
 
     const showExtension = !isNSFW && post.extension && !repost;
 
@@ -566,11 +578,11 @@ const PostInfo = ({
         setExternalTips(externalTips);
     };
 
-    let initial = false;
+    const initialRef = React.useRef(false);
     React.useEffect(() => {
-        if (!initial) {
-            initial = true;
-            loadData().finally(() => (initial = false));
+        if (!initialRef.current) {
+            initialRef.current = true;
+            loadData().finally(() => (initialRef.current = false));
         }
     }, []);
 

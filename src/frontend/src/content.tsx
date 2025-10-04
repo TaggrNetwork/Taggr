@@ -13,7 +13,7 @@ const splitParagraphsAndPics = (
 ) => {
     const result = [];
     let chunk = [];
-    for (let i in elems) {
+    for (let i = 0; i < elems.length; i++) {
         const elem = elems[i];
         if (isPic(elem)) {
             if (chunk.length) result.push(<p key={i}>{chunk}</p>);
@@ -82,37 +82,41 @@ export const Content = ({
     primeMode?: boolean;
     classNameArg?: string;
 }) => {
-    value = linkTagsAndUsers(value);
+    const linkedValue = React.useMemo(() => linkTagsAndUsers(value), [value]);
+
+    const simpleComponents = React.useMemo(
+        () => ({
+            a: linkRenderer(preview),
+        }),
+        [preview],
+    );
 
     if (!post)
         return (
             <div className={`selectable ${classNameArg}`}>
                 <ReactMarkdown
-                    components={
-                        {
-                            a: linkRenderer(preview),
-                        } as unknown as any
-                    }
-                    children={value}
+                    components={simpleComponents as unknown as any}
+                    children={linkedValue}
                     remarkPlugins={[remarkGfm]}
                 />
             </div>
         );
 
-    let cutPos = value.indexOf(CUT);
+    let cutPos = linkedValue.indexOf(CUT);
     let shortened = cutPos >= 0;
     let extValue: string = "";
+    let processedValue = linkedValue;
 
     if (shortened) {
-        extValue = value.slice(cutPos + CUT.length);
-        value = value.slice(0, cutPos);
-        if (preview) value += "\n\n- - -\n\n";
+        extValue = linkedValue.slice(cutPos + CUT.length);
+        processedValue = linkedValue.slice(0, cutPos);
+        if (preview) processedValue += "\n\n- - -\n\n";
     }
     const complexPost = ["# ", "## ", "!["].some((pref) =>
-        value.startsWith(pref),
+        processedValue.startsWith(pref),
     );
-    const words = value.split(" ").length;
-    const lines = value.split("\n");
+    const lines = processedValue.split("\n");
+    const words = processedValue.split(" ").length;
     let className = classNameArg || "";
     if (primeMode && lines.length < 10 && !complexPost) {
         if (words < 50) className += " x_large_text";
@@ -125,7 +129,7 @@ export const Content = ({
         () => (
             <>
                 {markdownizer(
-                    value,
+                    processedValue,
                     urls || {},
                     multipleHeaders ? undefined : blogTitle,
                     preview,
@@ -139,7 +143,17 @@ export const Content = ({
                     ))}
             </>
         ),
-        [value, extValue, urls, collapse],
+        [
+            processedValue,
+            extValue,
+            urls,
+            collapse,
+            blogTitle,
+            multipleHeaders,
+            preview,
+            className,
+            shortened,
+        ],
     );
 };
 
@@ -322,7 +336,7 @@ const markdownizer = (
         </div>
     );
 
-const Gallery = ({ children }: any) => {
+const Gallery = React.memo(({ children }: any) => {
     let pictures = children.filter((c: any) => c.type && c.type.name == "img");
     const urls = pictures.map((pic: any) =>
         pic.props.src.replace("/blob/", ""),
@@ -352,7 +366,7 @@ const Gallery = ({ children }: any) => {
             {nonPictures.length > 0 && <p>{nonPictures}</p>}
         </>
     );
-};
+});
 
 const YouTube = ({ id, preview }: { id: string; preview?: boolean }) => {
     const [open, setOpen] = React.useState(!preview);

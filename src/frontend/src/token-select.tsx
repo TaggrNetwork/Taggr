@@ -37,7 +37,7 @@ export const TokenSelect = ({
         onSelectionChange(value);
     };
 
-    const setData = () => {
+    const loadData = () => {
         const canistersMap = new Map(canisters);
         // Add ICP or Taggr
         const mainCanisters: Array<[string, Icrc1Canister]> = [];
@@ -73,7 +73,7 @@ export const TokenSelect = ({
     };
 
     React.useEffect(() => {
-        setData();
+        loadData();
         if (selectedCanisterId) {
             setSelectedValue(selectedCanisterId);
         }
