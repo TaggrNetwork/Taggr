@@ -82,25 +82,17 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
     };
 
     const loadTokens = async (realm?: Realm) => {
-        const canisterIds: string[] = [CANISTER_ID];
-        if (realm?.tokens) {
-            canisterIds.push(...realm.tokens);
-        }
-        if (window.user?.wallet_tokens?.length > 0) {
-            canisterIds.push(...(window.user?.wallet_tokens || []));
-        }
+        const canisterIds = new Set<string>([CANISTER_ID]);
+
+        realm?.tokens?.forEach((id) => canisterIds.add(id));
+
         await getUserTokens(window?.user).then(async (tokens) => {
-            const allUserTokens = [
-                ...tokens.map(({ canisterId }) => canisterId),
-                ...(window?.user?.wallet_tokens || []),
-            ];
-            canisterIds.push(...allUserTokens);
+            tokens.forEach(({ canisterId }) => canisterIds.add(canisterId));
+            window.user?.wallet_tokens?.forEach((id) => canisterIds.add(id));
         });
 
-        if (canisterIds.length > 0) {
-            const map = await getCanistersMetaData([...new Set(canisterIds)]);
-            setCanisterMetaData(Object.fromEntries(map));
-        }
+        const map = await getCanistersMetaData([...canisterIds]);
+        setCanisterMetaData(Object.fromEntries(map));
     };
 
     const setStrings = async (realm: Realm) => {

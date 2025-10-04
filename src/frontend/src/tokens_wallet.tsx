@@ -91,40 +91,45 @@ export const Icrc1TokensWallet = () => {
     };
 
     const initialLoad = async () => {
-        const allUserTokens = user?.wallet_tokens || [];
-        const allUserTokensData = await getCanistersMetaData(allUserTokens);
-        setIcrc1Canisters([...allUserTokensData.entries()]); // Set view before balances
-        void loadBalances([...allUserTokens]);
+        const currentUserTokens = new Set(user?.wallet_tokens || []);
+        const initialTokensData = await getCanistersMetaData([
+            ...currentUserTokens,
+        ]);
+        setIcrc1Canisters([...initialTokensData.entries()]);
+        void loadBalances([...currentUserTokens]);
 
         // Automatic token discovery
-        await getUserTokens(user).then(async (tokens) => {
-            allUserTokens.push(...tokens.map(({ canisterId }) => canisterId));
-            const allUserTokensData = await getCanistersMetaData(
-                allUserTokens,
-            ).then((map) => [...map.entries()]);
-            setIcrc1Canisters(allUserTokensData); // Set view before balances
+        const discoveredTokens = await getUserTokens(user);
+        const discoveredCanisterIds = new Set(
+            discoveredTokens.map(({ canisterId }) => canisterId),
+        );
 
-            const balances = await loadBalances([...allUserTokens]);
+        // Merge current and discovered tokens (Set automatically deduplicates)
+        const allUserTokens = new Set([
+            ...currentUserTokens,
+            ...discoveredCanisterIds,
+        ]);
 
-            setIcrc1Canisters(
-                filterAndSortCanisters(
-                    allUserTokensData,
-                    balances,
-                    hideZeroBalance,
-                ),
-            );
-            if (
-                new Set(allUserTokens).size !==
-                new Set(user?.wallet_tokens)?.size
-            ) {
-                user.wallet_tokens = [...allUserTokens];
-                // async
-                window.api.call<any>(
-                    "update_wallet_tokens",
-                    user.wallet_tokens,
-                );
-            }
-        });
+        const allUserTokensData = await getCanistersMetaData([
+            ...allUserTokens,
+        ]);
+        setIcrc1Canisters([...allUserTokensData.entries()]);
+
+        const balances = await loadBalances([...allUserTokens]);
+
+        setIcrc1Canisters(
+            filterAndSortCanisters(
+                [...allUserTokensData.entries()],
+                balances,
+                hideZeroBalance,
+            ),
+        );
+
+        // Only update if new tokens were discovered
+        if (allUserTokens.size !== currentUserTokens.size) {
+            user.wallet_tokens = [...allUserTokens];
+            window.api.call<any>("update_wallet_tokens", user.wallet_tokens);
+        }
     };
     let loading = false;
     React.useEffect(() => {
