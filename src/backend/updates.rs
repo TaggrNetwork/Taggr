@@ -109,7 +109,15 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        state.realms.values_mut().for_each(|realm| {
+            if realm.max_downvotes == 0 {
+                realm.max_downvotes = CONFIG.default_max_downvotes;
+            }
+        });
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
