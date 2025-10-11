@@ -2,6 +2,7 @@ import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import { ArrowDown, domain, RealmSpan, timeAgo } from "./common";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import { BlogTitle } from "./types";
 import { previewImg } from "./image_preview";
 
@@ -98,6 +99,7 @@ export const Content = ({
                     components={simpleComponents as unknown as any}
                     children={linkedValue}
                     remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeRaw]}
                 />
             </div>
         );
@@ -227,6 +229,7 @@ const markdownizer = (
             <ReactMarkdown
                 children={value}
                 remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
                 components={{
                     h1: ({ node, children, ...props }) => {
                         if (!blogTitle) return <h1 {...props}>{children}</h1>;
@@ -260,9 +263,14 @@ const markdownizer = (
                         );
                     },
                     a: linkRenderer(preview),
+                    details: ({ node, children, ...props }: any) => (
+                        <details {...props}>{children}</details>
+                    ),
+                    summary: ({ node, children, ...props }: any) => (
+                        <summary {...props}>{children}</summary>
+                    ),
                     p: ({ node, children, ...props }) => {
-                        const isPic = (c: any) =>
-                            c.type && c.type.name == "img";
+                        const isPic = (c: any) => c?.type?.name == "img";
                         if (Array.isArray(children)) {
                             const pics = children.filter(isPic).length;
                             if (pics >= 1 && isPic(children[0]))
