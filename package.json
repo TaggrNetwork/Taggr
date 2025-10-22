@@ -51,7 +51,6 @@
         "@dfinity/ledger-icrc": "2.8.0",
         "@dfinity/principal": "2.4.1",
         "diff-match-patch": "1.0.5",
-        "rehype-raw": "^7.0.0",
         "remark-gfm": "4.0.1"
     }
 }
