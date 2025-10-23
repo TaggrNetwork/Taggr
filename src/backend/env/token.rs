@@ -5,19 +5,19 @@ use base64::{engine::general_purpose, Engine as _};
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk_macros::{query, update};
 use ic_certified_map::leaf_hash;
-use ic_ledger_types::GetBlocksArgs;
 use icrc_ledger_types::{
     icrc::generic_value::ICRC3Value,
     icrc3::{
         archive::{GetArchivesArgs, GetArchivesResult},
         blocks::{
-            BlockWithId, GetBlocksResult, ICRC3DataCertificate, ICRC3GenericBlock,
-            SupportedBlockType,
+            BlockWithId, GetBlocksRequest, GetBlocksResult, ICRC3DataCertificate,
+            ICRC3GenericBlock, SupportedBlockType,
         },
     },
 };
 use serde::Serialize;
 use serde_bytes::ByteBuf;
+use std::convert::TryInto;
 
 type Timestamp = u64;
 
@@ -223,10 +223,14 @@ fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
 }
 
 #[query]
-fn icrc3_get_blocks(args: Vec<GetBlocksArgs>) -> GetBlocksResult {
+fn icrc3_get_blocks(args: Vec<GetBlocksRequest>) -> GetBlocksResult {
     let blocks: Vec<BlockWithId> = read(|state| {
         args.into_iter()
-            .flat_map(|arg| arg.start..(arg.start + arg.length))
+            .flat_map(|arg| {
+                let start: u32 = arg.start.0.try_into().expect("value too large for u32");
+                let length: u32 = arg.length.0.try_into().expect("value too large for u32");
+                start..(start + length)
+            })
             .filter_map(|i| state.memory.ledger.get(&(i as u32)))
             .map(|tx| tx.into())
             .collect()
