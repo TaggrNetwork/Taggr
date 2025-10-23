@@ -8,12 +8,63 @@ type BlockWithId = record { id : nat; block : ICRC3Value };
 type CreatedInFuture = record { ledger_time : nat64 };
 type GenericError = record { message : text; error_code : nat };
 type GetArchivesArgs = record { from : opt principal };
-type GetBlocksArgs = record { start : nat64; length : nat64 };
 type GetBlocksRequest = record { start : nat; length : nat };
 type GetBlocksResult = record {
   log_length : nat;
   blocks : vec BlockWithId;
   archived_blocks : vec ArchivedBlocks;
+};
+type GetTransactionsResponse = record {
+  first_index : nat;
+  log_length : nat;
+  transactions : vec Transaction;
+  archived_transactions : vec ArchivedRange;
+};
+type ArchivedRange = record {
+  callback : func (GetBlocksRequest) -> (TransactionRange) query;
+  start : nat;
+  length : nat;
+};
+type TransactionRange = record { transactions : vec Transaction };
+type Transaction = record {
+  burn : opt Burn;
+  kind : text;
+  mint : opt Mint;
+  approve : opt Approve;
+  timestamp : nat64;
+  transfer : opt Transfer;
+};
+type Burn = record {
+  from : Account;
+  memo : opt blob;
+  created_at_time : opt nat64;
+  amount : nat;
+  spender : opt Account;
+};
+type Mint = record {
+  to : Account;
+  memo : opt blob;
+  created_at_time : opt nat64;
+  amount : nat;
+};
+type Approve = record {
+  fee : opt nat;
+  from : Account;
+  memo : opt blob;
+  created_at_time : opt nat64;
+  amount : nat;
+  expected_allowance : opt nat;
+  expires_at : opt nat64;
+  spender : Account;
+};
+type Transfer = record {
+  to : Account;
+  fee : opt nat;
+  from : Account;
+  memo : opt blob;
+  created_at_time : opt nat64;
+  amount : nat;
+  spender : opt Account;
 };
 type HttpRequest = record { url : text; headers : vec record { text; text } };
 type HttpResponse = record {
@@ -77,6 +128,7 @@ service : () -> {
     );
   force_emergency_upgrade : () -> (bool);
   get_neuron_info : () -> (Result_2);
+  get_transactions : (GetBlocksRequest) -> (GetTransactionsResponse) query;
   http_request : (HttpRequest) -> (HttpResponse) query;
   http_request_update : (HttpRequest) -> (HttpResponse);
   icrc1_balance_of : (Account) -> (nat) query;
@@ -90,7 +142,7 @@ service : () -> {
   icrc1_total_supply : () -> (nat) query;
   icrc1_transfer : (TransferArgs) -> (Result_3);
   icrc3_get_archives : (GetArchivesArgs) -> (vec ICRC3ArchiveInfo) query;
-  icrc3_get_blocks : (vec GetBlocksArgs) -> (GetBlocksResult) query;
+  icrc3_get_blocks : (vec GetBlocksRequest) -> (GetBlocksResult) query;
   icrc3_get_tip_certificate : () -> (opt ICRC3DataCertificate) query;
   icrc3_supported_block_types : () -> (vec SupportedBlockType) query;
   link_cold_wallet : (nat64) -> (Result_1);
