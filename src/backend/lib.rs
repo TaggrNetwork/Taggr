@@ -82,6 +82,7 @@ use crate::http::{HttpRequest, HttpResponse};
 #[allow(unused_imports)]
 use crate::realms::RealmId;
 use crate::token::{Account, Standard, TransferArgs, TransferError, Value};
+use icrc_ledger_types::icrc3::transactions::{GetTransactionsRequest, GetTransactionsResponse};
 use icrc_ledger_types::icrc3::{
     archive::{GetArchivesArgs, GetArchivesResult},
     blocks::{GetBlocksRequest, GetBlocksResult, ICRC3DataCertificate, SupportedBlockType},
