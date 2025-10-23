@@ -236,7 +236,7 @@ fn icrc3_get_blocks(args: Vec<GetBlocksRequest>) -> GetBlocksResult {
                 let length: u32 = arg.length.0.try_into().expect("value too large for u32");
                 start..(start + length.min(MAX_TX_RESPONSE))
             })
-            .filter_map(|i| state.memory.ledger.get(&(i as u32)))
+            .filter_map(|i| state.memory.ledger.get(&i))
             .map(|tx| tx.into())
             .collect()
     });
@@ -254,7 +254,7 @@ fn get_transactions(req: GetTransactionsRequest) -> GetTransactionsResponse {
         let length: u32 = req.length.0.try_into().expect("value too large for u32");
 
         let transactions: Vec<ICRCTransaction> = (start..(start + length.min(MAX_TX_RESPONSE)))
-            .filter_map(|i| state.memory.ledger.get(&(i as u32)))
+            .filter_map(|i| state.memory.ledger.get(&i))
             .map(|tx| {
                 let from_subaccount: Option<[u8; 32]> = tx
                     .from
@@ -268,7 +268,7 @@ fn get_transactions(req: GetTransactionsRequest) -> GetTransactionsResponse {
                     .map(|s| s.clone().try_into().expect("invalid subaccount"));
 
                 let mut icrc_tx = ICRCTransaction {
-                    timestamp: tx.timestamp.into(),
+                    timestamp: tx.timestamp,
                     approve: None,
                     mint: None,
                     burn: None,
@@ -279,11 +279,11 @@ fn get_transactions(req: GetTransactionsRequest) -> GetTransactionsResponse {
                 icrc_tx.kind = "transfer".to_string();
                 icrc_tx.transfer = Some(Transfer {
                     from: ICRCAccount {
-                        owner: tx.from.owner.clone(),
+                        owner: tx.from.owner,
                         subaccount: from_subaccount,
                     },
                     to: ICRCAccount {
-                        owner: tx.to.owner.clone(),
+                        owner: tx.to.owner,
                         subaccount: to_subaccount,
                     },
                     amount: Nat::from(tx.amount),
