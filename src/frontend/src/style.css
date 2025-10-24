@@ -191,14 +191,15 @@ ul.comments {
     margin-bottom: 0.5em;
     padding: 0;
     list-style-type: none;
-    border-left: 1px solid $frame;
-    border-bottom: 1px solid $frame;
+    border-left: 2px solid $dark_background;
+    border-bottom: 2px solid $dark_background;
     border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
 }
 
 .comments li .post_head:before {
     content: "—";
-    color: $frame;
+    color: $dark_background;
     text-indent: -0.7rem;
 }
 
@@ -213,8 +214,7 @@ ul.comments {
 
 .comments .post_head .user_link {
     margin-left: 0;
-    background: $frame;
-    border-radius: 10px;
+    border: 2px solid $dark_background;
     border-radius: 10px;
     padding: 0.5em;
 }
@@ -270,7 +270,7 @@ article {
 .post_extension,
 .feed_item {
     border-radius: 10px;
-    border: 1px solid $frame;
+    border: 2px solid $dark_background;
 }
 
 .drag_and_drop {
@@ -292,7 +292,7 @@ article {
 
 .prime .post_head {
     border-radius: 0px;
-    border-bottom: 1px solid $frame;
+    border-bottom: 2px solid $dark_background;
 }
 
 .video-container {
@@ -321,7 +321,7 @@ article {
 .stands_out {
     background: $light_background;
     border-radius: 10px;
-    border-bottom: 1px solid $dark_background;
+    border-bottom: 2px solid $dark_background;
     padding: 0.5em;
     margin-bottom: 1em;
 }
@@ -356,7 +356,7 @@ article {
 button {
     cursor: pointer;
     color: $text;
-    background: $frame;
+    background: $dark_background;
     font-weight: bold;
     border: none;
     border-radius: 5px;
@@ -532,7 +532,7 @@ header {
 
 hr {
     border-style: none none none;
-    border-top: 2px solid $frame;
+    border-top: 2px solid $dark_background;
     margin-top: 1em;
     margin-bottom: 1em;
 }
@@ -542,7 +542,7 @@ hr {
 }
 
 .selected {
-    background: $frame;
+    background: $dark_background;
     border-radius: 10px;
 }
 
@@ -561,7 +561,7 @@ hr {
 }
 
 .reaction_button:hover {
-    background: $frame;
+    background: $dark_background;
 }
 
 .reaction_button path {
@@ -575,7 +575,7 @@ hr {
 article table,
 article th,
 article td {
-    border: 1px solid $frame;
+    border: 2px solid $dark_background;
 }
 
 article,
@@ -589,7 +589,7 @@ article,
 }
 
 th {
-    background: $frame;
+    background: $dark_background;
 }
 
 td,
@@ -700,11 +700,11 @@ a.reply_tag {
 }
 
 .top_framed {
-    border-top: 1px solid $frame;
+    border-top: 2px solid $dark_background;
 }
 
 .framed {
-    border: 1px solid $frame;
+    border: 2px solid $dark_background;
     padding: 0.5em;
     border-radius: 10px;
 }
@@ -959,7 +959,7 @@ a.accent,
 }
 
 .deleted {
-    background: $frame;
+    background: $dark_background;
 }
 
 button.active,
@@ -1084,7 +1084,7 @@ label svg {
 
     .feed_item {
         border: none;
-        border-top: 1px solid $frame;
+        border-top: 2px solid $dark_background;
         padding-top: 1em;
         margin-bottom: 0.5em;
     }
@@ -1180,7 +1180,7 @@ label svg {
 .info_popup_timer {
     width: 100%;
     height: 3px;
-    background-color: $frame;
+    background-color: $dark_background;
     border-radius: 1.5px;
     overflow: hidden;
 }
