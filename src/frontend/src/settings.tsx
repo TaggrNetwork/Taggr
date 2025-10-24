@@ -463,6 +463,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                 <ButtonWithLoading
                                     classNameArg={encKey ? "" : "inactive"}
                                     onClick={async () => {
+                                        if (!encKey) return;
                                         const seed = hex(
                                             Array.from(await hash(encKey, 1)),
                                         );
