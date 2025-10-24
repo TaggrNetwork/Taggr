@@ -157,15 +157,37 @@ fn proposal() {
     })
 }
 
+/// Returns a paginated list of proposals.
+///
+/// # Parameters
+/// - `page`: The page number for pagination (0-indexed)
+/// - `filter`: Filter by proposal type. Valid values:
+///   - `"ALL"`: Return all proposals
+///   - `"RELEASE"`: Return only release proposals
+///   - `"ICP TRANSFER"`: Return only ICP transfer proposals
+///   - `"REALM CONTROLLER"`: Return only realm controller proposals
+///   - `"FUNDING"`: Return only funding proposals
+///   - `"REWARDS"`: Return only rewards proposals
 #[export_name = "canister_query proposals"]
 fn proposals() {
-    let page: usize = parse(&arg_data_raw());
+    let (page, filter): (usize, String) = parse(&arg_data_raw());
     read(|state| {
         reply(
             state
                 .proposals
                 .iter()
                 .rev()
+                .filter(|proposal| {
+                    let payload_type = match &proposal.payload {
+                        Payload::Release(_) => "RELEASE",
+                        Payload::ICPTransfer(_, _) => "ICP TRANSFER",
+                        Payload::AddRealmController(_, _) => "REALM CONTROLLER",
+                        Payload::Funding(_, _) => "FUNDING",
+                        Payload::Rewards(_) => "REWARDS",
+                        Payload::Noop => return false,
+                    };
+                    filter == "ALL" || payload_type == filter
+                })
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
                 .filter_map(|proposal| Post::get(state, &proposal.post_id))

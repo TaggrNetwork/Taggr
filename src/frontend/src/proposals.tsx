@@ -16,6 +16,7 @@ import {
     showPopUp,
     onCanonicalDomain,
     UnavailableOnCustomDomains,
+    TabBar,
 } from "./common";
 import * as React from "react";
 import { HourGlass } from "./icons";
@@ -38,23 +39,40 @@ export enum ProposalType {
     Release = "RELEASE",
 }
 
-export const Proposals = () => (
-    <>
-        <HeadBar
-            title="PROPOSALS"
-            shareLink="proposals"
-            menu={true}
-            burgerTestId="proposals-burger-button"
-            content={window.user ? <ProposalForm /> : false}
-        />
-        <PostFeed
-            useList={true}
-            feedLoader={async (page) =>
-                await window.api.query("proposals", page)
-            }
-        />
-    </>
-);
+export const Proposals = () => {
+    const [selectedType, setSelectedType] = React.useState("ALL");
+
+    return (
+        <>
+            <HeadBar
+                title="PROPOSALS"
+                shareLink="proposals"
+                menu={true}
+                burgerTestId="proposals-burger-button"
+                content={window.user ? <ProposalForm /> : false}
+            />
+            <TabBar
+                tabs={[
+                    "ALL",
+                    "RELEASE",
+                    "FUNDING",
+                    "REWARDS",
+                    "REALM CONTROLLER",
+                    "ICP TRANSFER",
+                ]}
+                activeTab={selectedType}
+                onTabChange={setSelectedType}
+            />
+            <PostFeed
+                key={selectedType}
+                useList={true}
+                feedLoader={async (page) =>
+                    await window.api.query("proposals", page, selectedType)
+                }
+            />
+        </>
+    );
+};
 
 const ProposalForm = ({}) => {
     const [balance, setBalance] = React.useState<number>(0);
