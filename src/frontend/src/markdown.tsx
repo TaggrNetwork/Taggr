@@ -576,19 +576,54 @@ const parseBlock = (
             let itemKey = 0;
             while (
                 i < lines.length &&
-                (UNORDERED_LIST_REGEX.test(lines[i]) || lines[i].trim() === "")
+                (UNORDERED_LIST_REGEX.test(lines[i]) ||
+                    lines[i].trim() === "" ||
+                    lines[i].match(/^\s+[-*+]\s/) ||
+                    (items.length > 0 && lines[i].match(/^\s+/)))
             ) {
                 if (lines[i].trim() === "") {
                     i++;
                     continue;
                 }
-                const content = lines[i].replace(UNORDERED_LIST_REGEX, "");
-                items.push(
-                    <li key={itemKey++}>
-                        {parseInline(content, urls, preview)}
-                    </li>,
-                );
-                i++;
+
+                if (UNORDERED_LIST_REGEX.test(lines[i])) {
+                    const contentLines: string[] = [];
+                    contentLines.push(
+                        lines[i].replace(UNORDERED_LIST_REGEX, ""),
+                    );
+                    i++;
+
+                    while (
+                        i < lines.length &&
+                        (lines[i].match(/^\s+/) || lines[i].trim() === "")
+                    ) {
+                        if (lines[i].trim() !== "") {
+                            contentLines.push(lines[i]);
+                        }
+                        i++;
+                    }
+
+                    const minIndent = Math.min(
+                        ...contentLines
+                            .slice(1)
+                            .filter((l) => l.trim())
+                            .map((l) => l.match(/^\s*/)?.[0].length || 0),
+                    );
+                    const dedented = [
+                        contentLines[0],
+                        ...contentLines
+                            .slice(1)
+                            .map((l) => (l.trim() ? l.slice(minIndent) : l)),
+                    ].join("\n");
+
+                    items.push(
+                        <li key={itemKey++}>
+                            {parseBlock(dedented, urls, undefined, preview)}
+                        </li>,
+                    );
+                } else {
+                    i++;
+                }
             }
             blocks.push(<ul key={key++}>{items}</ul>);
             continue;
@@ -599,19 +634,52 @@ const parseBlock = (
             let itemKey = 0;
             while (
                 i < lines.length &&
-                (ORDERED_LIST_REGEX.test(lines[i]) || lines[i].trim() === "")
+                (ORDERED_LIST_REGEX.test(lines[i]) ||
+                    lines[i].trim() === "" ||
+                    lines[i].match(/^\s+\d+\.\s/) ||
+                    (items.length > 0 && lines[i].match(/^\s+/)))
             ) {
                 if (lines[i].trim() === "") {
                     i++;
                     continue;
                 }
-                const content = lines[i].replace(ORDERED_LIST_REGEX, "");
-                items.push(
-                    <li key={itemKey++}>
-                        {parseInline(content, urls, preview)}
-                    </li>,
-                );
-                i++;
+
+                if (ORDERED_LIST_REGEX.test(lines[i])) {
+                    const contentLines: string[] = [];
+                    contentLines.push(lines[i].replace(ORDERED_LIST_REGEX, ""));
+                    i++;
+
+                    while (
+                        i < lines.length &&
+                        (lines[i].match(/^\s+/) || lines[i].trim() === "")
+                    ) {
+                        if (lines[i].trim() !== "") {
+                            contentLines.push(lines[i]);
+                        }
+                        i++;
+                    }
+
+                    const minIndent = Math.min(
+                        ...contentLines
+                            .slice(1)
+                            .filter((l) => l.trim())
+                            .map((l) => l.match(/^\s*/)?.[0].length || 0),
+                    );
+                    const dedented = [
+                        contentLines[0],
+                        ...contentLines
+                            .slice(1)
+                            .map((l) => (l.trim() ? l.slice(minIndent) : l)),
+                    ].join("\n");
+
+                    items.push(
+                        <li key={itemKey++}>
+                            {parseBlock(dedented, urls, undefined, preview)}
+                        </li>,
+                    );
+                } else {
+                    i++;
+                }
             }
             blocks.push(<ol key={key++}>{items}</ol>);
             continue;
