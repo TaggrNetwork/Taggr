@@ -60,7 +60,7 @@ export const Content = ({
 }) => {
     const linkedValue = React.useMemo(() => linkTagsAndUsers(value), [value]);
 
-    if (!post) return <Markdown preview={preview}>{linkedValue}</Markdown>;
+    if (!post) return <Markdown>{linkedValue}</Markdown>;
 
     let cutPos = linkedValue.indexOf(CUT);
     let shortened = cutPos >= 0;
@@ -91,7 +91,6 @@ export const Content = ({
                 <Markdown
                     urls={urls || {}}
                     blogTitle={multipleHeaders ? undefined : blogTitle}
-                    preview={preview}
                 >
                     {processedValue}
                 </Markdown>
@@ -99,9 +98,7 @@ export const Content = ({
                     (collapse ? (
                         <ArrowDown />
                     ) : (
-                        <Markdown urls={urls || {}} preview={preview}>
-                            {extValue}
-                        </Markdown>
+                        <Markdown urls={urls || {}}>{extValue}</Markdown>
                     ))}
             </>
         ),
