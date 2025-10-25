@@ -92,6 +92,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                 }
                 button1={
                     <button
+                        className="medium_text"
                         title={`${profile.name}'s journal`}
                         onClick={() =>
                             (location.href = `/#/journal/${profile.name}`)
@@ -304,10 +305,10 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 </div>
             )}
             {profile.about ? (
-                <>
-                    <Content classNameArg="larger_text" value={profile.about} />
+                <div className="larger_text">
+                    <Content value={profile.about} />
                     <hr />
-                </>
+                </div>
             ) : (
                 <br />
             )}

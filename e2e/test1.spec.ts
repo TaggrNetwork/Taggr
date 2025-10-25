@@ -1,6 +1,6 @@
 import { test, expect, Page, Locator } from "@playwright/test";
 import { resolve } from "node:path";
-import { exec, mkPwd } from "./command";
+import { exec, mkPwd, transferICP } from "./command";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { canisterId } from "./setup";
@@ -9,7 +9,7 @@ test.describe.configure({ mode: "serial" });
 
 const executeTransfer = async (page: Page, btn: Locator, amount = "5") => {
     // Q1 - enter the principal receiver
-    await new Promise((resolve) => {
+    await new Promise(async (resolve) => {
         page.once("dialog", async (dialog) => {
             if (dialog.message().includes("Enter the recipient principal")) {
                 await dialog.accept("6qfxa-ryaaa-aaaai-qbhsq-cai");
@@ -17,7 +17,7 @@ const executeTransfer = async (page: Page, btn: Locator, amount = "5") => {
             }
         });
         // Click button after listener is setup
-        btn.click();
+        await btn.click();
     });
 
     // Q2 - enter the amount
@@ -51,6 +51,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Registration", async () => {
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         // Registration flow
         await page.getByRole("button", { name: "SIGN UP" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
@@ -64,8 +65,9 @@ test.describe("Upgrades & token transfer flow", () => {
         const stalwartPrincipal =
             "v5znh-suak4-idmlq-uaq6k-iiygt-7d7de-jq7pf-dpzmt-zhmle-akfo2-mqe";
         await expect(page.getByText(stalwartPrincipal)).toBeVisible();
-        exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 2cf73bb8c2acb69a7c18dda7fc1f2c4bf923a9fa7552e454e5eb656bd2e0ada4",
+        transferICP(
+            "aa2ff83cb95478c005b5d108b050bdbf148e3b404f1a0d82173dd779ad70c355",
+            1,
         );
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
@@ -78,6 +80,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Create a post and an invite", async () => {
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         // Create a post
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("textarea").fill("Message from Eve");
@@ -92,6 +95,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Registration by invite and rewarding a post", async ({ page }) => {
         await page.goto(inviteLink);
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
@@ -113,10 +117,12 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Create an auction bid, trigger minting", async ({}) => {
         await page.goto("/#/tokens");
+        await page.waitForLoadState("networkidle");
         await page.getByPlaceholder("ICP per 1 TAGGR").fill("0.01");
         await page.getByPlaceholder("Number of TAGGR tokens").fill("15");
-        exec(
-            "dfx --identity local-minter ledger transfer --amount 0.15 --memo 0 2cf73bb8c2acb69a7c18dda7fc1f2c4bf923a9fa7552e454e5eb656bd2e0ada4",
+        transferICP(
+            "aa2ff83cb95478c005b5d108b050bdbf148e3b404f1a0d82173dd779ad70c355",
+            0.15,
         );
         await page.getByRole("button", { name: "BID FOR 15 TAGGR" }).click();
         await page.waitForTimeout(1000);
@@ -128,6 +134,7 @@ test.describe("Upgrades & token transfer flow", () => {
     test("Wallet", async () => {
         // Test the wallet functionality
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         await page.getByTestId("toggle-user-section").click();
 
         await expect(page.getByTestId("token-balance")).toHaveText("15");
@@ -147,6 +154,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Recovery proposal", async ({ page }) => {
         await page.goto("/#/recovery");
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
@@ -174,27 +182,36 @@ test.describe("Upgrades & token transfer flow", () => {
             page.locator('input[type="file"]').click(),
         ]);
 
-        await new Promise((resolve, _reject) => {
-            page.on("dialog", async (dialog) => {
-                if (
-                    dialog
-                        .message()
-                        .includes(
-                            "Do you really want to upload a new binary",
-                        ) ||
-                    dialog.message().includes("Your vote was submitted")
-                ) {
-                    await dialog.accept();
-                }
-                if (dialog.message().includes("Done")) {
-                    await dialog.accept();
-                    resolve(null);
-                }
-            });
-            fileChooser.setFiles([binaryPath]);
-        });
+        const dialogPromise1 = page.waitForEvent("dialog");
+        await fileChooser.setFiles([binaryPath]);
 
-        page.reload();
+        const dialog1 = await dialogPromise1;
+        expect(
+            dialog1
+                .message()
+                .includes("Do you really want to upload a new binary"),
+        ).toBe(true);
+        await dialog1.accept();
+
+        const dialog2 = await page.waitForEvent("dialog");
+        expect(dialog2.message().includes("Done")).toBe(true);
+        await dialog2.accept();
+
+        let retries = 5;
+        while (retries > 0) {
+            await page.waitForTimeout(1000);
+            await page.reload();
+            await page.waitForLoadState("networkidle");
+            const statusText = await page
+                .getByTestId("status")
+                .textContent({ timeout: 2000 })
+                .catch(() => null);
+            if (statusText?.includes("Binary set: true")) {
+                break;
+            }
+            retries--;
+        }
+
         await expect(page.getByText("Binary set: true")).toBeVisible();
 
         // Vote for the release
@@ -212,6 +229,7 @@ test.describe("Upgrades & token transfer flow", () => {
     test("Verify recovery upgrade", async () => {
         await page.waitForTimeout(6000);
         await page.goto("/#/dashboard");
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "TECHNICAL" }).click();
         await expect(
             page.getByText("Executing the canister upgrade"),
@@ -221,6 +239,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Regular proposal", async () => {
         await page.goto("/#/proposals");
+        await page.waitForLoadState("networkidle");
 
         // Create a regular proposal
         await expect(
@@ -295,9 +314,11 @@ test.describe("Upgrades & token transfer flow", () => {
             await page.getByRole("button", { name: "SAVE" }).click();
             await page.waitForTimeout(1000);
             await page.reload();
+            await page.waitForLoadState("networkidle");
 
             // Test the wallet functionality
             await page.goto("/");
+            await page.waitForLoadState("networkidle");
             await page.getByTestId("toggle-user-section").click();
 
             await expect(page.getByTestId("token-balance")).toHaveText("9.9"); // Starting balance
@@ -383,7 +404,9 @@ test.describe("Upgrades & token transfer flow", () => {
 
             await tokenRemoveBtn.click(); // Remove token
             await removeTokenDialog;
-            expect(page.getByTestId(`${canisterId}-remove`)).not.toBeVisible(); // Row removed
+            await expect(
+                page.getByTestId(`${canisterId}-remove`),
+            ).not.toBeVisible(); // Row removed
         });
     });
 });

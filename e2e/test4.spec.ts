@@ -1,5 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
-import { exec, mkPwd } from "./command";
+import { exec, mkPwd, transferICP } from "./command";
 
 test.describe.configure({ mode: "serial" });
 
@@ -14,6 +14,7 @@ test.describe("Report and transfer to user", () => {
 
     test("Registration", async () => {
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         // Registration flow
         await page.getByRole("button", { name: "SIGN UP" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
@@ -24,8 +25,9 @@ test.describe("Report and transfer to user", () => {
             .getByPlaceholder("Repeat your seed phrase...")
             .fill(mkPwd("joe"));
         await page.getByRole("button", { name: "CONTINUE" }).click();
-        exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 618d9a553ef134a2176a6141b3d512d76a32b0671dc2a23fdd4a532e74767821",
+        transferICP(
+            "e93e7f1cfa411dafa8debb4769c6cc1b7972434f1669083fd08d86d11c0c0722",
+            1,
         );
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
@@ -37,8 +39,10 @@ test.describe("Report and transfer to user", () => {
 
     test("Create two invites", async () => {
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         // Create an invite
         await page.goto("/#/invites");
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "CREATE" }).click();
         await page.getByRole("button", { name: "CREATE" }).click();
         inviteLink1 = await page
@@ -53,6 +57,7 @@ test.describe("Report and transfer to user", () => {
 
     test("Registration by invite 1 and create a post", async ({ page }) => {
         await page.goto(inviteLink1);
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
@@ -74,6 +79,7 @@ test.describe("Report and transfer to user", () => {
 
     test("Registration by invite 2 and create a post", async ({ page }) => {
         await page.goto(inviteLink2);
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
@@ -95,6 +101,7 @@ test.describe("Report and transfer to user", () => {
 
     test("Mint credits and send to user", async () => {
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         await page.getByTestId("toggle-user-section").click();
         page.on("dialog", async (dialog) => {
             if (
@@ -116,6 +123,7 @@ test.describe("Report and transfer to user", () => {
         expect(creditsBalance).toBeGreaterThanOrEqual(1900);
 
         await page.goto("/#/user/jane");
+        await page.waitForLoadState("networkidle");
         await page.getByTestId("profile-burger-menu").click();
         page.on("dialog", async (dialog) => {
             if (dialog.message().includes("Enter the amount")) {
@@ -135,6 +143,7 @@ test.describe("Report and transfer to user", () => {
         page,
     }) => {
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "SIGN IN" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
@@ -144,14 +153,17 @@ test.describe("Report and transfer to user", () => {
         await page.waitForTimeout(1000);
 
         await page.goto("/#/settings");
+        await page.waitForLoadState("networkidle");
         await page.getByTestId("mode-selector").selectOption("Mining");
         await page.getByRole("button", { name: "SAVE" }).click();
 
         await page.goto("/#/tokens");
+        await page.waitForLoadState("networkidle");
         await page.getByPlaceholder("ICP per 1 TAGGR").fill("0.01");
         await page.getByPlaceholder("Number of TAGGR tokens").fill("15");
-        exec(
-            "dfx --identity local-minter ledger transfer --amount 0.15 --memo 0 68295789e2bd9fc83a81df85c0bafd7e05b4111890ab3f444cb482b414f41922",
+        transferICP(
+            "12f7ce64042b48e49f6c502c002035acfb3e037cb057ec184f88c04d45e8c03b",
+            0.15,
         );
         await page.getByRole("button", { name: "BID FOR 15 TAGGR" }).click();
         await page.waitForTimeout(1000);
@@ -163,6 +175,7 @@ test.describe("Report and transfer to user", () => {
     test("Report user", async ({ page }) => {
         exec("dfx canister call taggr make_stalwart '(\"joe\")'");
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "SIGN IN" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
@@ -171,6 +184,7 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.waitForTimeout(1000);
         await page.goto("/#/user/kyle");
+        await page.waitForLoadState("networkidle");
         await page.getByTestId("profile-burger-menu").click();
         const reporting = new Promise((resolve, reject) => {
             page.on("dialog", async (dialog) => {
@@ -193,13 +207,18 @@ test.describe("Report and transfer to user", () => {
 
     test("Confirm the report", async () => {
         await page.goto("/#/inbox");
+        await page.waitForLoadState("networkidle");
+        await page.waitForTimeout(2000);
         await page.reload();
+        await page.waitForLoadState("networkidle");
         await expect(page.getByText("reported")).toBeVisible();
 
         await page.goto("/#/user/kyle");
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "✅ AGREE" }).click();
         await page.waitForTimeout(2000);
         await page.reload();
+        await page.waitForLoadState("networkidle");
         await expect(page.locator("div:has-text('REWARDS') > code")).toHaveText(
             "-1,000",
         );
@@ -207,6 +226,7 @@ test.describe("Report and transfer to user", () => {
 
     test("Token transfer to user", async ({ page }) => {
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "SIGN IN" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
@@ -218,7 +238,7 @@ test.describe("Report and transfer to user", () => {
 
         await expect(page.getByTestId("token-balance")).toHaveText("15");
 
-        const transferExecuted = new Promise((resolve, _reject) => {
+        const transferExecuted = new Promise(async (resolve, _reject) => {
             page.on("dialog", async (dialog) => {
                 if (
                     dialog.message().includes("Enter the recipient principal")
@@ -238,13 +258,13 @@ test.describe("Report and transfer to user", () => {
                     resolve(null);
                 }
             });
+            await page.getByTestId("tokens-transfer-button").click();
         });
-
-        await page.getByTestId("tokens-transfer-button").click();
 
         await transferExecuted;
 
         await page.goto("/#/user/joe");
+        await page.waitForLoadState("networkidle");
         await expect(
             page.locator("div.db_cell:has-text('TOKENS') > a"),
         ).toHaveText("5");

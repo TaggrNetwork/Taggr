@@ -135,6 +135,12 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
     );
 
     add_asset(
+        &["/manifest.json"],
+        vec![("Content-Type".into(), "application/json".into())],
+        include_bytes!("../../src/frontend/assets/manifest.json").to_vec(),
+    );
+
+    add_asset(
         &["/.well-known/ii-alternative-origins"],
         vec![("Content-Type".into(), "application/json".into())],
         format!(

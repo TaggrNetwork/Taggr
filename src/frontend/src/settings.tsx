@@ -11,6 +11,7 @@ import {
     UnavailableOnCustomDomains,
     tagList,
     RealmList,
+    localhostUrl,
 } from "./common";
 import { PFP, User, UserFilter, UserId } from "./types";
 import { Principal } from "@dfinity/principal";
@@ -463,6 +464,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                 <ButtonWithLoading
                                     classNameArg={encKey ? "" : "inactive"}
                                     onClick={async () => {
+                                        if (!encKey) return;
                                         const seed = hex(
                                             Array.from(await hash(encKey, 1)),
                                         );
@@ -711,7 +713,7 @@ function pfpPreviewUrl(
     const canisterId = window.backendCache.stats.canister_id;
     const host = MAINNET_MODE
         ? `https://${canisterId}.raw.icp0.io`
-        : `http://127.0.0.1:8080`;
+        : localhostUrl;
     return (
         `${host}/pfp_preview/${userId}/${colors}-${nonce}-${palette_nonce}` +
         (MAINNET_MODE ? "" : `?canisterId=${canisterId}`)

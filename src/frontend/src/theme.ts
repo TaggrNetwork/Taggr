@@ -28,8 +28,8 @@ const themes: { [name: string]: Theme } = {
         code: "White",
         clickable: "#4CB381",
         accent: "Gold",
-        light_factor: 8,
-        dark_factor: 7,
+        light_factor: 5,
+        dark_factor: 10,
     },
     calm: {
         text: "#e0e0c8",
@@ -55,9 +55,9 @@ const themes: { [name: string]: Theme } = {
     light: {
         text: "#101010",
         background: "#F8F4EB",
-        code: "DarkGreen",
-        clickable: "#0066EE",
-        accent: "MediumSeaGreen",
+        code: "Teal",
+        clickable: "Teal",
+        accent: "Orange",
     },
     midnight: {
         text: "#e0e0cf",
@@ -74,9 +74,6 @@ const applyTheme = (palette: Theme) => {
         "#" + shade(effPalette.background, effPalette.light_factor || 3);
     effPalette.dark_background =
         "#" + shade(effPalette.background, effPalette.dark_factor || -5);
-    effPalette.frame = "#" + shade(effPalette.background, 10);
-    effPalette.visited_clickable = "#" + shade(effPalette.clickable, -20);
-    effPalette.frame = effPalette.frame || effPalette.dark_background;
     const styleNode = document.getElementById("style");
     if (!styleNode) return;
     styleNode.innerText = Object.keys(effPalette).reduce(

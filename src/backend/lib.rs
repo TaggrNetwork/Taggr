@@ -82,10 +82,10 @@ use crate::http::{HttpRequest, HttpResponse};
 #[allow(unused_imports)]
 use crate::realms::RealmId;
 use crate::token::{Account, Standard, TransferArgs, TransferError, Value};
-use ic_ledger_types::GetBlocksArgs;
+use icrc_ledger_types::icrc3::transactions::{GetTransactionsRequest, GetTransactionsResponse};
 use icrc_ledger_types::icrc3::{
     archive::{GetArchivesArgs, GetArchivesResult},
-    blocks::{GetBlocksResult, ICRC3DataCertificate, SupportedBlockType},
+    blocks::{GetBlocksRequest, GetBlocksResult, ICRC3DataCertificate, SupportedBlockType},
 };
 #[allow(unused_imports)]
 use serde_bytes::ByteBuf;

@@ -287,22 +287,23 @@ export const Dashboard = ({}) => {
                 <hr />
                 {logSelector}
                 <hr />
-                <Content
-                    classNameArg="logs"
-                    value={logs
-                        .filter(
-                            ({ level }) =>
-                                (tab == "Social" && level == "INFO") ||
-                                (tab == "Technical" && level != "INFO"),
-                        )
-                        .map(
-                            ({ timestamp, level, message }) =>
-                                `\`${shortDate(
-                                    new Date(Number(timestamp) / 1000000),
-                                )}\`: ${level2icon(level)} ${message}`,
-                        )
-                        .join("\n- - -\n")}
-                />
+                <div className="logs">
+                    <Content
+                        value={logs
+                            .filter(
+                                ({ level }) =>
+                                    (tab == "Social" && level == "INFO") ||
+                                    (tab == "Technical" && level != "INFO"),
+                            )
+                            .map(
+                                ({ timestamp, level, message }) =>
+                                    `\`${shortDate(
+                                        new Date(Number(timestamp) / 1000000),
+                                    )}\`: ${level2icon(level)} ${message}`,
+                            )
+                            .join("\n\n")}
+                    />
+                </div>
             </div>
         </>
     );

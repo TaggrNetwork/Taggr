@@ -2,22 +2,25 @@ use super::MINUTE;
 use crate::{updates::raw_caller, *};
 use assets::{add_value_to_certify, certify, root_hash};
 use base64::{engine::general_purpose, Engine as _};
-use candid::{CandidType, Deserialize, Principal};
+use candid::{CandidType, Deserialize, Nat, Principal};
 use ic_cdk_macros::{query, update};
 use ic_certified_map::leaf_hash;
-use ic_ledger_types::GetBlocksArgs;
 use icrc_ledger_types::{
     icrc::generic_value::ICRC3Value,
+    icrc1::{account::Account as ICRCAccount, transfer::Memo as ICRCMemo},
     icrc3::{
         archive::{GetArchivesArgs, GetArchivesResult},
         blocks::{
-            BlockWithId, GetBlocksResult, ICRC3DataCertificate, ICRC3GenericBlock,
-            SupportedBlockType,
+            BlockWithId, GetBlocksRequest, GetBlocksResult, ICRC3DataCertificate,
+            ICRC3GenericBlock, SupportedBlockType,
         },
+        transactions::{GetTransactionsRequest, GetTransactionsResponse},
+        transactions::{Transaction as ICRCTransaction, Transfer},
     },
 };
 use serde::Serialize;
 use serde_bytes::ByteBuf;
+use std::convert::TryInto;
 
 type Timestamp = u64;
 
@@ -222,12 +225,18 @@ fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
     mutate(|state| transfer(state, time(), owner, args))
 }
 
+const MAX_TX_RESPONSE: u32 = 500;
+
 #[query]
-fn icrc3_get_blocks(args: Vec<GetBlocksArgs>) -> GetBlocksResult {
+fn icrc3_get_blocks(args: Vec<GetBlocksRequest>) -> GetBlocksResult {
     let blocks: Vec<BlockWithId> = read(|state| {
         args.into_iter()
-            .flat_map(|arg| arg.start..(arg.start + arg.length))
-            .filter_map(|i| state.memory.ledger.get(&(i as u32)))
+            .flat_map(|arg| {
+                let start: u32 = arg.start.0.try_into().expect("value too large for u32");
+                let length: u32 = arg.length.0.try_into().expect("value too large for u32");
+                start..(start + length.min(MAX_TX_RESPONSE))
+            })
+            .filter_map(|i| state.memory.ledger.get(&i))
             .map(|tx| tx.into())
             .collect()
     });
@@ -236,6 +245,65 @@ fn icrc3_get_blocks(args: Vec<GetBlocksArgs>) -> GetBlocksResult {
         blocks,
         archived_blocks: Default::default(),
     }
+}
+
+#[query]
+fn get_transactions(req: GetTransactionsRequest) -> GetTransactionsResponse {
+    read(|state| {
+        let start: u32 = req.start.0.try_into().expect("value too large for u32");
+        let length: u32 = req.length.0.try_into().expect("value too large for u32");
+
+        let transactions: Vec<ICRCTransaction> = (start..(start + length.min(MAX_TX_RESPONSE)))
+            .filter_map(|i| state.memory.ledger.get(&i))
+            .map(|tx| {
+                let from_subaccount: Option<[u8; 32]> = tx
+                    .from
+                    .subaccount
+                    .as_ref()
+                    .map(|s| s.clone().try_into().expect("invalid subaccount"));
+                let to_subaccount: Option<[u8; 32]> = tx
+                    .to
+                    .subaccount
+                    .as_ref()
+                    .map(|s| s.clone().try_into().expect("invalid subaccount"));
+
+                let mut icrc_tx = ICRCTransaction {
+                    timestamp: tx.timestamp,
+                    approve: None,
+                    mint: None,
+                    burn: None,
+                    transfer: None,
+                    kind: Default::default(),
+                };
+
+                icrc_tx.kind = "transfer".to_string();
+                icrc_tx.transfer = Some(Transfer {
+                    from: ICRCAccount {
+                        owner: tx.from.owner,
+                        subaccount: from_subaccount,
+                    },
+                    to: ICRCAccount {
+                        owner: tx.to.owner,
+                        subaccount: to_subaccount,
+                    },
+                    amount: Nat::from(tx.amount),
+                    fee: Some(Nat::from(tx.fee)),
+                    spender: None,
+                    memo: tx.memo.as_ref().map(|m| ICRCMemo(ByteBuf::from(m.clone()))),
+                    created_at_time: Some(tx.timestamp),
+                });
+
+                icrc_tx
+            })
+            .collect();
+
+        GetTransactionsResponse {
+            first_index: Nat::from(start),
+            log_length: Nat::from(transactions.len()),
+            transactions,
+            archived_transactions: Default::default(),
+        }
+    })
 }
 
 #[query]

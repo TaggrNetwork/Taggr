@@ -1,0 +1,37 @@
+{
+    "name": "TAGGR",
+    "short_name": "TAGGR",
+    "description": "Decentralized social network on the Internet Computer",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#111111",
+    "theme_color": "#111111",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "https://6qfxa-ryaaa-aaaai-qbhsq-cai.raw.ic0.app/_/raw/apple-touch-icon.png",
+            "sizes": "180x180",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "https://6qfxa-ryaaa-aaaai-qbhsq-cai.raw.ic0.app/_/raw/apple-touch-icon.png",
+            "sizes": "200x200",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/favicon.ico",
+            "sizes": "32x32",
+            "type": "image/x-icon"
+        }
+    ],
+    "categories": ["social", "news"],
+    "screenshots": [
+        {
+            "src": "https://6qfxa-ryaaa-aaaai-qbhsq-cai.raw.ic0.app/_/raw/social-image.jpg",
+            "sizes": "1200x630",
+            "type": "image/jpeg"
+        }
+    ]
+}

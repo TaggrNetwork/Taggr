@@ -8,4 +8,4 @@ export const CANISTER_ID = process.env.CANISTER_ID || "";
 
 export const II_URL = MAINNET_MODE
     ? "https://id.ai"
-    : "http://localhost:8080/?canisterId=qhbym-qaaaa-aaaaa-aaafq-cai";
+    : "http://localhost:9090/?canisterId=qhbym-qaaaa-aaaaa-aaafq-cai";

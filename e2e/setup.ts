@@ -1,6 +1,6 @@
 import { exec } from "./command";
 
-export const canisterId = "bkyz2-fmaaa-aaaaa-qaaaq-cai";
+export const canisterId = "uxrrr-q7777-77774-qaaaq-cai";
 
 export default async function setup(): Promise<void> {
     console.debug("Global setup routine");

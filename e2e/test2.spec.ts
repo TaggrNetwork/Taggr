@@ -1,6 +1,6 @@
 import { test, expect, Page } from "@playwright/test";
 import { resolve } from "node:path";
-import { exec, mkPwd } from "./command";
+import { mkPwd, transferICP } from "./command";
 
 test.describe.configure({ mode: "serial" });
 
@@ -14,6 +14,7 @@ test.describe("Regular users flow", () => {
 
     test("Registration", async () => {
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
 
         // Registration flow
         await page.getByRole("button", { name: "SIGN UP" }).click();
@@ -28,8 +29,9 @@ test.describe("Regular users flow", () => {
         const alicePrincipal =
             "xkqsg-2iln4-5zio6-xn4ja-s34n3-g63uk-kc6ex-wklca-7kfzz-67won-yqe";
         await expect(page.getByText(alicePrincipal)).toBeVisible();
-        exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 61f26763dc3d33d1d9f2114ba8361602fb0f72bfa50bab30255f65a52c30adf0",
+        transferICP(
+            "e6cf5b3addb6f3be053619dad20060f49dce44bb0ae26421c0c4a5da25870a50",
+            1,
         );
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
@@ -43,6 +45,7 @@ test.describe("Regular users flow", () => {
         await expect(page).toHaveTitle("TAGGR");
 
         await page.goto("/#/inbox");
+        await page.waitForLoadState("networkidle");
         await expect(
             page.getByRole("heading", { name: "INBOX" }),
         ).toBeVisible();
@@ -117,9 +120,10 @@ test.describe("Regular users flow", () => {
 
         // Make sure the post is visible on the front page too
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         await expect(
             page.locator("article", {
-                hasText: "Hello world!\n" + "Edit: this is a post-scriptum",
+                hasText: /Hello world!.*Edit: this is a post-scriptum/,
             }),
         ).toBeVisible();
         await expect(
@@ -150,7 +154,7 @@ test.describe("Regular users flow", () => {
             await page.getByTestId("icp-balance").textContent(),
         );
 
-        const transferExecuted = new Promise((resolve, _reject) => {
+        const transferExecuted = new Promise(async (resolve, _reject) => {
             page.on("dialog", async (dialog) => {
                 if (
                     dialog
@@ -176,9 +180,8 @@ test.describe("Regular users flow", () => {
                     resolve(null);
                 }
             });
+            await page.getByTestId("icp-transfer-button").click();
         });
-
-        await page.getByTestId("icp-transfer-button").click();
 
         await transferExecuted;
 
@@ -191,6 +194,7 @@ test.describe("Regular users flow", () => {
     test("Realms", async () => {
         // Now we can create a new realm
         await page.goto("/#/realms");
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "CREATE" }).click();
         await page.getByPlaceholder("alphanumeric").fill("WONDERLAND");
         await page.getByTestId("realm-textarea").fill("Alice in wonderland");
@@ -218,6 +222,7 @@ test.describe("Regular users flow", () => {
     test("Invites", async () => {
         // Now we can create a new realm
         await page.goto("/#/invites");
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "CREATE" }).click();
         inviteLink = await page.getByText(/.*#\/welcome.*/).textContent();
         await page.getByTestId("toggle-user-section").click();
@@ -226,6 +231,7 @@ test.describe("Regular users flow", () => {
 
     test("Registration by invite", async () => {
         await page.goto(inviteLink);
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")

@@ -38,6 +38,6 @@
             "name": "candid:service"
         }
     ],
-    "dfx": "0.24.3",
+    "dfx": "0.29.1",
     "version": 1
 }

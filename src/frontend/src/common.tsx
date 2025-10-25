@@ -1070,7 +1070,7 @@ export function pfpUrl(userId: UserId) {
     const canisterId = window.backendCache?.stats?.canister_id;
     const host = MAINNET_MODE
         ? `https://${canisterId}.raw.icp0.io`
-        : `http://127.0.0.1:8080`;
+        : localhostUrl;
     return (
         `${host}/pfp/${userId}` +
         (MAINNET_MODE ? "" : `?canisterId=${canisterId}`)
@@ -1201,6 +1201,8 @@ export const restartApp = async () => {
     location.reload();
 };
 
+export const localhostUrl = "http://localhost:9090";
+
 export function bucket_image_url(
     bucket_id: string,
     offset: number,
@@ -1213,7 +1215,7 @@ export function bucket_image_url(
     let host =
         MAINNET_MODE || fallback_to_mainnet
             ? `https://${bucket_id}.raw.icp0.io`
-            : `http://127.0.0.1:8080`;
+            : localhostUrl;
     return (
         `${host}/image?offset=${offset}&len=${len}` +
         (MAINNET_MODE ? "" : `&canisterId=${bucket_id}`)
