@@ -182,28 +182,36 @@ test.describe("Upgrades & token transfer flow", () => {
             page.locator('input[type="file"]').click(),
         ]);
 
-        await new Promise((resolve, _reject) => {
-            page.on("dialog", async (dialog) => {
-                if (
-                    dialog
-                        .message()
-                        .includes(
-                            "Do you really want to upload a new binary",
-                        ) ||
-                    dialog.message().includes("Your vote was submitted")
-                ) {
-                    await dialog.accept();
-                }
-                if (dialog.message().includes("Done")) {
-                    await dialog.accept();
-                    resolve(null);
-                }
-            });
-            fileChooser.setFiles([binaryPath]);
-        });
+        const dialogPromise1 = page.waitForEvent("dialog");
+        await fileChooser.setFiles([binaryPath]);
 
-        await page.reload();
-        await page.waitForLoadState("networkidle");
+        const dialog1 = await dialogPromise1;
+        expect(
+            dialog1
+                .message()
+                .includes("Do you really want to upload a new binary"),
+        ).toBe(true);
+        await dialog1.accept();
+
+        const dialog2 = await page.waitForEvent("dialog");
+        expect(dialog2.message().includes("Done")).toBe(true);
+        await dialog2.accept();
+
+        let retries = 5;
+        while (retries > 0) {
+            await page.waitForTimeout(1000);
+            await page.reload();
+            await page.waitForLoadState("networkidle");
+            const statusText = await page
+                .getByTestId("status")
+                .textContent({ timeout: 2000 })
+                .catch(() => null);
+            if (statusText?.includes("Binary set: true")) {
+                break;
+            }
+            retries--;
+        }
+
         await expect(page.getByText("Binary set: true")).toBeVisible();
 
         // Vote for the release
@@ -396,7 +404,9 @@ test.describe("Upgrades & token transfer flow", () => {
 
             await tokenRemoveBtn.click(); // Remove token
             await removeTokenDialog;
-            expect(page.getByTestId(`${canisterId}-remove`)).not.toBeVisible(); // Row removed
+            await expect(
+                page.getByTestId(`${canisterId}-remove`),
+            ).not.toBeVisible(); // Row removed
         });
     });
 });
