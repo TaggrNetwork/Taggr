@@ -305,10 +305,10 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 </div>
             )}
             {profile.about ? (
-                <>
-                    <Content classNameArg="larger_text" value={profile.about} />
+                <div className="larger_text">
+                    <Content value={profile.about} />
                     <hr />
-                </>
+                </div>
             ) : (
                 <br />
             )}

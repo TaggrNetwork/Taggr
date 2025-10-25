@@ -64,12 +64,9 @@ export const Journal = ({ handle }: { handle: string }) => {
                         />
                         's Journal
                     </h1>
-                    {
-                        <Content
-                            value={profile.about}
-                            classNameArg="spaced text_centered vertically_spaced"
-                        />
-                    }
+                    <div className="spaced text_centered vertically_spaced">
+                        <Content value={profile.about} />
+                    </div>
                     <div
                         className="row_container vertically_spaced"
                         style={{ justifyContent: "center" }}

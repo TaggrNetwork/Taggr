@@ -5,14 +5,12 @@ import { previewImg } from "./image_preview";
 
 /**
  * Props for the Markdown component
- * @property classNameArg - Optional CSS class name to apply to the container
  * @property children - The markdown text to parse and render
  * @property urls - Map of blob IDs to their actual URLs for internal images
  * @property blogTitle - Optional blog metadata to render with the first H1
  * @property preview - Whether to render in preview mode (affects YouTube embeds)
  */
 interface MarkdownProps {
-    classNameArg?: string;
     children: string;
     urls?: { [id: string]: string };
     blogTitle?: BlogTitle;
@@ -873,9 +871,6 @@ const parseBlock = (
  * </Markdown>
  */
 export const Markdown: React.FC<MarkdownProps> = React.memo(
-    ({ classNameArg, children, urls = {}, blogTitle, preview }) => (
-        <div className={classNameArg}>
-            {parseBlock(children, urls, blogTitle, preview)}
-        </div>
-    ),
+    ({ children, urls = {}, blogTitle, preview }) =>
+        parseBlock(children, urls, blogTitle, preview),
 );

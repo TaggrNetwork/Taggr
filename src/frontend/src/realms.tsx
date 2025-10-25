@@ -268,11 +268,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                     ></textarea>
                 </div>
                 <div className="framed bottom_spaced">
-                    <Content
-                        value={description}
-                        preview={true}
-                        classNameArg="bottom_spaced"
-                    />
+                    <Content value={description} preview={true} />
                 </div>
                 <div className="column_container bottom_spaced">
                     <div className="bottom_half_spaced">Adult content</div>
@@ -984,10 +980,11 @@ export const Realms = () => {
                                         )}
                                     </div>
                                 </h3>
-                                <Content
-                                    value={realm.description.split("\n")[0]}
-                                    classNameArg="bottom_spaced"
-                                />
+                                <div className="bottom_spaced">
+                                    <Content
+                                        value={realm.description.split("\n")[0]}
+                                    />
+                                </div>
                                 Post eviction penalty:{" "}
                                 <code>{realm.cleanup_penalty}</code>
                                 <hr />

@@ -72,10 +72,9 @@ export const PollView = ({
                                 }}
                             />
                         )}
-                        <Content
-                            classNameArg="max_width_col clickable"
-                            value={option}
-                        />
+                        <div className="max_width_col clickable">
+                            <Content value={option} />
+                        </div>
                         {!showVoting && (
                             <div
                                 className="column_container"

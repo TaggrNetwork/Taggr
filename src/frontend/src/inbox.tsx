@@ -57,10 +57,9 @@ export const Inbox = () => {
                 }
             >
                 <div className="row_container">
-                    <Content
-                        value={msg}
-                        classNameArg="medium_text left_spaced right_spaced max_width_col"
-                    />
+                    <div className="medium_text left_spaced right_spaced max_width_col">
+                        <Content value={msg} />
+                    </div>
                     {!archive && (
                         <>
                             {"WatchedPostEntries" in message && (

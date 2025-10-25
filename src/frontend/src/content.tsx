@@ -49,7 +49,6 @@ export const Content = ({
     collapse,
     preview,
     primeMode,
-    classNameArg,
 }: {
     post?: boolean;
     blogTitle?: BlogTitle;
@@ -58,19 +57,10 @@ export const Content = ({
     collapse?: boolean;
     preview?: boolean;
     primeMode?: boolean;
-    classNameArg?: string;
 }) => {
     const linkedValue = React.useMemo(() => linkTagsAndUsers(value), [value]);
 
-    if (!post)
-        return (
-            <Markdown
-                classNameArg={`selectable ${classNameArg}`}
-                preview={preview}
-            >
-                {linkedValue}
-            </Markdown>
-        );
+    if (!post) return <Markdown preview={preview}>{linkedValue}</Markdown>;
 
     let cutPos = linkedValue.indexOf(CUT);
     let shortened = cutPos >= 0;
@@ -87,7 +77,7 @@ export const Content = ({
     );
     const lines = processedValue.split("\n");
     const words = processedValue.split(" ").length;
-    let className = classNameArg || "";
+    let className = "";
     if (primeMode && lines.length < 10 && !complexPost) {
         if (words < 50) className += " x_large_text";
         else if (words < 100) className += " enlarged_text";
@@ -99,7 +89,6 @@ export const Content = ({
         () => (
             <>
                 <Markdown
-                    classNameArg={`selectable ${className}`}
                     urls={urls || {}}
                     blogTitle={multipleHeaders ? undefined : blogTitle}
                     preview={preview}
@@ -110,11 +99,7 @@ export const Content = ({
                     (collapse ? (
                         <ArrowDown />
                     ) : (
-                        <Markdown
-                            classNameArg="selectable"
-                            urls={urls || {}}
-                            preview={preview}
-                        >
+                        <Markdown urls={urls || {}} preview={preview}>
                             {extValue}
                         </Markdown>
                     ))}
