@@ -92,6 +92,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                 }
                 button1={
                     <button
+                        className="medium_text"
                         title={`${profile.name}'s journal`}
                         onClick={() =>
                             (location.href = `/#/journal/${profile.name}`)

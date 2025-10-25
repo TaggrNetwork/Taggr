@@ -721,6 +721,10 @@ const parseBlock = (
             let summaryContent = "";
             i++;
 
+            while (i < lines.length && lines[i].trim() === "") {
+                i++;
+            }
+
             if (i < lines.length && lines[i].startsWith("<summary>")) {
                 summaryContent = lines[i].replace(/<\/?summary>/g, "").trim();
                 i++;
