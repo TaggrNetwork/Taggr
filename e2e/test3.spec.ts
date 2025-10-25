@@ -13,6 +13,7 @@ test.describe("Regular users flow, part two", () => {
 
     test("Registration", async () => {
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
 
         // Registration flow
         await page.getByRole("button", { name: "SIGN UP" }).click();
@@ -58,6 +59,7 @@ test.describe("Regular users flow, part two", () => {
 
         // Make sure the post is visible on the front page too
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         await expect(
             page.locator("article", {
                 hasText: /Poll from John/,
@@ -84,6 +86,7 @@ test.describe("Regular users flow, part two", () => {
 
     test("Repost the poll", async () => {
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         // Repost the poll
         const feedItem = page.locator(".feed_item", { hasText: /Poll/ });
         await feedItem.getByTestId("post-info-toggle").click();
@@ -95,6 +98,7 @@ test.describe("Regular users flow, part two", () => {
 
         // Make sure the post is visible on the front page too
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         await expect(
             page.locator("article", {
                 hasText: /Repost of the poll/,
@@ -157,6 +161,7 @@ test.describe("Regular users flow, part two", () => {
                 `dfx canister call taggr mint_tokens '("jpyii-f2pki-kh72w-7dnbq-4j7h7-yly5o-k3lik-zgk3g-wnfwo-2w6jd-5ae", 500 : nat64)'`,
             );
             await page.goto("/");
+            await page.waitForLoadState("networkidle");
             await page.getByTestId("toggle-user-section").click();
             await expect(page.getByTestId("token-balance")).toHaveText("5");
             await page.getByTestId("toggle-user-section").click();
@@ -183,19 +188,20 @@ test.describe("Regular users flow, part two", () => {
             await expect(popup).toHaveText(/Tip john with.*/);
             await popup.locator("input").fill("1"); // Send 1 Taggr to john
 
-            popup.getByText("SEND").click();
             // Confirm receiver and amount
-            await new Promise((resolve) => {
+            await new Promise(async (resolve) => {
                 page.once("dialog", async (dialog) => {
                     await dialog.accept();
                     await page.waitForLoadState("networkidle");
                     await page.waitForTimeout(1000);
                     resolve(null);
                 });
+                await popup.getByText("SEND").click();
             });
 
             // Check balance
             await page.goto("/");
+            await page.waitForLoadState("networkidle");
             await page.getByTestId("toggle-user-section").click();
             await expect(page.getByTestId("token-balance")).toHaveText("4");
         });
@@ -221,18 +227,19 @@ test.describe("Regular users flow, part two", () => {
             const popup = page.getByTestId("popup");
             await expect(popup).toBeVisible();
             await popup.locator("input").fill("1"); // Send 1 Taggr to john
-            popup.getByText("SEND").click();
             // Dismiss
-            const promise = new Promise((resolve) => {
+            const promise = new Promise(async (resolve) => {
                 page.once("dialog", async (dialog) => {
                     await dialog.dismiss();
                     resolve(null);
                 });
+                await popup.getByText("SEND").click();
             });
             await promise;
 
             // Check balance
             await page.goto("/");
+            await page.waitForLoadState("networkidle");
             await page.getByTestId("toggle-user-section").click();
             await expect(page.getByTestId("token-balance")).toHaveText("4"); // Canceled
         });

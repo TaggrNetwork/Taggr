@@ -9,7 +9,7 @@ test.describe.configure({ mode: "serial" });
 
 const executeTransfer = async (page: Page, btn: Locator, amount = "5") => {
     // Q1 - enter the principal receiver
-    await new Promise((resolve) => {
+    await new Promise(async (resolve) => {
         page.once("dialog", async (dialog) => {
             if (dialog.message().includes("Enter the recipient principal")) {
                 await dialog.accept("6qfxa-ryaaa-aaaai-qbhsq-cai");
@@ -17,7 +17,7 @@ const executeTransfer = async (page: Page, btn: Locator, amount = "5") => {
             }
         });
         // Click button after listener is setup
-        btn.click();
+        await btn.click();
     });
 
     // Q2 - enter the amount
@@ -51,6 +51,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Registration", async () => {
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         // Registration flow
         await page.getByRole("button", { name: "SIGN UP" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
@@ -79,6 +80,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Create a post and an invite", async () => {
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         // Create a post
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("textarea").fill("Message from Eve");
@@ -93,6 +95,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Registration by invite and rewarding a post", async ({ page }) => {
         await page.goto(inviteLink);
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
@@ -114,6 +117,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Create an auction bid, trigger minting", async ({}) => {
         await page.goto("/#/tokens");
+        await page.waitForLoadState("networkidle");
         await page.getByPlaceholder("ICP per 1 TAGGR").fill("0.01");
         await page.getByPlaceholder("Number of TAGGR tokens").fill("15");
         transferICP(
@@ -130,6 +134,7 @@ test.describe("Upgrades & token transfer flow", () => {
     test("Wallet", async () => {
         // Test the wallet functionality
         await page.goto("/");
+        await page.waitForLoadState("networkidle");
         await page.getByTestId("toggle-user-section").click();
 
         await expect(page.getByTestId("token-balance")).toHaveText("15");
@@ -149,6 +154,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Recovery proposal", async ({ page }) => {
         await page.goto("/#/recovery");
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
@@ -196,7 +202,8 @@ test.describe("Upgrades & token transfer flow", () => {
             fileChooser.setFiles([binaryPath]);
         });
 
-        page.reload();
+        await page.reload();
+        await page.waitForLoadState("networkidle");
         await expect(page.getByText("Binary set: true")).toBeVisible();
 
         // Vote for the release
@@ -214,6 +221,7 @@ test.describe("Upgrades & token transfer flow", () => {
     test("Verify recovery upgrade", async () => {
         await page.waitForTimeout(6000);
         await page.goto("/#/dashboard");
+        await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "TECHNICAL" }).click();
         await expect(
             page.getByText("Executing the canister upgrade"),
@@ -223,6 +231,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Regular proposal", async () => {
         await page.goto("/#/proposals");
+        await page.waitForLoadState("networkidle");
 
         // Create a regular proposal
         await expect(
@@ -297,9 +306,11 @@ test.describe("Upgrades & token transfer flow", () => {
             await page.getByRole("button", { name: "SAVE" }).click();
             await page.waitForTimeout(1000);
             await page.reload();
+            await page.waitForLoadState("networkidle");
 
             // Test the wallet functionality
             await page.goto("/");
+            await page.waitForLoadState("networkidle");
             await page.getByTestId("toggle-user-section").click();
 
             await expect(page.getByTestId("token-balance")).toHaveText("9.9"); // Starting balance

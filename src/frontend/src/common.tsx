@@ -1201,7 +1201,7 @@ export const restartApp = async () => {
     location.reload();
 };
 
-export const localhostUrl = "http://loclahost:9090";
+export const localhostUrl = "http://localhost:9090";
 
 export function bucket_image_url(
     bucket_id: string,

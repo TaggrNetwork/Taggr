@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("Sanity check", async ({ page }) => {
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
 
     await expect(
         page.getByRole("heading", { name: "WELCOME ABOARD" }),
@@ -14,6 +15,7 @@ test("Sanity check", async ({ page }) => {
 
 test("Important links work", async ({ page }) => {
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
 
     await page.getByRole("link", { name: "WHITE PAPER" }).click();
     await expect(
