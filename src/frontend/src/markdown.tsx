@@ -488,6 +488,94 @@ const parseTableAlignment = (separator: string): string => {
 };
 
 /**
+ * Parses a list (ordered or unordered) with support for nested lists
+ * @param lines - All lines of the document
+ * @param startIndex - Starting line index
+ * @param urls - Map of blob IDs to image URLs
+ * @param preview - Whether to render in preview mode
+ * @param listRegex - Regex to match list items at current level
+ * @param indentedRegex - Regex to match indented list items
+ * @param ListTag - 'ul' or 'ol'
+ * @returns The list element and next index to process
+ */
+const parseList = (
+    lines: string[],
+    startIndex: number,
+    urls: { [id: string]: string },
+    preview: boolean | undefined,
+    listRegex: RegExp,
+    indentedRegex: RegExp,
+    ListTag: "ul" | "ol",
+): { element: JSX.Element; nextIndex: number } => {
+    const items: JSX.Element[] = [];
+    let itemKey = 0;
+    let i = startIndex;
+
+    while (
+        i < lines.length &&
+        (listRegex.test(lines[i]) ||
+            lines[i].trim() === "" ||
+            lines[i].match(indentedRegex) ||
+            (items.length > 0 && lines[i].match(/^\s+/)))
+    ) {
+        if (lines[i].trim() === "") {
+            i++;
+            continue;
+        }
+
+        if (listRegex.test(lines[i])) {
+            const contentLines: string[] = [];
+            contentLines.push(lines[i].replace(listRegex, ""));
+            i++;
+
+            while (
+                i < lines.length &&
+                (lines[i].match(/^\s+/) || lines[i].trim() === "")
+            ) {
+                if (lines[i].trim() !== "") {
+                    contentLines.push(lines[i]);
+                }
+                i++;
+            }
+
+            if (contentLines.length === 1) {
+                items.push(
+                    <li key={itemKey++}>
+                        {parseInline(contentLines[0], urls, preview)}
+                    </li>,
+                );
+            } else {
+                const minIndent = Math.min(
+                    ...contentLines
+                        .slice(1)
+                        .filter((l) => l.trim())
+                        .map((l) => l.match(/^\s*/)?.[0].length || 0),
+                );
+                const dedented = [
+                    contentLines[0],
+                    ...contentLines
+                        .slice(1)
+                        .map((l) => (l.trim() ? l.slice(minIndent) : l)),
+                ].join("\n");
+
+                items.push(
+                    <li key={itemKey++}>
+                        {parseBlock(dedented, urls, undefined, preview)}
+                    </li>,
+                );
+            }
+        } else {
+            i++;
+        }
+    }
+
+    return {
+        element: <ListTag>{items}</ListTag>,
+        nextIndex: i,
+    };
+};
+
+/**
  * Parses block-level markdown syntax into React elements
  * Supported blocks (in order of precedence):
  * - ``` code blocks -> <pre><code>
@@ -572,116 +660,32 @@ const parseBlock = (
         }
 
         if (UNORDERED_LIST_REGEX.test(line)) {
-            const items: JSX.Element[] = [];
-            let itemKey = 0;
-            while (
-                i < lines.length &&
-                (UNORDERED_LIST_REGEX.test(lines[i]) ||
-                    lines[i].trim() === "" ||
-                    lines[i].match(/^\s+[-*+]\s/) ||
-                    (items.length > 0 && lines[i].match(/^\s+/)))
-            ) {
-                if (lines[i].trim() === "") {
-                    i++;
-                    continue;
-                }
-
-                if (UNORDERED_LIST_REGEX.test(lines[i])) {
-                    const contentLines: string[] = [];
-                    contentLines.push(
-                        lines[i].replace(UNORDERED_LIST_REGEX, ""),
-                    );
-                    i++;
-
-                    while (
-                        i < lines.length &&
-                        (lines[i].match(/^\s+/) || lines[i].trim() === "")
-                    ) {
-                        if (lines[i].trim() !== "") {
-                            contentLines.push(lines[i]);
-                        }
-                        i++;
-                    }
-
-                    const minIndent = Math.min(
-                        ...contentLines
-                            .slice(1)
-                            .filter((l) => l.trim())
-                            .map((l) => l.match(/^\s*/)?.[0].length || 0),
-                    );
-                    const dedented = [
-                        contentLines[0],
-                        ...contentLines
-                            .slice(1)
-                            .map((l) => (l.trim() ? l.slice(minIndent) : l)),
-                    ].join("\n");
-
-                    items.push(
-                        <li key={itemKey++}>
-                            {parseBlock(dedented, urls, undefined, preview)}
-                        </li>,
-                    );
-                } else {
-                    i++;
-                }
-            }
-            blocks.push(<ul key={key++}>{items}</ul>);
+            const result = parseList(
+                lines,
+                i,
+                urls,
+                preview,
+                UNORDERED_LIST_REGEX,
+                /^\s+[-*+]\s/,
+                "ul",
+            );
+            blocks.push(React.cloneElement(result.element, { key: key++ }));
+            i = result.nextIndex;
             continue;
         }
 
         if (ORDERED_LIST_REGEX.test(line)) {
-            const items: JSX.Element[] = [];
-            let itemKey = 0;
-            while (
-                i < lines.length &&
-                (ORDERED_LIST_REGEX.test(lines[i]) ||
-                    lines[i].trim() === "" ||
-                    lines[i].match(/^\s+\d+\.\s/) ||
-                    (items.length > 0 && lines[i].match(/^\s+/)))
-            ) {
-                if (lines[i].trim() === "") {
-                    i++;
-                    continue;
-                }
-
-                if (ORDERED_LIST_REGEX.test(lines[i])) {
-                    const contentLines: string[] = [];
-                    contentLines.push(lines[i].replace(ORDERED_LIST_REGEX, ""));
-                    i++;
-
-                    while (
-                        i < lines.length &&
-                        (lines[i].match(/^\s+/) || lines[i].trim() === "")
-                    ) {
-                        if (lines[i].trim() !== "") {
-                            contentLines.push(lines[i]);
-                        }
-                        i++;
-                    }
-
-                    const minIndent = Math.min(
-                        ...contentLines
-                            .slice(1)
-                            .filter((l) => l.trim())
-                            .map((l) => l.match(/^\s*/)?.[0].length || 0),
-                    );
-                    const dedented = [
-                        contentLines[0],
-                        ...contentLines
-                            .slice(1)
-                            .map((l) => (l.trim() ? l.slice(minIndent) : l)),
-                    ].join("\n");
-
-                    items.push(
-                        <li key={itemKey++}>
-                            {parseBlock(dedented, urls, undefined, preview)}
-                        </li>,
-                    );
-                } else {
-                    i++;
-                }
-            }
-            blocks.push(<ol key={key++}>{items}</ol>);
+            const result = parseList(
+                lines,
+                i,
+                urls,
+                preview,
+                ORDERED_LIST_REGEX,
+                /^\s+\d+\.\s/,
+                "ol",
+            );
+            blocks.push(React.cloneElement(result.element, { key: key++ }));
+            i = result.nextIndex;
             continue;
         }
 
