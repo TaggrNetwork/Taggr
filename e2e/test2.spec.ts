@@ -1,6 +1,6 @@
 import { test, expect, Page } from "@playwright/test";
 import { resolve } from "node:path";
-import { exec, mkPwd } from "./command";
+import { mkPwd, transferICP } from "./command";
 
 test.describe.configure({ mode: "serial" });
 
@@ -28,8 +28,9 @@ test.describe("Regular users flow", () => {
         const alicePrincipal =
             "xkqsg-2iln4-5zio6-xn4ja-s34n3-g63uk-kc6ex-wklca-7kfzz-67won-yqe";
         await expect(page.getByText(alicePrincipal)).toBeVisible();
-        exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 61f26763dc3d33d1d9f2114ba8361602fb0f72bfa50bab30255f65a52c30adf0",
+        transferICP(
+            "e6cf5b3addb6f3be053619dad20060f49dce44bb0ae26421c0c4a5da25870a50",
+            1,
         );
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })

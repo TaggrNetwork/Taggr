@@ -1,5 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
-import { exec, mkPwd } from "./command";
+import { exec, mkPwd, transferICP } from "./command";
 
 test.describe.configure({ mode: "serial" });
 
@@ -24,8 +24,9 @@ test.describe("Report and transfer to user", () => {
             .getByPlaceholder("Repeat your seed phrase...")
             .fill(mkPwd("joe"));
         await page.getByRole("button", { name: "CONTINUE" }).click();
-        exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 618d9a553ef134a2176a6141b3d512d76a32b0671dc2a23fdd4a532e74767821",
+        transferICP(
+            "e93e7f1cfa411dafa8debb4769c6cc1b7972434f1669083fd08d86d11c0c0722",
+            1,
         );
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
@@ -150,8 +151,9 @@ test.describe("Report and transfer to user", () => {
         await page.goto("/#/tokens");
         await page.getByPlaceholder("ICP per 1 TAGGR").fill("0.01");
         await page.getByPlaceholder("Number of TAGGR tokens").fill("15");
-        exec(
-            "dfx --identity local-minter ledger transfer --amount 0.15 --memo 0 68295789e2bd9fc83a81df85c0bafd7e05b4111890ab3f444cb482b414f41922",
+        transferICP(
+            "12f7ce64042b48e49f6c502c002035acfb3e037cb057ec184f88c04d45e8c03b",
+            0.15,
         );
         await page.getByRole("button", { name: "BID FOR 15 TAGGR" }).click();
         await page.waitForTimeout(1000);

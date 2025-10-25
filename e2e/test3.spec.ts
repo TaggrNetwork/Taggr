@@ -1,6 +1,6 @@
 import { test, expect, Page } from "@playwright/test";
 import { resolve } from "node:path";
-import { exec, mkPwd } from "./command";
+import { exec, mkPwd, transferICP } from "./command";
 
 test.describe.configure({ mode: "serial" });
 
@@ -28,8 +28,9 @@ test.describe("Regular users flow, part two", () => {
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
             .click();
         const value = await page.getByTestId("invoice-amount").textContent();
-        exec(
-            `dfx --identity local-minter ledger transfer --amount ${value} --memo 0 c1d0a8187a351972e4f69d00be36ef3e150e0250ecd75c091b57f5b1c70ac563`,
+        transferICP(
+            "68498cde2c0dd4f5e21baeb053116db6deb280287230ef3ac62aae1d4d76656f",
+            value,
         );
         await page.getByRole("button", { name: "CHECK BALANCE" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
@@ -135,8 +136,9 @@ test.describe("Regular users flow, part two", () => {
             const value = await page
                 .getByTestId("invoice-amount")
                 .textContent();
-            exec(
-                `dfx --identity local-minter ledger transfer --amount ${value} --memo 0 67e63281c6bccd4645168376e5052043b5f71725bf84f6f6405c4a8e62b37211`,
+            transferICP(
+                "7d0c7667560d70acd15508e059e40bf8a5589d739500eb9550d7874446f92a14",
+                value,
             );
             await page.getByRole("button", { name: "CHECK BALANCE" }).click();
 

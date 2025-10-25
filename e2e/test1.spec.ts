@@ -1,6 +1,6 @@
 import { test, expect, Page, Locator } from "@playwright/test";
 import { resolve } from "node:path";
-import { exec, mkPwd } from "./command";
+import { exec, mkPwd, transferICP } from "./command";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { canisterId } from "./setup";
@@ -64,8 +64,9 @@ test.describe("Upgrades & token transfer flow", () => {
         const stalwartPrincipal =
             "v5znh-suak4-idmlq-uaq6k-iiygt-7d7de-jq7pf-dpzmt-zhmle-akfo2-mqe";
         await expect(page.getByText(stalwartPrincipal)).toBeVisible();
-        exec(
-            "dfx --identity local-minter ledger transfer --amount 1 --memo 0 2cf73bb8c2acb69a7c18dda7fc1f2c4bf923a9fa7552e454e5eb656bd2e0ada4",
+        transferICP(
+            "aa2ff83cb95478c005b5d108b050bdbf148e3b404f1a0d82173dd779ad70c355",
+            1,
         );
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
@@ -115,8 +116,9 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.goto("/#/tokens");
         await page.getByPlaceholder("ICP per 1 TAGGR").fill("0.01");
         await page.getByPlaceholder("Number of TAGGR tokens").fill("15");
-        exec(
-            "dfx --identity local-minter ledger transfer --amount 0.15 --memo 0 2cf73bb8c2acb69a7c18dda7fc1f2c4bf923a9fa7552e454e5eb656bd2e0ada4",
+        transferICP(
+            "aa2ff83cb95478c005b5d108b050bdbf148e3b404f1a0d82173dd779ad70c355",
+            0.15,
         );
         await page.getByRole("button", { name: "BID FOR 15 TAGGR" }).click();
         await page.waitForTimeout(1000);
