@@ -70,7 +70,7 @@ export const Content = ({
     if (shortened) {
         extValue = linkedValue.slice(cutPos + CUT.length);
         processedValue = linkedValue.slice(0, cutPos);
-        if (preview) processedValue += "\n\n- - -\n\n";
+        if (preview) processedValue += "\n\n---\n\n";
     }
     const complexPost = ["# ", "## ", "!["].some((pref) =>
         processedValue.startsWith(pref),

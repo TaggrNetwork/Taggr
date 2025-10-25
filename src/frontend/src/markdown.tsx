@@ -788,6 +788,7 @@ const parseBlock = (
             !UNORDERED_LIST_REGEX.test(lines[i]) &&
             !ORDERED_LIST_REGEX.test(lines[i]) &&
             !TABLE_ROW_REGEX.test(lines[i]) &&
+            !HR_REGEX.test(lines[i]) &&
             !lines[i].startsWith("> ") &&
             !lines[i].startsWith("```") &&
             !lines[i].startsWith("<details>")

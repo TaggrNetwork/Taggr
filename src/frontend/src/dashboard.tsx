@@ -301,7 +301,7 @@ export const Dashboard = ({}) => {
                                         new Date(Number(timestamp) / 1000000),
                                     )}\`: ${level2icon(level)} ${message}`,
                             )
-                            .join("\n- - -\n")}
+                            .join("\n\n")}
                     />
                 </div>
             </div>
