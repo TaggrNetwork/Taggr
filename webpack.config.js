@@ -130,9 +130,21 @@ module.exports = {
     },
     module: {
         rules: [
-            { test: /\.js\.map$/, loader: "ignore-loader" },
-            { test: /\.d\.ts\.map$/, loader: "ignore-loader" },
-            { test: /\.d\.ts$/, loader: "ignore-loader" },
+            {
+                test: /\.js\.map$/,
+                type: "asset/resource",
+                generator: { emit: false },
+            },
+            {
+                test: /\.d\.ts\.map$/,
+                type: "asset/resource",
+                generator: { emit: false },
+            },
+            {
+                test: /\.d\.ts$/,
+                type: "asset/resource",
+                generator: { emit: false },
+            },
             {
                 test: /\.(ts|tsx|jsx)$/,
                 loader: "ts-loader",

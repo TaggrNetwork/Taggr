@@ -16,13 +16,12 @@
         "format:check": "prettier --check ."
     },
     "devDependencies": {
-        "@playwright/test": "1.46.1",
+        "@playwright/test": "1.56.1",
         "@types/isomorphic-fetch": "0.0.39",
         "@types/react-dom": "19.0.0",
         "buffer": "6.0.3",
         "copy-webpack-plugin": "11.0.0",
         "html-webpack-plugin": "5.5.3",
-        "ignore-loader": "^0.1.2",
         "isomorphic-fetch": "3.0.0",
         "prettier": "^3.3.3",
         "process": "0.11.10",
@@ -32,7 +31,7 @@
         "terser-webpack-plugin": "^5.3.10",
         "ts-loader": "9.5.0",
         "typescript": "5.8.3",
-        "webpack": "^5.96.1",
+        "webpack": "^5.102.1",
         "webpack-cli": "5.1.4",
         "webpack-dev-server": "^5.1.0"
     },
