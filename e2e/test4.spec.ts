@@ -193,6 +193,7 @@ test.describe("Report and transfer to user", () => {
 
     test("Confirm the report", async () => {
         await page.goto("/#/inbox");
+        await page.waitForTimeout(2000);
         await page.reload();
         await expect(page.getByText("reported")).toBeVisible();
 
