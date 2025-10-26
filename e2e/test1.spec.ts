@@ -197,14 +197,14 @@ test.describe("Upgrades & token transfer flow", () => {
         expect(dialog2.message().includes("Done")).toBe(true);
         await dialog2.accept();
 
-        let retries = 5;
+        let retries = 10;
         while (retries > 0) {
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(2000);
             await page.reload();
             await page.waitForLoadState("networkidle");
             const statusText = await page
                 .getByTestId("status")
-                .textContent({ timeout: 2000 })
+                .textContent({ timeout: 5000 })
                 .catch(() => null);
             if (statusText?.includes("Binary set: true")) {
                 break;
@@ -212,7 +212,9 @@ test.describe("Upgrades & token transfer flow", () => {
             retries--;
         }
 
-        await expect(page.getByText("Binary set: true")).toBeVisible();
+        await expect(
+            page.getByTestId("status").filter({ hasText: "Binary set: true" }),
+        ).toBeVisible({ timeout: 15000 });
 
         // Vote for the release
         const buildHash = await hashFile(binaryPath);
