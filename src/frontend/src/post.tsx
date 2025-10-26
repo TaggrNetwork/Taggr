@@ -1401,6 +1401,9 @@ const TippingPopup = ({
                 if ("Err" in response) {
                     throw new Error(response.Err);
                 } else await callback();
+
+                popUpCallback();
+
                 return;
             }
 
@@ -1489,6 +1492,7 @@ const TippingPopup = ({
                     }
                     setTippingAmount(amount);
                 }}
+                onFocus={(e) => e.target.select()}
             />
             <ButtonWithLoading
                 classNameArg="active"
