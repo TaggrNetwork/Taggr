@@ -124,7 +124,7 @@ test.describe("Regular users flow", () => {
         await page.waitForLoadState("networkidle");
         await expect(
             page.locator("article", {
-                hasText: /Edit: this is a post-scriptum/,
+                hasText: /Hello world!.*Edit: this is a post-scriptum/,
             }),
         ).toBeVisible();
         await expect(
