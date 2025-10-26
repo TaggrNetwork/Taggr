@@ -1070,11 +1070,8 @@ export function pfpUrl(userId: UserId) {
     const canisterId = window.backendCache?.stats?.canister_id;
     const host = MAINNET_MODE
         ? `https://${canisterId}.raw.icp0.io`
-        : localhostUrl;
-    return (
-        `${host}/pfp/${userId}` +
-        (MAINNET_MODE ? "" : `?canisterId=${canisterId}`)
-    );
+        : `http://${canisterId}.raw.localhost:8080`;
+    return `${host}/pfp/${userId}`;
 }
 
 export const InfoPopup = ({
@@ -1201,13 +1198,7 @@ export const restartApp = async () => {
     location.reload();
 };
 
-export const localhostUrl = "http://localhost:9090";
-
-export function bucket_image_url(
-    bucket_id: string,
-    offset: number,
-    len: number,
-) {
+export function bucketImageUrl(bucket_id: string, offset: number, len: number) {
     // Fall back to the mainnet if the local config doesn't contain the bucket.
     let fallback_to_mainnet = !window.backendCache.stats?.buckets?.find(
         ([id, _y]) => id == bucket_id,
@@ -1215,11 +1206,8 @@ export function bucket_image_url(
     let host =
         MAINNET_MODE || fallback_to_mainnet
             ? `https://${bucket_id}.raw.icp0.io`
-            : localhostUrl;
-    return (
-        `${host}/image?offset=${offset}&len=${len}` +
-        (MAINNET_MODE ? "" : `&canisterId=${bucket_id}`)
-    );
+            : `http://${bucket_id}.raw.localhost:8080`;
+    return `${host}/image?offset=${offset}&len=${len}`;
 }
 
 export function createChunks<T>(arr: T[], size: number) {

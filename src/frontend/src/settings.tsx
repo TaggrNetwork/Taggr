@@ -11,7 +11,6 @@ import {
     UnavailableOnCustomDomains,
     tagList,
     RealmList,
-    localhostUrl,
 } from "./common";
 import { PFP, User, UserFilter, UserId } from "./types";
 import { Principal } from "@dfinity/principal";
@@ -713,9 +712,6 @@ function pfpPreviewUrl(
     const canisterId = window.backendCache.stats.canister_id;
     const host = MAINNET_MODE
         ? `https://${canisterId}.raw.icp0.io`
-        : localhostUrl;
-    return (
-        `${host}/pfp_preview/${userId}/${colors}-${nonce}-${palette_nonce}` +
-        (MAINNET_MODE ? "" : `?canisterId=${canisterId}`)
-    );
+        : `http://${canisterId}.raw.localhost:8080`;
+    return `${host}/pfp_preview/${userId}/${colors}-${nonce}-${palette_nonce}`;
 }

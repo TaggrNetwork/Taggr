@@ -21,7 +21,7 @@ import {
     ButtonWithLoading,
     bigScreen,
     tokens,
-    bucket_image_url,
+    bucketImageUrl,
     currentRealm,
     noiseControlBanner,
     showPopUp,
@@ -1250,7 +1250,7 @@ export const filesToUrls = (files: { [id: string]: [number, number] }) =>
         (acc, key) => {
             const [id, bucketId] = key.split("@");
             const [offset, len] = files[key];
-            acc[id] = bucket_image_url(bucketId, offset, len);
+            acc[id] = bucketImageUrl(bucketId, offset, len);
             return acc;
         },
         {} as { [id: string]: string },
