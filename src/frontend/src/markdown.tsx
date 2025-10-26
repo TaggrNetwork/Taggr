@@ -8,11 +8,13 @@ import { previewImg } from "./image_preview";
  * @property children - The markdown text to parse and render
  * @property urls - Map of blob IDs to their actual URLs for internal images
  * @property blogTitle - Optional blog metadata to render with the first H1
+ * @property preview - Whether to render in preview mode (affects YouTube embeds)
  */
 interface MarkdownProps {
     children: string;
     urls?: { [id: string]: string };
     blogTitle?: BlogTitle;
+    preview?: boolean;
 }
 
 /**
@@ -42,23 +44,33 @@ const setDimensions = (props: any) => {
 
 /**
  * YouTube video embed component with lazy loading support
- * Starts collapsed as a clickable "YouTube" label that expands to the full iframe
- * Memoized to prevent re-renders during text input
+ * In preview mode, shows a clickable "YouTube" label that expands to the full iframe
  * @param id - YouTube video ID (e.g., "dQw4w9WgXcQ")
+ * @param preview - If true, starts collapsed and requires click to load iframe
  */
-const YouTube = React.memo(({ id }: { id: string }) => {
+const YouTube = ({ id, preview }: { id: string; preview?: boolean }) => {
+    const [open, setOpen] = React.useState(!preview);
+    if (open)
+        return (
+            <span className="video-container" style={{ display: "block" }}>
+                <iframe
+                    loading="lazy"
+                    allowFullScreen={true}
+                    referrerPolicy="origin"
+                    src={`https://youtube.com/embed/${id}`}
+                ></iframe>
+            </span>
+        );
     return (
-        <span className="video-container" style={{ display: "block" }}>
-            <iframe
-                loading="lazy"
-                allowFullScreen={true}
-                referrerPolicy="origin"
-                frameBorder="0"
-                src={`https://youtube.com/embed/${id}`}
-            ></iframe>
+        <span
+            data-meta="skipClicks"
+            className="yt_preview"
+            onClick={() => setOpen(true)}
+        >
+            YouTube
         </span>
     );
-});
+};
 
 /**
  * Gallery component for displaying multiple images with thumbnail navigation
@@ -144,69 +156,71 @@ const YOUTUBE_REGEX =
 const isALink = (val: string) => URL_REGEX.test(val) || WWW_REGEX.test(val);
 
 /**
- * Creates a link renderer function
+ * Creates a link renderer function with preview mode support
  * Handles special cases:
  * - YouTube links -> converts to YouTube component
  * - Internal domain links -> converts to hash routes
  * - External links -> adds nofollow/noopener and shows hostname
  * - Relative links -> prefixes with #
+ * @param preview - Whether to render in preview mode
  * @returns Function that renders link elements
  */
-const createLinkRenderer = () => (props: { href: string; children: any }) => {
-    let className: string | undefined = undefined;
-    let label: string = props.children;
-    let child: string = props.children;
-    let href = props.href;
+const createLinkRenderer =
+    (preview?: boolean) => (props: { href: string; children: any }) => {
+        let className: string | undefined = undefined;
+        let label: string = props.children;
+        let child: string = props.children;
+        let href = props.href;
 
-    if (typeof child == "string") {
-        const matches = child.match(YOUTUBE_REGEX);
-        if (matches) {
-            const id = matches[3];
-            return id ? <YouTube id={id} /> : null;
+        if (typeof child == "string") {
+            const matches = child.match(YOUTUBE_REGEX);
+            if (matches) {
+                const id = matches[3];
+                return id ? <YouTube id={id} preview={preview} /> : null;
+            }
+
+            if (isALink(child) || isALink(href)) {
+                try {
+                    const url = new URL(href);
+
+                    if (
+                        url.hostname == domain() ||
+                        Object.keys(window.backendCache.domains).includes(
+                            url.hostname,
+                        )
+                    ) {
+                        const nonMarkdownLink = label == url.href;
+                        let link = url.href.replace(url.origin + "/", "");
+                        href = (link.startsWith("#") ? "" : "#/") + link;
+                        if (nonMarkdownLink) label = href.replace("#", "");
+                    } else if (child == href.replace(/&amp;/g, "&")) {
+                        className = "external";
+                        label = url.hostname.toUpperCase() as any;
+                        return (
+                            <a
+                                className={className}
+                                href={href}
+                                rel="nofollow noopener noreferrer"
+                                target="_blank"
+                            >
+                                {label}
+                            </a>
+                        );
+                    } else {
+                        label = child;
+                    }
+                } catch (e) {}
+            } else if (href.startsWith("/")) {
+                href = "#" + href.replace("/#/", "/");
+            }
         }
 
-        if (isALink(child) || isALink(href)) {
-            try {
-                const url = new URL(href);
-
-                if (
-                    url.hostname == domain() ||
-                    Object.keys(window.backendCache.domains).includes(
-                        url.hostname,
-                    )
-                ) {
-                    const nonMarkdownLink = label == url.href;
-                    let link = url.href.replace(url.origin + "/", "");
-                    href = (link.startsWith("#") ? "" : "#/") + link;
-                    if (nonMarkdownLink) label = href.replace("#", "");
-                } else if (child == href.replace(/&amp;/g, "&")) {
-                    className = "external";
-                    label = url.hostname.toUpperCase() as any;
-                    return (
-                        <a
-                            className={className}
-                            href={href}
-                            rel="nofollow noopener noreferrer"
-                            target="_blank"
-                        >
-                            {label}
-                        </a>
-                    );
-                } else {
-                    label = child;
-                }
-            } catch (e) {}
-        } else if (href.startsWith("/")) {
-            href = "#" + href.replace("/#/", "/");
-        }
-    }
-
-    return (
-        <a className={className} href={href}>
-            {label}
-        </a>
-    );
-};
+        return (
+            <a className={className} href={href}>
+                {label}
+            </a>
+        );
+    };
 
 /**
  * Creates an image renderer function
@@ -354,17 +368,19 @@ const PLAIN_WWW_REGEX = /^(www\.[^\s]+)/;
  * Uses a single-pass greedy parser that processes the string from left to right
  * @param text - The text to parse
  * @param urls - Map of blob IDs to image URLs
+ * @param preview - Whether to render in preview mode
  * @returns Array of text strings and JSX elements
  */
 const parseInline = (
     text: string,
     urls: { [id: string]: string },
+    preview?: boolean,
 ): InlineNode[] => {
     const result: InlineNode[] = [];
     let current = text;
     let key = 0;
 
-    const linkRenderer = createLinkRenderer();
+    const linkRenderer = createLinkRenderer(preview);
     const imageRenderer = createImageRenderer(urls);
 
     while (current.length > 0) {
@@ -378,20 +394,26 @@ const parseInline = (
 
         if ((match = current.match(BOLD_REGEX))) {
             result.push(
-                <strong key={key++}>{parseInline(match[1], urls)}</strong>,
+                <strong key={key++}>
+                    {parseInline(match[1], urls, preview)}
+                </strong>,
             );
             current = current.slice(match[0].length);
             continue;
         }
 
         if ((match = current.match(ITALIC_REGEX))) {
-            result.push(<em key={key++}>{parseInline(match[1], urls)}</em>);
+            result.push(
+                <em key={key++}>{parseInline(match[1], urls, preview)}</em>,
+            );
             current = current.slice(match[0].length);
             continue;
         }
 
         if ((match = current.match(STRIKETHROUGH_REGEX))) {
-            result.push(<del key={key++}>{parseInline(match[1], urls)}</del>);
+            result.push(
+                <del key={key++}>{parseInline(match[1], urls, preview)}</del>,
+            );
             current = current.slice(match[0].length);
             continue;
         }
@@ -407,7 +429,7 @@ const parseInline = (
         if ((match = current.match(LINK_REGEX))) {
             const element = linkRenderer({
                 href: match[2],
-                children: parseInline(match[1], urls),
+                children: parseInline(match[1], urls, preview),
             });
             if (element)
                 result.push(React.cloneElement(element, { key: key++ }));
@@ -468,6 +490,7 @@ const parseTableAlignment = (separator: string): string => {
  * @param lines - All lines of the document
  * @param startIndex - Starting line index
  * @param urls - Map of blob IDs to image URLs
+ * @param preview - Whether to render in preview mode
  * @param listRegex - Regex to match list items at current level
  * @param indentedRegex - Regex to match indented list items
  * @param ListTag - 'ul' or 'ol'
@@ -477,6 +500,7 @@ const parseList = (
     lines: string[],
     startIndex: number,
     urls: { [id: string]: string },
+    preview: boolean | undefined,
     listRegex: RegExp,
     indentedRegex: RegExp,
     ListTag: "ul" | "ol",
@@ -515,7 +539,7 @@ const parseList = (
             if (contentLines.length === 1) {
                 items.push(
                     <li key={itemKey++}>
-                        {parseInline(contentLines[0], urls)}
+                        {parseInline(contentLines[0], urls, preview)}
                     </li>,
                 );
             } else {
@@ -534,7 +558,7 @@ const parseList = (
 
                 items.push(
                     <li key={itemKey++}>
-                        {parseBlock(dedented, urls, undefined)}
+                        {parseBlock(dedented, urls, undefined, preview)}
                     </li>,
                 );
             }
@@ -566,12 +590,14 @@ const parseList = (
  * @param text - The markdown text to parse
  * @param urls - Map of blob IDs to image URLs
  * @param blogTitle - Optional blog metadata for the first H1
+ * @param preview - Whether to render in preview mode
  * @returns Array of block-level JSX elements
  */
 const parseBlock = (
     text: string,
     urls: { [id: string]: string },
     blogTitle?: BlogTitle,
+    preview?: boolean,
 ): JSX.Element[] => {
     const lines = text.split("\n");
     const blocks: JSX.Element[] = [];
@@ -615,14 +641,16 @@ const parseBlock = (
                 blocks.push(
                     <React.Fragment key={key++}>
                         {h1Renderer({
-                            children: parseInline(content, urls),
+                            children: parseInline(content, urls, preview),
                         })}
                     </React.Fragment>,
                 );
             } else {
                 const Tag = `h${level}` as keyof JSX.IntrinsicElements;
                 blocks.push(
-                    <Tag key={key++}>{parseInline(content, urls)}</Tag>,
+                    <Tag key={key++}>
+                        {parseInline(content, urls, preview)}
+                    </Tag>,
                 );
             }
             i++;
@@ -634,6 +662,7 @@ const parseBlock = (
                 lines,
                 i,
                 urls,
+                preview,
                 UNORDERED_LIST_REGEX,
                 /^\s+[-*+]\s/,
                 "ul",
@@ -648,6 +677,7 @@ const parseBlock = (
                 lines,
                 i,
                 urls,
+                preview,
                 ORDERED_LIST_REGEX,
                 /^\s+\d+\.\s/,
                 "ol",
@@ -672,7 +702,12 @@ const parseBlock = (
             }
             blocks.push(
                 <blockquote key={key++}>
-                    {parseBlock(quoteLines.join("\n"), urls, undefined)}
+                    {parseBlock(
+                        quoteLines.join("\n"),
+                        urls,
+                        undefined,
+                        preview,
+                    )}
                 </blockquote>,
             );
             continue;
@@ -723,7 +758,7 @@ const parseBlock = (
                                         textAlign: alignments[idx] as any,
                                     }}
                                 >
-                                    {parseInline(cell, urls)}
+                                    {parseInline(cell, urls, preview)}
                                 </th>
                             ))}
                         </tr>
@@ -740,7 +775,7 @@ const parseBlock = (
                                             ] as any,
                                         }}
                                     >
-                                        {parseInline(cell, urls)}
+                                        {parseInline(cell, urls, preview)}
                                     </td>
                                 ))}
                             </tr>
@@ -773,8 +808,15 @@ const parseBlock = (
 
             blocks.push(
                 <details key={key++}>
-                    <summary>{parseInline(summaryContent, urls)}</summary>
-                    {parseBlock(detailsLines.join("\n"), urls, undefined)}
+                    <summary>
+                        {parseInline(summaryContent, urls, preview)}
+                    </summary>
+                    {parseBlock(
+                        detailsLines.join("\n"),
+                        urls,
+                        undefined,
+                        preview,
+                    )}
                 </details>,
             );
             continue;
@@ -802,7 +844,7 @@ const parseBlock = (
             blocks.push(
                 <React.Fragment key={key++}>
                     {paragraphRenderer({
-                        children: parseInline(content, urls),
+                        children: parseInline(content, urls, preview),
                     })}
                 </React.Fragment>,
             );
@@ -820,6 +862,7 @@ const parseBlock = (
  * - Special features: YouTube embeds, image galleries, collapsible sections
  * - Internal vs external link/image handling
  * - Blog post metadata rendering
+ * - Preview mode for lazy loading
  *
  * @example
  * <Markdown urls={blobUrlMap} blogTitle={metadata}>
@@ -829,6 +872,6 @@ const parseBlock = (
  * </Markdown>
  */
 export const Markdown: React.FC<MarkdownProps> = React.memo(
-    ({ children, urls = {}, blogTitle }) =>
-        parseBlock(children, urls, blogTitle),
+    ({ children, urls = {}, blogTitle, preview }) =>
+        parseBlock(children, urls, blogTitle, preview),
 );
