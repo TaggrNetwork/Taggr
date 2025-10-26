@@ -128,8 +128,7 @@ test.describe("Report and transfer to user", () => {
         page.on("dialog", async (dialog) => {
             if (dialog.message().includes("Enter the amount")) {
                 await dialog.accept("1600");
-            }
-            if (dialog.message().includes("You are transferring")) {
+            } else if (dialog.message().includes("You are transferring")) {
                 await dialog.accept();
             }
         });
@@ -247,11 +246,9 @@ test.describe("Report and transfer to user", () => {
                     await dialog.accept(
                         "evuet-jp2tc-7uwe3-dpgmg-xxr4f-duv55-36d7t-i5nxm-vgc33-cddq3-wae",
                     );
-                }
-                if (dialog.message().includes("Enter the amount")) {
+                } else if (dialog.message().includes("Enter the amount")) {
                     await dialog.accept("5");
-                }
-                if (dialog.message().includes("You are transferring")) {
+                } else if (dialog.message().includes("You are transferring")) {
                     await dialog.accept();
                     await page.waitForLoadState("networkidle");
                     await page.waitForTimeout(3000);

@@ -385,7 +385,7 @@ impl User {
     }
 
     pub fn toggle_following_feed(&mut self, tags: &[String]) -> bool {
-        if tags.iter().any(|t| t.len() > 50) {
+        if tags.iter().map(|tag| tag.len()).sum::<usize>() >= 50 {
             return false;
         }
 

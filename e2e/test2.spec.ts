@@ -66,6 +66,7 @@ test.describe("Regular users flow", () => {
             .getByPlaceholder("Enter your seed phrase...")
             .fill(mkPwd("alice"));
         await page.getByRole("button", { name: "CONTINUE" }).click();
+        await page.waitForLoadState("networkidle");
         await page.getByTestId("toggle-user-section").click();
         const profileButton = page.getByRole("link", { name: /.*ALICE.*/ });
         await expect(profileButton).toBeVisible();
@@ -164,16 +165,14 @@ test.describe("Regular users flow", () => {
                         )
                 ) {
                     await dialog.accept("6qfxa-ryaaa-aaaai-qbhsq-cai");
-                }
-                if (
+                } else if (
                     dialog
                         .message()
                         .includes("Enter the amount (fee: 0.00010000 ICP)")
                 ) {
                     const transferAmount = (icpBalance / 2).toString();
                     await dialog.accept(transferAmount);
-                }
-                if (dialog.message().includes("You are transferring")) {
+                } else if (dialog.message().includes("You are transferring")) {
                     await dialog.accept();
                     await page.waitForLoadState("networkidle");
                     await page.waitForTimeout(3000);
