@@ -1,6 +1,12 @@
 import * as React from "react";
-import { currentRealm, domain, HeadBar, setTitle } from "./common";
-import { ToggleButton } from "./common";
+import {
+    currentRealm,
+    domain,
+    HeadBar,
+    setTitle,
+    showPopUp,
+    ToggleButton,
+} from "./common";
 import { PostFeed } from "./post_feed";
 import { PostId } from "./types";
 
@@ -79,8 +85,16 @@ const FeedExtender = ({
                         currState={() => contains(user.feeds, filter)}
                         toggler={() =>
                             window.api
-                                .call("toggle_following_feed", filter)
-                                .then(window.reloadUser)
+                                .call<
+                                    { Ok: boolean } | { Err: string }
+                                >("toggle_following_feed", filter)
+                                .then((result) => {
+                                    if (result && "Err" in result) {
+                                        showPopUp("error", result.Err);
+                                        return;
+                                    }
+                                    window.reloadUser();
+                                })
                         }
                     />
                     {filter.length == 1 && (

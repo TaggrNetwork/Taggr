@@ -109,7 +109,22 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        for u in state.users.values_mut() {
+            // Clear feeds if they exceed 1000 chars in total
+            if u.feeds
+                .iter()
+                .flat_map(|feed| feed.iter())
+                .map(|tag| tag.len())
+                .sum::<usize>()
+                >= 1000
+            {
+                u.feeds.clear();
+            }
+        }
+    })
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -581,8 +596,8 @@ fn toggle_following_feed() {
         reply(
             state
                 .principal_to_user_mut(caller(state))
-                .map(|user| user.toggle_following_feed(&tags))
-                .unwrap_or_default(),
+                .ok_or_else(|| "user not found".to_string())
+                .and_then(|user| user.toggle_following_feed(&tags)),
         )
     })
 }
