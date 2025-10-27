@@ -226,10 +226,12 @@ export const Invites = () => {
                                     <div className="row_container">
                                         <div className="max_width_col">
                                             <div className="bottom_half_spaced">
-                                                <strong>Credits:</strong>
+                                                <strong className="right_half_spaced">
+                                                    Credits:
+                                                </strong>
                                                 <input
                                                     type="number"
-                                                    className="left_half_spaced max_width_col top_half_spaced"
+                                                    className="max_width_col top_half_spaced"
                                                     defaultValue={credits}
                                                     onBlur={(event) =>
                                                         updateInvite(
@@ -241,13 +243,15 @@ export const Invites = () => {
                                                 />
                                             </div>
                                             <div className="bottom_half_spaced top_half_spaced">
-                                                <strong>
+                                                <strong className="right_half_spaced">
                                                     Credits Per User:
-                                                </strong>{" "}
+                                                </strong>
                                                 <code>{credits_per_user}</code>
                                             </div>
                                             <div className="bottom_half_spaced">
-                                                <strong>Realm:</strong>
+                                                <strong className="right_half_spaced">
+                                                    Realm:
+                                                </strong>
                                                 <input
                                                     type="text"
                                                     className="max_width_col top_half_spaced"
@@ -269,7 +273,9 @@ export const Invites = () => {
                                                 />
                                             </div>
                                             <div className="bottom_half_spaced">
-                                                <strong>Users:</strong>
+                                                <strong className="right_half_spaced">
+                                                    Users:
+                                                </strong>
                                                 <div className="top_half_spaced">
                                                     <UserList
                                                         ids={joined_user_ids}
@@ -277,16 +283,19 @@ export const Invites = () => {
                                                 </div>
                                             </div>
                                             <div className="bottom_half_spaced">
-                                                <strong>Invite Code:</strong>
+                                                <strong className="right_half_spaced">
+                                                    Invite Code:
+                                                </strong>
                                                 <CopyToClipboard
-                                                    classNameArg="left_half_spaced"
                                                     value={code.toUpperCase()}
                                                 />
                                             </div>
                                             <div>
-                                                <strong>URL:</strong>
+                                                <strong className="right_half_spaced">
+                                                    URL:
+                                                </strong>
                                                 <CopyToClipboard
-                                                    classNameArg={`left_half_spaced ${bigScreen() ? "" : "small_text"}`}
+                                                    classNameArg={`${bigScreen() ? "" : "small_text"}`}
                                                     value={`${location.protocol}//${location.host}/#/welcome/${code}`}
                                                 />
                                             </div>

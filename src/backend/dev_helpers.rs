@@ -21,11 +21,8 @@ async fn reset(canister_id: String) {
             crate::domains::DomainConfig::default(),
         );
         state.memory.init();
-        // as expected in E2E tests
-        {
-            state.auction.amount = CONFIG.weekly_auction_size_tokens_min;
-            state.auction.last_auction_price_e8s = 15000000;
-        }
+        state.auction.amount = CONFIG.weekly_auction_size_tokens_min;
+        state.auction.last_auction_price_e8s = 15000000;
         cell.replace(state);
     });
     set_timer(Duration::from_millis(0), || {

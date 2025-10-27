@@ -3826,10 +3826,9 @@ pub(crate) mod tests {
 
             // now we follow a feed #post+#tags
             let user = state.users.get_mut(&user_id).unwrap();
-            assert!(
-                user.toggle_following_feed(vec!["post".to_owned(), "tags".to_owned()].as_slice())
-                    .unwrap()
-            );
+            assert!(user
+                .toggle_following_feed(vec!["post".to_owned(), "tags".to_owned()].as_slice())
+                .unwrap());
 
             // make sure the feed still contains the same post
             let feed = state

@@ -28,18 +28,18 @@ export type DomainConfig = {
 };
 
 export const getMonoRealm = (cfg: DomainConfig) => {
-    if (!("WhiteListedRealms" in cfg.sub_config)) return null;
+    if (!cfg || !("WhiteListedRealms" in cfg.sub_config)) return null;
     const whiteList = cfg.sub_config.WhiteListedRealms;
     return whiteList.length == 1 ? whiteList[0] : null;
 };
 
 export const getDefaultRealm = (cfg: DomainConfig) => {
-    if (!("WhiteListedRealms" in cfg.sub_config)) return null;
+    if (!cfg || !("WhiteListedRealms" in cfg.sub_config)) return null;
     return cfg.sub_config.WhiteListedRealms[0];
 };
 
 export const getJournal = (cfg: DomainConfig) => {
-    if (!("Journal" in cfg.sub_config)) return null;
+    if (!cfg || !("Journal" in cfg.sub_config)) return null;
     return cfg.sub_config.Journal;
 };
 

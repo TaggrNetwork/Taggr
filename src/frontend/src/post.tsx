@@ -1492,7 +1492,6 @@ const TippingPopup = ({
                     }
                     setTippingAmount(amount);
                 }}
-                onFocus={(e) => e.target.select()}
             />
             <ButtonWithLoading
                 classNameArg="active"
