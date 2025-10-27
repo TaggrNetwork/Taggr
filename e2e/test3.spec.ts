@@ -1,6 +1,6 @@
 import { test, expect, Page } from "@playwright/test";
-import { resolve } from "node:path";
 import { exec, mkPwd, transferICP } from "./command";
+import { handleDialog, waitForBackendOperation } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 
@@ -40,24 +40,23 @@ test.describe("Regular users flow, part two", () => {
             .getByPlaceholder("tell us what we should know about you")
             .fill("I am John");
         await page.getByRole("button", { name: "SAVE" }).click();
+        await waitForBackendOperation(page);
         await expect(page).toHaveTitle("TAGGR");
     });
 
     test("Create a post with poll", async () => {
-        // Create a post
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("textarea").fill("Poll from John");
         await page.getByTestId("poll-button").click();
         await page.getByTestId("poll-editor").fill("YES\nNO\nCOMMENTS");
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
+        await page.waitForLoadState("networkidle");
 
-        // Make sure the post loads
         await expect(
             page.locator("article", { hasText: /Poll from John/ }),
         ).toBeVisible();
 
-        // Make sure the post is visible on the front page too
         await page.goto("/");
         await page.waitForLoadState("networkidle");
         await expect(
@@ -66,20 +65,20 @@ test.describe("Regular users flow, part two", () => {
             }),
         ).toBeVisible();
 
-        // Vote on poll
         const feedItem = page.locator(".feed_item", { hasText: /Poll/ });
         await feedItem.locator("input[type=radio]").first().click();
         await feedItem
             .getByRole("button", { name: "SUBMIT", exact: true })
             .click();
+        await waitForBackendOperation(page);
         await expect(feedItem).toHaveText(/100%/);
 
-        // Revote
         await feedItem.getByRole("link", { name: /CHANGE VOTE/ }).click();
         await feedItem.locator("input[type=radio]").nth(1).click();
         await feedItem
             .getByRole("button", { name: "SUBMIT ANONYMOUSLY" })
             .click();
+        await waitForBackendOperation(page);
         await expect(feedItem).toHaveText(/100%/);
         await expect(feedItem).toHaveText(/N\/A/);
     });
@@ -87,16 +86,17 @@ test.describe("Regular users flow, part two", () => {
     test("Repost the poll", async () => {
         await page.goto("/");
         await page.waitForLoadState("networkidle");
-        // Repost the poll
         const feedItem = page.locator(".feed_item", { hasText: /Poll/ });
         await feedItem.getByTestId("post-info-toggle").click();
-        await feedItem.locator("button[title=Repost]").click();
+        const repostButton = feedItem.locator("button[title=Repost]");
+        await repostButton.waitFor({ state: "visible" });
+        await repostButton.click();
         await page.waitForURL(/#\/new/);
         await page.locator("textarea").fill("Repost of the poll");
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
+        await waitForBackendOperation(page);
 
-        // Make sure the post is visible on the front page too
         await page.goto("/");
         await page.waitForLoadState("networkidle");
         await expect(
@@ -113,10 +113,10 @@ test.describe("Regular users flow, part two", () => {
 
     test.describe("Tips", () => {
         test('Logout and login with "eye" user', async () => {
-            // Logout and register "eye" user
             await page.getByTestId("toggle-user-section").click();
             await expect(page.locator(`a[title="SIGN OUT"]`)).toBeVisible();
             await page.locator(`a[title="SIGN OUT"]`).click();
+            await page.waitForLoadState("networkidle");
 
             await expect(page).toHaveTitle("TAGGR");
 
@@ -126,7 +126,7 @@ test.describe("Regular users flow, part two", () => {
                 .getByPlaceholder("Enter your seed phrase...")
                 .fill(mkPwd("eye"));
             await page.getByRole("button", { name: "CONTINUE" }).click();
-            await page.waitForTimeout(1000);
+            await page.waitForLoadState("networkidle");
             await page
                 .getByPlaceholder("Enter your seed phrase...")
                 .fill(mkPwd("eye"));
@@ -145,6 +145,7 @@ test.describe("Regular users flow, part two", () => {
                 value,
             );
             await page.getByRole("button", { name: "CHECK BALANCE" }).click();
+            await waitForBackendOperation(page);
 
             await page.getByRole("button", { name: "CREATE USER" }).click();
             await page.getByPlaceholder("alphanumeric").fill("one");
@@ -152,11 +153,11 @@ test.describe("Regular users flow, part two", () => {
                 .getByPlaceholder("tell us what we should know about you")
                 .fill("I am one");
             await page.getByRole("button", { name: "SAVE" }).click();
+            await waitForBackendOperation(page);
             await expect(page).toHaveTitle("TAGGR");
         });
 
         test("Find post and tip it", async () => {
-            // Mint 5 Taggr to tipper "eye"
             exec(
                 `dfx canister call taggr mint_tokens '("jpyii-f2pki-kh72w-7dnbq-4j7h7-yly5o-k3lik-zgk3g-wnfwo-2w6jd-5ae", 500 : nat64)'`,
             );
@@ -166,7 +167,6 @@ test.describe("Regular users flow, part two", () => {
             await expect(page.getByTestId("token-balance")).toHaveText("5");
             await page.getByTestId("toggle-user-section").click();
 
-            // Find post with Poll from John
             const post = page
                 .getByTestId("post-body")
                 .filter({
@@ -174,40 +174,40 @@ test.describe("Regular users flow, part two", () => {
                 })
                 .last();
             await expect(post).toBeVisible();
-            // Click post menu
             const menuBTN = post.locator(`button[title="Menu"]`);
             await expect(menuBTN).toBeVisible();
             await menuBTN.click();
-            // Click tip button
             const postMenu = post.getByTestId("post-menu");
             await expect(postMenu).toBeVisible();
             await postMenu.locator(`button[title="Tip"]`).click();
-            // Wait for custom popup and send 1 Taggr
             const popup = page.getByTestId("popup");
             await expect(popup).toBeVisible();
             await expect(popup).toHaveText(/Tip john with.*/);
-            await popup.locator("input").fill("1"); // Send 1 Taggr to john
+            await popup.locator("input").fill("1");
 
-            // Confirm receiver and amount
-            await new Promise(async (resolve) => {
-                page.once("dialog", async (dialog) => {
-                    await dialog.accept();
-                    await page.waitForLoadState("networkidle");
-                    await page.waitForTimeout(1000);
-                    resolve(null);
-                });
+            await handleDialog(page, /./, "", async () => {
                 await popup.getByText("SEND").click();
             });
+            await waitForBackendOperation(page);
 
-            // Check balance
             await page.goto("/");
             await page.waitForLoadState("networkidle");
             await page.getByTestId("toggle-user-section").click();
+
+            await page.waitForFunction(
+                () => {
+                    const elem = document.querySelector(
+                        '[data-testid="token-balance"]',
+                    );
+                    return elem?.textContent === "4";
+                },
+                { timeout: 10000 },
+            );
+
             await expect(page.getByTestId("token-balance")).toHaveText("4");
         });
 
         test("Find post click tip but cancel it", async () => {
-            // Find post with Poll from John
             const post = page
                 .getByTestId("post-body")
                 .filter({
@@ -215,33 +215,25 @@ test.describe("Regular users flow, part two", () => {
                 })
                 .last();
             await expect(post).toBeVisible();
-            // Click post menu
             const menuBTN = post.locator(`button[title="Menu"]`);
             await expect(menuBTN).toBeVisible();
             await menuBTN.click();
-            // Click tip button
             const postMenu = post.getByTestId("post-menu");
             await expect(postMenu).toBeVisible();
             await postMenu.locator(`button[title="Tip"]`).click();
-            // Wait for custom popup and send 1 Taggr
             const popup = page.getByTestId("popup");
             await expect(popup).toBeVisible();
-            await popup.locator("input").fill("1"); // Send 1 Taggr to john
-            // Dismiss
-            const promise = new Promise(async (resolve) => {
-                page.once("dialog", async (dialog) => {
-                    await dialog.dismiss();
-                    resolve(null);
-                });
-                await popup.getByText("SEND").click();
-            });
-            await promise;
+            await popup.locator("input").fill("1");
 
-            // Check balance
+            page.once("dialog", async (dialog) => {
+                await dialog.dismiss();
+            });
+            await popup.getByText("SEND").click();
+
             await page.goto("/");
             await page.waitForLoadState("networkidle");
             await page.getByTestId("toggle-user-section").click();
-            await expect(page.getByTestId("token-balance")).toHaveText("4"); // Canceled
+            await expect(page.getByTestId("token-balance")).toHaveText("4");
         });
     });
 });
