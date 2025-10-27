@@ -3828,6 +3828,7 @@ pub(crate) mod tests {
             let user = state.users.get_mut(&user_id).unwrap();
             assert!(
                 user.toggle_following_feed(vec!["post".to_owned(), "tags".to_owned()].as_slice())
+                    .unwrap()
             );
 
             // make sure the feed still contains the same post
@@ -3898,7 +3899,7 @@ pub(crate) mod tests {
             // now we follow a feed "post"
             let user = state.users.get_mut(&user_id).unwrap();
             let tags: Vec<_> = vec!["post".to_string()].into_iter().collect();
-            assert!(user.toggle_following_feed(&tags));
+            assert!(user.toggle_following_feed(&tags).unwrap());
             // make sure the feed contains the new post
             let feed = state
                 .users
@@ -3914,7 +3915,7 @@ pub(crate) mod tests {
 
             // Make sure we can unsubscribe and the feed gets back to 2 posts
             let user = state.users.get_mut(&user_id).unwrap();
-            assert!(!user.toggle_following_feed(&tags));
+            assert!(!user.toggle_following_feed(&tags).unwrap());
             let feed = state
                 .users
                 .get(&user_id)
@@ -4232,10 +4233,29 @@ pub(crate) mod tests {
                 .collect();
             let tags2: Vec<_> = vec!["tag1".to_owned()].into_iter().collect();
             let user = state.users.get_mut(&id).unwrap();
-            assert!(user.toggle_following_feed(&tags));
-            assert!(user.toggle_following_feed(&tags2));
-            assert!(!user.toggle_following_feed(&tags));
-            assert!(!user.toggle_following_feed(&tags2));
+            assert!(user.toggle_following_feed(&tags).unwrap());
+            assert!(user.toggle_following_feed(&tags2).unwrap());
+            assert!(!user.toggle_following_feed(&tags).unwrap());
+            assert!(!user.toggle_following_feed(&tags2).unwrap());
+        })
+    }
+
+    #[test]
+    fn test_toggle_following_feed_validation_failure() {
+        mutate(|state| {
+            state.init();
+            let p = pr(0);
+            let id = create_user(state, p);
+            let user = state.users.get_mut(&id).unwrap();
+
+            let tag1 = "a".repeat(500);
+            user.toggle_following_feed(std::slice::from_ref(&tag1))
+                .unwrap();
+
+            let tag2 = "b".repeat(500);
+            let result = user.toggle_following_feed(std::slice::from_ref(&tag2));
+            assert!(result.is_err());
+            assert_eq!(result.unwrap_err(), "feed size limit exceeded");
         })
     }
 
