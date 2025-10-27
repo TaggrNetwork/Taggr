@@ -1070,6 +1070,10 @@ label svg {
         justify-self: left;
     }
 
+    .banner {
+        border-radius: 0;
+    }
+
     .prime img {
         border-radius: 0;
     }
