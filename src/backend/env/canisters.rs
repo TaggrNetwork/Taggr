@@ -6,7 +6,8 @@ use super::{
 };
 use crate::{env::NeuronId, id, mutate, read};
 use candid::{
-    utils::{ArgumentDecoder, ArgumentEncoder}, CandidType, Nat, Principal
+    utils::{ArgumentDecoder, ArgumentEncoder},
+    CandidType, Nat, Principal,
 };
 use ic_cdk::api::{
     self,
@@ -418,4 +419,3 @@ pub async fn get_transactions(
             })?;
     Ok(response)
 }
-
