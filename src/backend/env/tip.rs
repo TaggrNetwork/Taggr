@@ -1,8 +1,6 @@
 use candid::Nat;
-use icrc_ledger_types::{
-    icrc::generic_value::ICRC3Value,
-    icrc3::blocks::{GetBlocksRequest, ICRC3GenericBlock},
-};
+
+use crate::env::canisters::GetTransactionsArgs;
 
 use super::{token::Memo, *};
 
@@ -110,87 +108,42 @@ async fn try_tip(
     caller: Principal,
     start_index: u64,
 ) -> Result<Tip, String> {
-    let response = canisters::get_icrc3_get_blocks(
-        canister_id,
-        GetBlocksRequest {
-            start: Nat::from(start_index),
-            length: Nat::from(1_u64),
-        },
-    )
-    .await?;
-
-    let Some(block_with_id) = response.blocks.first() else {
-        return Err(format!("transaction not found at index {}", start_index));
+    let args = GetTransactionsArgs {
+        start: Nat::from(start_index),
+        length: Nat::from(1_u128),
     };
-
-    let (amount, from, to, memo) = convert_icrc3_block_to_transfer(&block_with_id.block)?;
-
-    if from.owner != caller {
-        return Err("you are not the transaction initiator".into());
-    }
-
-    mutate(|state| {
-        create_post_tip(
-            state,
-            post_id,
-            canister_id,
-            amount,
-            memo,
-            to.owner,
-            from.owner,
-            start_index,
-        )
-    })
-}
-
-pub fn convert_icrc3_block_to_transfer(
-    block: &ICRC3GenericBlock,
-) -> Result<(u128, Account, Account, Memo), String> {
-    let block_map = match block {
-        ICRC3Value::Map(map) => map,
-        _ => return Err("block is not a map".into()),
-    };
-
-    let tx = match block_map.get("tx") {
-        Some(ICRC3Value::Map(m)) => m,
-        _ => return Err("tx is not a map".into()),
-    };
-
-    let memo = match block_map.get("memo").or(tx.get("memo")) {
-        Some(ICRC3Value::Blob(m)) => m.clone().to_vec(),
-        _ => return Err("memo not found".into()),
-    };
-
-    let amount = match tx.get("amt") {
-        Some(ICRC3Value::Nat(a)) => u128::try_from(&a.0).ok().ok_or("amount not found")?,
-        _ => return Err("amount not found".into()),
-    };
-
-    let from = match tx.get("from") {
-        Some(ICRC3Value::Array(from_array)) => match from_array.first() {
-            Some(ICRC3Value::Blob(blob)) => Principal::from_slice(blob),
-            _ => return Err("from value not found".into()),
-        },
-        _ => return Err("from value not found".into()),
-    };
-
-    let to = tx
-        .get("to")
-        .and_then(|icrc3_value| match icrc3_value {
-            ICRC3Value::Array(from_array) => {
-                if let Some(value) = from_array.first() {
-                    return match value {
-                        ICRC3Value::Blob(blob) => Some(Principal::from_slice(blob)),
-                        _ => None,
-                    };
+    let response = canisters::get_transactions(canister_id, args).await;
+    if let Some(transaction) = response
+        .expect("Failed to retrive transactions")
+        .transactions
+        .first()
+    {
+        match &transaction.transfer {
+            Some(transfer) => mutate(|state| {
+                let amount = u128::try_from(&transfer.amount.0).expect("Wrong amount");
+                let memo = transfer.memo.as_ref().unwrap().0.to_vec();
+                if transfer.from.owner != caller {
+                    return Err("caller not transaction sender".into());
                 }
-                None
-            }
-            _ => None,
-        })
-        .ok_or("to not found")?;
-
-    Ok((amount, account(from), account(to), memo))
+                create_post_tip(
+                    state,
+                    post_id,
+                    canister_id,
+                    amount,
+                    memo,
+                    transfer.to.owner,
+                    transfer.from.owner,
+                    start_index,
+                )
+            }),
+            None => Err("Transaction is not a transfer!".into()),
+        }
+    } else {
+        Err(format!(
+            "We could not find transaction at index {}",
+            start_index
+        ))
+    }
 }
 
 #[cfg(test)]
