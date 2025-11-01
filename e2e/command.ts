@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 
-export const transferICP = (acc, amount) => {
+export const transferICP = (acc: string, amount: number | string) => {
     const cmd = `dfx --identity local-minter ledger transfer --amount ${amount} --memo 0 ${acc}`;
     exec(cmd);
 };
