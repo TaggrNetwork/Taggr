@@ -7,7 +7,7 @@ use super::{
 use crate::{env::NeuronId, id, mutate, read};
 use candid::{
     utils::{ArgumentDecoder, ArgumentEncoder},
-    CandidType, Nat, Principal,
+    CandidType, Principal,
 };
 use ic_cdk::api::{
     self,
@@ -23,9 +23,8 @@ use ic_cdk::api::{
 use ic_cdk::{api::call::call_raw, notify};
 use ic_ledger_types::{Tokens, MAINNET_GOVERNANCE_CANISTER_ID};
 use ic_xrc_types::{Asset, GetExchangeRateRequest, GetExchangeRateResult};
-use icrc_ledger_types::icrc3::blocks::{GetBlocksRequest, GetBlocksResult};
+use icrc_ledger_types::icrc3::transactions::{GetTransactionsRequest, GetTransactionsResponse};
 use serde::{Deserialize, Serialize};
-use serde_bytes::ByteBuf;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -37,43 +36,6 @@ thread_local! {
     static CALLS: RefCell<HashMap<String, i32>> = Default::default();
     // A timestamp of the last upgrading attempt
     static UPGRADE_TIMESTAMP: RefCell<u64> = Default::default();
-}
-
-#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
-pub struct GetTransactionsArgs {
-    pub start: Nat,
-    pub length: Nat,
-}
-
-#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
-pub struct IcrcAccount {
-    pub owner: Principal,
-    pub subaccount: Option<[u8; 32]>,
-}
-
-#[derive(
-    Serialize, Deserialize, CandidType, Clone, Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Default,
-)]
-#[serde(transparent)]
-pub struct IcrcMemo(pub ByteBuf);
-
-#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
-pub struct IcrcTransfer {
-    pub amount: Nat,
-    pub from: IcrcAccount,
-    pub to: IcrcAccount,
-    pub memo: Option<IcrcMemo>,
-    pub fee: Option<Nat>,
-}
-
-#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
-pub struct IcrcTransactionRecord {
-    pub transfer: Option<IcrcTransfer>,
-}
-
-#[derive(CandidType, Clone, Serialize, Deserialize, Debug)]
-pub struct GetTransactionsResult {
-    pub transactions: Vec<IcrcTransactionRecord>,
 }
 
 // Panics if an upgrade was initiated within the last 5 minutes. If something goes wrong
@@ -286,18 +248,6 @@ pub async fn coins_for_one_xdr(coin: &str) -> Result<u64, String> {
         .map(|result| result.rate / 10)
 }
 
-pub async fn get_icrc3_get_blocks(
-    canister_id: Principal,
-    args: GetBlocksRequest,
-) -> Result<GetBlocksResult, String> {
-    let vec_args = vec![args];
-    let (response,): (GetBlocksResult,) =
-        call_canister(canister_id, "icrc3_get_blocks", (vec_args,))
-            .await
-            .map_err(|e| format!("Failed to call icrc3_get_blocks: {:?}", e))?;
-    Ok(response)
-}
-
 pub async fn call_canister_raw(id: Principal, method: &str, args: &[u8]) -> CallResult<Vec<u8>> {
     open_call(method);
     let result = call_raw(id, method, args, 0).await;
@@ -408,14 +358,11 @@ pub async fn top_up() {
 
 pub async fn get_transactions(
     canister_id: Principal,
-    args: GetTransactionsArgs,
-) -> Result<GetTransactionsResult, String> {
-    let (response,): (GetTransactionsResult,) =
+    args: GetTransactionsRequest,
+) -> Result<GetTransactionsResponse, String> {
+    let (response,): (GetTransactionsResponse,) =
         call_canister(canister_id, "get_transactions", (args,))
             .await
-            .map_err(|e| {
-                ic_cdk::println!("Failed to call ledger: {:?}", e);
-                format!("Failed to call ledger: {:?}", e)
-            })?;
+            .map_err(|e| format!("failed to call ledger: {:?}", e))?;
     Ok(response)
 }

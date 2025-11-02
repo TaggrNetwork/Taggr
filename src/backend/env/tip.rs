@@ -1,6 +1,5 @@
 use candid::Nat;
-
-use crate::env::canisters::GetTransactionsArgs;
+use icrc_ledger_types::icrc3::transactions::GetTransactionsRequest;
 
 use super::{token::Memo, *};
 
@@ -108,42 +107,36 @@ async fn try_tip(
     caller: Principal,
     start_index: u64,
 ) -> Result<Tip, String> {
-    let args = GetTransactionsArgs {
+    let args = GetTransactionsRequest {
         start: Nat::from(start_index),
         length: Nat::from(1_u128),
     };
-    let response = canisters::get_transactions(canister_id, args).await;
-    if let Some(transaction) = response
-        .expect("Failed to retrive transactions")
+    let response = canisters::get_transactions(canister_id, args).await?;
+    let Some(transfer) = response
         .transactions
         .first()
-    {
-        match &transaction.transfer {
-            Some(transfer) => mutate(|state| {
-                let amount = u128::try_from(&transfer.amount.0).expect("Wrong amount");
-                let memo = transfer.memo.as_ref().unwrap().0.to_vec();
-                if transfer.from.owner != caller {
-                    return Err("caller not transaction sender".into());
-                }
-                create_post_tip(
-                    state,
-                    post_id,
-                    canister_id,
-                    amount,
-                    memo,
-                    transfer.to.owner,
-                    transfer.from.owner,
-                    start_index,
-                )
-            }),
-            None => Err("Transaction is not a transfer!".into()),
+        .and_then(|tx| tx.transfer.as_ref())
+    else {
+        return Err(format!("no transfer transaction at index {}", start_index));
+    };
+
+    mutate(|state| {
+        let amount = u128::try_from(&transfer.amount.0).expect("Wrong amount");
+        let memo = transfer.memo.as_ref().unwrap().0.to_vec();
+        if transfer.from.owner != caller {
+            return Err("caller is not transaction sender".into());
         }
-    } else {
-        Err(format!(
-            "We could not find transaction at index {}",
-            start_index
-        ))
-    }
+        create_post_tip(
+            state,
+            post_id,
+            canister_id,
+            amount,
+            memo,
+            transfer.to.owner,
+            transfer.from.owner,
+            start_index,
+        )
+    })
 }
 
 #[cfg(test)]
