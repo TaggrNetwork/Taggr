@@ -280,6 +280,9 @@ test.describe("Upgrades & token transfer flow", () => {
             page.getByRole("heading", { name: "PROPOSALS" }),
         ).toBeVisible();
         await page.getByTestId("proposals-burger-button").click();
+        await page
+            .locator("textarea")
+            .waitFor({ state: "attached", timeout: 2000 });
         await page.locator("textarea").fill("A regular upgrade");
 
         const binaryPath = resolve(

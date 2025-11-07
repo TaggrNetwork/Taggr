@@ -187,6 +187,7 @@ test.describe("Report and transfer to user", () => {
             .fill(mkPwd("jane"));
         await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.waitForLoadState("networkidle");
+        await page.reload();
         await page.waitForURL(/#\//);
 
         await page.goto("/#/settings");
@@ -218,13 +219,16 @@ test.describe("Report and transfer to user", () => {
             .getByPlaceholder("Enter your seed phrase...")
             .fill(mkPwd("jane"));
         await page.getByRole("button", { name: "CONTINUE" }).click();
-        await page.waitForLoadState("networkidle");
         await page.goto("/#/user/kyle");
+        await page.reload();
         await page.waitForLoadState("networkidle");
+        await page
+            .getByTestId("profile-burger-menu")
+            .waitFor({ state: "visible", timeout: 2000 });
         await page.getByTestId("profile-burger-menu").click();
         await page
             .getByRole("button", { name: "REPORT" })
-            .waitFor({ state: "visible" });
+            .waitFor({ state: "visible", timeout: 2000 });
 
         await handleDialog(
             page,
