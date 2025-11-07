@@ -1,3 +1,4 @@
+import { waitForUILoading } from "./helpers";
 import { test, expect, Page, Locator } from "@playwright/test";
 import { resolve } from "node:path";
 import { exec, mkPwd, transferICP } from "./command";
@@ -7,7 +8,6 @@ import { canisterId } from "./setup";
 import {
     handleDialog,
     handleDialogSequence,
-    waitForBackendOperation,
     pollForCondition,
     createAuctionBid,
 } from "./helpers";
@@ -36,7 +36,7 @@ const executeTransfer = async (page: Page, btn: Locator, amount = "5") => {
         },
     );
 
-    await waitForBackendOperation(page);
+    await waitForUILoading(page);
 };
 
 test.describe("Upgrades & token transfer flow", () => {
@@ -49,7 +49,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Registration", async () => {
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         // Registration flow
         await page.getByRole("button", { name: "SIGN UP" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
@@ -70,17 +70,17 @@ test.describe("Upgrades & token transfer flow", () => {
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
             .click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "CREATE USER" }).click();
         await page.getByPlaceholder("alphanumeric").fill("eve");
         await page.getByRole("button", { name: "SAVE" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
         exec("dfx canister call taggr make_stalwart '(\"eve\")'");
     });
 
     test("Create a post and an invite", async () => {
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         // Create a post
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("textarea").fill("Message from Eve");
@@ -95,7 +95,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Registration by invite and rewarding a post", async ({ page }) => {
         await page.goto(inviteLink);
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
@@ -106,7 +106,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.getByPlaceholder("alphanumeric").fill("pete");
         await page.getByRole("button", { name: "SAVE" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
 
         const feedItem = page.locator(".feed_item", {
             hasText: "Message from Eve",
@@ -118,7 +118,7 @@ test.describe("Upgrades & token transfer flow", () => {
             .first();
         await rewardButton.waitFor({ state: "visible" });
         await rewardButton.click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
     });
 
     test("Create an auction bid, trigger minting", async ({}) => {
@@ -137,7 +137,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await pollForCondition(
             async () => {
                 await page.goto("/");
-                await page.waitForLoadState("networkidle");
+                await waitForUILoading(page);
                 await page.getByTestId("toggle-user-section").click();
                 const balance = await page
                     .getByTestId("token-balance")
@@ -153,7 +153,7 @@ test.describe("Upgrades & token transfer flow", () => {
         );
 
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByTestId("toggle-user-section").click();
         await expect(page.getByTestId("token-balance")).toHaveText("15");
 
@@ -172,7 +172,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Recovery proposal", async ({ page }) => {
         await page.goto("/#/recovery");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
@@ -216,7 +216,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await pollForCondition(
             async () => {
                 await page.reload();
-                await page.waitForLoadState("networkidle");
+                await waitForUILoading(page);
                 const statusText = await page
                     .getByTestId("status")
                     .textContent({ timeout: 5000 })
@@ -237,22 +237,22 @@ test.describe("Upgrades & token transfer flow", () => {
         const buildHash = await hashFile(binaryPath);
         await page.getByTestId("hash-input").fill(buildHash);
         await page.getByRole("button", { name: "SUBMIT HASH" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
         await expect(page.getByText("votes: 100%")).toBeVisible();
         await expect(
             page.getByRole("heading", { name: "Supporters" }),
         ).toBeVisible();
 
         exec("dfx canister call taggr chores");
-        await waitForBackendOperation(page, { timeout: 10000 });
+        await waitForUILoading(page, { timeout: 10000 });
         await page.waitForTimeout(4000);
     });
 
     test("Verify recovery upgrade", async () => {
         await page.goto("/#/dashboard");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "TECHNICAL" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
 
         await pollForCondition(
             async () => {
@@ -274,15 +274,12 @@ test.describe("Upgrades & token transfer flow", () => {
 
     test("Regular proposal", async () => {
         await page.goto("/#/proposals");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
 
         await expect(
             page.getByRole("heading", { name: "PROPOSALS" }),
         ).toBeVisible();
         await page.getByTestId("proposals-burger-button").click();
-        await page
-            .locator("textarea")
-            .waitFor({ state: "attached", timeout: 2000 });
         await page.locator("textarea").fill("A regular upgrade");
 
         const binaryPath = resolve(
@@ -328,7 +325,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.waitForTimeout(1000);
 
         await page.getByRole("button", { name: "SUBMIT" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
         await expect(page.getByText(/STATUS.*OPEN/)).toBeVisible();
         await expect(page.getByText("TYPE: RELEASE")).toBeVisible();
 
@@ -340,22 +337,23 @@ test.describe("Upgrades & token transfer flow", () => {
                 await page.getByRole("button", { name: "ACCEPT" }).click();
             },
         );
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
 
         await expect(page.getByText(/STATUS.*EXECUTED/)).toBeVisible();
 
         exec("dfx canister call taggr chores");
-        await waitForBackendOperation(page, { timeout: 5000 });
+        await waitForUILoading(page, { timeout: 5000 });
         await page.locator("#logo").click();
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
     });
 
     test("Verify regular upgrade", async () => {
         await pollForCondition(
             async () => {
                 await page.goto("/#/dashboard");
+                await page.reload();
                 await page.waitForURL(/dashboard/);
-                await page.waitForLoadState("networkidle");
+                await waitForUILoading(page);
                 await page.getByRole("button", { name: "TECHNICAL" }).click();
                 const count = await page
                     .locator("p", { hasText: /Upgrade succeeded/ })
@@ -364,7 +362,7 @@ test.describe("Upgrades & token transfer flow", () => {
             },
             {
                 maxAttempts: 15,
-                interval: 1000,
+                interval: 500,
                 errorMessage: "Did not find 2 upgrade succeeded messages",
             },
         );
@@ -377,19 +375,19 @@ test.describe("Upgrades & token transfer flow", () => {
     test.describe("IC TOKENS", () => {
         test("Add - input", async () => {
             await page.goto("/#/settings");
-            await page.waitForLoadState("networkidle");
+            await waitForUILoading(page);
             const icrcWalletEnableSelect = page.getByTestId("ic-wallet-select");
             await expect(icrcWalletEnableSelect).toBeVisible();
             await icrcWalletEnableSelect.selectOption("YES");
             await icrcWalletEnableSelect.selectOption("YES");
 
             await page.getByRole("button", { name: "SAVE" }).click();
-            await waitForBackendOperation(page);
+            await waitForUILoading(page);
             await page.reload();
-            await page.waitForLoadState("networkidle");
+            await waitForUILoading(page);
 
             await page.goto("/");
-            await page.waitForLoadState("networkidle");
+            await waitForUILoading(page);
             await page.getByTestId("toggle-user-section").click();
 
             await expect(page.getByTestId("token-balance")).toHaveText("9.9");
@@ -412,7 +410,7 @@ test.describe("Upgrades & token transfer flow", () => {
                     await addTokenBtn.click();
                 },
             );
-            await waitForBackendOperation(page);
+            await waitForUILoading(page);
 
             await expect(page.getByTestId(`${canisterId}-balance`)).toHaveText(
                 "9.90",
@@ -444,14 +442,14 @@ test.describe("Upgrades & token transfer flow", () => {
 
             await expect(tokenHideZeros).toBeVisible();
             await tokenHideZeros.click();
-            await waitForBackendOperation(page, { timeout: 2000 });
+            await waitForUILoading(page, { timeout: 2000 });
 
             await expect(
                 page.getByTestId(`${canisterId}-send`),
             ).not.toBeVisible();
 
             await tokenHideZeros.click();
-            await waitForBackendOperation(page, { timeout: 2000 });
+            await waitForUILoading(page, { timeout: 2000 });
             await expect(page.getByTestId(`${canisterId}-send`)).toBeVisible();
         });
 
@@ -462,7 +460,7 @@ test.describe("Upgrades & token transfer flow", () => {
             await handleDialog(page, "Remove TAGGR", "", async () => {
                 await tokenRemoveBtn.click();
             });
-            await waitForBackendOperation(page);
+            await waitForUILoading(page);
 
             await expect(
                 page.getByTestId(`${canisterId}-remove`),

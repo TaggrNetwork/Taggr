@@ -180,7 +180,7 @@ export async function waitForCondition(
     throw new Error(errorMessage);
 }
 
-export async function waitForBackendOperation(
+export async function waitForUILoading(
     page: Page,
     options: {
         timeout?: number;
@@ -189,7 +189,7 @@ export async function waitForBackendOperation(
     const { timeout = 5000 } = options;
 
     await page.waitForLoadState("networkidle", { timeout });
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(500);
 }
 
 export async function createAuctionBid(
@@ -200,7 +200,7 @@ export async function createAuctionBid(
     icpAddress: string,
 ): Promise<void> {
     await page.goto("/#/tokens");
-    await page.waitForLoadState("networkidle");
+    await waitForUILoading(page);
     await page.getByPlaceholder("ICP per 1 TAGGR").fill(icpPerToken);
     await page.getByPlaceholder("Number of TAGGR tokens").fill(tokenAmount);
     transferICPFn(
@@ -210,7 +210,7 @@ export async function createAuctionBid(
     await page
         .getByRole("button", { name: `BID FOR ${tokenAmount} TAGGR` })
         .click();
-    await page.waitForLoadState("networkidle");
+    await waitForUILoading(page);
     await page.getByText("Current Bids").waitFor({ state: "visible" });
 }
 

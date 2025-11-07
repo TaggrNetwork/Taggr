@@ -1,11 +1,8 @@
+import { waitForUILoading } from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { resolve } from "node:path";
 import { mkPwd, transferICP } from "./command";
-import {
-    handleDialog,
-    handleDialogSequence,
-    waitForBackendOperation,
-} from "./helpers";
+import { handleDialog, handleDialogSequence } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 
@@ -19,7 +16,7 @@ test.describe("Regular users flow", () => {
 
     test("Registration", async () => {
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
 
         // Registration flow
         await page.getByRole("button", { name: "SIGN UP" }).click();
@@ -47,11 +44,11 @@ test.describe("Regular users flow", () => {
             .getByPlaceholder("tell us what we should know about you")
             .fill("I am a #Taggr fan");
         await page.getByRole("button", { name: "SAVE" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
         await expect(page).toHaveTitle("TAGGR");
 
         await page.goto("/#/inbox");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await expect(
             page.getByRole("heading", { name: "INBOX" }),
         ).toBeVisible();
@@ -61,7 +58,7 @@ test.describe("Regular users flow", () => {
 
         await page.getByTestId("toggle-user-section").click();
         await page.getByRole("link", { name: /.*SIGN OUT.*/ }).click();
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
     });
 
     test("Login and post", async () => {
@@ -71,13 +68,13 @@ test.describe("Regular users flow", () => {
             .getByPlaceholder("Enter your seed phrase...")
             .fill(mkPwd("alice"));
         await page.getByRole("button", { name: "CONTINUE" }).click();
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByTestId("toggle-user-section").click();
         const profileButton = page.getByRole("link", { name: /.*ALICE.*/ });
         await expect(profileButton).toBeVisible();
 
         await profileButton.click();
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await expect(
             page.getByRole("heading", { name: "Alice" }),
         ).toBeVisible();
@@ -102,7 +99,7 @@ test.describe("Regular users flow", () => {
         await fileChooser.setFiles([imagePath]);
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
 
         await expect(
             page.locator("article", { hasText: /Hello world/ }),
@@ -122,11 +119,11 @@ test.describe("Regular users flow", () => {
             .fill(value + "\n\n**Edit:** this is a post-scriptum");
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
         await expect(page.getByText("post-scriptum")).toBeVisible();
 
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
 
         const article = page.locator("article", { hasText: "Hello world!" });
         await expect(article).toBeVisible();
@@ -151,7 +148,7 @@ test.describe("Regular users flow", () => {
                 await page.getByRole("button", { name: "MINT" }).click();
             },
         );
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
         await expect(page.getByTestId("credits-balance")).toHaveText("2,976");
 
         const icpBalance = parseFloat(
@@ -204,12 +201,12 @@ test.describe("Regular users flow", () => {
     test("Realms", async () => {
         // Now we can create a new realm
         await page.goto("/#/realms");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "CREATE" }).click();
         await page.getByPlaceholder("alphanumeric").fill("WONDERLAND");
         await page.getByTestId("realm-textarea").fill("Alice in wonderland");
         await page.getByRole("button", { name: "CREATE" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
 
         // Make sure we're in the realm
         await page.getByTestId("realm-burger-button").click();
@@ -219,11 +216,11 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("#form_undefined_3").fill("Hello from Alice!");
         await page.getByRole("button", { name: "SUBMIT" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
 
         // Make sure the post is visible on the front page and is labeled with realm tag
         await page.locator("#logo").click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
         await expect(
             page.locator("article", { hasText: "Hello from Alice!" }),
         ).toBeVisible();
@@ -235,7 +232,8 @@ test.describe("Regular users flow", () => {
 
     test("Invites", async () => {
         await page.goto("/#/invites");
-        await page.waitForLoadState("networkidle");
+        await page.reload();
+        await waitForUILoading(page);
         await page.waitForURL(/.*invites.*/, { timeout: 5000 });
 
         await page.getByRole("button", { name: "CREATE" }).click();
@@ -243,12 +241,12 @@ test.describe("Regular users flow", () => {
 
         await page.getByTestId("toggle-user-section").click();
         await page.getByRole("link", { name: /.*SIGN OUT.*/ }).click();
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
     });
 
     test("Registration by invite", async () => {
         await page.goto(inviteLink);
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
@@ -263,7 +261,7 @@ test.describe("Regular users flow", () => {
             .fill("Alice invited me");
         await page.getByRole("button", { name: "SAVE" }).click();
         await page.waitForURL(/\//);
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
     });
 
     test("Interacting with posts", async () => {
@@ -302,7 +300,7 @@ test.describe("Regular users flow", () => {
                 .first(),
         ).toHaveText("⭐️1");
         await page.locator("#logo").click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
     });
 
     test("User profile", async () => {

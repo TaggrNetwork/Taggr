@@ -1,6 +1,6 @@
+import { waitForUILoading, handleDialog } from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { exec, mkPwd, transferICP } from "./command";
-import { handleDialog, waitForBackendOperation } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 
@@ -13,7 +13,7 @@ test.describe("Regular users flow, part two", () => {
 
     test("Registration", async () => {
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
 
         // Registration flow
         await page.getByRole("button", { name: "SIGN UP" }).click();
@@ -40,7 +40,7 @@ test.describe("Regular users flow, part two", () => {
             .getByPlaceholder("tell us what we should know about you")
             .fill("I am John");
         await page.getByRole("button", { name: "SAVE" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
         await expect(page).toHaveTitle("TAGGR");
     });
 
@@ -51,14 +51,14 @@ test.describe("Regular users flow, part two", () => {
         await page.getByTestId("poll-editor").fill("YES\nNO\nCOMMENTS");
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
 
         await expect(
             page.locator("article", { hasText: /Poll from John/ }),
         ).toBeVisible();
 
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await expect(
             page.locator("article", {
                 hasText: /Poll from John/,
@@ -70,7 +70,7 @@ test.describe("Regular users flow, part two", () => {
         await feedItem
             .getByRole("button", { name: "SUBMIT", exact: true })
             .click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
         await expect(feedItem).toHaveText(/100%/);
 
         await feedItem.getByRole("link", { name: /CHANGE VOTE/ }).click();
@@ -78,14 +78,14 @@ test.describe("Regular users flow, part two", () => {
         await feedItem
             .getByRole("button", { name: "SUBMIT ANONYMOUSLY" })
             .click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
         await expect(feedItem).toHaveText(/100%/);
         await expect(feedItem).toHaveText(/N\/A/);
     });
 
     test("Repost the poll", async () => {
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         const feedItem = page.locator(".feed_item", { hasText: /Poll/ });
         await feedItem.getByTestId("post-info-toggle").click();
         const repostButton = feedItem.locator("button[title=Repost]");
@@ -95,10 +95,10 @@ test.describe("Regular users flow, part two", () => {
         await page.locator("textarea").fill("Repost of the poll");
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
 
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await expect(
             page.locator("article", {
                 hasText: /Repost of the poll/,
@@ -116,7 +116,7 @@ test.describe("Regular users flow, part two", () => {
             await page.getByTestId("toggle-user-section").click();
             await expect(page.locator(`a[title="SIGN OUT"]`)).toBeVisible();
             await page.locator(`a[title="SIGN OUT"]`).click();
-            await page.waitForLoadState("networkidle");
+            await waitForUILoading(page);
 
             await expect(page).toHaveTitle("TAGGR");
 
@@ -126,7 +126,7 @@ test.describe("Regular users flow, part two", () => {
                 .getByPlaceholder("Enter your seed phrase...")
                 .fill(mkPwd("eye"));
             await page.getByRole("button", { name: "CONTINUE" }).click();
-            await page.waitForLoadState("networkidle");
+            await waitForUILoading(page);
             await page
                 .getByPlaceholder("Enter your seed phrase...")
                 .fill(mkPwd("eye"));
@@ -145,7 +145,7 @@ test.describe("Regular users flow, part two", () => {
                 value,
             );
             await page.getByRole("button", { name: "CHECK BALANCE" }).click();
-            await waitForBackendOperation(page);
+            await waitForUILoading(page);
 
             await page.getByRole("button", { name: "CREATE USER" }).click();
             await page.getByPlaceholder("alphanumeric").fill("one");
@@ -153,7 +153,7 @@ test.describe("Regular users flow, part two", () => {
                 .getByPlaceholder("tell us what we should know about you")
                 .fill("I am one");
             await page.getByRole("button", { name: "SAVE" }).click();
-            await waitForBackendOperation(page);
+            await waitForUILoading(page);
             await expect(page).toHaveTitle("TAGGR");
         });
 
@@ -162,7 +162,7 @@ test.describe("Regular users flow, part two", () => {
                 `dfx canister call taggr mint_tokens '("jpyii-f2pki-kh72w-7dnbq-4j7h7-yly5o-k3lik-zgk3g-wnfwo-2w6jd-5ae", 500 : nat64)'`,
             );
             await page.goto("/");
-            await page.waitForLoadState("networkidle");
+            await waitForUILoading(page);
             await page.getByTestId("toggle-user-section").click();
             await expect(page.getByTestId("token-balance")).toHaveText("5");
             await page.getByTestId("toggle-user-section").click();
@@ -188,10 +188,10 @@ test.describe("Regular users flow, part two", () => {
             await handleDialog(page, /./, "", async () => {
                 await popup.getByText("SEND").click();
             });
-            await waitForBackendOperation(page);
+            await waitForUILoading(page);
 
             await page.goto("/");
-            await page.waitForLoadState("networkidle");
+            await waitForUILoading(page);
             await page.getByTestId("toggle-user-section").click();
 
             await page.waitForFunction(
@@ -231,7 +231,7 @@ test.describe("Regular users flow, part two", () => {
             await popup.getByText("SEND").click();
 
             await page.goto("/");
-            await page.waitForLoadState("networkidle");
+            await waitForUILoading(page);
             await page.getByTestId("toggle-user-section").click();
             await expect(page.getByTestId("token-balance")).toHaveText("4");
         });

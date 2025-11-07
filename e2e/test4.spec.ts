@@ -1,12 +1,12 @@
-import { test, expect, Page } from "@playwright/test";
-import { exec, mkPwd, transferICP } from "./command";
 import {
+    waitForUILoading,
     handleDialog,
     handleDialogSequence,
-    waitForBackendOperation,
     pollForCondition,
     createAuctionBid,
 } from "./helpers";
+import { test, expect, Page } from "@playwright/test";
+import { exec, mkPwd, transferICP } from "./command";
 
 test.describe.configure({ mode: "serial" });
 
@@ -21,7 +21,7 @@ test.describe("Report and transfer to user", () => {
 
     test("Registration", async () => {
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         // Registration flow
         await page.getByRole("button", { name: "SIGN UP" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
@@ -42,19 +42,19 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "CREATE USER" }).click();
         await page.getByPlaceholder("alphanumeric").fill("joe");
         await page.getByRole("button", { name: "SAVE" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
     });
 
     test("Create two invites", async () => {
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.goto("/#/invites");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "CREATE" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
         await page.waitForURL(/#\/invites/);
         await page.getByRole("button", { name: "CREATE" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
         inviteLink1 = await page
             .getByText(/.*#\/welcome.*/)
             .first()
@@ -67,7 +67,7 @@ test.describe("Report and transfer to user", () => {
 
     test("Registration by invite 1 and create a post", async ({ page }) => {
         await page.goto(inviteLink1);
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
@@ -78,20 +78,20 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.getByPlaceholder("alphanumeric").fill("jane");
         await page.getByRole("button", { name: "SAVE" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
 
         await page.locator("#logo").click();
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("textarea").fill("Good stuff");
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
     });
 
     test("Registration by invite 2 and create a post", async ({ page }) => {
         await page.goto(inviteLink2);
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
@@ -102,20 +102,20 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.getByPlaceholder("alphanumeric").fill("kyle");
         await page.getByRole("button", { name: "SAVE" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
 
         await page.locator("#logo").click();
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("textarea").fill("Illigal stuff");
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
     });
 
     test("Mint credits and send to user", async () => {
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByTestId("toggle-user-section").click();
 
         await handleDialog(
@@ -151,7 +151,7 @@ test.describe("Report and transfer to user", () => {
         expect(creditsBalance).toBeGreaterThanOrEqual(1900);
 
         await page.goto("/#/user/jane");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByTestId("profile-burger-menu").click();
 
         let dialogCount = 0;
@@ -167,7 +167,7 @@ test.describe("Report and transfer to user", () => {
 
         page.on("dialog", dialogHandler);
         await page.getByRole("button", { name: "SEND CREDITS" }).click();
-        await waitForBackendOperation(page, { timeout: 5000 });
+        await waitForUILoading(page, { timeout: 5000 });
         page.removeListener("dialog", dialogHandler);
 
         await expect(page.locator("div:has-text('CREDITS') > code")).toHaveText(
@@ -179,23 +179,22 @@ test.describe("Report and transfer to user", () => {
         page,
     }) => {
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "SIGN IN" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
             .fill(mkPwd("jane"));
         await page.getByRole("button", { name: "CONTINUE" }).click();
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.reload();
         await page.waitForURL(/#\//);
 
         await page.goto("/#/settings");
-        await page.waitForLoadState("networkidle");
-        await page.getByTestId("mode-selector").waitFor({ state: "visible" });
+        await waitForUILoading(page);
         await page.getByTestId("mode-selector").selectOption("Mining");
         await page.getByRole("button", { name: "SAVE" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
 
         await createAuctionBid(
             page,
@@ -212,7 +211,7 @@ test.describe("Report and transfer to user", () => {
 
     test("Report user", async ({ page }) => {
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "SIGN IN" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
@@ -221,14 +220,11 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "CONTINUE" }).click();
         await page.goto("/#/user/kyle");
         await page.reload();
-        await page.waitForLoadState("networkidle");
-        await page
-            .getByTestId("profile-burger-menu")
-            .waitFor({ state: "visible", timeout: 2000 });
+        await waitForUILoading(page);
         await page.getByTestId("profile-burger-menu").click();
         await page
             .getByRole("button", { name: "REPORT" })
-            .waitFor({ state: "visible", timeout: 2000 });
+            .waitFor({ state: "visible" });
 
         await handleDialog(
             page,
@@ -238,7 +234,7 @@ test.describe("Report and transfer to user", () => {
                 await page.getByRole("button", { name: "REPORT" }).click();
             },
         );
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
     });
 
     test("Confirm the report", async () => {
@@ -246,7 +242,7 @@ test.describe("Report and transfer to user", () => {
         await pollForCondition(
             async () => {
                 await page.reload();
-                await page.waitForLoadState("networkidle");
+                await waitForUILoading(page);
                 return await page
                     .getByText("reported")
                     .isVisible()
@@ -262,14 +258,14 @@ test.describe("Report and transfer to user", () => {
         await expect(page.getByText("reported")).toBeVisible();
 
         await page.goto("/#/user/kyle");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "✅ AGREE" }).click();
-        await waitForBackendOperation(page);
+        await waitForUILoading(page);
 
         await pollForCondition(
             async () => {
                 await page.reload();
-                await page.waitForLoadState("networkidle");
+                await waitForUILoading(page);
                 const rewardsText = await page
                     .locator("div:has-text('REWARDS') > code")
                     .textContent()
@@ -290,14 +286,14 @@ test.describe("Report and transfer to user", () => {
 
     test("Token transfer to user", async ({ page }) => {
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "SIGN IN" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
             .fill(mkPwd("jane"));
         await page.getByRole("button", { name: "CONTINUE" }).click();
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByTestId("toggle-user-section").click();
 
         await expect(page.getByTestId("token-balance")).toHaveText("15");
@@ -327,7 +323,7 @@ test.describe("Report and transfer to user", () => {
         await pollForCondition(
             async () => {
                 await page.reload();
-                await page.waitForLoadState("networkidle");
+                await waitForUILoading(page);
                 await page.getByTestId("toggle-user-section").click();
                 const balance = await page
                     .getByTestId("token-balance")
@@ -342,7 +338,7 @@ test.describe("Report and transfer to user", () => {
         );
 
         await page.goto("/#/user/joe");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await expect(
             page.locator("div.db_cell:has-text('TOKENS') > a"),
         ).toHaveText("5");
