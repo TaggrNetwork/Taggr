@@ -321,7 +321,7 @@ article {
 .stands_out {
     background: $light_background;
     border-radius: 10px;
-    border-bottom: 2px solid $dark_background;
+    border-bottom: 1px solid $dark_background;
     padding: 0.5em;
     margin-bottom: 1em;
 }
