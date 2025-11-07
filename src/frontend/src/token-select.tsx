@@ -20,13 +20,7 @@ export const TokenSelect = ({
     const [selectedValue, setSelectedValue] = React.useState<string>(
         selectedCanisterId || "",
     );
-    const [defaultCanisters, setDefaultCanisters] = React.useState<
-        Array<[string, Icrc1Canister]>
-    >([]);
-    const [mainCanisters, setMainCanisters] = React.useState<
-        Array<[string, Icrc1Canister]>
-    >([]);
-    const [userCanisters, setUserCanisters] = React.useState<
+    const [userTokens, setUserTokens] = React.useState<
         Array<[string, Icrc1Canister]>
     >([]);
 
@@ -40,35 +34,25 @@ export const TokenSelect = ({
     const loadData = () => {
         const canistersMap = new Map(canisters);
         // Add ICP or Taggr
-        const mainCanisters: Array<[string, Icrc1Canister]> = [];
+        const mainTokens: Array<[string, Icrc1Canister]> = [];
         const nativeCanister = canistersMap.get(CANISTER_ID);
         if (nativeCanister) {
-            mainCanisters.push([CANISTER_ID, nativeCanister]);
+            mainTokens.push([CANISTER_ID, nativeCanister]);
         }
 
         const icpCanister = canistersMap.get(ICP_LEDGER);
         if (icpCanister) {
-            mainCanisters.push([ICP_LEDGER, icpCanister]);
+            mainTokens.push([ICP_LEDGER, icpCanister]);
         }
 
-        setMainCanisters(mainCanisters);
-
         const userTokens = window.user?.wallet_tokens || [];
-        setUserCanisters(
+        setUserTokens(
             userTokens
                 .filter((id) => canistersMap.has(id))
                 .map((canisterId) => [
                     canisterId,
                     canistersMap.get(canisterId) as Icrc1Canister,
                 ]),
-        );
-
-        setDefaultCanisters(
-            canisters.filter(
-                ([canisterId]) =>
-                    ![CANISTER_ID, ICP_LEDGER].includes(canisterId) &&
-                    !userTokens.includes(canisterId),
-            ),
         );
     };
 
@@ -108,11 +92,8 @@ export const TokenSelect = ({
                     SELECT TOKEN
                 </option>
             )}
-            {mainCanisters.length > 0 && renderOptions(mainCanisters, "Main")}
-            {userCanisters.length > 0 &&
-                renderOptions(userCanisters, "Your Tokens")}
-            {defaultCanisters.length > 0 &&
-                renderOptions(defaultCanisters, "Tokens")}
+            {userTokens.length > 0 &&
+                renderOptions(userTokens, "Tipping Tokens")}
         </select>
     );
 };

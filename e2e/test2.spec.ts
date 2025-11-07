@@ -1,6 +1,8 @@
+import { waitForUILoading } from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { resolve } from "node:path";
 import { mkPwd, transferICP } from "./command";
+import { handleDialog, handleDialogSequence } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 
@@ -14,7 +16,7 @@ test.describe("Regular users flow", () => {
 
     test("Registration", async () => {
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
 
         // Registration flow
         await page.getByRole("button", { name: "SIGN UP" }).click();
@@ -42,10 +44,11 @@ test.describe("Regular users flow", () => {
             .getByPlaceholder("tell us what we should know about you")
             .fill("I am a #Taggr fan");
         await page.getByRole("button", { name: "SAVE" }).click();
+        await waitForUILoading(page);
         await expect(page).toHaveTitle("TAGGR");
 
         await page.goto("/#/inbox");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await expect(
             page.getByRole("heading", { name: "INBOX" }),
         ).toBeVisible();
@@ -53,26 +56,25 @@ test.describe("Regular users flow", () => {
             page.getByText("Use #Taggr as your personal blog"),
         ).toBeVisible();
 
-        // Logout
         await page.getByTestId("toggle-user-section").click();
         await page.getByRole("link", { name: /.*SIGN OUT.*/ }).click();
+        await waitForUILoading(page);
     });
 
     test("Login and post", async () => {
-        // Login flow
         await page.getByRole("button", { name: "SIGN IN" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
             .fill(mkPwd("alice"));
         await page.getByRole("button", { name: "CONTINUE" }).click();
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByTestId("toggle-user-section").click();
         const profileButton = page.getByRole("link", { name: /.*ALICE.*/ });
         await expect(profileButton).toBeVisible();
 
-        // Open our own profile and make sure it works
         await profileButton.click();
+        await waitForUILoading(page);
         await expect(
             page.getByRole("heading", { name: "Alice" }),
         ).toBeVisible();
@@ -80,7 +82,6 @@ test.describe("Regular users flow", () => {
             page.locator("p", { hasText: /I am a #Taggr fan/ }),
         ).toBeVisible();
 
-        // Create a post
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("textarea").fill("Hello world!");
         const imagePath = resolve(
@@ -98,8 +99,8 @@ test.describe("Regular users flow", () => {
         await fileChooser.setFiles([imagePath]);
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
+        await waitForUILoading(page);
 
-        // Make sure the post loads
         await expect(
             page.locator("article", { hasText: /Hello world/ }),
         ).toBeVisible();
@@ -107,25 +108,27 @@ test.describe("Regular users flow", () => {
             page.getByRole("img", { name: "512x512, 2kb" }),
         ).toBeVisible();
 
-        // Edit the post
         await page.getByTestId("post-info-toggle").click();
-        await page.locator("button[title=Edit]").click();
-        await page.waitForTimeout(1000);
+        const editButton = page.locator("button[title=Edit]");
+        await editButton.waitFor({ state: "visible" });
+        await editButton.click();
+        await page.locator("textarea").waitFor({ state: "visible" });
         const value = await page.locator("textarea").inputValue();
         await page
             .locator("textarea")
             .fill(value + "\n\n**Edit:** this is a post-scriptum");
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
+        await waitForUILoading(page);
         await expect(page.getByText("post-scriptum")).toBeVisible();
 
-        // Make sure the post is visible on the front page too
         await page.goto("/");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
+
+        const article = page.locator("article", { hasText: "Hello world!" });
+        await expect(article).toBeVisible();
         await expect(
-            page.locator("article", {
-                hasText: /Edit: this is a post-scriptum/,
-            }),
+            article.getByText(/Edit:.*this is a post-scriptum/),
         ).toBeVisible();
         await expect(
             page.getByRole("img", { name: "512x512, 2kb" }),
@@ -133,56 +136,61 @@ test.describe("Regular users flow", () => {
     });
 
     test("Wallet", async () => {
-        // Test the wallet functionality
         await page.getByTestId("toggle-user-section").click();
 
-        // Let's mint cycles
         await expect(page.getByTestId("credits-balance")).toHaveText("976");
-        page.on("dialog", async (dialog) => {
-            if (
-                dialog
-                    .message()
-                    .includes("Enter the number of 1000s of credits to mint")
-            ) {
-                await dialog.accept("2");
-            }
-        });
-        await page.getByRole("button", { name: "MINT" }).click();
+
+        await handleDialog(
+            page,
+            "Enter the number of 1000s of credits to mint",
+            "2",
+            async () => {
+                await page.getByRole("button", { name: "MINT" }).click();
+            },
+        );
+        await waitForUILoading(page);
         await expect(page.getByTestId("credits-balance")).toHaveText("2,976");
 
-        // Let's transfer some ICP
         const icpBalance = parseFloat(
             await page.getByTestId("icp-balance").textContent(),
         );
 
-        const transferExecuted = new Promise(async (resolve, _reject) => {
-            page.on("dialog", async (dialog) => {
-                if (
-                    dialog
-                        .message()
-                        .includes(
-                            "Enter the recipient principal or ICP account address",
-                        )
-                ) {
-                    await dialog.accept("6qfxa-ryaaa-aaaai-qbhsq-cai");
-                } else if (
-                    dialog
-                        .message()
-                        .includes("Enter the amount (fee: 0.00010000 ICP)")
-                ) {
-                    const transferAmount = (icpBalance / 2).toString();
-                    await dialog.accept(transferAmount);
-                } else if (dialog.message().includes("You are transferring")) {
-                    await dialog.accept();
-                    await page.waitForLoadState("networkidle");
-                    await page.waitForTimeout(3000);
-                    resolve(null);
-                }
-            });
-            await page.getByTestId("icp-transfer-button").click();
-        });
+        const transferAmount = (icpBalance / 2).toString();
 
-        await transferExecuted;
+        await handleDialogSequence(
+            page,
+            [
+                {
+                    expectedPattern:
+                        "Enter the recipient principal or ICP account address",
+                    response: "6qfxa-ryaaa-aaaai-qbhsq-cai",
+                },
+                {
+                    expectedPattern: "Enter the amount (fee: 0.00010000 ICP)",
+                    response: transferAmount,
+                },
+                {
+                    expectedPattern: "You are transferring",
+                    response: "",
+                },
+            ],
+            async () => {
+                await page.getByTestId("icp-transfer-button").click();
+            },
+        );
+
+        await page.waitForFunction(
+            (oldBalance) => {
+                const elem = document.querySelector(
+                    '[data-testid="icp-balance"]',
+                );
+                if (!elem) return false;
+                const currentBalance = parseFloat(elem.textContent || "0");
+                return currentBalance < oldBalance;
+            },
+            icpBalance,
+            { timeout: 10000 },
+        );
 
         const newBalance = parseFloat(
             await page.getByTestId("icp-balance").textContent(),
@@ -193,11 +201,12 @@ test.describe("Regular users flow", () => {
     test("Realms", async () => {
         // Now we can create a new realm
         await page.goto("/#/realms");
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "CREATE" }).click();
         await page.getByPlaceholder("alphanumeric").fill("WONDERLAND");
         await page.getByTestId("realm-textarea").fill("Alice in wonderland");
         await page.getByRole("button", { name: "CREATE" }).click();
+        await waitForUILoading(page);
 
         // Make sure we're in the realm
         await page.getByTestId("realm-burger-button").click();
@@ -207,30 +216,37 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("#form_undefined_3").fill("Hello from Alice!");
         await page.getByRole("button", { name: "SUBMIT" }).click();
+        await waitForUILoading(page);
 
         // Make sure the post is visible on the front page and is labeled with realm tag
         await page.locator("#logo").click();
+        await waitForUILoading(page);
         await expect(
             page.locator("article", { hasText: "Hello from Alice!" }),
         ).toBeVisible();
         await expect(
             page.locator('[class="realm_span realm_tag"]').first(),
         ).toHaveText("WONDERLAND");
+        await page.goto("#/home");
     });
 
     test("Invites", async () => {
-        // Now we can create a new realm
         await page.goto("/#/invites");
-        await page.waitForLoadState("networkidle");
+        await page.reload();
+        await waitForUILoading(page);
+        await page.waitForURL(/.*invites.*/, { timeout: 5000 });
+
         await page.getByRole("button", { name: "CREATE" }).click();
         inviteLink = await page.getByText(/.*#\/welcome.*/).textContent();
+
         await page.getByTestId("toggle-user-section").click();
         await page.getByRole("link", { name: /.*SIGN OUT.*/ }).click();
+        await waitForUILoading(page);
     });
 
     test("Registration by invite", async () => {
         await page.goto(inviteLink);
-        await page.waitForLoadState("networkidle");
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
@@ -245,6 +261,7 @@ test.describe("Regular users flow", () => {
             .fill("Alice invited me");
         await page.getByRole("button", { name: "SAVE" }).click();
         await page.waitForURL(/\//);
+        await waitForUILoading(page);
     });
 
     test("Interacting with posts", async () => {
@@ -283,7 +300,7 @@ test.describe("Regular users flow", () => {
                 .first(),
         ).toHaveText("⭐️1");
         await page.locator("#logo").click();
-        await page.waitForTimeout(2000);
+        await waitForUILoading(page);
     });
 
     test("User profile", async () => {

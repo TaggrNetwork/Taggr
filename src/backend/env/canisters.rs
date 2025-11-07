@@ -23,7 +23,7 @@ use ic_cdk::api::{
 use ic_cdk::{api::call::call_raw, notify};
 use ic_ledger_types::{Tokens, MAINNET_GOVERNANCE_CANISTER_ID};
 use ic_xrc_types::{Asset, GetExchangeRateRequest, GetExchangeRateResult};
-use icrc_ledger_types::icrc3::blocks::{GetBlocksRequest, GetBlocksResult};
+use icrc_ledger_types::icrc3::transactions::{GetTransactionsRequest, GetTransactionsResponse};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -248,18 +248,6 @@ pub async fn coins_for_one_xdr(coin: &str) -> Result<u64, String> {
         .map(|result| result.rate / 10)
 }
 
-pub async fn get_icrc3_get_blocks(
-    canister_id: Principal,
-    args: GetBlocksRequest,
-) -> Result<GetBlocksResult, String> {
-    let vec_args = vec![args];
-    let (response,): (GetBlocksResult,) =
-        call_canister(canister_id, "icrc3_get_blocks", (vec_args,))
-            .await
-            .map_err(|e| format!("Failed to call icrc3_get_blocks: {:?}", e))?;
-    Ok(response)
-}
-
 pub async fn call_canister_raw(id: Principal, method: &str, args: &[u8]) -> CallResult<Vec<u8>> {
     open_call(method);
     let result = call_raw(id, method, args, 0).await;
@@ -366,4 +354,15 @@ pub async fn top_up() {
             }),
         }
     }
+}
+
+pub async fn get_transactions(
+    canister_id: Principal,
+    args: GetTransactionsRequest,
+) -> Result<GetTransactionsResponse, String> {
+    let (response,): (GetTransactionsResponse,) =
+        call_canister(canister_id, "get_transactions", (args,))
+            .await
+            .map_err(|e| format!("failed to call ledger: {:?}", e))?;
+    Ok(response)
 }

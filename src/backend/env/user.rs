@@ -384,21 +384,39 @@ impl User {
         });
     }
 
-    pub fn toggle_following_feed(&mut self, tags: &[String]) -> bool {
-        if tags.iter().map(|tag| tag.len()).sum::<usize>() >= 50 {
-            return false;
+    pub fn toggle_following_feed(&mut self, tags: &[String]) -> Result<bool, String> {
+        const MAX_QUERY_SIZE: usize = 1000;
+
+        let tags_size = tags.iter().map(|tag| tag.len()).sum::<usize>();
+        if tags_size > MAX_QUERY_SIZE {
+            return Err("feed size limit exceeded".to_string());
         }
 
         let tags = tags.iter().map(|tag| tag.to_lowercase()).collect();
         if let Some(i) = covered_by_feeds(&self.feeds, &tags, true) {
             self.feeds.remove(i);
-            return false;
+            return Ok(false);
         }
+
+        if self
+            .feeds
+            .iter()
+            .flat_map(|feed| feed.iter().map(|tag| tag.len()))
+            .sum::<usize>()
+            + tags_size
+            >= MAX_QUERY_SIZE
+        {
+            return Err("feed size limit exceeded".to_string());
+        }
+
+        // Remove tags from filters that are now included in the feed.
         if let Some(tag) = tags.first() {
             self.filters.tags.remove(tag);
         }
+
         self.feeds.push(tags.into_iter().collect());
-        true
+
+        Ok(true)
     }
 
     pub fn personal_feed<'a>(

@@ -245,8 +245,16 @@ pub const CONFIG: &Config = &Config {
 
     max_bucket_size: 1024 * 1024 * 1024 * 96, // 96Gb
 
+    #[cfg(not(test))]
+    max_posts_per_day: 15,
+    #[cfg(not(test))]
+    max_comments_per_hour: 30,
+
+    #[cfg(test)]
     max_posts_per_day: 100,
+    #[cfg(test)]
     max_comments_per_hour: 100,
+
     excess_penalty: 5,
 
     feed_page_size: 30,
