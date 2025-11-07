@@ -91,7 +91,7 @@ pub async fn add_tip(
                 let sender_id = state.principal_to_user(caller).expect("user not found").id;
                 state.charge(
                     sender_id,
-                    CONFIG.tipping_cost * 50,
+                    CONFIG.tipping_cost * 2,
                     format!("failed external tipping for post {}", post_id),
                 )
             })?;

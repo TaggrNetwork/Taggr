@@ -20,9 +20,9 @@ export const Icrc1TokensWallet = () => {
     const user = window.user;
     const userWalletFiltersKey = `user:${user?.id}:wallet-filters`;
 
-    const [icrc1Canisters, setIcrc1Canisters] = React.useState<
-        Array<[string, Icrc1Canister]>
-    >([]);
+    const [tokens, setTokens] = React.useState<Array<[string, Icrc1Canister]>>(
+        [],
+    );
     const [canisterBalances, setCanisterBalances] = React.useState<{
         [key: string]: string | number;
     }>({});
@@ -38,7 +38,6 @@ export const Icrc1TokensWallet = () => {
         getLocalFilters()?.hideZeroBalance || false,
     );
     const [disabled, setDisabled] = React.useState(true);
-    const [initLoading, setInitLoading] = React.useState(true);
 
     /** Load balances of user canisters in small batches to avoid spikes */
     const loadBalances = async (canisterIds: string[]) => {
@@ -78,8 +77,8 @@ export const Icrc1TokensWallet = () => {
                 user?.wallet_tokens || [],
             );
             const balances = await loadBalances([...canisters.keys()]);
-            setIcrc1Canisters(
-                filterAndSortCanisters(
+            setTokens(
+                filterTokens(
                     [...canisters.entries()],
                     balances,
                     hideZeroBalance,
@@ -95,7 +94,9 @@ export const Icrc1TokensWallet = () => {
         const initialTokensData = await getCanistersMetaData([
             ...currentUserTokens,
         ]);
-        setIcrc1Canisters([...initialTokensData.entries()]);
+        setTokens(
+            filterTokens([...initialTokensData.entries()], {}, hideZeroBalance),
+        );
         void loadBalances([...currentUserTokens]);
 
         // Automatic token discovery
@@ -113,12 +114,14 @@ export const Icrc1TokensWallet = () => {
         const allUserTokensData = await getCanistersMetaData([
             ...allUserTokens,
         ]);
-        setIcrc1Canisters([...allUserTokensData.entries()]);
+        setTokens(
+            filterTokens([...allUserTokensData.entries()], {}, hideZeroBalance),
+        );
 
         const balances = await loadBalances([...allUserTokens]);
 
-        setIcrc1Canisters(
-            filterAndSortCanisters(
+        setTokens(
+            filterTokens(
                 [...allUserTokensData.entries()],
                 balances,
                 hideZeroBalance,
@@ -138,7 +141,6 @@ export const Icrc1TokensWallet = () => {
             initialLoad().finally(() => {
                 loading = false;
                 setDisabled(false);
-                setInitLoading(false);
             });
         }
     }, []);
@@ -175,9 +177,9 @@ export const Icrc1TokensWallet = () => {
             cacheLocalStorage(getUserCanisterKey(canisterId), meta);
             const balances = await loadBalances([canisterId]);
 
-            setIcrc1Canisters(
-                filterAndSortCanisters(
-                    [...icrc1Canisters, [canisterId, meta]],
+            setTokens(
+                filterTokens(
+                    [...tokens, [canisterId, meta]],
                     balances,
                     hideZeroBalance,
                 ),
@@ -228,9 +230,7 @@ export const Icrc1TokensWallet = () => {
 
             localStorage.removeItem(getUserCanisterKey(canisterId));
 
-            setIcrc1Canisters(
-                icrc1Canisters.filter(([id]) => id !== canisterId),
-            );
+            setTokens(tokens.filter(([id]) => id !== canisterId));
         } catch (error: any) {
             showPopUp(
                 "error",
@@ -247,9 +247,8 @@ export const Icrc1TokensWallet = () => {
                 className="vcentered bottom_spaced"
                 data-testid="ic-tokens-div"
             >
-                <h2 className="max_width_col">IC TOKENS</h2>
+                <h2 className="max_width_col">ICRC TOKENS</h2>
                 <div className="vcentered">
-                    {initLoading && <Loading spaced={false} />}
                     <input
                         id="canisters-hide-zero-balance"
                         data-testid="canisters-hide-zero-balance"
@@ -262,7 +261,7 @@ export const Icrc1TokensWallet = () => {
                                     user?.wallet_tokens || [],
                                 )),
                             ];
-                            const filteredCanisters = filterAndSortCanisters(
+                            const filteredCanisters = filterTokens(
                                 canisters,
                                 canisterBalances,
                                 !hideZeroBalance,
@@ -274,11 +273,11 @@ export const Icrc1TokensWallet = () => {
                                 JSON.stringify(filters),
                             );
                             setHideZeroBalance(!hideZeroBalance);
-                            setIcrc1Canisters(filteredCanisters);
+                            setTokens(filteredCanisters);
                         }}
                     />
                     <label
-                        className="right_half_spaced"
+                        className="left_half_spaced right_spaced"
                         htmlFor="canisters-hide-zero-balance"
                     >
                         Hide zeros
@@ -297,9 +296,9 @@ export const Icrc1TokensWallet = () => {
                     disabled={disabled}
                 ></ButtonWithLoading>
             </div>
-            {icrc1Canisters.length > 0 && (
+            {tokens.length > 0 && (
                 <div className="column_container">
-                    {icrc1Canisters.map(([canisterId, info]) => (
+                    {tokens.map(([canisterId, info]) => (
                         <div
                             className="vcentered bottom_spaced"
                             key={canisterId}
@@ -367,7 +366,7 @@ export const Icrc1TokensWallet = () => {
     );
 };
 
-const filterAndSortCanisters = (
+const filterTokens = (
     canisters: Array<[string, Icrc1Canister]>,
     balances: Record<string, string | number>,
     hideZeroBalance: boolean,
@@ -378,12 +377,7 @@ const filterAndSortCanisters = (
             ([canisterId]) => +balances[canisterId] > 0,
         );
     }
-    // Sort by name and then balance
-    return filteredCanisters
-        .sort((a, b) => a[1].symbol.localeCompare(b[1].symbol))
-        .sort(
-            (a, b) =>
-                +balances[b[0]] / Math.pow(10, b[1].decimals) -
-                +balances[a[0]] / Math.pow(10, a[1].decimals),
-        );
+    return filteredCanisters.sort((a, b) =>
+        a[1].symbol.localeCompare(b[1].symbol),
+    );
 };

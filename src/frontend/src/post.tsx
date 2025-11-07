@@ -1482,8 +1482,6 @@ const TippingPopup = ({
             </p>
             <input
                 className="bottom_spaced"
-                type="number"
-                min="0"
                 value={tippingAmount}
                 onChange={async (e) => {
                     const amount = Number(e.target.value);
