@@ -285,7 +285,7 @@ export const PostView = ({
                     post.scrollIntoView({ behavior: "smooth" });
             }}
             className={classNameArg}
-            data-testid="post-body"
+            data-testid={`post-body${repost ? "-repost" : ""}`}
         >
             <div
                 ref={refPost as any}

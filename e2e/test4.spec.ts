@@ -36,6 +36,7 @@ test.describe("Report and transfer to user", () => {
             "e93e7f1cfa411dafa8debb4769c6cc1b7972434f1669083fd08d86d11c0c0722",
             1,
         );
+        await waitForUILoading(page);
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
             .click();

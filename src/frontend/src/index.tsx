@@ -108,7 +108,7 @@ const App = () => {
     window.lastActivity = new Date();
     const auth = (content: React.ReactNode) =>
         window.principalId ? content : <Unauthorized />;
-    let [handler = "", param, param2] = parseHash();
+    let [handler = "", param = "", param2 = ""] = parseHash();
 
     let subtle = false;
     let inboxMode = false;

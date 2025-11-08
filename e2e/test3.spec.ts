@@ -1,4 +1,4 @@
-import { waitForUILoading, handleDialog } from "./helpers";
+import { waitForUILoading, handleDialog, pollForCondition } from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { exec, mkPwd, transferICP } from "./command";
 
@@ -166,6 +166,7 @@ test.describe("Regular users flow, part two", () => {
             await page.getByTestId("toggle-user-section").click();
             await expect(page.getByTestId("token-balance")).toHaveText("5");
             await page.getByTestId("toggle-user-section").click();
+            await waitForUILoading(page);
 
             const post = page
                 .getByTestId("post-body")
@@ -174,7 +175,7 @@ test.describe("Regular users flow, part two", () => {
                 })
                 .last();
             await expect(post).toBeVisible();
-            const menuBTN = post.locator(`button[title="Menu"]`);
+            const menuBTN = post.getByTestId("post-info-toggle");
             await expect(menuBTN).toBeVisible();
             await menuBTN.click();
             const postMenu = post.getByTestId("post-menu");
@@ -188,20 +189,24 @@ test.describe("Regular users flow, part two", () => {
             await handleDialog(page, /./, "", async () => {
                 await popup.getByText("SEND").click();
             });
-            await waitForUILoading(page);
 
-            await page.goto("/");
-            await waitForUILoading(page);
-            await page.getByTestId("toggle-user-section").click();
+            await pollForCondition(
+                async () => {
+                    await page.goto("/");
+                    await page.getByTestId("toggle-user-section").click();
 
-            await page.waitForFunction(
-                () => {
-                    const elem = document.querySelector(
-                        '[data-testid="token-balance"]',
-                    );
-                    return elem?.textContent === "4";
+                    const elem = page.getByTestId("token-balance");
+                    const count = await elem.count();
+                    if (count === 0) return false;
+                    const text = await elem.textContent();
+                    return text === "4";
                 },
-                { timeout: 10000 },
+                {
+                    maxAttempts: 20,
+                    interval: 500,
+                    errorMessage:
+                        "Token balance did not update to 4 within timeout",
+                },
             );
 
             await expect(page.getByTestId("token-balance")).toHaveText("4");
@@ -215,7 +220,7 @@ test.describe("Regular users flow, part two", () => {
                 })
                 .last();
             await expect(post).toBeVisible();
-            const menuBTN = post.locator(`button[title="Menu"]`);
+            const menuBTN = post.getByTestId("post-info-toggle");
             await expect(menuBTN).toBeVisible();
             await menuBTN.click();
             const postMenu = post.getByTestId("post-menu");

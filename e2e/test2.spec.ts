@@ -1,4 +1,4 @@
-import { waitForUILoading } from "./helpers";
+import { waitForUILoading, pollForCondition } from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { resolve } from "node:path";
 import { mkPwd, transferICP } from "./command";
@@ -179,17 +179,21 @@ test.describe("Regular users flow", () => {
             },
         );
 
-        await page.waitForFunction(
-            (oldBalance) => {
-                const elem = document.querySelector(
-                    '[data-testid="icp-balance"]',
-                );
-                if (!elem) return false;
-                const currentBalance = parseFloat(elem.textContent || "0");
-                return currentBalance < oldBalance;
+        await pollForCondition(
+            async () => {
+                const elem = page.getByTestId("icp-balance");
+                const count = await elem.count();
+                if (count === 0) return false;
+                const text = await elem.textContent();
+                if (!text) return false;
+                const currentBalance = parseFloat(text);
+                return currentBalance < icpBalance;
             },
-            icpBalance,
-            { timeout: 10000 },
+            {
+                maxAttempts: 20,
+                interval: 500,
+                errorMessage: `ICP balance did not decrease from ${icpBalance} within timeout`,
+            },
         );
 
         const newBalance = parseFloat(
