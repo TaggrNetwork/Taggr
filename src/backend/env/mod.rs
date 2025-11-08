@@ -488,7 +488,8 @@ impl State {
             self.users
                 .values()
                 .filter(move |user| {
-                    user.active_within(CONFIG.voting_power_activity_weeks, WEEK, time)
+                    user.organic()
+                        && user.active_within(CONFIG.voting_power_activity_weeks, WEEK, time)
                 })
                 .map(move |user| (user.id, user.total_balance())),
         )
@@ -1225,8 +1226,8 @@ impl State {
             if rewards == 0 {
                 continue;
             };
-            // All normie rewards are burned.
-            if user.mode == Mode::Credits {
+            // Rewards are burned for system users and those who are in auto top-up mode.
+            if !user.organic() || user.mode == Mode::Credits {
                 self.burned_cycles += rewards;
             } else {
                 payouts.insert(user.id, rewards as Credits);
@@ -1615,6 +1616,7 @@ impl State {
                 let mut threshold = 0;
                 for user in state.users.values_mut().filter(|user| {
                     !user.controversial()
+                        && user.organic()
                         && user.active_within(1, WEEK, time())
                         && user.credits_burned() > 0
                 }) {
