@@ -69,6 +69,7 @@ pub const MINUTE: u64 = 60 * SECOND;
 pub const HOUR: u64 = 60 * MINUTE;
 pub const DAY: u64 = 24 * HOUR;
 pub const WEEK: u64 = 7 * DAY;
+pub const MONTH: u64 = 30 * DAY;
 pub const YEAR: u64 = 52 * WEEK;
 
 pub const MAX_USER_ID: UserId = 9_007_199_254_740_991; // Number.MAX_SAFE_INTEGER in JS
@@ -285,6 +286,12 @@ impl Logger {
                 }
             })
             .or_insert(vec![event]);
+    }
+
+    pub fn clean_up(&mut self, cutoff_time: u64) {
+        for events in self.events.values_mut() {
+            events.retain(|event| event.timestamp > cutoff_time);
+        }
     }
 }
 
@@ -1582,6 +1589,7 @@ impl State {
             }
 
             state.clean_up(now);
+            state.logger.clean_up(now - 6 * MONTH);
 
             // these burned credits go to the next week
             state.distribute_revenue_from_icp(auction_revenue);
