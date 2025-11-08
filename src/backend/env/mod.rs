@@ -890,6 +890,14 @@ impl State {
         Ok(())
     }
 
+    pub fn system_message(
+        &mut self,
+        body: String,
+        realm: Option<RealmId>,
+    ) -> Result<PostId, String> {
+        Post::create(self, body, Default::default(), id(), time(), None, realm, None)
+    }
+
     pub fn create_invite(
         &mut self,
         principal: Principal,

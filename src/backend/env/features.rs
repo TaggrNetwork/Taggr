@@ -84,14 +84,11 @@ pub fn create_feature(caller: Principal, post_id: PostId, now: Time) -> Result<(
         let user = state.principal_to_user(caller).ok_or("no user found")?;
         let user_name = user.name.clone();
 
-        if !Post::get(state, &post_id)
-            .map(|post| {
-                post.user == user.id && matches!(post.extension.as_ref(), Some(&Extension::Feature))
-            })
-            .unwrap_or_default()
-        {
+        let post = Post::get(state, &post_id).ok_or("post not found")?;
+        if post.user != user.id || !matches!(post.extension.as_ref(), Some(&Extension::Feature)) {
             return Err("no post with a feature found".into());
-        };
+        }
+        let realm = post.realm.clone();
 
         if state.memory.features.get(&post_id).is_some() {
             return Err("feature already exists".into());
@@ -110,10 +107,13 @@ pub fn create_feature(caller: Principal, post_id: PostId, now: Time) -> Result<(
             )
             .expect("couldn't persist feature");
 
-        state.logger.info(format!(
-            "@{} created a [new feature](#/post/{})",
-            user_name, post_id
-        ));
+        let _ = state.system_message(
+            format!(
+                "A [new feature](#/post/{}) was created by `@{}`",
+                post_id, user_name
+            ),
+            realm,
+        );
 
         Ok(())
     })

@@ -148,10 +148,13 @@ pub fn create_realm(
 
     state.realms.insert(realm_id.clone(), realm);
 
-    state.logger.info(format!(
-        "@{} created realm [{1}](/#/realm/{1}) 🏰",
-        user_name, realm_id
-    ));
+    let _ = state.system_message(
+        format!(
+            "Realm [{}](/#/realm/{0}) was created by `@{}`",
+            realm_id, user_name
+        ),
+        Some(realm_id.clone()),
+    );
 
     Ok(())
 }
@@ -535,7 +538,7 @@ pub(crate) mod tests {
                 None,
             )
             .unwrap();
-            assert_eq!(state.realms.get(&name).unwrap().posts.len(), 1);
+            assert_eq!(state.realms.get(&name).unwrap().posts.len(), 2);
 
             assert_eq!(
                 Post::get(state, &post_id).unwrap().realm,
@@ -570,7 +573,7 @@ pub(crate) mod tests {
                     None,
                     None
                 ),
-                Ok(2)
+                Ok(3)
             );
 
             assert!(state.toggle_realm_membership(p0, name.clone()));
@@ -587,10 +590,10 @@ pub(crate) mod tests {
                     None,
                     None
                 ),
-                Ok(3)
+                Ok(4)
             );
 
-            assert!(realm_posts(state, &name).contains(&2));
+            assert!(realm_posts(state, &name).contains(&3));
 
             // Create post without a realm
 
@@ -660,7 +663,7 @@ pub(crate) mod tests {
             assert!(state.users.get(&_u1).unwrap().realms.contains(&name));
 
             assert_eq!(state.realms.get(&realm_name).unwrap().num_members, 1);
-            assert_eq!(state.realms.get(&realm_name).unwrap().posts.len(), 0);
+            assert_eq!(state.realms.get(&realm_name).unwrap().posts.len(), 1);
 
             assert_eq!(
                 Post::create(
@@ -673,9 +676,9 @@ pub(crate) mod tests {
                     Some(realm_name.clone()),
                     None
                 ),
-                Ok(6)
+                Ok(8)
             );
-            assert_eq!(state.realms.get(&realm_name).unwrap().posts.len(), 1);
+            assert_eq!(state.realms.get(&realm_name).unwrap().posts.len(), 2);
 
             assert!(state
                 .users
@@ -689,7 +692,7 @@ pub(crate) mod tests {
         // Move the post to non-joined realm
         assert_eq!(
             Post::edit(
-                6,
+                8,
                 "changed".to_string(),
                 vec![],
                 "".to_string(),
@@ -702,12 +705,12 @@ pub(crate) mod tests {
         );
 
         read(|state| {
-            assert_eq!(Post::get(state, &6).unwrap().realm, Some(realm_name));
-            assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 1);
+            assert_eq!(Post::get(state, &8).unwrap().realm, Some(realm_name));
+            assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 2);
         });
         assert_eq!(
             Post::edit(
-                6,
+                8,
                 "changed".to_string(),
                 vec![],
                 "".to_string(),
@@ -720,10 +723,10 @@ pub(crate) mod tests {
         );
 
         read(|state| {
-            assert_eq!(state.realms.get("NEW_REALM").unwrap().posts.len(), 0);
-            assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 2);
+            assert_eq!(state.realms.get("NEW_REALM").unwrap().posts.len(), 1);
+            assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 3);
             assert_eq!(
-                Post::get(state, &6).unwrap().realm,
+                Post::get(state, &8).unwrap().realm,
                 Some("TAGGRDAO".to_string())
             );
         });
