@@ -290,13 +290,13 @@ fn update_wallet_tokens() {
 #[export_name = "canister_update create_feature"]
 fn create_feature() {
     let post_id: PostId = parse(&arg_data_raw());
-    reply(features::create_feature(read(caller), post_id));
+    reply(features::create_feature(read(caller), post_id, time()));
 }
 
 #[export_name = "canister_update toggle_feature_support"]
 fn toggle_feature_support() {
     let post_id: PostId = parse(&arg_data_raw());
-    reply(features::toggle_feature_support(read(caller), post_id));
+    reply(features::toggle_feature_support(read(caller), post_id, time()));
 }
 
 #[export_name = "canister_update create_user"]
