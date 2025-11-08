@@ -27,7 +27,9 @@ if [ "$CMD" == "restore" ]; then
 else
     echo "Running backup to $DIR..."
     git rev-parse HEAD > $DIR/commit.txt
-    dfx canister --network ic call taggr backup
+    if [ "$PAGE_START" -eq 0 ]; then
+        dfx canister --network ic call taggr backup
+    fi
     $BACKUP $DIR backup "6qfxa-ryaaa-aaaai-qbhsq-cai" $PAGE_START
 fi
 
