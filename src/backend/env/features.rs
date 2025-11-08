@@ -9,6 +9,7 @@ use crate::{
 };
 
 use super::{
+    config::CONFIG,
     post::{Extension, Post, PostId},
     token::Token,
     user::UserId,
@@ -88,7 +89,6 @@ pub fn create_feature(caller: Principal, post_id: PostId, now: Time) -> Result<(
         if post.user != user.id || !matches!(post.extension.as_ref(), Some(&Extension::Feature)) {
             return Err("no post with a feature found".into());
         }
-        let realm = post.realm.clone();
 
         if state.memory.features.get(&post_id).is_some() {
             return Err("feature already exists".into());
@@ -112,7 +112,7 @@ pub fn create_feature(caller: Principal, post_id: PostId, now: Time) -> Result<(
                 "A [new feature](#/post/{}) was created by `@{}`",
                 post_id, user_name
             ),
-            realm,
+            CONFIG.dao_realm.into(),
         );
 
         Ok(())

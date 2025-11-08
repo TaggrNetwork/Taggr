@@ -113,7 +113,7 @@ pub fn report(
     let post_id = state
         .system_message(
             format!("# New User Report ⚠️\n\nUser @{user_name} was reported for misbehavior. Please review and discuss the report here.\n\n> {reason}"),
-            Some(CONFIG.stalwarts_realm.into()),
+            CONFIG.stalwarts_realm.into(),
         )
         .expect("couldn't create report post");
 

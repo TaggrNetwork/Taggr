@@ -153,7 +153,7 @@ pub fn create_realm(
             "Realm [{}](/#/realm/{0}) was created by `@{}`",
             realm_id, user_name
         ),
-        Some(realm_id.clone()),
+        CONFIG.dao_realm.into(),
     );
 
     Ok(())
@@ -409,7 +409,7 @@ pub(crate) mod tests {
 
     #[actix_rt::test]
     async fn test_realms() {
-        let (p1, realm_name) = mutate(|state| {
+        let (p1, realm_name, new_realm_post_id) = mutate(|state| {
             state.init();
 
             let p0 = pr(0);
@@ -527,7 +527,7 @@ pub(crate) mod tests {
             assert_eq!(state.realms.get(&name).unwrap().num_members, 1);
 
             // creating a post in a realm
-            let post_id = Post::create(
+            let realm_post_id = Post::create(
                 state,
                 "Realm post".to_string(),
                 &[],
@@ -538,16 +538,16 @@ pub(crate) mod tests {
                 None,
             )
             .unwrap();
-            assert_eq!(state.realms.get(&name).unwrap().posts.len(), 2);
+            assert_eq!(state.realms.get(&name).unwrap().posts.len(), 1);
 
             assert_eq!(
-                Post::get(state, &post_id).unwrap().realm,
+                Post::get(state, &realm_post_id).unwrap().realm,
                 Some(name.clone())
             );
-            assert!(realm_posts(state, &name).contains(&post_id));
+            assert!(realm_posts(state, &name).contains(&realm_post_id));
 
             // Posting without realm creates the post in the global realm
-            let post_id = Post::create(
+            let no_realm_post_id = Post::create(
                 state,
                 "Realm post".to_string(),
                 &[],
@@ -559,45 +559,41 @@ pub(crate) mod tests {
             )
             .unwrap();
 
-            assert_eq!(Post::get(state, &post_id).unwrap().realm, None,);
+            assert_eq!(Post::get(state, &no_realm_post_id).unwrap().realm, None,);
 
             // comments are possible even if user is not in the realm
-            assert_eq!(
-                Post::create(
-                    state,
-                    "comment".to_string(),
-                    &[],
-                    p0,
-                    0,
-                    Some(0),
-                    None,
-                    None
-                ),
-                Ok(3)
-            );
+            let _comment_id_1 = Post::create(
+                state,
+                "comment".to_string(),
+                &[],
+                p0,
+                0,
+                Some(realm_post_id),
+                None,
+                None
+            )
+            .unwrap();
 
             assert!(state.toggle_realm_membership(p0, name.clone()));
             assert_eq!(state.realms.get(&name).unwrap().num_members, 2);
 
-            assert_eq!(
-                Post::create(
-                    state,
-                    "comment".to_string(),
-                    &[],
-                    p0,
-                    0,
-                    Some(0),
-                    None,
-                    None
-                ),
-                Ok(4)
-            );
+            let _comment_id_2 = Post::create(
+                state,
+                "comment".to_string(),
+                &[],
+                p0,
+                0,
+                Some(realm_post_id),
+                None,
+                None
+            )
+            .unwrap();
 
-            assert!(realm_posts(state, &name).contains(&3));
+            assert!(realm_posts(state, &name).contains(&realm_post_id));
 
             // Create post without a realm
 
-            let post_id = Post::create(
+            let no_realm_post_id_2 = Post::create(
                 state,
                 "No realm post".to_string(),
                 &[],
@@ -608,19 +604,19 @@ pub(crate) mod tests {
                 None,
             )
             .unwrap();
-            let comment_id = Post::create(
+            let comment_on_no_realm = Post::create(
                 state,
                 "comment".to_string(),
                 &[],
                 p0,
                 0,
-                Some(post_id),
+                Some(no_realm_post_id_2),
                 None,
                 None,
             )
             .unwrap();
 
-            assert_eq!(Post::get(state, &comment_id).unwrap().realm, None);
+            assert_eq!(Post::get(state, &comment_on_no_realm).unwrap().realm, None);
 
             // Creating post without entering the realm
             let realm_name = "NEW_REALM".to_string();
@@ -663,22 +659,20 @@ pub(crate) mod tests {
             assert!(state.users.get(&_u1).unwrap().realms.contains(&name));
 
             assert_eq!(state.realms.get(&realm_name).unwrap().num_members, 1);
-            assert_eq!(state.realms.get(&realm_name).unwrap().posts.len(), 1);
+            assert_eq!(state.realms.get(&realm_name).unwrap().posts.len(), 0);
 
-            assert_eq!(
-                Post::create(
-                    state,
-                    "test".to_string(),
-                    &[],
-                    p1,
-                    0,
-                    None,
-                    Some(realm_name.clone()),
-                    None
-                ),
-                Ok(8)
-            );
-            assert_eq!(state.realms.get(&realm_name).unwrap().posts.len(), 2);
+            let new_realm_post_id = Post::create(
+                state,
+                "test".to_string(),
+                &[],
+                p1,
+                0,
+                None,
+                Some(realm_name.clone()),
+                None
+            )
+            .unwrap();
+            assert_eq!(state.realms.get(&realm_name).unwrap().posts.len(), 1);
 
             assert!(state
                 .users
@@ -686,13 +680,13 @@ pub(crate) mod tests {
                 .unwrap()
                 .realms
                 .contains(&"TAGGRDAO".to_string()));
-            (p1, realm_name)
+            (p1, realm_name, new_realm_post_id)
         });
 
         // Move the post to non-joined realm
         assert_eq!(
             Post::edit(
-                8,
+                new_realm_post_id,
                 "changed".to_string(),
                 vec![],
                 "".to_string(),
@@ -705,12 +699,12 @@ pub(crate) mod tests {
         );
 
         read(|state| {
-            assert_eq!(Post::get(state, &8).unwrap().realm, Some(realm_name));
-            assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 2);
+            assert_eq!(Post::get(state, &new_realm_post_id).unwrap().realm, Some(realm_name.clone()));
+            assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 1);
         });
         assert_eq!(
             Post::edit(
-                8,
+                new_realm_post_id,
                 "changed".to_string(),
                 vec![],
                 "".to_string(),
@@ -723,10 +717,10 @@ pub(crate) mod tests {
         );
 
         read(|state| {
-            assert_eq!(state.realms.get("NEW_REALM").unwrap().posts.len(), 1);
-            assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 3);
+            assert_eq!(state.realms.get("NEW_REALM").unwrap().posts.len(), 0);
+            assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 2);
             assert_eq!(
-                Post::get(state, &8).unwrap().realm,
+                Post::get(state, &new_realm_post_id).unwrap().realm,
                 Some("TAGGRDAO".to_string())
             );
         });

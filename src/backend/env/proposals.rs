@@ -441,10 +441,13 @@ pub fn create_proposal(
         Ok(())
     })
     .expect("couldn't mutate post");
-    state.logger.info(format!(
-        "@{} submitted a new [proposal](#/post/{}).",
-        &proposer_name, post_id
-    ));
+    let _ = state.system_message(
+        format!(
+            "A new [proposal](#/post/{}) was submitted by `@{}`",
+            post_id, &proposer_name
+        ),
+        CONFIG.dao_realm.into(),
+    );
     Ok(id)
 }
 

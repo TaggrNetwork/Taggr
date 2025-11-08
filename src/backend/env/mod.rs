@@ -854,7 +854,10 @@ impl State {
         self.users.insert(user.id, user);
         self.set_pfp(id, Default::default())
             .expect("couldn't set default pfp");
-        self.logger.info(format!("@{} joined Taggr! 🎉", name));
+        let _ = self.system_message(
+            format!("`@{}` joined {}!", name, CONFIG.name),
+            CONFIG.dao_realm.into(),
+        );
         Ok(id)
     }
 
@@ -890,12 +893,17 @@ impl State {
         Ok(())
     }
 
-    pub fn system_message(
-        &mut self,
-        body: String,
-        realm: Option<RealmId>,
-    ) -> Result<PostId, String> {
-        Post::create(self, body, Default::default(), id(), time(), None, realm, None)
+    pub fn system_message(&mut self, body: String, realm: RealmId) -> Result<PostId, String> {
+        Post::create(
+            self,
+            body,
+            Default::default(),
+            id(),
+            time(),
+            None,
+            Some(realm),
+            None,
+        )
     }
 
     pub fn create_invite(
