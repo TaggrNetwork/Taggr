@@ -1629,12 +1629,15 @@ impl State {
                     return;
                 };
 
-                state.logger.info(format!(
-                    "@{} is the lucky receiver of `{}` ${} as a weekly random reward! 🎲",
-                    winner_name,
-                    CONFIG.random_reward_amount / base(),
-                    CONFIG.token_symbol,
-                ));
+                let _ = state.system_message(
+                    format!(
+                        "`@{}` is the lucky receiver of `{}` ${} as a weekly random reward! 🎲",
+                        winner_name,
+                        CONFIG.random_reward_amount / base(),
+                        CONFIG.token_symbol,
+                    ),
+                    CONFIG.dao_realm.into(),
+                );
                 state.minting_mode = true;
                 crate::token::mint(
                     state,

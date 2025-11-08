@@ -7,7 +7,6 @@ import {
     icpCode,
     IcpAccountLink,
     USD_PER_XDR,
-    TabBar,
 } from "./common";
 import { Content } from "./content";
 import {
@@ -35,7 +34,7 @@ import { UserList } from "./user_resolve";
 const show = (val: number | BigInt, unit?: string, unit_position?: string) => (
     <code>
         {unit_position == "prefix" && unit}
-        {val.toLocaleString()}
+        {val?.toLocaleString() ?? "..."}
         {unit_position != "prefix" && unit}
     </code>
 );
@@ -46,13 +45,8 @@ type Log = {
     message: string;
 };
 
-const TAB_KEY = "logs_tab";
-
 export const Dashboard = ({}) => {
     const [logs, setLogs] = React.useState<Log[]>([]);
-    const [tab, setTab] = React.useState(
-        localStorage.getItem(TAB_KEY) || "Social",
-    );
 
     React.useEffect(() => {
         window.api.query<Log[]>("logs").then((logs) => {
@@ -66,17 +60,6 @@ export const Dashboard = ({}) => {
             setLogs(tmp.map(([value]) => value));
         });
     }, []);
-
-    const logSelector = (
-        <TabBar
-            tabs={["Social", "Technical"]}
-            activeTab={tab}
-            onTabChange={(newTab) => {
-                localStorage.setItem(TAB_KEY, newTab);
-                setTab(newTab);
-            }}
-        />
-    );
 
     const { config, stats } = window.backendCache;
     return (
@@ -285,56 +268,43 @@ export const Dashboard = ({}) => {
                     <UserList ids={stats.stalwarts} />
                 </div>
                 <hr />
-                {logSelector}
-                <hr />
-                <div className="logs">
-                    <Content
-                        value={logs
-                            .filter(
-                                ({ level }) =>
-                                    (tab == "Social" && level == "INFO") ||
-                                    (tab == "Technical" && level != "INFO"),
-                            )
-                            .map(
-                                ({ timestamp, level, message }) =>
-                                    `\`${shortDate(
-                                        new Date(Number(timestamp) / 1000000),
-                                    )}\`: ${level2icon(level)} ${message}`,
-                            )
-                            .join("\n\n")}
-                    />
-                </div>
+                <h2>LOGS</h2>
+                <table className="dashboard_logs">
+                    <tbody>
+                        {logs.map(({ timestamp, level, message }, i) => {
+                            const date = new Date(Number(timestamp) / 1000000);
+                            const dateStr = new Intl.DateTimeFormat("default", {
+                                month: "short",
+                                day: "numeric",
+                                hour: "numeric",
+                                minute: "numeric",
+                                second: "numeric",
+                            }).format(date);
+                            const icon =
+                                {
+                                    INFO: "ℹ️",
+                                    DEBUG: "🤖",
+                                    WARN: "⚠️",
+                                    ERROR: "🔴",
+                                    CRITICAL: "💥",
+                                }[level] || "❓";
+                            return (
+                                <tr key={i}>
+                                    <td>
+                                        <code>{dateStr}</code>
+                                    </td>
+                                    <td>{icon}</td>
+                                    <td>
+                                        <Content value={message} />
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
             </div>
         </>
     );
-};
-
-const shortDate = (date: Date) => {
-    let options: any = {
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "numeric",
-        second: "numeric",
-    };
-    return new Intl.DateTimeFormat("default", options).format(date);
-};
-
-const level2icon = (level: string) => {
-    switch (level) {
-        case "INFO":
-            return "";
-        case "DEBUG":
-            return "";
-        case "WARN":
-            return "⚠️";
-        case "ERROR":
-            return "🔴";
-        case "CRITICAL":
-            return "💥";
-        default:
-            return "❓";
-    }
 };
 
 const sizeMb = (size: number | BigInt) => (
