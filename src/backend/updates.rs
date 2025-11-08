@@ -109,22 +109,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    mutate(|state| {
-        for u in state.users.values_mut() {
-            // Clear feeds if they exceed 1000 chars in total
-            if u.feeds
-                .iter()
-                .flat_map(|feed| feed.iter())
-                .map(|tag| tag.len())
-                .sum::<usize>()
-                >= 1000
-            {
-                u.feeds.clear();
-            }
-        }
-    })
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
