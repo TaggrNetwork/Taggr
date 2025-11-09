@@ -109,7 +109,9 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| state.logger.clean_up(time() - MONTH * 6));
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -296,7 +298,11 @@ fn create_feature() {
 #[export_name = "canister_update toggle_feature_support"]
 fn toggle_feature_support() {
     let post_id: PostId = parse(&arg_data_raw());
-    reply(features::toggle_feature_support(read(caller), post_id, time()));
+    reply(features::toggle_feature_support(
+        read(caller),
+        post_id,
+        time(),
+    ));
 }
 
 #[export_name = "canister_update create_user"]
