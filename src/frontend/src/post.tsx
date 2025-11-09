@@ -71,7 +71,7 @@ import {
     validUserId,
 } from "./user_resolve";
 import { CANISTER_ID } from "./env";
-import { TokenSelect } from "./token-select";
+import { TokenSelect } from "./token_select";
 
 export const PostView = ({
     id,
@@ -1480,16 +1480,17 @@ const TippingPopup = ({
                 value={tippingAmount}
                 onChange={async (e) => {
                     const amount = Number(e.target.value);
-                    if (isNaN(amount) || amount <= 0) {
-                        return;
-                    }
                     setTippingAmount(amount);
                     setShowConfirmation(false);
                 }}
             />
             {showConfirmation && canister && (
-                <div className="vertically_spaced stands_out">
-                    Transfer {tippingAmount} {canister.symbol} to
+                <div className="stands_out">
+                    Transfer{" "}
+                    <code>
+                        {tippingAmount} ${canister.symbol}
+                    </code>{" "}
+                    to
                     <UserLink
                         classNameArg="left_half_spaced right_half_spaced"
                         id={post.user}

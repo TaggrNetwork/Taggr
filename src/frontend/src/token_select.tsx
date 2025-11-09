@@ -16,7 +16,6 @@ export const TokenSelect = ({
     onSelectionChange: (canisterId: string) => void;
     selectedCanisterId?: string;
 }) => {
-    // State to store selected values
     const [selectedValue, setSelectedValue] = React.useState<string>(
         selectedCanisterId || "",
     );
@@ -24,7 +23,6 @@ export const TokenSelect = ({
         Array<[string, Icrc1Canister]>
     >([]);
 
-    // Handle change when options are selected/deselected
     const handleChange = (event: any) => {
         const value = (event.target as any).value || CANISTER_ID;
         setSelectedValue(value);
@@ -34,11 +32,14 @@ export const TokenSelect = ({
     const loadData = () => {
         const canistersMap = new Map(canisters);
 
-        const userTokenIds = window.user?.wallet_tokens || [];
-        userTokenIds.push(CANISTER_ID);
-        userTokenIds.push(ICP_LEDGER);
+        const userTokenIds = [
+            ...(window.user?.wallet_tokens || []),
+            CANISTER_ID,
+            ICP_LEDGER,
+        ];
+        const uniqueTokenIds = [...new Set(userTokenIds)];
         setUserTokens(
-            userTokenIds
+            uniqueTokenIds
                 .filter((id) => canistersMap.has(id))
                 .map((canisterId) => [
                     canisterId,
