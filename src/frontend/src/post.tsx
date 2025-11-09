@@ -1336,6 +1336,7 @@ const TippingPopup = ({
         React.useState(CANISTER_ID);
     const [tippingAmount, setTippingAmount] = React.useState(0.1);
     const [postAuthor, setPostAuthor] = React.useState<User | null>();
+    const [showConfirmation, setShowConfirmation] = React.useState(false);
 
     React.useEffect(() => {
         window.api
@@ -1377,14 +1378,6 @@ const TippingPopup = ({
                 (tippingAmount * Math.pow(10, canister.decimals)).toFixed(0),
             );
             if (!amount || isNaN(amount)) return;
-            if (
-                !confirm(
-                    `Transfer ${tippingAmount} ${canister.symbol} to @${
-                        post.meta.author_name
-                    } as a tip?`,
-                )
-            )
-                return;
 
             if (!postAuthor)
                 return showPopUp("error", "Could not load post author data.");
@@ -1465,6 +1458,8 @@ const TippingPopup = ({
         }
     };
 
+    const canister = canistersMetaData[selectedTippingCanisterId];
+
     return (
         <div className="column_container">
             <p>
@@ -1489,13 +1484,41 @@ const TippingPopup = ({
                         return;
                     }
                     setTippingAmount(amount);
+                    setShowConfirmation(false);
                 }}
             />
-            <ButtonWithLoading
-                classNameArg="active"
-                label={"SEND"}
-                onClick={() => finalizeTip(parentCallback || (() => {}))}
-            />
+            {showConfirmation && canister && (
+                <div className="vertically_spaced stands_out">
+                    Transfer {tippingAmount} {canister.symbol} to
+                    <UserLink
+                        classNameArg="left_half_spaced right_half_spaced"
+                        id={post.user}
+                    />
+                    as a tip?
+                </div>
+            )}
+            {!showConfirmation ? (
+                <ButtonWithLoading
+                    classNameArg="active"
+                    label={"SEND"}
+                    onClick={async () => setShowConfirmation(true)}
+                />
+            ) : (
+                <div className="row_container">
+                    <ButtonWithLoading
+                        classNameArg="max_width_col right_half_spaced"
+                        label={"CANCEL"}
+                        onClick={async () => setShowConfirmation(false)}
+                    />
+                    <ButtonWithLoading
+                        classNameArg="active max_width_col"
+                        label={"CONFIRM"}
+                        onClick={() =>
+                            finalizeTip(parentCallback || (() => {}))
+                        }
+                    />
+                </div>
+            )}
         </div>
     );
 };
