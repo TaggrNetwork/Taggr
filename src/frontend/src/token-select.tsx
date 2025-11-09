@@ -33,21 +33,12 @@ export const TokenSelect = ({
 
     const loadData = () => {
         const canistersMap = new Map(canisters);
-        // Add ICP or Taggr
-        const mainTokens: Array<[string, Icrc1Canister]> = [];
-        const nativeCanister = canistersMap.get(CANISTER_ID);
-        if (nativeCanister) {
-            mainTokens.push([CANISTER_ID, nativeCanister]);
-        }
 
-        const icpCanister = canistersMap.get(ICP_LEDGER);
-        if (icpCanister) {
-            mainTokens.push([ICP_LEDGER, icpCanister]);
-        }
-
-        const userTokens = window.user?.wallet_tokens || [];
+        const userTokenIds = window.user?.wallet_tokens || [];
+        userTokenIds.push(CANISTER_ID);
+        userTokenIds.push(ICP_LEDGER);
         setUserTokens(
-            userTokens
+            userTokenIds
                 .filter((id) => canistersMap.has(id))
                 .map((canisterId) => [
                     canisterId,
@@ -92,8 +83,7 @@ export const TokenSelect = ({
                     SELECT TOKEN
                 </option>
             )}
-            {userTokens.length > 0 &&
-                renderOptions(userTokens, "Tipping Tokens")}
+            {renderOptions(userTokens, "Tipping Tokens")}
         </select>
     );
 };
