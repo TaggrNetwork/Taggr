@@ -1334,7 +1334,7 @@ const TippingPopup = ({
 }) => {
     const [selectedTippingCanisterId, setSelectedTippingCanisterId] =
         React.useState(CANISTER_ID);
-    const [tippingAmount, setTippingAmount] = React.useState(0.1);
+    const [tippingAmount, setTippingAmount] = React.useState("0.1");
     const [postAuthor, setPostAuthor] = React.useState<User | null>();
     const [showConfirmation, setShowConfirmation] = React.useState(false);
 
@@ -1355,10 +1355,8 @@ const TippingPopup = ({
             );
         }
         setTippingAmount(
-            Number(
-                (canister.fee / Math.pow(10, canister.decimals)).toFixed(
-                    canister.decimals,
-                ),
+            (canister.fee / Math.pow(10, canister.decimals)).toFixed(
+                canister.decimals,
             ),
         );
     };
@@ -1374,10 +1372,11 @@ const TippingPopup = ({
                 );
             }
 
+            const numericAmount = Number(tippingAmount);
+            if (!numericAmount || isNaN(numericAmount)) return;
             const amount = Number(
-                (tippingAmount * Math.pow(10, canister.decimals)).toFixed(0),
+                (numericAmount * Math.pow(10, canister.decimals)).toFixed(0),
             );
-            if (!amount || isNaN(amount)) return;
 
             if (!postAuthor)
                 return showPopUp("error", "Could not load post author data.");
@@ -1479,8 +1478,7 @@ const TippingPopup = ({
                 className="bottom_spaced"
                 value={tippingAmount}
                 onChange={async (e) => {
-                    const amount = Number(e.target.value);
-                    setTippingAmount(amount);
+                    setTippingAmount(e.target.value);
                     setShowConfirmation(false);
                 }}
             />
@@ -1488,11 +1486,13 @@ const TippingPopup = ({
                 <div className="stands_out">
                     Transfer{" "}
                     <code>
-                        {tippingAmount} ${canister.symbol}
+                        {Number(tippingAmount).toLocaleString()}{" "}
+                        {canister.symbol}
                     </code>{" "}
                     to
                     <UserLink
                         classNameArg="left_half_spaced right_half_spaced"
+                        pfp={false}
                         id={post.user}
                     />
                     as a tip?
@@ -1509,7 +1509,9 @@ const TippingPopup = ({
                     <ButtonWithLoading
                         classNameArg="max_width_col right_half_spaced"
                         label={"CANCEL"}
-                        onClick={async () => setShowConfirmation(false)}
+                        onClick={async () => {
+                            if (parentCallback) parentCallback();
+                        }}
                     />
                     <ButtonWithLoading
                         classNameArg="active max_width_col"
