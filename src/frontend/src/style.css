@@ -415,6 +415,7 @@ table.dashboard_logs td:first-child {
 table.dashboard_logs td:nth-child(2) {
     width: 0;
     padding-right: 0.5rem;
+    padding-left: 0.5rem;
 }
 
 table.dashboard_logs td:last-child {

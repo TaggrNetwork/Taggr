@@ -273,27 +273,12 @@ export const Dashboard = ({}) => {
                     <tbody>
                         {logs.map(({ timestamp, level, message }, i) => {
                             const date = new Date(Number(timestamp) / 1000000);
-                            const dateStr = new Intl.DateTimeFormat("default", {
-                                month: "short",
-                                day: "numeric",
-                                hour: "numeric",
-                                minute: "numeric",
-                                second: "numeric",
-                            }).format(date);
-                            const icon =
-                                {
-                                    INFO: "ℹ️",
-                                    DEBUG: "🤖",
-                                    WARN: "⚠️",
-                                    ERROR: "🔴",
-                                    CRITICAL: "💥",
-                                }[level] || "❓";
                             return (
                                 <tr key={i}>
                                     <td>
-                                        <code>{dateStr}</code>
+                                        <code>{shortDate(date)}</code>
                                     </td>
-                                    <td>{icon}</td>
+                                    <td>{level2icon(level)}</td>
                                     <td>
                                         <Content value={message} />
                                     </td>
@@ -304,6 +289,29 @@ export const Dashboard = ({}) => {
                 </table>
             </div>
         </>
+    );
+};
+
+const shortDate = (date: Date) => {
+    let options: any = {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+    };
+    return new Intl.DateTimeFormat("default", options).format(date);
+};
+
+const level2icon = (level: string) => {
+    return (
+        {
+            INFO: "ℹ️",
+            DEBUG: "🤖",
+            WARN: "⚠️",
+            ERROR: "🔴",
+            CRITICAL: "💥",
+        }[level] || "❓"
     );
 };
 
