@@ -570,7 +570,7 @@ pub(crate) mod tests {
                 0,
                 Some(realm_post_id),
                 None,
-                None
+                None,
             )
             .unwrap();
 
@@ -585,7 +585,7 @@ pub(crate) mod tests {
                 0,
                 Some(realm_post_id),
                 None,
-                None
+                None,
             )
             .unwrap();
 
@@ -669,7 +669,7 @@ pub(crate) mod tests {
                 0,
                 None,
                 Some(realm_name.clone()),
-                None
+                None,
             )
             .unwrap();
             assert_eq!(state.realms.get(&realm_name).unwrap().posts.len(), 1);
@@ -699,7 +699,10 @@ pub(crate) mod tests {
         );
 
         read(|state| {
-            assert_eq!(Post::get(state, &new_realm_post_id).unwrap().realm, Some(realm_name.clone()));
+            assert_eq!(
+                Post::get(state, &new_realm_post_id).unwrap().realm,
+                Some(realm_name.clone())
+            );
             assert_eq!(state.realms.get("TAGGRDAO").unwrap().posts.len(), 1);
         });
         assert_eq!(
