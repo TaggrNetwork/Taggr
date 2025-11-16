@@ -334,6 +334,13 @@ article {
     margin: 0.5em;
 }
 
+.info_item {
+    padding: 1em;
+    margin: 1em;
+    background: $light_background;
+    border-radius: 10px;
+}
+
 .triangle {
     position: absolute;
     top: 0;
@@ -394,6 +401,47 @@ button {
 
 .breakable,
 .logs code {
+    word-break: break-all;
+}
+
+table.dashboard_logs {
+    width: 100%;
+    table-layout: auto;
+}
+
+table.dashboard_logs td {
+    vertical-align: top;
+    width: 0;
+    padding: 0 0 0.5em 0;
+}
+
+table.dashboard_logs td:first-child {
+    white-space: nowrap;
+}
+
+table.dashboard_logs td:nth-child(2) {
+    width: 0;
+    padding-right: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+table.dashboard_logs td:last-child {
+    width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+table.dashboard_logs p {
+    margin: 0;
+    padding: 0;
+}
+
+table.dashboard_logs code {
+    word-break: break-all;
+}
+
+table.dashboard_logs a {
     word-break: break-all;
 }
 
@@ -1053,6 +1101,10 @@ label svg {
     body {
         padding-left: 0;
         padding-right: 0;
+    }
+
+    table.dashboard_logs {
+        font-size: small;
     }
 
     .fadein {

@@ -251,8 +251,6 @@ test.describe("Upgrades & token transfer flow", () => {
     test("Verify recovery upgrade", async () => {
         await page.goto("/#/dashboard");
         await waitForUILoading(page);
-        await page.getByRole("button", { name: "TECHNICAL" }).click();
-        await waitForUILoading(page);
 
         await pollForCondition(
             async () => {
@@ -354,7 +352,6 @@ test.describe("Upgrades & token transfer flow", () => {
                 await page.reload();
                 await page.waitForURL(/dashboard/);
                 await waitForUILoading(page);
-                await page.getByRole("button", { name: "TECHNICAL" }).click();
                 const count = await page
                     .locator("p", { hasText: /Upgrade succeeded/ })
                     .count();

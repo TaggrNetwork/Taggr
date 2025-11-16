@@ -528,20 +528,21 @@ impl Post {
             },
         };
         if let Some(realm_id) = &realm {
-            if user.organic() && parent.is_none() && !user.realms.contains(realm_id) {
-                return Err(format!("not a member of the realm {}", realm_id));
-            }
-            if let Some(realm) = state.realms.get(realm_id) {
-                let whitelist = &realm.whitelist;
-                if user.organic()
-                    && (parent.is_some() && realm.comments_filtering || parent.is_none())
-                    && (!whitelist.is_empty() && !whitelist.contains(&user.id)
-                        || whitelist.is_empty() && !user.get_filter().passes(&realm.filter))
-                {
-                    return Err(format!(
-                        "{} realm is gated and you are not allowed to post to this realm",
-                        realm_id
-                    ));
+            if user.organic() {
+                if parent.is_none() && !user.realms.contains(realm_id) {
+                    return Err(format!("not a member of the realm {}", realm_id));
+                }
+                if let Some(realm) = state.realms.get(realm_id) {
+                    let whitelist = &realm.whitelist;
+                    if (parent.is_some() && realm.comments_filtering || parent.is_none())
+                        && (!whitelist.is_empty() && !whitelist.contains(&user.id)
+                            || whitelist.is_empty() && !user.get_filter().passes(&realm.filter))
+                    {
+                        return Err(format!(
+                            "{} realm is gated and you are not allowed to post to this realm",
+                            realm_id
+                        ));
+                    }
                 }
             }
         } else if let Some(discussion_owner) = parent.and_then(|post_id| {

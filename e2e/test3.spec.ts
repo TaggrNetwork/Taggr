@@ -1,4 +1,4 @@
-import { waitForUILoading, handleDialog } from "./helpers";
+import { waitForUILoading, handleDialog, pollForCondition } from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { exec, mkPwd, transferICP } from "./command";
 
@@ -166,6 +166,7 @@ test.describe("Regular users flow, part two", () => {
             await page.getByTestId("toggle-user-section").click();
             await expect(page.getByTestId("token-balance")).toHaveText("5");
             await page.getByTestId("toggle-user-section").click();
+            await waitForUILoading(page);
 
             const post = page
                 .getByTestId("post-body")
@@ -174,7 +175,7 @@ test.describe("Regular users flow, part two", () => {
                 })
                 .last();
             await expect(post).toBeVisible();
-            const menuBTN = post.locator(`button[title="Menu"]`);
+            const menuBTN = post.getByTestId("post-info-toggle");
             await expect(menuBTN).toBeVisible();
             await menuBTN.click();
             const postMenu = post.getByTestId("post-menu");
@@ -185,23 +186,30 @@ test.describe("Regular users flow, part two", () => {
             await expect(popup).toHaveText(/Tip john with.*/);
             await popup.locator("input").fill("1");
 
-            await handleDialog(page, /./, "", async () => {
-                await popup.getByText("SEND").click();
-            });
-            await waitForUILoading(page);
+            // Click SEND to show confirmation
+            await popup.getByText("SEND").click();
 
-            await page.goto("/");
-            await waitForUILoading(page);
-            await page.getByTestId("toggle-user-section").click();
+            // Wait for confirmation UI to appear and click CONFIRM
+            await expect(popup.getByText("CONFIRM")).toBeVisible();
+            await popup.getByText("CONFIRM").click();
 
-            await page.waitForFunction(
-                () => {
-                    const elem = document.querySelector(
-                        '[data-testid="token-balance"]',
-                    );
-                    return elem?.textContent === "4";
+            await pollForCondition(
+                async () => {
+                    await page.goto("/");
+                    await page.getByTestId("toggle-user-section").click();
+
+                    const elem = page.getByTestId("token-balance");
+                    const count = await elem.count();
+                    if (count === 0) return false;
+                    const text = await elem.textContent();
+                    return text === "4";
                 },
-                { timeout: 10000 },
+                {
+                    maxAttempts: 20,
+                    interval: 500,
+                    errorMessage:
+                        "Token balance did not update to 4 within timeout",
+                },
             );
 
             await expect(page.getByTestId("token-balance")).toHaveText("4");
@@ -215,7 +223,7 @@ test.describe("Regular users flow, part two", () => {
                 })
                 .last();
             await expect(post).toBeVisible();
-            const menuBTN = post.locator(`button[title="Menu"]`);
+            const menuBTN = post.getByTestId("post-info-toggle");
             await expect(menuBTN).toBeVisible();
             await menuBTN.click();
             const postMenu = post.getByTestId("post-menu");
@@ -225,10 +233,12 @@ test.describe("Regular users flow, part two", () => {
             await expect(popup).toBeVisible();
             await popup.locator("input").fill("1");
 
-            page.once("dialog", async (dialog) => {
-                await dialog.dismiss();
-            });
+            // Click SEND to show confirmation
             await popup.getByText("SEND").click();
+
+            // Wait for confirmation UI to appear and click CANCEL
+            await expect(popup.getByText("CANCEL")).toBeVisible();
+            await popup.getByText("CANCEL").click();
 
             await page.goto("/");
             await waitForUILoading(page);

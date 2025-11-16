@@ -3,9 +3,13 @@ use std::collections::HashSet;
 use candid::Principal;
 use serde::{Deserialize, Serialize};
 
-use crate::mutate;
+use crate::{
+    env::{post::Meta, Time, YEAR},
+    mutate,
+};
 
 use super::{
+    config::CONFIG,
     post::{Extension, Post, PostId},
     token::Token,
     user::UserId,
@@ -18,47 +22,52 @@ pub struct Feature {
     pub supporters: HashSet<UserId>,
     // 0: requested, 1: implemented
     pub status: u8,
+    #[serde(default)]
+    pub last_activity: Time,
 }
 
 /// Returns a list of all feature ids and current collective voting power of all supporters.
 pub fn features<'a>(
     state: &'a State,
     ids: &'a [PostId],
-) -> Box<dyn DoubleEndedIterator<Item = (PostId, Token, Feature)> + 'a> {
-    let count_support = move |(post_id, feature): (&PostId, Feature)| {
-        (
-            *post_id,
-            feature
-                .supporters
-                .iter()
-                .map(|user_id| {
-                    state
-                        .users
-                        .get(user_id)
-                        .map(|user| user.total_balance())
-                        .unwrap_or_default()
-                })
-                .sum::<Token>(),
-            feature,
-        )
+    now: Time,
+) -> Box<dyn DoubleEndedIterator<Item = ((&'a Post, Meta<'a>), Token, Feature)> + 'a> {
+    let transform_feature = move |(post_id, feature): (&PostId, Feature)| {
+        if feature.last_activity + YEAR <= now {
+            return None;
+        }
+        let tokens = feature
+            .supporters
+            .iter()
+            .map(|user_id| {
+                state
+                    .users
+                    .get(user_id)
+                    .map(|user| user.total_balance())
+                    .unwrap_or_default()
+            })
+            .sum::<Token>();
+        Post::get(state, post_id).map(|post| (post.with_meta(state), tokens, feature))
     };
+
     if !ids.is_empty() {
         return Box::new(
             ids.iter()
                 .filter_map(move |id| state.memory.features.get(id).map(|feature| (id, feature)))
-                .map(count_support),
+                .filter_map(transform_feature),
         );
     }
-    Box::new(state.memory.features.iter().map(count_support))
+    Box::new(state.memory.features.iter().filter_map(transform_feature))
 }
 
-pub fn toggle_feature_support(caller: Principal, post_id: PostId) -> Result<(), String> {
+pub fn toggle_feature_support(caller: Principal, post_id: PostId, now: Time) -> Result<(), String> {
     mutate(|state| {
         let user_id = state.principal_to_user(caller).ok_or("no user found")?.id;
         let mut feature = state.memory.features.remove(&post_id)?;
         if feature.supporters.contains(&user_id) {
             feature.supporters.remove(&user_id);
         } else {
+            feature.last_activity = now;
             feature.supporters.insert(user_id);
         }
         state
@@ -71,19 +80,15 @@ pub fn toggle_feature_support(caller: Principal, post_id: PostId) -> Result<(), 
     })
 }
 
-pub fn create_feature(caller: Principal, post_id: PostId) -> Result<(), String> {
+pub fn create_feature(caller: Principal, post_id: PostId, now: Time) -> Result<(), String> {
     mutate(|state| {
         let user = state.principal_to_user(caller).ok_or("no user found")?;
         let user_name = user.name.clone();
 
-        if !Post::get(state, &post_id)
-            .map(|post| {
-                post.user == user.id && matches!(post.extension.as_ref(), Some(&Extension::Feature))
-            })
-            .unwrap_or_default()
-        {
+        let post = Post::get(state, &post_id).ok_or("post not found")?;
+        if post.user != user.id || !matches!(post.extension.as_ref(), Some(&Extension::Feature)) {
             return Err("no post with a feature found".into());
-        };
+        }
 
         if state.memory.features.get(&post_id).is_some() {
             return Err("feature already exists".into());
@@ -97,14 +102,18 @@ pub fn create_feature(caller: Principal, post_id: PostId) -> Result<(), String> 
                 Feature {
                     supporters: Default::default(),
                     status: 0,
+                    last_activity: now,
                 },
             )
             .expect("couldn't persist feature");
 
-        state.logger.info(format!(
-            "@{} created a [new feature](#/post/{})",
-            user_name, post_id
-        ));
+        let _ = state.system_message(
+            format!(
+                "A [new feature](#/post/{}) was created by `@{}`",
+                post_id, user_name
+            ),
+            CONFIG.dao_realm.into(),
+        );
 
         Ok(())
     })

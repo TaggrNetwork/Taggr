@@ -27,7 +27,7 @@ import {
     populateUserNameCache,
     userNameToIds,
 } from "./user_resolve";
-import { TokenSelect } from "./token-select";
+import { TokenSelect } from "./token_select";
 import { CANISTER_ID } from "./env";
 
 let timer: any = null;

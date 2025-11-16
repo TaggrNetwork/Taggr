@@ -110,17 +110,12 @@ pub fn report(
     misbehaving_user.report = Some(report);
     let user_name = misbehaving_user.name.clone();
 
-    let post_id = Post::create(
-        state,
-        format!("# New User Report ⚠️\n\nUser @{user_name} was reported for misbehavior. Please review and discuss the report here.\n\n> {reason}"),
-        Default::default(),
-        super::id(),
-        time(),
-        None,
-        Some(CONFIG.stalwarts_realm.into()),
-        None,
-    )
-    .expect("couldn't create report post");
+    let post_id = state
+        .system_message(
+            format!("# New User Report ⚠️\n\nUser @{user_name} was reported for misbehavior. Please review and discuss the report here.\n\n> {reason}"),
+            CONFIG.stalwarts_realm.into(),
+        )
+        .expect("couldn't create report post");
 
     state.notify_with_predicate(
         &|u| u.stalwart && u.id != id,

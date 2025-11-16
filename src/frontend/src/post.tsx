@@ -1,4 +1,3 @@
-import { Principal } from "@dfinity/principal";
 import * as React from "react";
 import { Form } from "./form";
 import { Content } from "./content";
@@ -29,7 +28,6 @@ import {
     NotAllowed,
     onCanonicalDomain,
     getCanistersMetaData,
-    numberToUint8Array,
     shortenTokensAmount,
     icpSwapLogoFallback,
     popUp,
@@ -61,7 +59,6 @@ import {
     PostId,
     PostTip,
     Realm,
-    User,
     UserId,
 } from "./types";
 import {
@@ -71,7 +68,7 @@ import {
     validUserId,
 } from "./user_resolve";
 import { CANISTER_ID } from "./env";
-import { TokenSelect } from "./token-select";
+import { TippingPopup } from "./tipping";
 
 export const PostView = ({
     id,
@@ -285,7 +282,7 @@ export const PostView = ({
                     post.scrollIntoView({ behavior: "smooth" });
             }}
             className={classNameArg}
-            data-testid="post-body"
+            data-testid={`post-body${repost ? "-repost" : ""}`}
         >
             <div
                 ref={refPost as any}
@@ -1311,191 +1308,6 @@ const FeatureView = ({ id }: { id: PostId }) => {
                     />
                 </div>
             )}
-        </div>
-    );
-};
-
-const TippingPopup = ({
-    parentCallback,
-    post,
-    allowedTippingCanisterIds,
-    canistersMetaData,
-    externalTips,
-    setExternalTips,
-    callback,
-}: {
-    parentCallback?: () => void;
-    post: Post;
-    allowedTippingCanisterIds: string[];
-    canistersMetaData: Record<string, Icrc1Canister>;
-    externalTips: PostTip[];
-    setExternalTips: React.Dispatch<React.SetStateAction<PostTip[]>>;
-    callback: () => Promise<void>;
-}) => {
-    const [selectedTippingCanisterId, setSelectedTippingCanisterId] =
-        React.useState(CANISTER_ID);
-    const [tippingAmount, setTippingAmount] = React.useState(0.1);
-    const [postAuthor, setPostAuthor] = React.useState<User | null>();
-
-    React.useEffect(() => {
-        window.api
-            .query<User>("user", domain(), [post.user.toString()])
-            .then(setPostAuthor);
-    }, []);
-
-    const onTokenSelectionChange = (canisterId: string) => {
-        setSelectedTippingCanisterId(canisterId);
-
-        const canister = canistersMetaData[canisterId];
-        if (!canister) {
-            return showPopUp(
-                "error",
-                `Could not find canister data for ${canisterId}`,
-            );
-        }
-        setTippingAmount(
-            Number(
-                (canister.fee / Math.pow(10, canister.decimals)).toFixed(
-                    canister.decimals,
-                ),
-            ),
-        );
-    };
-
-    const finalizeTip = async (popUpCallback: () => void) => {
-        try {
-            const canisterId = selectedTippingCanisterId;
-            const canister = canistersMetaData[canisterId];
-            if (!canister) {
-                return showPopUp(
-                    "error",
-                    `Could not find canister data for ${canisterId}`,
-                );
-            }
-
-            const amount = Number(
-                (tippingAmount * Math.pow(10, canister.decimals)).toFixed(0),
-            );
-            if (!amount || isNaN(amount)) return;
-            if (
-                !confirm(
-                    `Transfer ${tippingAmount} ${canister.symbol} to @${
-                        post.meta.author_name
-                    } as a tip?`,
-                )
-            )
-                return;
-
-            if (!postAuthor)
-                return showPopUp("error", "Could not load post author data.");
-
-            const { token_symbol } = window.backendCache.config;
-
-            // Native token tipping
-            if (canister.symbol === token_symbol) {
-                let response = await window.api.call<any>(
-                    "tip",
-                    post.id,
-                    amount,
-                );
-                if ("Err" in response) {
-                    throw new Error(response.Err);
-                } else await callback();
-
-                popUpCallback();
-
-                return;
-            }
-
-            // ICRC-1 token tipping
-            let transId = await window.api.icrc_transfer(
-                Principal.fromText(canisterId),
-                Principal.fromText(postAuthor.principal),
-                amount,
-                canister.fee,
-                numberToUint8Array(post.id),
-            );
-
-            if (Number.isNaN(transId as number)) {
-                throw new Error(
-                    transId.toString() || "Something went wrong with transfer!",
-                );
-            }
-
-            const optimisticPostTip: PostTip = {
-                amount,
-                canister_id: canisterId,
-                index: Number(transId),
-                sender_id: window.user.id,
-            };
-            setExternalTips([...externalTips, optimisticPostTip]);
-
-            popUpCallback();
-
-            let addTipResponse = await window.api.call<{
-                Ok: PostTip;
-                Err: string;
-            }>(
-                "add_external_icrc_transaction",
-                canisterId,
-                Number(transId),
-                post.id,
-            );
-            if ("Err" in (addTipResponse || {}) || !addTipResponse) {
-                setExternalTips(
-                    externalTips.filter(
-                        ({ canister_id, index }) =>
-                            index !== optimisticPostTip.index ||
-                            canisterId !== canister_id,
-                    ),
-                );
-                throw new Error(
-                    addTipResponse?.Err || "Could not add tip to post.",
-                );
-            }
-
-            setExternalTips([
-                ...externalTips.filter(
-                    ({ index }) => index !== Number(transId),
-                ),
-                addTipResponse.Ok,
-            ]);
-        } catch (e: any) {
-            return showPopUp("error", e?.message || e);
-        }
-    };
-
-    return (
-        <div className="column_container">
-            <p>
-                Tip <b>{post.meta.author_name} </b>
-                with
-                <TokenSelect
-                    classNameArg="left_half_spaced"
-                    canisters={allowedTippingCanisterIds.map((canisterId) => [
-                        canisterId,
-                        canistersMetaData[canisterId],
-                    ])}
-                    onSelectionChange={onTokenSelectionChange}
-                    selectedCanisterId={selectedTippingCanisterId}
-                />
-            </p>
-            <input
-                className="bottom_spaced"
-                value={tippingAmount}
-                onChange={async (e) => {
-                    const amount = Number(e.target.value);
-                    if (isNaN(amount) || amount <= 0) {
-                        return;
-                    }
-                    setTippingAmount(amount);
-                }}
-            />
-            <ButtonWithLoading
-                classNameArg="active"
-                label={"SEND"}
-                onClick={() => finalizeTip(parentCallback || (() => {}))}
-            />
         </div>
     );
 };

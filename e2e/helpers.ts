@@ -258,18 +258,24 @@ export async function waitForTextContent(
     } = {},
 ): Promise<void> {
     const { timeout = 10000 } = options;
+    const maxAttempts = Math.ceil(timeout / 500);
 
-    await page.waitForFunction(
-        ({ sel, expected }) => {
-            const element = document.querySelector(sel);
-            if (!element) return false;
-            const text = element.textContent || "";
-            return typeof expected === "string"
-                ? text.includes(expected)
-                : new RegExp(expected).test(text);
+    await pollForCondition(
+        async () => {
+            const element = page.locator(selector).first();
+            const count = await element.count();
+            if (count === 0) return false;
+            const text = await element.textContent();
+            if (!text) return false;
+            return typeof expectedText === "string"
+                ? text.includes(expectedText)
+                : new RegExp(expectedText).test(text);
         },
-        { sel: selector, expected: expectedText.toString() },
-        { timeout },
+        {
+            maxAttempts,
+            interval: 500,
+            errorMessage: `Text content "${expectedText}" not found in selector "${selector}" within ${timeout}ms`,
+        },
     );
 }
 
