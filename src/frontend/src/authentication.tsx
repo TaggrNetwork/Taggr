@@ -17,6 +17,46 @@ import { instantiateApi } from ".";
 
 export const authMethods = [
     {
+        icon: <Ticket />,
+        label: "Invite",
+        description:
+            "If you have received an invite from someone, use this connection method.",
+        login: async () => {
+            const code = prompt("Enter your invite code:")?.toLowerCase();
+            if (!(await window.api.query("check_invite", code))) {
+                showPopUp("error", "Invalid invite");
+                return;
+            }
+            location.href = `#/welcome/${code}`;
+            return <></>;
+        },
+    },
+    {
+        icon: <Infinity />,
+        label: "Internet Identity",
+        description:
+            "Passkey-based decentralized authentication service hosted on IC.",
+        login: async (signUp?: boolean) => {
+            if (
+                (location.href.includes(".raw") ||
+                    location.href.includes("share.")) &&
+                confirm(
+                    "You're using an uncertified, insecure frontend. Do you want to be re-routed to the certified one?",
+                )
+            ) {
+                location.href = location.href.replace(".raw", "");
+                return null;
+            }
+            window.authClient.login({
+                onSuccess: () => finalize(signUp),
+                identityProvider: II_URL,
+                maxTimeToLive: BigInt(30 * 24 * 3600000000000),
+                derivationOrigin: window.location.origin,
+            });
+            return null;
+        },
+    },
+    {
         icon: <Incognito />,
         label: "Seed Phrase",
         description:
@@ -59,48 +99,9 @@ export const authMethods = [
         ),
     },
     {
-        icon: <Ticket />,
-        label: "Invite",
-        description:
-            "If you have received an invite from someone, use this connection method.",
-        login: async () => {
-            const code = prompt("Enter your invite code:")?.toLowerCase();
-            if (!(await window.api.query("check_invite", code))) {
-                showPopUp("error", "Invalid invite");
-                return;
-            }
-            location.href = `#/welcome/${code}`;
-            return <></>;
-        },
-    },
-    {
-        icon: <Infinity />,
-        label: "Internet Identity",
-        description:
-            "Passkey-based decentralized authentication service hosted on IC.",
-        login: async (signUp?: boolean) => {
-            if (
-                (location.href.includes(".raw") ||
-                    location.href.includes("share.")) &&
-                confirm(
-                    "You're using an uncertified, insecure frontend. Do you want to be re-routed to the certified one?",
-                )
-            ) {
-                location.href = location.href.replace(".raw", "");
-                return null;
-            }
-            window.authClient.login({
-                onSuccess: () => finalize(signUp),
-                identityProvider: II_URL,
-                maxTimeToLive: BigInt(30 * 24 * 3600000000000),
-                derivationOrigin: window.location.origin,
-            });
-            return null;
-        },
-    },
-    {
         icon: <Infinity />,
         label: "Internet Identity (Legacy)",
+        deprecated: true,
         description:
             "Decentralized authentication service hosted on IC and based on biometric devices.",
         login: async (signUp?: boolean) => {
@@ -183,7 +184,7 @@ export const LoginMasks = ({
                     {methods.map((method) => (
                         <div
                             key={method.label}
-                            className="left_spaced right_spaced bottom_spaced"
+                            className={`left_spaced right_spaced bottom_spaced ${method.deprecated ? "inactive" : ""}`}
                         >
                             <ButtonWithLoading
                                 key={method.label}
