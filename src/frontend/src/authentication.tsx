@@ -14,6 +14,7 @@ import { II_URL } from "./env";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { DELEGATION_PRINCIPAL } from "./delegation";
 import { instantiateApi } from ".";
+import { InviteInfo } from "./invite_page";
 
 export const authMethods = [
     {
@@ -157,60 +158,60 @@ export const LoginMasks = ({
             : authMethods;
 
     return (
-        <div className="vertically_spaced text_centered column_container">
-            <h1>{signUp ? "Sign-up" : "Sign-in"}</h1>
-            {mask ? (
-                mask
-            ) : (
-                <>
-                    {invite || signUp ? (
-                        <p className="vertically_spaced">
-                            {invite && (
-                                <span>
-                                    Welcome! You were invited to{" "}
-                                    {window.backendCache.config.name}!
-                                </span>
-                            )}
-                            <span>
-                                Select one of the available authentication
-                                methods to create your user account.
-                            </span>
-                        </p>
-                    ) : (
-                        <p className="vertically_spaced">
-                            Choose your authentication method.
-                        </p>
-                    )}
-                    {methods.map((method) => (
-                        <div
-                            key={method.label}
-                            className={`left_spaced right_spaced bottom_spaced ${method.deprecated ? "inactive" : ""}`}
-                        >
-                            <ButtonWithLoading
+        <div className="vertically_spaced column_container">
+            {invite && <InviteInfo />}
+            <div className="text_centered">
+                <h1>{signUp ? "Sign-up" : "Sign-in"}</h1>
+                {mask ? (
+                    mask
+                ) : (
+                    <>
+                        {invite || signUp ? (
+                            <p className="vertically_spaced">
+                                {!invite && (
+                                    <span>
+                                        Select one of the available
+                                        authentication methods to create your
+                                        user account.
+                                    </span>
+                                )}
+                            </p>
+                        ) : (
+                            <p className="vertically_spaced">
+                                Choose your authentication method.
+                            </p>
+                        )}
+                        {methods.map((method) => (
+                            <div
                                 key={method.label}
-                                classNameArg="active"
-                                styleArg={{ width: "100%" }}
-                                onClick={async () => {
-                                    let mask = await method.login(signUp);
-                                    if (mask) {
-                                        setMask(mask);
+                                className={`left_spaced right_spaced bottom_spaced ${method.deprecated ? "inactive" : ""}`}
+                            >
+                                <ButtonWithLoading
+                                    key={method.label}
+                                    classNameArg="active"
+                                    styleArg={{ width: "100%" }}
+                                    onClick={async () => {
+                                        let mask = await method.login(signUp);
+                                        if (mask) {
+                                            setMask(mask);
+                                        }
+                                    }}
+                                    label={
+                                        <>
+                                            {method.icon} {method.label}
+                                        </>
                                     }
-                                }}
-                                label={
-                                    <>
-                                        {method.icon} {method.label}
-                                    </>
-                                }
-                            />
-                            {signUp && (
-                                <p className="small_text">
-                                    {method.description}
-                                </p>
-                            )}{" "}
-                        </div>
-                    ))}
-                </>
-            )}
+                                />
+                                {signUp && (
+                                    <p className="small_text">
+                                        {method.description}
+                                    </p>
+                                )}{" "}
+                            </div>
+                        ))}
+                    </>
+                )}
+            </div>
         </div>
     );
 };

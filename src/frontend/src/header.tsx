@@ -30,14 +30,16 @@ import { connect } from "./authentication";
 let interval: any = null;
 
 export const Header = ({
-    subtle,
+    style,
     route,
     inboxMode,
 }: {
-    subtle?: boolean;
+    style?: string;
     route: string;
     inboxMode: boolean;
 }) => {
+    if (style === "hidden") return null;
+
     const user = window.user;
     const [showUserSection, toggleUserSection] = React.useState(false);
     const [showRealms, toggleRealms] = React.useState(false);
@@ -97,7 +99,7 @@ export const Header = ({
                     data-testid="home-page-link"
                 ></a>
                 <div className="vcentered max_width_col flex_ended">
-                    {!subtle && user && (
+                    {!style && user && (
                         <>
                             <IconToggleButton
                                 title="Inbox"
@@ -163,7 +165,7 @@ export const Header = ({
                             )}
                         </>
                     )}
-                    {!window.user && !subtle && (
+                    {!window.user && !style && (
                         <>
                             <button
                                 className="right_half_spaced"

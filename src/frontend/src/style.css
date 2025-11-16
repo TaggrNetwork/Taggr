@@ -334,6 +334,13 @@ article {
     margin: 0.5em;
 }
 
+.info_item {
+    padding: 1em;
+    margin: 1em;
+    background: $light_background;
+    border-radius: 10px;
+}
+
 .triangle {
     position: absolute;
     top: 0;

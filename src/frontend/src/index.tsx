@@ -110,7 +110,7 @@ const App = () => {
         window.principalId ? content : <Unauthorized />;
     let [handler = "", param = "", param2 = ""] = parseHash();
 
-    let subtle = false;
+    let headerStyle;
     let inboxMode = false;
     let content = null;
 
@@ -144,10 +144,10 @@ const App = () => {
     } else if (handler == "settings") {
         content = auth(<Settings />);
     } else if (handler == "sign-in") {
-        subtle = true;
+        headerStyle = "minimal";
         content = <LoginMasks />;
     } else if (handler == "sign-up") {
-        subtle = true;
+        headerStyle = "minimal";
         content = window.principalId ? (
             <Welcome />
         ) : (
@@ -163,7 +163,7 @@ const App = () => {
             location.href = "#/";
             return;
         }
-        subtle = true;
+        headerStyle = "hidden";
         content = window.principalId ? (
             <Settings invite={param} />
         ) : (
@@ -172,7 +172,7 @@ const App = () => {
     } else if (handler == "post") {
         const id = parseInt(param);
         const version = parseInt(param2);
-        subtle = true;
+        headerStyle = "minimal";
         content = <PostView id={id} version={version} prime={true} />;
     } else if (handler == "reposts") {
         const id = parseInt(param);
@@ -200,7 +200,7 @@ const App = () => {
         const id = parseInt(param);
         content = auth(<PostSubmissionForm id={id} />);
     } else if (handler == "new") {
-        subtle = true;
+        headerStyle = "minimal";
         const postId = parseInt(param2);
         content = auth(
             <PostSubmissionForm repost={isNaN(postId) ? undefined : postId} />,
@@ -220,7 +220,7 @@ const App = () => {
         content = auth(<Inbox />);
         inboxMode = true;
     } else if (handler == "delegate") {
-        subtle = true;
+        headerStyle = "minimal";
         if (param) localStorage.setItem(DELEGATION_DOMAIN, param);
         if (param2) localStorage.setItem(DELEGATION_PRINCIPAL, param2);
         content = window.user ? <Delegate /> : <LoginMasks />;
@@ -265,7 +265,7 @@ const App = () => {
         content = <Profile handle={param} />;
     } else if (handler == "journal") {
         setTitle(`${param}'s journal`);
-        subtle = true;
+        headerStyle = "minimal";
         content = <Journal handle={param} />;
     } else {
         content = <Landing />;
@@ -274,7 +274,7 @@ const App = () => {
     headerRoot.render(
         <React.StrictMode>
             <Header
-                subtle={subtle}
+                style={headerStyle}
                 inboxMode={inboxMode}
                 route={window.location.hash}
             />
