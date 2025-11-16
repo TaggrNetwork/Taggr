@@ -33,7 +33,7 @@ pub fn features<'a>(
     now: Time,
 ) -> Box<dyn DoubleEndedIterator<Item = ((&'a Post, Meta<'a>), Token, Feature)> + 'a> {
     let transform_feature = move |(post_id, feature): (&PostId, Feature)| {
-        if feature.last_activity + YEAR <= now {
+        if feature.status == 0 && feature.last_activity + YEAR <= now {
             return None;
         }
         let tokens = feature
