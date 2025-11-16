@@ -186,9 +186,12 @@ test.describe("Regular users flow, part two", () => {
             await expect(popup).toHaveText(/Tip john with.*/);
             await popup.locator("input").fill("1");
 
-            await handleDialog(page, /./, "", async () => {
-                await popup.getByText("SEND").click();
-            });
+            // Click SEND to show confirmation
+            await popup.getByText("SEND").click();
+
+            // Wait for confirmation UI to appear and click CONFIRM
+            await expect(popup.getByText("CONFIRM")).toBeVisible();
+            await popup.getByText("CONFIRM").click();
 
             await pollForCondition(
                 async () => {
@@ -230,10 +233,12 @@ test.describe("Regular users flow, part two", () => {
             await expect(popup).toBeVisible();
             await popup.locator("input").fill("1");
 
-            page.once("dialog", async (dialog) => {
-                await dialog.dismiss();
-            });
+            // Click SEND to show confirmation
             await popup.getByText("SEND").click();
+
+            // Wait for confirmation UI to appear and click CANCEL
+            await expect(popup.getByText("CANCEL")).toBeVisible();
+            await popup.getByText("CANCEL").click();
 
             await page.goto("/");
             await waitForUILoading(page);
