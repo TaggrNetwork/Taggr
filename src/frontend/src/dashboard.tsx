@@ -304,15 +304,20 @@ const shortDate = (date: Date) => {
 };
 
 const level2icon = (level: string) => {
-    return (
-        {
-            INFO: "ℹ️",
-            DEBUG: "🤖",
-            WARN: "⚠️",
-            ERROR: "🔴",
-            CRITICAL: "💥",
-        }[level] || "❓"
-    );
+    switch (level) {
+        case "INFO":
+            return "ℹ️";
+        case "DEBUG":
+            return "🤖";
+        case "WARN":
+            return "⚠️";
+        case "ERROR":
+            return "🔴";
+        case "CRITICAL":
+            return "💥";
+        default:
+            return "❓";
+    }
 };
 
 const sizeMb = (size: number | BigInt) => (
