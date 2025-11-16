@@ -110,7 +110,42 @@ fn post_upgrade() {
 
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
-    mutate(|state| state.logger.clean_up(time() - MONTH * 6));
+    mutate(|state| {
+        // Update last_activity for features
+        let ids = state
+            .memory
+            .features
+            .iter()
+            .map(|(id, _)| id)
+            .cloned()
+            .collect::<Vec<_>>();
+        for id in ids.into_iter() {
+            let mut feature = state.memory.features.remove(&id).unwrap();
+            let post = Post::get(state, &id).expect("post not found for feature");
+            feature.last_activity = post.timestamp();
+            state
+                .memory
+                .features
+                .insert(id, feature)
+                .expect("couldn't re-insert feature");
+        }
+
+        // Cleanup old logs
+        state.logger.clean_up(time() - MONTH * 6);
+
+        // Clear feeds if they exceed 200 chars in total
+        for u in state.users.values_mut() {
+            if u.feeds
+                .iter()
+                .flat_map(|feed| feed.iter())
+                .map(|tag| tag.len())
+                .sum::<usize>()
+                >= 200
+            {
+                u.feeds.clear();
+            }
+        }
+    });
 }
 
 #[allow(clippy::all)]
