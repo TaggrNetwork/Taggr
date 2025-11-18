@@ -802,7 +802,7 @@ impl State {
         let tipper_id = tipper.id;
         let tipper_name = tipper.name.clone();
         // DoS protection
-        self.charge(tipper_id, CONFIG.tipping_cost, "tipping".to_string())?; // DoS protection
+        self.charge(tipper_id, CONFIG.tipping_cost, "tipping".to_string())?;
         let author_id = Post::get(self, &post_id).ok_or("post not found")?.user;
         let author = self.users.get(&author_id).ok_or("user not found")?;
         token::transfer(

@@ -708,9 +708,7 @@ fn cancel_bid() {
 
 #[export_name = "canister_update add_external_icrc_transaction"]
 fn add_external_icrc_transaction() {
-    let (canister_id_as_str, start_index, post_id): (String, u64, PostId) = parse(&arg_data_raw());
-
-    let canister_id = Principal::from_text(canister_id_as_str).unwrap();
+    let (canister_id, start_index, post_id): (String, u64, PostId) = parse(&arg_data_raw());
     spawn(async move { reply(add_tip(post_id, canister_id, read(caller), start_index).await) });
 }
 
