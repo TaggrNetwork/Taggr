@@ -332,9 +332,9 @@ impl State {
 
         let _ = self.system_message(
             if is_deactivated {
-                format!("@{} deactivated their account 😢", username)
+                format!("Account @{} was deactivated. 😢", username)
             } else {
-                format!("@{} activated their account again 🎉", username)
+                format!("Account @{} is active again! 🎉", username)
             },
             CONFIG.dao_realm.into(),
         );
