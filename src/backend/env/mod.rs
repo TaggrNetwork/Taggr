@@ -311,19 +311,33 @@ impl State {
             return Err("seed too long".into());
         }
 
-        let user = self.principal_to_user_mut(caller).ok_or("user not found")?;
-        user.change_credits(
-            CONFIG.feature_cost,
-            CreditsDelta::Minus,
-            "profile privacy change",
-        )?;
-        let len = user.posts.len();
+        let (username, len, is_deactivated) = {
+            let user = self.principal_to_user_mut(caller).ok_or("user not found")?;
+            user.change_credits(
+                CONFIG.feature_cost,
+                CreditsDelta::Minus,
+                "profile privacy change",
+            )?;
+            let len = user.posts.len();
+            let username = user.name.clone();
+            user.deactivated = !user.deactivated;
+            let is_deactivated = user.deactivated;
 
-        user.deactivated = !user.deactivated;
+            for post_id in user.posts.clone() {
+                Post::crypt(self, post_id, &seed);
+            }
 
-        for post_id in user.posts.clone() {
-            Post::crypt(self, post_id, &seed);
-        }
+            (username, len, is_deactivated)
+        };
+
+        let _ = self.system_message(
+            if is_deactivated {
+                format!("@{} deactivated their account 😢", username)
+            } else {
+                format!("@{} activated their account again 🎉", username)
+            },
+            CONFIG.dao_realm.into(),
+        );
 
         Ok(len)
     }
@@ -863,7 +877,7 @@ impl State {
         self.set_pfp(id, Default::default())
             .expect("couldn't set default pfp");
         let _ = self.system_message(
-            format!("`@{}` joined {}!", name, CONFIG.name),
+            format!("@{} joined {}!", name, CONFIG.name),
             CONFIG.dao_realm.into(),
         );
         Ok(id)
