@@ -109,44 +109,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    mutate(|state| {
-        // Update last_activity for features
-        let ids = state
-            .memory
-            .features
-            .iter()
-            .map(|(id, _)| id)
-            .cloned()
-            .collect::<Vec<_>>();
-        for id in ids.into_iter() {
-            let mut feature = state.memory.features.remove(&id).unwrap();
-            let post = Post::get(state, &id).expect("post not found for feature");
-            feature.last_activity = post.timestamp();
-            state
-                .memory
-                .features
-                .insert(id, feature)
-                .expect("couldn't re-insert feature");
-        }
-
-        // Cleanup old logs
-        state.logger.clean_up(time() - MONTH * 6);
-
-        // Clear feeds if they exceed 200 chars in total
-        for u in state.users.values_mut() {
-            if u.feeds
-                .iter()
-                .flat_map(|feed| feed.iter())
-                .map(|tag| tag.len())
-                .sum::<usize>()
-                >= 200
-            {
-                u.feeds.clear();
-            }
-        }
-    });
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -745,9 +708,7 @@ fn cancel_bid() {
 
 #[export_name = "canister_update add_external_icrc_transaction"]
 fn add_external_icrc_transaction() {
-    let (canister_id_as_str, start_index, post_id): (String, u64, PostId) = parse(&arg_data_raw());
-
-    let canister_id = Principal::from_text(canister_id_as_str).unwrap();
+    let (canister_id, start_index, post_id): (String, u64, PostId) = parse(&arg_data_raw());
     spawn(async move { reply(add_tip(post_id, canister_id, read(caller), start_index).await) });
 }
 

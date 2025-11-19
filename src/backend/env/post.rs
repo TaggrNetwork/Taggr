@@ -561,6 +561,7 @@ impl Post {
         let user_id = user.id;
         let controversial = user.controversial();
         let user_balance = user.balance;
+        let is_organic = user.organic();
         let tags = tags(CONFIG.max_tag_length, &body).collect::<BTreeSet<_>>();
         let mut post = Post::new(
             user_id,
@@ -662,7 +663,10 @@ impl Post {
             _ => (),
         };
 
-        notify_about(state, &post);
+        // Don't notify about system messages
+        if is_organic {
+            notify_about(state, &post);
+        }
 
         if post.parent.is_none() {
             state.root_posts_index.push(post.id);

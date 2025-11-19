@@ -16,6 +16,9 @@ use super::{
     State,
 };
 
+const STATUS_IMPLEMENTED: u8 = 1;
+const STATUS_OPEN: u8 = 0;
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct Feature {
     // Users who voted for increased priority
@@ -33,7 +36,7 @@ pub fn features<'a>(
     now: Time,
 ) -> Box<dyn DoubleEndedIterator<Item = ((&'a Post, Meta<'a>), Token, Feature)> + 'a> {
     let transform_feature = move |(post_id, feature): (&PostId, Feature)| {
-        if feature.last_activity + YEAR <= now {
+        if feature.status == STATUS_OPEN && feature.last_activity + YEAR <= now {
             return None;
         }
         let tokens = feature
@@ -101,7 +104,7 @@ pub fn create_feature(caller: Principal, post_id: PostId, now: Time) -> Result<(
                 post_id,
                 Feature {
                     supporters: Default::default(),
-                    status: 0,
+                    status: STATUS_OPEN,
                     last_activity: now,
                 },
             )
@@ -121,7 +124,7 @@ pub fn create_feature(caller: Principal, post_id: PostId, now: Time) -> Result<(
 
 pub fn close_feature(state: &mut State, post_id: PostId) -> Result<(), String> {
     let mut feature = state.memory.features.remove(&post_id)?;
-    feature.status = 1;
+    feature.status = STATUS_IMPLEMENTED;
     state
         .memory
         .features

@@ -79,10 +79,21 @@ fn memo_to_u64(memo: Vec<u8>) -> Result<u64, String> {
 
 pub async fn add_tip(
     post_id: PostId,
-    canister_id: Principal,
+    canister_id: String,
     caller: Principal,
     start_index: u64,
 ) -> Result<Tip, String> {
+    mutate(|state| match state.principal_to_user(caller) {
+        Some(user) => {
+            // DoS protection
+            state.charge(user.id, CONFIG.tipping_cost, "tipping".to_string())?;
+            Ok::<(), String>(())
+        }
+        _ => Err("user not found".into()),
+    })?;
+
+    let canister_id =
+        Principal::from_text(&canister_id).map_err(|_| "invalid canister id".to_string())?;
     match try_tip(post_id, canister_id, caller, start_index).await {
         Ok(tip) => Ok(tip),
         Err(e) => {

@@ -150,7 +150,7 @@ pub fn create_realm(
 
     let _ = state.system_message(
         format!(
-            "Realm [{}](/#/realm/{0}) was created by `@{}`",
+            "Realm [{}](/#/realm/{0}) was created by @{}",
             realm_id, user_name
         ),
         CONFIG.dao_realm.into(),
