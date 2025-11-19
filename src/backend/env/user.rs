@@ -586,14 +586,12 @@ impl User {
         if *revenue > 0 && credits_needed > 0 {
             let e8s_needed = credits_needed * e8s_for_one_xdr / CONFIG.credits_per_xdr;
             let top_up_e8s = e8s_needed.min(*revenue);
-            let credits =
-                top_up_e8s as f32 / e8s_for_one_xdr as f32 * CONFIG.credits_per_xdr as f32;
+            let credits = (top_up_e8s as f32 / e8s_for_one_xdr as f32
+                * CONFIG.credits_per_xdr as f32) as Credits;
             *revenue = (*revenue).saturating_sub(top_up_e8s);
-            self.change_credits(
-                credits as Credits,
-                CreditsDelta::Plus,
-                "credits top-up from revenue",
-            )?;
+            if credits > 0 {
+                self.change_credits(credits, CreditsDelta::Plus, "credits top-up from revenue")?;
+            }
         }
         Ok(())
     }
