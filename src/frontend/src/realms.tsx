@@ -791,13 +791,14 @@ export const RealmHeader = ({
                                             )
                                         )
                                             return;
-                                        return window.api
+                                        await window.api
                                             .call(
                                                 "toggle_realm_membership",
                                                 name,
                                             )
                                             .then(window.reloadUser)
                                             .then(loadRealm);
+                                        location.href = `#/realm/${name}`;
                                     }}
                                 />
                             )}
@@ -805,15 +806,16 @@ export const RealmHeader = ({
                                 <ButtonWithLoading
                                     classNameArg="active"
                                     label="LEAVE"
-                                    onClick={async () =>
-                                        window.api
+                                    onClick={async () => {
+                                        await window.api
                                             .call(
                                                 "toggle_realm_membership",
                                                 name,
                                             )
                                             .then(window.reloadUser)
-                                            .then(loadRealm)
-                                    }
+                                            .then(loadRealm);
+                                        location.href = `#/home`;
+                                    }}
                                 />
                             )}
                         </div>
