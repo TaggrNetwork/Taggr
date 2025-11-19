@@ -207,8 +207,7 @@ export const PostView = ({
     );
 
     const isComment = post ? !isRoot(post) : false;
-    const expanded =
-        isComment || focused || (!isFeedItem && !repost) || isThreadView;
+    const expanded = focused || isThreadView || prime;
     const costTable = reactionCosts();
     const isInactive = React.useMemo(
         () =>
