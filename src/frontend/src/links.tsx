@@ -23,9 +23,6 @@ export const LinksPage = ({}) => {
                         ICPSwap exchange
                     </a>
                 </li>
-                <li>
-                    <a href="https://beacondex.link">BEACON exchange</a>
-                </li>
             </ul>
             <h2>Community-maintained resources</h2>
             <ul>

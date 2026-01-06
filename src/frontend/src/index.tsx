@@ -40,7 +40,6 @@ import {
     Stats,
     DomainConfig,
     getMonoRealm,
-    getDefaultRealm,
     getJournal,
 } from "./types";
 import { setRealmUI, setUI } from "./theme";
@@ -133,8 +132,6 @@ const App = () => {
 
     setTitle(handler);
     if (window.monoRealm) setRealmUI(window.monoRealm);
-    else if (window.defaultRealm && !currentRealm())
-        setRealmUI(window.defaultRealm);
     else if (handler == "realm" && currentRealm() != param) {
         setRealmUI(param.toUpperCase());
     } else setUI();
@@ -302,12 +299,7 @@ const reloadCache = async () => {
     const domainCfg =
         window.backendCache.domains[domain() || getCanonicalDomain()];
     window.monoRealm = getMonoRealm(domainCfg);
-    window.defaultRealm = getDefaultRealm(domainCfg);
-    window.hideRealmless = !!(
-        window.monoRealm ||
-        window.defaultRealm ||
-        getJournal(domainCfg)
-    );
+    window.hideRealmless = !!(window.monoRealm || getJournal(domainCfg));
     const last_upgrade = window.backendCache.stats?.last_release?.timestamp;
     if (!last_upgrade) return;
     else if (window.lastSavedUpgrade == 0) {
