@@ -715,7 +715,7 @@ export const RealmHeader = ({
                 styleArg={colors}
                 content={
                     <>
-                        {!window.monoRealm && window.defaultRealm != name && (
+                        {!window.monoRealm && (
                             <ButtonWithLoading
                                 styleArg={colors}
                                 testId="realm-close-button"

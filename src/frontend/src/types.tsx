@@ -33,11 +33,6 @@ export const getMonoRealm = (cfg: DomainConfig) => {
     return whiteList.length == 1 ? whiteList[0] : null;
 };
 
-export const getDefaultRealm = (cfg: DomainConfig) => {
-    if (!cfg || !("WhiteListedRealms" in cfg.sub_config)) return null;
-    return cfg.sub_config.WhiteListedRealms[0];
-};
-
 export const getJournal = (cfg: DomainConfig) => {
     if (!cfg || !("Journal" in cfg.sub_config)) return null;
     return cfg.sub_config.Journal;
@@ -474,8 +469,6 @@ declare global {
         uiInitialized: boolean;
         // Domains with a single whitelisted realm
         monoRealm: string | null;
-        // Domains with a whitelist, uses the first realm as default
-        defaultRealm: string | null;
         hideRealmless: boolean;
         backendCache: {
             recent_tags: [string, number][];
