@@ -99,32 +99,6 @@ export const authMethods = [
             />
         ),
     },
-    {
-        icon: <Infinity />,
-        label: "Internet Identity (Legacy)",
-        deprecated: true,
-        description:
-            "Decentralized authentication service hosted on IC and based on biometric devices.",
-        login: async (signUp?: boolean) => {
-            if (
-                (location.href.includes(".raw") ||
-                    location.href.includes("share.")) &&
-                confirm(
-                    "You're using an uncertified, insecure frontend. Do you want to be re-routed to the certified one?",
-                )
-            ) {
-                location.href = location.href.replace(".raw", "");
-                return null;
-            }
-            window.authClient.login({
-                onSuccess: () => finalize(signUp),
-                identityProvider: "https://identity.ic0.app",
-                maxTimeToLive: BigInt(30 * 24 * 3600000000000),
-                derivationOrigin: window.location.origin,
-            });
-            return null;
-        },
-    },
 ];
 
 const finalize = async (signUp?: boolean) => {
@@ -184,7 +158,7 @@ export const LoginMasks = ({
                         {methods.map((method) => (
                             <div
                                 key={method.label}
-                                className={`left_spaced right_spaced bottom_spaced ${method.deprecated ? "inactive" : ""}`}
+                                className="left_spaced right_spaced bottom_spaced"
                             >
                                 <ButtonWithLoading
                                     key={method.label}
