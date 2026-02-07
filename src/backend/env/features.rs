@@ -112,7 +112,7 @@ pub fn create_feature(caller: Principal, post_id: PostId, now: Time) -> Result<(
 
         let _ = state.system_message(
             format!(
-                "A [new feature](#/post/{}) was created by `@{}`",
+                "A [new feature](#/post/{}) was created by @{}",
                 post_id, user_name
             ),
             CONFIG.dao_realm.into(),

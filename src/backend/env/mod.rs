@@ -1655,7 +1655,7 @@ impl State {
 
                 let _ = state.system_message(
                     format!(
-                        "`@{}` is the lucky receiver of `{}` ${} as a weekly random reward! 🎲",
+                        "@{} is the lucky receiver of `{}` ${} as a weekly random reward! 🎲",
                         winner_name,
                         CONFIG.random_reward_amount / base(),
                         CONFIG.token_symbol,
