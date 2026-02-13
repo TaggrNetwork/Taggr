@@ -168,18 +168,23 @@ pub async fn cancel_bid(principal: Principal) -> Result<u64, String> {
         .checked_sub(DEFAULT_FEE.e8s())
         .expect("nothing to refund");
 
-    invoices::transfer(
+    if let Err(err) = invoices::transfer(
         user_account,
         Tokens::from_e8s(funds),
         Memo(727),
         Some(Subaccount(AUCTION_ICP_SUBACCOUNT)),
     )
     .await
-    .map_err(|err| {
+    {
         let msg = format!("couldn't withdraw funds from bid {:?}: {}", bid, err);
-        mutate(|state| state.logger.error(&msg));
-        msg
-    })
+        mutate(|state| {
+            state.logger.error(&msg);
+            state.auction.bids.insert(bid);
+        });
+        return Err(msg);
+    }
+
+    Ok(funds)
 }
 
 fn remove_bid(state: &mut State, principal: Principal) -> Result<Bid, String> {
