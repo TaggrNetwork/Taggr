@@ -1,7 +1,6 @@
 import * as React from "react";
-import ReactMarkdown from "react-markdown";
+import Markdown from "./markdown";
 import { ArrowDown, domain, RealmSpan, timeAgo } from "./common";
-import remarkGfm from "remark-gfm";
 import { BlogTitle } from "./types";
 import { previewImg } from "./image_preview";
 
@@ -91,10 +90,9 @@ export const Content = ({
 
     if (!post)
         return (
-            <ReactMarkdown
+            <Markdown
                 components={simpleComponents as unknown as any}
                 children={linkedValue}
-                remarkPlugins={[remarkGfm]}
             />
         );
 
@@ -220,9 +218,8 @@ const markdownizer = (
 ) =>
     !value ? null : (
         <div className={`selectable ${className}`}>
-            <ReactMarkdown
+            <Markdown
                 children={value}
-                remarkPlugins={[remarkGfm]}
                 components={{
                     h1: ({ node, children, ...props }) => {
                         if (!blogTitle) return <h1 {...props}>{children}</h1>;
