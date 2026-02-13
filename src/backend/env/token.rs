@@ -557,15 +557,14 @@ pub fn append_to_ledger(state: &mut State, mut tx: Transaction) -> u128 {
 }
 
 fn update_user_balance(state: &mut State, principal: Principal, balance: Token) {
-    let Some(user) = state.principal_to_user_mut(principal) else {
+    if let Some(user) = state.principal_to_user_mut(principal) {
+        user.balance = balance;
         return;
-    };
-    if user.principal == principal {
-        user.balance = balance
-    } else if user.cold_wallet == Some(principal) {
-        user.cold_balance = balance
-    } else {
-        unreachable!("unidentifiable principal")
+    }
+    if let Some(user) = state.cold_wallets.get(&principal).copied()
+        .and_then(|id| state.users.get_mut(&id))
+    {
+        user.cold_balance = balance;
     }
 }
 

@@ -243,6 +243,9 @@ pub struct State {
     #[serde(default)]
     // Maps temporal session principals (delegates) created on custom domains to canonical user principals.
     delegations: HashMap<Principal, (Principal, String, Time)>,
+
+    #[serde(skip)]
+    pub cold_wallets: HashMap<Principal, UserId>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -412,7 +415,9 @@ impl State {
     }
 
     pub fn link_cold_wallet(&mut self, caller: Principal, user_id: UserId) -> Result<(), String> {
-        if self.principal_to_user(caller).is_some() {
+        if self.principal_to_user(caller).is_some()
+            || self.cold_wallets.contains_key(&caller)
+        {
             return Err("this wallet is linked already".into());
         }
         let user = self.users.get_mut(&user_id).ok_or("user not found")?;
@@ -425,7 +430,7 @@ impl State {
             .get(&account(caller))
             .copied()
             .unwrap_or_default();
-        self.principals.insert(caller, user.id);
+        self.cold_wallets.insert(caller, user.id);
         Ok(())
     }
 
@@ -437,7 +442,7 @@ impl State {
             let principal = user.cold_wallet.take();
             user.cold_balance = 0;
             if let Some(principal) = principal {
-                self.principals.remove(&principal);
+                self.cold_wallets.remove(&principal);
             }
         }
         Ok(())
@@ -3062,8 +3067,9 @@ pub(crate) mod tests {
             assert_eq!(user.total_balance(), 80000);
             assert_eq!(state.principals.len(), 3);
             state.link_cold_wallet(pr(200), 1).unwrap();
-            assert_eq!(state.principals.len(), 4);
-            assert_eq!(state.principal_to_user(pr(200)).unwrap().id, 1);
+            assert_eq!(state.principals.len(), 3);
+            assert_eq!(state.cold_wallets.get(&pr(200)), Some(&1));
+            assert!(state.principal_to_user(pr(200)).is_none());
             let user = state.users.get(&1).unwrap();
             assert_eq!(user.total_balance(), 80000 + cold_balance);
             assert_eq!(
@@ -3073,18 +3079,19 @@ pub(crate) mod tests {
             let voters = state.active_voters(0).collect::<BTreeMap<_, _>>();
             assert_eq!(*voters.get(&1).unwrap(), (2 << 2) * 10000 + cold_balance);
 
-            state.emergency_votes.insert(pr(200), 1000);
+            state.emergency_votes.insert(pr(1), 1000);
             assert_eq!(
-                state.unlink_cold_wallet(pr(200)),
+                state.unlink_cold_wallet(pr(1)),
                 Err("a vote on a pending proposal detected".into())
             );
 
             state.emergency_votes.clear();
-            assert!(state.unlink_cold_wallet(pr(200)).is_ok(),);
+            assert!(state.unlink_cold_wallet(pr(1)).is_ok(),);
             let user = state.principal_to_user(pr(1)).unwrap();
             assert_eq!(user.id, 1);
             assert!(user.cold_wallet.is_none());
             assert_eq!(state.principals.len(), 3);
+            assert!(state.cold_wallets.is_empty());
 
             let voters = state.active_voters(0).collect::<BTreeMap<_, _>>();
             assert_eq!(*voters.get(&1).unwrap(), (2 << 2) * 10000);
@@ -3755,7 +3762,7 @@ pub(crate) mod tests {
             assert_eq!(state.user("2").unwrap().id, u3);
             assert!(state.user("user22").is_none());
             assert_eq!(state.user(&pr(2).to_text()).unwrap().id, u3);
-            assert_eq!(state.user(&cold_wallet.to_text()).unwrap().id, u2);
+            assert!(state.user(&cold_wallet.to_text()).is_none());
         });
     }
 
