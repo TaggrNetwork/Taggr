@@ -240,11 +240,10 @@ pub struct State {
 
     pub timers: Timers,
 
-    #[serde(default)]
     // Maps temporal session principals (delegates) created on custom domains to canonical user principals.
     delegations: HashMap<Principal, (Principal, String, Time)>,
 
-    #[serde(skip)]
+    #[serde(default)]
     pub cold_wallets: HashMap<Principal, UserId>,
 }
 
