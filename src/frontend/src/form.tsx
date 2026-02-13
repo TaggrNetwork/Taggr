@@ -93,6 +93,10 @@ export const Form = ({
     const [suggestedRealms, setSuggestedRealms] = React.useState<string[]>([]);
     const [choresTimer, setChoresTimer] = React.useState<any>(null);
     const [cursor, setCursor] = React.useState(0);
+
+    React.useEffect(() => {
+        return () => Object.values(tmpUrls).forEach(URL.revokeObjectURL);
+    }, []);
     const [proposalValidationError, setProposalValidationError] =
         React.useState("");
     const textarea = React.useRef<HTMLTextAreaElement>();
@@ -816,9 +820,13 @@ export const loadFile = (file: any): Promise<ArrayBuffer> => {
 
 const loadImage = (blob: Uint8Array): Promise<HTMLImageElement> => {
     const image = new Image();
+    const url = blobToUrl(blob);
     return new Promise((resolve) => {
-        image.onload = () => resolve(image);
-        image.src = blobToUrl(blob);
+        image.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve(image);
+        };
+        image.src = url;
     });
 };
 
