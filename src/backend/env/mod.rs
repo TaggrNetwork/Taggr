@@ -383,9 +383,10 @@ impl State {
 
         self.weekly_chores_delay_votes.insert(user.id);
 
-        if self.weekly_chores_delay_votes.len() * 100
-            / self.users.values().filter(|user| user.stalwart).count()
-            >= CONFIG.report_confirmation_percentage as usize
+        let stalwart_count = self.users.values().filter(|user| user.stalwart).count();
+        if stalwart_count > 0
+            && self.weekly_chores_delay_votes.len() * 100 / stalwart_count
+                >= CONFIG.report_confirmation_percentage as usize
         {
             self.timers.last_weekly += WEEK;
             self.logger.info(format!(

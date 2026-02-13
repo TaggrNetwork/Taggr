@@ -254,7 +254,7 @@ fn add_bid(
 
     assert!(
         !state.auction.bids.iter().any(|bid| bid.user == user_id),
-        "no bids exist for the user"
+        "bid already exists for the user"
     );
 
     state.auction.bids.insert(Bid {
