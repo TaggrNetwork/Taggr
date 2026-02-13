@@ -561,7 +561,10 @@ fn update_user_balance(state: &mut State, principal: Principal, balance: Token) 
         user.balance = balance;
         return;
     }
-    if let Some(user) = state.cold_wallets.get(&principal).copied()
+    if let Some(user) = state
+        .cold_wallets
+        .get(&principal)
+        .copied()
         .and_then(|id| state.users.get_mut(&id))
     {
         user.cold_balance = balance;

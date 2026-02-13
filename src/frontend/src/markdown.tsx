@@ -145,10 +145,7 @@ const findSingleDelimiter = (
 
 // --- Inline Parser ---
 
-const parseInline = (
-    text: string,
-    comps: Components,
-): React.ReactNode[] => {
+const parseInline = (text: string, comps: Components): React.ReactNode[] => {
     if (!text) return [];
     const result: React.ReactNode[] = [];
     let buf = "";
@@ -265,7 +262,9 @@ const parseInline = (
         ) {
             const urlMatch = text
                 .slice(i)
-                .match(/^(https?:\/\/[^\s<>\[\]]*[^\s<>\[\].,;:!?)\]}'"']|www\.[^\s<>\[\]]*[^\s<>\[\].,;:!?)\]}'"'])/);
+                .match(
+                    /^(https?:\/\/[^\s<>\[\]]*[^\s<>\[\].,;:!?)\]}'"']|www\.[^\s<>\[\]]*[^\s<>\[\].,;:!?)\]}'"'])/,
+                );
             if (urlMatch) {
                 flush();
                 const url = urlMatch[1];
@@ -339,9 +338,7 @@ const parseInline = (
             if (end !== -1) {
                 flush();
                 const inner = parseInline(text.slice(i + 2, end), comps);
-                result.push(
-                    React.createElement("del", { key: k++ }, ...inner),
-                );
+                result.push(React.createElement("del", { key: k++ }, ...inner));
                 i = end + 2;
                 continue;
             }
@@ -353,9 +350,7 @@ const parseInline = (
             if (end !== -1) {
                 flush();
                 const inner = parseInline(text.slice(i + 1, end), comps);
-                result.push(
-                    React.createElement("em", { key: k++ }, ...inner),
-                );
+                result.push(React.createElement("em", { key: k++ }, ...inner));
                 i = end + 1;
                 continue;
             }
@@ -374,9 +369,7 @@ const parseInline = (
             ) {
                 flush();
                 const inner = parseInline(text.slice(i + 1, end), comps);
-                result.push(
-                    React.createElement("em", { key: k++ }, ...inner),
-                );
+                result.push(React.createElement("em", { key: k++ }, ...inner));
                 i = end + 1;
                 continue;
             }
@@ -455,7 +448,10 @@ const parseBlocks = (input: string): Block[] => {
             const codeLines: string[] = [];
             i++;
             while (i < lines.length) {
-                if (lines[i].trim().startsWith(fence) && lines[i].trim().length <= fence.length + 2) {
+                if (
+                    lines[i].trim().startsWith(fence) &&
+                    lines[i].trim().length <= fence.length + 2
+                ) {
                     i++;
                     break;
                 }
@@ -703,9 +699,8 @@ const renderBlock = (
                     let taskChecked: boolean | null = null;
                     let adjustedBlocks = itemBlocks;
                     if (first && first.type === "paragraph") {
-                        const cbMatch = first.content.match(
-                            /^\[([ xX])\]\s(.*)/s,
-                        );
+                        const cbMatch =
+                            first.content.match(/^\[([ xX])\]\s(.*)/s);
                         if (cbMatch) {
                             taskChecked = cbMatch[1] !== " ";
                             adjustedBlocks = [
@@ -741,11 +736,7 @@ const renderBlock = (
                             " ",
                         );
                     }
-                    return React.createElement(
-                        "li",
-                        { key: i },
-                        ...liChildren,
-                    );
+                    return React.createElement("li", { key: i }, ...liChildren);
                 }),
             );
         }
@@ -813,10 +804,7 @@ const renderBlock = (
 // --- Component ---
 
 const Markdown = ({ children, components = {} }: MarkdownProps) => {
-    const blocks = React.useMemo(
-        () => parseBlocks(children || ""),
-        [children],
-    );
+    const blocks = React.useMemo(() => parseBlocks(children || ""), [children]);
     return React.useMemo(
         () => (
             <>{blocks.map((block, i) => renderBlock(block, components, i))}</>

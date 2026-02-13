@@ -416,9 +416,7 @@ impl State {
     }
 
     pub fn link_cold_wallet(&mut self, caller: Principal, user_id: UserId) -> Result<(), String> {
-        if self.principal_to_user(caller).is_some()
-            || self.cold_wallets.contains_key(&caller)
-        {
+        if self.principal_to_user(caller).is_some() || self.cold_wallets.contains_key(&caller) {
             return Err("this wallet is linked already".into());
         }
         let user = self.users.get_mut(&user_id).ok_or("user not found")?;
