@@ -1,4 +1,9 @@
-import { waitForUILoading, handleDialog, pollForCondition } from "./helpers";
+import {
+    waitForUILoading,
+    waitForPageReload,
+    handleDialog,
+    pollForCondition,
+} from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { exec, mkPwd, transferICP } from "./command";
 
@@ -24,7 +29,10 @@ test.describe("Regular users flow, part two", () => {
         await page
             .getByPlaceholder("Repeat your seed phrase...")
             .fill(mkPwd("john"));
+        const reloadPromise = page.waitForEvent("load", { timeout: 30000 });
         await page.getByRole("button", { name: "CONTINUE" }).click();
+        await reloadPromise;
+        await waitForUILoading(page);
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
             .click();
@@ -133,7 +141,12 @@ test.describe("Regular users flow, part two", () => {
             await page
                 .getByPlaceholder("Repeat your seed phrase...")
                 .fill(mkPwd("eye"));
+            const reloadPromise2 = page.waitForEvent("load", {
+                timeout: 30000,
+            });
             await page.getByRole("button", { name: "CONTINUE" }).click();
+            await reloadPromise2;
+            await waitForUILoading(page);
             await page
                 .getByRole("button", { name: "MINT CREDITS WITH ICP" })
                 .click();

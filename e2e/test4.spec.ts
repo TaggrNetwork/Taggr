@@ -1,5 +1,6 @@
 import {
     waitForUILoading,
+    waitForPageReload,
     handleDialog,
     handleDialogSequence,
     pollForCondition,
@@ -31,12 +32,14 @@ test.describe("Report and transfer to user", () => {
         await page
             .getByPlaceholder("Repeat your seed phrase...")
             .fill(mkPwd("joe"));
+        const reloadPromise = page.waitForEvent("load", { timeout: 30000 });
         await page.getByRole("button", { name: "CONTINUE" }).click();
+        await reloadPromise;
+        await waitForUILoading(page);
         transferICP(
             "e93e7f1cfa411dafa8debb4769c6cc1b7972434f1669083fd08d86d11c0c0722",
             1,
         );
-        await waitForUILoading(page);
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
             .click();
@@ -76,7 +79,10 @@ test.describe("Report and transfer to user", () => {
         await page
             .getByPlaceholder("Repeat your seed phrase...")
             .fill(mkPwd("jane"));
+        const reloadPromise2 = page.waitForEvent("load", { timeout: 30000 });
         await page.getByRole("button", { name: "CONTINUE" }).click();
+        await reloadPromise2;
+        await waitForUILoading(page);
         await page.getByPlaceholder("alphanumeric").fill("jane");
         await page.getByRole("button", { name: "SAVE" }).click();
         await waitForUILoading(page);
@@ -100,7 +106,10 @@ test.describe("Report and transfer to user", () => {
         await page
             .getByPlaceholder("Repeat your seed phrase...")
             .fill(mkPwd("kyle"));
+        const reloadPromise3 = page.waitForEvent("load", { timeout: 30000 });
         await page.getByRole("button", { name: "CONTINUE" }).click();
+        await reloadPromise3;
+        await waitForUILoading(page);
         await page.getByPlaceholder("alphanumeric").fill("kyle");
         await page.getByRole("button", { name: "SAVE" }).click();
         await waitForUILoading(page);
@@ -219,6 +228,7 @@ test.describe("Report and transfer to user", () => {
             .getByPlaceholder("Enter your seed phrase...")
             .fill(mkPwd("jane"));
         await page.getByRole("button", { name: "CONTINUE" }).click();
+        await waitForUILoading(page);
         await page.goto("/#/user/kyle");
         await page.reload();
         await waitForUILoading(page);
