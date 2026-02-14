@@ -31,7 +31,6 @@ interface Components {
 interface MarkdownProps {
     children: string;
     components?: Components;
-    remarkPlugins?: any[];
 }
 
 // --- Entity Decoding ---
@@ -53,12 +52,38 @@ const NAMED_ENTITIES: Record<string, string> = {
     raquo: "\u00BB",
 };
 
+const MAX_NESTING_DEPTH = 10;
+const MAX_TABLE_COLUMNS = 50;
+const MAX_TABLE_ROWS = 1000;
+const MAX_LIST_ITEMS = 1000;
+
+const EMPTY_COMPONENTS: Components = {};
+
+const SAFE_PROTOCOLS = new Set(["https:", "http:", "mailto:"]);
+
+const isSafeUrl = (url: string): boolean => {
+    const cleaned = url.trim().replace(/[\t\n\r]/g, "");
+    if (cleaned.startsWith("//")) return false;
+    try {
+        return SAFE_PROTOCOLS.has(
+            new URL(cleaned, "https://x.invalid").protocol,
+        );
+    } catch {
+        return false;
+    }
+};
+
+const safeFromCodePoint = (cp: number): string | null =>
+    cp > 0 && cp <= 0x10ffff && !(cp >= 0xd800 && cp <= 0xdfff)
+        ? String.fromCodePoint(cp)
+        : null;
+
 const decodeEntities = (text: string): string =>
     text.replace(
         /&(?:#(\d+)|#x([0-9a-fA-F]+)|(\w+));/g,
         (match, dec, hex, named) => {
-            if (dec) return String.fromCodePoint(parseInt(dec));
-            if (hex) return String.fromCodePoint(parseInt(hex, 16));
+            if (dec) return safeFromCodePoint(parseInt(dec)) || match;
+            if (hex) return safeFromCodePoint(parseInt(hex, 16)) || match;
             if (named) return NAMED_ENTITIES[named] || match;
             return match;
         },
@@ -145,8 +170,43 @@ const findSingleDelimiter = (
 
 // --- Inline Parser ---
 
-const parseInline = (text: string, comps: Components): React.ReactNode[] => {
+const parseInline = (
+    text: string,
+    comps: Components,
+    depth: number = 0,
+): React.ReactNode[] => {
     if (!text) return [];
+    if (depth > MAX_NESTING_DEPTH) return [text];
+
+    const brRe = /<br\s*\/?\s*>/iy;
+    const autolinkRe =
+        /(https?:\/\/[^\s<>\[\]]*[^\s<>\[\].,;:!?)\]}'"']|www\.[^\s<>\[\]]*[^\s<>\[\].,;:!?)\]}'"'])/iy;
+
+    // Cache failed delimiter searches to avoid quadratic re-scanning.
+    // If findDelimiter returned -1 starting from position X, any search
+    // starting at Y >= X will also return -1.
+    const noMatch: Record<string, number> = {};
+    const findDel = (start: number, delim: string): number => {
+        if (delim in noMatch && start >= noMatch[delim]) return -1;
+        const r = findDelimiter(text, start, delim);
+        if (r === -1 && (!(delim in noMatch) || start < noMatch[delim]))
+            noMatch[delim] = start;
+        return r;
+    };
+    const findSDel = (start: number, ch: string): number => {
+        const key = `~${ch}`;
+        if (key in noMatch && start >= noMatch[key]) return -1;
+        const r = findSingleDelimiter(text, start, ch);
+        if (r === -1 && (!(key in noMatch) || start < noMatch[key]))
+            noMatch[key] = start;
+        return r;
+    };
+
+    // Pre-scan for the last ] and ) positions to avoid O(n²) scans
+    // when the text is full of unmatched [ or ( characters.
+    const lastBracket = text.lastIndexOf("]");
+    const lastParen = text.lastIndexOf(")");
+
     const result: React.ReactNode[] = [];
     let buf = "";
     let i = 0;
@@ -154,7 +214,7 @@ const parseInline = (text: string, comps: Components): React.ReactNode[] => {
 
     const flush = () => {
         if (buf) {
-            result.push(decodeEntities(buf));
+            result.push(buf.includes("&") ? decodeEntities(buf) : buf);
             buf = "";
         }
     };
@@ -211,7 +271,8 @@ const parseInline = (text: string, comps: Components): React.ReactNode[] => {
 
         // HTML <br>
         if (ch === "<") {
-            const brMatch = text.slice(i).match(/^<br\s*\/?\s*>/i);
+            brRe.lastIndex = i;
+            const brMatch = brRe.exec(text);
             if (brMatch) {
                 flush();
                 result.push(React.createElement("br", { key: k++ }));
@@ -221,15 +282,29 @@ const parseInline = (text: string, comps: Components): React.ReactNode[] => {
         }
 
         // Image: ![alt](src)
-        if (ch === "!" && text[i + 1] === "[") {
+        if (ch === "!" && text[i + 1] === "[" && lastBracket > i + 1) {
             const altEnd = findClosingBracket(text, i + 1);
-            if (altEnd !== -1 && text[altEnd + 1] === "(") {
+            if (
+                altEnd !== -1 &&
+                text[altEnd + 1] === "(" &&
+                lastParen > altEnd
+            ) {
                 const srcEnd = findClosingParen(text, altEnd + 1);
                 if (srcEnd !== -1) {
-                    flush();
                     const alt = text.slice(i + 2, altEnd);
                     const src = text.slice(altEnd + 2, srcEnd);
-                    result.push(el("img", { src, alt }));
+                    if (isSafeUrl(src)) {
+                        flush();
+                        result.push(
+                            el("img", {
+                                src,
+                                alt,
+                                referrerPolicy: "no-referrer",
+                            }),
+                        );
+                    } else {
+                        buf += text.slice(i, srcEnd + 1);
+                    }
                     i = srcEnd + 1;
                     continue;
                 }
@@ -237,16 +312,28 @@ const parseInline = (text: string, comps: Components): React.ReactNode[] => {
         }
 
         // Link: [text](url)
-        if (ch === "[") {
+        if (ch === "[" && lastBracket > i) {
             const textEnd = findClosingBracket(text, i);
-            if (textEnd !== -1 && text[textEnd + 1] === "(") {
+            if (
+                textEnd !== -1 &&
+                text[textEnd + 1] === "(" &&
+                lastParen > textEnd
+            ) {
                 const urlEnd = findClosingParen(text, textEnd + 1);
                 if (urlEnd !== -1) {
-                    flush();
                     const linkText = text.slice(i + 1, textEnd);
                     const href = text.slice(textEnd + 2, urlEnd);
-                    const children = parseInline(linkText, comps);
-                    result.push(el("a", { href }, ...children));
+                    if (isSafeUrl(href)) {
+                        flush();
+                        const children = parseInline(
+                            linkText,
+                            comps,
+                            depth + 1,
+                        );
+                        result.push(el("a", { href }, ...children));
+                    } else {
+                        buf += text.slice(i, urlEnd + 1);
+                    }
                     i = urlEnd + 1;
                     continue;
                 }
@@ -260,11 +347,8 @@ const parseInline = (text: string, comps: Components): React.ReactNode[] => {
                 text.startsWith("www.", i)) &&
             (i === 0 || " \t\n(".includes(text[i - 1]))
         ) {
-            const urlMatch = text
-                .slice(i)
-                .match(
-                    /^(https?:\/\/[^\s<>\[\]]*[^\s<>\[\].,;:!?)\]}'"']|www\.[^\s<>\[\]]*[^\s<>\[\].,;:!?)\]}'"'])/,
-                );
+            autolinkRe.lastIndex = i;
+            const urlMatch = autolinkRe.exec(text);
             if (urlMatch) {
                 flush();
                 const url = urlMatch[1];
@@ -298,14 +382,22 @@ const parseInline = (text: string, comps: Components): React.ReactNode[] => {
                 i = closer + ticks;
                 continue;
             }
+            // No matching closer: emit backticks as literal text and skip past them
+            buf += text.slice(i, j);
+            i = j;
+            continue;
         }
 
         // Bold + Italic: ***text***
         if (text.startsWith("***", i)) {
-            const end = findDelimiter(text, i + 3, "***");
+            const end = findDel(i + 3, "***");
             if (end !== -1) {
                 flush();
-                const inner = parseInline(text.slice(i + 3, end), comps);
+                const inner = parseInline(
+                    text.slice(i + 3, end),
+                    comps,
+                    depth + 1,
+                );
                 result.push(
                     React.createElement(
                         "strong",
@@ -320,10 +412,14 @@ const parseInline = (text: string, comps: Components): React.ReactNode[] => {
 
         // Bold: **text**
         if (text.startsWith("**", i)) {
-            const end = findDelimiter(text, i + 2, "**");
+            const end = findDel(i + 2, "**");
             if (end !== -1) {
                 flush();
-                const inner = parseInline(text.slice(i + 2, end), comps);
+                const inner = parseInline(
+                    text.slice(i + 2, end),
+                    comps,
+                    depth + 1,
+                );
                 result.push(
                     React.createElement("strong", { key: k++ }, ...inner),
                 );
@@ -334,10 +430,14 @@ const parseInline = (text: string, comps: Components): React.ReactNode[] => {
 
         // Strikethrough: ~~text~~
         if (text.startsWith("~~", i)) {
-            const end = findDelimiter(text, i + 2, "~~");
+            const end = findDel(i + 2, "~~");
             if (end !== -1) {
                 flush();
-                const inner = parseInline(text.slice(i + 2, end), comps);
+                const inner = parseInline(
+                    text.slice(i + 2, end),
+                    comps,
+                    depth + 1,
+                );
                 result.push(React.createElement("del", { key: k++ }, ...inner));
                 i = end + 2;
                 continue;
@@ -346,10 +446,14 @@ const parseInline = (text: string, comps: Components): React.ReactNode[] => {
 
         // Strikethrough: ~text~
         if (ch === "~" && !text.startsWith("~~", i)) {
-            const end = findSingleDelimiter(text, i + 1, "~");
+            const end = findSDel(i + 1, "~");
             if (end !== -1) {
                 flush();
-                const inner = parseInline(text.slice(i + 1, end), comps);
+                const inner = parseInline(
+                    text.slice(i + 1, end),
+                    comps,
+                    depth + 1,
+                );
                 result.push(React.createElement("del", { key: k++ }, ...inner));
                 i = end + 1;
                 continue;
@@ -358,10 +462,14 @@ const parseInline = (text: string, comps: Components): React.ReactNode[] => {
 
         // Italic: *text*
         if (ch === "*" && !text.startsWith("**", i)) {
-            const end = findSingleDelimiter(text, i + 1, "*");
+            const end = findSDel(i + 1, "*");
             if (end !== -1) {
                 flush();
-                const inner = parseInline(text.slice(i + 1, end), comps);
+                const inner = parseInline(
+                    text.slice(i + 1, end),
+                    comps,
+                    depth + 1,
+                );
                 result.push(React.createElement("em", { key: k++ }, ...inner));
                 i = end + 1;
                 continue;
@@ -374,13 +482,17 @@ const parseInline = (text: string, comps: Components): React.ReactNode[] => {
             !text.startsWith("__", i) &&
             (i === 0 || /\s/.test(text[i - 1]))
         ) {
-            const end = findSingleDelimiter(text, i + 1, "_");
+            const end = findSDel(i + 1, "_");
             if (
                 end !== -1 &&
                 (end + 1 >= text.length || /[\s.,;:!?)\]}]/.test(text[end + 1]))
             ) {
                 flush();
-                const inner = parseInline(text.slice(i + 1, end), comps);
+                const inner = parseInline(
+                    text.slice(i + 1, end),
+                    comps,
+                    depth + 1,
+                );
                 result.push(React.createElement("em", { key: k++ }, ...inner));
                 i = end + 1;
                 continue;
@@ -397,11 +509,24 @@ const parseInline = (text: string, comps: Components): React.ReactNode[] => {
 
 // --- Block Parsing Helpers ---
 
-const parseCells = (line: string): string[] =>
-    line
-        .replace(/^\||\|$/g, "")
-        .split("|")
-        .map((cell) => cell.trim());
+const parseCells = (line: string): string[] => {
+    const trimmed = line.replace(/^\||\|$/g, "");
+    const cells: string[] = [];
+    let buf = "";
+    for (let i = 0; i < trimmed.length; i++) {
+        if (trimmed[i] === "\\" && trimmed[i + 1] === "|") {
+            buf += "|";
+            i++;
+        } else if (trimmed[i] === "|") {
+            cells.push(buf.trim());
+            buf = "";
+        } else {
+            buf += trimmed[i];
+        }
+    }
+    cells.push(buf.trim());
+    return cells;
+};
 
 const parseAlignments = (line: string): (Alignment | null)[] =>
     line
@@ -428,7 +553,9 @@ const isBlockStart = (line: string, nextLine?: string): boolean => {
     if (
         t.startsWith("|") &&
         nextLine &&
-        /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(nextLine.trim())
+        /^\|?\s*(?:-{3,}|:-{2,}|-{2,}:|:-+:)\s*(\|\s*(?:-{3,}|:-{2,}|-{2,}:|:-+:)\s*)*\|?\s*$/.test(
+            nextLine.trim(),
+        )
     )
         return true;
     if (/^<details[\s>]/i.test(t)) return true;
@@ -437,7 +564,9 @@ const isBlockStart = (line: string, nextLine?: string): boolean => {
 
 // --- Block Parser ---
 
-const parseBlocks = (input: string): Block[] => {
+const parseBlocks = (input: string, depth: number = 0): Block[] => {
+    if (depth > MAX_NESTING_DEPTH)
+        return input ? [{ type: "paragraph", content: input }] : [];
     const lines = input.split("\n");
     const blocks: Block[] = [];
     let i = 0;
@@ -459,11 +588,12 @@ const parseBlocks = (input: string): Block[] => {
             const lang = fenceMatch[2].trim();
             const codeLines: string[] = [];
             i++;
+            const fenceCloseRe =
+                fence[0] === "`"
+                    ? new RegExp(`^\`{${fence.length},}$`)
+                    : new RegExp(`^~{${fence.length},}$`);
             while (i < lines.length) {
-                if (
-                    lines[i].trim().startsWith(fence) &&
-                    lines[i].trim().length <= fence.length + 2
-                ) {
+                if (fenceCloseRe.test(lines[i].trim())) {
                     i++;
                     break;
                 }
@@ -497,20 +627,24 @@ const parseBlocks = (input: string): Block[] => {
         if (trimmed.includes("|") && i + 1 < lines.length) {
             const nextTrimmed = lines[i + 1]?.trim() || "";
             if (
-                /^\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/.test(
+                /^\|?\s*(?:-{3,}|:-{2,}|-{2,}:|:-+:)\s*(\|\s*(?:-{3,}|:-{2,}|-{2,}:|:-+:)\s*)*\|?\s*$/.test(
                     nextTrimmed,
                 )
             ) {
-                const headers = parseCells(line);
-                const aligns = parseAlignments(lines[i + 1]);
+                const headers = parseCells(line).slice(0, MAX_TABLE_COLUMNS);
+                const aligns = parseAlignments(lines[i + 1]).slice(
+                    0,
+                    MAX_TABLE_COLUMNS,
+                );
                 const rows: string[][] = [];
                 i += 2;
                 while (
                     i < lines.length &&
                     lines[i].trim() !== "" &&
-                    lines[i].includes("|")
+                    lines[i].includes("|") &&
+                    rows.length < MAX_TABLE_ROWS
                 ) {
-                    rows.push(parseCells(lines[i]));
+                    rows.push(parseCells(lines[i]).slice(0, MAX_TABLE_COLUMNS));
                     i++;
                 }
                 blocks.push({ type: "table", headers, aligns, rows });
@@ -530,7 +664,7 @@ const parseBlocks = (input: string): Block[] => {
             }
             blocks.push({
                 type: "blockquote",
-                blocks: parseBlocks(quoteLines.join("\n")),
+                blocks: parseBlocks(quoteLines.join("\n"), depth + 1),
             });
             continue;
         }
@@ -542,10 +676,13 @@ const parseBlocks = (input: string): Block[] => {
             const startNum = ordered ? parseInt(listMatch[2]) : 1;
             const baseIndent = listMatch[1].length;
             const markerLen = listMatch[2].length + 1;
+            const continuationRe = new RegExp(
+                `^\\s{${baseIndent}}([-*+]|\\d+[.)]) `,
+            );
             const items: string[][] = [];
             let currentItem: string[] = [];
 
-            while (i < lines.length) {
+            while (i < lines.length && items.length < MAX_LIST_ITEMS) {
                 const li = lines[i];
                 const itemMatch = li.match(/^(\s*)([-*+]|\d+[.)]) (.*)/);
                 if (itemMatch && itemMatch[1].length === baseIndent) {
@@ -555,9 +692,7 @@ const parseBlocks = (input: string): Block[] => {
                 } else if (li.trim() === "") {
                     if (
                         i + 1 < lines.length &&
-                        lines[i + 1].match(
-                            new RegExp(`^\\s{${baseIndent}}([-*+]|\\d+[.)]) `),
-                        )
+                        continuationRe.test(lines[i + 1])
                     ) {
                         currentItem.push("");
                         i++;
@@ -580,7 +715,7 @@ const parseBlocks = (input: string): Block[] => {
                 type: "list",
                 ordered,
                 start: startNum,
-                items: items.map((ls) => parseBlocks(ls.join("\n"))),
+                items: items.map((ls) => parseBlocks(ls.join("\n"), depth + 1)),
             });
             continue;
         }
@@ -609,7 +744,7 @@ const parseBlocks = (input: string): Block[] => {
             blocks.push({
                 type: "details",
                 summary,
-                blocks: parseBlocks(inner),
+                blocks: parseBlocks(inner, depth + 1),
             });
             continue;
         }
@@ -684,7 +819,9 @@ const renderBlock = (
                 React.createElement(
                     "code",
                     block.lang
-                        ? { className: `language-${block.lang}` }
+                        ? {
+                              className: `language-${block.lang.replace(/[^a-zA-Z0-9_-]/g, "")}`,
+                          }
                         : undefined,
                     block.content,
                 ),
@@ -815,14 +952,18 @@ const renderBlock = (
 
 // --- Component ---
 
-const Markdown = ({ children, components = {} }: MarkdownProps) => {
-    const blocks = React.useMemo(() => parseBlocks(children || ""), [children]);
-    return React.useMemo(
-        () => (
+const Markdown = ({
+    children,
+    components = EMPTY_COMPONENTS,
+}: MarkdownProps) => {
+    try {
+        const blocks = parseBlocks(children || "");
+        return (
             <>{blocks.map((block, i) => renderBlock(block, components, i))}</>
-        ),
-        [blocks, components],
-    );
+        );
+    } catch {
+        return <pre>{children}</pre>;
+    }
 };
 
 export default Markdown;
