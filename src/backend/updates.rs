@@ -109,17 +109,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    mutate(|state| {
-        // Migrate cold wallet principals from `principals` to `cold_wallets`
-        for user in state.users.values() {
-            if let Some(cold_wallet) = user.cold_wallet {
-                state.cold_wallets.insert(cold_wallet, user.id);
-                state.principals.remove(&cold_wallet);
-            }
-        }
-    });
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
