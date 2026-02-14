@@ -1,6 +1,5 @@
 import {
     waitForUILoading,
-    waitForPageReload,
     handleDialog,
     handleDialogSequence,
     pollForCondition,

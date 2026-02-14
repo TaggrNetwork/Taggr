@@ -1,9 +1,4 @@
-import {
-    waitForUILoading,
-    waitForPageReload,
-    handleDialog,
-    pollForCondition,
-} from "./helpers";
+import { waitForUILoading, pollForCondition } from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { exec, mkPwd, transferICP } from "./command";
 

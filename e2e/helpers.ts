@@ -198,12 +198,6 @@ export async function waitForUILoading(
     await page.waitForTimeout(500);
 }
 
-export async function waitForPageReload(page: Page): Promise<void> {
-    await page.waitForEvent("load", { timeout: 30000 });
-    await page.waitForLoadState("networkidle", { timeout: 10000 });
-    await page.waitForTimeout(500);
-}
-
 export async function createAuctionBid(
     page: Page,
     icpPerToken: string,

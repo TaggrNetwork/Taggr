@@ -1,8 +1,4 @@
-import {
-    waitForUILoading,
-    waitForPageReload,
-    pollForCondition,
-} from "./helpers";
+import { waitForUILoading, pollForCondition } from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { resolve } from "node:path";
 import { mkPwd, transferICP } from "./command";

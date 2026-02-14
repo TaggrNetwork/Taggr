@@ -1,4 +1,4 @@
-import { waitForUILoading, waitForPageReload } from "./helpers";
+import { waitForUILoading } from "./helpers";
 import { test, expect, Page, Locator } from "@playwright/test";
 import { resolve } from "node:path";
 import { exec, mkPwd, transferICP } from "./command";
