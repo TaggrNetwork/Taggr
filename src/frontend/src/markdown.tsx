@@ -344,6 +344,18 @@ const parseInline = (text: string, comps: Components): React.ReactNode[] => {
             }
         }
 
+        // Strikethrough: ~text~
+        if (ch === "~" && !text.startsWith("~~", i)) {
+            const end = findSingleDelimiter(text, i + 1, "~");
+            if (end !== -1) {
+                flush();
+                const inner = parseInline(text.slice(i + 1, end), comps);
+                result.push(React.createElement("del", { key: k++ }, ...inner));
+                i = end + 1;
+                continue;
+            }
+        }
+
         // Italic: *text*
         if (ch === "*" && !text.startsWith("**", i)) {
             const end = findSingleDelimiter(text, i + 1, "*");
