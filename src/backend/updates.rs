@@ -666,7 +666,8 @@ async fn set_emergency_release(binary: ByteBuf) {
                 .principal_to_user(raw_caller(state).unwrap())
                 .map(|user| {
                     user.account_age(WEEK) < CONFIG.min_stalwart_account_age_weeks
-                        || user.total_balance() < 2000 * token::base()
+                        || user.total_balance()
+                            < CONFIG.min_emergency_release_tokens * token::base()
                 })
                 .unwrap_or(true)
         {
