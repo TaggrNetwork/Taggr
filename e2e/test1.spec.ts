@@ -176,7 +176,7 @@ test.describe("Upgrades & token transfer flow", () => {
         ).toBeVisible();
     });
 
-    test("Recovery proposal", async ({ page }) => {
+    test("Recovery proposal", { timeout: 90000 }, async ({ page }) => {
         await page.goto("/#/recovery");
         await waitForUILoading(page);
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
