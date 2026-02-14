@@ -109,7 +109,17 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        // Migrate cold wallet principals from `principals` to `cold_wallets`
+        for user in state.users.values() {
+            if let Some(cold_wallet) = user.cold_wallet {
+                state.cold_wallets.insert(cold_wallet, user.id);
+                state.principals.remove(&cold_wallet);
+            }
+        }
+    });
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -654,8 +664,12 @@ async fn set_emergency_release(binary: ByteBuf) {
         if binary.is_empty()
             || state
                 .principal_to_user(raw_caller(state).unwrap())
-                .map(|user| user.account_age(WEEK) < CONFIG.min_stalwart_account_age_weeks)
-                .unwrap_or_default()
+                .map(|user| {
+                    user.account_age(WEEK) < CONFIG.min_stalwart_account_age_weeks
+                        || user.total_balance()
+                            < CONFIG.min_emergency_release_tokens * token::base()
+                })
+                .unwrap_or(true)
         {
             return;
         }

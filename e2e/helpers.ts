@@ -186,9 +186,15 @@ export async function waitForUILoading(
         timeout?: number;
     } = {},
 ): Promise<void> {
-    const { timeout = 5000 } = options;
+    const { timeout = 15000 } = options;
 
     await page.waitForLoadState("networkidle", { timeout });
+    // Wait for the app to actually render (#app becomes visible when
+    // applyTheme() runs during App(), the last step of bootstrap).
+    // Skip this check on the recovery page which bypasses normal bootstrap.
+    if (!page.url().includes("recovery")) {
+        await page.locator("#app").waitFor({ state: "visible", timeout });
+    }
     await page.waitForTimeout(500);
 }
 

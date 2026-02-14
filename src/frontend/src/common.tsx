@@ -600,7 +600,8 @@ export const Loading = ({
     const [dot, setDot] = React.useState(0);
     const md = <span> ■ </span>;
     React.useEffect(() => {
-        setTimeout(() => setDot(dot + 1), 200);
+        const id = setTimeout(() => setDot(dot + 1), 200);
+        return () => clearTimeout(id);
     }, [dot]);
     return (
         <div

@@ -103,7 +103,10 @@ export const setRealmUI = (realm: string) => {
         return;
     }
     window.api.query<Realm[]>("realms", [realm]).then((result) => {
-        if (!result || result.length == 0) return;
+        if (!result || result.length == 0) {
+            setUI(true);
+            return;
+        }
         let realm = result[0];
         let realmTheme = realm.theme;
         if (realmTheme) applyTheme(JSON.parse(realmTheme));

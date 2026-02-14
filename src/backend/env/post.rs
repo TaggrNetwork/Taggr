@@ -245,7 +245,7 @@ impl Post {
             }
             poll.voters.insert(user_id);
             poll.votes.entry(vote).or_default().insert(if anonymously {
-                MAX_USER_ID - 1
+                MAX_USER_ID - poll.voters.len() as u64
             } else {
                 user_id
             });

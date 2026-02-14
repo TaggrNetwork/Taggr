@@ -27,7 +27,10 @@ test.describe("Regular users flow", () => {
         await page
             .getByPlaceholder("Repeat your seed phrase...")
             .fill(mkPwd("alice"));
+        const reloadPromise = page.waitForEvent("load", { timeout: 30000 });
         await page.getByRole("button", { name: "CONTINUE" }).click();
+        await reloadPromise;
+        await waitForUILoading(page);
         const alicePrincipal =
             "xkqsg-2iln4-5zio6-xn4ja-s34n3-g63uk-kc6ex-wklca-7kfzz-67won-yqe";
         await expect(page.getByText(alicePrincipal)).toBeVisible();
@@ -258,7 +261,10 @@ test.describe("Regular users flow", () => {
         await page
             .getByPlaceholder("Repeat your seed phrase...")
             .fill(mkPwd("bob"));
+        const reloadPromise2 = page.waitForEvent("load", { timeout: 30000 });
         await page.getByRole("button", { name: "CONTINUE" }).click();
+        await reloadPromise2;
+        await waitForUILoading(page);
         await page.getByPlaceholder("alphanumeric").fill("bob");
         await page
             .getByPlaceholder("tell us what we should know about you")

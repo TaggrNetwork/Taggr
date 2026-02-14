@@ -59,7 +59,10 @@ test.describe("Upgrades & token transfer flow", () => {
         await page
             .getByPlaceholder("Repeat your seed phrase...")
             .fill(mkPwd("eve"));
+        const reloadPromise = page.waitForEvent("load", { timeout: 30000 });
         await page.getByRole("button", { name: "CONTINUE" }).click();
+        await reloadPromise;
+        await waitForUILoading(page);
         const stalwartPrincipal =
             "v5znh-suak4-idmlq-uaq6k-iiygt-7d7de-jq7pf-dpzmt-zhmle-akfo2-mqe";
         await expect(page.getByText(stalwartPrincipal)).toBeVisible();
@@ -103,7 +106,10 @@ test.describe("Upgrades & token transfer flow", () => {
         await page
             .getByPlaceholder("Repeat your seed phrase...")
             .fill(mkPwd("pete"));
+        const reloadPromise2 = page.waitForEvent("load", { timeout: 30000 });
         await page.getByRole("button", { name: "CONTINUE" }).click();
+        await reloadPromise2;
+        await waitForUILoading(page);
         await page.getByPlaceholder("alphanumeric").fill("pete");
         await page.getByRole("button", { name: "SAVE" }).click();
         await waitForUILoading(page);
@@ -170,14 +176,17 @@ test.describe("Upgrades & token transfer flow", () => {
         ).toBeVisible();
     });
 
-    test("Recovery proposal", async ({ page }) => {
+    test("Recovery proposal", { timeout: 90000 }, async ({ page }) => {
         await page.goto("/#/recovery");
         await waitForUILoading(page);
         await page.getByRole("button", { name: "SEED PHRASE" }).click();
         await page
             .getByPlaceholder("Enter your seed phrase...")
             .fill(mkPwd("eve"));
+        const reloadPromise3 = page.waitForEvent("load", { timeout: 30000 });
         await page.getByRole("button", { name: "CONTINUE" }).click();
+        await reloadPromise3;
+        await waitForUILoading(page);
 
         await expect(
             page.getByRole("heading", { name: "RECOVERY" }),

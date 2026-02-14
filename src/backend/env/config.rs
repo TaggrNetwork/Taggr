@@ -108,6 +108,7 @@ pub struct Config {
     pub stalwart_percentage: usize,
     pub min_stalwart_activity_weeks: u8,
     pub min_stalwart_account_age_weeks: u64,
+    pub min_emergency_release_tokens: Token,
     pub stalwart_moderation_reward: Credits,
 
     // percentage of stalwarts needed to confirm a report
@@ -301,6 +302,11 @@ pub const CONFIG: &Config = &Config {
     min_stalwart_account_age_weeks: 1,
     #[cfg(not(feature = "staging"))]
     min_stalwart_account_age_weeks: 26,
+
+    #[cfg(feature = "dev")]
+    min_emergency_release_tokens: 5,
+    #[cfg(not(feature = "dev"))]
+    min_emergency_release_tokens: 2000,
 
     stalwart_moderation_reward: 20,
 
