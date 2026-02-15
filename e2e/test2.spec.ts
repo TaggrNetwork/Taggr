@@ -87,28 +87,12 @@ test.describe("Regular users flow", () => {
 
         await page.getByRole("button", { name: "POST" }).click();
         await page.locator("textarea").fill("Hello world!");
-        const imagePath = resolve(
-            __dirname,
-            "..",
-            "src",
-            "frontend",
-            "assets",
-            "apple-touch-icon.png",
-        );
-        const [fileChooser] = await Promise.all([
-            page.waitForEvent("filechooser"),
-            page.getByTestId("file-picker").click(),
-        ]);
-        await fileChooser.setFiles([imagePath]);
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await page.waitForURL(/#\/post\//);
         await waitForUILoading(page);
 
         await expect(
             page.locator("article", { hasText: /Hello world/ }),
-        ).toBeVisible();
-        await expect(
-            page.getByRole("img", { name: "512x512, 2kb" }),
         ).toBeVisible();
 
         await page.getByTestId("post-info-toggle").click();
@@ -133,15 +117,12 @@ test.describe("Regular users flow", () => {
         await expect(
             article.getByText(/Edit:.*this is a post-scriptum/),
         ).toBeVisible();
-        await expect(
-            page.getByRole("img", { name: "512x512, 2kb" }),
-        ).toBeVisible();
     });
 
     test("Wallet", async () => {
         await page.getByTestId("toggle-user-section").click();
 
-        await expect(page.getByTestId("credits-balance")).toHaveText("976");
+        await expect(page.getByTestId("credits-balance")).toHaveText("996");
 
         await handleDialog(
             page,
@@ -152,7 +133,7 @@ test.describe("Regular users flow", () => {
             },
         );
         await waitForUILoading(page);
-        await expect(page.getByTestId("credits-balance")).toHaveText("2,976");
+        await expect(page.getByTestId("credits-balance")).toHaveText("2,996");
 
         const icpBalance = parseFloat(
             await page.getByTestId("icp-balance").textContent(),
@@ -330,5 +311,177 @@ test.describe("Regular users flow", () => {
         await expect(page.locator('[class="popup_body"]').first()).toHaveText(
             "WONDERLAND",
         );
+    });
+
+    test("Upload image", async () => {
+        // Navigate to home to clear any overlays from previous test
+        await page.goto("/");
+        await waitForUILoading(page);
+
+        // Sign out bob and sign back in as alice
+        await page.getByTestId("toggle-user-section").click();
+        await page.getByRole("link", { name: /.*SIGN OUT.*/ }).click();
+        await waitForUILoading(page);
+        await page.getByRole("button", { name: "SIGN IN" }).click();
+        await page.getByRole("button", { name: "SEED PHRASE" }).click();
+        await page
+            .getByPlaceholder("Enter your seed phrase...")
+            .fill(mkPwd("alice"));
+        await page.getByRole("button", { name: "CONTINUE" }).click();
+        await waitForUILoading(page);
+
+        // Read credits balance before upload
+        await page.getByTestId("toggle-user-section").click();
+        const balanceBefore = parseInt(
+            (await page.getByTestId("credits-balance").textContent())!.replace(
+                /,/g,
+                "",
+            ),
+        );
+        await page.getByTestId("toggle-user-section").click();
+
+        const imagePath = resolve(
+            __dirname,
+            "..",
+            "src",
+            "frontend",
+            "assets",
+            "apple-touch-icon.png",
+        );
+        await page.getByRole("button", { name: "POST" }).click();
+        await page.locator("textarea").fill("Post with image");
+        const [fileChooser] = await Promise.all([
+            page.waitForEvent("filechooser"),
+            page.getByTestId("file-picker").click(),
+        ]);
+        await fileChooser.setFiles([imagePath]);
+        await page.getByRole("button", { name: "SUBMIT" }).click();
+        await page.waitForURL(/#\/post\//);
+        await waitForUILoading(page);
+
+        await expect(
+            page.locator("article", { hasText: /Post with image/ }),
+        ).toBeVisible();
+        await expect(
+            page.getByRole("img", { name: "512x512, 2kb" }),
+        ).toBeVisible();
+
+        // Verify credits charged: post_cost (2) + blob_cost (20) = 22
+        await page.goto("/");
+        await waitForUILoading(page);
+        await page.getByTestId("toggle-user-section").click();
+        const balanceAfter = parseInt(
+            (await page.getByTestId("credits-balance").textContent())!.replace(
+                /,/g,
+                "",
+            ),
+        );
+        expect(balanceBefore - balanceAfter).toBe(22);
+    });
+
+    test("Blob space reclamation", async () => {
+        const largeImage = resolve(
+            __dirname,
+            "..",
+            "src",
+            "frontend",
+            "assets",
+            "logo.png",
+        );
+        const smallImage = resolve(
+            __dirname,
+            "..",
+            "src",
+            "frontend",
+            "assets",
+            "apple-touch-icon.png",
+        );
+
+        const getImageOffset = async (altText: string): Promise<number> => {
+            const img = page.getByRole("img", { name: altText });
+            await expect(img).toBeVisible();
+            const src = await img.getAttribute("src");
+            const match = src!.match(/offset=(\d+)/);
+            return parseInt(match![1]);
+        };
+
+        const uploadPost = async (
+            text: string,
+            imagePath: string,
+        ): Promise<void> => {
+            await page.getByRole("button", { name: "POST" }).click();
+            await page.locator("textarea").fill(text);
+            const [fileChooser] = await Promise.all([
+                page.waitForEvent("filechooser"),
+                page.getByTestId("file-picker").click(),
+            ]);
+            await fileChooser.setFiles([imagePath]);
+            await page.getByRole("button", { name: "SUBMIT" }).click();
+            await page.waitForURL(/#\/post\//);
+            await waitForUILoading(page);
+        };
+
+        // Read initial credits balance
+        await page.goto("/");
+        await waitForUILoading(page);
+        await page.getByTestId("toggle-user-section").click();
+        const initialBalance = parseInt(
+            (await page.getByTestId("credits-balance").textContent())!.replace(
+                /,/g,
+                "",
+            ),
+        );
+        await page.getByTestId("toggle-user-section").click();
+
+        // Create post 1 with large image
+        await uploadPost("Large image post", largeImage);
+        const offset1 = await getImageOffset("200x200, 6kb");
+        const post1Url = page.url();
+
+        // Create post 2 with small image
+        await page.goto("/");
+        await waitForUILoading(page);
+        await uploadPost("Small image post", smallImage);
+        const offset2 = await getImageOffset("512x512, 2kb");
+
+        // Post 2 should be after post 1 in storage
+        expect(offset2).toBeGreaterThan(offset1);
+
+        // Delete post 1
+        await page.goto(post1Url);
+        await waitForUILoading(page);
+        await page
+            .locator(".post_box", { hasText: /Large image post/ })
+            .getByTestId("post-info-toggle")
+            .click();
+        await handleDialog(page, "confirm the post deletion", "", async () => {
+            await page.locator("button[title='Delete post']").click();
+        });
+        await waitForUILoading(page);
+
+        // Wait for the async free call to complete on the bucket
+        await page.waitForTimeout(3000);
+
+        // Create post 3 with large image (same size as post 1)
+        await page.goto("/");
+        await waitForUILoading(page);
+        await uploadPost("Reclaimed space post", largeImage);
+        const offset3 = await getImageOffset("200x200, 6kb");
+
+        // Post 3 should have reclaimed the space freed by post 1
+        expect(offset3).toBe(offset1);
+        expect(offset3).toBeLessThan(offset2);
+
+        // Verify total credits charged: 3 uploads (3*22=66) + 1 deletion (2) = 68
+        await page.goto("/");
+        await waitForUILoading(page);
+        await page.getByTestId("toggle-user-section").click();
+        const finalBalance = parseInt(
+            (await page.getByTestId("credits-balance").textContent())!.replace(
+                /,/g,
+                "",
+            ),
+        );
+        expect(initialBalance - finalBalance).toBe(68);
     });
 });
