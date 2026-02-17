@@ -81,12 +81,12 @@ impl Storage {
 
         for (bucket_id, segments) in by_bucket {
             if let Err(err) =
-                canisters::call_canister::<_, ()>(bucket_id, "free", (segments,)).await
+                canisters::call_canister::<_, ()>(bucket_id, "free", (segments.clone(),)).await
             {
                 mutate(|state| {
                     state.logger.error(format!(
-                        "couldn't free blobs on bucket {}: {:?}",
-                        bucket_id, err
+                        "couldn't free blobs on bucket {}: {:?}, segments: {:?}",
+                        bucket_id, err, segments
                     ))
                 });
             }
