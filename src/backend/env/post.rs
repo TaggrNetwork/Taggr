@@ -447,6 +447,8 @@ impl Post {
             }
             post.tags = tags;
             post.body = body;
+            post.patches.push((post.timestamp, patch));
+            post.timestamp = timestamp;
             post.valid(&blobs)?;
             let old_blob_ids = post
                 .files
@@ -464,8 +466,6 @@ impl Post {
                 post.realm.as_ref(),
                 format!("editing of post [{0}](#/post/{0})", id),
             )?;
-            post.patches.push((post.timestamp, patch));
-            post.timestamp = timestamp;
 
             let current_realm = post.realm.clone();
 

@@ -96,7 +96,8 @@ fn balances() {
                         state
                             .principal_to_user(acc.owner)
                             .or(state.user(&acc.owner.to_string()))
-                            .map(|u| u.id),
+                            .map(|u| u.id)
+                            .or(state.cold_wallets.get(&acc.owner).copied()),
                     )
                 })
                 .collect::<Vec<_>>(),
