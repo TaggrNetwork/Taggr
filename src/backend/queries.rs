@@ -93,10 +93,13 @@ fn balances() {
                 .map(|(acc, balance)| {
                     let user = state
                         .principal_to_user(acc.owner)
-                        .or(state.user(&acc.owner.to_string()));
-                    let user_id = user
-                        .map(|u| u.id)
-                        .or(state.cold_wallets.get(&acc.owner).copied());
+                        .or_else(|| {
+                            state
+                                .cold_wallets
+                                .get(&acc.owner)
+                                .and_then(|id| state.users.get(id))
+                        });
+                    let user_id = user.map(|u| u.id);
                     let active = user
                         .map(|u| u.active_within(CONFIG.voting_power_activity_weeks, WEEK, now))
                         .unwrap_or(false);
