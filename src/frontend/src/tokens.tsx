@@ -195,10 +195,7 @@ export const Tokens = () => {
                         className={bigScreen() ? "" : "small_text"}
                     >
                         {balances.slice(0, (balPage + 1) * 25).map((b, i) => (
-                            <tr
-                                key={i}
-                                className={b[3] ? "" : "inactive"}
-                            >
+                            <tr key={i} className={b[3] ? "" : "inactive"}>
                                 <td style={{ textAlign: "left" }}>
                                     {showPrincipal(b[0])}
                                 </td>

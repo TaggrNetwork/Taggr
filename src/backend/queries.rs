@@ -98,13 +98,7 @@ fn balances() {
                         .map(|u| u.id)
                         .or(state.cold_wallets.get(&acc.owner).copied());
                     let active = user
-                        .map(|u| {
-                            u.active_within(
-                                CONFIG.voting_power_activity_weeks,
-                                WEEK,
-                                now,
-                            )
-                        })
+                        .map(|u| u.active_within(CONFIG.voting_power_activity_weeks, WEEK, now))
                         .unwrap_or(false);
                     (acc, balance, user_id, active)
                 })
