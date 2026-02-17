@@ -82,32 +82,9 @@ fn users_data() {
     });
 }
 
-#[export_name = "canister_query balances"]
-fn balances() {
-    read(|state| {
-        let now = time();
-        reply(
-            state
-                .balances
-                .iter()
-                .map(|(acc, balance)| {
-                    let user = state
-                        .principal_to_user(acc.owner)
-                        .or_else(|| {
-                            state
-                                .cold_wallets
-                                .get(&acc.owner)
-                                .and_then(|id| state.users.get(id))
-                        });
-                    let user_id = user.map(|u| u.id);
-                    let active = user
-                        .map(|u| u.active_within(CONFIG.voting_power_activity_weeks, WEEK, now))
-                        .unwrap_or(false);
-                    (acc, balance, user_id, active)
-                })
-                .collect::<Vec<_>>(),
-        );
-    });
+#[export_name = "canister_query tokens_stats"]
+fn tokens_stats() {
+    read(|state| reply(state.tokens_stats(time())));
 }
 
 #[export_name = "canister_query transaction"]
