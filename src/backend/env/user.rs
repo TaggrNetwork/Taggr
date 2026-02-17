@@ -312,6 +312,9 @@ impl User {
     }
 
     pub fn toggle_filter(&mut self, filter: String, value: String) -> Result<(), String> {
+        if value.len() > 100 {
+            return Err("filter size limit exceeded".into());
+        }
         match filter.as_str() {
             "user" => match value.parse() {
                 Err(_) => Err("cannot parse user id".to_string()),
@@ -386,7 +389,6 @@ impl User {
 
     pub fn toggle_following_feed(&mut self, tags: &[String]) -> Result<bool, String> {
         const MAX_QUERY_SIZE: usize = 1000;
-
         let tags_size = tags.iter().map(|tag| tag.len()).sum::<usize>();
         if tags_size > MAX_QUERY_SIZE {
             return Err("feed size limit exceeded".to_string());

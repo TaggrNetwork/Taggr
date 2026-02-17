@@ -52,7 +52,7 @@ export const Landing = () => {
                     key={id}
                     data-testid={`tab-${id}`}
                     onClick={() => {
-                        if (user && feed == id) {
+                        if (user && feed == id && id == NEW) {
                             showPopUp(
                                 "info",
                                 "Displaying all new posts " +

@@ -2527,7 +2527,7 @@ impl State {
             if user.invited_by.is_some() {
                 invited_users += 1;
             }
-            if user.active_within(1, WEEK, now) {
+            if user.active_within(CONFIG.voting_power_activity_weeks, WEEK, now) {
                 active_users += 1;
                 active_users_vp += user.total_balance();
             }

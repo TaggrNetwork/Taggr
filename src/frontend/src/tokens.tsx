@@ -27,7 +27,7 @@ import { Content } from "./content";
 import { CANISTER_ID } from "./env";
 import { UserLink } from "./user_resolve";
 
-type Balances = [Account, number, UserId][];
+type Balances = [Account, number, UserId, boolean][];
 
 export const Tokens = () => {
     const [status, setStatus] = React.useState(0);
@@ -64,8 +64,8 @@ export const Tokens = () => {
     const { maximum_supply, proposal_approval_threshold, transaction_fee } =
         window.backendCache.config;
     const uniqueUsers = balances.reduce(
-        (acc, [_, balance, userId]) => {
-            if (userId != null && !isNaN(userId))
+        (acc, [_, balance, userId, active]) => {
+            if (userId != null && !isNaN(userId) && active)
                 acc[userId] = (acc[userId] || 0) + balance;
             return acc;
         },
@@ -195,7 +195,7 @@ export const Tokens = () => {
                         className={bigScreen() ? "" : "small_text"}
                     >
                         {balances.slice(0, (balPage + 1) * 25).map((b, i) => (
-                            <tr key={i}>
+                            <tr key={i} className={b[3] ? "" : "inactive"}>
                                 <td style={{ textAlign: "left" }}>
                                     {showPrincipal(b[0])}
                                 </td>

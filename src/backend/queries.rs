@@ -85,20 +85,22 @@ fn users_data() {
 #[export_name = "canister_query balances"]
 fn balances() {
     read(|state| {
+        let now = time();
         reply(
             state
                 .balances
                 .iter()
                 .map(|(acc, balance)| {
-                    (
-                        acc,
-                        balance,
-                        state
-                            .principal_to_user(acc.owner)
-                            .or(state.user(&acc.owner.to_string()))
-                            .map(|u| u.id)
-                            .or(state.cold_wallets.get(&acc.owner).copied()),
-                    )
+                    let user = state
+                        .principal_to_user(acc.owner)
+                        .or(state.user(&acc.owner.to_string()));
+                    let user_id = user
+                        .map(|u| u.id)
+                        .or(state.cold_wallets.get(&acc.owner).copied());
+                    let active = user
+                        .map(|u| u.active_within(CONFIG.voting_power_activity_weeks, WEEK, now))
+                        .unwrap_or(false);
+                    (acc, balance, user_id, active)
                 })
                 .collect::<Vec<_>>(),
         );
