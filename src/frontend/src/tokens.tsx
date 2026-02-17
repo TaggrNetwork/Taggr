@@ -64,8 +64,8 @@ export const Tokens = () => {
     const { maximum_supply, proposal_approval_threshold, transaction_fee } =
         window.backendCache.config;
     const uniqueUsers = balances.reduce(
-        (acc, [_, balance, userId]) => {
-            if (userId != null && !isNaN(userId))
+        (acc, [_, balance, userId, active]) => {
+            if (userId != null && !isNaN(userId) && active)
                 acc[userId] = (acc[userId] || 0) + balance;
             return acc;
         },
