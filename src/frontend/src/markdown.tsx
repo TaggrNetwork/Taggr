@@ -547,7 +547,7 @@ const isBlockStart = (line: string, nextLine?: string): boolean => {
     if (/^#{1,6}\s/.test(t)) return true;
     if (/^(?:[-*_]\s*){3,}$/.test(t)) return true;
     if (t.startsWith("```") || t.startsWith("~~~")) return true;
-    if (t.startsWith("> ") || t === ">") return true;
+    if (t.startsWith(">")) return true;
     if (/^[-*+] /.test(t)) return true;
     if (/^\d+[.)] /.test(t)) return true;
     if (
@@ -659,6 +659,7 @@ const parseBlocks = (input: string, depth: number = 0): Block[] => {
                 const t = lines[i].trim();
                 if (t.startsWith("> ")) quoteLines.push(t.slice(2));
                 else if (t === ">") quoteLines.push("");
+                else if (t.startsWith(">")) quoteLines.push(t.slice(1));
                 else break;
                 i++;
             }
