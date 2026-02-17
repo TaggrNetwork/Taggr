@@ -33,7 +33,7 @@ import { MAINNET_MODE } from "./env";
 
 export const REPO = "https://github.com/TaggrNetwork/taggr";
 
-export const USD_PER_XDR = 1.39;
+export const USD_PER_XDR = 1.37;
 
 export const MAX_POST_SIZE_BYTES = Math.ceil(1024 * 1024 * 1.9);
 
