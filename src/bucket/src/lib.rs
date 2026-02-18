@@ -28,7 +28,7 @@ struct Segment {
 }
 
 thread_local! {
-    static FREE_LIST: RefCell<Vec<Segment>> = const { RefCell::new(Vec::new()) };
+    static FREE_SEGMENTS: RefCell<Vec<Segment>> = const { RefCell::new(Vec::new()) };
 }
 
 #[derive(CandidType, Deserialize)]
@@ -69,7 +69,7 @@ fn init() {
 fn pre_upgrade() {
     let offset = read_offset();
 
-    FREE_LIST.with(|fl| {
+    FREE_SEGMENTS.with(|fl| {
         let bytes = Encode!(&*fl.borrow()).expect("couldn't serialize free list");
         let len = bytes.len() as u64;
         grow_to_fit(offset, 8 + len);
@@ -102,7 +102,7 @@ fn post_upgrade() {
     stable_read(offset + 8, &mut bytes);
 
     if let Ok(free_list) = Decode!(&bytes, Vec<Segment>) {
-        FREE_LIST.with(|fl| *fl.borrow_mut() = free_list);
+        FREE_SEGMENTS.with(|fl| *fl.borrow_mut() = free_list);
     }
 }
 
@@ -115,6 +115,15 @@ fn read_offset() -> u64 {
 #[ic_cdk_macros::query]
 fn balance() -> u64 {
     canister_balance()
+}
+
+#[ic_cdk_macros::query]
+fn stats() -> (usize, u64) {
+    FREE_SEGMENTS.with(|fl| {
+        let free_list = fl.borrow();
+        let total: u64 = free_list.iter().map(|s| s.length).sum();
+        (free_list.len(), total)
+    })
 }
 
 #[ic_cdk_macros::query]
@@ -173,7 +182,7 @@ fn write() {
     let blob = arg_data_raw();
     let blob_len = blob.len() as u64;
 
-    let offset = FREE_LIST.with(|fl| {
+    let offset = FREE_SEGMENTS.with(|fl| {
         let mut free_list = fl.borrow_mut();
 
         // Binary-search for the smallest free segment that fits.
@@ -209,7 +218,7 @@ fn write() {
 #[ic_cdk_macros::update]
 fn free(segments: Vec<(u64, u64)>) {
     assert_controller();
-    FREE_LIST.with(|fl| {
+    FREE_SEGMENTS.with(|fl| {
         let mut free_list = fl.borrow_mut();
         for (start, length) in segments {
             free_list.push(Segment { start, length });
