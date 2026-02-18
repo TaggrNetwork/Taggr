@@ -351,6 +351,21 @@ export type Stats = {
     stalwarts: UserId[];
 };
 
+export type TokenStats = {
+    circulating_supply: number;
+    holders: number;
+    held_by_users: number;
+    nakamoto_coefficient: number;
+    fees_burned: number;
+    volume_day: number;
+    volume_week: number;
+    e8s_for_one_xdr: BigInt;
+    e8s_revenue_per_1k: BigInt;
+    active_users_vp: number;
+    last_weekly_chores: BigInt;
+    balances: [Account, number, UserId, boolean][];
+};
+
 export type Config = {
     default_max_downvotes: number;
     proposal_escrow_amount_xdr: number;

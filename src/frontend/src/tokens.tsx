@@ -20,81 +20,39 @@ import {
     USD_PER_XDR,
 } from "./common";
 import * as React from "react";
-import { UserId, Transaction, User, Account, Auction } from "./types";
+import { Transaction, User, Account, Auction, TokenStats } from "./types";
 import { Principal } from "@dfinity/principal";
 import { decodeIcrcAccount, encodeIcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
 import { CANISTER_ID } from "./env";
 import { UserLink } from "./user_resolve";
 
-type Balances = [Account, number, UserId, boolean][];
-
 export const Tokens = () => {
     const [status, setStatus] = React.useState(0);
-    const [balances, setBalances] = React.useState([] as Balances);
-    const [balPage, setBalPage] = React.useState(0);
+    const [data, setData] = React.useState<TokenStats | null>(null);
     const [holder, setHolder] = React.useState(-1);
 
     const loadData = async () => {
-        const [balances] = await Promise.all([
-            window.api.query<Balances>("balances"),
-        ]);
-
-        if (!balances || balances.length == 0) {
+        const result = await window.api.query<TokenStats>("token_stats");
+        if (!result) {
             setStatus(-1);
             return;
         }
         setStatus(1);
-        balances.sort((a, b) => Number(b[1]) - Number(a[1]));
-        setBalances(balances);
+        setData(result);
     };
 
     React.useEffect(() => {
         loadData();
     }, []);
 
-    const mintedSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
-    const top100Supply = balances
-        .slice(0, 100)
-        .reduce((acc, balance) => acc + balance[1], 0);
-    const heldByUsers = balances.reduce(
-        (acc, [_0, balance, userId]) => (userId == null ? acc : acc + balance),
-        0,
-    );
     const { maximum_supply, proposal_approval_threshold, transaction_fee } =
         window.backendCache.config;
-    const uniqueUsers = balances.reduce(
-        (acc, [_, balance, userId, active]) => {
-            if (userId != null && !isNaN(userId) && active)
-                acc[userId] = (acc[userId] || 0) + balance;
-            return acc;
-        },
-        {} as { [id: UserId]: number },
-    );
-    const balanceAmounts = Object.entries(uniqueUsers).map(([_, balance]) =>
-        Number(balance),
-    );
-    balanceAmounts.sort((a, b) => b - a);
-    const userTokens = balanceAmounts.reduce((sum, value) => sum + value, 0);
-    const balancesTotal = balanceAmounts.length;
-    let vp = 0;
-    while (
-        balanceAmounts.length > 0 &&
-        (vp / userTokens) * 100 < proposal_approval_threshold
-    ) {
-        vp += balanceAmounts.shift() || 0;
-    }
-    const {
-        e8s_for_one_xdr,
-        e8s_revenue_per_1k,
-        fees_burned,
-        volume_day,
-        volume_week,
-        active_users_vp,
-    } = window.backendCache.stats;
-    const holders = balances.length;
 
-    if (status == 0) return <Loading />;
+    if (status == 0 || !data) return <Loading />;
+
+    const { balances, circulating_supply } = data;
+    const topSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
 
     return (
         <>
@@ -102,28 +60,30 @@ export const Tokens = () => {
             <div className="spaced">
                 <div className="dynamic_table vertically_spaced">
                     <div className="db_cell">
-                        CIRCULATING<code>{token(mintedSupply)}</code>
+                        CIRCULATING
+                        <code>{token(circulating_supply)}</code>
                     </div>
                     <div className="db_cell">
                         MAXIMUM<code>{token(maximum_supply)}</code>
                     </div>
                     <div className="db_cell">
-                        HOLDERS<code>{holders}</code>
+                        HOLDERS<code>{data.holders}</code>
                     </div>
                     <div className="db_cell">
-                        HELD BY USERS<code>{token(heldByUsers)}</code>
+                        HELD BY USERS
+                        <code>{token(data.held_by_users)}</code>
                     </div>
                     <div className="db_cell">
                         ACTIVE VP
-                        <code>{active_users_vp.toLocaleString()}</code>
+                        <code>{data.active_users_vp.toLocaleString()}</code>
                     </div>
                     <div className="db_cell">
                         WEEKLY REVENUE / 1K
                         <code>
                             $
                             {(
-                                (Number(e8s_revenue_per_1k) /
-                                    Number(e8s_for_one_xdr)) *
+                                (Number(data.e8s_revenue_per_1k) /
+                                    Number(data.e8s_for_one_xdr)) *
                                 USD_PER_XDR
                             ).toLocaleString()}
                         </code>
@@ -134,15 +94,15 @@ export const Tokens = () => {
                     </div>
                     <div className="db_cell">
                         NAKAMOTO COEFF.
-                        <code>{balancesTotal - balanceAmounts.length}</code>
+                        <code>{data.nakamoto_coefficient}</code>
                     </div>
                     <div className="db_cell">
                         VOLUME 24H
-                        <code>{token(volume_day)}</code>
+                        <code>{token(data.volume_day)}</code>
                     </div>
                     <div className="db_cell">
                         VOLUME 7D
-                        <code>{token(volume_week)}</code>
+                        <code>{token(data.volume_week)}</code>
                     </div>
                     <div className="db_cell">
                         TRANSACTION FEE
@@ -159,17 +119,17 @@ export const Tokens = () => {
                     </div>
                     <div className="db_cell">
                         TOTAL FEES BURNED
-                        <code>{token(fees_burned)}</code>
+                        <code>{token(data.fees_burned)}</code>
                     </div>
                 </div>
-                <h2>Top 100 token holders</h2>
+                <h2>Top token holders</h2>
                 <div className="bottom_spaced" style={{ display: "flex" }}>
-                    {balances.slice(0, 100).map((b, i) => (
+                    {balances.map((b, i) => (
                         <div
                             key={i}
                             style={{
                                 height: "5em",
-                                width: percentage(b[1], top100Supply),
+                                width: percentage(b[1], topSupply),
                                 background:
                                     holder == b[2]
                                         ? "black"
@@ -194,7 +154,7 @@ export const Tokens = () => {
                         style={{ textAlign: "right" }}
                         className={bigScreen() ? "" : "small_text"}
                     >
-                        {balances.slice(0, (balPage + 1) * 25).map((b, i) => (
+                        {balances.map((b, i) => (
                             <tr key={i} className={b[3] ? "" : "inactive"}>
                                 <td style={{ textAlign: "left" }}>
                                     {showPrincipal(b[0])}
@@ -202,7 +162,7 @@ export const Tokens = () => {
                                 <td>
                                     <code>{token(b[1])}</code>
                                 </td>
-                                <td>{percentage(b[1], mintedSupply)}</td>
+                                <td>{percentage(b[1], circulating_supply)}</td>
                                 <td>
                                     <UserLink id={b[2]} />
                                 </td>
@@ -210,7 +170,6 @@ export const Tokens = () => {
                         ))}
                     </tbody>
                 </table>
-                <MoreButton callback={async () => setBalPage(balPage + 1)} />
                 <hr />
                 <AuctionCard />
             </div>

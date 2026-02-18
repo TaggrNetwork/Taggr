@@ -5,6 +5,7 @@ use self::invoices::{ICPInvoice, USER_ICP_SUBACCOUNT};
 use self::post::{archive_cold_posts, Extension, Post, PostId};
 use self::post_iterators::{IteratorMerger, MergeStrategy};
 use self::proposals::{Payload, ReleaseInfo, Status};
+use self::storage::Storage;
 use self::token::{account, TransferArgs};
 use self::user::{Filters, Mode, Notification, Predicate, UserFilter};
 use crate::assets::export_token_supply;
@@ -123,6 +124,22 @@ pub struct Stats {
     fees_burned: Token,
     volume_day: Token,
     volume_week: Token,
+}
+
+#[derive(Serialize)]
+pub struct TokenStats {
+    circulating_supply: Token,
+    holders: usize,
+    held_by_users: Token,
+    nakamoto_coefficient: usize,
+    fees_burned: Token,
+    volume_day: Token,
+    volume_week: Token,
+    e8s_for_one_xdr: u64,
+    e8s_revenue_per_1k: u64,
+    active_users_vp: u64,
+    last_weekly_chores: u64,
+    balances: Vec<(Account, Token, Option<UserId>, bool)>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -2600,6 +2617,90 @@ impl State {
         }
     }
 
+    pub fn token_stats(&self, now: Time) -> TokenStats {
+        let mut held_by_users: Token = 0;
+        let mut active_balances: Vec<(UserId, Token)> = Vec::new();
+        let mut entries: Vec<(Account, Token, Option<UserId>, bool)> = Vec::new();
+        for (acc, balance) in &self.balances {
+            let user = self.principal_to_user(acc.owner).or_else(|| {
+                self.cold_wallets
+                    .get(&acc.owner)
+                    .and_then(|id| self.users.get(id))
+            });
+            let (user_id, active) = match user {
+                Some(u) => {
+                    held_by_users += balance;
+                    let active = u.active_within(CONFIG.voting_power_activity_weeks, WEEK, now);
+                    if active {
+                        active_balances.push((u.id, *balance));
+                    }
+                    (Some(u.id), active)
+                }
+                None => (None, false),
+            };
+            entries.push((acc.clone(), *balance, user_id, active));
+        }
+        entries.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        entries.truncate(30);
+
+        // Nakamoto coefficient: group by active user, count top holders
+        // needed to reach proposal_approval_threshold%.
+        let mut user_totals: BTreeMap<UserId, Token> = BTreeMap::new();
+        for (uid, bal) in active_balances {
+            *user_totals.entry(uid).or_default() += bal;
+        }
+        let mut sorted_totals: Vec<Token> = user_totals.into_values().collect();
+        sorted_totals.sort_unstable_by(|a, b| b.cmp(a));
+        let total_active: Token = sorted_totals.iter().sum();
+        let mut cumulative: Token = 0;
+        let mut nakamoto_coefficient = 0;
+        for bal in &sorted_totals {
+            cumulative += bal;
+            nakamoto_coefficient += 1;
+            if total_active > 0
+                && cumulative * 100 / total_active >= CONFIG.proposal_approval_threshold as u64
+            {
+                break;
+            }
+        }
+
+        let last_week_txs = self
+            .memory
+            .ledger
+            .iter()
+            .rev()
+            .take_while(|(_, tx)| tx.timestamp + WEEK >= now)
+            .collect::<Vec<_>>();
+        let volume_day = last_week_txs
+            .iter()
+            .take_while(|(_, tx)| tx.timestamp + DAY >= now)
+            .map(|(_, tx)| tx.amount)
+            .sum();
+        let volume_week = last_week_txs.into_iter().map(|(_, tx)| tx.amount).sum();
+
+        TokenStats {
+            circulating_supply: self.balances.values().sum(),
+            holders: self.balances.len(),
+            held_by_users,
+            nakamoto_coefficient,
+            fees_burned: self.token_fees_burned,
+            volume_day,
+            volume_week,
+            e8s_for_one_xdr: self.e8s_for_one_xdr,
+            e8s_revenue_per_1k: self.last_revenues.iter().sum::<u64>()
+                / self.last_revenues.len().max(1) as u64,
+            active_users_vp: self
+                .users
+                .values()
+                .filter(|u| u.active_within(CONFIG.voting_power_activity_weeks, WEEK, now))
+                .map(|u| u.total_balance())
+                .sum::<Token>()
+                / token::base(),
+            last_weekly_chores: self.timers.last_weekly,
+            balances: entries,
+        }
+    }
+
     pub fn vote_on_poll(
         &mut self,
         principal: Principal,
@@ -2722,11 +2823,16 @@ impl State {
             _ => {}
         };
 
+        let files = post.files.clone();
         Post::mutate(self, &post_id, |post| {
             post.delete(versions.clone());
             Ok(())
         })
         .expect("couldn't delete post");
+
+        if !files.is_empty() {
+            ic_cdk::spawn(Storage::free_blobs(files));
+        }
 
         Ok(())
     }
