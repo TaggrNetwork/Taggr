@@ -2630,8 +2630,7 @@ impl State {
             let (user_id, active) = match user {
                 Some(u) => {
                     held_by_users += balance;
-                    let active =
-                        u.active_within(CONFIG.voting_power_activity_weeks, WEEK, now);
+                    let active = u.active_within(CONFIG.voting_power_activity_weeks, WEEK, now);
                     if active {
                         active_balances.push((u.id, *balance));
                     }
@@ -2659,8 +2658,7 @@ impl State {
             cumulative += bal;
             nakamoto_coefficient += 1;
             if total_active > 0
-                && cumulative * 100 / total_active
-                    >= CONFIG.proposal_approval_threshold as u64
+                && cumulative * 100 / total_active >= CONFIG.proposal_approval_threshold as u64
             {
                 break;
             }

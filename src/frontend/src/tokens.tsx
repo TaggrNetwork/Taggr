@@ -52,10 +52,7 @@ export const Tokens = () => {
     if (status == 0 || !data) return <Loading />;
 
     const { balances, circulating_supply } = data;
-    const topSupply = balances.reduce(
-        (acc, balance) => acc + balance[1],
-        0,
-    );
+    const topSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
 
     return (
         <>
@@ -78,9 +75,7 @@ export const Tokens = () => {
                     </div>
                     <div className="db_cell">
                         ACTIVE VP
-                        <code>
-                            {data.active_users_vp.toLocaleString()}
-                        </code>
+                        <code>{data.active_users_vp.toLocaleString()}</code>
                     </div>
                     <div className="db_cell">
                         WEEKLY REVENUE / 1K
@@ -167,9 +162,7 @@ export const Tokens = () => {
                                 <td>
                                     <code>{token(b[1])}</code>
                                 </td>
-                                <td>
-                                    {percentage(b[1], circulating_supply)}
-                                </td>
+                                <td>{percentage(b[1], circulating_supply)}</td>
                                 <td>
                                     <UserLink id={b[2]} />
                                 </td>
