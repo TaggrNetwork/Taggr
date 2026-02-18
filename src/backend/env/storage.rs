@@ -11,6 +11,7 @@ use super::config::CONFIG;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Storage {
+    // Maps bucket canister IDs to their current offset (i.e. how much data is stored in them).
     pub buckets: BTreeMap<Principal, u64>,
 }
 
@@ -56,6 +57,9 @@ impl Storage {
             state
                 .storage
                 .buckets
+                // Ensure the offset is only updated if the write was successful and the new offset
+                // is greater than the current one. (It could be smaller if the write went into one
+                // of the "holes" in the bucket created by freeing blobs.)
                 .insert(id, curr_offset.max(new_offset))
         });
         Ok((id, offset))
