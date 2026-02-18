@@ -351,7 +351,7 @@ export type Stats = {
     stalwarts: UserId[];
 };
 
-export type TokensStats = {
+export type TokenStats = {
     circulating_supply: number;
     holders: number;
     held_by_users: number;

@@ -20,7 +20,7 @@ import {
     USD_PER_XDR,
 } from "./common";
 import * as React from "react";
-import { Transaction, User, Account, Auction, TokensStats } from "./types";
+import { Transaction, User, Account, Auction, TokenStats } from "./types";
 import { Principal } from "@dfinity/principal";
 import { decodeIcrcAccount, encodeIcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
@@ -29,11 +29,11 @@ import { UserLink } from "./user_resolve";
 
 export const Tokens = () => {
     const [status, setStatus] = React.useState(0);
-    const [data, setData] = React.useState<TokensStats | null>(null);
+    const [data, setData] = React.useState<TokenStats | null>(null);
     const [holder, setHolder] = React.useState(-1);
 
     const loadData = async () => {
-        const result = await window.api.query<TokensStats>("tokens_stats");
+        const result = await window.api.query<TokenStats>("token_stats");
         if (!result) {
             setStatus(-1);
             return;

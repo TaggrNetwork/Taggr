@@ -82,9 +82,9 @@ fn users_data() {
     });
 }
 
-#[export_name = "canister_query tokens_stats"]
-fn tokens_stats() {
-    read(|state| reply(state.tokens_stats(time())));
+#[export_name = "canister_query token_stats"]
+fn token_stats() {
+    read(|state| reply(state.token_stats(time())));
 }
 
 #[export_name = "canister_query transaction"]

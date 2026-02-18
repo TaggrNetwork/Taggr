@@ -127,7 +127,7 @@ pub struct Stats {
 }
 
 #[derive(Serialize)]
-pub struct TokensStats {
+pub struct TokenStats {
     circulating_supply: Token,
     holders: usize,
     held_by_users: Token,
@@ -2617,7 +2617,7 @@ impl State {
         }
     }
 
-    pub fn tokens_stats(&self, now: Time) -> TokensStats {
+    pub fn token_stats(&self, now: Time) -> TokenStats {
         let mut held_by_users: Token = 0;
         let mut active_balances: Vec<(UserId, Token)> = Vec::new();
         let mut entries: Vec<(Account, Token, Option<UserId>, bool)> = Vec::new();
@@ -2680,7 +2680,7 @@ impl State {
             .sum();
         let volume_week = last_week_txs.into_iter().map(|(_, tx)| tx.amount).sum();
 
-        TokensStats {
+        TokenStats {
             circulating_supply: self.balances.values().sum(),
             holders: self.balances.len(),
             held_by_users,
