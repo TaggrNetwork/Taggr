@@ -10,7 +10,11 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
 const MAINNET_URL: &str = "https://ic0.app";
-const LOCAL_URL: &str = "http://localhost:8080";
+const LOCAL_URL: &str = "http://localhost:4943";
+
+fn get_local_url() -> String {
+    env::var("DFX_URL").unwrap_or_else(|_| LOCAL_URL.to_string())
+}
 const FETCH_PAGE_DELAY: Duration = Duration::from_secs(1);
 
 enum Command {
@@ -73,7 +77,7 @@ async fn restore(
     }: Args,
 ) -> Result<(), String> {
     let agent = Agent::builder()
-        .with_url(LOCAL_URL)
+        .with_url(get_local_url())
         .build()
         .map_err(|e| e.to_string())?;
 
