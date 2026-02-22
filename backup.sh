@@ -17,7 +17,8 @@ mkdir -p $DIR
 
 if [ "$CMD" == "restore" ]; then
     echo "Running restore from $DIR..."
-    $BACKUP $DIR restore $(cat .dfx/local/canister_ids.json | jq -r ".taggr.local") $PAGE_START
+    WEBSERVER_PORT=$(dfx info webserver-port)
+    DFX_URL="http://localhost:${WEBSERVER_PORT}" $BACKUP $DIR restore $(cat .dfx/local/canister_ids.json | jq -r ".taggr.local") $PAGE_START
     echo "Clearing buckets before restoring heap..."
     dfx canister call taggr clear_buckets '("")' || 1
     echo "Restoring heap..."

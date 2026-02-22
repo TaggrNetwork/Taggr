@@ -15,7 +15,7 @@ mod url;
 // without trying to read the stable memory.
 const MAX_BLOB_SIZE: u64 = 8 * 1024 * 1024;
 
-// Minimum remainder size (50KB) to keep when splitting a free segment.
+// Minimum remainder size (5KB) to keep when splitting a free segment.
 const MIN_REMAINDER: u64 = 5 * 1024;
 
 // HTTP request and response headers.

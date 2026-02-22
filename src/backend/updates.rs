@@ -11,7 +11,6 @@ use env::{
     canisters::get_full_neuron,
     config::CONFIG,
     post::{Extension, Post, PostId},
-    storage,
     user::{Draft, User, UserId},
     State,
 };
@@ -113,9 +112,7 @@ fn post_upgrade() {
 fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {
-    storage::upgrade_buckets().await;
-}
+async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES
