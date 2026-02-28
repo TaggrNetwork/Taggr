@@ -109,7 +109,19 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        for user in state.users.values_mut() {
+            // clear filters of users with too many filters to enable the functionality again
+            if user.filters.users.len() + user.filters.tags.len() + user.filters.realms.len() >= 100
+            {
+                user.filters.users.clear();
+                user.filters.tags.clear();
+                user.filters.realms.clear();
+            }
+        }
+    });
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
