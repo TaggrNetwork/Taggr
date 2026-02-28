@@ -584,6 +584,21 @@ fn toggle_following_post() {
     )
 }
 
+#[export_name = "canister_update toggle_hide_post"]
+fn toggle_hide_post() {
+    let user_id = read(|state| {
+        state
+            .principal_to_user(caller(state))
+            .expect("user not found")
+            .id
+    });
+    let post_id: PostId = parse(&arg_data_raw());
+    reply(
+        mutate(|state| Post::mutate(state, &post_id, |post| Ok(post.toggle_hidden(user_id))))
+            .unwrap_or_default(),
+    )
+}
+
 #[export_name = "canister_update toggle_following_user"]
 fn toggle_following_user() {
     let followee_id: UserId = parse(&arg_data_raw());

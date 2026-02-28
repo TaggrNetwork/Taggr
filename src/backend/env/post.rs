@@ -96,6 +96,9 @@ pub struct Post {
 
     #[serde(default)]
     pub external_tips: Vec<Tip>,
+
+    #[serde(default)]
+    pub hidden_for: Vec<UserId>,
 }
 
 impl PartialEq for Post {
@@ -159,6 +162,7 @@ impl Post {
             realm,
             heat,
             external_tips: Default::default(),
+            hidden_for: Default::default(),
         }
     }
 
@@ -207,6 +211,15 @@ impl Post {
             return false;
         }
         self.watchers.insert(user_id);
+        true
+    }
+
+    pub fn toggle_hidden(&mut self, user_id: UserId) -> bool {
+        if self.hidden_for.contains(&user_id) {
+            self.hidden_for.retain(|id| id != &user_id);
+            return false;
+        }
+        self.hidden_for.push(user_id);
         true
     }
 
@@ -1080,7 +1093,7 @@ mod tests {
             assert_eq!(state.posts.len(), 10);
             // Trigger post archiving
             archive_cold_posts(state, 5).unwrap();
-            assert!(state.memory.health("B").starts_with("boundary=984B"));
+            assert!(state.memory.health("B").starts_with("boundary=1044B"));
             assert!(state.memory.health("B").ends_with("segments=0"));
 
             // Make sure we have the right numbers in cold and hot memories
@@ -1122,7 +1135,7 @@ mod tests {
             assert!(!Post::get(state, &3).unwrap().archived);
             assert_eq!(state.posts.len(), 8);
             assert_eq!(state.memory.posts.len(), 3);
-            assert!(state.memory.health("B").starts_with("boundary=984B"));
+            assert!(state.memory.health("B").starts_with("boundary=1044B"));
             assert!(state.memory.health("B").ends_with("segments=2"));
 
             // Archive posts again
@@ -1131,7 +1144,7 @@ mod tests {
             assert_eq!(state.memory.posts.len(), 6);
             // Segments were reduced, becasue the new post 10 fits into a gap left from one of the
             // old posts
-            assert!(state.memory.health("B").starts_with("boundary=1376B"));
+            assert!(state.memory.health("B").starts_with("boundary=1460B"));
             assert!(state.memory.health("B").ends_with("segments=1"));
         });
     }

@@ -424,6 +424,7 @@ export const ToggleButton = ({
     offLabel,
     onLabel,
     testId = null,
+    showPopup = true,
 }: {
     toggler: () => void;
     offTitle?: string;
@@ -433,6 +434,7 @@ export const ToggleButton = ({
     offLabel: JSX.Element | string;
     onLabel: JSX.Element | string;
     testId?: any;
+    showPopup?: boolean;
 }) => {
     // -1: not following, 0: unknown, 1: following
     let [status, setStatus] = React.useState(0);
@@ -444,7 +446,7 @@ export const ToggleButton = ({
             onClick={(e) => {
                 e.preventDefault();
                 setStatus(on ? -1 : 1);
-                if (onTitle && offTitle)
+                if (showPopup && onTitle && offTitle)
                     showPopUp("success", on ? onTitle : offTitle);
                 toggler();
             }}

@@ -193,6 +193,7 @@ export type Post = {
     meta: Meta;
     encrypted: boolean;
     external_tips?: PostTip[];
+    hidden_for: UserId[];
 };
 
 export type BlogTitle = {
