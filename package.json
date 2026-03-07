@@ -20,7 +20,7 @@
         "@types/isomorphic-fetch": "0.0.39",
         "@types/react-dom": "19.0.0",
         "buffer": "6.0.3",
-        "copy-webpack-plugin": "11.0.0",
+        "copy-webpack-plugin": "^14.0.0",
         "html-webpack-plugin": "5.5.3",
         "isomorphic-fetch": "3.0.0",
         "prettier": "^3.3.3",

@@ -49,6 +49,8 @@ import {
     BellOff,
     More,
     Pin,
+    Eye,
+    EyeSlash,
 } from "./icons";
 import { ProposalView } from "./proposals";
 import { DEFAULT_REACTION_HOLD_TIME } from "./settings";
@@ -99,7 +101,7 @@ export const PostView = ({
     highlighted?: PostId[];
     level?: number;
 }) => {
-    const [post, setPost] = React.useState(data);
+    const [post, setPost] = React.useState<Post | undefined>(data);
     const [body, setBody] = React.useState("");
     const [urls, setUrls] = React.useState({});
     const [notFound, setNotFound] = React.useState(false);
@@ -246,6 +248,11 @@ export const PostView = ({
         !safeToOpen &&
         (body.toLowerCase().includes("#nsfw") ||
             (post.meta.nsfw && post.realm != currentRealm()));
+    const isHidden =
+        isFeedItem &&
+        window.user &&
+        post.hidden_for.includes(window.user.id) &&
+        !safeToOpen;
     const versionSpecified = version != undefined && !isNaN(version);
     version =
         !versionSpecified && post.patches.length > 0
@@ -270,7 +277,7 @@ export const PostView = ({
               }
             : undefined;
 
-    const showExtension = !isNSFW && post.extension && !repost;
+    const showExtension = !isNSFW && !isHidden && post.extension && !repost;
 
     if (hidden) return null;
 
@@ -334,6 +341,14 @@ export const PostView = ({
                         NSFW
                     </div>
                 )}
+                {isHidden && (
+                    <div
+                        className="nsfw x_large_text"
+                        onClick={() => setSafeToOpen(true)}
+                    >
+                        HIDDEN
+                    </div>
+                )}
                 {notAllowed && (
                     <NotAllowed
                         // @ts-ignore: realm can't be empty if meta flag is set
@@ -358,7 +373,7 @@ export const PostView = ({
                         </ol>
                     </div>
                 )}
-                {!isNSFW && !post.encrypted && !notAllowed && (
+                {!isNSFW && !isHidden && !post.encrypted && !notAllowed && (
                     <article onClick={goInside}>
                         <Content
                             blogTitle={blogTitle}
@@ -422,6 +437,7 @@ export const PostView = ({
                     realmMoveOutCallback={() => setHidden(true)}
                     commentSubmissionCallback={commentSubmissionCallback}
                     writingCallback={() => setCommentIncoming(true)}
+                    setPost={setPost}
                 />
             )}
             {(showComments || prime) && post.children.length > 0 && (
@@ -491,6 +507,7 @@ const PostInfo = ({
     realmMoveOutCallback,
     commentSubmissionCallback,
     writingCallback,
+    setPost,
 }: {
     post: Post;
     reactions: { [id: number]: UserId[] };
@@ -504,6 +521,7 @@ const PostInfo = ({
         blobs: [string, Uint8Array][],
     ) => Promise<any>;
     writingCallback: () => void;
+    setPost: React.Dispatch<React.SetStateAction<Post | undefined>>;
 }) => {
     const [realmData, setRealmData] = React.useState<Realm | null>();
     const [loaded, setLoaded] = React.useState(false);
@@ -694,6 +712,41 @@ const PostInfo = ({
                                     .then(window.reloadUser)
                             }
                             testId="bookmark-post"
+                        />
+                        <ToggleButton
+                            offTitle="Hide post"
+                            onTitle="Unhide post"
+                            classNameArg="max_width_col "
+                            offLabel={<Eye />}
+                            onLabel={<EyeSlash classNameArg="accent" />}
+                            showPopup={false}
+                            currState={() =>
+                                post.hidden_for.includes(window.user?.id)
+                            }
+                            toggler={() => {
+                                if (!window.user) return;
+                                const userId = window.user.id;
+                                const isHidden =
+                                    post.hidden_for.includes(userId);
+                                setPost({
+                                    ...post,
+                                    hidden_for: isHidden
+                                        ? post.hidden_for.filter(
+                                              (id) => id !== userId,
+                                          )
+                                        : [...post.hidden_for, userId],
+                                });
+                                window.api
+                                    .call("toggle_hide_post", post.id)
+                                    .catch(() => {
+                                        showPopUp(
+                                            "error",
+                                            "Failed to toggle hide",
+                                        );
+                                        loadData();
+                                    });
+                            }}
+                            testId="hide-post"
                         />
                         {postAuthor && (
                             <ToggleButton

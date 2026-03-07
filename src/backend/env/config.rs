@@ -191,6 +191,9 @@ pub const CONFIG: &Config = &Config {
     #[cfg(not(test))]
     max_spendable_tokens: 120000,
 
+    #[cfg(any(test, feature = "dev", feature = "staging"))]
+    min_treasury_balance_xdrs: 0,
+    #[cfg(not(any(test, feature = "dev", feature = "staging")))]
     min_treasury_balance_xdrs: 190, // ~$250
 
     minting_threshold_percentage: 1,

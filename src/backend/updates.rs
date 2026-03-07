@@ -109,7 +109,19 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        for user in state.users.values_mut() {
+            // clear filters of users with too many filters to enable the functionality again
+            if user.filters.users.len() + user.filters.tags.len() + user.filters.realms.len() >= 100
+            {
+                user.filters.users.clear();
+                user.filters.tags.clear();
+                user.filters.realms.clear();
+            }
+        }
+    });
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
@@ -568,6 +580,21 @@ fn toggle_following_post() {
     });
     reply(
         mutate(|state| Post::mutate(state, &post_id, |post| Ok(post.toggle_following(user_id))))
+            .unwrap_or_default(),
+    )
+}
+
+#[export_name = "canister_update toggle_hide_post"]
+fn toggle_hide_post() {
+    let user_id = read(|state| {
+        state
+            .principal_to_user(caller(state))
+            .expect("user not found")
+            .id
+    });
+    let post_id: PostId = parse(&arg_data_raw());
+    reply(
+        mutate(|state| Post::mutate(state, &post_id, |post| Ok(post.toggle_hidden(user_id))))
             .unwrap_or_default(),
     )
 }

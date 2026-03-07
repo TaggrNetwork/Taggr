@@ -312,10 +312,10 @@ impl User {
     }
 
     pub fn toggle_filter(&mut self, filter: String, value: String) -> Result<(), String> {
-        if value.len() > 100 {
+        if value.len() > 35 {
             return Err("filter value size limit exceeded".into());
         }
-        if self.filters.users.len() + self.filters.tags.len() + self.filters.realms.len() >= 50 {
+        if self.filters.users.len() + self.filters.tags.len() + self.filters.realms.len() >= 100 {
             return Err("filter size limit exceeded".into());
         }
         match filter.as_str() {
