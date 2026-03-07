@@ -1102,7 +1102,19 @@ impl State {
         }
     }
 
-    pub fn collect_revenue(&self, now: u64, e8s_for_one_xdr: u64) -> HashMap<UserId, u64> {
+    pub fn collect_revenue(
+        &mut self,
+        now: u64,
+        e8s_for_one_xdr: u64,
+        treasury_balance: u64,
+    ) -> HashMap<UserId, u64> {
+        // We stop distributions if the treasury balance falls below the minimum balance.
+        let minimal_treasury_balance = CONFIG.min_treasury_balance_xdrs * e8s_for_one_xdr;
+        if treasury_balance < minimal_treasury_balance {
+            self.logger
+                .info("Treasury balance is too low; skipping the revenue payouts...");
+            return Default::default();
+        }
         let burned_credits = self.burned_cycles;
         if burned_credits <= 0 {
             return Default::default();
@@ -1309,7 +1321,7 @@ impl State {
     fn assign_rewards_and_revenue(&mut self, now: Time, treasury_balance: u64) -> u64 {
         let (rewards, revenue, e8s_for_one_xdr) = (
             self.collect_new_rewards(),
-            self.collect_revenue(now, self.e8s_for_one_xdr),
+            self.collect_revenue(now, self.e8s_for_one_xdr, treasury_balance),
             self.e8s_for_one_xdr,
         );
         let rewards = rewards
@@ -1326,13 +1338,6 @@ impl State {
             rewards.values().copied().sum::<u64>() + revenue.values().copied().sum::<u64>();
         if total_payout == 0 {
             self.logger.info("No payouts to distribute...");
-            return 0;
-        }
-        // We stop distributions if the treasury balance falls below the minimum balance.
-        let minimal_treasury_balance = CONFIG.min_treasury_balance_xdrs * e8s_for_one_xdr;
-        if treasury_balance < total_payout || treasury_balance < minimal_treasury_balance {
-            self.logger
-                .info("Treasury balance is too low; skipping the payouts...");
             return 0;
         }
         let mut total_rewards = 0;
@@ -3425,10 +3430,10 @@ pub(crate) mod tests {
                 insert_balance(state, principal, balance);
             }
 
-            let revenue = state.collect_revenue(now, 1000000);
+            let revenue = state.collect_revenue(now, 1000000, 200_000_000);
             assert_eq!(revenue.len(), 0);
             state.burned_cycles = 5000;
-            let revenue = state.collect_revenue(now, 1000000);
+            let revenue = state.collect_revenue(now, 1000000, 200_000_000);
             assert_eq!(revenue.len(), 2);
             assert_eq!(*revenue.get(&0).unwrap(), 1666666);
             assert_eq!(*revenue.get(&1).unwrap(), 3333333);
