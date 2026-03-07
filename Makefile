@@ -6,7 +6,7 @@ cycles:
 
 staging_deploy:
 	NODE_ENV=production DFX_NETWORK=$(if $(CANISTER),$(CANISTER),staging) make fe
-	FEATURES=staging dfx build
+	DFX_NETWORK=$(if $(CANISTER),$(CANISTER),staging) FEATURES=staging dfx build
 	FEATURES=staging dfx --identity prod deploy --network $(if $(CANISTER),$(CANISTER),staging) taggr
 
 local_deploy:
