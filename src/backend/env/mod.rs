@@ -1115,7 +1115,6 @@ impl State {
                 .info("Treasury balance is too low; skipping the revenue payouts...");
             // The canister resets all liabilities because it needs to survive.
             self.burned_cycles = 0;
-            return Default::default();
         }
         let burned_credits = self.burned_cycles;
         if burned_credits <= 0 {

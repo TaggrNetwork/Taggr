@@ -746,7 +746,6 @@ const PostInfo = ({
                                         loadData();
                                     });
                             }}
-                            showPopup={false}
                             testId="hide-post"
                         />
                         {postAuthor && (
