@@ -28,6 +28,22 @@ import { PostFeed } from "./post_feed";
 import { PostId, User, UserId } from "./types";
 import { UserLink, UserList } from "./user_resolve";
 
+export const linksError = (raw: string): string | null => {
+    for (const line of raw.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        const idx = trimmed.indexOf(": ");
+        if (idx === -1) return `Missing ": " separator in: "${trimmed}"`;
+        const label = trimmed.slice(0, idx).trim();
+        const url = trimmed.slice(idx + 2).trim();
+        if (!label) return "Label cannot be empty";
+        if (label.length > 50) return `Label too long (max 50): "${label}"`;
+        if (!url.startsWith("https://"))
+            return `URL must start with https://: "${url}"`;
+    }
+    return null;
+};
+
 export const parseLinks = (
     settings: { [key: string]: string } | undefined,
 ): { label: string; url: string }[] => {
@@ -38,7 +54,10 @@ export const parseLinks = (
         .filter((l) => l.includes(": "))
         .map((l) => {
             const idx = l.indexOf(": ");
-            return { label: l.slice(0, idx).trim(), url: l.slice(idx + 2).trim() };
+            return {
+                label: l.slice(0, idx).trim(),
+                url: l.slice(idx + 2).trim(),
+            };
         })
         .filter((l) => l.label && l.url.startsWith("https://"));
 };
@@ -59,8 +78,16 @@ export const UserLinks = ({
             {prefix && <>{prefix} </>}
             {links.map((link, i) => (
                 <React.Fragment key={i}>
-                    {i > 0 && <span className="left_half_spaced right_half_spaced">&middot;</span>}
-                    <a href={link.url} target="_blank" rel="noopener noreferrer">
+                    {i > 0 && (
+                        <span className="left_half_spaced right_half_spaced">
+                            &middot;
+                        </span>
+                    )}
+                    <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
                         {link.label}
                     </a>
                 </React.Fragment>
@@ -333,7 +360,8 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             ) : (
                 <br />
             )}
-            <UserLinks settings={profile.settings} />
+            <UserLinks settings={profile.settings} prefix={"Links:"} />
+            <hr />
             {getLabels(profile)}
             {noiseControlBanner("user", profile.filters.noise, window.user)}
             {window.user && profile.blacklist.includes(window.user.id) && (

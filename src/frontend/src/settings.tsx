@@ -17,7 +17,7 @@ import { Principal } from "@dfinity/principal";
 import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
 import { MAINNET_MODE } from "./env";
-import { UserLinks } from "./profile";
+import { UserLinks, linksError } from "./profile";
 
 export const DEFAULT_REACTION_HOLD_TIME = 350;
 
@@ -241,14 +241,24 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             Your links (one per line)
                         </div>
                         <textarea
-                            placeholder="Homepage: https://host.com"
+                            placeholder="Twitter: https://twitter.com/user_name"
                             className="bottom_half_spaced"
                             rows={4}
                             value={settings.links || ""}
                             onChange={(event) => setSetting("links", event)}
                         ></textarea>
-                        <div className="bottom_spaced small_text">
-                            <UserLinks settings={settings} prefix="Your links:" />
+                        <div className="bottom_spaced">
+                            {settings.links &&
+                                (linksError(settings.links) ? (
+                                    <span className="error">
+                                        {linksError(settings.links)}
+                                    </span>
+                                ) : (
+                                    <UserLinks
+                                        settings={settings}
+                                        prefix="Links:"
+                                    />
+                                ))}
                         </div>
                         <div className="bottom_half_spaced">
                             Reaction tap-and-hold delay (smaller is faster)

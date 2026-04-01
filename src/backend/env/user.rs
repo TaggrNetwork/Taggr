@@ -352,7 +352,7 @@ impl User {
         self.last_activity + n * time_units > now
     }
 
-    pub fn valid_settings(
+    pub fn validate_info(
         about: &str,
         principals: &[String],
         settings: &BTreeMap<String, String>,
@@ -661,6 +661,12 @@ impl User {
                 if label.is_empty() {
                     return Err("link label cannot be empty".into());
                 }
+                if label.len() > 50 {
+                    return Err("link label too long (max 50 chars)".into());
+                }
+                if label.bytes().any(|b| b < 0x20 || b == 0x7f) {
+                    return Err("link label contains invalid characters".into());
+                }
                 if !Self::is_valid_url(url) {
                     return Err("invalid URL: must be a valid https:// URL".into());
                 }
@@ -675,7 +681,7 @@ impl User {
     ) -> Result<(), String> {
         mutate(|state| {
             if let Some(user) = state.principal_to_user_mut(caller) {
-                User::valid_settings(&user.about, &[], &settings)?;
+                User::validate_info(&user.about, &[], &settings)?;
                 user.settings = settings;
             }
             Ok(())
@@ -710,7 +716,7 @@ impl User {
 
         mutate(|state| {
             let user = state.principal_to_user(caller).ok_or("user not found")?;
-            User::valid_settings(&about, &principals, &user.settings)?;
+            User::validate_info(&about, &principals, &user.settings)?;
             let user_id = user.id;
             let current_name = user.name.clone();
             let current_pfp = user.pfp.clone();
@@ -1200,7 +1206,10 @@ mod tests {
         assert!(User::validate_links(&settings).is_ok());
 
         // Valid links
-        settings.insert("links".into(), "Homepage: https://example.com\nGitHub: https://github.com/user".into());
+        settings.insert(
+            "links".into(),
+            "Homepage: https://example.com\nGitHub: https://github.com/user".into(),
+        );
         assert!(User::validate_links(&settings).is_ok());
 
         // Empty lines are fine
@@ -1221,6 +1230,26 @@ mod tests {
 
         // Empty label
         settings.insert("links".into(), ": https://example.com".into());
+        assert!(User::validate_links(&settings).is_err());
+
+        // Label too long
+        let long_label = "A".repeat(51);
+        settings.insert(
+            "links".into(),
+            format!("{}: https://example.com", long_label),
+        );
+        assert!(User::validate_links(&settings).is_err());
+
+        // Label at max length is fine
+        let max_label = "A".repeat(50);
+        settings.insert(
+            "links".into(),
+            format!("{}: https://example.com", max_label),
+        );
+        assert!(User::validate_links(&settings).is_ok());
+
+        // Label with control character
+        settings.insert("links".into(), "My\x01Link: https://example.com".into());
         assert!(User::validate_links(&settings).is_err());
     }
 }

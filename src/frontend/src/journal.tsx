@@ -73,7 +73,7 @@ export const Journal = ({ handle }: { handle: string }) => {
                         style={{ justifyContent: "center" }}
                     >
                         <FollowButton id={profile.id} />
-                        <ShareButton url={`journal/${handle}`} />
+                        <ShareButton text={true} url={`journal/${handle}`} />
                     </div>
                 </div>
             )}
