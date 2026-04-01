@@ -667,7 +667,7 @@ impl User {
             let Some(user) = state.principal_to_user_mut(caller) else {
                 return Err("no user found".into());
             };
-            if user.rewards() > 0 && mode == Mode::Credits {
+            if mode == Mode::Credits && user.mode != Mode::Credits && user.rewards() > 0 {
                 return Err("switching to the credits mode is only possible when a user has no pending rewards".into());
             }
             user.about = about;
