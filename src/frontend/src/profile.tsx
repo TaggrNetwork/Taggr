@@ -26,8 +26,75 @@ import { Content } from "./content";
 import { Journal } from "./icons";
 import { PostFeed } from "./post_feed";
 import { PostId, User, UserId } from "./types";
-import { Principal } from "@dfinity/principal";
 import { UserLink, UserList } from "./user_resolve";
+
+export const linksError = (raw: string): string | null => {
+    for (const line of raw.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        const idx = trimmed.indexOf(": ");
+        if (idx === -1) return `Missing ": " separator in: "${trimmed}"`;
+        const label = trimmed.slice(0, idx).trim();
+        const url = trimmed.slice(idx + 2).trim();
+        if (!label) return "Label cannot be empty";
+        if (label.length > 50) return `Label too long (max 50): "${label}"`;
+        if (!url.startsWith("https://"))
+            return `URL must start with https://: "${url}"`;
+    }
+    return null;
+};
+
+export const parseLinks = (
+    settings: { [key: string]: string } | undefined,
+): { label: string; url: string }[] => {
+    if (!settings?.links) return [];
+    return settings.links
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l.includes(": "))
+        .map((l) => {
+            const idx = l.indexOf(": ");
+            return {
+                label: l.slice(0, idx).trim(),
+                url: l.slice(idx + 2).trim(),
+            };
+        })
+        .filter((l) => l.label && l.url.startsWith("https://"));
+};
+
+export const UserLinks = ({
+    settings,
+    centered,
+    prefix,
+}: {
+    settings: { [key: string]: string };
+    centered?: boolean;
+    prefix?: string;
+}) => {
+    const links = parseLinks(settings);
+    if (links.length === 0) return null;
+    return (
+        <div className={centered ? "text_centered" : ""}>
+            {prefix && <>{prefix} </>}
+            {links.map((link, i) => (
+                <React.Fragment key={i}>
+                    {i > 0 && (
+                        <span className="left_half_spaced right_half_spaced">
+                            &middot;
+                        </span>
+                    )}
+                    <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        {link.label}
+                    </a>
+                </React.Fragment>
+            ))}
+        </div>
+    );
+};
 
 export const Profile = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
@@ -182,25 +249,6 @@ export const Profile = ({ handle }: { handle: string }) => {
                                     />
                                 </>
                             )}
-                            {profile.settings.open_chat && (
-                                <ButtonWithLoading
-                                    label="OPEN CHAT"
-                                    classNameArg="max_width_col"
-                                    onClick={async () => {
-                                        try {
-                                            // Make sure it parses as cansiter id;
-                                            let canister_id =
-                                                Principal.fromText(
-                                                    profile.settings.open_chat,
-                                                );
-                                            const url = `https://oc.app/user/${canister_id.toString()}`;
-                                            window.open(url, "_blank");
-                                        } catch (e) {
-                                            console.error(e);
-                                        }
-                                    }}
-                                />
-                            )}
                         </>
                     </div>
                 }
@@ -312,6 +360,8 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             ) : (
                 <br />
             )}
+            <UserLinks settings={profile.settings} prefix={"Links:"} />
+            <hr />
             {getLabels(profile)}
             {noiseControlBanner("user", profile.filters.noise, window.user)}
             {window.user && profile.blacklist.includes(window.user.id) && (

@@ -119,6 +119,19 @@ fn sync_post_upgrade_fixtures() {
                 user.filters.tags.clear();
                 user.filters.realms.clear();
             }
+            // Migrate open_chat setting to links
+            if let Some(canister_id) = user.settings.remove("open_chat") {
+                if !canister_id.is_empty() {
+                    let oc_link = format!("OpenChat: https://oc.app/user/{}", canister_id);
+                    let links = user.settings.entry("links".into()).or_default();
+                    if links.is_empty() {
+                        *links = oc_link;
+                    } else {
+                        links.push('\n');
+                        links.push_str(&oc_link);
+                    }
+                }
+            }
         }
     });
 }

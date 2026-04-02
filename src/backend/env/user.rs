@@ -352,19 +352,23 @@ impl User {
         self.last_activity + n * time_units > now
     }
 
-    pub fn valid_info(
+    pub fn validate_info(
         about: &str,
         principals: &[String],
         settings: &BTreeMap<String, String>,
-    ) -> bool {
-        about.len()
+    ) -> Result<(), String> {
+        if about.len()
             + settings
                 .keys()
                 .chain(settings.values())
                 .map(|v| v.len())
                 .sum::<usize>()
             + principals.iter().map(|v| v.len()).sum::<usize>()
-            < CONFIG.max_user_info_length
+            >= CONFIG.max_user_info_length
+        {
+            return Err("inputs too long".into());
+        }
+        Self::validate_links(settings)
     }
 
     fn insert_notifications(&mut self, notification: Notification) {
@@ -601,15 +605,83 @@ impl User {
         Ok(())
     }
 
+    fn is_valid_url(url: &str) -> bool {
+        let url = url.trim();
+        let rest = match url.strip_prefix("https://") {
+            Some(rest) => rest,
+            None => return false,
+        };
+        if rest.is_empty() || rest.len() > 2048 {
+            return false;
+        }
+        if rest.bytes().any(|b| b <= 0x20 || b == 0x7f) {
+            return false;
+        }
+        let host_and_rest: &str = rest.split('/').next().unwrap_or("");
+        // Reject userinfo (user:pass@host) to prevent confusing redirects
+        if host_and_rest.contains('@') {
+            return false;
+        }
+        let host = host_and_rest.split(':').next().unwrap_or("");
+        if host.is_empty() || host.len() > 253 {
+            return false;
+        }
+        let labels: Vec<&str> = host.split('.').collect();
+        if labels.len() < 2 {
+            return false;
+        }
+        let tld = labels.last().unwrap();
+        if tld.len() < 2 || tld.bytes().any(|b| !b.is_ascii_alphanumeric()) {
+            return false;
+        }
+        labels.iter().all(|label| {
+            !label.is_empty()
+                && label.len() <= 63
+                && label
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+                && !label.starts_with('-')
+                && !label.ends_with('-')
+        })
+    }
+
+    fn validate_links(settings: &BTreeMap<String, String>) -> Result<(), String> {
+        if let Some(links) = settings.get("links") {
+            for line in links.lines() {
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
+                }
+                let parts: Vec<&str> = line.splitn(2, ": ").collect();
+                if parts.len() != 2 {
+                    return Err("invalid link format: expected 'Label: URL'".into());
+                }
+                let label = parts[0].trim();
+                let url = parts[1].trim();
+                if label.is_empty() {
+                    return Err("link label cannot be empty".into());
+                }
+                if label.len() > 50 {
+                    return Err("link label too long (max 50 chars)".into());
+                }
+                if label.bytes().any(|b| b < 0x20 || b == 0x7f) {
+                    return Err("link label contains invalid characters".into());
+                }
+                if !Self::is_valid_url(url) {
+                    return Err("invalid URL: must be a valid https:// URL".into());
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn update_settings(
         caller: Principal,
         settings: BTreeMap<String, String>,
     ) -> Result<(), String> {
         mutate(|state| {
             if let Some(user) = state.principal_to_user_mut(caller) {
-                if !User::valid_info(&user.about, &[], &settings) {
-                    return Err("inputs too long".to_string());
-                }
+                User::validate_info(&user.about, &[], &settings)?;
                 user.settings = settings;
             }
             Ok(())
@@ -644,9 +716,7 @@ impl User {
 
         mutate(|state| {
             let user = state.principal_to_user(caller).ok_or("user not found")?;
-            if !User::valid_info(&about, &principals, &user.settings) {
-                return Err("inputs too long".to_string());
-            }
+            User::validate_info(&about, &principals, &user.settings)?;
             let user_id = user.id;
             let current_name = user.name.clone();
             let current_pfp = user.pfp.clone();
@@ -667,7 +737,7 @@ impl User {
             let Some(user) = state.principal_to_user_mut(caller) else {
                 return Err("no user found".into());
             };
-            if user.rewards() > 0 && mode == Mode::Credits {
+            if mode == Mode::Credits && user.mode != Mode::Credits && user.rewards() > 0 {
                 return Err("switching to the credits mode is only possible when a user has no pending rewards".into());
             }
             user.about = about;
@@ -1080,5 +1150,106 @@ mod tests {
         assert_eq!(user.pinned_posts.len(), 14);
         assert!(user.toggle_pinned_post(16).is_ok());
         assert_eq!(user.pinned_posts.len(), 15);
+    }
+
+    #[test]
+    fn test_is_valid_url() {
+        // Valid URLs
+        assert!(User::is_valid_url("https://example.com"));
+        assert!(User::is_valid_url("https://example.com/path"));
+        assert!(User::is_valid_url("https://example.com/path?q=1&b=2"));
+        assert!(User::is_valid_url("https://sub.example.com"));
+        assert!(User::is_valid_url("https://a.b.c.example.com"));
+        assert!(User::is_valid_url("https://example.com:8080/path"));
+        assert!(User::is_valid_url("https://oc.app/user/abc123"));
+        assert!(User::is_valid_url(
+            "https://i.delta.chat/#8C167A48090A3281A9773CC2754269C7B0921719&i=fxgiYLv-IlFWAw_4EzgKxe4F&s=xwnKr3tj8_nRn1JoQ6We7kVW&a=9t60nhpiduy38ojy%40chat.vim.wtf&n=xqxpx"
+        ));
+        assert!(User::is_valid_url("https://my-site.co.uk/about"));
+        assert!(User::is_valid_url("https://x.io"));
+
+        // Invalid: not https
+        assert!(!User::is_valid_url("http://example.com"));
+        assert!(!User::is_valid_url("ftp://example.com"));
+        assert!(!User::is_valid_url("example.com"));
+        assert!(!User::is_valid_url("javascript:alert(1)"));
+
+        // Invalid: bad host
+        assert!(!User::is_valid_url("https://"));
+        assert!(!User::is_valid_url("https:///path"));
+        assert!(!User::is_valid_url("https://localhost"));
+        assert!(!User::is_valid_url("https://.example.com"));
+        assert!(!User::is_valid_url("https://example."));
+        assert!(!User::is_valid_url("https://example.c"));
+        assert!(!User::is_valid_url("https://-example.com"));
+        assert!(!User::is_valid_url("https://example-.com"));
+
+        // Invalid: userinfo (credential-based redirects)
+        assert!(!User::is_valid_url("https://evil.com:443@good.com/path"));
+        assert!(!User::is_valid_url("https://user@example.com"));
+
+        // Invalid: spaces and control chars
+        assert!(!User::is_valid_url("https://example.com/path with spaces"));
+        assert!(!User::is_valid_url("https://example.com/a\tb"));
+
+        // Invalid: empty or garbage
+        assert!(!User::is_valid_url(""));
+        assert!(!User::is_valid_url("   "));
+        assert!(!User::is_valid_url("not a url"));
+    }
+
+    #[test]
+    fn test_validate_links() {
+        let mut settings = BTreeMap::new();
+
+        // No links key — should pass
+        assert!(User::validate_links(&settings).is_ok());
+
+        // Valid links
+        settings.insert(
+            "links".into(),
+            "Homepage: https://example.com\nGitHub: https://github.com/user".into(),
+        );
+        assert!(User::validate_links(&settings).is_ok());
+
+        // Empty lines are fine
+        settings.insert("links".into(), "Homepage: https://example.com\n\n".into());
+        assert!(User::validate_links(&settings).is_ok());
+
+        // Missing label separator
+        settings.insert("links".into(), "https://example.com".into());
+        assert!(User::validate_links(&settings).is_err());
+
+        // Invalid URL
+        settings.insert("links".into(), "Homepage: not-a-url".into());
+        assert!(User::validate_links(&settings).is_err());
+
+        // HTTP rejected
+        settings.insert("links".into(), "Homepage: http://example.com".into());
+        assert!(User::validate_links(&settings).is_err());
+
+        // Empty label
+        settings.insert("links".into(), ": https://example.com".into());
+        assert!(User::validate_links(&settings).is_err());
+
+        // Label too long
+        let long_label = "A".repeat(51);
+        settings.insert(
+            "links".into(),
+            format!("{}: https://example.com", long_label),
+        );
+        assert!(User::validate_links(&settings).is_err());
+
+        // Label at max length is fine
+        let max_label = "A".repeat(50);
+        settings.insert(
+            "links".into(),
+            format!("{}: https://example.com", max_label),
+        );
+        assert!(User::validate_links(&settings).is_ok());
+
+        // Label with control character
+        settings.insert("links".into(), "My\x01Link: https://example.com".into());
+        assert!(User::validate_links(&settings).is_err());
     }
 }

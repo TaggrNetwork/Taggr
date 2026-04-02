@@ -12,7 +12,7 @@ import { PostFeed } from "./post_feed";
 import { PostView } from "./post";
 import { PostId, User, Post } from "./types";
 import { loadPosts } from "./common";
-import { FollowButton } from "./profile";
+import { FollowButton, UserLinks } from "./profile";
 import { Pin } from "./icons";
 import { UserLink } from "./user_resolve";
 
@@ -67,12 +67,13 @@ export const Journal = ({ handle }: { handle: string }) => {
                     <div className="spaced text_centered vertically_spaced">
                         <Content value={profile.about} />
                     </div>
+                    <UserLinks settings={profile.settings} centered={true} />
                     <div
                         className="row_container vertically_spaced"
                         style={{ justifyContent: "center" }}
                     >
                         <FollowButton id={profile.id} />
-                        <ShareButton url={`journal/${handle}`} />
+                        <ShareButton text={true} url={`journal/${handle}`} />
                     </div>
                 </div>
             )}

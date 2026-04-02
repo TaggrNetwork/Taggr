@@ -17,6 +17,7 @@ import { Principal } from "@dfinity/principal";
 import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
 import { MAINNET_MODE } from "./env";
+import { UserLinks, linksError } from "./profile";
 
 export const DEFAULT_REACTION_HOLD_TIME = 350;
 
@@ -237,15 +238,28 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             <option value="false">NO</option>
                         </select>
                         <div className="bottom_half_spaced">
-                            Your OpenChat User Id
+                            Your links (one per line)
                         </div>
-                        <input
-                            placeholder="Your Canister Id"
-                            className="bottom_spaced"
-                            type="text"
-                            value={settings.open_chat}
-                            onChange={(event) => setSetting("open_chat", event)}
-                        />
+                        <textarea
+                            placeholder="Twitter: https://twitter.com/user_name"
+                            className="bottom_half_spaced"
+                            rows={4}
+                            value={settings.links || ""}
+                            onChange={(event) => setSetting("links", event)}
+                        ></textarea>
+                        <div className="bottom_spaced">
+                            {settings.links &&
+                                (linksError(settings.links) ? (
+                                    <span className="error">
+                                        {linksError(settings.links)}
+                                    </span>
+                                ) : (
+                                    <UserLinks
+                                        settings={settings}
+                                        prefix="Links:"
+                                    />
+                                ))}
+                        </div>
                         <div className="bottom_half_spaced">
                             Reaction tap-and-hold delay (smaller is faster)
                         </div>
