@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 ubuntu:22.04
+FROM --platform=linux/amd64 docker.io/library/ubuntu:22.04
 
 ENV NVM_DIR=/root/.nvm
 ENV NVM_VERSION=v0.39.1
@@ -7,17 +7,19 @@ ENV RUSTUP_HOME=/opt/rustup
 ENV CARGO_HOME=/opt/cargo
 
 # Install a basic environment needed for our build tools
-RUN apt -yq update && \
-    apt -yqq install --no-install-recommends curl ca-certificates \
-        build-essential pkg-config libssl-dev llvm-dev liblmdb-dev clang cmake rsync libunwind-dev jq
+RUN apt-get -yq update && \
+    apt-get -yqq install --no-install-recommends curl ca-certificates \
+        build-essential pkg-config libssl-dev llvm-dev liblmdb-dev clang cmake rsync libunwind-dev jq && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install Node.js
 COPY .node-version ./
-RUN curl --fail -sSf https://raw.githubusercontent.com/creationix/nvm/${NVM_VERSION}/install.sh | bash
-RUN . "${NVM_DIR}/nvm.sh" && nvm install "$(cat .node-version | xargs)"
-RUN . "${NVM_DIR}/nvm.sh" && nvm use "v$(cat .node-version | xargs)"
-RUN . "${NVM_DIR}/nvm.sh" && nvm alias default "v$(cat .node-version | xargs)"
-RUN ln -s "/root/.nvm/versions/node/v$(cat .node-version | xargs)" /root/.nvm/versions/node/default
+RUN curl --fail -sSf https://raw.githubusercontent.com/creationix/nvm/${NVM_VERSION}/install.sh | bash && \
+    . "${NVM_DIR}/nvm.sh" && \
+    nvm install "$(cat .node-version | xargs)" && \
+    nvm use "v$(cat .node-version | xargs)" && \
+    nvm alias default "v$(cat .node-version | xargs)" && \
+    ln -s "/root/.nvm/versions/node/v$(cat .node-version | xargs)" /root/.nvm/versions/node/default
 ENV PATH="/root/.nvm/versions/node/default/bin/:${PATH}"
 
 # Install Rust and Cargo
@@ -35,15 +37,12 @@ RUN mkdir -p /opt/ic-wasm && \
 # Install dfx
 COPY dfx.json ./
 RUN DFXVM_INIT_YES=1 DFX_VERSION=$(cat dfx.json | jq -r .dfx) sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
-ENV export PATH=${HOME}/.local/share/dfx/bin:${PATH}
+ENV PATH=${HOME}/.local/share/dfx/bin:${PATH}
 
 # Install NPM dependencies
 COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-
-# Build
-RUN make build
 
 ENTRYPOINT [ "./release.sh" ]

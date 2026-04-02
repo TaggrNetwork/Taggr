@@ -49,6 +49,11 @@ e2e_test:
 	npm run test:e2e
 	dfx stop
 
+podman_machine:
+	podman machine stop || true
+	podman machine rm -f || true
+	CONTAINERS_MACHINE_PROVIDER=qemu podman machine init --cpus 4 --memory 4096 --now
+
 release:
 	$(if $(PODMAN),podman,docker) build -t taggr .
 	mkdir -p $(shell pwd)/release-artifacts

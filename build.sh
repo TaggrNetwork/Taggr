@@ -6,7 +6,7 @@ echo "Features: $FEATURES"
 TARGET=wasm32-unknown-unknown
 
 
-for pkg in $1; do
+for pkg in "$@"; do
     # NOTE: On macOS a specific version of llvm-ar and clang need to be set here.
     # Otherwise the wasm compilation of rust-secp256k1 will fail.
     if [ "$(uname)" == "Darwin" ]; then
@@ -18,5 +18,5 @@ for pkg in $1; do
     fi
     WASM_FILE=target/$TARGET/release/$pkg.wasm
     ic-wasm $WASM_FILE -o $WASM_FILE shrink
-    gzip -nf9v $WASM_FILE
+    gzip -nf9 $WASM_FILE
 done
