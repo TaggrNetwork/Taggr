@@ -36,6 +36,11 @@ test:
 fe:
 	npm run build --quiet
 
+frontend_bundle:
+	NODE_ENV=production DFX_NETWORK=ic ./node_modules/.bin/webpack
+	@echo ""
+	@echo "Bundle built at dist/frontend/ (uncompressed, path-relative)."
+
 e2e_build:
 	NODE_ENV=production DFX_NETWORK=local npm run build
 	./build.sh bucket
