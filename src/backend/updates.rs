@@ -109,32 +109,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    mutate(|state| {
-        for user in state.users.values_mut() {
-            // clear filters of users with too many filters to enable the functionality again
-            if user.filters.users.len() + user.filters.tags.len() + user.filters.realms.len() >= 100
-            {
-                user.filters.users.clear();
-                user.filters.tags.clear();
-                user.filters.realms.clear();
-            }
-            // Migrate open_chat setting to links
-            if let Some(canister_id) = user.settings.remove("open_chat") {
-                if !canister_id.is_empty() {
-                    let oc_link = format!("OpenChat: https://oc.app/user/{}", canister_id);
-                    let links = user.settings.entry("links".into()).or_default();
-                    if links.is_empty() {
-                        *links = oc_link;
-                    } else {
-                        links.push('\n');
-                        links.push_str(&oc_link);
-                    }
-                }
-            }
-        }
-    });
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
