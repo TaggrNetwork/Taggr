@@ -74,15 +74,18 @@ export const UserLinks = ({
     const links = parseLinks(settings);
     if (links.length === 0) return null;
     return (
-        <div className={centered ? "text_centered" : ""}>
-            {prefix && <>{prefix} </>}
+        <div
+            style={{
+                flexWrap: "wrap",
+                display: "flex",
+                gap: "0.25rem",
+                justifyContent: centered ? "center" : undefined,
+            }}
+        >
+            {prefix && <span>{prefix}</span>}
             {links.map((link, i) => (
                 <React.Fragment key={i}>
-                    {i > 0 && (
-                        <span className="left_half_spaced right_half_spaced">
-                            &middot;
-                        </span>
-                    )}
+                    {i > 0 && <span>&middot;</span>}
                     <a
                         href={link.url}
                         target="_blank"

@@ -73,6 +73,7 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "CONTINUE" }).click();
         await waitForUILoading(page);
         await page.getByTestId("toggle-user-section").click();
+        await waitForUILoading(page);
         const profileButton = page.getByRole("link", { name: /.*ALICE.*/ });
         await expect(profileButton).toBeVisible();
 
