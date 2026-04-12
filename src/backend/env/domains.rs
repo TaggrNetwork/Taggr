@@ -30,6 +30,7 @@ pub struct DomainConfig {
     // If a domain config has no owner, it is managed by the DAO
     pub owner: Option<UserId>,
 
+    #[serde(default)]
     pub sub_config: DomainSubConfig,
 
     // Maximum number of downvotes on posts that will be displayed.

@@ -31,6 +31,7 @@ export const Domains = ({}) => {
                 title="DOMAINS"
                 shareLink="domains"
                 menu={true}
+                burgerTestId="domain-burger-menu"
                 content={
                     <NewDomainForm
                         callback={() => setHeartbeat(heartbeat + 1)}
@@ -220,8 +221,13 @@ const DomainForm = ({
                             {},
                             "remove",
                         );
-                        if ("Err" in response) {
-                            return showPopUp("error", response.Err);
+                        if (!response || "Err" in response) {
+                            return showPopUp(
+                                "error",
+                                response
+                                    ? response.Err
+                                    : "failed to remove domain",
+                            );
                         } else {
                             showPopUp("success", "Domain removed");
                         }
@@ -256,7 +262,13 @@ const DomainForm = ({
                             cfg,
                             "update",
                         );
-                        if ("Err" in response) showPopUp("error", response.Err);
+                        if (!response || "Err" in response)
+                            showPopUp(
+                                "error",
+                                response
+                                    ? response.Err
+                                    : "failed to update config",
+                            );
                         else showPopUp("success", "Config updated");
                         callback();
                     }}
@@ -290,7 +302,13 @@ const NewDomainForm = ({ callback }: { callback: () => void }) => {
                             {},
                             "insert",
                         );
-                        if ("Err" in response) showPopUp("error", response.Err);
+                        if (!response || "Err" in response)
+                            showPopUp(
+                                "error",
+                                response
+                                    ? response.Err
+                                    : "failed to add domain",
+                            );
                         else {
                             showPopUp("success", "Domain added");
                             setDomainAdded(true);
