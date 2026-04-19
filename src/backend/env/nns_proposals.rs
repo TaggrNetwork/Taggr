@@ -134,7 +134,7 @@ pub async fn work(now: u64) {
         .into_iter()
         .filter(|proposal| proposal.id > last_known_proposal_id)
     {
-        // Vote only on proposals with topics governance, SNS & replica-management.
+        // Vote only on proposals with topics governance and SNS.
         if [4, 14].contains(&proposal.topic) {
             let post = format!(
                     "# #NNS-Proposal [{0}](https://dashboard.internetcomputer.org/proposal/{0})\n## {1}\n",
@@ -203,6 +203,22 @@ async fn vote_on_nns_proposal(proposal_id: u64, vote: NNSVote) -> Result<(), Str
         id: Option<ProposalId>,
         command: Option<Command>,
     }
+    #[derive(CandidType, Deserialize)]
+    struct GovernanceError {
+        error_type: i32,
+        error_message: String,
+    }
+    #[derive(CandidType, Deserialize)]
+    struct RegisterVoteResponse {}
+    #[derive(CandidType, Deserialize)]
+    enum ResponseCommand {
+        Error(GovernanceError),
+        RegisterVote(RegisterVoteResponse),
+    }
+    #[derive(CandidType, Deserialize)]
+    struct ManageNeuronResponse {
+        command: Option<ResponseCommand>,
+    }
     let args = NnsVoteArgs {
         id: Some(ProposalId {
             id: CONFIG.neuron_id,
@@ -224,9 +240,17 @@ async fn vote_on_nns_proposal(proposal_id: u64, vote: NNSVote) -> Result<(), Str
         attempts -= 1;
 
         if result.is_ok() || attempts <= 0 {
-            return result
-                .map(|_| ())
-                .map_err(|err| format!("couldn't call the governance canister: {:?}", err));
+            let bytes = result
+                .map_err(|err| format!("couldn't call the governance canister: {:?}", err))?;
+            let response: ManageNeuronResponse = candid::decode_one(&bytes)
+                .map_err(|err| format!("couldn't decode manage_neuron response: {:?}", err))?;
+            return match response.command {
+                Some(ResponseCommand::Error(e)) => Err(format!(
+                    "governance returned error (type {}): {}",
+                    e.error_type, e.error_message
+                )),
+                _ => Ok(()),
+            };
         }
     }
 }
