@@ -155,7 +155,7 @@ pub async fn work(now: u64) {
                     None,
                     Some("NNS-GOV".into()),
                     Some(Extension::Poll(Poll {
-                        deadline: 72,
+                        deadline: 48,
                         options: vec!["ACCEPT".into(), "REJECT".into()],
                         ..Default::default()
                     })),
