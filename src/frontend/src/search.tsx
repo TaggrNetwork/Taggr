@@ -75,7 +75,7 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
                 </div>
             )}
             {!searching && results.length > 0 && (
-                <ul>
+                <ul className="no_overflow">
                     {results.map((i) => (
                         <li key={i.result + i.id + i.relevant}>
                             {renderResult(i)}
