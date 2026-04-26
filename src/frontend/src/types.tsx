@@ -38,13 +38,6 @@ export const getJournal = (cfg: DomainConfig) => {
     return cfg.sub_config.Journal;
 };
 
-export type PFP = {
-    nonce: number;
-    palette_nonce: number;
-    colors: number;
-    genesis: boolean;
-};
-
 export type Bid = {
     user: UserId;
     amount: number;
@@ -297,7 +290,6 @@ export type User = {
     blacklist: UserId[];
     notifications: { [key: number]: [Notification, boolean] };
     mode: Mode;
-    pfp: PFP;
     deactivated: boolean;
     wallet_tokens: string[];
 };

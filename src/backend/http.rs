@@ -1,9 +1,8 @@
 use super::assets;
 use crate::assets::{index_html_headers, INDEX_HTML};
 use crate::post::Post;
-use crate::user::{Pfp, UserId};
+use crate::read;
 use crate::{config::CONFIG, metadata::set_metadata};
-use crate::{pfp, read};
 use candid::CandidType;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -92,19 +91,6 @@ fn http_request(req: HttpRequest) -> HttpResponse {
     let mut parts = req.path().split('/').filter(|part| !part.is_empty());
 
     match (parts.next(), parts.next(), parts.next()) {
-        (Some("pfp"), Some(user_id_str), None) => {
-            let user_id = user_id_str.parse::<UserId>().unwrap_or_default();
-            serve_pfp(user_id, 4)
-        }
-        (Some("pfp_preview"), Some(user_id_str), Some(params)) => {
-            let user_id = user_id_str.parse::<UserId>().unwrap_or_default();
-            let mut params = params.split('-');
-            let parse = |s: Option<&str>| s.unwrap_or_default().parse::<u64>().unwrap_or_default();
-            let colors = parse(params.next());
-            let nonce = parse(params.next());
-            let palette_nonce = parse(params.next());
-            serve_pfp_preview(user_id, colors, nonce, palette_nonce, 1, 16)
-        }
         (Some("api"), Some("v1"), Some("proposals")) => read(|state| {
             let offset = usize::from_str(req.raw_query_param("offset").unwrap_or_default())
                 .unwrap_or_default()
@@ -264,53 +250,6 @@ fn index(
         index_html_headers(),
         ByteBuf::from(set_metadata(INDEX_HTML, host, path, title, desc, page_type)),
     ))
-}
-
-fn serve_pfp(user_id: UserId, scale: u32) -> HttpResponse {
-    read(|state| {
-        let user = state.users.get(&user_id).expect("no user found");
-        let Pfp {
-            colors,
-            nonce,
-            palette_nonce,
-            ..
-        } = user.pfp;
-        let caching_age_secs = 604800; // one week
-        serve_pfp_preview(
-            user.id,
-            colors,
-            nonce,
-            palette_nonce,
-            caching_age_secs,
-            scale,
-        )
-    })
-}
-
-fn serve_pfp_preview(
-    user_id: UserId,
-    colors: u64,
-    nonce: u64,
-    palette_nonce: u64,
-    age_secs: u64,
-    scale: u32,
-) -> HttpResponse {
-    let bytes = pfp::pfp(user_id, nonce, palette_nonce, colors, scale);
-    let age = format!("public, max-age={}", age_secs);
-    let headers = &[
-        ("Content-Type", "image/png"),
-        // Cache for a week.
-        ("Cache-Control", age.as_str()),
-    ];
-    HttpResponse {
-        status_code: 200,
-        headers: headers
-            .iter()
-            .map(|(key, value)| (key.to_string(), value.to_string()))
-            .collect(),
-        body: ByteBuf::from(bytes.as_slice()),
-        upgrade: None,
-    }
 }
 
 #[cfg(test)]

@@ -1,7 +1,6 @@
 import * as React from "react";
 import {
     hash,
-    bigScreen,
     ButtonWithLoading,
     HeadBar,
     ICP_LEDGER_ID,
@@ -12,11 +11,10 @@ import {
     tagList,
     RealmList,
 } from "./common";
-import { PFP, User, UserFilter, UserId } from "./types";
+import { User, UserFilter } from "./types";
 import { Principal } from "@dfinity/principal";
 import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
-import { MAINNET_MODE } from "./env";
 import { UserLinks, linksError } from "./profile";
 
 export const DEFAULT_REACTION_HOLD_TIME = 350;
@@ -25,12 +23,6 @@ export const Settings = ({ invite }: { invite?: string }) => {
     const user = window.user;
     const [principal, setPrincipal] = React.useState(window.principalId);
     const [name, setName] = React.useState("");
-    const [pfp, setPfp] = React.useState<PFP>({
-        nonce: 0,
-        palette_nonce: 2,
-        colors: 3,
-        genesis: true,
-    });
     const [about, setAbout] = React.useState("");
     const [settings, setSettings] = React.useState<{ [name: string]: string }>(
         {},
@@ -54,7 +46,6 @@ export const Settings = ({ invite }: { invite?: string }) => {
         if (!user) return;
         setName(user.name);
         setAbout(user.about);
-        setPfp(user.pfp);
         setControllers(user.controllers.join("\n"));
         setSettings(user.settings);
         setGovernance(user.governance.toString());
@@ -121,17 +112,6 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 return;
         }
 
-        const pfpChange = user && !user.pfp.genesis && user.pfp != pfp;
-        if (pfpChange) {
-            if (
-                !confirm(
-                    `An avataggr change incurs costs of ${window.backendCache.config.identity_change_cost} credits. ` +
-                        `Do you want to continue?`,
-                )
-            )
-                return;
-        }
-
         const principal_ids = controllers
             .split("\n")
             .map((v) => v.trim())
@@ -147,7 +127,6 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 // For new and invited users, set the mode to "Credits"
                 registrationFlow && invite ? "Credits" : mode,
                 showPostsInRealms == "true",
-                pfp,
             ),
             window.api.call<any>("update_user_settings", settings),
         ]);
@@ -188,16 +167,6 @@ export const Settings = ({ invite }: { invite?: string }) => {
                     placeholder="alphanumeric"
                     onChange={namePicker}
                 />
-                {user && pfp && (
-                    <>
-                        <div className="bottom_half_spaced">Avataggr</div>
-                        <Avataggr
-                            userId={user.id}
-                            pfp={pfp}
-                            setPfp={(pfp) => setPfp({ ...pfp })}
-                        />
-                    </>
-                )}
                 <div className="bottom_half_spaced">About you</div>
                 <input
                     placeholder="tell us what we should know about you"
@@ -638,94 +607,3 @@ export const Settings = ({ invite }: { invite?: string }) => {
         </>
     );
 };
-
-const Avataggr = ({
-    userId,
-    pfp,
-    setPfp,
-}: {
-    userId: UserId;
-    pfp: PFP;
-    setPfp: (pfp: PFP) => void;
-}) => {
-    return (
-        <div
-            className={`${bigScreen() ? "row_container" : "column_container"} bottom_spaced top_spaced framed vcentered`}
-        >
-            {" "}
-            <img
-                height="128"
-                width="128"
-                style={{ margin: "0.5em" }}
-                src={pfpPreviewUrl(
-                    userId,
-                    pfp.colors,
-                    pfp.nonce,
-                    pfp.palette_nonce,
-                )}
-            />
-            <Slider
-                label="Colors"
-                value={pfp.colors}
-                setValue={(val) => {
-                    pfp.colors = val;
-                    setPfp(pfp);
-                }}
-            />
-            <Slider
-                label="Palette"
-                value={pfp.palette_nonce}
-                setValue={(val) => {
-                    pfp.palette_nonce = val;
-                    setPfp(pfp);
-                }}
-            />
-            <Slider
-                label="Pattern"
-                value={pfp.nonce}
-                setValue={(val) => {
-                    pfp.nonce = val;
-                    setPfp(pfp);
-                }}
-            />
-        </div>
-    );
-};
-
-const Slider = ({
-    label,
-    value,
-    setValue,
-}: {
-    label: string;
-    value: number;
-    setValue: (arg: number) => void;
-}) => {
-    return (
-        <div className="left_spaced">
-            {label}:
-            <input
-                type="number"
-                style={{ margin: "0.5em", maxWidth: "5em" }}
-                min="1"
-                value={value}
-                onChange={(e) => setValue(Number(e.target.value))}
-            />
-            <button onClick={() => setValue(Math.max(0, value - 1))}>🔽</button>
-            <button onClick={() => setValue(value + 1)}>🔼</button>
-        </div>
-    );
-};
-
-function pfpPreviewUrl(
-    userId: UserId,
-    colors: number,
-    nonce: number,
-    palette_nonce: number,
-) {
-    const canisterId = window.backendCache.stats.canister_id;
-    const host = MAINNET_MODE
-        ? `https://${canisterId}.raw.icp0.io`
-        : `http://${canisterId}.raw.localhost:8080`;
-    return `${host}/pfp_preview/${userId}/${colors}-${nonce}-${palette_nonce}`;
-}

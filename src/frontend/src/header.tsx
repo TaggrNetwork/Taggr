@@ -5,7 +5,6 @@ import {
     IconToggleButton,
     RealmList,
     signOut,
-    pfpUrl,
     bigScreen,
     DropDown,
     getCanonicalDomain,
@@ -213,7 +212,6 @@ const UserSection = ({ user }: { user: UserType }) => {
                         className="icon_link"
                         href={`/#/user/${user.name}`}
                     >
-                        <img src={pfpUrl(user.id)} height={16} width={16} />
                         {user.name.toUpperCase()}
                     </a>
                     <a

@@ -23,7 +23,6 @@ import {
     TokenInfo,
     User,
     UserFilter,
-    UserId,
 } from "./types";
 import { createRoot } from "react-dom/client";
 import { Principal } from "@dfinity/principal";
@@ -1068,14 +1067,6 @@ export const ArrowDown = ({ onClick }: { onClick?: () => void }) => (
         <CarretDown classNameArg="action" />
     </div>
 );
-
-export function pfpUrl(userId: UserId) {
-    const canisterId = window.backendCache?.stats?.canister_id;
-    const host = MAINNET_MODE
-        ? `https://${canisterId}.raw.icp0.io`
-        : `http://${canisterId}.raw.localhost:8080`;
-    return `${host}/pfp/${userId}`;
-}
 
 export const InfoPopup = ({
     type,

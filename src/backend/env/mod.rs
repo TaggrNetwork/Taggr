@@ -31,7 +31,7 @@ use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::convert::TryFrom;
 use token::base;
-use user::{Pfp, User, UserId};
+use user::{User, UserId};
 
 pub mod auction;
 pub mod canisters;
@@ -44,7 +44,6 @@ pub mod invoices;
 pub mod memory;
 #[cfg(not(any(feature = "dev", feature = "staging")))]
 pub mod nns_proposals;
-pub mod pfp;
 pub mod post;
 pub mod post_iterators;
 pub mod proposals;
@@ -197,8 +196,6 @@ pub struct State {
     pub vesting_tokens_of_x: (Token, Token),
 
     pub memory: memory::Memory,
-
-    pub pfps: HashSet<String>,
 
     pub domains: HashMap<String, DomainConfig>,
 
@@ -880,8 +877,6 @@ impl State {
         }
         self.principals.insert(principal, user.id);
         self.users.insert(user.id, user);
-        self.set_pfp(id, Default::default())
-            .expect("couldn't set default pfp");
         let _ = self.system_message(
             format!("@{} joined {}!", name, CONFIG.name),
             CONFIG.dao_realm.into(),
@@ -898,27 +893,6 @@ impl State {
         credits: Option<Credits>,
     ) -> Result<UserId, String> {
         self.new_user(principal, timestamp, name, credits)
-    }
-
-    /// Assigns a new Avataggr to the user.
-    pub fn set_pfp(&mut self, user_id: UserId, pfp: Pfp) -> Result<(), String> {
-        let bytes = pfp::pfp(
-            user_id,
-            pfp.nonce,
-            pfp.palette_nonce,
-            pfp.colors,
-            /* scale = */ 4,
-        );
-        let mut hasher = Sha256::new();
-        hasher.update(bytes.as_slice());
-        let hash = format!("{:x}", hasher.finalize())[..32].to_string();
-        // We ignore collisions on genesis (i.e. randomized) avatars.
-        if !pfp.genesis && self.pfps.contains(&hash) {
-            return Err("avataggr is not unique".into());
-        }
-        self.users.get_mut(&user_id).ok_or("user not found")?.pfp = pfp;
-        self.pfps.insert(hash);
-        Ok(())
     }
 
     pub fn system_message(&mut self, body: String, realm: RealmId) -> Result<PostId, String> {
@@ -3275,7 +3249,6 @@ pub(crate) mod tests {
             false,
             Mode::Mining,
             false,
-            Default::default(),
         )
         .is_err());
 
@@ -3289,7 +3262,6 @@ pub(crate) mod tests {
             false,
             Mode::Mining,
             false,
-            Default::default(),
         )
         .is_ok());
 

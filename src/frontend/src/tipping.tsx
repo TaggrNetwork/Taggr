@@ -188,7 +188,6 @@ export const TippingPopup = ({
                     to
                     <UserLink
                         classNameArg="left_half_spaced right_half_spaced"
-                        pfp={false}
                         id={post.user}
                     />
                     as a tip?

@@ -51,7 +51,7 @@ export const Domains = ({}) => {
                                     {cfg.owner == null ? (
                                         "DAO"
                                     ) : (
-                                        <UserLink id={cfg.owner} pfp={false} />
+                                        <UserLink id={cfg.owner} />
                                     )}
                                 </li>
                                 {"WhiteListedRealms" in cfg.sub_config && (

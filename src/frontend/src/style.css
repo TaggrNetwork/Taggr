@@ -219,12 +219,6 @@ ul.comments {
     padding: 0.5em;
 }
 
-img.pfp {
-    border-radius: 3px;
-    vertical-align: middle;
-    margin-right: 0.45em;
-}
-
 .comment .post_head,
 .comment .post_bar {
     border: none;

@@ -16,7 +16,6 @@ import {
     RealmList,
     noiseControlBanner,
     setTitle,
-    pfpUrl,
     showPopUp,
     domain,
     tagList,
@@ -149,17 +148,7 @@ export const Profile = ({ handle }: { handle: string }) => {
     return (
         <>
             <HeadBar
-                title={
-                    <span className="row_container vcentered">
-                        <img
-                            className="pfp"
-                            height="48"
-                            width="48"
-                            src={pfpUrl(profile.id)}
-                        />
-                        {profile.name}
-                    </span>
-                }
+                title={profile.name}
                 button1={
                     <button
                         className="medium_text"

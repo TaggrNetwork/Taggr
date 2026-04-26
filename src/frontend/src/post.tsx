@@ -311,7 +311,6 @@ export const PostView = ({
                             id={post.user}
                             name={post.meta.author_name}
                             profile={true}
-                            pfpSize={isComment ? undefined : 32}
                         />
                         <span className="right_half_spaced">&middot;</span>
                         <div className="no_wrap vcentered">
@@ -955,14 +954,7 @@ const PostInfo = ({
                                     <code>
                                         {tokens(Number(tip), token_decimals)}
                                     </code>{" "}
-                                    from{" "}
-                                    {
-                                        <UserLink
-                                            id={id}
-                                            pfp={false}
-                                            profile={true}
-                                        />
-                                    }
+                                    from {<UserLink id={id} profile={true} />}
                                 </span>
                             )),
                         )}
@@ -1002,7 +994,6 @@ const PostInfo = ({
                                             <UserLink
                                                 id={tip.sender_id}
                                                 profile={true}
-                                                pfp={false}
                                             />
                                         }
                                     </span>

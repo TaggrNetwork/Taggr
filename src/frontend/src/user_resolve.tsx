@@ -1,6 +1,6 @@
 import * as React from "react";
 import { UserId, UserData, User } from "./types";
-import { Loading, commaSeparated, pfpUrl } from "./common";
+import { Loading, commaSeparated } from "./common";
 
 export const USER_CACHE: UserData = {};
 
@@ -48,15 +48,11 @@ export const UserLink = ({
     name,
     classNameArg,
     profile,
-    pfpSize = 20,
-    pfp = true,
 }: {
     id: UserId;
     name?: string;
     classNameArg?: string;
     profile?: boolean;
-    pfp?: boolean;
-    pfpSize?: number;
 }) => {
     const [loading, setLoading] = React.useState(false);
     const [userName, setUserName] = React.useState<string | null>(
@@ -96,17 +92,7 @@ export const UserLink = ({
         );
 
     return (
-        <span className={`${classNameArg} user_link no_wrap`}>
-            {pfp && validUserId(id) && (
-                <img
-                    className="pfp"
-                    src={pfpUrl(id)}
-                    height={pfpSize}
-                    width={pfpSize}
-                />
-            )}
-            {userLabel}
-        </span>
+        <span className={`${classNameArg} user_link no_wrap`}>{userLabel}</span>
     );
 };
 
@@ -120,11 +106,9 @@ export const validUserId = (id: number | null) =>
 export const UserList = ({
     ids = [],
     profile,
-    showPfps,
 }: {
     ids: UserId[];
     profile?: boolean;
-    showPfps?: boolean;
 }) => {
     const [loaded, setLoaded] = React.useState(false);
 
@@ -141,9 +125,7 @@ export const UserList = ({
         <Loading spaced={false} />
     ) : (
         commaSeparated(
-            ids.map((id) => (
-                <UserLink key={id} id={id} profile={profile} pfp={!!showPfps} />
-            )),
+            ids.map((id) => <UserLink key={id} id={id} profile={profile} />),
         )
     );
 };

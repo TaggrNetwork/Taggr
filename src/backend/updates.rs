@@ -23,7 +23,6 @@ use ic_cdk_management_canister::CanisterId;
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
 use std::{collections::HashSet, time::Duration};
-use user::Pfp;
 
 // Returns the canonical principal (the caller) and checks that it's not anonymous.
 fn canonical_principal() -> Principal {
@@ -251,7 +250,7 @@ fn confirm_principal_change() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (new_name, about, principals, filter, governance, mode, show_posts_in_realms, pfp): (
+    let (new_name, about, principals, filter, governance, mode, show_posts_in_realms): (
         String,
         String,
         Vec<String>,
@@ -259,7 +258,6 @@ fn update_user() {
         bool,
         Mode,
         bool,
-        Pfp,
     ) = parse(&arg_data_raw());
     reply(User::update(
         read(caller),
@@ -270,7 +268,6 @@ fn update_user() {
         governance,
         mode,
         show_posts_in_realms,
-        pfp,
     ))
 }
 
