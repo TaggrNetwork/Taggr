@@ -1,7 +1,7 @@
 use candid::{CandidType, Principal};
 use ic_cdk::{
-    api::{id, time},
-    spawn,
+    api::{canister_self as id, time},
+    futures::spawn,
 };
 use ic_ledger_types::{
     AccountBalanceArgs, AccountIdentifier, BlockIndex, Memo, Subaccount, Tokens, TransferArgs,

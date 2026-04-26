@@ -182,7 +182,7 @@ pub fn certify() {
     #[cfg(test)]
     return;
     #[cfg(not(test))]
-    ic_cdk::api::set_certified_data(value)
+    ic_cdk::api::certified_data_set(value)
 }
 
 pub fn add_value_to_certify(label: &str, hash: [u8; 32]) {

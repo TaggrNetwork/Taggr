@@ -4,11 +4,8 @@ use super::*;
 use crate::env::post::Post;
 use crate::env::token::mint;
 use crate::env::user::UserId;
-use ic_cdk::spawn;
 use ic_cdk_macros::{query, update};
-use ic_cdk_timers::set_timer;
 use serde_bytes::ByteBuf;
-use std::time::Duration;
 
 #[update]
 async fn reset(canister_id: String) {
@@ -25,16 +22,12 @@ async fn reset(canister_id: String) {
         state.auction.last_auction_price_e8s = 15000000;
         cell.replace(state);
     });
-    set_timer(Duration::from_millis(0), || {
-        spawn(async {
-            let old_xdr_rate = State::get_xdr_rate();
-            State::fetch_xdr_rate().await;
-            let new_xdr_rate = State::get_xdr_rate();
-            // Check that fetching of the rate worked.
-            assert_ne!(old_xdr_rate, new_xdr_rate);
-            State::reset_xdr_rate_for_testing();
-        });
-    });
+    let old_xdr_rate = State::get_xdr_rate();
+    State::fetch_xdr_rate().await;
+    let new_xdr_rate = State::get_xdr_rate();
+    // Check that fetching of the rate worked.
+    assert_ne!(old_xdr_rate, new_xdr_rate);
+    State::reset_xdr_rate_for_testing();
 }
 
 #[update]
@@ -45,13 +38,7 @@ async fn chores() {
 
 #[update]
 async fn weekly_chores() {
-    if canisters::check_for_pending_upgrade().is_ok() {
-        State::weekly_chores(time()).await;
-    } else {
-        set_timer(Duration::from_millis(500), || {
-            spawn(weekly_chores());
-        });
-    }
+    State::weekly_chores(time()).await;
 }
 
 #[query]
@@ -68,13 +55,10 @@ async fn check() {
 
 #[update]
 async fn clear_buckets() {
-    use ic_cdk::api::management_canister::{
-        main::{delete_canister, stop_canister},
-        provisional::CanisterIdRecord,
-    };
+    use ic_cdk_management_canister::{delete_canister, stop_canister, CanisterIdRecord};
     for (canister_id, _) in mutate(|state| std::mem::take(&mut state.storage.buckets)) {
-        let _: Result<(), _> = stop_canister(CanisterIdRecord { canister_id }).await;
-        let _: Result<(), _> = delete_canister(CanisterIdRecord { canister_id }).await;
+        let _: Result<(), _> = stop_canister(&CanisterIdRecord { canister_id }).await;
+        let _: Result<(), _> = delete_canister(&CanisterIdRecord { canister_id }).await;
     }
 }
 
@@ -120,7 +104,7 @@ fn make_stalwart(user_handle: String) {
 #[update]
 // Backup restore method.
 fn stable_mem_write(input: Vec<(u64, ByteBuf)>) {
-    use ic_cdk::api::stable;
+    use ic_cdk::stable;
     if let Some((page, buffer)) = input.get(0) {
         if buffer.is_empty() {
             return;

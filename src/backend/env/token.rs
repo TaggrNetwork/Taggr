@@ -172,7 +172,8 @@ fn icrc1_minting_account() -> Option<Account> {
 }
 
 #[query]
-fn icrc1_balance_of(mut account: Account) -> u128 {
+fn icrc1_balance_of(account: Account) -> u128 {
+    let mut account = account;
     if account
         .subaccount
         .as_ref()
@@ -199,7 +200,7 @@ fn icrc1_supported_standards() -> Vec<Standard> {
 }
 
 #[update]
-fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
+fn icrc1_transfer(args: TransferArgs) -> Result<u128, TransferError> {
     let owner = read(raw_caller).map_err(|err| {
         TransferError::GenericError(GenericError {
             error_code: 69,
@@ -212,6 +213,7 @@ fn icrc1_transfer(mut args: TransferArgs) -> Result<u128, TransferError> {
             message: "No transfers from the minting account possible.".into(),
         }));
     }
+    let mut args = args;
     if args.fee.is_none() {
         args.fee = Some(icrc1_fee())
     }
@@ -273,6 +275,7 @@ fn get_transactions(req: GetTransactionsRequest) -> GetTransactionsResponse {
                     mint: None,
                     burn: None,
                     transfer: None,
+                    fee_collector: None,
                     kind: Default::default(),
                 };
 

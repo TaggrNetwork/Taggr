@@ -1,5 +1,5 @@
 use super::{post_iterators::IteratorMerger, reports::Report, *};
-use api::management_canister::main::CanisterId;
+use ic_cdk_management_canister::CanisterId;
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT};
 use serde::{Deserialize, Serialize};
 

@@ -9,18 +9,11 @@ use candid::{
     utils::{ArgumentDecoder, ArgumentEncoder},
     CandidType, Principal,
 };
-use ic_cdk::api::{
-    self,
-    call::{call_with_payment128, CallResult},
-    management_canister::{
-        main::{
-            canister_status, create_canister, deposit_cycles, install_code, CanisterInstallMode,
-            CanisterStatusResponse, CreateCanisterArgument, InstallCodeArgument,
-        },
-        provisional::CanisterIdRecord,
-    },
+use ic_cdk::call::{Call, CallResult};
+use ic_cdk_management_canister::{
+    create_canister_with_extra_cycles, deposit_cycles, install_code, CanisterIdRecord,
+    CanisterInstallMode, CanisterStatusResult, CreateCanisterArgs, InstallCodeArgs,
 };
-use ic_cdk::{api::call::call_raw, notify};
 use ic_ledger_types::{Tokens, MAINNET_GOVERNANCE_CANISTER_ID};
 use ic_xrc_types::{Asset, GetExchangeRateRequest, GetExchangeRateResult};
 use icrc_ledger_types::icrc3::transactions::{GetTransactionsRequest, GetTransactionsResponse};
@@ -73,22 +66,21 @@ pub fn calls_open() -> usize {
 
 pub async fn new() -> Result<Principal, String> {
     open_call("create_canister");
-    let result = create_canister(
-        CreateCanisterArgument { settings: None },
+    let result = create_canister_with_extra_cycles(
+        &CreateCanisterArgs { settings: None },
         CYCLES_FOR_NEW_CANISTER,
     )
     .await;
     close_call("create_canister");
 
-    let (response,): (CanisterIdRecord,) =
-        result.map_err(|err| format!("couldn't create a new canister: {:?}", err))?;
+    let response = result.map_err(|err| format!("couldn't create a new canister: {:?}", err))?;
 
     Ok(response.canister_id)
 }
 
 /// Returns cycles in the canister and cycles burned per day.
 pub async fn cycles(canister_id: Principal) -> Result<(u64, u64), String> {
-    let CanisterStatusResponse {
+    let CanisterStatusResult {
         cycles,
         idle_cycles_burned_per_day,
         ..
@@ -104,14 +96,20 @@ pub async fn cycles(canister_id: Principal) -> Result<(u64, u64), String> {
     ))
 }
 
-pub async fn status(canister_id: Principal) -> Result<CanisterStatusResponse, String> {
+pub async fn status(canister_id: Principal) -> Result<CanisterStatusResult, String> {
     open_call("status");
-    let response = canister_status(CanisterIdRecord { canister_id }).await;
+    let response: Result<CanisterStatusResult, String> = async {
+        let res = Call::unbounded_wait(Principal::management_canister(), "canister_status")
+            .with_arg(&CanisterIdRecord { canister_id })
+            .await
+            .map_err(|err| format!("couldn't get canister status: {:?}", err))?;
+        res.candid::<CanisterStatusResult>()
+            .map_err(|err| format!("couldn't decode canister status: {:?}", err))
+    }
+    .await;
     close_call("status");
 
     response
-        .map(|(val,)| val)
-        .map_err(|err| format!("couldn't get canister status: {:?}", err))
 }
 
 pub async fn install(
@@ -120,11 +118,11 @@ pub async fn install(
     mode: CanisterInstallMode,
 ) -> Result<(), String> {
     open_call("install_code");
-    let result = install_code(InstallCodeArgument {
+    let result = install_code(&InstallCodeArgs {
         mode,
         canister_id,
         wasm_module: wasm_module.to_vec(),
-        arg: ic_cdk::api::id().as_slice().to_vec(),
+        arg: ic_cdk::api::canister_self().as_slice().to_vec(),
     })
     .await;
     close_call("install_code");
@@ -152,22 +150,20 @@ pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: boo
 
     UPGRADE_TIMESTAMP.with(|cell| cell.replace(time()));
 
-    notify(
-        Principal::management_canister(),
-        "install_code",
-        (InstallCodeArgument {
+    Call::unbounded_wait(Principal::management_canister(), "install_code")
+        .with_arg(&InstallCodeArgs {
             mode: CanisterInstallMode::Upgrade(None),
             canister_id: id(),
             wasm_module: wasm_module.to_vec(),
-            arg: ic_cdk::api::id().as_slice().to_vec(),
-        },),
-    )
-    .expect("self-upgrade failed");
+            arg: ic_cdk::api::canister_self().as_slice().to_vec(),
+        })
+        .oneway()
+        .expect("self-upgrade failed");
 }
 
 pub async fn topup_with_cycles(canister_id: Principal, cycles: u128) -> Result<(), String> {
     open_call("deposit_cycles");
-    let result = deposit_cycles(CanisterIdRecord { canister_id }, cycles).await;
+    let result = deposit_cycles(&CanisterIdRecord { canister_id }, cycles).await;
     close_call("deposit_cycles");
     result.map_err(|err| format!("couldn't deposit cycles: {:?}", err))?;
     Ok(())
@@ -250,7 +246,11 @@ pub async fn coins_for_one_xdr(coin: &str) -> Result<u64, String> {
 
 pub async fn call_canister_raw(id: Principal, method: &str, args: &[u8]) -> CallResult<Vec<u8>> {
     open_call(method);
-    let result = call_raw(id, method, args, 0).await;
+    let result = Call::unbounded_wait(id, method)
+        .with_raw_args(args)
+        .await
+        .map(|r| r.into_bytes())
+        .map_err(Into::into);
     close_call(method);
     result
 }
@@ -262,7 +262,14 @@ pub async fn call_canister_with_payment<T: ArgumentEncoder, R: for<'a> ArgumentD
     cycles: u128,
 ) -> CallResult<R> {
     open_call(method);
-    let result = call_with_payment128(id, method, args, cycles).await;
+    let result: CallResult<R> = async {
+        let response = Call::unbounded_wait(id, method)
+            .with_args(&args)
+            .with_cycles(cycles)
+            .await?;
+        Ok(response.candid_tuple::<R>()?)
+    }
+    .await;
     close_call(method);
     result
 }
@@ -273,7 +280,11 @@ pub async fn call_canister<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(
     args: T,
 ) -> CallResult<R> {
     open_call(method);
-    let result = ic_cdk::call(id, method, args).await;
+    let result: CallResult<R> = async {
+        let response = Call::unbounded_wait(id, method).with_args(&args).await?;
+        Ok(response.candid_tuple::<R>()?)
+    }
+    .await;
     close_call(method);
     result
 }
@@ -293,7 +304,7 @@ pub async fn top_up() {
                     // Circuit breaker: Never top up for more than ~75$ at once.
                     .min(50);
                 let icp = Tokens::from_e8s(xdrs * read(|state| state.e8s_for_one_xdr));
-                match invoices::topup_with_icp(&api::id(), icp).await {
+                match invoices::topup_with_icp(&id(), icp).await {
                     Err(err) => mutate(|state| {
                         state.critical(format!(
                     "FAILED TO TOP UP THE MAIN CANISTER — {}'S FUNCTIONALITY IS ENDANGERED: {:?}",
@@ -307,7 +318,7 @@ pub async fn top_up() {
                         state.logger.debug(format!(
                         "The main canister was topped up with credits (balance was `{}`, now `{}`).",
                         cycles,
-                        api::canister_balance()
+                        ic_cdk::api::canister_cycle_balance()
                     ))
                     }),
                 }

@@ -9,14 +9,14 @@ use env::{
     user::UserId,
     State,
 };
-use ic_cdk::api::{self, call::arg_data_raw};
+use ic_cdk::api::{self, msg_arg_data as arg_data_raw};
 use ic_cdk_macros::query;
 use ic_ledger_types::AccountIdentifier;
 use serde_bytes::ByteBuf;
 
 // Returns the delegate principal if one exists or returns the canonical one otherwise.
 fn caller(state: &State) -> Principal {
-    let canonical_principal = ic_cdk::caller();
+    let canonical_principal = api::msg_caller();
     delegations::resolve_delegation(state, canonical_principal).unwrap_or(canonical_principal)
 }
 
@@ -555,7 +555,7 @@ fn stable_mem_read(page: u64) -> Vec<(u64, Blob)> {
     unsafe {
         buf.set_len(chunk_size);
     }
-    api::stable::stable_read(offset, &mut buf);
+    api::stable_read(offset, &mut buf);
     vec![(page, ByteBuf::from(buf))]
 }
 

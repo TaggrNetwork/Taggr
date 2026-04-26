@@ -15,14 +15,11 @@ use env::{
     State,
 };
 use ic_cdk::{
-    api::{
-        self,
-        call::{arg_data_raw, reply_raw},
-        management_canister::main::CanisterId,
-    },
-    spawn,
+    api::{self, msg_arg_data as arg_data_raw, msg_reply},
+    futures::{internals::in_executor_context, spawn},
 };
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
+use ic_cdk_management_canister::CanisterId;
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
 use std::{collections::HashSet, time::Duration};
@@ -30,7 +27,7 @@ use user::Pfp;
 
 // Returns the canonical principal (the caller) and checks that it's not anonymous.
 fn canonical_principal() -> Principal {
-    let principal = ic_cdk::caller();
+    let principal = api::msg_caller();
     assert_ne!(principal, Principal::anonymous(), "authentication required");
     principal
 }
@@ -61,12 +58,8 @@ fn init() {
         state.timers.last_hourly = now;
         state.init();
     });
-    set_timer(Duration::from_millis(0), || {
-        spawn(State::fetch_xdr_rate());
-    });
-    set_timer_interval(Duration::from_secs(15 * 60), || {
-        spawn(State::chores(api::time()))
-    });
+    set_timer(Duration::from_millis(0), State::fetch_xdr_rate());
+    set_timer_interval(Duration::from_secs(15 * 60), || State::chores(api::time()));
 }
 
 #[pre_upgrade]
@@ -80,26 +73,24 @@ fn post_upgrade() {
     #[cfg(any(feature = "dev", feature = "staging"))]
     {
         let ids: &str = include_str!("../../canister_ids.json");
-        if ids.contains(&format!("\"ic\": \"{}\"", &api::id().to_string())) {
+        if ids.contains(&format!(
+            "\"ic\": \"{}\"",
+            &api::canister_self().to_string()
+        )) {
             panic!("dev or staging feature is enabled!")
         }
     }
     stable_to_heap_core();
 
-    set_timer_interval(Duration::from_secs(15 * 60), || {
-        spawn(State::chores(api::time()))
-    });
-    set_timer(
-        Duration::from_millis(0),
-        || spawn(State::finalize_upgrade()),
-    );
+    set_timer_interval(Duration::from_secs(15 * 60), || State::chores(api::time()));
+    set_timer(Duration::from_millis(0), State::finalize_upgrade());
 
     sync_post_upgrade_fixtures();
 
     // post upgrade logic goes here
-    set_timer(Duration::from_millis(0), move || {
-        spawn(async_post_upgrade_fixtures());
-        spawn(bitcoin::update_treasury_address());
+    set_timer(Duration::from_millis(0), async {
+        async_post_upgrade_fixtures().await;
+        bitcoin::update_treasury_address().await;
     });
 
     ic_cdk::println!(
@@ -109,10 +100,17 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    mutate(|state| {
+        // Fix the stuck hourly routine.
+        state.timers.hourly_pending = false;
+    });
+}
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {}
+async fn async_post_upgrade_fixtures() {
+    env::storage::upgrade_buckets().await;
+}
 
 /*
  * UPDATES
@@ -184,7 +182,7 @@ fn clear_notifications() {
         if let Some(user) = state.principal_to_user_mut(caller(state)) {
             user.clear_notifications(ids)
         }
-        reply_raw(&[]);
+        msg_reply([]);
     })
 }
 
@@ -208,8 +206,10 @@ fn unlink_cold_wallet() -> Result<(), String> {
 
 #[export_name = "canister_update withdraw_rewards"]
 fn withdraw_rewards() {
-    spawn(async {
-        reply(State::withdraw_rewards(read(caller)).await);
+    in_executor_context(|| {
+        spawn(async {
+            reply(State::withdraw_rewards(read(caller)).await);
+        })
     })
 }
 
@@ -234,7 +234,7 @@ fn update_last_activity() {
             user.last_activity = api::time()
         }
     });
-    reply_raw(&[]);
+    msg_reply([]);
 }
 
 #[export_name = "canister_update request_principal_change"]
@@ -306,10 +306,12 @@ fn toggle_feature_support() {
 #[export_name = "canister_update create_user"]
 fn create_user() {
     let (name, invite): (String, String) = parse(&arg_data_raw());
-    spawn(async {
-        reply(match read(raw_caller) {
-            Ok(caller) => user::create_user(caller, name, optional(invite)).await,
-            Err(err) => Err(err),
+    in_executor_context(|| {
+        spawn(async {
+            reply(match read(raw_caller) {
+                Ok(caller) => user::create_user(caller, name, optional(invite)).await,
+                Err(err) => Err(err),
+            })
         })
     });
 }
@@ -345,15 +347,19 @@ fn transfer_credits() {
 
 #[export_name = "canister_update mint_credits_with_icp"]
 fn mint_credits_with_icp() {
-    spawn(async {
-        let kilo_credits: u64 = parse(&arg_data_raw());
-        reply(State::mint_credits_with_icp(read(caller), kilo_credits).await)
+    in_executor_context(|| {
+        spawn(async {
+            let kilo_credits: u64 = parse(&arg_data_raw());
+            reply(State::mint_credits_with_icp(read(caller), kilo_credits).await)
+        })
     });
 }
 
 #[export_name = "canister_update mint_credits_with_btc"]
 fn mint_credits_with_btc() {
-    spawn(async { reply(State::mint_credits_with_btc(read(caller)).await) });
+    in_executor_context(|| {
+        spawn(async { reply(State::mint_credits_with_btc(read(caller)).await) })
+    });
 }
 
 #[export_name = "canister_update create_invite"]
@@ -527,9 +533,11 @@ async fn edit_post(
 
 #[export_name = "canister_update delete_post"]
 fn delete_post() {
-    mutate(|state| {
-        let (post_id, versions): (PostId, Vec<String>) = parse(&arg_data_raw());
-        reply(state.delete_post(caller(state), post_id, versions))
+    in_executor_context(|| {
+        mutate(|state| {
+            let (post_id, versions): (PostId, Vec<String>) = parse(&arg_data_raw());
+            reply(state.delete_post(caller(state), post_id, versions))
+        })
     });
 }
 
@@ -646,7 +654,7 @@ fn toggle_blacklist() {
             user.toggle_blacklist(user_id);
         }
     });
-    reply_raw(&[])
+    msg_reply([])
 }
 
 #[export_name = "canister_update toggle_filter"]
@@ -702,7 +710,7 @@ fn confirm_emergency_release() {
                 }
             }
         }
-        reply_raw(&[]);
+        msg_reply([]);
     })
 }
 
@@ -714,21 +722,25 @@ fn force_emergency_upgrade() -> bool {
 
 #[export_name = "canister_update create_bid"]
 fn create_bid() {
-    spawn(async {
-        let (amount, e8s_per_token): (u64, u64) = parse(&arg_data_raw());
-        reply(auction::create_bid(read(caller), amount, e8s_per_token).await)
+    in_executor_context(|| {
+        spawn(async {
+            let (amount, e8s_per_token): (u64, u64) = parse(&arg_data_raw());
+            reply(auction::create_bid(read(caller), amount, e8s_per_token).await)
+        })
     });
 }
 
 #[export_name = "canister_update cancel_bid"]
 fn cancel_bid() {
-    spawn(async { reply(auction::cancel_bid(read(caller)).await) });
+    in_executor_context(|| spawn(async { reply(auction::cancel_bid(read(caller)).await) }));
 }
 
 #[export_name = "canister_update add_external_icrc_transaction"]
 fn add_external_icrc_transaction() {
     let (canister_id, start_index, post_id): (String, u64, PostId) = parse(&arg_data_raw());
-    spawn(async move { reply(add_tip(post_id, canister_id, read(caller), start_index).await) });
+    in_executor_context(|| {
+        spawn(async move { reply(add_tip(post_id, canister_id, read(caller), start_index).await) })
+    });
 }
 
 #[update]

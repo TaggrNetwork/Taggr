@@ -3,7 +3,7 @@ use super::{
     post::{Post, PostId},
     token::Transaction,
 };
-use ic_cdk::api::stable::{stable_grow, stable_read, stable_size, stable_write};
+use ic_cdk::stable::{stable_grow, stable_read, stable_size, stable_write};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{cell::RefCell, collections::BTreeMap, fmt::Display, rc::Rc};
 

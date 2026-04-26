@@ -3,7 +3,7 @@ use crate::{
     mutate, read,
 };
 use candid::Principal;
-use ic_cdk::api::management_canister::main::CanisterInstallMode;
+use ic_cdk_management_canister::CanisterInstallMode;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

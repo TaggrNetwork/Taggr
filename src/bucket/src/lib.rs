@@ -1,9 +1,7 @@
 use candid::{CandidType, Decode, Deserialize, Encode, Principal};
 use ic_cdk::api::{
-    self,
-    call::{arg_data_raw, reply_raw},
-    canister_balance,
-    stable::*,
+    canister_cycle_balance, msg_arg_data, msg_caller, msg_reply, stable_grow, stable_read,
+    stable_size, stable_write,
 };
 use serde::Serialize;
 use serde_bytes::ByteBuf;
@@ -49,19 +47,19 @@ static mut CONTROLLER: Option<Principal> = None;
 
 fn set_controller() {
     unsafe {
-        CONTROLLER = Some(Principal::from_slice(&arg_data_raw()));
+        CONTROLLER = Some(Principal::from_slice(&msg_arg_data()));
     }
 }
 
 fn assert_controller() {
-    assert_eq!(api::caller(), unsafe { CONTROLLER.expect("uninitialized") });
+    assert_eq!(msg_caller(), unsafe { CONTROLLER.expect("uninitialized") });
 }
 
 #[export_name = "canister_init"]
 fn init() {
     let initial_offset: u64 = 8;
     grow_to_fit(initial_offset, 0);
-    api::stable::stable_write(0, &initial_offset.to_be_bytes());
+    stable_write(0, &initial_offset.to_be_bytes());
     set_controller();
 }
 
@@ -108,13 +106,13 @@ fn post_upgrade() {
 
 fn read_offset() -> u64 {
     let mut bytes: [u8; 8] = Default::default();
-    api::stable::stable_read(0, &mut bytes);
+    stable_read(0, &mut bytes);
     u64::from_be_bytes(bytes)
 }
 
 #[ic_cdk_macros::query]
-fn balance() -> u64 {
-    canister_balance()
+fn balance() -> u128 {
+    canister_cycle_balance()
 }
 
 #[ic_cdk_macros::query]
@@ -179,7 +177,7 @@ fn http_image(args: &str) -> HttpResponse {
 #[export_name = "canister_update write"]
 fn write() {
     assert_controller();
-    let blob = arg_data_raw();
+    let blob = msg_arg_data();
     let blob_len = blob.len() as u64;
 
     let offset = FREE_SEGMENTS.with(|fl| {
@@ -205,14 +203,14 @@ fn write() {
                 let offset = read_offset();
                 grow_to_fit(offset, blob_len);
                 let new_offset = offset + blob_len;
-                api::stable::stable_write(0, &new_offset.to_be_bytes());
+                stable_write(0, &new_offset.to_be_bytes());
                 offset
             }
         }
     });
 
     stable_write(offset, &blob);
-    reply_raw(&offset.to_be_bytes());
+    msg_reply(offset.to_be_bytes());
 }
 
 #[ic_cdk_macros::update]
@@ -233,7 +231,7 @@ fn grow_to_fit(offset: u64, len: u64) {
     }
     // amount of extra 64kb pages to reserve
     let extra_wasm_pages = 200;
-    if stable_grow((len >> 16) + extra_wasm_pages).is_err() {
+    if stable_grow((len >> 16) + extra_wasm_pages) == u64::MAX {
         panic!("couldn't grow stable memory");
     }
 }

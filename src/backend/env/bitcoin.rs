@@ -14,14 +14,14 @@ use bitcoin::{
     Transaction, TxIn, TxOut, Txid, Witness,
 };
 use candid::Principal;
-use ic_cdk::api::management_canister::{
-    bitcoin::{
-        bitcoin_get_balance, bitcoin_get_current_fee_percentiles, bitcoin_get_utxos,
-        bitcoin_send_transaction, BitcoinNetwork, GetBalanceRequest,
-        GetCurrentFeePercentilesRequest, GetUtxosRequest, Satoshi, SendTransactionRequest, Utxo,
-    },
-    ecdsa::{EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgument, EcdsaPublicKeyResponse},
-    ecdsa::{SignWithEcdsaArgument, SignWithEcdsaResponse},
+use ic_cdk_bitcoin_canister::{
+    bitcoin_get_balance, bitcoin_get_current_fee_percentiles, bitcoin_get_utxos,
+    bitcoin_send_transaction, GetBalanceRequest, GetCurrentFeePercentilesRequest, GetUtxosRequest,
+    NetworkInRequest as BitcoinNetwork, Satoshi, SendTransactionRequest, Utxo,
+};
+use ic_cdk_management_canister::{
+    EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgs, EcdsaPublicKeyResult, SignWithEcdsaArgs,
+    SignWithEcdsaResult,
 };
 use std::convert::TryFrom;
 use std::str::FromStr;
@@ -84,10 +84,10 @@ pub async fn get_ecdsa_public_key(
         name: key_name,
     };
 
-    let res: (EcdsaPublicKeyResponse,) = canisters::call_canister(
+    let res: (EcdsaPublicKeyResult,) = canisters::call_canister(
         Principal::management_canister(),
         "ecdsa_public_key",
-        (EcdsaPublicKeyArgument {
+        (EcdsaPublicKeyArgs {
             canister_id: None, // defaults to this canister id
             derivation_path,
             key_id,
@@ -102,7 +102,7 @@ pub async fn get_ecdsa_public_key(
 pub async fn balance(address: String) -> Result<u64, String> {
     let method = "bitcoin_get_balance";
     canisters::open_call(method);
-    let balance_res = bitcoin_get_balance(GetBalanceRequest {
+    let balance_res = bitcoin_get_balance(&GetBalanceRequest {
         address,
         network: super::bitcoin::btc_network(),
         min_confirmations: None,
@@ -110,10 +110,8 @@ pub async fn balance(address: String) -> Result<u64, String> {
     .await;
     canisters::close_call(method);
 
-    Ok(balance_res
-        // Note: this error handling must be done AFTER canisters::close_call!
-        .map_err(|err| format!("bitcoin_get_balance call failed: {:?}", err))?
-        .0)
+    // Note: this error handling must be done AFTER canisters::close_call!
+    balance_res.map_err(|err| format!("bitcoin_get_balance call failed: {:?}", err))
 }
 
 // Transfers all funds from the given address.
@@ -162,7 +160,7 @@ pub async fn transfer(
 
     let method = "bitcoin_send_transaction";
     canisters::open_call(method);
-    let result = bitcoin_send_transaction(SendTransactionRequest {
+    let result = bitcoin_send_transaction(&SendTransactionRequest {
         network: btc_network(),
         transaction: signed_transaction_bytes,
     })
@@ -185,16 +183,15 @@ pub async fn get_fee_per_byte(n: usize) -> Result<Satoshi, String> {
     }
     let method = "bitcoin_get_current_fee_percentiles";
     canisters::open_call(method);
-    let result = bitcoin_get_current_fee_percentiles(GetCurrentFeePercentilesRequest {
+    let result = bitcoin_get_current_fee_percentiles(&GetCurrentFeePercentilesRequest {
         network: btc_network(),
     })
     .await;
     canisters::close_call(method);
 
-    let fee_percentiles = result
-        // Note: this error handling must be done AFTER canisters::close_call!
-        .map_err(|err| format!("fee percentiles could not be fetched: {:?}", err))?
-        .0;
+    // Note: this error handling must be done AFTER canisters::close_call!
+    let fee_percentiles =
+        result.map_err(|err| format!("fee percentiles could not be fetched: {:?}", err))?;
 
     let milli_sat_per_byte = if fee_percentiles.is_empty() {
         // There are no fee percentiles. This case can only happen on a regtest
@@ -215,7 +212,7 @@ pub async fn get_utxos(address: String) -> Result<Vec<Utxo>, String> {
     // Note that pagination may have to be used to get all UTXOs for the given address.
     // For the sake of simplicity, it is assumed here that the `utxo` field in the response
     // contains all UTXOs.
-    let response = bitcoin_get_utxos(GetUtxosRequest {
+    let response = bitcoin_get_utxos(&GetUtxosRequest {
         address,
         network: btc_network(),
         filter: None,
@@ -226,7 +223,6 @@ pub async fn get_utxos(address: String) -> Result<Vec<Utxo>, String> {
     Ok(response
         // Note: this error handling must be done AFTER canisters::close_call!
         .map_err(|err| format!("failed to get utxos: {:?}", err))?
-        .0
         .utxos)
 }
 
@@ -305,7 +301,7 @@ pub fn build_transaction_with_fee(
         .iter()
         .map(|utxo| TxIn {
             previous_output: OutPoint {
-                txid: Txid::from_raw_hash(Hash::from_slice(&utxo.outpoint.txid).unwrap()),
+                txid: Txid::from_raw_hash(Hash::from_slice(utxo.outpoint.txid.as_ref()).unwrap()),
                 vout: utxo.outpoint.vout,
             },
             sequence: Sequence::MAX,
@@ -441,10 +437,10 @@ pub async fn get_ecdsa_signature(
         name: key_name,
     };
 
-    let res: (SignWithEcdsaResponse,) = canisters::call_canister_with_payment(
+    let res: (SignWithEcdsaResult,) = canisters::call_canister_with_payment(
         Principal::management_canister(),
         "sign_with_ecdsa",
-        (SignWithEcdsaArgument {
+        (SignWithEcdsaArgs {
             message_hash,
             derivation_path,
             key_id,

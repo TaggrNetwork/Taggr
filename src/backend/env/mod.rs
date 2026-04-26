@@ -17,11 +17,10 @@ use candid::CandidType;
 use candid::Principal;
 use config::CONFIG;
 use domains::{available_realms, domain_realm_post_filter, DomainConfig, DomainSubConfig};
-use ic_cdk::api::management_canister::main::raw_rand;
-use ic_cdk::api::performance_counter;
-use ic_cdk::api::stable::stable_size;
-use ic_cdk::api::{self, canister_balance};
-use ic_cdk::spawn;
+use ic_cdk::api::stable_size;
+use ic_cdk::api::{self, canister_cycle_balance, performance_counter};
+use ic_cdk::futures::spawn;
+use ic_cdk_management_canister::raw_rand;
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
 use invoices::BTCInvoice;
 use invoices::Invoices;
@@ -477,7 +476,7 @@ impl State {
             state.module_hash.clone_from(&current_hash);
             state.logger.debug(format!(
                 "Upgrade succeeded: new version is `{}`.",
-                &current_hash[0..8]
+                current_hash.get(..8).unwrap_or(current_hash.as_str())
             ));
         });
     }
@@ -1642,7 +1641,7 @@ impl State {
     // Users have a winning chance proportional to their weekly credits spending.
     #[allow(dead_code)]
     async fn random_reward() {
-        if let Ok((randomness,)) = raw_rand().await {
+        if let Ok(randomness) = raw_rand().await {
             use std::convert::TryInto;
             let bytes: [u8; 8] = randomness[0..8]
                 .try_into()
@@ -2593,11 +2592,11 @@ impl State {
                 .find_map(|proposal| ReleaseInfo::try_from(proposal).ok())
                 .filter(|release_info| release_info.hash == self.module_hash)
                 .unwrap_or_default(),
-            canister_id: ic_cdk::id(),
+            canister_id: api::canister_self(),
             last_weekly_chores: self.timers.last_weekly,
             last_daily_chores: self.timers.last_daily,
             last_hourly_chores: self.timers.last_hourly,
-            canister_cycle_balance: canister_balance(),
+            canister_cycle_balance: canister_cycle_balance() as u64,
             users: self.users.len(),
             posts,
             comments: Post::count(self) - posts,
@@ -2837,7 +2836,7 @@ impl State {
         .expect("couldn't delete post");
 
         if !files.is_empty() {
-            ic_cdk::spawn(Storage::free_blobs(files));
+            spawn(Storage::free_blobs(files));
         }
 
         Ok(())

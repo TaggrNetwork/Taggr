@@ -1,6 +1,6 @@
 use candid::Principal;
 use env::{config::CONFIG, user::User, State, *};
-use ic_cdk::{api::call::reply_raw, export_candid};
+use ic_cdk::{api::msg_reply, export_candid};
 use std::{cell::RefCell, collections::HashMap};
 
 mod assets;
@@ -39,7 +39,7 @@ fn parse<'a, T: serde::Deserialize<'a>>(bytes: &'a [u8]) -> T {
 }
 
 fn reply<T: serde::Serialize>(data: T) {
-    reply_raw(serde_json::json!(data).to_string().as_bytes());
+    msg_reply(serde_json::json!(data).to_string().as_bytes());
 }
 
 fn stable_to_heap_core() {
@@ -66,7 +66,7 @@ pub fn id() -> Principal {
     // Mocked Id for tests.
     return Principal::from_text("6qfxa-ryaaa-aaaai-qbhsq-cai").expect("parsing failed");
     #[cfg(not(test))]
-    ic_cdk::id()
+    ic_cdk::api::canister_self()
 }
 
 pub fn time() -> u64 {

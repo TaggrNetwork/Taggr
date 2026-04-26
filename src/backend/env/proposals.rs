@@ -10,7 +10,6 @@ use super::{user::UserId, State};
 use crate::mutate;
 use crate::token::Token;
 use candid::Principal;
-use ic_cdk::spawn;
 use ic_cdk_timers::set_timer;
 use ic_ledger_types::{AccountIdentifier, Memo, Tokens};
 use serde::{Deserialize, Serialize};
@@ -272,19 +271,17 @@ impl Proposal {
                 Payload::ICPTransfer(account, amount) => {
                     let amount = *amount;
                     let account = *account;
-                    set_timer(std::time::Duration::from_secs(1), move || {
-                        spawn(async move {
-                            if let Err(err) =
-                                invoices::transfer(account, amount, Memo(828282), None).await
-                            {
-                                mutate(|state| {
-                                    state.logger.error(format!(
-                                        "The execution of the ICP transfer proposal failed: {}",
-                                        err
-                                    ))
-                                })
-                            };
-                        })
+                    set_timer(std::time::Duration::from_secs(1), async move {
+                        if let Err(err) =
+                            invoices::transfer(account, amount, Memo(828282), None).await
+                        {
+                            mutate(|state| {
+                                state.logger.error(format!(
+                                    "The execution of the ICP transfer proposal failed: {}",
+                                    err
+                                ))
+                            })
+                        };
                     });
                 }
                 _ => {}

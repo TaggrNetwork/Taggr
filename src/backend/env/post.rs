@@ -5,7 +5,7 @@ use super::*;
 use super::{storage::Storage, user::UserId};
 use crate::env::tip::Tip;
 use crate::mutate;
-use ic_cdk::caller;
+use ic_cdk::api::msg_caller as caller;
 use serde::{Deserialize, Serialize};
 
 static mut CACHE: Option<BTreeMap<PostId, Box<Post>>> = None;

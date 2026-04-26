@@ -5,6 +5,8 @@ CMD=$2
 PAGE_START=${3:-0}
 BACKUP=./backup/target/release/backup
 
+export DFX_WARNING=-mainnet_plaintext_identity
+
 if [ ! -f $BACKUP ]; then
     cd backup
     cargo build --bin backup --release
