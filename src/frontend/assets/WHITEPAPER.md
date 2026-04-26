@@ -15,7 +15,7 @@ The most important key points of $name are:
 
 $name operates with a sustainable economic model:
 
-1. **Getting Started**: New users start with credits (worth approximately $1.39 in value) after making a small payment in either Bitcoin or ICP cryptocurrency.
+1. **Getting Started**: New users start with credits (worth approximately $1.39 in value) after making a small payment in ICP cryptocurrency.
 
 2. **Credits System**: These credits are gradually consumed when you interact with the platform – posting content, reacting to posts, creating polls, etc.
 

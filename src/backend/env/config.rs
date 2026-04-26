@@ -143,9 +143,6 @@ pub struct Config {
     // rejected without a controversy. On a controversial rejection, the tokens will be burned.
     // The amount is in XDR.
     pub proposal_escrow_amount_xdr: u64,
-    pub ecdsa_key_name: &'static str,
-
-    pub btc_network: &'static str,
 }
 
 mod string {
@@ -319,16 +316,6 @@ pub const CONFIG: &Config = &Config {
     max_blob_size_bytes: 460800,
 
     online_activity_minutes: 10 * 60000000000_u64,
-
-    #[cfg(any(test, feature = "dev"))]
-    ecdsa_key_name: "dfx_test_key",
-    #[cfg(not(any(test, feature = "dev")))]
-    ecdsa_key_name: "key_1",
-
-    #[cfg(any(test, feature = "dev"))]
-    btc_network: "regtest",
-    #[cfg(not(any(test, feature = "dev")))]
-    btc_network: "main",
 
     reactions: &[
         // sad, thumb up, heart

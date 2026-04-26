@@ -38,16 +38,16 @@ export const InviteInfo = () => {
             <p className="info_item">
                 <h2>🎭 Privacy first.</h2> To join{" "}
                 <b>{window.backendCache.config.name}</b>, you only need a small
-                amount of <code>BTC</code> or <code>ICP</code> cryptocurrency.
-                No email, no phone, no KYC required. Your invite comes with
-                starter credits already included.
+                amount of <code>ICP</code> cryptocurrency. No email, no phone,
+                no KYC required. Your invite comes with starter credits already
+                included.
             </p>
             <p className="info_item">
                 <h2>🌟 No ads, no spam.</h2> Browsing is completely free, but
                 posting and interactions require credits (you got some with this
                 invite). Normal usage is cheap, and if your content is popular,
                 you earn rewards and may never need to buy more credits. You can
-                always top up with Bitcoin or ICP when needed.
+                always top up with ICP when needed.
             </p>
             <p className="info_item">
                 <h2>🔐 Your data is 100% yours.</h2>

@@ -90,7 +90,6 @@ fn post_upgrade() {
     // post upgrade logic goes here
     set_timer(Duration::from_millis(0), async {
         async_post_upgrade_fixtures().await;
-        bitcoin::update_treasury_address().await;
     });
 
     ic_cdk::println!(
@@ -352,13 +351,6 @@ fn mint_credits_with_icp() {
             let kilo_credits: u64 = parse(&arg_data_raw());
             reply(State::mint_credits_with_icp(read(caller), kilo_credits).await)
         })
-    });
-}
-
-#[export_name = "canister_update mint_credits_with_btc"]
-fn mint_credits_with_btc() {
-    in_executor_context(|| {
-        spawn(async { reply(State::mint_credits_with_btc(read(caller)).await) })
     });
 }
 

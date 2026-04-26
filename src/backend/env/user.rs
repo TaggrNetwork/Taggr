@@ -812,27 +812,18 @@ pub async fn create_user(
         return create_user_from_invite(principal, name, code);
     }
 
-    let (paid_icp_invoice, paid_btc_invoice) = read(|state| {
-        (
-            state.accounting.has_paid_icp_invoice(&principal),
-            state.accounting.has_paid_btc_invoice(&principal),
-        )
-    });
+    let paid_icp_invoice = read(|state| state.accounting.has_paid_icp_invoice(&principal));
 
-    if !paid_icp_invoice && !paid_btc_invoice {
+    if !paid_icp_invoice {
         return Err("payment missing".to_string());
     }
 
     mutate(|state| state.new_user(principal, time(), name, None))?;
 
     // After the user has beed created, transfer credits.
-    if paid_icp_invoice {
-        State::mint_credits_with_icp(principal, 0)
-            .await
-            .map(|_| None)
-    } else {
-        State::mint_credits_with_btc(principal).await.map(|_| None)
-    }
+    State::mint_credits_with_icp(principal, 0)
+        .await
+        .map(|_| None)
 }
 
 fn create_user_from_invite(

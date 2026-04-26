@@ -18,13 +18,6 @@ type ICPInvoice = {
     account: number[];
 };
 
-type BTCInvoice = {
-    paid: boolean;
-    sats: number;
-    fee: number;
-    address: string;
-};
-
 const shortenPrincipal = (principal: string) => {
     const parts = principal.split("-");
     return `${parts[0]}-...-${parts[parts.length - 1]}`;
@@ -32,8 +25,6 @@ const shortenPrincipal = (principal: string) => {
 
 export const Welcome = () => {
     const [icpInvoice, setICPInvoice] = React.useState<ICPInvoice | null>();
-    const [btcInvoice, setBTCInvoice] = React.useState<BTCInvoice | null>();
-    const [payment, setPayment] = React.useState("");
     const [loadingInvoice, setLoadingInvoice] = React.useState(false);
 
     // If an existing user gets here (e.g. by using sign up), just redirect them to the landing page.
@@ -43,7 +34,6 @@ export const Welcome = () => {
 
     const checkICPPayment = async () => {
         setLoadingInvoice(true);
-        setPayment("icp");
         const result = await window.api.call<any>("mint_credits_with_icp", 0);
         if ("Err" in result) {
             showPopUp("error", result.Err);
@@ -53,28 +43,13 @@ export const Welcome = () => {
         setLoadingInvoice(false);
     };
 
-    const checkBTCPayment = async () => {
-        setLoadingInvoice(true);
-        setPayment("btc");
-        const result = await window.api.call<any>("mint_credits_with_btc", 0);
-        if ("Err" in result) {
-            alert(`Error: ${result.Err}`);
-            return;
-        }
-        setBTCInvoice(result.Ok);
-        setLoadingInvoice(false);
-    };
-
     const logOutButton = (
         <ButtonWithLoading onClick={signOut} label="SIGN OUT" />
     );
 
     const { name, blob_cost, post_cost } = window.backendCache.config;
 
-    const invoice =
-        icpInvoice || btcInvoice
-            ? { paid: icpInvoice?.paid || btcInvoice?.paid }
-            : null;
+    const invoice = icpInvoice ? { paid: icpInvoice.paid } : null;
 
     return (
         <>
@@ -103,9 +78,9 @@ export const Welcome = () => {
                         </p>
                         <p>
                             To mint credits, you need to transfer a small amount
-                            of Bitcoin or ICP to an account controlled by the{" "}
-                            {name} canister. You get <code>1000</code> credits
-                            for as little as <code>~{USD_PER_XDR} USD</code>{" "}
+                            of ICP to an account controlled by the {name}{" "}
+                            canister. You get <code>1000</code> credits for as
+                            little as <code>~{USD_PER_XDR} USD</code>{" "}
                             (corresponds to 1{" "}
                             <a href="https://en.wikipedia.org/wiki/Special_drawing_rights">
                                 XDR
@@ -145,11 +120,6 @@ export const Welcome = () => {
                                     onClick={checkICPPayment}
                                     label="MINT CREDITS WITH ICP"
                                 />
-                                <ButtonWithLoading
-                                    classNameArg="active bottom_spaced"
-                                    onClick={checkBTCPayment}
-                                    label="MINT CREDITS WITH BITCOIN"
-                                />
                                 {logOutButton}
                             </div>
                         )}
@@ -171,83 +141,43 @@ export const Welcome = () => {
                                         </button>
                                     </div>
                                 )}
-                                {!invoice.paid && (
+                                {!invoice.paid && icpInvoice && (
                                     <>
                                         To mint <code>1000</code> credits,
                                         please make the following payment:
-                                        {payment == "btc" && btcInvoice && (
-                                            <p className="stands_out">
-                                                Transfer at least&nbsp;
-                                                <CopyToClipboard
-                                                    testId="invoice-amount-btc"
-                                                    value={Number(
-                                                        btcInvoice.sats +
-                                                            btcInvoice.fee,
-                                                    ).toString()}
-                                                />
-                                                &nbsp;Sats (
-                                                <code>{btcInvoice.fee}</code>{" "}
-                                                Sats tx. fees already included)
-                                                to account
-                                                <br />
-                                                <CopyToClipboard
-                                                    value={btcInvoice.address}
-                                                    displayMap={shortener}
-                                                    testId="account-to-transfer-to"
-                                                />
-                                                <br />
-                                                and wait for at least one
-                                                confirmation!
-                                                <br />
-                                                <br />
-                                                If you transfer a larger amount,
-                                                a proportionally larger number
-                                                of credits will be minted.
-                                            </p>
-                                        )}
-                                        {payment == "icp" && icpInvoice && (
-                                            <p className="stands_out">
-                                                Transfer at least&nbsp;
-                                                <CopyToClipboard
-                                                    testId="invoice-amount"
-                                                    value={(
-                                                        Number(icpInvoice.e8s) /
-                                                        1e8
-                                                    ).toString()}
-                                                />
-                                                &nbsp;ICP to account
-                                                <br />
-                                                <CopyToClipboard
-                                                    value={hex(
-                                                        icpInvoice.account,
-                                                    )}
-                                                    displayMap={shortener}
-                                                    testId="account-to-transfer-to"
-                                                />
-                                                <br />
-                                                <br />
-                                                If you transfer a larger amount,
-                                                the surplus will end up in your
-                                                ICP wallet after you have
-                                                created the user account.
-                                            </p>
-                                        )}
+                                        <p className="stands_out">
+                                            Transfer at least&nbsp;
+                                            <CopyToClipboard
+                                                testId="invoice-amount"
+                                                value={(
+                                                    Number(icpInvoice.e8s) / 1e8
+                                                ).toString()}
+                                            />
+                                            &nbsp;ICP to account
+                                            <br />
+                                            <CopyToClipboard
+                                                value={hex(icpInvoice.account)}
+                                                displayMap={shortener}
+                                                testId="account-to-transfer-to"
+                                            />
+                                            <br />
+                                            <br />
+                                            If you transfer a larger amount, the
+                                            surplus will end up in your ICP
+                                            wallet after you have created the
+                                            user account.
+                                        </p>
                                         <br />
                                         <div className="column_container">
                                             <button
                                                 className="active bottom_spaced large_text"
-                                                onClick={
-                                                    payment == "icp"
-                                                        ? checkICPPayment
-                                                        : checkBTCPayment
-                                                }
+                                                onClick={checkICPPayment}
                                             >
                                                 CHECK BALANCE
                                             </button>
                                             <button
                                                 className="bottom_spaced large_text"
                                                 onClick={() => {
-                                                    setBTCInvoice(null);
                                                     setICPInvoice(null);
                                                 }}
                                             >

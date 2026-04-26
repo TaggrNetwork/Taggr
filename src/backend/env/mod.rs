@@ -22,7 +22,6 @@ use ic_cdk::api::{self, canister_cycle_balance, performance_counter};
 use ic_cdk::futures::spawn;
 use ic_cdk_management_canister::raw_rand;
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
-use invoices::BTCInvoice;
 use invoices::Invoices;
 use realms::{Realm, RealmId};
 use serde::{Deserialize, Serialize};
@@ -35,7 +34,6 @@ use token::base;
 use user::{Pfp, User, UserId};
 
 pub mod auction;
-pub mod bitcoin;
 pub mod canisters;
 pub mod config;
 pub mod delegations;
@@ -91,8 +89,6 @@ pub struct Stats {
     realms: usize,
     e8s_revenue_per_1k: u64,
     e8s_for_one_xdr: u64,
-    bitcoin_treasury_sats: u64,
-    bitcoin_treasury_address: String,
     vesting_tokens_of_x: (Token, Token),
     users: usize,
     credits: Credits,
@@ -231,15 +227,6 @@ pub struct State {
     pub root_posts_index: Vec<PostId>,
 
     e8s_for_one_xdr: u64,
-
-    #[serde(default)]
-    pub sats_for_one_xdr: u64,
-
-    #[serde(default)]
-    pub bitcoin_treasury_sats: u64,
-
-    #[serde(default)]
-    pub bitcoin_treasury_address: String,
 
     last_revenues: VecDeque<u64>,
 
@@ -1473,12 +1460,7 @@ impl State {
             .await
             // by default use ~$5/ICP
             .unwrap_or(28082976);
-        let sats_for_one_xdr = canisters::coins_for_one_xdr("BTC")
-            .await
-            // by default use ~$86k/BTC
-            .unwrap_or(1609);
         mutate(|state| {
-            state.sats_for_one_xdr = sats_for_one_xdr;
             state.e8s_for_one_xdr = e8s_for_one_xdr;
         });
     }
@@ -1507,8 +1489,6 @@ impl State {
 
         #[cfg(not(any(feature = "dev", feature = "staging")))]
         nns_proposals::work(now).await;
-
-        invoices::process_btc_invoices().await;
     }
 
     pub async fn chores(now: u64) {
@@ -1553,15 +1533,8 @@ impl State {
             mutate(|state| {
                 state.timers.last_daily += DAY;
                 state.timers.daily_pending = false;
-                let (btc, nns, polls) = (
-                    state.accounting.pending_btc_invoices.len(),
-                    state.pending_nns_proposals.len(),
-                    state.pending_polls.len(),
-                );
+                let (nns, polls) = (state.pending_nns_proposals.len(), state.pending_polls.len());
                 let mut log_line = String::new();
-                if btc > 0 {
-                    log_line.push_str(&format!("Pending BTC invoices: `{}`. ", btc,));
-                }
                 if nns > 0 {
                     log_line.push_str(&format!("Pending NNS proposals: `{}`. ", nns,));
                 }
@@ -2082,39 +2055,6 @@ impl State {
         })
     }
 
-    pub async fn mint_credits_with_btc(principal: Principal) -> Result<BTCInvoice, String> {
-        let sats_for_one_xdr = read(|state| state.sats_for_one_xdr);
-        let invoice = Invoices::outstanding_btc_invoice(&principal, sats_for_one_xdr).await?;
-
-        let mut invoice_closed = false;
-        let result = mutate(|state| {
-            if invoice.paid {
-                if let Some(user) = state.principal_to_user_mut(principal) {
-                    user.change_credits(
-                        ((invoice.balance as f64 / invoice.sats as f64)
-                            * CONFIG.credits_per_xdr as f64) as Credits,
-                        CreditsDelta::Plus,
-                        "top up with Bitcoin".to_string(),
-                    )?;
-                    state.accounting.close_invoice(&principal);
-                    invoice_closed = true;
-                }
-            }
-            Ok(invoice)
-        });
-
-        // If we were able to close an invoice, spawn the processing
-        // of pending btc invoices in a non-blocking way.
-        if invoice_closed {
-            let future = invoices::process_btc_invoices();
-            spawn(async {
-                let _ = future.await;
-            });
-        }
-
-        result
-    }
-
     pub fn validate_username(&self, name: &str) -> Result<(), String> {
         let name = name.to_lowercase();
         if self.users.values().any(|user| {
@@ -2573,8 +2513,6 @@ impl State {
 
         Stats {
             realms: self.realms.len(),
-            bitcoin_treasury_address: self.bitcoin_treasury_address.clone(),
-            bitcoin_treasury_sats: self.bitcoin_treasury_sats,
             fees_burned: self.token_fees_burned,
             volume_day,
             volume_week,
