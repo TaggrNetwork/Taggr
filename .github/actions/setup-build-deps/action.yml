@@ -22,7 +22,8 @@ runs:
           echo "IC WASM restored from cache"
         else
           echo "IC WASM not restored from cache, downloading:"
-          curl -L https://github.com/dfinity/ic-wasm/releases/download/${{ env.ic_wasm_version }}/ic-wasm-linux64 -o /usr/local/bin/ic-wasm
+          curl -L https://github.com/dfinity/ic-wasm/releases/download/${{ env.ic_wasm_version }}/ic-wasm-x86_64-unknown-linux-gnu.tar.xz \
+            | tar -xJ --strip-components=1 -C /usr/local/bin ic-wasm-x86_64-unknown-linux-gnu/ic-wasm
           chmod +x /usr/local/bin/ic-wasm
         fi
         echo "IC WASM version"

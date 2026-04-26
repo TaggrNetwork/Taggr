@@ -9,7 +9,7 @@ ENV CARGO_HOME=/opt/cargo
 # Install a basic environment needed for our build tools
 RUN apt-get -yq update && \
     apt-get -yqq install --no-install-recommends curl ca-certificates \
-        build-essential pkg-config libssl-dev llvm-dev liblmdb-dev clang cmake rsync libunwind-dev jq && \
+        build-essential pkg-config libssl-dev llvm-dev liblmdb-dev clang cmake rsync libunwind-dev jq xz-utils && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Node.js
@@ -31,7 +31,8 @@ RUN curl --fail https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
 ENV PATH=/opt/ic-wasm:${PATH}
 COPY .ic-wasm-version ./
 RUN mkdir -p /opt/ic-wasm && \
-    curl -L https://github.com/dfinity/ic-wasm/releases/download/$(cat .ic-wasm-version | xargs)/ic-wasm-linux64 -o /opt/ic-wasm/ic-wasm && \
+    curl -L https://github.com/dfinity/ic-wasm/releases/download/$(cat .ic-wasm-version | xargs)/ic-wasm-x86_64-unknown-linux-gnu.tar.xz \
+      | tar -xJ --strip-components=1 -C /opt/ic-wasm ic-wasm-x86_64-unknown-linux-gnu/ic-wasm && \
     chmod +x /opt/ic-wasm/ic-wasm
 
 # Install dfx

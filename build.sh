@@ -18,5 +18,6 @@ for pkg in "$@"; do
     fi
     WASM_FILE=target/$TARGET/release/$pkg.wasm
     ic-wasm $WASM_FILE -o $WASM_FILE shrink
+    ic-wasm $WASM_FILE -o $WASM_FILE optimize Oz
     gzip -nf9 $WASM_FILE
 done
