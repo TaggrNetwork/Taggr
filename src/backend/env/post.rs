@@ -3,7 +3,6 @@ use std::cmp::{Ordering, PartialOrd};
 use super::config::DOWNVOTE_REACTION_ID;
 use super::*;
 use super::{storage::Storage, user::UserId};
-use crate::env::tip::Tip;
 use crate::mutate;
 use ic_cdk::api::msg_caller as caller;
 use serde::{Deserialize, Serialize};
@@ -97,9 +96,6 @@ pub struct Post {
     pub encrypted: bool,
 
     #[serde(default)]
-    pub external_tips: Vec<Tip>,
-
-    #[serde(default)]
     pub hidden_for: Vec<UserId>,
 }
 
@@ -163,7 +159,6 @@ impl Post {
             encrypted: false,
             realm,
             heat,
-            external_tips: Default::default(),
             hidden_for: Default::default(),
         }
     }

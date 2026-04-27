@@ -147,7 +147,6 @@ export type Realm = {
     last_setting_update: number;
     revenue: number;
     posts: PostId[];
-    tokens?: string[];
 };
 
 export type Meta = {
@@ -180,7 +179,6 @@ export type Post = {
     tree_update: BigInt;
     meta: Meta;
     encrypted: boolean;
-    external_tips?: PostTip[];
     hidden_for: UserId[];
 };
 
@@ -399,13 +397,6 @@ export type Theme = { [name: string]: any };
 export type UserData = {
     [id: UserId]: string;
 };
-
-export interface PostTip {
-    amount: number;
-    canister_id: string;
-    sender_id: number;
-    index: number;
-}
 
 export interface IcExplorerUserTokenInfo {
     ledgerId: string;

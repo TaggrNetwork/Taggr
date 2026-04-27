@@ -2,7 +2,6 @@ use crate::env::{
     domains::{change_domain_config, DomainConfig},
     proposals::{Payload, Release},
     realms::{clean_up_realm, Realm, RealmId},
-    tip::add_tip,
     user::{Mode, UserFilter},
 };
 
@@ -712,14 +711,6 @@ fn create_bid() {
 #[export_name = "canister_update cancel_bid"]
 fn cancel_bid() {
     in_executor_context(|| spawn(async { reply(auction::cancel_bid(read(caller)).await) }));
-}
-
-#[export_name = "canister_update add_external_icrc_transaction"]
-fn add_external_icrc_transaction() {
-    let (canister_id, start_index, post_id): (String, u64, PostId) = parse(&arg_data_raw());
-    in_executor_context(|| {
-        spawn(async move { reply(add_tip(post_id, canister_id, read(caller), start_index).await) })
-    });
 }
 
 #[update]

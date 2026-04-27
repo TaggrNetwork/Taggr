@@ -16,7 +16,6 @@ use ic_cdk_management_canister::{
 };
 use ic_ledger_types::{Tokens, MAINNET_GOVERNANCE_CANISTER_ID};
 use ic_xrc_types::{Asset, GetExchangeRateRequest, GetExchangeRateResult};
-use icrc_ledger_types::icrc3::transactions::{GetTransactionsRequest, GetTransactionsResponse};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -365,15 +364,4 @@ pub async fn top_up() {
             }),
         }
     }
-}
-
-pub async fn get_transactions(
-    canister_id: Principal,
-    args: GetTransactionsRequest,
-) -> Result<GetTransactionsResponse, String> {
-    let (response,): (GetTransactionsResponse,) =
-        call_canister(canister_id, "get_transactions", (args,))
-            .await
-            .map_err(|e| format!("failed to call ledger: {:?}", e))?;
-    Ok(response)
 }
