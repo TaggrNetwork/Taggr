@@ -49,6 +49,8 @@ pub enum Extension {
     Poll(Poll),
     Proposal(u32),
     Repost(PostId),
+    // Retained so cold-stored posts that reference the old feature extension still
+    // deserialize. No new posts use it and no behavior is attached to it anymore.
     Feature,
 }
 
@@ -352,8 +354,6 @@ impl Post {
             + blobs as Credits * CONFIG.blob_cost
             + if matches!(self.extension, Some(Extension::Poll(_))) {
                 CONFIG.poll_cost
-            } else if matches!(self.extension, Some(Extension::Feature)) {
-                CONFIG.feature_cost
             } else {
                 0
             }
@@ -771,11 +771,8 @@ impl Post {
             return;
         };
 
-        // We never encrypt feature requests and proposals, as they are supposed to be public.
-        let skip = matches!(
-            post.extension,
-            Some(Extension::Feature) | Some(Extension::Proposal(_))
-        );
+        // We never encrypt proposals, as they are supposed to be public.
+        let skip = matches!(post.extension, Some(Extension::Proposal(_)));
         if !skip {
             let encrypt = !post.encrypted;
             post.body = xor(&post.body, seed, encrypt);
@@ -1325,27 +1322,6 @@ mod tests {
             assert!(!post.encrypted);
             assert_eq!(post.body, original_body);
             assert_eq!(post.patches[0].1, original_patch);
-
-            // Test feature post is not encrypted
-            let feature_id = Post::create(
-                state,
-                "Feature request".into(),
-                &[],
-                p,
-                1,
-                None,
-                None,
-                Some(Extension::Feature),
-            )
-            .unwrap();
-
-            let feature_body = Post::get(state, &feature_id).unwrap().body.clone();
-            assert!(!Post::get(state, &feature_id).unwrap().encrypted);
-
-            Post::crypt(state, feature_id, "test_seed");
-            let post = Post::get(state, &feature_id).unwrap();
-            assert!(!post.encrypted);
-            assert_eq!(post.body, feature_body);
 
             // Test proposal post is not encrypted
             let proposal_id = Post::create(

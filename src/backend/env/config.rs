@@ -85,7 +85,7 @@ pub struct Config {
     pub default_max_downvotes: u32,
 
     pub domain_cost: Credits,
-    pub feature_cost: Credits,
+    pub account_activation_cost: Credits,
     pub post_cost: Credits,
     pub blob_cost: Credits,
     pub poll_cost: Credits,
@@ -270,7 +270,7 @@ pub const CONFIG: &Config = &Config {
     default_max_downvotes: 15,
 
     domain_cost: 1000,
-    feature_cost: 1000,
+    account_activation_cost: 1000,
     post_cost: 2,
     blob_cost: 20,
     poll_cost: 3,

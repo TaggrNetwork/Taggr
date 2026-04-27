@@ -11,7 +11,6 @@ import {
     tokens,
     hex,
     parseNumber,
-    commaSeparated,
     REPO,
     showPopUp,
     onCanonicalDomain,
@@ -127,7 +126,6 @@ export const ProposalMask = ({
     const [realmId, setRealmId] = React.useState("");
     const [binary, setBinary] = React.useState(new Uint8Array());
     const [commit, setCommit] = React.useState("");
-    const [features, setFeatures] = React.useState("");
 
     const validateAndSaveProposal = async () => {
         switch (proposalType) {
@@ -178,10 +176,6 @@ export const ProposalMask = ({
                         commit,
                         hash: "",
                         binary,
-                        closed_features: features
-                            .split(",")
-                            .filter((v) => v.length > 0)
-                            .map((token) => Number(token.trim())),
                     },
                 });
         }
@@ -294,17 +288,6 @@ export const ProposalMask = ({
                         />
                     </div>
                     <div className="vcentered bottom_half_spaced">
-                        CLOSED FEATURES
-                        <input
-                            type="text"
-                            className="left_spaced max_width_col"
-                            placeholder="comma-separated ids"
-                            onChange={async (ev) => {
-                                setFeatures(ev.target.value);
-                            }}
-                        />
-                    </div>
-                    <div className="vcentered bottom_half_spaced">
                         BINARY{" "}
                         <FileUploadInput
                             classNameArg="left_spaced max_width_col"
@@ -410,10 +393,6 @@ export const ProposalView = ({
     const open = proposal.status == "Open";
     const commit =
         "Release" in proposal.payload ? proposal.payload.Release.commit : null;
-    const closed_features =
-        "Release" in proposal.payload
-            ? proposal.payload.Release.closed_features
-            : [];
     const hash =
         "Release" in proposal.payload ? proposal.payload.Release.hash : null;
     const dailyDrop = proposal.voting_power / 100;
@@ -478,18 +457,6 @@ export const ProposalView = ({
                                     </a>
                                 </>
                             )}
-                        </div>
-                    )}
-                    {closed_features.length > 0 && (
-                        <div className="row_container bottom_half_spaced">
-                            <span>CLOSES FEATURES:</span>
-                            <span className="left_half_spaced">
-                                {commaSeparated(
-                                    closed_features.map((id) => (
-                                        <a href={`#/post/${id}`}>{id}</a>
-                                    )),
-                                )}
-                            </span>
                         </div>
                     )}
                     {!open && (

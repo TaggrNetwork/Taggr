@@ -102,6 +102,18 @@ fn sync_post_upgrade_fixtures() {
     mutate(|state| {
         // Fix the stuck hourly routine.
         state.timers.hourly_pending = false;
+
+        // One-time cleanup: drain the features index. Each remove() frees the
+        // stable-memory blocks back to the allocator. The next release can then
+        // drop Memory::features entirely.
+        let ids: Vec<PostId> = state.memory.features.iter().map(|(id, _)| *id).collect();
+        for id in ids {
+            if let Err(err) = state.memory.features.remove(&id) {
+                state
+                    .logger
+                    .error(format!("couldn't drain feature {}: {}", id, err));
+            }
+        }
     });
 }
 
@@ -283,22 +295,6 @@ fn update_wallet_tokens() {
     reply(User::update_wallet_tokens(read(caller), ids))
 }
 
-#[export_name = "canister_update create_feature"]
-fn create_feature() {
-    let post_id: PostId = parse(&arg_data_raw());
-    reply(features::create_feature(read(caller), post_id, time()));
-}
-
-#[export_name = "canister_update toggle_feature_support"]
-fn toggle_feature_support() {
-    let post_id: PostId = parse(&arg_data_raw());
-    reply(features::toggle_feature_support(
-        read(caller),
-        post_id,
-        time(),
-    ));
-}
-
 #[export_name = "canister_update create_user"]
 fn create_user() {
     let (name, invite): (String, String) = parse(&arg_data_raw());
@@ -380,12 +376,7 @@ fn create_proposal() {
 }
 
 #[update]
-fn propose_release(
-    post_id: PostId,
-    commit: String,
-    features: Vec<PostId>,
-    binary: ByteBuf,
-) -> Result<u32, String> {
+fn propose_release(post_id: PostId, commit: String, binary: ByteBuf) -> Result<u32, String> {
     mutate(|state| {
         proposals::create_proposal(
             state,
@@ -395,7 +386,6 @@ fn propose_release(
                 commit,
                 binary: binary.to_vec(),
                 hash: Default::default(),
-                closed_features: features,
             }),
             time(),
         )

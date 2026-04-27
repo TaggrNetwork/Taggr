@@ -67,11 +67,6 @@ export type Summary = {
 
 export type Mode = "Mining" | "Rewards" | "Credits";
 
-export type Feature = {
-    supporters: UserId[];
-    status: number;
-};
-
 export type Extension =
     | {
           ["Poll"]: Poll;
@@ -82,6 +77,7 @@ export type Extension =
     | {
           ["Proposal"]: number;
       }
+    // Retained so cold-stored posts referencing the old feature extension still parse.
     | "Feature";
 
 export type Rewards = {
@@ -93,7 +89,6 @@ export type Release = {
     commit: string;
     hash: string;
     binary: Uint8Array;
-    closed_features: PostId[];
 };
 
 export type Icrc1Canister = {
@@ -373,7 +368,7 @@ export type Config = {
     max_credits_mint_kilos: number;
     logo: string;
     poll_revote_deadline_hours: number;
-    feature_cost: number;
+    account_activation_cost: number;
     blob_cost: number;
     poll_cost: number;
     max_post_length: number;

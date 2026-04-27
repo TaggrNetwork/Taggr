@@ -430,7 +430,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             to activate your account again, make sure you can
                             recover this password later. An account
                             activation/deactivation costs{" "}
-                            {window.backendCache.config.feature_cost} credits.
+                            {window.backendCache.config.account_activation_cost}{" "}
+                            credits.
                         </p>
                         {onCanonicalDomain() ? (
                             <>

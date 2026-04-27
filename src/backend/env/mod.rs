@@ -316,7 +316,7 @@ impl State {
         let (username, len, is_deactivated) = {
             let user = self.principal_to_user_mut(caller).ok_or("user not found")?;
             user.change_credits(
-                CONFIG.feature_cost,
+                CONFIG.account_activation_cost,
                 CreditsDelta::Minus,
                 "profile privacy change",
             )?;
@@ -2730,12 +2730,6 @@ impl State {
             }
             Some(Extension::Poll(_)) => {
                 self.pending_polls.remove(&post_id);
-            }
-            Some(Extension::Feature) => {
-                self.memory
-                    .features
-                    .remove(&post_id)
-                    .expect("couldn't delete feature");
             }
             _ => {}
         };

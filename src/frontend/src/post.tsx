@@ -54,15 +54,7 @@ import {
 } from "./icons";
 import { ProposalView } from "./proposals";
 import { DEFAULT_REACTION_HOLD_TIME } from "./settings";
-import {
-    Feature,
-    Icrc1Canister,
-    Post,
-    PostId,
-    PostTip,
-    Realm,
-    UserId,
-} from "./types";
+import { Icrc1Canister, Post, PostId, PostTip, Realm, UserId } from "./types";
 import {
     UserLink,
     UserList,
@@ -383,9 +375,6 @@ export const PostView = ({
                             urls={urls}
                         />
                     </article>
-                )}
-                {showExtension && post.extension == "Feature" && (
-                    <FeatureView id={post.id} />
                 )}
                 {showExtension && typeof post.extension == "object" && (
                     <>
@@ -1295,62 +1284,3 @@ export const filesToUrls = (files: { [id: string]: [number, number] }) =>
         },
         {} as { [id: string]: string },
     );
-
-const FeatureView = ({ id }: { id: PostId }) => {
-    const [feature, setFeature] = React.useState<Feature>();
-    const [vp, setVP] = React.useState(0);
-
-    const loadData = async () => {
-        const features = await window.api.query<[Post, number, Feature][]>(
-            "features",
-            [id],
-        );
-        if (!features || features.length < 1) return;
-        setFeature(features[0][2]);
-        setVP(features[0][1]);
-    };
-
-    React.useEffect(() => {
-        loadData();
-    }, []);
-
-    if (!feature) return <Loading />;
-    const user = window.user;
-
-    return (
-        <div className="post_extension">
-            <h3>Feature Request</h3>
-            <h4>
-                Status:{" "}
-                <code className={feature.status == 0 ? "accent" : ""}>
-                    {feature.status == 0 ? "REQUESTED" : "IMPLEMENTED"}
-                </code>
-            </h4>
-            {feature.supporters.length > 0 && (
-                <>
-                    <hr />
-                    Supporters: <UserList ids={feature.supporters} />
-                </>
-            )}
-            <hr />
-            Total voting power support:{" "}
-            <code>{tokens(vp, window.backendCache.config.token_decimals)}</code>
-            {user && (
-                <div className="row_container top_spaced">
-                    <ButtonWithLoading
-                        classNameArg="max_width_col"
-                        label={
-                            feature.supporters.includes(user.id)
-                                ? "REMOVE SUPPORT"
-                                : "SUPPORT"
-                        }
-                        onClick={async () => {
-                            await window.api.call("toggle_feature_support", id);
-                            await loadData();
-                        }}
-                    />
-                </div>
-            )}
-        </div>
-    );
-};

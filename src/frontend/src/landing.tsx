@@ -12,7 +12,6 @@ import {
     Fire,
     Realm,
     Link,
-    Roadmap,
     CashCoin,
     Globe,
 } from "./icons";
@@ -188,9 +187,6 @@ export const Links = ({ classNameArg }: { classNameArg?: string }) => {
                 href="/#/distribution"
             >
                 <CashCoin /> DISTRIBUTION
-            </a>
-            <a title="ROADMAP" className="icon_link" href="/#/roadmap">
-                <Roadmap /> ROADMAP
             </a>
         </div>
     );

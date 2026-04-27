@@ -22,6 +22,7 @@ pub struct Api {
 pub struct Memory {
     api: Api,
     pub posts: ObjectManager<PostId, Post>,
+    // TODO: remove
     pub features: ObjectManager<PostId, Feature>,
     #[serde(default)]
     pub ledger: ObjectManager<u32, Transaction>,
