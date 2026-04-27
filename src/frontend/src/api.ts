@@ -434,7 +434,7 @@ export const ApiGenerator = (
             if (!response) {
                 return -1;
             }
-            return IDL.decode([IDL.Nat64], response)[0];
+            return IDL.decode([IDL.Nat], response)[0];
         },
 
         icp_account_balance: async (address: string): Promise<BigInt> => {
