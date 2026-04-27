@@ -291,14 +291,38 @@ pub async fn call_canister<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(
 
 /// Tops up all canisters
 pub async fn top_up() {
+    // Gather bucket cycle status up front so the main canister top-up can size for
+    // its own burn plus the cycles it will donate to buckets over the survival window.
+    let bucket_ids = read(|state| state.storage.buckets.keys().cloned().collect::<Vec<_>>());
+    let mut bucket_statuses: Vec<(Principal, u64, u64)> = Vec::with_capacity(bucket_ids.len());
+    for canister_id in bucket_ids {
+        match cycles(canister_id).await {
+            Ok((cycles, cycles_per_day)) => {
+                bucket_statuses.push((canister_id, cycles, cycles_per_day))
+            }
+            Err(err) => mutate(|state| {
+                state.logger.error(format!(
+                    "failed to fetch the cycle balance from `{}`: {}",
+                    canister_id, err
+                ))
+            }),
+        }
+    }
+    let buckets_cycles_per_day: u64 = bucket_statuses
+        .iter()
+        .map(|(_, _, cycles_per_day)| *cycles_per_day)
+        .sum();
+
     // top up the main canister
     match cycles(id()).await {
         Ok((cycles, cycles_per_day)) => {
+            // Effective burn = main's own burn + aggregate bucket burn, since main funds buckets.
+            let effective_cycles_per_day = cycles_per_day.saturating_add(buckets_cycles_per_day);
             let min_cycles_balance = 10_000_000_000_000;
             if cycles < min_cycles_balance
-                || cycles / cycles_per_day < CONFIG.canister_survival_period_days
+                || cycles / effective_cycles_per_day < CONFIG.canister_survival_period_days
             {
-                let xdrs = ((CONFIG.canister_survival_period_days * cycles_per_day)
+                let xdrs = ((CONFIG.canister_survival_period_days * effective_cycles_per_day)
                     .max(min_cycles_balance)
                     / ICP_CYCLES_PER_XDR)
                     // Circuit breaker: Never top up for more than ~75$ at once.
@@ -334,35 +358,25 @@ pub async fn top_up() {
 
     // For any child canister that is below the safety threshold,
     // top up with cycles for at least `CONFIG.canister_survival_period_days` days.
-    for canister_id in read(|state| state.storage.buckets.keys().cloned().collect::<Vec<_>>()) {
-        match cycles(canister_id).await {
-            Ok((cycles, cycles_per_day)) => {
-                if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
-                    let result = topup_with_cycles(
-                        canister_id,
-                        (CONFIG.canister_survival_period_days * cycles_per_day) as u128,
-                    )
-                    .await;
-                    mutate(|state| match result {
-                        Ok(_) => state.logger.debug(format!(
-                            "The canister {} was topped up (balance was `{}`, now `{}`).",
-                            canister_id,
-                            cycles,
-                            cycles + cycles_per_day
-                        )),
-                        Err(err) => state.critical(format!(
-                            "FAILED TO TOP UP THE CANISTER {}: {:?}",
-                            canister_id, err
-                        )),
-                    })
-                }
-            }
-            Err(err) => mutate(|state| {
-                state.logger.error(format!(
-                    "failed to fetch the cycle balance from `{}`: {}",
+    for (canister_id, cycles, cycles_per_day) in bucket_statuses {
+        if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
+            let result = topup_with_cycles(
+                canister_id,
+                (CONFIG.canister_survival_period_days * cycles_per_day) as u128,
+            )
+            .await;
+            mutate(|state| match result {
+                Ok(_) => state.logger.debug(format!(
+                    "The canister {} was topped up (balance was `{}`, now `{}`).",
+                    canister_id,
+                    cycles,
+                    cycles + cycles_per_day
+                )),
+                Err(err) => state.critical(format!(
+                    "FAILED TO TOP UP THE CANISTER {}: {:?}",
                     canister_id, err
-                ))
-            }),
+                )),
+            })
         }
     }
 }
