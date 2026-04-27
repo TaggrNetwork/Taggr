@@ -44,14 +44,6 @@ fn auction() {
     })
 }
 
-#[export_name = "canister_query features"]
-fn features() {
-    read(|state| {
-        let ids: Vec<PostId> = parse(&arg_data_raw());
-        reply(features::features(state, &ids, time()).collect::<Vec<_>>())
-    });
-}
-
 #[export_name = "canister_query distribution"]
 fn distribution() {
     read(|state| {

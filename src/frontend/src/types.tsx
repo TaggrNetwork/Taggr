@@ -67,11 +67,6 @@ export type Summary = {
 
 export type Mode = "Mining" | "Rewards" | "Credits";
 
-export type Feature = {
-    supporters: UserId[];
-    status: number;
-};
-
 export type Extension =
     | {
           ["Poll"]: Poll;
@@ -82,6 +77,7 @@ export type Extension =
     | {
           ["Proposal"]: number;
       }
+    // Retained so cold-stored posts referencing the old feature extension still parse.
     | "Feature";
 
 export type Rewards = {
@@ -93,7 +89,6 @@ export type Release = {
     commit: string;
     hash: string;
     binary: Uint8Array;
-    closed_features: PostId[];
 };
 
 export type Icrc1Canister = {
@@ -152,7 +147,6 @@ export type Realm = {
     last_setting_update: number;
     revenue: number;
     posts: PostId[];
-    tokens?: string[];
 };
 
 export type Meta = {
@@ -185,7 +179,6 @@ export type Post = {
     tree_update: BigInt;
     meta: Meta;
     encrypted: boolean;
-    external_tips?: PostTip[];
     hidden_for: UserId[];
 };
 
@@ -373,7 +366,7 @@ export type Config = {
     max_credits_mint_kilos: number;
     logo: string;
     poll_revote_deadline_hours: number;
-    feature_cost: number;
+    account_activation_cost: number;
     blob_cost: number;
     poll_cost: number;
     max_post_length: number;
@@ -404,13 +397,6 @@ export type Theme = { [name: string]: any };
 export type UserData = {
     [id: UserId]: string;
 };
-
-export interface PostTip {
-    amount: number;
-    canister_id: string;
-    sender_id: number;
-    index: number;
-}
 
 export interface IcExplorerUserTokenInfo {
     ledgerId: string;

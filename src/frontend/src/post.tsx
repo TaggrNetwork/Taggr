@@ -27,9 +27,6 @@ import {
     postAllowed,
     NotAllowed,
     onCanonicalDomain,
-    getCanistersMetaData,
-    shortenTokensAmount,
-    icpSwapLogoFallback,
     popUp,
     domain,
 } from "./common";
@@ -54,22 +51,13 @@ import {
 } from "./icons";
 import { ProposalView } from "./proposals";
 import { DEFAULT_REACTION_HOLD_TIME } from "./settings";
-import {
-    Feature,
-    Icrc1Canister,
-    Post,
-    PostId,
-    PostTip,
-    Realm,
-    UserId,
-} from "./types";
+import { Post, PostId, Realm, UserId } from "./types";
 import {
     UserLink,
     UserList,
     populateUserNameCache,
     validUserId,
 } from "./user_resolve";
-import { CANISTER_ID } from "./env";
 import { TippingPopup } from "./tipping";
 
 export const PostView = ({
@@ -384,9 +372,6 @@ export const PostView = ({
                         />
                     </article>
                 )}
-                {showExtension && post.extension == "Feature" && (
-                    <FeatureView id={post.id} />
-                )}
                 {showExtension && typeof post.extension == "object" && (
                     <>
                         {"Poll" in post.extension && (
@@ -525,70 +510,25 @@ const PostInfo = ({
     const [realmData, setRealmData] = React.useState<Realm | null>();
     const [loaded, setLoaded] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
-    const [externalTips, setExternalTips] = React.useState<PostTip[]>([]);
-    const [canistersMetaData, setCanisterMetaData] = React.useState<
-        Record<string, Icrc1Canister>
-    >({}); // All tokens data
-    const [allowedTippingCanisterIds, setAllowedTippingCanisterIds] =
-        React.useState<string[]>([]); // Allowed tipping tokens
 
     const loadData = async () => {
-        // Load realm data asynchronously
-        const realmPromise = post.realm
-            ? window.api
-                  .query<Realm[]>("realms", [post.realm])
-                  .then((realmData) => {
-                      setRealmData(realmData?.at(0));
-                      return realmData?.at(0);
-                  })
-            : Promise.resolve(undefined);
+        if (post.realm) {
+            window.api
+                .query<Realm[]>("realms", [post.realm])
+                .then((realmData) => setRealmData(realmData?.at(0)))
+                .catch(console.error);
+        }
         const ids: UserId[] = [post.user]
             // @ts-ignore
             .concat(...Object.values(reactions))
             // @ts-ignore
             .concat(post.watchers)
             // @ts-ignore
-            .concat(Object.keys(post.tips).map(Number))
-            // External tip senders
-            .concat(
-                post.external_tips?.map(({ sender_id }) => sender_id) || [],
-            );
+            .concat(Object.keys(post.tips).map(Number));
 
         await populateUserNameCache(ids, setLoading);
 
-        realmPromise
-            .then((realm) => loadExternalTipsData(realm))
-            .catch(console.error);
-
         setLoaded(true);
-    };
-
-    /** Load canister data of external tips */
-    const loadExternalTipsData = async (realm: Realm | undefined) => {
-        const externalTips = post.external_tips || [];
-        const allTokenIds = [
-            CANISTER_ID,
-            ...externalTips.map(({ canister_id }) => canister_id),
-        ];
-        const allowedTippingCanisterIds = [CANISTER_ID];
-        if (realm?.tokens) {
-            allowedTippingCanisterIds.push(...realm.tokens);
-            allTokenIds.push(...realm.tokens);
-        }
-
-        const metadata = await getCanistersMetaData([
-            ...new Set(allTokenIds),
-        ]).catch(() => new Map<string, Icrc1Canister>());
-
-        setCanisterMetaData(Object.fromEntries(metadata));
-
-        setAllowedTippingCanisterIds(
-            [...new Set(allowedTippingCanisterIds)].filter(
-                (canisterId) => !!metadata.get(canisterId),
-            ),
-        );
-
-        setExternalTips(externalTips);
     };
 
     const initialRef = React.useRef(false);
@@ -776,31 +716,19 @@ const PostInfo = ({
                         {!postAuthor &&
                             onCanonicalDomain() &&
                             validUserId(post.user) && (
-                                <>
-                                    <ButtonWithLoading
-                                        title="Tip"
-                                        label={<Coin />}
-                                        classNameArg="max_width_col"
-                                        onClick={async () =>
-                                            popUp(
-                                                <TippingPopup
-                                                    post={post}
-                                                    allowedTippingCanisterIds={
-                                                        allowedTippingCanisterIds
-                                                    }
-                                                    canistersMetaData={
-                                                        canistersMetaData
-                                                    }
-                                                    externalTips={externalTips}
-                                                    setExternalTips={
-                                                        setExternalTips
-                                                    }
-                                                    callback={callback}
-                                                />,
-                                            )
-                                        }
-                                    />
-                                </>
+                                <ButtonWithLoading
+                                    title="Tip"
+                                    label={<Coin />}
+                                    classNameArg="max_width_col"
+                                    onClick={async () =>
+                                        popUp(
+                                            <TippingPopup
+                                                post={post}
+                                                callback={callback}
+                                            />,
+                                        )
+                                    }
+                                />
                             )}
                         {realmController && isRoot(post) && (
                             <ButtonWithLoading
@@ -960,47 +888,6 @@ const PostInfo = ({
                         )}
                     </div>
                 )}
-                {externalTips.length > 0 &&
-                    Object.keys(canistersMetaData).length > 0 && (
-                        <div>
-                            <b>EXTERNAL TIPS</b>:{" "}
-                            {commaSeparated(
-                                externalTips.map((tip) => (
-                                    <span key={tip.canister_id + tip.index}>
-                                        <img
-                                            src={
-                                                canistersMetaData[
-                                                    tip.canister_id
-                                                ]?.logo ||
-                                                icpSwapLogoFallback(
-                                                    tip.canister_id,
-                                                )
-                                            }
-                                            className="vertically_aligned right_half_spaced"
-                                            style={{ height: 16 }}
-                                        />
-                                        <code>
-                                            {shortenTokensAmount(
-                                                tip.amount,
-                                                canistersMetaData[
-                                                    tip.canister_id
-                                                ]?.decimals || 0,
-                                            )}{" "}
-                                            {canistersMetaData[tip.canister_id]
-                                                ?.symbol || ""}{" "}
-                                        </code>
-                                        from{" "}
-                                        {
-                                            <UserLink
-                                                id={tip.sender_id}
-                                                profile={true}
-                                            />
-                                        }
-                                    </span>
-                                )),
-                            )}
-                        </div>
-                    )}
                 {Object.keys(reactions).length > 0 && (
                     <div className="top_spaced">
                         {Object.entries(reactions).map(([reactId, users]) => (
@@ -1131,8 +1018,7 @@ const PostBar = ({
                 )}
                 {!showEmojis && (
                     <>
-                        {(post.tips.length > 0 ||
-                            !!post.external_tips?.length) && (
+                        {post.tips.length > 0 && (
                             <Coin classNameArg="accent right_quarter_spaced" />
                         )}
                         {post.reposts.length > 0 && (
@@ -1295,62 +1181,3 @@ export const filesToUrls = (files: { [id: string]: [number, number] }) =>
         },
         {} as { [id: string]: string },
     );
-
-const FeatureView = ({ id }: { id: PostId }) => {
-    const [feature, setFeature] = React.useState<Feature>();
-    const [vp, setVP] = React.useState(0);
-
-    const loadData = async () => {
-        const features = await window.api.query<[Post, number, Feature][]>(
-            "features",
-            [id],
-        );
-        if (!features || features.length < 1) return;
-        setFeature(features[0][2]);
-        setVP(features[0][1]);
-    };
-
-    React.useEffect(() => {
-        loadData();
-    }, []);
-
-    if (!feature) return <Loading />;
-    const user = window.user;
-
-    return (
-        <div className="post_extension">
-            <h3>Feature Request</h3>
-            <h4>
-                Status:{" "}
-                <code className={feature.status == 0 ? "accent" : ""}>
-                    {feature.status == 0 ? "REQUESTED" : "IMPLEMENTED"}
-                </code>
-            </h4>
-            {feature.supporters.length > 0 && (
-                <>
-                    <hr />
-                    Supporters: <UserList ids={feature.supporters} />
-                </>
-            )}
-            <hr />
-            Total voting power support:{" "}
-            <code>{tokens(vp, window.backendCache.config.token_decimals)}</code>
-            {user && (
-                <div className="row_container top_spaced">
-                    <ButtonWithLoading
-                        classNameArg="max_width_col"
-                        label={
-                            feature.supporters.includes(user.id)
-                                ? "REMOVE SUPPORT"
-                                : "SUPPORT"
-                        }
-                        onClick={async () => {
-                            await window.api.call("toggle_feature_support", id);
-                            await loadData();
-                        }}
-                    />
-                </div>
-            )}
-        </div>
-    );
-};

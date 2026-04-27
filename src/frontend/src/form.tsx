@@ -42,14 +42,12 @@ export const Form = ({
     urls,
     content,
     proposalCreation,
-    featureRequest,
 }: {
     postId?: PostId;
     comment?: boolean;
     realmArg?: string;
     expanded?: boolean;
     proposalCreation?: boolean;
-    featureRequest?: boolean;
     submitCallback: (
         value: string,
         blobs: [string, Uint8Array][],
@@ -83,10 +81,7 @@ export const Form = ({
     const [poll, setPoll] = React.useState<PollType>();
     const [proposal, setProposal] = React.useState<Payload>();
     const [showTextField, setShowTextField] = React.useState(
-        !!localStorage.getItem(draftKey) ||
-            expanded ||
-            proposalCreation ||
-            featureRequest,
+        !!localStorage.getItem(draftKey) || expanded || proposalCreation,
     );
     const [suggestedTags, setSuggestedTags] = React.useState<string[]>([]);
     const [suggestedUsers, setSuggestedUsers] = React.useState<string[]>([]);
@@ -154,8 +149,6 @@ export const Form = ({
                 extension = { Poll: poll };
             } else if (repost != undefined) {
                 extension = { Repost: repost };
-            } else if (featureRequest) {
-                extension = "Feature";
             }
             const postId = await submitCallback(
                 value,
@@ -172,7 +165,6 @@ export const Form = ({
                         ? await window.api.propose_release(
                               postId,
                               proposal.Release.commit,
-                              proposal.Release.closed_features,
                               proposal.Release.binary,
                           )
                         : await window.api.call<any>(
@@ -184,17 +176,6 @@ export const Form = ({
                     showPopUp(
                         "warning",
                         `Post could be created, but the proposal creation failed: ${result.Err}`,
-                    );
-                }
-            } else if (featureRequest) {
-                let result: any = await window.api.call(
-                    "create_feature",
-                    postId,
-                );
-                if (result && "Err" in result) {
-                    showPopUp(
-                        "warning",
-                        `Post could be created, but the feature request failed: ${result.Err}`,
                     );
                 }
             }
@@ -340,8 +321,8 @@ export const Form = ({
 
     React.useEffect(() => {
         clearTimeout(timer);
-        const { poll_cost, feature_cost } = window.backendCache.config;
-        const extraCost = poll ? poll_cost : featureRequest ? feature_cost : 0;
+        const { poll_cost } = window.backendCache.config;
+        const extraCost = poll ? poll_cost : 0;
         timer = setTimeout(async () => {
             setTotalCosts((await costs(value, extraCost)) || totalCosts);
         }, 1000);
@@ -606,8 +587,7 @@ export const Form = ({
                                 />
                                 {isRootPost &&
                                     !isRepost &&
-                                    !proposalCreation &&
-                                    !featureRequest && (
+                                    !proposalCreation && (
                                         <IconToggleButton
                                             testId="poll-button"
                                             classNameArg="left_half_spaced"
@@ -641,7 +621,6 @@ export const Form = ({
                                     )}
                                 {!comment &&
                                     !proposalCreation &&
-                                    !featureRequest &&
                                     user.realms.length > 0 &&
                                     (!realm || user.realms.includes(realm)) && (
                                         <select

@@ -5,7 +5,7 @@ use super::config::CONFIG;
 use super::post::{Extension, Post, PostId};
 use super::token::{self, account};
 use super::user::Predicate;
-use super::{features, invoices, RealmId, Time, HOUR, WEEK};
+use super::{invoices, RealmId, Time, HOUR, WEEK};
 use super::{user::UserId, State};
 use crate::mutate;
 use crate::token::Token;
@@ -38,8 +38,6 @@ pub struct Release {
     pub hash: String,
     #[serde(skip)]
     pub binary: Vec<u8>,
-    #[serde(default)]
-    pub closed_features: Vec<PostId>,
 }
 
 type ProposedReward = Token;
@@ -213,7 +211,7 @@ impl Proposal {
         // Proposal accepted.
         if approvals * 100 >= voting_power * CONFIG.proposal_approval_threshold as u64 {
             match &mut self.payload {
-                Payload::Release(release) => {
+                Payload::Release(_) => {
                     // Invalidate all pending release proposals because they were competing for the
                     // next upgrade.
                     state
@@ -225,14 +223,6 @@ impl Proposal {
                         .for_each(|proposal| {
                             proposal.status = Status::Cancelled;
                         });
-
-                    for feature_id in &release.closed_features {
-                        if let Err(err) = features::close_feature(state, *feature_id) {
-                            state
-                                .logger
-                                .error(format!("couldn't close feature: {}", err));
-                        }
-                    }
                 }
                 Payload::Funding(receiver, tokens) => {
                     mint_tokens(state, *receiver, *tokens, "funding proposal")?
@@ -668,7 +658,6 @@ pub mod tests {
                     commit: "sdasd".into(),
                     hash: "".into(),
                     binary: vec![1],
-                    closed_features: vec![],
                 }),
                 time(),
             )
@@ -720,7 +709,6 @@ pub mod tests {
                     commit: "sdasd".into(),
                     hash: "".into(),
                     binary: vec![1],
-                    closed_features: vec![],
                 }),
                 time(),
             )
@@ -900,7 +888,6 @@ pub mod tests {
                     commit: "abcdef1234".into(),
                     hash: "0987654321".into(),
                     binary: vec![1, 2, 3, 4],
-                    closed_features: vec![42],
                 }),
                 time(),
             )
@@ -948,7 +935,6 @@ pub mod tests {
                 commit: "".into(),
                 hash: "".into(),
                 binary: vec![],
-                closed_features: vec![],
             });
 
             // Empty commit should fail
@@ -962,7 +948,6 @@ pub mod tests {
                 commit: "abcdef".into(),
                 hash: "".into(),
                 binary: vec![],
-                closed_features: vec![],
             });
 
             assert_eq!(
@@ -975,7 +960,6 @@ pub mod tests {
                 commit: "abcdef".into(),
                 hash: "".into(),
                 binary: vec![1, 2, 3],
-                closed_features: vec![],
             });
 
             assert_eq!(release_payload.validate(state), Ok(()));
@@ -1175,7 +1159,6 @@ pub mod tests {
                 commit: "".into(), // Empty commit
                 hash: "".into(),
                 binary: vec![],
-                closed_features: vec![],
             });
 
             assert_eq!(

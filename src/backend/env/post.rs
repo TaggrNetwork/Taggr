@@ -3,7 +3,6 @@ use std::cmp::{Ordering, PartialOrd};
 use super::config::DOWNVOTE_REACTION_ID;
 use super::*;
 use super::{storage::Storage, user::UserId};
-use crate::env::tip::Tip;
 use crate::mutate;
 use ic_cdk::api::msg_caller as caller;
 use serde::{Deserialize, Serialize};
@@ -49,6 +48,8 @@ pub enum Extension {
     Poll(Poll),
     Proposal(u32),
     Repost(PostId),
+    // Retained so cold-stored posts that reference the old feature extension still
+    // deserialize. No new posts use it and no behavior is attached to it anymore.
     Feature,
 }
 
@@ -93,9 +94,6 @@ pub struct Post {
 
     #[serde(default)]
     pub encrypted: bool,
-
-    #[serde(default)]
-    pub external_tips: Vec<Tip>,
 
     #[serde(default)]
     pub hidden_for: Vec<UserId>,
@@ -161,7 +159,6 @@ impl Post {
             encrypted: false,
             realm,
             heat,
-            external_tips: Default::default(),
             hidden_for: Default::default(),
         }
     }
@@ -352,8 +349,6 @@ impl Post {
             + blobs as Credits * CONFIG.blob_cost
             + if matches!(self.extension, Some(Extension::Poll(_))) {
                 CONFIG.poll_cost
-            } else if matches!(self.extension, Some(Extension::Feature)) {
-                CONFIG.feature_cost
             } else {
                 0
             }
@@ -771,11 +766,8 @@ impl Post {
             return;
         };
 
-        // We never encrypt feature requests and proposals, as they are supposed to be public.
-        let skip = matches!(
-            post.extension,
-            Some(Extension::Feature) | Some(Extension::Proposal(_))
-        );
+        // We never encrypt proposals, as they are supposed to be public.
+        let skip = matches!(post.extension, Some(Extension::Proposal(_)));
         if !skip {
             let encrypt = !post.encrypted;
             post.body = xor(&post.body, seed, encrypt);
@@ -1093,7 +1085,7 @@ mod tests {
             assert_eq!(state.posts.len(), 10);
             // Trigger post archiving
             archive_cold_posts(state, 5).unwrap();
-            assert!(state.memory.health("B").starts_with("boundary=1044B"));
+            assert!(state.memory.health("B").starts_with("boundary=969B"));
             assert!(state.memory.health("B").ends_with("segments=0"));
 
             // Make sure we have the right numbers in cold and hot memories
@@ -1135,7 +1127,7 @@ mod tests {
             assert!(!Post::get(state, &3).unwrap().archived);
             assert_eq!(state.posts.len(), 8);
             assert_eq!(state.memory.posts.len(), 3);
-            assert!(state.memory.health("B").starts_with("boundary=1044B"));
+            assert!(state.memory.health("B").starts_with("boundary=969B"));
             assert!(state.memory.health("B").ends_with("segments=2"));
 
             // Archive posts again
@@ -1144,7 +1136,7 @@ mod tests {
             assert_eq!(state.memory.posts.len(), 6);
             // Segments were reduced, becasue the new post 10 fits into a gap left from one of the
             // old posts
-            assert!(state.memory.health("B").starts_with("boundary=1460B"));
+            assert!(state.memory.health("B").starts_with("boundary=1355B"));
             assert!(state.memory.health("B").ends_with("segments=1"));
         });
     }
@@ -1325,27 +1317,6 @@ mod tests {
             assert!(!post.encrypted);
             assert_eq!(post.body, original_body);
             assert_eq!(post.patches[0].1, original_patch);
-
-            // Test feature post is not encrypted
-            let feature_id = Post::create(
-                state,
-                "Feature request".into(),
-                &[],
-                p,
-                1,
-                None,
-                None,
-                Some(Extension::Feature),
-            )
-            .unwrap();
-
-            let feature_body = Post::get(state, &feature_id).unwrap().body.clone();
-            assert!(!Post::get(state, &feature_id).unwrap().encrypted);
-
-            Post::crypt(state, feature_id, "test_seed");
-            let post = Post::get(state, &feature_id).unwrap();
-            assert!(!post.encrypted);
-            assert_eq!(post.body, feature_body);
 
             // Test proposal post is not encrypted
             let proposal_id = Post::create(

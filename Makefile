@@ -26,6 +26,16 @@ build:
 	./build.sh bucket
 	./build.sh taggr
 
+check:
+	cargo check --tests
+	cargo fmt --check
+	npx tsc --noEmit
+	npx prettier --check src/frontend/
+
+format:
+	cargo fmt
+	npx prettier --write src/frontend/
+
 test:
 	make e2e_build
 	make local_deploy

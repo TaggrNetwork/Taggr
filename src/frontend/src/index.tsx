@@ -46,7 +46,6 @@ import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
 import { populateUserNameCache } from "./user_resolve";
-import { Roadmap } from "./roadmap";
 import { LinksPage } from "./links";
 import { ApiGenerator } from "./api";
 import { MAINNET_MODE } from "./env";
@@ -239,8 +238,6 @@ const App = () => {
         content = <LinksPage />;
     } else if (handler == "distribution") {
         content = <Distribution />;
-    } else if (handler == "roadmap") {
-        content = <Roadmap />;
     } else if (handler == "bookmarks") {
         content = auth(
             <PostFeed

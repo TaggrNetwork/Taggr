@@ -51,7 +51,6 @@ pub mod realms;
 pub mod reports;
 pub mod search;
 pub mod storage;
-pub mod tip;
 pub mod token;
 pub mod user;
 
@@ -67,7 +66,6 @@ pub const HOUR: u64 = 60 * MINUTE;
 pub const DAY: u64 = 24 * HOUR;
 pub const WEEK: u64 = 7 * DAY;
 pub const MONTH: u64 = 30 * DAY;
-pub const YEAR: u64 = 52 * WEEK;
 
 pub const MAX_USER_ID: UserId = 9_007_199_254_740_991; // Number.MAX_SAFE_INTEGER in JS
 
@@ -316,7 +314,7 @@ impl State {
         let (username, len, is_deactivated) = {
             let user = self.principal_to_user_mut(caller).ok_or("user not found")?;
             user.change_credits(
-                CONFIG.feature_cost,
+                CONFIG.account_activation_cost,
                 CreditsDelta::Minus,
                 "profile privacy change",
             )?;
@@ -746,7 +744,6 @@ impl State {
             cleanup_penalty,
             adult_content,
             comments_filtering,
-            tokens,
             max_downvotes,
             ..
         } = realm;
@@ -762,9 +759,6 @@ impl State {
         }
         if !logo.is_empty() {
             realm.logo = logo;
-        }
-        if tokens.as_ref().is_some_and(|t| t.len() > 50) {
-            return Err("tokens count above 50".into());
         }
         let description_change = realm.description != description;
         realm.description = description;
@@ -796,7 +790,6 @@ impl State {
         realm.last_setting_update = time();
         realm.adult_content = adult_content;
         realm.comments_filtering = comments_filtering;
-        realm.tokens = tokens;
         if description_change {
             self.notify_with_filter(
                 &|user| user.realms.contains(&realm_id),
@@ -2730,12 +2723,6 @@ impl State {
             }
             Some(Extension::Poll(_)) => {
                 self.pending_polls.remove(&post_id);
-            }
-            Some(Extension::Feature) => {
-                self.memory
-                    .features
-                    .remove(&post_id)
-                    .expect("couldn't delete feature");
             }
             _ => {}
         };
