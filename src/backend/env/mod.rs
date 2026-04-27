@@ -66,7 +66,6 @@ pub const HOUR: u64 = 60 * MINUTE;
 pub const DAY: u64 = 24 * HOUR;
 pub const WEEK: u64 = 7 * DAY;
 pub const MONTH: u64 = 30 * DAY;
-pub const YEAR: u64 = 52 * WEEK;
 
 pub const MAX_USER_ID: UserId = 9_007_199_254_740_991; // Number.MAX_SAFE_INTEGER in JS
 
