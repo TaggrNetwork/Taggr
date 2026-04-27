@@ -99,9 +99,6 @@ fn post_upgrade() {
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
     mutate(|state| {
-        // Fix the stuck hourly routine.
-        state.timers.hourly_pending = false;
-
         // One-time cleanup: drain the features index. Each remove() frees the
         // stable-memory blocks back to the allocator. The next release can then
         // drop Memory::features entirely.
