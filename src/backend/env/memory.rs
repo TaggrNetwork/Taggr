@@ -1,5 +1,4 @@
 use super::{
-    features::Feature,
     post::{Post, PostId},
     token::Transaction,
 };
@@ -22,8 +21,6 @@ pub struct Api {
 pub struct Memory {
     api: Api,
     pub posts: ObjectManager<PostId, Post>,
-    // TODO: remove
-    pub features: ObjectManager<PostId, Feature>,
     #[serde(default)]
     pub ledger: ObjectManager<u32, Transaction>,
     #[serde(skip)]
@@ -84,7 +81,6 @@ impl Memory {
         self.api.init();
         self.api_ref = Rc::new(RefCell::new(std::mem::take(&mut self.api)));
         self.posts.init(Rc::clone(&self.api_ref));
-        self.features.init(Rc::clone(&self.api_ref));
         self.ledger.init(Rc::clone(&self.api_ref));
     }
 

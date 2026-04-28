@@ -38,7 +38,6 @@ pub mod canisters;
 pub mod config;
 pub mod delegations;
 pub mod domains;
-pub mod features;
 pub mod invite;
 pub mod invoices;
 pub mod memory;

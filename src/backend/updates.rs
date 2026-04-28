@@ -98,24 +98,10 @@ fn post_upgrade() {
 
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
-    mutate(|state| {
-        // One-time cleanup: drain the features index. Each remove() frees the
-        // stable-memory blocks back to the allocator. The next release can then
-        // drop Memory::features entirely.
-        let ids: Vec<PostId> = state.memory.features.iter().map(|(id, _)| *id).collect();
-        for id in ids {
-            if let Err(err) = state.memory.features.remove(&id) {
-                state
-                    .logger
-                    .error(format!("couldn't drain feature {}: {}", id, err));
-            }
-        }
-    });
 }
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {
-    env::storage::upgrade_buckets().await;
 }
 
 /*
