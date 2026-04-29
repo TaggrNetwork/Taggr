@@ -81,20 +81,26 @@ EOF
   ) 2>&1 | grep --line-buffered -v 'sgymv'
 }
 
-case "${1:-build}" in
-  build)
-    run_release
+run_tests() {
+  prepare_artifacts
+  run_lints
+  run_cargo_tests
+  run_e2e
+}
+
+case "${1:-release}" in
+  tests)
+    run_tests
     ;;
-  ci)
-    prepare_artifacts
-    run_lints
-    run_cargo_tests
-    run_e2e
+  release)
+    # Tests gate the release: a failure here aborts before run_release thanks
+    # to set -e, so a hash is only ever produced for a fully-tested build.
+    run_tests
     rm -rf .dfx
     run_release
     ;;
   *)
-    echo "unknown mode: $1 (expected: build | ci)"
+    echo "unknown mode: $1 (expected: tests | release)"
     exit 1
     ;;
 esac

@@ -69,21 +69,24 @@ podman_machine:
 	podman machine rm -f || true
 	CONTAINERS_MACHINE_PROVIDER=qemu podman machine init --cpus 4 --memory 4096 --now
 
-release:
-	$(if $(PODMAN),podman,docker) build -t taggr --target release .
-	mkdir -p $(shell pwd)/release-artifacts
-	$(if $(PODMAN),podman,docker) run --rm -v $(shell pwd)/release-artifacts:/app/target/wasm32-unknown-unknown/release taggr
-	make hashes
+tests:
+	$(if $(PODMAN),podman,docker) build -t taggr .
+	mkdir -p $(shell pwd)/test-results $(shell pwd)/playwright-report
+	$(if $(PODMAN),podman,docker) run --rm \
+		--shm-size=1g \
+		-v $(shell pwd)/test-results:/app/test-results \
+		-v $(shell pwd)/playwright-report:/app/playwright-report \
+		taggr tests
 
-ci:
-	$(if $(PODMAN),podman,docker) build -t taggr-ci --target ci .
+release:
+	$(if $(PODMAN),podman,docker) build -t taggr .
 	mkdir -p $(shell pwd)/release-artifacts $(shell pwd)/test-results $(shell pwd)/playwright-report
 	$(if $(PODMAN),podman,docker) run --rm \
 		--shm-size=1g \
 		-v $(shell pwd)/release-artifacts:/app/target/wasm32-unknown-unknown/release \
 		-v $(shell pwd)/test-results:/app/test-results \
 		-v $(shell pwd)/playwright-report:/app/playwright-report \
-		taggr-ci
+		taggr
 	make hashes
 
 hashes:

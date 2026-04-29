@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 docker.io/library/ubuntu:22.04 AS release
+FROM --platform=linux/amd64 docker.io/library/ubuntu:22.04
 
 ENV NVM_DIR=/root/.nvm
 ENV NVM_VERSION=v0.39.1
@@ -49,14 +49,10 @@ RUN npm ci
 
 COPY . .
 
-ENTRYPOINT [ "./release.sh" ]
-
-# CI image: same toolchain as release, plus Playwright (Chromium + system deps)
-# and the dfx NNS extension pre-installed so e2e setup needs less network.
-FROM release AS ci
-
+# Test deps: Playwright (Chromium + system libs) and dfx NNS extension.
+# Both are needed by the e2e step that gates every release build.
 RUN npx playwright install chromium --with-deps
 
 RUN dfx extension install nns --version "$(cat .nns-extension-version | xargs)"
 
-ENTRYPOINT [ "./release.sh", "ci" ]
+ENTRYPOINT [ "./release.sh" ]

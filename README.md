@@ -11,26 +11,28 @@ Assume you want to verify a new upgrade proposal with code commit `<COMMIT>` and
 4. `make release`
 5. Verify that the printed hash matches the `<HASH>` value from the release page.
 
+`make release` runs the full validation pipeline (lints, Rust tests, Playwright e2e) inside the container and only produces a hash if everything passes. A failing release therefore cannot be hashed — the printed hash is a signal that the wasm is both reproducible and tested. Both Docker and Podman are supported (`PODMAN=1 make release`).
+
+Outputs of a successful run:
+
+-   `release-artifacts/taggr.wasm.gz` — the production wasm.
+-   `test-results/` and `playwright-report/` — Playwright traces and the HTML report (open `playwright-report/index.html` to inspect any failures).
+
+Note: the first run is slow (Chromium install layer is several hundred MB) and `dfx nns install` downloads the NNS canisters on every run.
+
 ## Release proposal
 
 To propose a release, follow the steps above first.
 If they were successful, you'll find a binary `taggr.wasm.gz` in the `release-artifacts` directory.
 Use the printed code commit and the binary to submit a new release proposal.
 
-## Full validation (lints, tests, e2e, release)
+## Running tests during development
 
-`make release` only produces and verifies the release wasm. To run the full validation pipeline — lints, Rust tests, end-to-end Playwright tests, and the release verification — in a single containerized command:
+For day-to-day iteration, skip the prod build and just run the test suite:
 
-    make ci
+    make tests
 
-This builds an image that extends the release image with Playwright (Chromium + system deps) and the dfx NNS extension, then runs everything inside the container. Both Docker and Podman are supported (`PODMAN=1 make ci`).
-
-Outputs:
-
--   `release-artifacts/taggr.wasm.gz` — the production wasm (same artifact as `make release`).
--   `test-results/` and `playwright-report/` — Playwright traces, screenshots, and the HTML report (open `playwright-report/index.html` to inspect failures).
-
-Note: the first run is slow (Chromium install layer is several hundred MB) and `dfx nns install` downloads the NNS canisters on every run.
+Same image as `make release` and the same checks (lints, Rust tests, Playwright e2e), but stops before the deterministic prod build. Use this while iterating; use `make release` when you actually want a hash.
 
 ## Backups
 
