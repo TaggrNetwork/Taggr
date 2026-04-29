@@ -13,6 +13,19 @@
                     "networks": ["local", "ic", "staging", "staging2"]
                 }
             ]
+        },
+        "icp_ledger": {
+            "type": "custom",
+            "candid": "e2e/icp_ledger/ledger.did",
+            "wasm": "e2e/icp_ledger/ledger.wasm.gz",
+            "specified_id": "ryjl3-tyaaa-aaaaa-aaaba-cai",
+            "remote": {
+                "id": {
+                    "ic": "ryjl3-tyaaa-aaaaa-aaaba-cai",
+                    "staging": "ryjl3-tyaaa-aaaaa-aaaba-cai",
+                    "staging2": "ryjl3-tyaaa-aaaaa-aaaba-cai"
+                }
+            }
         }
     },
     "networks": {

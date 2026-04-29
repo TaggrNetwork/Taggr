@@ -22,6 +22,8 @@ dist/
 # e2e tests
 test-results/
 playwright-report/
+e2e/icp_ledger/ledger.wasm.gz
+e2e/icp_ledger/ledger.did
 
 # reviews
 /reviews

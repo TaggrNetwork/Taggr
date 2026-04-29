@@ -1183,7 +1183,7 @@ export const showPopUp = (
 export const signOut = async () => {
     localStorage.clear();
     sessionStorage.clear();
-    window.authClient.logout();
+    await window.authClient.logout();
     restartApp();
     return true;
 };

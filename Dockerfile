@@ -12,6 +12,8 @@ RUN apt-get -yq update && \
         build-essential pkg-config libssl-dev llvm-dev liblmdb-dev clang cmake rsync libunwind-dev jq xz-utils && \
     rm -rf /var/lib/apt/lists/*
 
+WORKDIR /app
+
 # Install Node.js
 COPY .node-version ./
 RUN curl --fail -sSf https://raw.githubusercontent.com/creationix/nvm/${NVM_VERSION}/install.sh | bash && \
@@ -36,6 +38,7 @@ RUN mkdir -p /opt/ic-wasm && \
     chmod +x /opt/ic-wasm/ic-wasm
 
 # Install dfx
+ENV HOME=/root
 COPY dfx.json ./
 RUN DFXVM_INIT_YES=1 DFX_VERSION=$(cat dfx.json | jq -r .dfx) sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
 ENV PATH=${HOME}/.local/share/dfx/bin:${PATH}
@@ -45,5 +48,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+
+# Test deps: Playwright (Chromium + system libs) for the e2e step.
+RUN npx playwright install chromium --with-deps
 
 ENTRYPOINT [ "./release.sh" ]

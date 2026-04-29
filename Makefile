@@ -1,5 +1,8 @@
+# Prefer podman if installed, else fall back to docker. Override with CONTAINER=docker.
+CONTAINER ?= $(shell command -v podman >/dev/null 2>&1 && echo podman || echo docker)
+
 start:
-	ulimit -n 65000 && dfx start --background -qqqq 2>&1 | grep -v sgymv &
+	ulimit -n 65000 && dfx start --background -qqqq &
 
 cycles:
 	dfx --identity local-minter ledger fabricate-cycles --all --cycles 1000000000000000
@@ -10,7 +13,7 @@ staging_deploy:
 	FEATURES=staging dfx --identity prod deploy --network $(if $(CANISTER),$(CANISTER),staging) taggr
 
 local_deploy:
-	FEATURES=dev dfx deploy
+	FEATURES=dev dfx deploy taggr
 
 dev_build:
 	FEATURES=dev ./build.sh bucket
@@ -59,6 +62,8 @@ e2e_build:
 e2e_test:
 	npm run install:e2e
 	dfx canister create --all
+	./e2e/import_local_minter.sh
+	./e2e/install_icp_ledger.sh
 	make e2e_build
 	make start || true # don't fail if DFX is already running
 	npm run test:e2e
@@ -69,10 +74,24 @@ podman_machine:
 	podman machine rm -f || true
 	CONTAINERS_MACHINE_PROVIDER=qemu podman machine init --cpus 4 --memory 4096 --now
 
+tests:
+	$(CONTAINER) build --quiet -t taggr . >/dev/null
+	mkdir -p $(shell pwd)/test-results $(shell pwd)/playwright-report
+	$(CONTAINER) run --rm \
+		--shm-size=1g \
+		-v $(shell pwd)/test-results:/app/test-results \
+		-v $(shell pwd)/playwright-report:/app/playwright-report \
+		taggr tests
+
 release:
-	$(if $(PODMAN),podman,docker) build -t taggr .
-	mkdir -p $(shell pwd)/release-artifacts
-	$(if $(PODMAN),podman,docker) run --rm -v $(shell pwd)/release-artifacts:/target/wasm32-unknown-unknown/release taggr
+	$(CONTAINER) build --quiet -t taggr . >/dev/null
+	mkdir -p $(shell pwd)/release-artifacts $(shell pwd)/test-results $(shell pwd)/playwright-report
+	$(CONTAINER) run --rm \
+		--shm-size=1g \
+		-v $(shell pwd)/release-artifacts:/app/target/wasm32-unknown-unknown/release \
+		-v $(shell pwd)/test-results:/app/test-results \
+		-v $(shell pwd)/playwright-report:/app/playwright-report \
+		taggr
 	make hashes
 
 hashes:
