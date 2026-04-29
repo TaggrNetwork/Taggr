@@ -212,7 +212,7 @@ const UserSection = ({ user }: { user: UserType }) => {
                         className="icon_link"
                         href={`/#/user/${user.name}`}
                     >
-                        {user.name.toUpperCase()}
+                        <User /> {user.name.toUpperCase()}
                     </a>
                     <a
                         title="JOURNAL"
