@@ -45,21 +45,7 @@ Install DFX
 DFX_VERSION=$(cat dfx.json | jq -r .dfx) sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
 ```
 
-The remaining steps are only necessary for deploying NNS canisters locally. This makes it easier to test new account creation with Internet Identity, to make ICP transfers to those accounts or to run Taggr e2e tests without a Docker container. Alternatively, you can [create a backup](#creating-and-restoring-backups) and then refer to the [command reference](#command-reference) to build and deploy.
-
-Create or edit `~/.config/dfx/networks.json`, and add the following, note that `dfx install` requires port `8080` to work:
-
-```json
-{
-    "local": {
-        "bind": "127.0.0.1:8080",
-        "type": "ephemeral",
-        "replica": {
-            "subnet_type": "system"
-        }
-    }
-}
-```
+The remaining steps are only necessary for deploying the local ICP ledger canister. This makes it easier to test new account creation with Internet Identity, to make ICP transfers to those accounts or to run Taggr e2e tests without a Docker container. Alternatively, you can [create a backup](#creating-and-restoring-backups) and then refer to the [command reference](#command-reference) to build and deploy.
 
 Stop DFX if it's running:
 
@@ -84,11 +70,13 @@ make local_reinstall
 
 Use `make cycles` to fabricate cycles for the canister.
 
-Install NNS canisters (see the [DFX docs](https://github.com/dfinity/sdk/blob/master/docs/cli-reference/dfx-nns.md)):
+Install the ICP ledger canister at its mainnet ID locally (the backend
+hard-codes `MAINNET_LEDGER_CANISTER_ID`, so the ledger has to answer at
+`ryjl3-tyaaa-aaaaa-aaaba-cai`):
 
 ```shell
-dfx extension install nns
-dfx nns install
+./e2e/import_local_minter.sh
+./e2e/install_icp_ledger.sh
 ```
 
 Now you are ready to create a new Taggr account with Internet Identity locally. If you also want to make ICP transfers to this account then continue with the remaining steps, the remaining steps are not necessary for running e2e tests.

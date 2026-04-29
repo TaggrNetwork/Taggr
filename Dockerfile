@@ -49,10 +49,7 @@ RUN npm ci
 
 COPY . .
 
-# Test deps: Playwright (Chromium + system libs) and dfx NNS extension.
-# Both are needed by the e2e step that gates every release build.
+# Test deps: Playwright (Chromium + system libs) for the e2e step.
 RUN npx playwright install chromium --with-deps
-
-RUN dfx extension install nns --version "$(cat .nns-extension-version | xargs)"
 
 ENTRYPOINT [ "./release.sh" ]
