@@ -11,7 +11,7 @@ Assume you want to verify a new upgrade proposal with code commit `<COMMIT>` and
 4. `make release`
 5. Verify that the printed hash matches the `<HASH>` value from the release page.
 
-`make release` runs the full validation pipeline (lints, Rust tests, Playwright e2e) inside the container and only produces a hash if everything passes. A failing release therefore cannot be hashed — the printed hash is a signal that the wasm is both reproducible and tested. Both Docker and Podman are supported (`PODMAN=1 make release`).
+`make release` runs the full validation pipeline (lints, Rust tests, Playwright e2e) inside the container and only produces a hash if everything passes. A failing release therefore cannot be hashed — the printed hash is a signal that the wasm is both reproducible and tested. Podman is used automatically if installed; otherwise Docker. Override with `CONTAINER=docker make release`.
 
 Outputs of a successful run:
 

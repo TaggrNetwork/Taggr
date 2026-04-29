@@ -1,3 +1,6 @@
+# Prefer podman if installed, else fall back to docker. Override with CONTAINER=docker.
+CONTAINER ?= $(shell command -v podman >/dev/null 2>&1 && echo podman || echo docker)
+
 start:
 	ulimit -n 65000 && dfx start --background -qqqq 2>&1 | grep -v sgymv &
 
@@ -70,18 +73,18 @@ podman_machine:
 	CONTAINERS_MACHINE_PROVIDER=qemu podman machine init --cpus 4 --memory 4096 --now
 
 tests:
-	$(if $(PODMAN),podman,docker) build -t taggr .
+	$(CONTAINER) build -t taggr .
 	mkdir -p $(shell pwd)/test-results $(shell pwd)/playwright-report
-	$(if $(PODMAN),podman,docker) run --rm \
+	$(CONTAINER) run --rm \
 		--shm-size=1g \
 		-v $(shell pwd)/test-results:/app/test-results \
 		-v $(shell pwd)/playwright-report:/app/playwright-report \
 		taggr tests
 
 release:
-	$(if $(PODMAN),podman,docker) build -t taggr .
+	$(CONTAINER) build -t taggr .
 	mkdir -p $(shell pwd)/release-artifacts $(shell pwd)/test-results $(shell pwd)/playwright-report
-	$(if $(PODMAN),podman,docker) run --rm \
+	$(CONTAINER) run --rm \
 		--shm-size=1g \
 		-v $(shell pwd)/release-artifacts:/app/target/wasm32-unknown-unknown/release \
 		-v $(shell pwd)/test-results:/app/test-results \
