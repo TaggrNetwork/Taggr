@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 docker.io/library/ubuntu:22.04
+FROM --platform=linux/amd64 docker.io/library/ubuntu:22.04 AS release
 
 ENV NVM_DIR=/root/.nvm
 ENV NVM_VERSION=v0.39.1
@@ -11,6 +11,8 @@ RUN apt-get -yq update && \
     apt-get -yqq install --no-install-recommends curl ca-certificates \
         build-essential pkg-config libssl-dev llvm-dev liblmdb-dev clang cmake rsync libunwind-dev jq xz-utils && \
     rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
 
 # Install Node.js
 COPY .node-version ./
@@ -36,6 +38,7 @@ RUN mkdir -p /opt/ic-wasm && \
     chmod +x /opt/ic-wasm/ic-wasm
 
 # Install dfx
+ENV HOME=/root
 COPY dfx.json ./
 RUN DFXVM_INIT_YES=1 DFX_VERSION=$(cat dfx.json | jq -r .dfx) sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
 ENV PATH=${HOME}/.local/share/dfx/bin:${PATH}
@@ -47,3 +50,13 @@ RUN npm ci
 COPY . .
 
 ENTRYPOINT [ "./release.sh" ]
+
+# CI image: same toolchain as release, plus Playwright (Chromium + system deps)
+# and the dfx NNS extension pre-installed so e2e setup needs less network.
+FROM release AS ci
+
+RUN npx playwright install chromium --with-deps
+
+RUN dfx extension install nns --version "$(cat .nns-extension-version | xargs)"
+
+ENTRYPOINT [ "./release.sh", "ci" ]
