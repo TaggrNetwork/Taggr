@@ -15,5 +15,6 @@ pkgs.mkShell {
   # cargo/rustc are used instead of trying to invoke rustup.
   shellHook = ''
     export RUSTUP_TOOLCHAIN=
+    exec zsh
   '';
 }
