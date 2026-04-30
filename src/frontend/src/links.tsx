@@ -19,7 +19,7 @@ export const LinksPage = ({}) => {
             <h2>{token_symbol} Trading</h2>
             <ul>
                 <li>
-                    <a href="https://info.icpswap.com/swap/token/details/6qfxa-ryaaa-aaaai-qbhsq-cai">
+                    <a href="https://app.icpswap.com/info-swap/token/details/6qfxa-ryaaa-aaaai-qbhsq-cai">
                         ICPSwap exchange
                     </a>
                 </li>
@@ -48,7 +48,7 @@ export const LinksPage = ({}) => {
             <h2>Development</h2>
             <ul>
                 <li>
-                    <a href={REPO}>Source code repository on GitHub</a>{" "}
+                    <a href={REPO}>Source code repository on Radicle</a>{" "}
                     (maintained by <a href="#/user/0">X</a>)
                 </li>
                 <li>

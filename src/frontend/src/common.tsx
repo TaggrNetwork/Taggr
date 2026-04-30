@@ -30,7 +30,8 @@ import { IcrcAccount } from "@dfinity/ledger-icrc";
 import { Content } from "./content";
 import { MAINNET_MODE } from "./env";
 
-export const REPO = "https://github.com/TaggrNetwork/taggr";
+export const REPO =
+    "https://radicle.network/nodes/seed.radicle.garden/rad:z4TNAuSLgfxXUr8sYpYowk6mcx33B";
 
 export const USD_PER_XDR = 1.37;
 
