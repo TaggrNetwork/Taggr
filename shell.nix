@@ -2,6 +2,7 @@
 
 pkgs.mkShell {
   buildInputs = [
+    pkgs.git
     pkgs.podman
     pkgs.gnumake
     pkgs.cargo

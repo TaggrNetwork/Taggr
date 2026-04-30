@@ -13,6 +13,12 @@ Assume you want to verify a new upgrade proposal with code commit `<COMMIT>` and
 
 `make release` runs the full validation pipeline (lints, Rust tests, Playwright e2e) inside the container and only produces a hash if everything passes. A failing release therefore cannot be hashed — the printed hash is a signal that the wasm is both reproducible and tested. Podman is used automatically if installed; otherwise Docker. Override with `CONTAINER=docker make release`.
 
+By default `make release` is quiet — only stage markers (`==> [N/7] ...`), the Playwright run, and the final hash print. To stream every underlying tool's stdout/stderr (cargo, dfx, npm, build.sh) for debugging, set `VERBOSE=1`:
+
+    VERBOSE=1 make release
+
+Same flag works for `make tests`.
+
 Outputs of a successful run:
 
 -   `release-artifacts/taggr.wasm.gz` — the production wasm.

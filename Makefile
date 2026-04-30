@@ -70,24 +70,33 @@ e2e_test:
 	dfx stop
 
 podman_machine:
+ifeq ($(shell uname),Darwin)
 	podman machine stop || true
 	podman machine rm -f || true
-	CONTAINERS_MACHINE_PROVIDER=qemu podman machine init --cpus 4 --memory 4096 --now
+	podman machine init --cpus 4 --memory 8192
+	podman machine start
+else
+	@echo "podman runs natively on Linux — no machine needed"
+endif
 
 tests:
 	mkdir -p $(shell pwd)/test-results $(shell pwd)/playwright-report
-	$(CONTAINER) build --quiet -t taggr . >$(shell pwd)/test-results/build.log 2>&1
+	$(CONTAINER) build --platform=linux/amd64 $(if $(VERBOSE),,--quiet) -t taggr .
 	$(CONTAINER) run --rm \
+		--platform=linux/amd64 \
 		--shm-size=1g \
+		$(if $(VERBOSE),-e VERBOSE=1) \
 		-v $(shell pwd)/test-results:/app/test-results \
 		-v $(shell pwd)/playwright-report:/app/playwright-report \
 		taggr tests
 
 release:
 	mkdir -p $(shell pwd)/release-artifacts $(shell pwd)/test-results $(shell pwd)/playwright-report
-	$(CONTAINER) build --quiet -t taggr . >$(shell pwd)/test-results/build.log 2>&1
+	$(CONTAINER) build --platform=linux/amd64 $(if $(VERBOSE),,--quiet) -t taggr .
 	$(CONTAINER) run --rm \
+		--platform=linux/amd64 \
 		--shm-size=1g \
+		$(if $(VERBOSE),-e VERBOSE=1) \
 		-v $(shell pwd)/release-artifacts:/app/target/wasm32-unknown-unknown/release \
 		-v $(shell pwd)/test-results:/app/test-results \
 		-v $(shell pwd)/playwright-report:/app/playwright-report \

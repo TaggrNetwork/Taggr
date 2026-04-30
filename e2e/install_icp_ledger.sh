@@ -41,10 +41,7 @@ fi
 MINTER_ACCOUNT=$(dfx ledger account-id --identity minter)
 LOCAL_MINTER_ACCOUNT=$(dfx ledger account-id --identity local-minter)
 
-# --mode reinstall so re-running this script (e.g. between e2e iterations)
-# wipes ledger state and re-applies the Init args instead of attempting an
-# upgrade with an Init-shaped payload.
-dfx deploy icp_ledger --mode reinstall -y --argument "(variant { Init = record {
+ARGUMENT="(variant { Init = record {
   minting_account = \"${MINTER_ACCOUNT}\";
   initial_values = vec {
     record { \"${LOCAL_MINTER_ACCOUNT}\"; record { e8s = 100_000_000_000_000 : nat64 } };
@@ -54,3 +51,8 @@ dfx deploy icp_ledger --mode reinstall -y --argument "(variant { Init = record {
   token_symbol = opt \"ICP\";
   token_name = opt \"Internet Computer\";
 } })"
+
+# --mode reinstall so re-running this script (e.g. between e2e iterations)
+# wipes ledger state and re-applies the Init args instead of attempting an
+# upgrade with an Init-shaped payload.
+dfx deploy icp_ledger --mode reinstall -y --argument "${ARGUMENT}"
