@@ -5,7 +5,7 @@
 Assume you want to verify a new upgrade proposal with code commit `<COMMIT>` and binary hash `<HASH>`.
 
 0. Install Docker (only once).
-1. `git clone https://github.com/TaggrNetwork/taggr.git` (only once)
+1. `git clone https://seed.radicle.garden/z4TNAuSLgfxXUr8sYpYowk6mcx33B.git taggr` (only once)
 2. `cd taggr`
 3. `git fetch --all && git checkout <COMMIT>`
 4. `make release`

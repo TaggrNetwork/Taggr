@@ -30,7 +30,7 @@ Make sure to follow the steps outlined in the rest of this file before using the
 Clone the Taggr repo:
 
 ```shell
-git clone git@github.com:TaggrNetwork/taggr.git
+git clone https://seed.radicle.garden/z4TNAuSLgfxXUr8sYpYowk6mcx33B.git taggr
 ```
 
 Change your directory to the newly cloned Taggr repo:
