@@ -31,6 +31,7 @@ import {
 import { Settings } from "./settings";
 import { Welcome } from "./welcome";
 import { Proposals } from "./proposals";
+import { Diff } from "./diff";
 import { Tokens, TransactionView, TransactionsView } from "./tokens";
 import { Whitepaper } from "./whitepaper";
 import { Recovery } from "./recovery";
@@ -261,6 +262,8 @@ const App = () => {
         content = <TransactionsView icrcAccount={param} prime={true} />;
     } else if (handler == "proposals") {
         content = <Proposals />;
+    } else if (handler == "diff") {
+        content = <Diff from={param} to={param2} />;
     } else if (handler == "tokens") {
         content = <Tokens />;
     } else if (handler == "dashboard" || handler == "stats") {
