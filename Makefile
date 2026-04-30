@@ -75,8 +75,8 @@ podman_machine:
 	CONTAINERS_MACHINE_PROVIDER=qemu podman machine init --cpus 4 --memory 4096 --now
 
 tests:
-	$(CONTAINER) build --quiet -t taggr . >/dev/null
 	mkdir -p $(shell pwd)/test-results $(shell pwd)/playwright-report
+	$(CONTAINER) build --quiet -t taggr . >$(shell pwd)/test-results/build.log 2>&1
 	$(CONTAINER) run --rm \
 		--shm-size=1g \
 		-v $(shell pwd)/test-results:/app/test-results \
@@ -84,8 +84,8 @@ tests:
 		taggr tests
 
 release:
-	$(CONTAINER) build --quiet -t taggr . >/dev/null
 	mkdir -p $(shell pwd)/release-artifacts $(shell pwd)/test-results $(shell pwd)/playwright-report
+	$(CONTAINER) build --quiet -t taggr . >$(shell pwd)/test-results/build.log 2>&1
 	$(CONTAINER) run --rm \
 		--shm-size=1g \
 		-v $(shell pwd)/release-artifacts:/app/target/wasm32-unknown-unknown/release \
