@@ -5,8 +5,8 @@
 # Base image pinned by digest. Refresh:
 #   curl -s "https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/debian:pull" | grep -oP '"token":"\K[^"]+' \
 #     | xargs -I{} curl -sI -H "Authorization: Bearer {}" -H "Accept: application/vnd.oci.image.index.v1+json" \
-#       https://registry-1.docker.io/v2/library/debian/manifests/bookworm-slim | grep -i docker-content-digest
-FROM docker.io/library/debian:bookworm-slim@sha256:f9c6a2fd2ddbc23e336b6257a5245e31f996953ef06cd13a59fa0a1df2d5c252
+#       https://registry-1.docker.io/v2/library/debian/manifests/trixie-slim | grep -i docker-content-digest
+FROM docker.io/library/debian:trixie-slim@sha256:cedb1ef40439206b673ee8b33a46a03a0c9fa90bf3732f54704f99cb061d2c5a
 
 ENV NVM_DIR=/root/.nvm
 ENV NVM_VERSION=v0.39.1
@@ -18,12 +18,12 @@ ENV CARGO_HOME=/opt/cargo
 # snapshot.debian.org serves over HTTP, so no ca-certificates bootstrap is
 # needed — apt verifies the Release files via signed metadata.
 # Refresh: bump APT_SNAPSHOT_DATE (format: YYYYMMDDTHHMMSSZ). Verify first:
-#   curl -sIL http://snapshot.debian.org/archive/debian/<date>/dists/bookworm/Release
-ENV APT_SNAPSHOT_DATE=20260430T000000Z
+#   curl -sIL http://snapshot.debian.org/archive/debian/<date>/dists/trixie/Release
+ENV APT_SNAPSHOT_DATE=20260503T000000Z
 RUN { \
-        echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${APT_SNAPSHOT_DATE} bookworm main"; \
-        echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${APT_SNAPSHOT_DATE} bookworm-security main"; \
-        echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${APT_SNAPSHOT_DATE} bookworm-updates main"; \
+        echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${APT_SNAPSHOT_DATE} trixie main"; \
+        echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${APT_SNAPSHOT_DATE} trixie-security main"; \
+        echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${APT_SNAPSHOT_DATE} trixie-updates main"; \
     } > /etc/apt/sources.list && \
     apt-get -yq update && \
     apt-get -yqq install --no-install-recommends curl ca-certificates build-essential jq xz-utils && \
