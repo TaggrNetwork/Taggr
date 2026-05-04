@@ -75,46 +75,6 @@ const parseHash = (): string[] => {
 const headerRoot = createRoot(document.getElementById("header") as Element);
 const footerRoot = createRoot(document.getElementById("footer") as Element);
 const stack = document.getElementById("stack") as HTMLElement;
-const stackRoot = createRoot(stack);
-
-type Frame = { hash: string; key: number; node: React.ReactNode };
-let frames: Frame[] = [];
-let frameSeq = 0;
-const frameListeners = new Set<() => void>();
-const notifyFrames = () => frameListeners.forEach((l) => l());
-
-const FrameStack = () => {
-    const fs = React.useSyncExternalStore(
-        (cb) => {
-            frameListeners.add(cb);
-            return () => {
-                frameListeners.delete(cb);
-            };
-        },
-        () => frames,
-    );
-    return (
-        <>
-            {fs.map((f, i) => (
-                <div
-                    key={f.key}
-                    data-hash={f.hash}
-                    style={{
-                        display: i === fs.length - 1 ? "block" : "none",
-                    }}
-                >
-                    {f.node}
-                </div>
-            ))}
-        </>
-    );
-};
-
-stackRoot.render(
-    <React.StrictMode>
-        <FrameStack />
-    </React.StrictMode>,
-);
 
 const renderFrame = (content: React.ReactNode) => {
     document.getElementById("logo_container")?.remove();
@@ -126,16 +86,21 @@ const renderFrame = (content: React.ReactNode) => {
         return;
     }
 
-    const last = frames[frames.length - 2];
-    if (last && last.hash == location.hash) {
-        frames = frames.slice(0, -1);
-    } else {
-        frames = [
-            ...frames,
-            { hash: location.hash, key: frameSeq++, node: content },
-        ];
+    const frames = Array.from(stack.children as HTMLCollectionOf<HTMLElement>);
+    frames.forEach((e) => (e.style.display = "none"));
+    const currentFrame = frames[frames.length - 1];
+    const lastFrame = frames[frames.length - 2];
+
+    if (lastFrame && lastFrame.dataset.hash == location.hash) {
+        currentFrame.remove();
+        lastFrame.style.display = "block";
+        return;
     }
-    notifyFrames();
+
+    let frame = document.createElement("div");
+    frame.dataset.hash = location.hash;
+    stack.appendChild(frame);
+    createRoot(frame).render(content);
 };
 
 const App = () => {
@@ -312,7 +277,7 @@ const App = () => {
             />
         </React.StrictMode>,
     );
-    renderFrame(content);
+    renderFrame(<React.StrictMode>{content}</React.StrictMode>);
 };
 
 const reloadCache = async () => {
@@ -459,8 +424,8 @@ const bootstrap = async () => {
     window.setUI = setUI;
     window.resetUI = () => {
         window.uiInitialized = false;
-        frames = [];
-        notifyFrames();
+        const frames = Array.from(stack.children);
+        frames.forEach((frame) => frame.remove());
     };
 
     const futures = [reloadCache()];
