@@ -20,14 +20,24 @@ body,
 button,
 input,
 textarea,
-select,
-code {
+select {
     font-family:
-        "Barlow",
-        ui-sans-serif,
+        system-ui,
         -apple-system,
-        "Arial",
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        "Helvetica Neue",
+        Arial,
         sans-serif;
+}
+
+code,
+pre,
+kbd,
+samp {
+    font-family: ui-monospace, "Menlo", "Consolas", "Roboto Mono",
+        "DejaVu Sans Mono", monospace;
 }
 
 article.preview,

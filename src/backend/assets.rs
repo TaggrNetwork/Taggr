@@ -81,18 +81,6 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
     );
 
     add_asset(
-        &["/font-regular.woff2"],
-        vec![("Content-Type".into(), "application/font-woff2".into())],
-        include_bytes!("../../src/frontend/assets/font-regular.woff2").to_vec(),
-    );
-
-    add_asset(
-        &["/font-bold.woff2"],
-        vec![("Content-Type".into(), "application/font-woff2".into())],
-        include_bytes!("../../src/frontend/assets/font-bold.woff2").to_vec(),
-    );
-
-    add_asset(
         &["/WHITEPAPER.md"],
         vec![("Content-Type".into(), "text/markdown".into())],
         include_bytes!("../../src/frontend/assets/WHITEPAPER.md").to_vec(),
