@@ -1,3 +1,13 @@
+:root {
+    --text-2xs: 0.625rem;
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.5rem;
+    --text-2xl: 2rem;
+}
+
 body {
     user-select: none;
     -webkit-user-select: none;
@@ -13,7 +23,7 @@ body {
     padding-left: 3%;
     padding-right: 3%;
     max-width: 1200px;
-    font-size: large;
+    font-size: var(--text-lg);
 }
 
 body,
@@ -93,10 +103,10 @@ code {
 
 .db_cell code,
 .db_cell .clickable {
-    font-size: xx-large;
+    font-size: var(--text-2xl);
 }
 .db_cell span {
-    font-size: x-large;
+    font-size: var(--text-xl);
 }
 .db_cell code,
 .db_cell span {
@@ -176,7 +186,7 @@ select {
     border-radius: 5px;
     background: $dark_background;
     border: none;
-    font-size: large;
+    font-size: var(--text-lg);
 }
 
 .grid_column {
@@ -192,7 +202,7 @@ select {
 
 .thread > .comment:before {
     content: "↑";
-    font-size: x-large;
+    font-size: var(--text-xl);
     margin-left: 46%;
 }
 
@@ -242,7 +252,7 @@ ul.comments {
 }
 
 .comment {
-    font-size: medium;
+    font-size: var(--text-base);
     padding-left: 0.6rem;
 }
 
@@ -288,7 +298,7 @@ article {
 .post_head {
     border-top-left-radius: 10px;
     border-top-right-radius: 10px;
-    font-size: medium;
+    font-size: var(--text-base);
     padding: 0;
     padding-bottom: 0.8rem;
     padding-top: 0.8rem;
@@ -395,7 +405,7 @@ button {
     display: flex;
     align-items: center;
     flex-direction: column;
-    font-size: small;
+    font-size: var(--text-sm);
 }
 
 .icon_link svg,
@@ -537,7 +547,7 @@ footer {
     padding: 2em;
     justify-content: center;
     align-items: center;
-    font-size: larger;
+    font-size: 1.125em;
 }
 
 header {
@@ -554,7 +564,7 @@ header {
     font-weight: bold;
     border-radius: 10px;
     color: white;
-    font-size: xx-large;
+    font-size: var(--text-2xl);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -566,7 +576,7 @@ header {
     background: $clickable;
     justify-content: center;
     align-items: center;
-    font-size: xx-large;
+    font-size: var(--text-2xl);
     opacity: 0.95;
     height: 60px;
     width: 60px;
@@ -707,7 +717,7 @@ article img {
     padding: 0.8em;
     text-align: center;
     font-family: monospace;
-    font-size: xx-small;
+    font-size: var(--text-2xs);
     border-radius: 5px;
 }
 
@@ -729,7 +739,7 @@ article img {
 .reply_tag,
 .realm_tag {
     cursor: pointer;
-    font-size: x-small;
+    font-size: var(--text-xs);
     font-weight: bold;
     opacity: 0.9;
 }
@@ -765,7 +775,7 @@ a.reply_tag {
     background: $light_background;
     margin: 1em;
     margin-bottom: 1em;
-    font-size: medium;
+    font-size: var(--text-base);
     padding: 0.5em;
     border-radius: 10px;
 }
@@ -787,7 +797,7 @@ a.reply_tag {
     cursor: pointer;
     position: absolute;
     bottom: 1em;
-    font-size: xx-large;
+    font-size: var(--text-2xl);
     color: white;
     width: 2em;
     height: 2em;
@@ -819,29 +829,29 @@ a.reply_tag {
 }
 
 .button_text {
-    font-size: x-small;
+    font-size: var(--text-xs);
 }
 
 .small_text {
-    font-size: small;
+    font-size: var(--text-sm);
 }
 .smaller_text {
-    font-size: smaller;
+    font-size: 0.875em;
 }
 .medium_text {
-    font-size: medium;
+    font-size: var(--text-base);
 }
 .larger_text {
-    font-size: larger;
+    font-size: 1.125em;
 }
 .large_text {
-    font-size: large;
+    font-size: var(--text-lg);
 }
 .x_large_text {
-    font-size: x-large;
+    font-size: var(--text-xl);
 }
 .xx_large_text {
-    font-size: xx-large;
+    font-size: var(--text-2xl);
 }
 
 .column_container {
@@ -1101,14 +1111,14 @@ label svg {
     animation: fadein 0.1s;
 }
 
-@media only screen and (max-width: 600px) {
+@media only screen and (max-width: 1023px) {
     body {
         padding-left: 0;
         padding-right: 0;
     }
 
     table.dashboard_logs {
-        font-size: small;
+        font-size: var(--text-sm);
     }
 
     .fadein {
@@ -1155,11 +1165,11 @@ label svg {
     }
 
     .realm_tag {
-        font-size: x-small;
+        font-size: var(--text-xs);
     }
 
     .db_cell {
-        font-size: medium;
+        font-size: var(--text-base);
     }
 
     article img {

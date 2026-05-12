@@ -217,7 +217,9 @@ export const Unauthorized = () => (
     </div>
 );
 
-export const bigScreen = () => window.innerWidth >= 1024;
+export const LARGE_SCREEN_BREAKPOINT = 1024;
+
+export const bigScreen = () => window.innerWidth >= LARGE_SCREEN_BREAKPOINT;
 
 export const HeadBar = ({
     title,
