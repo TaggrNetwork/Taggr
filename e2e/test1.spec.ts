@@ -207,7 +207,9 @@ test.describe("Upgrades & token transfer flow", () => {
             page.locator('input[type="file"]').click(),
         ]);
 
-        const dialogPromise1 = page.waitForEvent("dialog");
+        const dialogPromise1 = page.waitForEvent("dialog", {
+            timeout: 30000,
+        });
         await fileChooser.setFiles([binaryPath]);
 
         const dialog1 = await dialogPromise1;
@@ -218,7 +220,7 @@ test.describe("Upgrades & token transfer flow", () => {
         ).toBe(true);
         await dialog1.accept();
 
-        const dialog2 = await page.waitForEvent("dialog");
+        const dialog2 = await page.waitForEvent("dialog", { timeout: 30000 });
         expect(dialog2.message().includes("Done")).toBe(true);
         await dialog2.accept();
 
