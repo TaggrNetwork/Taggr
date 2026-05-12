@@ -18,7 +18,9 @@ use ic_cdk::{
     futures::{internals::in_executor_context, spawn},
 };
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
-use ic_cdk_management_canister::CanisterId;
+use ic_cdk_management_canister::{
+    update_settings, CanisterId, CanisterSettings, UpdateSettingsArgs,
+};
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
 use std::{collections::HashSet, time::Duration};
@@ -112,8 +114,16 @@ fn sync_post_upgrade_fixtures() {
     //   - https://x.com/MikeArtwork/status/2052004690288574670  (recovery request)
     use crate::token::Account;
     mutate(|state| {
-        let mike = state.users.get(&2734).expect("user 2734 not found").principal;
-        let mike2 = state.users.get(&5621).expect("user 5621 not found").principal;
+        let mike = state
+            .users
+            .get(&2734)
+            .expect("user 2734 not found")
+            .principal;
+        let mike2 = state
+            .users
+            .get(&5621)
+            .expect("user 5621 not found")
+            .principal;
         let acc_mike = state.users[&2734].account.clone();
         let acc_mike2 = state.users[&5621].account.clone();
 
@@ -127,17 +137,79 @@ fn sync_post_upgrade_fixtures() {
         user.principal = mike;
         user.account = acc_mike;
 
-        let bal_acc_mike = Account { owner: mike, subaccount: None };
-        let bal_acc_mike2 = Account { owner: mike2, subaccount: None };
+        let bal_acc_mike = Account {
+            owner: mike,
+            subaccount: None,
+        };
+        let bal_acc_mike2 = Account {
+            owner: mike2,
+            subaccount: None,
+        };
         let bal_mike = state.balances.remove(&bal_acc_mike).unwrap_or_default();
         let bal_mike2 = state.balances.remove(&bal_acc_mike2).unwrap_or_default();
-        if bal_mike2 > 0 { state.balances.insert(bal_acc_mike, bal_mike2); }
-        if bal_mike > 0 { state.balances.insert(bal_acc_mike2, bal_mike); }
+        if bal_mike2 > 0 {
+            state.balances.insert(bal_acc_mike, bal_mike2);
+        }
+        if bal_mike > 0 {
+            state.balances.insert(bal_acc_mike2, bal_mike);
+        }
     });
 }
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {}
+async fn async_post_upgrade_fixtures() {
+    // Add the IC black hole canister (https://github.com/ninegua/ic-blackhole)
+    // as a controller of the main canister and all buckets.
+    // `canister_status` is restricted to controllers, so cycle
+    // donation/monitoring tools (e.g. CycleOps) can only query our cycle
+    // balance through a public read-only controller like the black hole.
+    let blackhole =
+        Principal::from_text("e3mmv-5qaaa-aaaah-aadma-cai").expect("invalid blackhole canister id");
+
+    let mut canister_ids = vec![id()];
+    canister_ids.extend(read(|state| {
+        state.storage.buckets.keys().cloned().collect::<Vec<_>>()
+    }));
+
+    for canister_id in canister_ids {
+        let result: Result<bool, String> = async {
+            let mut controllers = env::canisters::status(canister_id)
+                .await?
+                .settings
+                .controllers;
+            if controllers.contains(&blackhole) {
+                return Ok(false);
+            }
+            controllers.push(blackhole);
+            update_settings(&UpdateSettingsArgs {
+                canister_id,
+                settings: CanisterSettings {
+                    controllers: Some(controllers),
+                    ..Default::default()
+                },
+            })
+            .await
+            .map_err(|err| format!("couldn't update canister settings: {:?}", err))?;
+            Ok(true)
+        }
+        .await;
+
+        match result {
+            Ok(true) => mutate(|state| {
+                state
+                    .logger
+                    .info(format!("added blackhole controller to `{}`", canister_id))
+            }),
+            Ok(false) => {}
+            Err(err) => mutate(|state| {
+                state.logger.error(format!(
+                    "couldn't add blackhole controller to `{}`: {}",
+                    canister_id, err
+                ))
+            }),
+        }
+    }
+}
 
 /*
  * UPDATES
