@@ -1,9 +1,6 @@
 import { Page } from "@playwright/test";
 
-function patternMatches(
-    message: string,
-    pattern: string | RegExp,
-): boolean {
+function patternMatches(message: string, pattern: string | RegExp): boolean {
     return typeof pattern === "string"
         ? message.includes(pattern)
         : pattern.test(message);

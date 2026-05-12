@@ -170,7 +170,9 @@ test.describe("Report and transfer to user", () => {
                 { expectedPattern: "You are transferring", response: "" },
             ],
             async () => {
-                await page.getByRole("button", { name: "SEND CREDITS" }).click();
+                await page
+                    .getByRole("button", { name: "SEND CREDITS" })
+                    .click();
             },
         );
         await waitForUILoading(page, { timeout: 5000 });

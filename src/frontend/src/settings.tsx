@@ -320,19 +320,13 @@ export const Settings = ({ invite }: { invite?: string }) => {
                         }}
                         id="filter_safe"
                     />
-                    <label
-                        className="left_half_spaced"
-                        htmlFor="filter_safe"
-                    >
+                    <label className="left_half_spaced" htmlFor="filter_safe">
                         Non-controversial users (without confirmed reports)
                     </label>
                 </div>
             </div>
             <div className="column_container bottom_spaced">
-                <label
-                    className="bottom_half_spaced"
-                    htmlFor="filter_balance"
-                >
+                <label className="bottom_half_spaced" htmlFor="filter_balance">
                     Minimal {window.backendCache.config.token_symbol} balance:
                 </label>
                 <input
@@ -347,10 +341,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 />
             </div>
             <div className="column_container bottom_spaced">
-                <label
-                    className="bottom_half_spaced"
-                    htmlFor="filter_age_days"
-                >
+                <label className="bottom_half_spaced" htmlFor="filter_age_days">
                     Minimal account age (days):
                 </label>
                 <input
@@ -413,9 +404,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
             {user && user.filters.tags.length > 0 && (
                 <>
                     <h2>Muted Tags</h2>
-                    <div>
-                        {tagList(user.filters.tags.map((tag) => [tag]))}
-                    </div>
+                    <div>{tagList(user.filters.tags.map((tag) => [tag]))}</div>
                 </>
             )}
             {user && user.filters.realms.length > 0 && (
@@ -457,8 +446,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
             <p>
                 You can suspend your account and encrypt all your messages to
                 make them inaccessible. If you ever plan to activate your
-                account again, make sure you can recover this password later.
-                An account activation/deactivation costs{" "}
+                account again, make sure you can recover this password later. An
+                account activation/deactivation costs{" "}
                 {window.backendCache.config.account_activation_cost} credits.
             </p>
             {onCanonicalDomain() ? (
@@ -474,9 +463,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                         classNameArg={encKey ? "" : "inactive"}
                         onClick={async () => {
                             if (!encKey) return;
-                            const seed = hex(
-                                Array.from(await hash(encKey, 1)),
-                            );
+                            const seed = hex(Array.from(await hash(encKey, 1)));
                             const result: any = await window.api.call(
                                 "crypt",
                                 seed,
@@ -507,8 +494,8 @@ export const Settings = ({ invite }: { invite?: string }) => {
             You can change your principal as follows:
             <ol>
                 <li>
-                    Log in using the new authentication method (a new II
-                    anchor or a seed phrase).
+                    Log in using the new authentication method (a new II anchor
+                    or a seed phrase).
                 </li>
                 <li>
                     Copy the displayed principal and log out again{" "}
@@ -516,8 +503,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 </li>
                 <li>
                     Login back to your account using the old authentication
-                    method and paste the new principal in the text field
-                    below.
+                    method and paste the new principal in the text field below.
                 </li>
                 <li>Change the principal.</li>
                 <li>
