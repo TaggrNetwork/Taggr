@@ -33,11 +33,11 @@ check:
 	cargo check --tests
 	cargo fmt --check
 	npx tsc --noEmit
-	npx prettier --check src/frontend/
+	npm run format:check
 
 format:
 	cargo fmt
-	npx prettier --write src/frontend/
+	npm run format
 
 test:
 	make e2e_build
