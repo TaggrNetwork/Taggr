@@ -1,7 +1,9 @@
 import * as React from "react";
 import {
     ButtonWithLoading,
+    confirmPopUp,
     domain,
+    promptPopUp,
     restartApp,
     showPopUp,
     signOut,
@@ -23,7 +25,9 @@ export const authMethods = [
         description:
             "If you have received an invite from someone, use this connection method.",
         login: async () => {
-            const code = prompt("Enter your invite code:")?.toLowerCase();
+            const code = (
+                await promptPopUp("Enter your invite code:")
+            )?.toLowerCase();
             if (!(await window.api.query("check_invite", code))) {
                 showPopUp("error", "Invalid invite");
                 return;
@@ -41,9 +45,9 @@ export const authMethods = [
             if (
                 (location.href.includes(".raw") ||
                     location.href.includes("share.")) &&
-                confirm(
+                (await confirmPopUp(
                     "You're using an uncertified, insecure frontend. Do you want to be re-routed to the certified one?",
-                )
+                ))
             ) {
                 location.href = location.href.replace(".raw", "");
                 return null;
@@ -80,13 +84,13 @@ export const authMethods = [
                         !(await window.api.query("user", "", [
                             identity.getPrincipal().toString(),
                         ])) &&
-                        !confirm(
+                        !(await confirmPopUp(
                             "Your seed phrase is insecure and will eventually be guessed. " +
                                 "A secure seed phrase should be a valid BIP-39 phrase or " +
                                 "contain at least 8 symbols such as uppercase and lowercase " +
                                 "letters, symbols and digits. " +
                                 "Do you want to continue with an insecure seed phrase?",
-                        )
+                        ))
                     ) {
                         return;
                     }

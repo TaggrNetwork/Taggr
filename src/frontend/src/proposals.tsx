@@ -2,6 +2,8 @@ import {
     HeadBar,
     Loading,
     ButtonWithLoading,
+    confirmPopUp,
+    promptPopUp,
     timeAgo,
     token,
     percentage,
@@ -342,7 +344,7 @@ export const ProposalView = ({
         let data;
         if (adopted) {
             if ("Release" in proposal.payload) {
-                data = prompt(
+                data = await promptPopUp(
                     "Please enter the build hash from the source code commit mentioned in the proposal " +
                         "(this proves that the proposer uploaded the binary that can be reproduced from this source code):",
                 );
@@ -352,14 +354,14 @@ export const ProposalView = ({
                 const { max_funding_amount, token_symbol } =
                     window.backendCache.config;
                 const cap = token(max_funding_amount);
-                data = prompt(
+                data = await promptPopUp(
                     `Please enter the amount of ${token_symbol} tokens which would be an appropriate reward for the efforts described (max. ${cap} ${token_symbol}):`,
                 );
                 if (!data) return;
                 if (
-                    !confirm(
+                    !(await confirmPopUp(
                         `You vote for issuing the reward of ${data} tokens.`,
-                    )
+                    ))
                 )
                     return;
             }
@@ -599,9 +601,9 @@ export const ProposalView = ({
                                 <div className="row_container">
                                     <ButtonWithLoading
                                         onClick={async () =>
-                                            confirm(
+                                            (await confirmPopUp(
                                                 "You're rejecting the proposal. Please confirm.",
-                                            ) && (await vote(proposal, false))
+                                            )) && (await vote(proposal, false))
                                         }
                                         classNameArg="max_width_col"
                                         label="REJECT"
@@ -618,9 +620,9 @@ export const ProposalView = ({
                             <ButtonWithLoading
                                 onClick={async () => {
                                     if (
-                                        !confirm(
+                                        !(await confirmPopUp(
                                             "You're canceling the proposal. Please confirm.",
-                                        )
+                                        ))
                                     )
                                         return;
                                     await window.api.call(

@@ -3,6 +3,7 @@ import {
     ButtonWithLoading,
     Loading,
     cacheLocalStorage,
+    confirmPopUp,
     createChunks,
     getCanistersMetaData,
     getLocalCanistersMetaData,
@@ -10,6 +11,7 @@ import {
     getUserTokens,
     icpSwapLogoFallback,
     icrcTransfer,
+    promptPopUp,
     showPopUp,
 } from "./common";
 import { Principal } from "@dfinity/principal";
@@ -146,7 +148,8 @@ export const Icrc1TokensWallet = () => {
     }, []);
 
     const addIcrc1Canister = async (canisterId?: string) => {
-        canisterId = canisterId || prompt(`ICRC canister id:`) || "";
+        canisterId =
+            canisterId || (await promptPopUp(`ICRC canister id:`)) || "";
         if (!canisterId) return;
         try {
             setDisabled(true);
@@ -201,7 +204,7 @@ export const Icrc1TokensWallet = () => {
         if (!canisterId) {
             return;
         }
-        const proceed = confirm(`Remove ${info.symbol} ?`);
+        const proceed = await confirmPopUp(`Remove ${info.symbol} ?`);
         if (!proceed) {
             return;
         }

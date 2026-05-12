@@ -1,6 +1,67 @@
-import { Page, Dialog } from "@playwright/test";
+import { Page } from "@playwright/test";
 
-export type DialogHandler = (dialog: Dialog) => Promise<void>;
+function patternMatches(
+    message: string,
+    pattern: string | RegExp,
+): boolean {
+    return typeof pattern === "string"
+        ? message.includes(pattern)
+        : pattern.test(message);
+}
+
+async function respondToPopup(
+    page: Page,
+    expectedPattern: string | RegExp,
+    response: string | ((message: string) => string),
+): Promise<void> {
+    const promptDialog = page.getByTestId("popup-prompt");
+    const confirmDialog = page.getByTestId("popup-confirm");
+
+    await Promise.race([
+        promptDialog.waitFor({ state: "visible", timeout: 15000 }),
+        confirmDialog.waitFor({ state: "visible", timeout: 15000 }),
+    ]);
+
+    if (await promptDialog.isVisible()) {
+        const message =
+            (await page.getByTestId("popup-prompt-message").textContent()) ??
+            "";
+        if (!patternMatches(message, expectedPattern)) {
+            await page.getByTestId("popup-prompt-cancel").click();
+            throw new Error(
+                `Unexpected prompt message: "${message}". Expected pattern: ${expectedPattern}`,
+            );
+        }
+        const responseText =
+            typeof response === "function" ? response(message) : response;
+        if (responseText) {
+            await page.getByTestId("popup-prompt-input").fill(responseText);
+        }
+        await page.getByTestId("popup-prompt-ok").click();
+    } else {
+        const message =
+            (await page.getByTestId("popup-confirm-message").textContent()) ??
+            "";
+        if (!patternMatches(message, expectedPattern)) {
+            await page.getByTestId("popup-confirm-cancel").click();
+            throw new Error(
+                `Unexpected confirm message: "${message}". Expected pattern: ${expectedPattern}`,
+            );
+        }
+        await page.getByTestId("popup-confirm-ok").click();
+    }
+
+    // Wait for the modal to close before returning so the next dialog (if any)
+    // shows up cleanly.
+    await Promise.all([
+        promptDialog
+            .waitFor({ state: "hidden", timeout: 5000 })
+            .catch(() => {}),
+        confirmDialog
+            .waitFor({ state: "hidden", timeout: 5000 })
+            .catch(() => {}),
+    ]);
+}
 
 export async function handleDialog(
     page: Page,
@@ -8,40 +69,8 @@ export async function handleDialog(
     response: string | ((message: string) => string),
     triggerAction: () => Promise<void>,
 ): Promise<void> {
-    const dialogPromise = new Promise<void>((resolve, reject) => {
-        const handler = async (dialog: Dialog) => {
-            try {
-                const message = dialog.message();
-                const matches =
-                    typeof expectedMessagePattern === "string"
-                        ? message.includes(expectedMessagePattern)
-                        : expectedMessagePattern.test(message);
-
-                if (matches) {
-                    const responseText =
-                        typeof response === "function"
-                            ? response(message)
-                            : response;
-                    await dialog.accept(responseText);
-                    resolve();
-                } else {
-                    await dialog.dismiss();
-                    reject(
-                        new Error(
-                            `Unexpected dialog message: "${message}". Expected pattern: ${expectedMessagePattern}`,
-                        ),
-                    );
-                }
-            } catch (error) {
-                reject(error);
-            }
-        };
-
-        page.once("dialog", handler);
-    });
-
     await triggerAction();
-    await dialogPromise;
+    await respondToPopup(page, expectedMessagePattern, response);
 }
 
 export async function handleDialogSequence(
@@ -52,65 +81,9 @@ export async function handleDialogSequence(
     }>,
     triggerAction: () => Promise<void>,
 ): Promise<void> {
-    let dialogIndex = 0;
-    const resolvers: Array<() => void> = [];
-    const rejectors: Array<(error: Error) => void> = [];
-
-    const dialogPromises = dialogs.map(
-        () =>
-            new Promise<void>((resolve, reject) => {
-                resolvers.push(resolve);
-                rejectors.push(reject);
-            }),
-    );
-
-    const handler = async (dialog: Dialog) => {
-        try {
-            if (dialogIndex >= dialogs.length) {
-                await dialog.dismiss();
-                rejectors[0]?.(
-                    new Error(`Unexpected extra dialog: ${dialog.message()}`),
-                );
-                return;
-            }
-
-            const { expectedPattern, response } = dialogs[dialogIndex];
-            const message = dialog.message();
-            const matches =
-                typeof expectedPattern === "string"
-                    ? message.includes(expectedPattern)
-                    : expectedPattern.test(message);
-
-            if (matches) {
-                const responseText =
-                    typeof response === "function"
-                        ? response(message)
-                        : response;
-                await dialog.accept(responseText);
-                resolvers[dialogIndex]?.();
-                dialogIndex++;
-            } else {
-                await dialog.dismiss();
-                rejectors[dialogIndex]?.(
-                    new Error(
-                        `Dialog ${dialogIndex}: Unexpected message "${message}". Expected pattern: ${expectedPattern}`,
-                    ),
-                );
-            }
-        } catch (error) {
-            rejectors[dialogIndex]?.(
-                error instanceof Error ? error : new Error(String(error)),
-            );
-        }
-    };
-
-    page.on("dialog", handler);
-
-    try {
-        await triggerAction();
-        await Promise.all(dialogPromises);
-    } finally {
-        page.removeListener("dialog", handler);
+    await triggerAction();
+    for (const { expectedPattern, response } of dialogs) {
+        await respondToPopup(page, expectedPattern, response);
     }
 }
 

@@ -1,6 +1,7 @@
 import {
     bigScreen,
     ButtonWithLoading,
+    confirmPopUp,
     CopyToClipboard,
     HeadBar,
     hoursTillNext,
@@ -278,9 +279,9 @@ const AuctionCard = ({}) => {
                                 classNameArg="top_spaced max_width_col right_half_spaced"
                                 onClick={async () => {
                                     if (
-                                        !confirm(
+                                        !(await confirmPopUp(
                                             "Your bid will be cancelled and the ICP funds will be moved to your wallet. Continue?",
-                                        )
+                                        ))
                                     )
                                         return;
                                     const response: any =

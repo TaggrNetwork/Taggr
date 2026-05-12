@@ -4,6 +4,8 @@ import {
     NotFound,
     ToggleButton,
     commaSeparated,
+    confirmPopUp,
+    promptPopUp,
     Loading,
     HeadBar,
     bigScreen,
@@ -214,15 +216,15 @@ export const Profile = ({ handle }: { handle: string }) => {
                                         classNameArg="max_width_col"
                                         onClick={async () => {
                                             const amount = parseInt(
-                                                prompt(
+                                                (await promptPopUp(
                                                     `Enter the amount (fee: 1 credit)`,
-                                                ) || "",
+                                                )) || "",
                                             );
                                             if (!amount) return;
                                             if (
-                                                !confirm(
+                                                !(await confirmPopUp(
                                                     `You are transferring ${amount} credits to @${profile.name}`,
-                                                )
+                                                ))
                                             )
                                                 return;
                                             let result =

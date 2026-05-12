@@ -778,7 +778,7 @@ export const FlagButton = ({ id, text }: { id: number; text?: boolean }) => (
             const max_size = window.backendCache.config.max_report_length;
             while (!success) {
                 reason =
-                    prompt(
+                    (await promptPopUp(
                         `You are reporting this user to stalwarts. ` +
                             `It is recommended to talk to stalwarts first. ` +
                             `Reporting is a SERIOUS measure. ` +
@@ -789,7 +789,7 @@ export const FlagButton = ({ id, text }: { id: number; text?: boolean }) => (
                             ] +
                             ` credits and rewards. If you want to continue, please justify the report very well.`,
                         reason,
-                    ) || "";
+                    )) || "";
                 if (reason.length == 0) return;
                 if (reason.length > max_size) {
                     showPopUp(
@@ -929,6 +929,113 @@ export function popUp<T>(content: JSX.Element): null | Promise<T | null> {
     return promise;
 }
 
+const ConfirmDialog = ({
+    message,
+    confirmLabel = "OK",
+    cancelLabel = "CANCEL",
+    parentCallback,
+}: {
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    parentCallback?: (result: boolean) => void;
+}) => (
+    <div className="column_container" data-testid="popup-confirm">
+        <div
+            className="bottom_spaced"
+            style={{ whiteSpace: "pre-line" }}
+            data-testid="popup-confirm-message"
+        >
+            {message}
+        </div>
+        <div className="row_container flex_ended">
+            <button
+                className="right_half_spaced"
+                onClick={() => parentCallback?.(false)}
+                data-testid="popup-confirm-cancel"
+            >
+                {cancelLabel}
+            </button>
+            <button
+                className="active"
+                onClick={() => parentCallback?.(true)}
+                data-testid="popup-confirm-ok"
+                autoFocus
+            >
+                {confirmLabel}
+            </button>
+        </div>
+    </div>
+);
+
+const PromptDialog = ({
+    message,
+    defaultValue = "",
+    parentCallback,
+}: {
+    message: string;
+    defaultValue?: string;
+    parentCallback?: (result: string | null) => void;
+}) => {
+    const [value, setValue] = React.useState(defaultValue);
+    return (
+        <div className="column_container" data-testid="popup-prompt">
+            <div
+                className="bottom_spaced"
+                style={{ whiteSpace: "pre-line" }}
+                data-testid="popup-prompt-message"
+            >
+                {message}
+            </div>
+            <input
+                autoFocus
+                className="bottom_spaced"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") parentCallback?.(value);
+                    else if (e.key === "Escape") parentCallback?.(null);
+                }}
+                data-testid="popup-prompt-input"
+            />
+            <div className="row_container flex_ended">
+                <button
+                    className="right_half_spaced"
+                    onClick={() => parentCallback?.(null)}
+                    data-testid="popup-prompt-cancel"
+                >
+                    CANCEL
+                </button>
+                <button
+                    className="active"
+                    onClick={() => parentCallback?.(value)}
+                    data-testid="popup-prompt-ok"
+                >
+                    OK
+                </button>
+            </div>
+        </div>
+    );
+};
+
+export const confirmPopUp = async (
+    message: string,
+    options?: { confirmLabel?: string; cancelLabel?: string },
+): Promise<boolean> => {
+    const result = await popUp<boolean>(
+        <ConfirmDialog message={message} {...options} />,
+    );
+    return result === true;
+};
+
+export const promptPopUp = (
+    message: string,
+    defaultValue?: string,
+): Promise<string | null> =>
+    popUp<string | null>(
+        <PromptDialog message={message} defaultValue={defaultValue} />,
+    ) as Promise<string | null>;
+
 export function parseNumber(
     amount: string,
     tokenDecimals: number,
@@ -973,23 +1080,27 @@ export const icrcTransfer = async (
 ) => {
     try {
         const input =
-            to || prompt("Enter the recipient principal")?.trim() || "";
+            to ||
+            (await promptPopUp("Enter the recipient principal"))?.trim() ||
+            "";
         if (!input) return;
         const recipient = Principal.fromText(input);
         const amount = parseNumber(
-            prompt(
-                `Enter the amount (fee: ${tokens(fee, decimals)} ${symbol})`,
+            (
+                await promptPopUp(
+                    `Enter the amount (fee: ${tokens(fee, decimals)} ${symbol})`,
+                )
             )?.trim() || "",
             decimals,
         );
         if (
             !amount ||
-            !confirm(
+            !(await confirmPopUp(
                 `You are transferring\n\n${tokens(
                     amount,
                     decimals,
                 )} ${symbol}\n\nto\n\n${recipient}`,
-            )
+            ))
         )
             return;
         return await window.api.icrc_transfer(token, recipient, amount, fee);

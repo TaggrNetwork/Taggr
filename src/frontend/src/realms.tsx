@@ -3,6 +3,7 @@ import { loadFile } from "./form";
 import {
     BurgerButton,
     ButtonWithLoading,
+    confirmPopUp,
     noiseControlBanner,
     HeadBar,
     Loading,
@@ -666,13 +667,13 @@ export const RealmHeader = ({
                                     classNameArg="active"
                                     onClick={async () => {
                                         if (
-                                            !confirm(
+                                            !(await confirmPopUp(
                                                 `By joining the realm ${name} you confirm that you understand its description ` +
                                                     `and agree with all terms and conditions mentioned there. ` +
                                                     `Any rule violation can lead to a moderation by stalwarts or ` +
                                                     `to realm controllers moving the post out of the realm which incurs ` +
                                                     `a penalty of ${realm.cleanup_penalty} credits and reward points.`,
-                                            )
+                                            ))
                                         )
                                             return;
                                         await window.api

@@ -11,7 +11,9 @@ import {
     applyPatch,
     ShareButton,
     commaSeparated,
+    confirmPopUp,
     Loading,
+    promptPopUp,
     reactionCosts,
     loadPosts,
     IconToggleButton,
@@ -735,7 +737,7 @@ const PostInfo = ({
                                 title="Remove from realm"
                                 classNameArg="max_width_col"
                                 onClick={async () => {
-                                    const reason = prompt(
+                                    const reason = await promptPopUp(
                                         "Please specify the reason for moving the post out of its realm.",
                                         "rules violation",
                                     );
@@ -790,9 +792,9 @@ const PostInfo = ({
                                                 post.tree_size *
                                                     post_deletion_penalty_factor;
                                             if (
-                                                !confirm(
+                                                !(await confirmPopUp(
                                                     `Please confirm the post deletion: it will costs ${cost} credits.`,
-                                                )
+                                                ))
                                             )
                                                 return;
                                             let current = post.body;

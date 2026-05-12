@@ -4,9 +4,11 @@ import {
     bigScreen,
     blobToUrl,
     ButtonWithLoading,
+    confirmPopUp,
     getTokens,
     Loading,
     IconToggleButton,
+    promptPopUp,
     showPopUp,
     noiseControlBanner,
 } from "./common";
@@ -421,17 +423,21 @@ export const Form = ({
         </div>
     );
 
-    const formButton = (content: JSX.Element, map: (arg: string) => string) => (
+    const formButton = (
+        content: JSX.Element,
+        map: (arg: string) => string | Promise<string>,
+    ) => (
         <button
             className="max_width_col"
-            onClick={(e) => {
+            onClick={async (e) => {
                 e.preventDefault();
                 const element: any = textarea.current;
                 const start = element.selectionStart;
                 const end = element.selectionEnd;
                 const selection = element.value.substring(start, end);
+                const replacement = await map(selection);
                 setValue(
-                    value.slice(0, start) + map(selection) + value.slice(end),
+                    value.slice(0, start) + replacement + value.slice(end),
                 );
                 element.focus();
             }}
@@ -497,15 +503,15 @@ export const Form = ({
                                         .join("\n"),
                                 )}
                                 {formButton(<Quote />, (v) => `> ${v}`)}
-                                {formButton(<Link />, (v) => {
-                                    const link = prompt("URL:");
+                                {formButton(<Link />, async (v) => {
+                                    const link = await promptPopUp("URL:");
                                     if (!link) return v;
                                     return `[${v}](${link})`;
                                 })}
-                                {formButton(<Pic />, () => {
-                                    const alt = prompt("Image name");
+                                {formButton(<Pic />, async () => {
+                                    const alt = await promptPopUp("Image name");
                                     if (!alt) return "";
-                                    const src = prompt("URL");
+                                    const src = await promptPopUp("URL");
                                     if (!src) return "";
                                     return `![${alt}](${src})`;
                                 })}
@@ -594,28 +600,28 @@ export const Form = ({
                                             title="Attach a poll"
                                             icon={<Bars />}
                                             pressed={!!poll}
-                                            onClick={() => {
-                                                setPoll(
+                                            onClick={async () => {
+                                                if (
                                                     poll &&
-                                                        confirm(
-                                                            "Delete the poll?",
-                                                        )
-                                                        ? undefined
-                                                        : {
-                                                              options: [
-                                                                  "Option 1",
-                                                                  "Option 2",
-                                                                  "...",
-                                                              ],
-                                                              votes: {},
-                                                              voters: [],
-                                                              deadline: 24,
-                                                              weighted_by_karma:
-                                                                  {},
-                                                              weighted_by_tokens:
-                                                                  {},
-                                                          },
-                                                );
+                                                    (await confirmPopUp(
+                                                        "Delete the poll?",
+                                                    ))
+                                                ) {
+                                                    setPoll(undefined);
+                                                } else if (!poll) {
+                                                    setPoll({
+                                                        options: [
+                                                            "Option 1",
+                                                            "Option 2",
+                                                            "...",
+                                                        ],
+                                                        votes: {},
+                                                        voters: [],
+                                                        deadline: 24,
+                                                        weighted_by_karma: {},
+                                                        weighted_by_tokens: {},
+                                                    });
+                                                }
                                             }}
                                         />
                                     )}

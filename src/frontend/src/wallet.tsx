@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
     CopyToClipboard,
+    confirmPopUp,
     hex,
     ICPAccountBalance,
     tokenBalance,
@@ -10,6 +11,7 @@ import {
     ICP_LEDGER_ID,
     icrcTransfer,
     parseNumber,
+    promptPopUp,
     tokens,
     ICP_DEFAULT_FEE,
     showPopUp,
@@ -96,28 +98,32 @@ export const Wallet = () => {
                     onClick={async () => {
                         try {
                             const recipient =
-                                prompt(
-                                    "Enter the recipient principal or ICP account address",
+                                (
+                                    await promptPopUp(
+                                        "Enter the recipient principal or ICP account address",
+                                    )
                                 )?.trim() || "";
                             if (!recipient) return;
                             if (recipient.length == 64) {
                                 const amount = parseNumber(
-                                    prompt(
-                                        `Enter the amount (fee: ${tokens(
-                                            ICP_DEFAULT_FEE,
-                                            8,
-                                        )} ICP)`,
+                                    (
+                                        await promptPopUp(
+                                            `Enter the amount (fee: ${tokens(
+                                                ICP_DEFAULT_FEE,
+                                                8,
+                                            )} ICP)`,
+                                        )
                                     )?.trim() || "",
                                     8,
                                 );
                                 if (
                                     !amount ||
-                                    !confirm(
+                                    !(await confirmPopUp(
                                         `You are transferring\n\n${tokens(
                                             amount,
                                             8,
                                         )} ICP\n\nto\n\n${recipient}`,
-                                    )
+                                    ))
                                 )
                                     return;
                                 let response: any =
@@ -185,11 +191,11 @@ export const Wallet = () => {
                         const maxKilos =
                             window.backendCache.config.max_credits_mint_kilos;
                         const kilo_credits = parseInt(
-                            prompt(
+                            (await promptPopUp(
                                 "Enter the number of 1000s of credits to mint " +
                                     `(max: ${maxKilos})`,
                                 "1",
-                            ) || "0",
+                            )) || "0",
                         );
                         if (Number(kilo_credits) > maxKilos) {
                             showPopUp(
@@ -268,11 +274,11 @@ export const Wallet = () => {
                     <ButtonWithLoading
                         onClick={async () => {
                             if (
-                                !confirm(
+                                !(await confirmPopUp(
                                     "Unlinking the cold wallet reduces your voting power. " +
                                         "\n\n" +
                                         "Please confirm the unlinking.",
-                                )
+                                ))
                             )
                                 return;
                             const response: any =

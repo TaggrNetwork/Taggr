@@ -163,21 +163,17 @@ test.describe("Report and transfer to user", () => {
         await waitForUILoading(page);
         await page.getByTestId("profile-burger-menu").click();
 
-        let dialogCount = 0;
-        const dialogHandler = async (dialog: any) => {
-            if (dialog.message().includes("Enter the amount")) {
-                await dialog.accept("1600");
-                dialogCount++;
-            } else if (dialog.message().includes("You are transferring")) {
-                await dialog.accept();
-                dialogCount++;
-            }
-        };
-
-        page.on("dialog", dialogHandler);
-        await page.getByRole("button", { name: "SEND CREDITS" }).click();
+        await handleDialogSequence(
+            page,
+            [
+                { expectedPattern: "Enter the amount", response: "1600" },
+                { expectedPattern: "You are transferring", response: "" },
+            ],
+            async () => {
+                await page.getByRole("button", { name: "SEND CREDITS" }).click();
+            },
+        );
         await waitForUILoading(page, { timeout: 5000 });
-        page.removeListener("dialog", dialogHandler);
 
         await expect(page.locator("div:has-text('CREDITS') > code")).toHaveText(
             /1,6\d\d/,

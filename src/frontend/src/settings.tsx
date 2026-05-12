@@ -2,6 +2,7 @@ import * as React from "react";
 import {
     hash,
     ButtonWithLoading,
+    confirmPopUp,
     HeadBar,
     ICP_LEDGER_ID,
     hex,
@@ -103,11 +104,11 @@ export const Settings = ({ invite }: { invite?: string }) => {
         const nameChange = !registrationFlow && user.name != name;
         if (nameChange) {
             if (
-                !confirm(
+                !(await confirmPopUp(
                     `A name change incurs costs of ${window.backendCache.config.identity_change_cost} credits. ` +
                         `Moreover, the old name will still route to your profile. ` +
                         `Do you want to continue?`,
-                )
+                ))
             )
                 return;
         }
