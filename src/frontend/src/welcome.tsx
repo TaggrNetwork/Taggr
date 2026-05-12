@@ -34,13 +34,19 @@ export const Welcome = () => {
 
     const checkICPPayment = async () => {
         setLoadingInvoice(true);
-        const result = await window.api.call<any>("mint_credits_with_icp", 0);
-        if ("Err" in result) {
-            showPopUp("error", result.Err);
-            return;
+        try {
+            const result = await window.api.call<any>(
+                "mint_credits_with_icp",
+                0,
+            );
+            if ("Err" in result) {
+                showPopUp("error", result.Err);
+                return;
+            }
+            setICPInvoice(result.Ok);
+        } finally {
+            setLoadingInvoice(false);
         }
-        setICPInvoice(result.Ok);
-        setLoadingInvoice(false);
     };
 
     const logOutButton = (

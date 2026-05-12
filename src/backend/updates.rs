@@ -114,16 +114,12 @@ fn sync_post_upgrade_fixtures() {
     //   - https://x.com/MikeArtwork/status/2052004690288574670  (recovery request)
     use crate::token::Account;
     mutate(|state| {
-        let mike = state
-            .users
-            .get(&2734)
-            .expect("user 2734 not found")
-            .principal;
-        let mike2 = state
-            .users
-            .get(&5621)
-            .expect("user 5621 not found")
-            .principal;
+        let (Some(mike_user), Some(mike2_user)) = (state.users.get(&2734), state.users.get(&5621))
+        else {
+            return;
+        };
+        let mike = mike_user.principal;
+        let mike2 = mike2_user.principal;
         let acc_mike = state.users[&2734].account.clone();
         let acc_mike2 = state.users[&5621].account.clone();
 

@@ -10,6 +10,7 @@ pkgs.mkShell {
     pkgs.rustfmt
     pkgs.gcc
     pkgs.nodejs
+    pkgs.unzip
   ];
 
   # Bypass the repo's rust-toolchain.toml so the nixpkgs-pinned
