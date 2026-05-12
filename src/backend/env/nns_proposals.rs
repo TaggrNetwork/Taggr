@@ -178,15 +178,16 @@ pub async fn work(now: u64) {
             };
         }
 
-        if let Err(err) = vote_on_nns_proposal(proposal.id, NNSVote::Reject).await {
-            mutate(|state| {
-                state.last_nns_proposal = state.last_nns_proposal.max(proposal.id);
+        let vote_result = vote_on_nns_proposal(proposal.id, NNSVote::Reject).await;
+        mutate(|state| {
+            state.last_nns_proposal = state.last_nns_proposal.max(proposal.id);
+            if let Err(err) = vote_result {
                 state.logger.warn(format!(
                     "couldn't vote on NNS proposal {}: {}",
                     proposal.id, err
                 ))
-            });
-        };
+            }
+        });
     }
 }
 
