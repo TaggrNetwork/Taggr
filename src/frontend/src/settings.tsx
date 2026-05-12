@@ -337,11 +337,11 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                         userFilter.safe = !userFilter.safe;
                                         setUserFilter({ ...userFilter });
                                     }}
-                                    id="own_theme"
+                                    id="filter_safe"
                                 />
                                 <label
                                     className="left_half_spaced"
-                                    htmlFor="own_theme"
+                                    htmlFor="filter_safe"
                                 >
                                     Non-controversial users (without confirmed
                                     reports)
@@ -349,11 +349,14 @@ export const Settings = ({ invite }: { invite?: string }) => {
                             </div>
                         </div>
                         <div className="column_container bottom_spaced">
-                            <div className="bottom_half_spaced">
+                            <label
+                                className="bottom_half_spaced"
+                                htmlFor="filter_balance"
+                            >
                                 Minimal{" "}
                                 {window.backendCache.config.token_symbol}{" "}
                                 balance:
-                            </div>
+                            </label>
                             <input
                                 type="number"
                                 min="0"
@@ -362,13 +365,16 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                     userFilter.balance = Number(e.target.value);
                                     setUserFilter({ ...userFilter });
                                 }}
-                                id="own_theme"
+                                id="filter_balance"
                             />
                         </div>
                         <div className="column_container bottom_spaced">
-                            <div className="bottom_half_spaced">
+                            <label
+                                className="bottom_half_spaced"
+                                htmlFor="filter_age_days"
+                            >
                                 Minimal account age (days):
-                            </div>
+                            </label>
                             <input
                                 type="number"
                                 min="0"
@@ -379,13 +385,16 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                     );
                                     setUserFilter({ ...userFilter });
                                 }}
-                                id="own_theme"
+                                id="filter_age_days"
                             />
                         </div>
                         <div className="column_container bottom_spaced">
-                            <div className="bottom_half_spaced">
+                            <label
+                                className="bottom_half_spaced"
+                                htmlFor="filter_num_followers"
+                            >
                                 Minimal number of followers:
-                            </div>
+                            </label>
                             <input
                                 type="number"
                                 min="0"
@@ -396,7 +405,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                     );
                                     setUserFilter({ ...userFilter });
                                 }}
-                                id="own_theme"
+                                id="filter_num_followers"
                             />
                         </div>
                         <div className="bottom_half_spaced">
