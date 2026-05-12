@@ -11,6 +11,7 @@ import {
     UnavailableOnCustomDomains,
     tagList,
     RealmList,
+    TabBar,
 } from "./common";
 import { User, UserFilter } from "./types";
 import { Principal } from "@dfinity/principal";
@@ -19,6 +20,9 @@ import { UserList } from "./user_resolve";
 import { UserLinks, linksError } from "./profile";
 
 export const DEFAULT_REACTION_HOLD_TIME = 350;
+
+const TABS = ["PROFILE", "APPEARANCE", "PRIVACY", "ADVANCED"] as const;
+type Tab = (typeof TABS)[number];
 
 export const Settings = ({ invite }: { invite?: string }) => {
     const user = window.user;
@@ -42,6 +46,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         balance: 0,
         num_followers: 0,
     });
+    const [tab, setTab] = React.useState<Tab>("PROFILE");
 
     const updateData = (user: User) => {
         if (!user) return;
@@ -153,467 +158,461 @@ export const Settings = ({ invite }: { invite?: string }) => {
         await window.reloadUser();
     };
 
+    const profileSection = (
+        <>
+            <div className="bottom_half_spaced">
+                User name <span className="accent">[required]</span>
+                <code className="left_spaced">{label}</code>
+            </div>
+            <input
+                type="text"
+                value={name}
+                className="bottom_spaced"
+                placeholder="alphanumeric"
+                onChange={namePicker}
+            />
+            <div className="bottom_half_spaced">About you</div>
+            <input
+                placeholder="tell us what we should know about you"
+                className="bottom_spaced"
+                type="text"
+                value={about}
+                onChange={(event) => setAbout(event.target.value)}
+            />
+            {user && (
+                <>
+                    <div className="bottom_half_spaced">Usage mode</div>
+                    <select
+                        data-testid="mode-selector"
+                        value={mode}
+                        className="bottom_spaced"
+                        onChange={(event) => setMode(event.target.value)}
+                    >
+                        <option value="Credits">
+                            Convert rewards to credits automatically
+                        </option>
+                        <option value="Rewards">Receive ICP rewards</option>
+                        <option value="Mining">
+                            Mine {window.backendCache.config.token_symbol}{" "}
+                            tokens
+                        </option>
+                    </select>
+                    <div className="bottom_half_spaced">
+                        Participate in governance
+                    </div>
+                    <select
+                        value={governance}
+                        className="bottom_spaced"
+                        onChange={(event) => setGovernance(event.target.value)}
+                    >
+                        <option value="true">YES</option>
+                        <option value="false">NO</option>
+                    </select>
+                    <div className="bottom_half_spaced">
+                        Your links (one per line)
+                    </div>
+                    <textarea
+                        placeholder="Twitter: https://twitter.com/user_name"
+                        className="bottom_half_spaced"
+                        rows={4}
+                        value={settings.links || ""}
+                        onChange={(event) => setSetting("links", event)}
+                    ></textarea>
+                    <div className="bottom_spaced">
+                        {settings.links &&
+                            (linksError(settings.links) ? (
+                                <span className="error">
+                                    {linksError(settings.links)}
+                                </span>
+                            ) : (
+                                <UserLinks
+                                    settings={settings}
+                                    prefix="Links:"
+                                />
+                            ))}
+                    </div>
+                </>
+            )}
+        </>
+    );
+
+    const appearanceSection = (
+        <>
+            <div className="bottom_half_spaced">Color scheme</div>
+            <select
+                value={settings.theme}
+                className="bottom_spaced"
+                onChange={(event) => {
+                    const name = setSetting("theme", event);
+                    setTheme(name);
+                }}
+            >
+                <option value="dark">DARK</option>
+                <option value="calm">CALM</option>
+                <option value="midnight">MIDNIGHT</option>
+                <option value="classic">CLASSIC</option>
+                <option value="black">BLACK</option>
+                <option value="light">LIGHT</option>
+            </select>
+            <div className="bottom_half_spaced">
+                Override realm color themes
+            </div>
+            <select
+                value={settings.overrideRealmColors || "false"}
+                className="bottom_spaced"
+                onChange={(event) => setSetting("overrideRealmColors", event)}
+            >
+                <option value="true">YES</option>
+                <option value="false">NO</option>
+            </select>
+            <div className="bottom_half_spaced">
+                Multi-column layout on landing page
+            </div>
+            <select
+                value={settings.columns}
+                className="bottom_spaced"
+                onChange={(event) => setSetting("columns", event)}
+            >
+                <option value="on">ON</option>
+                <option value="off">OFF</option>
+            </select>
+            <div className="bottom_half_spaced">
+                Reaction tap-and-hold delay (smaller is faster)
+            </div>
+            <input
+                className="bottom_spaced"
+                type="text"
+                value={
+                    "tap_and_hold" in settings
+                        ? Number(settings.tap_and_hold)
+                        : DEFAULT_REACTION_HOLD_TIME
+                }
+                onChange={(event) => setSetting("tap_and_hold", event)}
+            />
+        </>
+    );
+
+    const privacySection = (
+        <>
+            <h2>Noise filter</h2>
+            <div className="stands_out">
+                <p>The noise filters define:</p>
+                <ul>
+                    <li>
+                        actions of which users can trigger a notification in
+                        your inbox,
+                    </li>
+                    <li>
+                        posts of which users will appear in all tabs on your
+                        landing page.
+                    </li>
+                </ul>
+            </div>
+            <br />
+            <div className="column_container bottom_spaced">
+                <div className="vcentered">
+                    <input
+                        type="checkbox"
+                        checked={userFilter.safe}
+                        onChange={() => {
+                            userFilter.safe = !userFilter.safe;
+                            setUserFilter({ ...userFilter });
+                        }}
+                        id="filter_safe"
+                    />
+                    <label
+                        className="left_half_spaced"
+                        htmlFor="filter_safe"
+                    >
+                        Non-controversial users (without confirmed reports)
+                    </label>
+                </div>
+            </div>
+            <div className="column_container bottom_spaced">
+                <label
+                    className="bottom_half_spaced"
+                    htmlFor="filter_balance"
+                >
+                    Minimal {window.backendCache.config.token_symbol} balance:
+                </label>
+                <input
+                    type="number"
+                    min="0"
+                    value={userFilter.balance}
+                    onChange={(e) => {
+                        userFilter.balance = Number(e.target.value);
+                        setUserFilter({ ...userFilter });
+                    }}
+                    id="filter_balance"
+                />
+            </div>
+            <div className="column_container bottom_spaced">
+                <label
+                    className="bottom_half_spaced"
+                    htmlFor="filter_age_days"
+                >
+                    Minimal account age (days):
+                </label>
+                <input
+                    type="number"
+                    min="0"
+                    value={userFilter.age_days}
+                    onChange={(e) => {
+                        userFilter.age_days = Number(e.target.value);
+                        setUserFilter({ ...userFilter });
+                    }}
+                    id="filter_age_days"
+                />
+            </div>
+            <div className="column_container bottom_spaced">
+                <label
+                    className="bottom_half_spaced"
+                    htmlFor="filter_num_followers"
+                >
+                    Minimal number of followers:
+                </label>
+                <input
+                    type="number"
+                    min="0"
+                    value={userFilter.num_followers}
+                    onChange={(e) => {
+                        userFilter.num_followers = Number(e.target.value);
+                        setUserFilter({ ...userFilter });
+                    }}
+                    id="filter_num_followers"
+                />
+            </div>
+            <div className="bottom_half_spaced">
+                Show posts from followed people posted in realms you are not a
+                member of:
+            </div>
+            <select
+                value={showPostsInRealms}
+                className="bottom_spaced"
+                onChange={(event) => setShowPostsInRealms(event.target.value)}
+            >
+                <option value="true">YES</option>
+                <option value="false">NO</option>
+            </select>
+            {user && user.filters.users.length > 0 && (
+                <>
+                    <h2>Muted Users</h2>
+                    <div>
+                        <UserList profile={true} ids={user.filters.users} />
+                    </div>
+                </>
+            )}
+            {user && user.blacklist.length > 0 && (
+                <>
+                    <h2>Blocked Users</h2>
+                    <div>
+                        <UserList profile={true} ids={user.blacklist} />
+                    </div>
+                </>
+            )}
+            {user && user.filters.tags.length > 0 && (
+                <>
+                    <h2>Muted Tags</h2>
+                    <div>
+                        {tagList(user.filters.tags.map((tag) => [tag]))}
+                    </div>
+                </>
+            )}
+            {user && user.filters.realms.length > 0 && (
+                <>
+                    <h2>Muted Realms</h2>
+                    <div>
+                        <RealmList ids={user.filters.realms} />
+                    </div>
+                </>
+            )}
+        </>
+    );
+
+    const advancedSection = user && (
+        <>
+            <div className="bottom_half_spaced">
+                Enable ICRC tokens in the wallet
+            </div>
+            <select
+                data-testid="ic-wallet-select"
+                value={settings.icrcWallet || "false"}
+                className="bottom_spaced"
+                onChange={(event) => setSetting("icrcWallet", event)}
+            >
+                <option value="true">YES</option>
+                <option value="false">NO</option>
+            </select>
+            <div className="bottom_half_spaced">
+                Controller principal (one per line)
+            </div>
+            <textarea
+                className="small_text bottom_spaced"
+                value={controllers}
+                onChange={(event) => setControllers(event.target.value)}
+                rows={4}
+            ></textarea>
+            <hr />
+            <h2>Account suspension</h2>
+            <p>
+                You can suspend your account and encrypt all your messages to
+                make them inaccessible. If you ever plan to activate your
+                account again, make sure you can recover this password later.
+                An account activation/deactivation costs{" "}
+                {window.backendCache.config.account_activation_cost} credits.
+            </p>
+            {onCanonicalDomain() ? (
+                <>
+                    <input
+                        placeholder="Encryption password"
+                        className="bottom_spaced"
+                        type="password"
+                        value={encKey}
+                        onChange={(event) => setEncKey(event.target.value)}
+                    />
+                    <ButtonWithLoading
+                        classNameArg={encKey ? "" : "inactive"}
+                        onClick={async () => {
+                            if (!encKey) return;
+                            const seed = hex(
+                                Array.from(await hash(encKey, 1)),
+                            );
+                            const result: any = await window.api.call(
+                                "crypt",
+                                seed,
+                            );
+                            const prefix = user.deactivated ? "de" : "en";
+                            if (result && "Ok" in result) {
+                                showPopUp(
+                                    "success",
+                                    `${result.Ok} posts successfully ${prefix}crypted!`,
+                                    5,
+                                );
+                            } else {
+                                showPopUp(
+                                    "error",
+                                    `${prefix}cryption failed (${result?.Err || "wrong password?"})`,
+                                    5,
+                                );
+                            }
+                        }}
+                        label={`${user.deactivated ? "AC" : "DEAC"}TIVATE`}
+                    />
+                </>
+            ) : (
+                <UnavailableOnCustomDomains />
+            )}
+            <hr />
+            <h2>Principal Change</h2>
+            You can change your principal as follows:
+            <ol>
+                <li>
+                    Log in using the new authentication method (a new II
+                    anchor or a seed phrase).
+                </li>
+                <li>
+                    Copy the displayed principal and log out again{" "}
+                    <b>without creating a new user</b>.
+                </li>
+                <li>
+                    Login back to your account using the old authentication
+                    method and paste the new principal in the text field
+                    below.
+                </li>
+                <li>Change the principal.</li>
+                <li>
+                    Login with the new authentication method and confirm the
+                    principal change.
+                </li>
+            </ol>
+            {onCanonicalDomain() ? (
+                <>
+                    <div className="bottom_half_spaced">New principal</div>
+                    <input
+                        placeholder="Your principal"
+                        className="bottom_spaced"
+                        type="text"
+                        value={principal}
+                        onChange={(event) => setPrincipal(event.target.value)}
+                    />
+                    <ButtonWithLoading
+                        classNameArg={
+                            principal != window.principalId ? "" : "inactive"
+                        }
+                        onClick={async () => {
+                            const accountBalance =
+                                await window.api.account_balance(
+                                    ICP_LEDGER_ID,
+                                    {
+                                        owner: Principal.fromText(
+                                            user.principal,
+                                        ),
+                                    },
+                                );
+                            if (accountBalance > 0) {
+                                showPopUp(
+                                    "warning",
+                                    "Your ICP balance is not empty. Please withdraw all funds before changing the principal.",
+                                    5,
+                                );
+                                return;
+                            }
+                            let response = await window.api.call<any>(
+                                "request_principal_change",
+                                principal.trim(),
+                            );
+                            if ("Err" in response) {
+                                return showPopUp("error", response.Err);
+                            }
+                            localStorage.clear();
+                            location.href = "/";
+                        }}
+                        label="CHANGE PRINCIPAL"
+                    />
+                </>
+            ) : (
+                <UnavailableOnCustomDomains />
+            )}
+        </>
+    );
+
+    // Registration flow: no tabs, just the profile fields and a save button.
+    if (!user) {
+        return (
+            <>
+                <HeadBar title="SETTINGS" shareLink="setting" />
+                <div className="spaced column_container">
+                    {profileSection}
+                    <ButtonWithLoading
+                        classNameArg="active top_spaced"
+                        onClick={submit}
+                        label="SAVE"
+                    />
+                </div>
+            </>
+        );
+    }
+
     return (
         <>
             <HeadBar title="SETTINGS" shareLink="setting" />
             <div className="spaced column_container">
-                <div className="bottom_half_spaced">
-                    User name <span className="accent">[required]</span>
-                    <code className="left_spaced">{label}</code>
+                <TabBar
+                    tabs={[...TABS]}
+                    activeTab={tab}
+                    onTabChange={(t) => setTab(t as Tab)}
+                />
+                {tab === "PROFILE" && profileSection}
+                {tab === "APPEARANCE" && appearanceSection}
+                {tab === "PRIVACY" && privacySection}
+                {tab === "ADVANCED" && advancedSection}
+                <div className="sticky_save_bar">
+                    <ButtonWithLoading
+                        classNameArg="active"
+                        onClick={submit}
+                        label="SAVE"
+                    />
                 </div>
-                <input
-                    type="text"
-                    value={name}
-                    className="bottom_spaced"
-                    placeholder="alphanumeric"
-                    onChange={namePicker}
-                />
-                <div className="bottom_half_spaced">About you</div>
-                <input
-                    placeholder="tell us what we should know about you"
-                    className="bottom_spaced"
-                    type="text"
-                    value={about}
-                    onChange={(event) => setAbout(event.target.value)}
-                />
-                {user && (
-                    <>
-                        <div className="bottom_half_spaced">Usage mode</div>
-                        <select
-                            data-testid="mode-selector"
-                            value={mode}
-                            className="bottom_spaced"
-                            onChange={(event) => setMode(event.target.value)}
-                        >
-                            <option value="Credits">
-                                Convert rewards to credits automatically
-                            </option>
-                            <option value="Rewards">Receive ICP rewards</option>
-                            <option value="Mining">
-                                Mine {window.backendCache.config.token_symbol}{" "}
-                                tokens
-                            </option>
-                        </select>
-                        <div className="bottom_half_spaced">
-                            Participate in governance
-                        </div>
-                        <select
-                            value={governance}
-                            className="bottom_spaced"
-                            onChange={(event) =>
-                                setGovernance(event.target.value)
-                            }
-                        >
-                            <option value="true">YES</option>
-                            <option value="false">NO</option>
-                        </select>
-                        <div className="bottom_half_spaced">
-                            Your links (one per line)
-                        </div>
-                        <textarea
-                            placeholder="Twitter: https://twitter.com/user_name"
-                            className="bottom_half_spaced"
-                            rows={4}
-                            value={settings.links || ""}
-                            onChange={(event) => setSetting("links", event)}
-                        ></textarea>
-                        <div className="bottom_spaced">
-                            {settings.links &&
-                                (linksError(settings.links) ? (
-                                    <span className="error">
-                                        {linksError(settings.links)}
-                                    </span>
-                                ) : (
-                                    <UserLinks
-                                        settings={settings}
-                                        prefix="Links:"
-                                    />
-                                ))}
-                        </div>
-                        <div className="bottom_half_spaced">
-                            Reaction tap-and-hold delay (smaller is faster)
-                        </div>
-                        <input
-                            className="bottom_spaced"
-                            type="text"
-                            value={
-                                "tap_and_hold" in settings
-                                    ? Number(settings.tap_and_hold)
-                                    : DEFAULT_REACTION_HOLD_TIME
-                            }
-                            onChange={(event) =>
-                                setSetting("tap_and_hold", event)
-                            }
-                        />
-                    </>
-                )}
-                <div className="bottom_half_spaced">Color scheme</div>
-                <select
-                    value={settings.theme}
-                    className="bottom_spaced"
-                    onChange={(event) => {
-                        const name = setSetting("theme", event);
-                        setTheme(name);
-                    }}
-                >
-                    <option value="dark">DARK</option>
-                    <option value="calm">CALM</option>
-                    <option value="midnight">MIDNIGHT</option>
-                    <option value="classic">CLASSIC</option>
-                    <option value="black">BLACK</option>
-                    <option value="light">LIGHT</option>
-                </select>
-                {user && (
-                    <>
-                        <div className="bottom_half_spaced">
-                            Enable ICRC tokens in the wallet
-                        </div>
-                        <select
-                            data-testid="ic-wallet-select"
-                            value={settings.icrcWallet || "false"}
-                            className="bottom_spaced"
-                            onChange={(event) =>
-                                setSetting("icrcWallet", event)
-                            }
-                        >
-                            <option value="true">YES</option>
-                            <option value="false">NO</option>
-                        </select>
-                        <div className="bottom_half_spaced">
-                            Override realm color themes
-                        </div>
-                        <select
-                            value={settings.overrideRealmColors || "false"}
-                            className="bottom_spaced"
-                            onChange={(event) =>
-                                setSetting("overrideRealmColors", event)
-                            }
-                        >
-                            <option value="true">YES</option>
-                            <option value="false">NO</option>
-                        </select>
-                        <div className="bottom_half_spaced">
-                            Multi-column layout on landing page
-                        </div>
-                        <select
-                            value={settings.columns}
-                            className="bottom_spaced"
-                            onChange={(event) => setSetting("columns", event)}
-                        >
-                            <option value="on">ON</option>
-                            <option value="off">OFF</option>
-                        </select>
-                        <div className="bottom_half_spaced">
-                            Controller principal (one per line)
-                        </div>
-                        <textarea
-                            className="small_text bottom_spaced"
-                            value={controllers}
-                            onChange={(event) =>
-                                setControllers(event.target.value)
-                            }
-                            rows={4}
-                        ></textarea>
-                        <h2>Noise filter</h2>
-                        <div className="stands_out">
-                            <p>The noise filters define:</p>
-                            <ul>
-                                <li>
-                                    actions of which users can trigger a
-                                    notification in your inbox,
-                                </li>
-                                <li>
-                                    posts of which users will appear in all tabs
-                                    on your landing page.
-                                </li>
-                            </ul>
-                        </div>
-                        <br />
-                        <div className="column_container bottom_spaced">
-                            <div className="vcentered">
-                                <input
-                                    type="checkbox"
-                                    checked={userFilter.safe}
-                                    onChange={() => {
-                                        userFilter.safe = !userFilter.safe;
-                                        setUserFilter({ ...userFilter });
-                                    }}
-                                    id="filter_safe"
-                                />
-                                <label
-                                    className="left_half_spaced"
-                                    htmlFor="filter_safe"
-                                >
-                                    Non-controversial users (without confirmed
-                                    reports)
-                                </label>
-                            </div>
-                        </div>
-                        <div className="column_container bottom_spaced">
-                            <label
-                                className="bottom_half_spaced"
-                                htmlFor="filter_balance"
-                            >
-                                Minimal{" "}
-                                {window.backendCache.config.token_symbol}{" "}
-                                balance:
-                            </label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={userFilter.balance}
-                                onChange={(e) => {
-                                    userFilter.balance = Number(e.target.value);
-                                    setUserFilter({ ...userFilter });
-                                }}
-                                id="filter_balance"
-                            />
-                        </div>
-                        <div className="column_container bottom_spaced">
-                            <label
-                                className="bottom_half_spaced"
-                                htmlFor="filter_age_days"
-                            >
-                                Minimal account age (days):
-                            </label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={userFilter.age_days}
-                                onChange={(e) => {
-                                    userFilter.age_days = Number(
-                                        e.target.value,
-                                    );
-                                    setUserFilter({ ...userFilter });
-                                }}
-                                id="filter_age_days"
-                            />
-                        </div>
-                        <div className="column_container bottom_spaced">
-                            <label
-                                className="bottom_half_spaced"
-                                htmlFor="filter_num_followers"
-                            >
-                                Minimal number of followers:
-                            </label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={userFilter.num_followers}
-                                onChange={(e) => {
-                                    userFilter.num_followers = Number(
-                                        e.target.value,
-                                    );
-                                    setUserFilter({ ...userFilter });
-                                }}
-                                id="filter_num_followers"
-                            />
-                        </div>
-                        <div className="bottom_half_spaced">
-                            Show posts from followed people posted in realms you
-                            are not a member of:
-                        </div>
-                        <select
-                            value={showPostsInRealms}
-                            className="bottom_spaced"
-                            onChange={(event) =>
-                                setShowPostsInRealms(event.target.value)
-                            }
-                        >
-                            <option value="true">YES</option>
-                            <option value="false">NO</option>
-                        </select>
-                    </>
-                )}
-                <ButtonWithLoading
-                    classNameArg="active"
-                    onClick={submit}
-                    label="SAVE"
-                />
-                {user && (
-                    <>
-                        <hr />
-                        <h2>Account suspension</h2>
-                        <p>
-                            You can suspend your account and encrypt all your
-                            messages to make them inaccessible. If you ever plan
-                            to activate your account again, make sure you can
-                            recover this password later. An account
-                            activation/deactivation costs{" "}
-                            {window.backendCache.config.account_activation_cost}{" "}
-                            credits.
-                        </p>
-                        {onCanonicalDomain() ? (
-                            <>
-                                <input
-                                    placeholder="Encryption password"
-                                    className="bottom_spaced"
-                                    type="password"
-                                    value={encKey}
-                                    onChange={(event) =>
-                                        setEncKey(event.target.value)
-                                    }
-                                />
-                                <ButtonWithLoading
-                                    classNameArg={encKey ? "" : "inactive"}
-                                    onClick={async () => {
-                                        if (!encKey) return;
-                                        const seed = hex(
-                                            Array.from(await hash(encKey, 1)),
-                                        );
-                                        const result: any =
-                                            await window.api.call(
-                                                "crypt",
-                                                seed,
-                                            );
-                                        const prefix = user.deactivated
-                                            ? "de"
-                                            : "en";
-                                        if (result && "Ok" in result) {
-                                            showPopUp(
-                                                "success",
-                                                `${result.Ok} posts successfully ${prefix}crypted!`,
-                                                5,
-                                            );
-                                        } else {
-                                            showPopUp(
-                                                "error",
-                                                `${prefix}cryption failed (${result?.Err || "wrong password?"})`,
-                                                5,
-                                            );
-                                        }
-                                    }}
-                                    label={`${user.deactivated ? "AC" : "DEAC"}TIVATE`}
-                                />
-                            </>
-                        ) : (
-                            <UnavailableOnCustomDomains />
-                        )}
-                        <hr />
-                        <h2>Principal Change</h2>
-                        You can change your principal as follows:
-                        <ol>
-                            <li>
-                                Log in using the new authentication method (a
-                                new II anchor or a seed phrase).
-                            </li>
-                            <li>
-                                Copy the displayed principal and log out again{" "}
-                                <b>without creating a new user</b>.
-                            </li>
-                            <li>
-                                Login back to your account using the old
-                                authentication method and paste the new
-                                principal in the text field below.
-                            </li>
-                            <li>Change the principal.</li>
-                            <li>
-                                Login with the new authentication method and
-                                confirm the principal change.
-                            </li>
-                        </ol>
-                        {onCanonicalDomain() ? (
-                            <>
-                                <div className="bottom_half_spaced">
-                                    New principal
-                                </div>
-                                <input
-                                    placeholder="Your principal"
-                                    className="bottom_spaced"
-                                    type="text"
-                                    value={principal}
-                                    onChange={(event) =>
-                                        setPrincipal(event.target.value)
-                                    }
-                                />
-                                <ButtonWithLoading
-                                    classNameArg={
-                                        principal != window.principalId
-                                            ? ""
-                                            : "inactive"
-                                    }
-                                    onClick={async () => {
-                                        const accountBalance =
-                                            await window.api.account_balance(
-                                                ICP_LEDGER_ID,
-                                                {
-                                                    owner: Principal.fromText(
-                                                        user.principal,
-                                                    ),
-                                                },
-                                            );
-                                        if (accountBalance > 0) {
-                                            showPopUp(
-                                                "warning",
-                                                "Your ICP balance is not empty. Please withdraw all funds before changing the principal.",
-                                                5,
-                                            );
-                                            return;
-                                        }
-                                        let response =
-                                            await window.api.call<any>(
-                                                "request_principal_change",
-                                                principal.trim(),
-                                            );
-                                        if ("Err" in response) {
-                                            return showPopUp(
-                                                "error",
-                                                response.Err,
-                                            );
-                                        }
-                                        localStorage.clear();
-                                        location.href = "/";
-                                    }}
-                                    label="CHANGE PRINCIPAL"
-                                />
-                            </>
-                        ) : (
-                            <UnavailableOnCustomDomains />
-                        )}
-                        <hr />
-                        {user.filters.users.length > 0 && (
-                            <>
-                                <h2>Muted Users</h2>
-                                <div>
-                                    <UserList
-                                        profile={true}
-                                        ids={user.filters.users}
-                                    />
-                                </div>
-                            </>
-                        )}
-                        {user.blacklist.length > 0 && (
-                            <>
-                                <h2>Blocked Users</h2>
-                                <div>
-                                    <UserList
-                                        profile={true}
-                                        ids={user.blacklist}
-                                    />
-                                </div>
-                            </>
-                        )}
-                        {user.filters.tags.length > 0 && (
-                            <>
-                                <h2>Muted Tags</h2>
-                                <div>
-                                    {tagList(
-                                        user.filters.tags.map((tag) => [tag]),
-                                    )}
-                                    ,
-                                </div>
-                            </>
-                        )}
-                        {user.filters.realms.length > 0 && (
-                            <>
-                                <h2>Muted Realms</h2>
-                                <div>
-                                    <RealmList ids={user.filters.realms} />
-                                </div>
-                            </>
-                        )}
-                    </>
-                )}
             </div>
         </>
     );

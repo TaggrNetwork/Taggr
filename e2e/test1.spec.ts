@@ -382,6 +382,7 @@ test.describe("Upgrades & token transfer flow", () => {
         test("Add - input", async () => {
             await page.goto("/#/settings");
             await waitForUILoading(page);
+            await page.getByRole("button", { name: "ADVANCED" }).click();
             const icrcWalletEnableSelect = page.getByTestId("ic-wallet-select");
             await expect(icrcWalletEnableSelect).toBeVisible();
             await icrcWalletEnableSelect.selectOption("YES");

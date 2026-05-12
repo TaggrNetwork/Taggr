@@ -634,6 +634,23 @@ hr {
     padding-left: 0.3em;
 }
 
+.sticky_save_bar {
+    position: sticky;
+    bottom: 0;
+    background: $background;
+    padding-top: 0.75em;
+    padding-bottom: 0.75em;
+    margin-top: 1em;
+    border-top: 2px solid $dark_background;
+    z-index: 100;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.reaction_button.selected .reaction_icon path {
+    fill: $accent;
+}
+
 article table,
 article th,
 article td {
