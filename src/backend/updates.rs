@@ -97,7 +97,44 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    // Social recovery for @MikeArtwork (user 2734), who lost access to his
+    // principal after the Internet Identity v2 migration. We swap his
+    // principal with the one of his secondary account Mike2 (user 5621),
+    // so MikeArtwork regains access through the II-v2 principal currently
+    // bound to Mike2. Token balances are swapped along with the principals
+    // so each user keeps their own balance.
+    //
+    // Validity proof linking the Taggr account to the X handle that filed
+    // the recovery request:
+    //   - https://taggr.link/#/post/1454535                     (Taggr post pointing to X)
+    //   - https://x.com/MikeArtwork                             (X profile)
+    //   - https://x.com/MikeArtwork/status/2052004690288574670  (recovery request)
+    use crate::token::Account;
+    mutate(|state| {
+        let mike = state.users.get(&2734).expect("user 2734 not found").principal;
+        let mike2 = state.users.get(&5621).expect("user 5621 not found").principal;
+        let acc_mike = state.users[&2734].account.clone();
+        let acc_mike2 = state.users[&5621].account.clone();
+
+        state.principals.insert(mike, 5621);
+        state.principals.insert(mike2, 2734);
+
+        let user = state.users.get_mut(&2734).unwrap();
+        user.principal = mike2;
+        user.account = acc_mike2;
+        let user = state.users.get_mut(&5621).unwrap();
+        user.principal = mike;
+        user.account = acc_mike;
+
+        let bal_acc_mike = Account { owner: mike, subaccount: None };
+        let bal_acc_mike2 = Account { owner: mike2, subaccount: None };
+        let bal_mike = state.balances.remove(&bal_acc_mike).unwrap_or_default();
+        let bal_mike2 = state.balances.remove(&bal_acc_mike2).unwrap_or_default();
+        if bal_mike2 > 0 { state.balances.insert(bal_acc_mike, bal_mike2); }
+        if bal_mike > 0 { state.balances.insert(bal_acc_mike2, bal_mike); }
+    });
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
