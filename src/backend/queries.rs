@@ -336,26 +336,6 @@ fn journal() {
     })
 }
 
-#[export_name = "canister_query hot_realm_posts"]
-fn hot_realm_posts() {
-    let (domain, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
-    read(|state| {
-        reply(
-            state
-                .hot_posts(
-                    domain,
-                    None,
-                    offset,
-                    Some(&|post: &Post| post.realm.is_some()),
-                )
-                .skip(page * CONFIG.feed_page_size)
-                .take(CONFIG.feed_page_size)
-                .map(|post| post.with_meta(state))
-                .collect::<Vec<_>>(),
-        )
-    });
-}
-
 #[export_name = "canister_query hot_posts"]
 fn hot_posts() {
     let (domain, realm, page, offset, filtered): (String, String, usize, PostId, bool) =
@@ -365,25 +345,8 @@ fn hot_posts() {
         let user = state.principal_to_user(caller(state));
         reply(
             state
-                .hot_posts(domain, realm.as_ref(), offset, None)
+                .hot_posts(domain, realm.as_ref(), offset)
                 .filter(|post| !filtered || personal_filter(state, realm.as_ref(), user, post))
-                .skip(page * CONFIG.feed_page_size)
-                .take(CONFIG.feed_page_size)
-                .map(|post| post.with_meta(state))
-                .collect::<Vec<_>>(),
-        )
-    });
-}
-
-#[export_name = "canister_query realms_posts"]
-fn realms_posts() {
-    let (domain, page, offset): (String, usize, PostId) = parse(&arg_data_raw());
-    read(|state| {
-        let user = state.principal_to_user(caller(state));
-        reply(
-            state
-                .realms_posts(domain, caller(state), offset)
-                .filter(|post| personal_filter(state, None, user, post))
                 .skip(page * CONFIG.feed_page_size)
                 .take(CONFIG.feed_page_size)
                 .map(|post| post.with_meta(state))

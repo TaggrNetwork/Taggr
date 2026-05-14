@@ -654,34 +654,11 @@ impl State {
         self.timers.last_hourly = time();
     }
 
-    pub fn realms_posts(
-        &self,
-        domain: String,
-        caller: Principal,
-        offset: PostId,
-    ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
-        let realm_ids = match self
-            .principal_to_user(caller)
-            .map(|user| user.realms.as_slice())
-        {
-            None | Some(&[]) => return Box::new(std::iter::empty()),
-            Some(ids) => ids.iter().collect::<BTreeSet<_>>(),
-        };
-
-        let iterators: Vec<Box<dyn Iterator<Item = &'_ Post>>> = realm_ids
-            .iter()
-            .map(move |realm_id| self.last_posts(domain.clone(), Some(realm_id), offset, 0, false))
-            .collect();
-
-        Box::new(IteratorMerger::new(MergeStrategy::Or, iterators))
-    }
-
     pub fn hot_posts(
         &self,
         domain: String,
         realm: Option<&RealmId>,
         offset: PostId,
-        filter: Option<&dyn Fn(&Post) -> bool>,
     ) -> Box<dyn Iterator<Item = &'_ Post> + '_> {
         let mut hot_posts = self
             .last_posts(domain, realm, offset, 0, false)
@@ -689,7 +666,6 @@ impl State {
                 // we exclude NSFW posts unless the query comes for the realm of the post
                 (!post.with_meta(self).1.nsfw || post.realm.as_ref() == realm)
                     && !matches!(post.extension, Some(Extension::Proposal(_)))
-                    && filter.map(|f| f(post)).unwrap_or(true)
             })
             .take(1000)
             .collect::<Vec<_>>();

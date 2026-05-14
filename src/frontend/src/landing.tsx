@@ -19,8 +19,6 @@ import { PostId } from "./types";
 
 const NEW = "NEW";
 const HOT = "HOT";
-const REALMS = "REALMS";
-const BEST_IN_REALMS = "BEST IN REALMS";
 const FOR_ME = "FOR ME";
 
 export const Landing = () => {
@@ -35,13 +33,8 @@ export const Landing = () => {
 
     labels.push([<Fire />, HOT]);
 
-    if (!realm) {
-        if (user) {
-            labels.push([<User classNameArg="vertically_aligned" />, FOR_ME]);
-            if (user.realms.length > 0) labels.push([<Realm />, REALMS]);
-        } else {
-            labels.push([<Realm />, BEST_IN_REALMS]);
-        }
+    if (!realm && user) {
+        labels.push([<User classNameArg="vertically_aligned" />, FOR_ME]);
     }
 
     const title = (
@@ -114,13 +107,6 @@ export const Landing = () => {
                             page,
                             offset,
                         );
-                    if (feed == BEST_IN_REALMS)
-                        return await window.api.query(
-                            "hot_realm_posts",
-                            domain(),
-                            page,
-                            offset,
-                        );
                     if (feed == HOT)
                         return await window.api.query(
                             "hot_posts",
@@ -130,13 +116,6 @@ export const Landing = () => {
                             offset,
                             // only enable noise filtering outside of realms
                             !currentRealm(),
-                        );
-                    if (feed == REALMS)
-                        return await window.api.query(
-                            "realms_posts",
-                            domain(),
-                            page,
-                            offset,
                         );
                     return await window.api.query(
                         "last_posts",
