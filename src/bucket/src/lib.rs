@@ -1,7 +1,6 @@
 use candid::{CandidType, Decode, Deserialize, Encode, Principal};
 use ic_cdk::api::{
-    canister_cycle_balance, msg_arg_data, msg_caller, msg_reply, stable_grow, stable_read,
-    stable_size, stable_write,
+    msg_arg_data, msg_caller, msg_reply, stable_grow, stable_read, stable_size, stable_write,
 };
 use serde::Serialize;
 use serde_bytes::ByteBuf;
@@ -108,11 +107,6 @@ fn read_offset() -> u64 {
     let mut bytes: [u8; 8] = Default::default();
     stable_read(0, &mut bytes);
     u64::from_be_bytes(bytes)
-}
-
-#[ic_cdk_macros::query]
-fn balance() -> u128 {
-    canister_cycle_balance()
 }
 
 #[ic_cdk_macros::query]

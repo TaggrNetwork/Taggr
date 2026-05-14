@@ -315,6 +315,11 @@ pub async fn top_up() {
     // top up the main canister
     match cycles(id()).await {
         Ok((cycles, cycles_per_day)) => {
+            mutate(|state| {
+                state
+                    .canister_cycle_stats
+                    .insert(id(), (cycles, cycles_per_day));
+            });
             // Effective burn = main's own burn + aggregate bucket burn, since main funds buckets.
             let effective_cycles_per_day = cycles_per_day.saturating_add(buckets_cycles_per_day);
             let min_cycles_balance = 10_000_000_000_000;
@@ -358,6 +363,11 @@ pub async fn top_up() {
     // For any child canister that is below the safety threshold,
     // top up with cycles for at least `CONFIG.canister_survival_period_days` days.
     for (canister_id, cycles, cycles_per_day) in bucket_statuses {
+        mutate(|state| {
+            state
+                .canister_cycle_stats
+                .insert(canister_id, (cycles, cycles_per_day));
+        });
         if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
             let result = topup_with_cycles(
                 canister_id,

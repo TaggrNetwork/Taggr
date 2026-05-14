@@ -18,9 +18,7 @@ use ic_cdk::{
     futures::{internals::in_executor_context, spawn},
 };
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
-use ic_cdk_management_canister::{
-    update_settings, CanisterId, CanisterSettings, UpdateSettingsArgs,
-};
+use ic_cdk_management_canister::CanisterId;
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
 use std::{collections::HashSet, time::Duration};
@@ -102,7 +100,9 @@ fn post_upgrade() {
 fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {}
+async fn async_post_upgrade_fixtures() {
+    env::storage::upgrade_buckets().await;
+}
 
 /*
  * UPDATES

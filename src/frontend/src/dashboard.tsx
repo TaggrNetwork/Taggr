@@ -11,10 +11,8 @@ import {
 import { Content } from "./content";
 import {
     ActiveUser,
-    Binary,
     Box,
     Canister,
-    Canisters,
     Cash,
     CashCoin,
     Comment,
@@ -112,7 +110,7 @@ export const Dashboard = ({}) => {
                         {sizeMb(
                             stats.state_size +
                                 stats.buckets.reduce(
-                                    (acc, [, e]) => acc + e,
+                                    (acc, [, size]) => acc + size,
                                     0,
                                 ),
                         )}
@@ -175,67 +173,35 @@ export const Dashboard = ({}) => {
                 <hr />
                 <div className="text_centered">
                     <h2>
-                        <Canisters classNameArg="right_half_spaced" /> CANISTERS
+                        <Canister classNameArg="right_half_spaced" />
+                        <a
+                            href={`https://dashboard.internetcomputer.org/canister/${window.backendCache.stats.canister_id}`}
+                        >
+                            MAIN CANISTER
+                        </a>
                     </h2>
                     <div className="dynamic_table">
                         <div className="db_cell">
                             <label>
-                                <Canister />
-                                <a
-                                    className="left_half_spaced"
-                                    href={`https://dashboard.internetcomputer.org/canister/${window.backendCache.stats.canister_id}`}
-                                >
-                                    MAIN
-                                </a>
+                                <Box /> STATE
                             </label>
-                            <div className="db_cell top_spaced bottom_spaced">
-                                <label>
-                                    <Box /> STATE
-                                </label>{" "}
-                                {sizeMb(stats.state_size)}
-                            </div>
-                            <div className="db_cell">
-                                <label>
-                                    <Credits /> CYCLES
-                                </label>{" "}
-                                {show(
-                                    Number(stats.canister_cycle_balance) /
-                                        10 ** 12,
-                                    "T",
-                                )}
-                            </div>
-                        </div>
-                        {stats.buckets.map(([bucket_id, size], i) => (
-                            <div key={bucket_id} className="db_cell">
-                                <a
-                                    href={`https://dashboard.internetcomputer.org/canister/${bucket_id}`}
-                                >
-                                    <StorageCanister classNameArg="right_half_spaced" />{" "}
-                                    STORAGE {i}
-                                </a>
-                                <div className="db_cell top_spaced bottom_spaced">
-                                    <label>
-                                        <Box /> STATE
-                                    </label>{" "}
-                                    {sizeMb(size)}
-                                </div>
-                                <div className="db_cell">
-                                    <label>
-                                        <Credits /> CYCLES
-                                    </label>{" "}
-                                    <CycleBalance id={bucket_id} />
-                                </div>
-                            </div>
-                        ))}
-                        <div className="db_cell bottom_spaced">
-                            <label>
-                                <Gear /> LAST UPGRADE
-                            </label>
-                            <code>{timeAgo(stats.last_release.timestamp)}</code>
+                            {sizeMb(stats.state_size)}
                         </div>
                         <div className="db_cell">
                             <label>
-                                <Binary /> VERSION
+                                <Credits /> CYCLES
+                            </label>
+                            {showCycles(Number(stats.canister_cycle_balance))}
+                        </div>
+                        <div className="db_cell">
+                            <label>
+                                <Fire /> DAILY BURN
+                            </label>
+                            {showCycles(Number(stats.canister_cycle_burn))}
+                        </div>
+                        <div className="db_cell">
+                            <label>
+                                <Gear /> LAST UPGRADE
                             </label>
                             <a
                                 className="xx_large_text"
@@ -243,9 +209,43 @@ export const Dashboard = ({}) => {
                             >
                                 {stats.last_release.commit.slice(0, 8)}
                             </a>
+                            <code>{timeAgo(stats.last_release.timestamp)}</code>
                         </div>
                     </div>
                 </div>
+                {stats.buckets.map(([bucket_id, size, cycles, burn], i) => (
+                    <div key={bucket_id} className="text_centered">
+                        <hr />
+                        <h2>
+                            <StorageCanister classNameArg="right_half_spaced" />
+                            <a
+                                href={`https://dashboard.internetcomputer.org/canister/${bucket_id}`}
+                            >
+                                STORAGE {i}
+                            </a>
+                        </h2>
+                        <div className="dynamic_table">
+                            <div className="db_cell">
+                                <label>
+                                    <Box /> STATE
+                                </label>
+                                {sizeMb(size)}
+                            </div>
+                            <div className="db_cell">
+                                <label>
+                                    <Credits /> CYCLES
+                                </label>
+                                {showCycles(cycles)}
+                            </div>
+                            <div className="db_cell">
+                                <label>
+                                    <Fire /> DAILY BURN
+                                </label>
+                                {showCycles(burn)}
+                            </div>
+                        </div>
+                    </div>
+                ))}
                 <hr />
                 <div>
                     <h2>STALWARTS</h2>
@@ -310,14 +310,4 @@ const sizeMb = (size: number | BigInt) => (
     </code>
 );
 
-const CycleBalance = ({ id }: { id: string }) => {
-    const [cycles, setCycles] = React.useState(-1);
-    React.useEffect(() => {
-        window.api
-            .cycle_balance(id)
-            .then((response: any) => setCycles(Number(response)));
-    }, [id]);
-    return (
-        <code className="xx_large_text">{show(cycles / 10 ** 12, "T")}</code>
-    );
-};
+const showCycles = (cycles: number) => show(cycles / 10 ** 12, "T");

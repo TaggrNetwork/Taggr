@@ -89,6 +89,7 @@ pub struct Stats {
     users: usize,
     credits: Credits,
     canister_cycle_balance: u64,
+    canister_cycle_burn: u64,
     burned_credits: i64,
     total_revenue_shared: u64,
     total_rewards_shared: u64,
@@ -104,7 +105,8 @@ pub struct Stats {
     active_users: usize,
     active_users_vp: u64,
     invited_users: usize,
-    buckets: Vec<(String, u64)>,
+    // (id, state_size, cycles, cycles_per_day)
+    buckets: Vec<(String, u64, u64, u64)>,
     users_online: usize,
     module_hash: String,
     last_release: ReleaseInfo,
@@ -242,6 +244,10 @@ pub struct State {
 
     #[serde(default)]
     pub cold_wallets: HashMap<Principal, UserId>,
+
+    // Per-canister snapshot of (cycles, idle_cycles_burned_per_day), refreshed by `canisters::top_up()` (hourly).
+    #[serde(default)]
+    pub canister_cycle_stats: BTreeMap<Principal, (u64, u64)>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -2477,6 +2483,11 @@ impl State {
             last_daily_chores: self.timers.last_daily,
             last_hourly_chores: self.timers.last_hourly,
             canister_cycle_balance: canister_cycle_balance() as u64,
+            canister_cycle_burn: self
+                .canister_cycle_stats
+                .get(&api::canister_self())
+                .map(|(_, burn)| *burn)
+                .unwrap_or_default(),
             users: self.users.len(),
             posts,
             comments: Post::count(self) - posts,
@@ -2497,7 +2508,14 @@ impl State {
                 .storage
                 .buckets
                 .iter()
-                .map(|(id, size)| (id.to_string(), *size))
+                .map(|(id, size)| {
+                    let (cycles, cycles_per_day) = self
+                        .canister_cycle_stats
+                        .get(id)
+                        .copied()
+                        .unwrap_or_default();
+                    (id.to_string(), *size, cycles, cycles_per_day)
+                })
                 .collect(),
         }
     }
