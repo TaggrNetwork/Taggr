@@ -133,6 +133,7 @@ service : () -> {
   backup: () -> ();
   bucket_wasm : () -> (blob) query;
   commit_post : () -> (Result);
+  create_user_index : () -> (opt nat64);
   edit_post : (nat64, text, vec record { text; blob }, text, opt text) -> (
       Result_1,
     );

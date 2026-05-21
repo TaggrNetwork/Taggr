@@ -195,7 +195,7 @@ fn unlink_cold_wallet() -> Result<(), String> {
 }
 
 /// Registers the caller's personal media bucket. Performs no verification — a
-/// misconfigured bucket only impairs the user's own posts. Call this again to
+/// misconfigured bucket only impairs the user's own posts. Call again to
 /// replace it.
 #[update]
 fn set_bucket(bucket_id: Principal) -> Result<(), String> {
@@ -206,6 +206,32 @@ fn set_bucket(bucket_id: Principal) -> Result<(), String> {
             .ok_or("user not found")?;
         user.bucket = Some(bucket_id);
         Ok(())
+    })
+}
+
+/// Indexes the next batch of posts by author so the frontend can enumerate a
+/// user's posts during bucket migration. Anyone may call. Returns the highest
+/// `PostId` scanned, or `None` once nothing remains above `last_scanned`. Safe
+/// to re-invoke later as new posts arrive.
+#[update]
+fn create_user_index() -> Option<PostId> {
+    mutate(|state| {
+        let start = state
+            .post_index_last_scanned
+            .map(|id| id + 1)
+            .unwrap_or(0);
+        let batch: Vec<(PostId, UserId)> = state
+            .posts
+            .range(start..)
+            .take(50_000)
+            .map(|(id, post)| (*id, post.user))
+            .collect();
+        let last_id = batch.last()?.0;
+        for (id, user_id) in batch {
+            state.post_index.entry(user_id).or_default().push(id);
+        }
+        state.post_index_last_scanned = Some(last_id);
+        Some(last_id)
     })
 }
 
