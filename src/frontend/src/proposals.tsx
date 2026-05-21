@@ -27,7 +27,8 @@ import { UserLink, UserList } from "./user_resolve";
 import { Form } from "./form";
 import { newPostCallback } from "./new";
 
-const REPO_COMMIT = `${REPO}/commits`;
+const REPO_COMMIT = `${REPO}/commit`;
+const REPO_COMPARE = `${REPO}/compare`;
 
 let timer: any = null;
 
@@ -452,7 +453,7 @@ export const ProposalView = ({
                                     </span>
                                     <a
                                         className="breakable left_half_spaced"
-                                        href={`#/diff/${window.backendCache.stats.last_release.commit}/${commit}`}
+                                        href={`${REPO_COMPARE}/${window.backendCache.stats.last_release.commit}..${commit}`}
                                     >
                                         DIFF WITH PREVIOUS RELEASE
                                     </a>

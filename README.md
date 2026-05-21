@@ -5,7 +5,7 @@
 Assume you want to verify a new upgrade proposal with code commit `<COMMIT>` and binary hash `<HASH>`.
 
 0. Install Docker (only once).
-1. `git clone https://seed.radicle.garden/z4TNAuSLgfxXUr8sYpYowk6mcx33B.git taggr` (only once)
+1. `git clone https://github.com/TaggrNetwork/taggr.git` (only once)
 2. `cd taggr`
 3. `git fetch --all && git checkout <COMMIT>`
 4. `make release`
@@ -23,8 +23,8 @@ Same flag works for `make tests`.
 
 Outputs of a successful run:
 
--   `release-artifacts/taggr.wasm.gz` — the production wasm.
--   `test-results/` and `playwright-report/` — Playwright traces and the HTML report (open `playwright-report/index.html` to inspect any failures).
+- `release-artifacts/taggr.wasm.gz` — the production wasm.
+- `test-results/` and `playwright-report/` — Playwright traces and the HTML report (open `playwright-report/index.html` to inspect any failures).
 
 Note: the first run is slow (Chromium install layer is several hundred MB) and `dfx nns install` downloads the NNS canisters on every run.
 

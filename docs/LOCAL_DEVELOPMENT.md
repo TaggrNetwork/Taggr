@@ -19,18 +19,18 @@ Make sure to follow the steps outlined in the rest of this file before using the
 
 ## System Dependencies
 
--   Install [NodeJS](https://nodejs.org/).
--   Install [Rust & Cargo](https://www.rust-lang.org/).
--   Install [ic-wasm](https://github.com/dfinity/ic-wasm).
--   Install [Docker](https://www.docker.com/).
--   Install [Git](https://git-scm.com/).
+- Install [NodeJS](https://nodejs.org/).
+- Install [Rust & Cargo](https://www.rust-lang.org/).
+- Install [ic-wasm](https://github.com/dfinity/ic-wasm).
+- Install [Docker](https://www.docker.com/).
+- Install [Git](https://git-scm.com/).
 
 ## First Time Setup
 
 Clone the Taggr repo:
 
 ```shell
-git clone https://seed.radicle.garden/z4TNAuSLgfxXUr8sYpYowk6mcx33B.git taggr
+git clone git@github.com:TaggrNetwork/taggr.git
 ```
 
 Change your directory to the newly cloned Taggr repo:

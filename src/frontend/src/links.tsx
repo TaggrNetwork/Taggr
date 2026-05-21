@@ -69,8 +69,16 @@ export const LinksPage = ({}) => {
             <h2>Development</h2>
             <ul>
                 <li>
+                    Source code repository on{" "}
                     <a target="_blank" href={REPO}>
-                        Source code repository on Radicle
+                        GitHub
+                    </a>{" "}
+                    /{" "}
+                    <a
+                        target="_blank"
+                        href="https://radicle.network/nodes/seed.radicle.garden/rad:z4TNAuSLgfxXUr8sYpYowk6mcx33B"
+                    >
+                        Radicle
                     </a>{" "}
                     (maintained by{" "}
                     <a target="_blank" href="#/user/0">
