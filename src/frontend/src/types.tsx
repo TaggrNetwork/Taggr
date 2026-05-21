@@ -251,6 +251,7 @@ export type User = {
     show_posts_in_realms: boolean;
     treasury_e8s: BigInt;
     principal: string;
+    bucket?: string;
     bookmarks: number[];
     pinned_posts: number[];
     last_activity: BigInt;

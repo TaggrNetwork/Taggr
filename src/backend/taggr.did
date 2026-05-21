@@ -131,6 +131,7 @@ service : () -> {
   add_post_blob : (text, blob) -> (Result_1);
   add_post_data : (text, opt text, opt blob) -> ();
   backup: () -> ();
+  bucket_wasm : () -> (blob) query;
   commit_post : () -> (Result);
   edit_post : (nat64, text, vec record { text; blob }, text, opt text) -> (
       Result_1,
@@ -157,6 +158,7 @@ service : () -> {
   link_cold_wallet : (nat64) -> (Result_1);
   prod_release : () -> (bool);
   propose_release : (nat64, text, blob) -> (Result_4);
+  set_bucket : (principal) -> (Result_1);
   set_emergency_release : (blob) -> ();
   stable_mem_read : (nat64) -> (vec record { nat64; blob }) query;
   unlink_cold_wallet : () -> (Result_1);

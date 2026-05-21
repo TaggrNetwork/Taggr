@@ -102,6 +102,8 @@ pub struct User {
     pub cold_balance: Token,
     pub active_weeks: u32,
     pub principal: Principal,
+    #[serde(default)]
+    pub bucket: Option<Principal>,
     pub report: Option<Report>,
     pub post_reports: BTreeMap<PostId, Time>,
     pub blacklist: BTreeSet<UserId>,

@@ -194,6 +194,21 @@ fn unlink_cold_wallet() -> Result<(), String> {
     mutate(|state| state.unlink_cold_wallet(raw_caller(state)?))
 }
 
+/// Registers the caller's personal media bucket. Performs no verification — a
+/// misconfigured bucket only impairs the user's own posts. Call this again to
+/// replace it.
+#[update]
+fn set_bucket(bucket_id: Principal) -> Result<(), String> {
+    mutate(|state| {
+        let principal = raw_caller(state)?;
+        let user = state
+            .principal_to_user_mut(principal)
+            .ok_or("user not found")?;
+        user.bucket = Some(bucket_id);
+        Ok(())
+    })
+}
+
 #[export_name = "canister_update withdraw_rewards"]
 fn withdraw_rewards() {
     in_executor_context(|| {

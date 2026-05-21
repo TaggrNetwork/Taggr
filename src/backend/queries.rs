@@ -497,6 +497,11 @@ fn realm_search() {
 }
 
 #[query]
+fn bucket_wasm() -> Blob {
+    ByteBuf::from(env::storage::BUCKET_WASM_GZ.to_vec())
+}
+
+#[query]
 fn stable_mem_read(page: u64) -> Vec<(u64, Blob)> {
     let offset = page * BACKUP_PAGE_SIZE as u64;
     let (heap_off, heap_size) = memory::heap_address();
