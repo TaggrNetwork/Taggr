@@ -324,7 +324,30 @@ fn request_principal_change() {
 
 #[export_name = "canister_update confirm_principal_change"]
 fn confirm_principal_change() {
-    reply(mutate(|state| state.change_principal(raw_caller(state)?)));
+    let new_principal = api::msg_caller();
+    let result = mutate(|state| state.change_principal(raw_caller(state)?));
+    if result.is_ok() {
+        let bucket = read(|state| {
+            state
+                .principal_to_user(new_principal)
+                .and_then(|u| u.bucket)
+        });
+        if let Some(bucket) = bucket {
+            set_timer(Duration::from_millis(0), async move {
+                if let Err(err) =
+                    env::canisters::rotate_bucket_controllers(bucket, new_principal).await
+                {
+                    mutate(|state| {
+                        state.logger.error(format!(
+                            "couldn't rotate controllers of bucket {} after principal change: {}",
+                            bucket, err
+                        ))
+                    });
+                }
+            });
+        }
+    }
+    reply(result);
 }
 
 #[export_name = "canister_update update_user"]
