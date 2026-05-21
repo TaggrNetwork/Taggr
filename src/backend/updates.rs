@@ -9,8 +9,8 @@ use super::*;
 use env::{
     canisters::get_full_neuron,
     config::CONFIG,
-    post::{Extension, Post, PostId},
-    user::{Draft, User, UserId},
+    post::{Extension, FileRef, Post, PostId},
+    user::{User, UserId},
     State,
 };
 use ic_cdk::{
@@ -431,104 +431,37 @@ fn cancel_proposal() {
 }
 
 #[update]
-/// This method adds a post atomically (from the user's point of view).
-async fn add_post(
+fn add_post(
     body: String,
-    blobs: Vec<(String, Blob)>,
+    refs: Vec<FileRef>,
     parent: Option<PostId>,
     realm: Option<RealmId>,
     extension: Option<Blob>,
 ) -> Result<PostId, String> {
-    let post_id = mutate(|state| {
+    mutate(|state| {
         let extension: Option<Extension> = extension.map(|bytes| parse(&bytes));
         Post::create(
             state,
             body,
-            &blobs,
+            &refs,
             caller(state),
             api::time(),
             parent,
             realm,
             extension,
         )
-    })?;
-    Post::save_blobs(post_id, blobs).await.map(|_| post_id)
-}
-
-#[update]
-/// This method initiates an asynchronous post creation.
-fn add_post_data(body: String, realm: Option<RealmId>, extension: Option<Blob>) {
-    let realm_len = realm.as_ref().map(|id| id.len()).unwrap_or_default();
-    let blob_len = extension
-        .as_ref()
-        .map(|blob| blob.len())
-        .unwrap_or_default();
-    if blob_len > CONFIG.max_blob_size_bytes || realm_len > CONFIG.max_realm_name {
-        return;
-    }
-
-    mutate(|state| {
-        if let Some(user) = state.principal_to_user_mut(caller(state)) {
-            user.draft = Some(Draft {
-                body,
-                realm,
-                extension,
-                blobs: Default::default(),
-            });
-        };
     })
 }
 
 #[update]
-/// This method adds a blob to a post being created
-fn add_post_blob(id: String, blob: Blob) -> Result<(), String> {
-    if blob.is_empty() || blob.len() > CONFIG.max_blob_size_bytes {
-        return Err("blob too big".into());
-    }
-
-    mutate(|state| {
-        if let Some(user) = state.principal_to_user_mut(caller(state)) {
-            let credits = user.credits();
-            if let Some(draft) = user.draft.as_mut() {
-                if credits < (draft.blobs.len() + 1) as u64 * CONFIG.blob_cost {
-                    user.draft.take();
-                    return;
-                }
-                draft.blobs.push((id, blob))
-            }
-        }
-    });
-    Ok(())
-}
-
-#[update]
-/// This method finalizes the post creation.
-async fn commit_post() -> Result<PostId, String> {
-    if let Some(Some(Draft {
-        body,
-        realm,
-        extension,
-        blobs,
-    })) = mutate(|state| {
-        state
-            .principal_to_user_mut(caller(state))
-            .map(|user| user.draft.take())
-    }) {
-        add_post(body, blobs, None, realm, extension).await
-    } else {
-        Err("no post data found".into())
-    }
-}
-
-#[update]
-async fn edit_post(
+fn edit_post(
     id: PostId,
     body: String,
-    blobs: Vec<(String, Blob)>,
+    refs: Vec<FileRef>,
     patch: String,
     realm: Option<RealmId>,
 ) -> Result<(), String> {
-    Post::edit(id, body, blobs, patch, realm, read(caller), api::time()).await
+    Post::edit(id, body, refs, patch, realm, read(caller), api::time())
 }
 
 #[export_name = "canister_update delete_post"]

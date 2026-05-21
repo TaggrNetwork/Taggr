@@ -2,10 +2,14 @@ use std::cmp::{Ordering, PartialOrd};
 
 use super::config::DOWNVOTE_REACTION_ID;
 use super::*;
-use super::{storage::Storage, user::UserId};
+use super::user::UserId;
 use crate::mutate;
 use ic_cdk::api::msg_caller as caller;
 use serde::{Deserialize, Serialize};
+
+// Reference to a blob already written into the caller's bucket: (blob id, offset, length).
+// Length is u64 (rather than usize) so the candid signature is stable regardless of build target.
+pub type FileRef = (String, u64, u64);
 
 static mut CACHE: Option<BTreeMap<PostId, Box<Post>>> = None;
 
@@ -263,7 +267,7 @@ impl Post {
         Ok(())
     }
 
-    pub fn valid(&self, blobs: &[(String, Blob)]) -> Result<(), String> {
+    pub fn valid(&self, refs: &[FileRef]) -> Result<(), String> {
         if self.body.is_empty() || self.body.chars().count() > CONFIG.max_post_length {
             return Err("invalid post content".into());
         }
@@ -282,41 +286,14 @@ impl Post {
             }
         }
 
-        if !blobs.iter().all(|(key, blob)| {
-            key.len() <= 8 && !blob.is_empty() && blob.len() <= CONFIG.max_blob_size_bytes
-        }) {
-            return Err("invalid blobs".into());
-        }
-
-        Ok(())
-    }
-
-    pub async fn save_blobs(post_id: PostId, blobs: Vec<(String, Blob)>) -> Result<(), String> {
-        let existing_blobs = read(|state| {
-            Post::get(state, &post_id)
-                .map(|post| post.files.keys().cloned().collect::<BTreeSet<_>>())
-        })
-        .unwrap_or_default();
-
-        for (id, blob) in blobs
-            .into_iter()
-            .filter(|(id, _)| !existing_blobs.contains(id))
+        let max_len = CONFIG.max_blob_size_bytes as u64;
+        if !refs
+            .iter()
+            .all(|(id, _, len)| id.len() <= 8 && *len > 0 && *len <= max_len)
         {
-            match Storage::write_to_bucket(blob.as_slice()).await {
-                Ok((bucket_id, offset)) => mutate(|state| {
-                    Post::mutate(state, &post_id, |post| {
-                        post.files
-                            .insert(format!("{}@{}", id, bucket_id), (offset, blob.len()));
-                        Ok(())
-                    })
-                }),
-                Err(err) => {
-                    let msg = format!("Couldn't write a blob to bucket: {:?}", err);
-                    mutate(|state| state.logger.error(&msg));
-                    Err(err)
-                }
-            }?
+            return Err("invalid refs".into());
         }
+
         Ok(())
     }
 
@@ -340,13 +317,12 @@ impl Post {
             .collect();
     }
 
-    pub fn costs(&self, state: &State, blobs: usize) -> Credits {
+    pub fn costs(&self, state: &State) -> Credits {
         CONFIG.post_cost
             // we charge each 1kb of the post content + diffs patches coming from edits
             * ((self.body.len() + self.patches.iter().map(|p| p.1.len()).sum::<usize>()) / 1024 + 1)
                 as u64
             + state.tags_cost(Box::new(self.tags.iter()))
-            + blobs as Credits * CONFIG.blob_cost
             + if matches!(self.extension, Some(Extension::Poll(_))) {
                 CONFIG.poll_cost
             } else {
@@ -428,10 +404,10 @@ impl Post {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn edit(
+    pub fn edit(
         id: PostId,
         body: String,
-        blobs: Vec<(String, Blob)>,
+        refs: Vec<FileRef>,
         patch: String,
         picked_realm: Option<String>,
         principal: Principal,
@@ -439,6 +415,7 @@ impl Post {
     ) -> Result<(), String> {
         mutate(|state| {
             let user = state.principal_to_user(principal).ok_or("no user found")?;
+            let bucket = user.bucket;
             let mut post = Post::get(state, &id).ok_or("no post found")?.clone();
             if post.user != user.id {
                 return Err("unauthorized".to_string());
@@ -457,17 +434,25 @@ impl Post {
             post.body = body;
             post.patches.push((post.timestamp, patch));
             post.timestamp = timestamp;
-            post.valid(&blobs)?;
-            let old_blob_ids = post
-                .files
-                .keys()
-                .filter_map(|key| key.split('@').next())
-                .collect::<BTreeSet<_>>();
-            let new_blobs = blobs
-                .iter()
-                .filter(|(id, _)| !old_blob_ids.contains(id.as_str()))
-                .count();
-            let costs = post.costs(state, new_blobs);
+            post.valid(&refs)?;
+            if !refs.is_empty() {
+                let bucket = bucket.ok_or("personal media bucket not configured")?;
+                let existing_ids = post
+                    .files
+                    .keys()
+                    .filter_map(|key| key.split('@').next().map(str::to_string))
+                    .collect::<BTreeSet<_>>();
+                for (blob_id, offset, len) in &refs {
+                    if existing_ids.contains(blob_id) {
+                        continue;
+                    }
+                    post.files.insert(
+                        format!("{}@{}", blob_id, bucket),
+                        (*offset, *len as usize),
+                    );
+                }
+            }
+            let costs = post.costs(state);
             state.charge_in_realm(
                 user_id,
                 costs,
@@ -486,18 +471,14 @@ impl Post {
                 change_realm(state, id, picked_realm)
             }
             Ok(())
-        })?;
-
-        Post::save_blobs(id, blobs).await?;
-
-        Ok(())
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn create(
         state: &mut State,
         body: String,
-        blobs: &[(String, Blob)],
+        refs: &[FileRef],
         principal: Principal,
         timestamp: u64,
         parent: Option<PostId>,
@@ -527,6 +508,8 @@ impl Post {
         if user.is_bot() && parent.is_some() {
             return Err("bots can't create comments".into());
         }
+
+        let bucket = user.bucket;
 
         let realm = match parent.and_then(|id| Post::get(state, &id)) {
             Some(parent) => parent.realm.clone(),
@@ -581,8 +564,17 @@ impl Post {
             realm.clone(),
             (user_balance / token::base()).min(CONFIG.post_heat_token_balance_cap) as u32,
         );
-        let costs = post.costs(state, blobs.len());
-        post.valid(blobs)?;
+        post.valid(refs)?;
+        if !refs.is_empty() {
+            let bucket = bucket.ok_or("personal media bucket not configured")?;
+            for (blob_id, offset, len) in refs {
+                post.files.insert(
+                    format!("{}@{}", blob_id, bucket),
+                    (*offset, *len as usize),
+                );
+            }
+        }
+        let costs = post.costs(state);
         let future_id = state.next_post_id;
         let is_comment = parent.is_some();
 
@@ -599,7 +591,7 @@ impl Post {
             let excess_penalty = CONFIG.excess_penalty * excess_factor as Credits;
             state.charge_in_realm(
                 user_id,
-                excess_penalty + blobs.len() as Credits * excess_penalty,
+                excess_penalty + refs.len() as Credits * excess_penalty,
                 realm.as_ref(),
                 "excessive posting penalty",
             )?;
@@ -1176,11 +1168,11 @@ mod tests {
         let mut p = Post::default();
 
         // empty post
-        assert_eq!(p.costs(&state, Default::default()), CONFIG.post_cost);
+        assert_eq!(p.costs(&state), CONFIG.post_cost);
 
         // tag without subscribers
         p.tags = ["world"].iter().map(|x| x.to_string()).collect();
-        assert_eq!(p.costs(&state, 0), CONFIG.post_cost);
+        assert_eq!(p.costs(&state), CONFIG.post_cost);
 
         state.tag_indexes.insert(
             "world".into(),
@@ -1191,7 +1183,7 @@ mod tests {
         );
         // tag with subscribers
         p.tags = ["world"].iter().map(|x| x.to_string()).collect();
-        assert_eq!(p.costs(&state, 0), CONFIG.post_cost + 3);
+        assert_eq!(p.costs(&state), CONFIG.post_cost + 3);
 
         state.tag_indexes.insert(
             "hello".into(),
@@ -1203,14 +1195,7 @@ mod tests {
 
         // two tags
         p.tags = ["hello", "world"].iter().map(|x| x.to_string()).collect();
-        assert_eq!(p.costs(&state, 0), CONFIG.post_cost + 3 + 10);
-
-        // two tags and a blob
-        p.tags = ["hello", "world"].iter().map(|x| x.to_string()).collect();
-        assert_eq!(
-            p.costs(&state, 1),
-            CONFIG.post_cost + 3 + 10 + CONFIG.blob_cost
-        );
+        assert_eq!(p.costs(&state), CONFIG.post_cost + 3 + 10);
     }
 
     #[test]
@@ -1236,46 +1221,19 @@ mod tests {
         p.body = "Hello world!".to_string();
         assert!(p.valid(Default::default()).is_ok());
 
+        let max = CONFIG.max_blob_size_bytes as u64;
+
         // too long blob id
-        assert!(p
-            .valid(
-                vec![(
-                    "abcdefghX".to_string(),
-                    ByteBuf::from(
-                        [0, 1]
-                            .iter()
-                            .cycle()
-                            .take(CONFIG.max_blob_size_bytes)
-                            .cloned()
-                            .collect::<Vec<_>>()
-                    )
-                )]
-                .as_slice()
-            )
-            .is_err());
+        assert!(p.valid(&[("abcdefghX".to_string(), 0, max)]).is_err());
 
-        // valid blob
-        assert!(p
-            .valid(
-                vec![(
-                    "abcdefgh".to_string(),
-                    ByteBuf::from(
-                        [0, 1]
-                            .iter()
-                            .cycle()
-                            .take(CONFIG.max_blob_size_bytes)
-                            .cloned()
-                            .collect::<Vec<_>>()
-                    )
-                )]
-                .as_slice()
-            )
-            .is_ok());
+        // valid ref
+        assert!(p.valid(&[("abcdefgh".to_string(), 0, max)]).is_ok());
 
-        // empty blob
-        assert!(p
-            .valid(vec![("abcdefgh".to_string(), Default::default())].as_slice())
-            .is_err());
+        // zero-length ref
+        assert!(p.valid(&[("abcdefgh".to_string(), 0, 0)]).is_err());
+
+        // oversize ref
+        assert!(p.valid(&[("abcdefgh".to_string(), 0, max + 1)]).is_err());
     }
 
     #[test]

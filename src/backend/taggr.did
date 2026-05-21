@@ -123,18 +123,15 @@ type Value = variant { Nat : nat; Text : text };
 service : () -> {
   add_post : (
       text,
-      vec record { text; blob },
+      vec record { text; nat64; nat64 },
       opt nat64,
       opt text,
       opt blob,
     ) -> (Result);
-  add_post_blob : (text, blob) -> (Result_1);
-  add_post_data : (text, opt text, opt blob) -> ();
   backup: () -> ();
   bucket_wasm : () -> (blob) query;
-  commit_post : () -> (Result);
   create_user_index : () -> (opt nat64);
-  edit_post : (nat64, text, vec record { text; blob }, text, opt text) -> (
+  edit_post : (nat64, text, vec record { text; nat64; nat64 }, text, opt text) -> (
       Result_1,
     );
   force_emergency_upgrade : () -> (bool);

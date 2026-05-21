@@ -33,14 +33,6 @@ pub enum Notification {
     WatchedPostEntries(PostId, Vec<PostId>),
 }
 
-// This struct will hold user's new post until it's saved.
-pub struct Draft {
-    pub body: String,
-    pub realm: Option<String>,
-    pub extension: Option<Blob>,
-    pub blobs: Vec<(String, Blob)>,
-}
-
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UserFilter {
     age_days: u64,
@@ -108,8 +100,6 @@ pub struct User {
     pub post_reports: BTreeMap<PostId, Time>,
     pub blacklist: BTreeSet<UserId>,
     pub treasury_e8s: u64,
-    #[serde(skip)]
-    pub draft: Option<Draft>,
     pub filters: Filters,
     pub previous_names: Vec<String>,
     pub governance: bool,
@@ -136,7 +126,6 @@ impl User {
         self.active_weeks = 0;
         self.notifications.clear();
         self.accounting.clear();
-        self.draft.take();
     }
 
     pub fn should_see(&self, state: &State, realm: Option<&RealmId>, post: &Post) -> bool {
