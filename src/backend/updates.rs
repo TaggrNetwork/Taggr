@@ -100,9 +100,7 @@ fn post_upgrade() {
 fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {
-    env::storage::upgrade_buckets().await;
-}
+async fn async_post_upgrade_fixtures() {}
 
 /*
  * UPDATES

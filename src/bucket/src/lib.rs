@@ -15,6 +15,16 @@ const MAX_BLOB_SIZE: u64 = 8 * 1024 * 1024;
 // Minimum remainder size (5KB) to keep when splitting a free segment.
 const MIN_REMAINDER: u64 = 5 * 1024;
 
+// Stable memory layout:
+//   [0, 8)              u64 (be): high-water-mark — offset of the next blob write.
+//   [8, 12)             u32 (be): length of the candid-encoded controllers list.
+//   [12, 268)           candid-encoded `Vec<Principal>` (padded; rewritten in place).
+//   [268, ..)           blob data, then optionally the free-list block at upgrade time.
+const CONTROLLERS_LEN_OFFSET: u64 = 8;
+const CONTROLLERS_BLOB_OFFSET: u64 = 12;
+const CONTROLLERS_REGION_END: u64 = 268;
+const CONTROLLERS_BLOB_MAX_LEN: u64 = CONTROLLERS_REGION_END - CONTROLLERS_BLOB_OFFSET;
+
 // HTTP request and response headers.
 type Headers = Vec<(String, String)>;
 
@@ -26,6 +36,7 @@ struct Segment {
 
 thread_local! {
     static FREE_SEGMENTS: RefCell<Vec<Segment>> = const { RefCell::new(Vec::new()) };
+    static CONTROLLERS: RefCell<Vec<Principal>> = const { RefCell::new(Vec::new()) };
 }
 
 #[derive(CandidType, Deserialize)]
@@ -42,24 +53,48 @@ struct HttpResponse {
     upgrade: Option<bool>,
 }
 
-static mut CONTROLLER: Option<Principal> = None;
+fn write_controllers(controllers: &[Principal]) {
+    assert!(!controllers.is_empty(), "controllers must not be empty");
+    let bytes = Encode!(&controllers.to_vec()).expect("couldn't encode controllers");
+    let len = bytes.len() as u32;
+    assert!(
+        (len as u64) <= CONTROLLERS_BLOB_MAX_LEN,
+        "controllers blob too large"
+    );
+    stable_write(CONTROLLERS_LEN_OFFSET, &len.to_be_bytes());
+    stable_write(CONTROLLERS_BLOB_OFFSET, &bytes);
+    CONTROLLERS.with(|c| *c.borrow_mut() = controllers.to_vec());
+}
 
-fn set_controller() {
-    unsafe {
-        CONTROLLER = Some(Principal::from_slice(&msg_arg_data()));
+fn read_controllers() -> Vec<Principal> {
+    let mut len_bytes = [0u8; 4];
+    stable_read(CONTROLLERS_LEN_OFFSET, &mut len_bytes);
+    let len = u32::from_be_bytes(len_bytes) as u64;
+    if len == 0 || len > CONTROLLERS_BLOB_MAX_LEN {
+        return Vec::new();
     }
+    let mut bytes = vec![0u8; len as usize];
+    stable_read(CONTROLLERS_BLOB_OFFSET, &mut bytes);
+    Decode!(&bytes, Vec<Principal>).unwrap_or_default()
 }
 
 fn assert_controller() {
-    assert_eq!(msg_caller(), unsafe { CONTROLLER.expect("uninitialized") });
+    let caller = msg_caller();
+    CONTROLLERS.with(|c| {
+        assert!(
+            c.borrow().iter().any(|p| *p == caller),
+            "unauthorized caller"
+        );
+    });
 }
 
 #[export_name = "canister_init"]
 fn init() {
-    let initial_offset: u64 = 8;
-    grow_to_fit(initial_offset, 0);
-    stable_write(0, &initial_offset.to_be_bytes());
-    set_controller();
+    grow_to_fit(0, CONTROLLERS_REGION_END);
+    stable_write(0, &CONTROLLERS_REGION_END.to_be_bytes());
+    let controllers: Vec<Principal> =
+        Decode!(&msg_arg_data(), Vec<Principal>).expect("couldn't decode controllers list");
+    write_controllers(&controllers);
 }
 
 #[export_name = "canister_pre_upgrade"]
@@ -77,7 +112,9 @@ fn pre_upgrade() {
 
 #[export_name = "canister_post_upgrade"]
 fn post_upgrade() {
-    set_controller();
+    // Controllers persist in their fixed stable-memory region; just rehydrate the cache.
+    let controllers = read_controllers();
+    CONTROLLERS.with(|c| *c.borrow_mut() = controllers);
 
     let offset = read_offset();
     let stable_mem_size = stable_size() << 16;
@@ -217,6 +254,12 @@ fn free(segments: Vec<(u64, u64)>) {
         }
         free_list.sort_by_key(|s| s.length);
     });
+}
+
+#[ic_cdk_macros::update]
+fn update_internal_controllers(controllers: Vec<Principal>) {
+    assert_controller();
+    write_controllers(&controllers);
 }
 
 fn grow_to_fit(offset: u64, len: u64) {
