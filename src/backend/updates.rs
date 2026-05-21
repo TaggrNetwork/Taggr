@@ -213,6 +213,52 @@ fn set_bucket(bucket_id: Principal) -> Result<(), String> {
 /// user's posts during bucket migration. Anyone may call. Returns the highest
 /// `PostId` scanned, or `None` once nothing remains above `last_scanned`. Safe
 /// to re-invoke later as new posts arrive.
+/// Called by the frontend once it has re-written every legacy blob of a post
+/// into the user's personal bucket. Replaces all listed `"<id>@<old_bucket>"`
+/// entries with `"<id>@<user.bucket>"` and the new offset/length. When the
+/// post no longer references any other bucket, drops it from `post_index`.
+/// Does not touch the old (shared) bucket — those segments leak.
+#[update]
+fn migrate_post(post_id: PostId, entries: Vec<FileRef>) -> Result<(), String> {
+    mutate(|state| {
+        let principal = raw_caller(state)?;
+        let user = state
+            .principal_to_user(principal)
+            .ok_or("user not found")?;
+        let user_id = user.id;
+        let bucket = user
+            .bucket
+            .ok_or("personal media bucket not configured")?;
+        Post::mutate(state, &post_id, |post| {
+            if post.user != user_id {
+                return Err("unauthorized".to_string());
+            }
+            for (old_key, _, _) in &entries {
+                if !post.files.contains_key(old_key) {
+                    return Err(format!("file not found in post: {}", old_key));
+                }
+            }
+            for (old_key, new_offset, new_len) in entries {
+                let blob_id = old_key
+                    .split('@')
+                    .next()
+                    .ok_or("malformed file key")?
+                    .to_string();
+                post.files.remove(&old_key);
+                post.files.insert(
+                    format!("{}@{}", blob_id, bucket),
+                    (new_offset, new_len as usize),
+                );
+            }
+            Ok(())
+        })?;
+        if let Some(ids) = state.post_index.get_mut(&user_id) {
+            ids.retain(|id| *id != post_id);
+        }
+        Ok(())
+    })
+}
+
 #[update]
 fn create_user_index() -> Option<PostId> {
     mutate(|state| {
