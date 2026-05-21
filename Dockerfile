@@ -14,6 +14,12 @@ ENV NVM_VERSION=v0.39.1
 ENV RUSTUP_HOME=/opt/rustup
 ENV CARGO_HOME=/opt/cargo
 
+# Reproducibility hardening: strip build paths so file!()/panic strings don't
+# embed host-specific paths, and force-off incremental (default for release,
+# but explicit guards against env overrides).
+ENV CARGO_INCREMENTAL=0
+ENV RUSTFLAGS="--remap-path-prefix=/app=. --remap-path-prefix=/opt/cargo=cargo-home"
+
 # Pin apt to a Debian snapshot so toolchain packages are frozen in time.
 # snapshot.debian.org serves over HTTP, so no ca-certificates bootstrap is
 # needed — apt verifies the Release files via signed metadata.
@@ -47,17 +53,23 @@ ENV PATH=/opt/cargo/bin:${PATH}
 COPY rust-toolchain.toml ./
 RUN curl --fail https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
 
-# Install ic-wasm (binary release pinned by sha256). Refresh:
-#   curl -sL https://github.com/dfinity/ic-wasm/releases/download/$(cat .ic-wasm-version | xargs)/ic-wasm-x86_64-unknown-linux-gnu.tar.xz | sha256sum
+# Install ic-wasm (binary release pinned by sha256 for each supported arch). Refresh:
+#   curl -sL https://github.com/dfinity/ic-wasm/releases/download/$(cat .ic-wasm-version | xargs)/sha256.sum
 ENV PATH=/opt/ic-wasm:${PATH}
 COPY .ic-wasm-version ./
-ENV IC_WASM_SHA256=5aeea4ada46748a4b69e6d97d934074a64c45da4272882412103cce110aaf86b
+ARG TARGETARCH
 RUN mkdir -p /opt/ic-wasm && \
+    ARCH="${TARGETARCH:-$(uname -m)}" && \
+    case "${ARCH}" in \
+        amd64|x86_64) IC_WASM_TRIPLE=x86_64-unknown-linux-gnu; IC_WASM_SHA256=5aeea4ada46748a4b69e6d97d934074a64c45da4272882412103cce110aaf86b ;; \
+        arm64|aarch64) IC_WASM_TRIPLE=aarch64-unknown-linux-gnu; IC_WASM_SHA256=56f150be3e413f9637df4b4fa41950c79d39cf738969be0231bfae37ac4f3b1a ;; \
+        *) echo "Unsupported Docker target arch: ${ARCH}" >&2; exit 1 ;; \
+    esac && \
     curl --fail -L \
-        "https://github.com/dfinity/ic-wasm/releases/download/$(cat .ic-wasm-version | xargs)/ic-wasm-x86_64-unknown-linux-gnu.tar.xz" \
+        "https://github.com/dfinity/ic-wasm/releases/download/$(cat .ic-wasm-version | xargs)/ic-wasm-${IC_WASM_TRIPLE}.tar.xz" \
         -o /tmp/ic-wasm.tar.xz && \
     echo "${IC_WASM_SHA256}  /tmp/ic-wasm.tar.xz" | sha256sum -c - && \
-    tar -xJf /tmp/ic-wasm.tar.xz --strip-components=1 -C /opt/ic-wasm ic-wasm-x86_64-unknown-linux-gnu/ic-wasm && \
+    tar -xJf /tmp/ic-wasm.tar.xz --strip-components=1 -C /opt/ic-wasm "ic-wasm-${IC_WASM_TRIPLE}/ic-wasm" && \
     chmod +x /opt/ic-wasm/ic-wasm && \
     rm /tmp/ic-wasm.tar.xz
 

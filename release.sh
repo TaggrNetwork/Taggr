@@ -34,6 +34,13 @@ run_release() {
   cp .dfx/local/canisters/taggr/taggr.wasm.gz target/wasm32-unknown-unknown/release/taggr.wasm.gz
 }
 
+copy_release_artifact() {
+  if [ -n "${RELEASE_ARTIFACT_DIR:-}" ]; then
+    mkdir -p "${RELEASE_ARTIFACT_DIR}"
+    cp target/wasm32-unknown-unknown/release/taggr.wasm.gz "${RELEASE_ARTIFACT_DIR}/taggr.wasm.gz"
+  fi
+}
+
 prepare_artifacts() {
   # Backend src/backend/assets.rs and env/storage.rs use include_bytes! on
   # dist/frontend/* and target/wasm32-unknown-unknown/release/bucket.wasm.gz,
@@ -95,15 +102,22 @@ case "${1:-release}" in
   tests)
     run_tests
     ;;
+  artifact)
+    # Produce the wasm without re-running tests; used by the non-amd64 split
+    # flow where tests already ran in a host-native container.
+    run_release
+    copy_release_artifact
+    ;;
   release)
     # Tests gate the release: a failure here aborts before run_release thanks
     # to set -e, so a hash is only ever produced for a fully-tested build.
     run_tests
     rm -rf .dfx
     run_release
+    copy_release_artifact
     ;;
   *)
-    echo "unknown mode: $1 (expected: tests | release)"
+    echo "unknown mode: $1 (expected: tests | artifact | release)"
     exit 1
     ;;
 esac

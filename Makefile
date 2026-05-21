@@ -1,5 +1,8 @@
 # Prefer podman if installed, else fall back to docker. Override with CONTAINER=docker.
 CONTAINER ?= $(shell command -v podman >/dev/null 2>&1 && echo podman || echo docker)
+HOST_ARCH := $(shell uname -m)
+DOCKER_ARCH := $(patsubst x86_64,amd64,$(patsubst aarch64,arm64,$(HOST_ARCH)))
+TEST_PLATFORM ?= linux/$(DOCKER_ARCH)
 
 start:
 	ulimit -n 65000 && dfx start --background -qqqq &
@@ -81,26 +84,48 @@ endif
 
 tests:
 	mkdir -p $(shell pwd)/test-results $(shell pwd)/playwright-report
-	$(CONTAINER) build --platform=linux/amd64 $(if $(VERBOSE),,--quiet) -t taggr .
+	$(CONTAINER) build --platform=$(TEST_PLATFORM) $(if $(VERBOSE),,--quiet) -t taggr-tests .
 	$(CONTAINER) run --rm \
-		--platform=linux/amd64 \
+		--platform=$(TEST_PLATFORM) \
 		--shm-size=1g \
 		$(if $(VERBOSE),-e VERBOSE=1) \
 		-v $(shell pwd)/test-results:/app/test-results \
 		-v $(shell pwd)/playwright-report:/app/playwright-report \
-		taggr tests
+		taggr-tests tests
 
 release:
 	mkdir -p $(shell pwd)/release-artifacts $(shell pwd)/test-results $(shell pwd)/playwright-report
-	$(CONTAINER) build --platform=linux/amd64 $(if $(VERBOSE),,--quiet) -t taggr .
+ifeq ($(DOCKER_ARCH),amd64)
+	# Single-container: tests warm target/, then run_release reuses it.
+	$(CONTAINER) build --platform=linux/amd64 $(if $(VERBOSE),,--quiet) -t taggr-release .
 	$(CONTAINER) run --rm \
 		--platform=linux/amd64 \
 		--shm-size=1g \
 		$(if $(VERBOSE),-e VERBOSE=1) \
-		-v $(shell pwd)/release-artifacts:/app/target/wasm32-unknown-unknown/release \
+		-e RELEASE_ARTIFACT_DIR=/app/release-artifacts \
+		-v $(shell pwd)/release-artifacts:/app/release-artifacts \
 		-v $(shell pwd)/test-results:/app/test-results \
 		-v $(shell pwd)/playwright-report:/app/playwright-report \
-		taggr
+		taggr-release release
+else
+	# Split: host-native tests (dfx/PocketIC don't tolerate qemu), then
+	# amd64 artifact stage with prime_release_target.
+	$(CONTAINER) build --platform=$(TEST_PLATFORM) $(if $(VERBOSE),,--quiet) -t taggr-tests .
+	$(CONTAINER) run --rm \
+		--platform=$(TEST_PLATFORM) \
+		--shm-size=1g \
+		$(if $(VERBOSE),-e VERBOSE=1) \
+		-v $(shell pwd)/test-results:/app/test-results \
+		-v $(shell pwd)/playwright-report:/app/playwright-report \
+		taggr-tests tests
+	$(CONTAINER) build --platform=linux/amd64 $(if $(VERBOSE),,--quiet) -t taggr-release .
+	$(CONTAINER) run --rm \
+		--platform=linux/amd64 \
+		$(if $(VERBOSE),-e VERBOSE=1) \
+		-e RELEASE_ARTIFACT_DIR=/app/release-artifacts \
+		-v $(shell pwd)/release-artifacts:/app/release-artifacts \
+		taggr-release artifact
+endif
 	make hashes
 
 hashes:
@@ -112,5 +137,3 @@ backup:
 	./backup.sh $(DIR)
 
 .PHONY: backup
-
-

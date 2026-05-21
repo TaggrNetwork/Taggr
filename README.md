@@ -11,7 +11,9 @@ Assume you want to verify a new upgrade proposal with code commit `<COMMIT>` and
 4. `make release`
 5. Verify that the printed hash matches the `<HASH>` value from the release page.
 
-`make release` runs the full validation pipeline (lints, Rust tests, Playwright e2e) inside the container and only produces a hash if everything passes. A failing release therefore cannot be hashed — the printed hash is a signal that the wasm is both reproducible and tested. Podman is used automatically if installed; otherwise Docker. Override with `CONTAINER=docker make release`.
+`make release` runs the full validation pipeline (lints, Rust tests, Playwright e2e) inside a container and only produces a hash if everything passes. A failing release therefore cannot be hashed — the printed hash is a signal that the source passed validation and the production wasm was built by the reproducible release builder. Podman is used automatically if installed; otherwise Docker. Override with `CONTAINER=docker make release`.
+
+The production wasm is always built in a `linux/amd64` container so its hash matches Linux verifiers. On amd64 hosts this is a single container that runs tests then the production build. On non-amd64 hosts the e2e gate runs in a host-native container (`TEST_PLATFORM`, e.g. `linux/arm64` on Apple Silicon — `dfx`/PocketIC don't tolerate qemu emulation), then the production wasm is built by a separate amd64 artifact container. The build is reproducible from a cold Cargo target via `codegen-units = 1`, `lto = true`, `strip = true`, `panic = "abort"` in `Cargo.toml` plus `--remap-path-prefix` in the Dockerfile, so the two-container path produces the same hash as the single-container path. Only `taggr.wasm.gz` is copied out via `RELEASE_ARTIFACT_DIR`; the Cargo target directory stays inside the container so macOS bind-mount semantics don't change the hash.
 
 By default `make release` is quiet — only stage markers (`==> [N/7] ...`), the Playwright run, and the final hash print. To stream every underlying tool's stdout/stderr (cargo, dfx, npm, build.sh) for debugging, set `VERBOSE=1`:
 
