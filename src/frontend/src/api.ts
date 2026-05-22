@@ -35,6 +35,12 @@ export type Backend = {
         arg: ArrayBuffer,
     ) => Promise<ArrayBuffer | null>;
 
+    call_raw: (
+        canisterId: Principal,
+        methodName: string,
+        arg: ArrayBuffer,
+    ) => Promise<ArrayBuffer | null>;
+
     call: <T>(
         methodName: string,
         arg0?: unknown,
@@ -282,6 +288,7 @@ export const ApiGenerator = (
     return {
         query,
         query_raw,
+        call_raw,
         call,
 
         set_emergency_release: async (

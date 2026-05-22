@@ -18,10 +18,113 @@ import { Principal } from "@dfinity/principal";
 import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
 import { UserLinks, linksError } from "./profile";
+import { createBucket, Stage } from "./bucket_creation";
 
 export const DEFAULT_REACTION_HOLD_TIME = 350;
 
-const TABS = ["PROFILE", "APPEARANCE", "PRIVACY", "ADVANCED"] as const;
+// ~2 years of cycles ≈ 2 ICP at typical XDR rate. Default-friendly entry point;
+// user can adjust before confirming.
+const DEFAULT_BUCKET_E8S = 200_000_000;
+
+const stageLabel = (s: Stage | "done" | null): string => {
+    switch (s) {
+        case "transferring":
+            return "transferring ICP to CMC…";
+        case "creating":
+            return "asking CMC to create canister…";
+        case "setting_controllers":
+            return "setting bucket controllers…";
+        case "installing":
+            return "installing bucket WASM…";
+        case "registering":
+            return "registering bucket with taggr…";
+        case "done":
+            return "done";
+        default:
+            return "";
+    }
+};
+
+const StorageSection = ({ user }: { user: User }) => {
+    const [amountE8s, setAmountE8s] = React.useState(DEFAULT_BUCKET_E8S);
+    const [stage, setStage] = React.useState<Stage | "done" | null>(null);
+    const [error, setError] = React.useState<string | null>(null);
+
+    const onCreate = async () => {
+        setError(null);
+        try {
+            const bucketId = await createBucket(
+                Principal.fromText(window.principalId),
+                amountE8s,
+                setStage,
+            );
+            setStage("done");
+            showPopUp("info", `Bucket created: ${bucketId}`, 5);
+            await window.reloadCache();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : String(err));
+            setStage(null);
+        }
+    };
+
+    return (
+        <>
+            <h2>Media Storage</h2>
+            <p>
+                Images attached to posts live in a personal bucket canister
+                that you own and pay for. Taggr never touches its cycles. Posts
+                with no images still work without a bucket.
+            </p>
+            {user.bucket ? (
+                <>
+                    <div className="bottom_half_spaced">Bucket canister</div>
+                    <code className="bottom_spaced">
+                        <a
+                            target="_blank"
+                            href={`https://dashboard.internetcomputer.org/canister/${user.bucket}`}
+                        >
+                            {user.bucket}
+                        </a>
+                    </code>
+                    <hr />
+                    <h3>Migration</h3>
+                    <p className="small_text">
+                        Migration tooling lands in a follow-up phase.
+                    </p>
+                </>
+            ) : (
+                <>
+                    <div className="bottom_half_spaced">ICP to deposit (e8s)</div>
+                    <input
+                        type="number"
+                        className="bottom_spaced"
+                        value={amountE8s}
+                        onChange={(e) =>
+                            setAmountE8s(parseInt(e.target.value, 10) || 0)
+                        }
+                    />
+                    <ButtonWithLoading
+                        classNameArg="active"
+                        onClick={onCreate}
+                        label="CREATE STORAGE"
+                    />
+                    {stage && (
+                        <p className="small_text top_spaced">
+                            {stageLabel(stage)}
+                        </p>
+                    )}
+                    {error && (
+                        <p className="small_text top_spaced banner">
+                            {error}
+                        </p>
+                    )}
+                </>
+            )}
+        </>
+    );
+};
+
+const TABS = ["PROFILE", "APPEARANCE", "PRIVACY", "STORAGE", "ADVANCED"] as const;
 type Tab = (typeof TABS)[number];
 
 export const Settings = ({ invite }: { invite?: string }) => {
@@ -418,6 +521,10 @@ export const Settings = ({ invite }: { invite?: string }) => {
         </>
     );
 
+    const storageSection = user && (
+        <StorageSection user={user} />
+    );
+
     const advancedSection = user && (
         <>
             <div className="bottom_half_spaced">
@@ -591,6 +698,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
                 {tab === "PROFILE" && profileSection}
                 {tab === "APPEARANCE" && appearanceSection}
                 {tab === "PRIVACY" && privacySection}
+                {tab === "STORAGE" && storageSection}
                 {tab === "ADVANCED" && advancedSection}
                 <div className="sticky_save_bar">
                     <ButtonWithLoading
