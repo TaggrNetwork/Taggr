@@ -1306,14 +1306,9 @@ export const restartApp = async () => {
 };
 
 export function bucketImageUrl(bucket_id: string, offset: number, len: number) {
-    // Fall back to the mainnet if the local config doesn't contain the bucket.
-    let fallback_to_mainnet = !window.backendCache.stats?.buckets?.find(
-        ([id, _y]) => id == bucket_id,
-    );
-    let host =
-        MAINNET_MODE || fallback_to_mainnet
-            ? `https://${bucket_id}.raw.icp0.io`
-            : `http://${bucket_id}.raw.localhost:8080`;
+    const host = MAINNET_MODE
+        ? `https://${bucket_id}.raw.icp0.io`
+        : `http://${bucket_id}.raw.localhost:8080`;
     return `${host}/image?offset=${offset}&len=${len}`;
 }
 

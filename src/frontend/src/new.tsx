@@ -1,12 +1,7 @@
 import * as React from "react";
+import { Principal } from "@dfinity/principal";
 import { Form } from "./form";
-import {
-    getPatch,
-    loadPosts,
-    currentRealm,
-    MAX_POST_SIZE_BYTES,
-    showPopUp,
-} from "./common";
+import { getPatch, loadPosts, currentRealm, showPopUp } from "./common";
 import { Extension, Post, PostId } from "./types";
 import { filesToUrls } from "./post";
 
@@ -36,15 +31,16 @@ export const PostSubmissionForm = ({
         extension: Extension | undefined,
         realm: string | undefined,
     ): Promise<PostId | null> => {
-        let postId;
         text = text.trim();
         const optionalRealm = realm ? [realm] : [];
         if (post?.id != undefined) {
+            const refs = await uploadBlobsOrFail(blobs);
+            if (refs === null) return null;
             const patch = getPatch(text, post.body);
-            let response: any = await window.api.edit_post(
+            const response: any = await window.api.edit_post(
                 post.id,
                 text,
-                blobs,
+                refs,
                 patch,
                 optionalRealm,
             );
@@ -52,8 +48,9 @@ export const PostSubmissionForm = ({
                 showPopUp("error", response.Err);
                 return null;
             }
-            postId = post.id;
-        } else postId = await newPostCallback(text, blobs, extension, realm);
+            return Number(post.id);
+        }
+        const postId = await newPostCallback(text, blobs, extension, realm);
         return postId == null ? null : Number(postId);
     };
 
@@ -101,6 +98,31 @@ export const PostSubmissionForm = ({
 const encodeExtension = (extension?: Extension) =>
     extension ? [new TextEncoder().encode(JSON.stringify(extension))] : [];
 
+// Uploads each attached blob directly into the user's personal bucket and
+// returns refs ready for add_post/edit_post. Returns null (and shows the popup)
+// if the user has no bucket configured.
+const uploadBlobsOrFail = async (
+    blobs: [string, Uint8Array][],
+): Promise<[string, number, number][] | null> => {
+    if (blobs.length === 0) return [];
+    const bucketText = window.user?.bucket;
+    if (!bucketText) {
+        showPopUp(
+            "error",
+            "No personal media bucket configured. Set one up under Settings → STORAGE.",
+            7,
+        );
+        return null;
+    }
+    const bucket = Principal.fromText(bucketText);
+    const refs: [string, number, number][] = [];
+    for (const [id, blob] of blobs) {
+        const offset = await window.api.bucket_write(bucket, blob);
+        refs.push([id, Number(offset), blob.length]);
+    }
+    return refs;
+};
+
 export const newPostCallback = async (
     text: string,
     blobs: [string, Uint8Array][],
@@ -108,44 +130,21 @@ export const newPostCallback = async (
     realm: string | undefined,
 ) => {
     const optionalRealm = realm ? [realm] : [];
-    const postSize =
-        text.length + blobs.reduce((acc, [_, blob]) => acc + blob.length, 0);
-    let result: any;
-    // If the post has too many blobs, upload them separately.
-    if (postSize > MAX_POST_SIZE_BYTES) {
-        await window.api.add_post_data(
-            text,
-            optionalRealm,
-            encodeExtension(extension),
-        );
-        let results = await Promise.all(
-            blobs.map(([id, blob]) => window.api.add_post_blob(id, blob)),
-        );
-        let error: any = results.find((result: any) => "Err" in result);
-        if (error) {
-            showPopUp("error", error.Err);
-            return null;
-        }
-        result = await window.api.commit_post();
-    } else {
-        result = await window.api.add_post(
-            text,
-            blobs,
-            [],
-            optionalRealm,
-            encodeExtension(extension),
-        );
-    }
+    const refs = await uploadBlobsOrFail(blobs);
+    if (refs === null) return null;
+    const result: any = await window.api.add_post(
+        text,
+        refs,
+        [],
+        optionalRealm,
+        encodeExtension(extension),
+    );
     if (!result) {
         showPopUp("error", "Call failed");
         return null;
     } else if ("Err" in result) {
         showPopUp("error", result.Err);
         return null;
-    }
-    // this is the rare case when a blob triggers the creation of a new bucket
-    if (window.backendCache.stats.buckets.length == 0) {
-        await window.reloadCache();
     }
     return Number(result.Ok);
 };

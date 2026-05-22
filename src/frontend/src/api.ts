@@ -66,29 +66,24 @@ export type Backend = {
 
     add_post: (
         text: string,
-        blobs: [string, Uint8Array][],
+        refs: [string, number, number][],
         parent: number[],
         realm: string[],
         extension: Uint8Array[],
     ) => Promise<JsonValue | null>;
 
-    add_post_data: (
-        text: string,
-        realm: string[],
-        extension: Uint8Array[],
-    ) => Promise<null>;
-
-    add_post_blob: (id: string, blob: Uint8Array) => Promise<JsonValue | null>;
-
-    commit_post: () => Promise<JsonValue | null>;
-
     edit_post: (
         id: number,
         text: string,
-        blobs: [string, Uint8Array][],
+        refs: [string, number, number][],
         patch: string,
         realm: string[],
     ) => Promise<JsonValue | null>;
+
+    bucket_write: (
+        bucket: Principal,
+        blob: Uint8Array,
+    ) => Promise<bigint>;
 
     icp_account_balance: (address: string) => Promise<BigInt>;
 
@@ -339,7 +334,7 @@ export const ApiGenerator = (
 
         add_post: async (
             text: string,
-            blobs: [string, Uint8Array][],
+            refs: [string, number, number][],
             parent: number[],
             realm: string[],
             extension: Uint8Array[],
@@ -347,12 +342,12 @@ export const ApiGenerator = (
             const arg = IDL.encode(
                 [
                     IDL.Text,
-                    IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Nat8))),
+                    IDL.Vec(IDL.Tuple(IDL.Text, IDL.Nat64, IDL.Nat64)),
                     IDL.Opt(IDL.Nat64),
                     IDL.Opt(IDL.Text),
                     IDL.Opt(IDL.Vec(IDL.Nat8)),
                 ],
-                [text, blobs, parent, realm, extension],
+                [text, refs, parent, realm, extension],
             );
             const response = await call_raw(undefined, "add_post", arg);
             if (!response) {
@@ -363,50 +358,29 @@ export const ApiGenerator = (
                 response,
             )[0];
         },
-        add_post_data: async (
-            text: string,
-            realm: string[],
-            extension: Uint8Array[],
-        ): Promise<null> => {
-            const arg = IDL.encode(
-                [IDL.Text, IDL.Opt(IDL.Text), IDL.Opt(IDL.Vec(IDL.Nat8))],
-                [text, realm, extension],
-            );
-            const response = await call_raw(undefined, "add_post_data", arg);
-            if (!response) {
-                return null;
-            }
-            return null;
-        },
-        add_post_blob: async (
-            id: string,
+        bucket_write: async (
+            bucket: Principal,
             blob: Uint8Array,
-        ): Promise<JsonValue | null> => {
-            const arg = IDL.encode([IDL.Text, IDL.Vec(IDL.Nat8)], [id, blob]);
-            const response = await call_raw(undefined, "add_post_blob", arg);
-            if (!response) {
-                return null;
+        ): Promise<bigint> => {
+            // Bucket `write` takes raw bytes and replies with the 8-byte
+            // big-endian offset where the blob was stored.
+            const buf = await call_raw(
+                bucket,
+                "write",
+                blob.buffer.slice(
+                    blob.byteOffset,
+                    blob.byteOffset + blob.byteLength,
+                ) as ArrayBuffer,
+            );
+            if (!buf || buf.byteLength < 8) {
+                throw new Error("bucket.write: short reply");
             }
-            return IDL.decode(
-                [IDL.Variant({ Ok: IDL.Null, Err: IDL.Text })],
-                response,
-            )[0];
-        },
-        commit_post: async (): Promise<JsonValue | null> => {
-            const arg = IDL.encode([], []);
-            const response = await call_raw(undefined, "commit_post", arg);
-            if (!response) {
-                return null;
-            }
-            return IDL.decode(
-                [IDL.Variant({ Ok: IDL.Nat64, Err: IDL.Text })],
-                response,
-            )[0];
+            return new DataView(buf).getBigUint64(0, false);
         },
         edit_post: async (
             id: number,
             text: string,
-            blobs: [string, Uint8Array][],
+            refs: [string, number, number][],
             patch: string,
             realm: string[],
         ): Promise<JsonValue | null> => {
@@ -414,11 +388,11 @@ export const ApiGenerator = (
                 [
                     IDL.Nat64,
                     IDL.Text,
-                    IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Nat8))),
+                    IDL.Vec(IDL.Tuple(IDL.Text, IDL.Nat64, IDL.Nat64)),
                     IDL.Text,
                     IDL.Opt(IDL.Text),
                 ],
-                [id, text, blobs, patch, realm],
+                [id, text, refs, patch, realm],
             );
             const response = await call_raw(undefined, "edit_post", arg);
             if (!response) {

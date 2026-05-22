@@ -17,26 +17,6 @@ const fetchBucketImage = async (
     return new Uint8Array(await r.arrayBuffer());
 };
 
-const writeToBucket = async (
-    bucket: Principal,
-    bytes: Uint8Array,
-): Promise<bigint> => {
-    // Bucket `write` takes raw bytes and replies with the 8-byte big-endian
-    // offset where the blob was stored.
-    const buf = await window.api.call_raw(
-        bucket,
-        "write",
-        bytes.buffer.slice(
-            bytes.byteOffset,
-            bytes.byteOffset + bytes.byteLength,
-        ) as ArrayBuffer,
-    );
-    if (!buf || buf.byteLength < 8) {
-        throw new Error("bucket.write: short reply");
-    }
-    return new DataView(buf).getBigUint64(0, false);
-};
-
 const migratePost = async (
     postId: PostId,
     entries: [string, number, number][],
@@ -84,7 +64,7 @@ export const runMigration = async (
         for (const [key, [offset, len]] of filesToMigrate) {
             const oldBucket = key.split("@")[1];
             const bytes = await fetchBucketImage(oldBucket, offset, len);
-            const newOffset = await writeToBucket(bucket, bytes);
+            const newOffset = await window.api.bucket_write(bucket, bytes);
             entries.push([key, Number(newOffset), len]);
         }
         await migratePost(postId, entries);
