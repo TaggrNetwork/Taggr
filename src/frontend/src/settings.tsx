@@ -19,6 +19,7 @@ import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
 import { UserLinks, linksError } from "./profile";
 import { createBucket, Stage } from "./bucket_creation";
+import { loadPendingPostIds, runMigration } from "./migration";
 
 export const DEFAULT_REACTION_HOLD_TIME = 350;
 
@@ -43,6 +44,82 @@ const stageLabel = (s: Stage | "done" | null): string => {
         default:
             return "";
     }
+};
+
+const MigrationPanel = ({ bucket }: { bucket: string }) => {
+    const [pending, setPending] = React.useState<number[] | null>(null);
+    const [done, setDone] = React.useState(0);
+    const [running, setRunning] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+    const stopRef = React.useRef(false);
+
+    const refresh = React.useCallback(async () => {
+        setPending(await loadPendingPostIds());
+    }, []);
+
+    React.useEffect(() => {
+        refresh();
+    }, [refresh]);
+
+    const onMigrate = async () => {
+        if (!pending) return;
+        setError(null);
+        setDone(0);
+        setRunning(true);
+        stopRef.current = false;
+        try {
+            await runMigration(
+                Principal.fromText(bucket),
+                pending,
+                (d) => setDone(d),
+                () => stopRef.current,
+            );
+        } catch (err) {
+            setError(err instanceof Error ? err.message : String(err));
+        } finally {
+            setRunning(false);
+            await refresh();
+        }
+    };
+
+    return (
+        <>
+            <h3>Migration</h3>
+            <p className="small_text">
+                Move images from the shared bucket into your own bucket. Safe
+                to stop and resume — progress is server-side.
+            </p>
+            {pending === null ? (
+                <p className="small_text">loading…</p>
+            ) : pending.length === 0 ? (
+                <p className="small_text">All caught up.</p>
+            ) : (
+                <>
+                    <p>
+                        {done} / {pending.length} posts migrated
+                    </p>
+                    {running ? (
+                        <ButtonWithLoading
+                            classNameArg=""
+                            onClick={async () => {
+                                stopRef.current = true;
+                            }}
+                            label="STOP"
+                        />
+                    ) : (
+                        <ButtonWithLoading
+                            classNameArg="active"
+                            onClick={onMigrate}
+                            label="MIGRATE"
+                        />
+                    )}
+                    {error && (
+                        <p className="small_text top_spaced banner">{error}</p>
+                    )}
+                </>
+            )}
+        </>
+    );
 };
 
 const StorageSection = ({ user }: { user: User }) => {
@@ -87,10 +164,7 @@ const StorageSection = ({ user }: { user: User }) => {
                         </a>
                     </code>
                     <hr />
-                    <h3>Migration</h3>
-                    <p className="small_text">
-                        Migration tooling lands in a follow-up phase.
-                    </p>
+                    <MigrationPanel bucket={user.bucket} />
                 </>
             ) : (
                 <>

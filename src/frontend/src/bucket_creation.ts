@@ -275,18 +275,11 @@ export const createBucket = async (
 
     // STEP 5: taggr.set_bucket(canisterId).
     onStage("registering");
-    const setBucketArg = IDL.encode([IDL.Principal], [canisterId]);
-    const buf = await window.api.call_raw(
-        TAGGR_PRINCIPAL,
+    const result: any = await window.api.call(
         "set_bucket",
-        setBucketArg,
+        canisterId.toString(),
     );
-    const result = decodeReply<any>(
-        [IDL.Variant({ Ok: IDL.Null, Err: IDL.Text })],
-        buf,
-        "set_bucket",
-    );
-    if ("Err" in result) {
+    if (result && "Err" in result) {
         throw new Error(`taggr.set_bucket failed: ${result.Err}`);
     }
 

@@ -130,7 +130,6 @@ service : () -> {
     ) -> (Result);
   backup: () -> ();
   bucket_wasm : () -> (blob) query;
-  create_user_index : () -> (opt nat64);
   edit_post : (nat64, text, vec record { text; nat64; nat64 }, text, opt text) -> (
       Result_1,
     );
@@ -154,10 +153,8 @@ service : () -> {
   icrc3_get_tip_certificate : () -> (opt ICRC3DataCertificate) query;
   icrc3_supported_block_types : () -> (vec SupportedBlockType) query;
   link_cold_wallet : (nat64) -> (Result_1);
-  migrate_post : (nat64, vec record { text; nat64; nat64 }) -> (Result_1);
   prod_release : () -> (bool);
   propose_release : (nat64, text, blob) -> (Result_4);
-  set_bucket : (principal) -> (Result_1);
   set_emergency_release : (blob) -> ();
   stable_mem_read : (nat64) -> (vec record { nat64; blob }) query;
   unlink_cold_wallet : () -> (Result_1);

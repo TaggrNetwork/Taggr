@@ -197,16 +197,18 @@ fn unlink_cold_wallet() -> Result<(), String> {
 /// Registers the caller's personal media bucket. Performs no verification — a
 /// misconfigured bucket only impairs the user's own posts. Call again to
 /// replace it.
-#[update]
-fn set_bucket(bucket_id: Principal) -> Result<(), String> {
-    mutate(|state| {
+#[export_name = "canister_update set_bucket"]
+fn set_bucket() {
+    let bucket_id: String = parse(&arg_data_raw());
+    reply(mutate(|state| {
         let principal = raw_caller(state)?;
+        let bucket = Principal::from_text(&bucket_id).map_err(|err| err.to_string())?;
         let user = state
             .principal_to_user_mut(principal)
             .ok_or("user not found")?;
-        user.bucket = Some(bucket_id);
-        Ok(())
-    })
+        user.bucket = Some(bucket);
+        Ok::<(), String>(())
+    }));
 }
 
 /// Indexes the next batch of posts by author so the frontend can enumerate a
@@ -218,13 +220,16 @@ fn set_bucket(bucket_id: Principal) -> Result<(), String> {
 /// entries with `"<id>@<user.bucket>"` and the new offset/length. When the
 /// post no longer references any other bucket, drops it from `post_index`.
 /// Does not touch the old (shared) bucket — those segments leak.
-#[update]
-fn migrate_post(post_id: PostId, entries: Vec<FileRef>) -> Result<(), String> {
+#[export_name = "canister_update migrate_post"]
+fn migrate_post() {
+    let (post_id, entries): (PostId, Vec<FileRef>) = parse(&arg_data_raw());
+    reply(migrate_post_impl(post_id, entries));
+}
+
+fn migrate_post_impl(post_id: PostId, entries: Vec<FileRef>) -> Result<(), String> {
     mutate(|state| {
         let principal = raw_caller(state)?;
-        let user = state
-            .principal_to_user(principal)
-            .ok_or("user not found")?;
+        let user = state.principal_to_user(principal).ok_or("user not found")?;
         let user_id = user.id;
         let bucket = user
             .bucket
@@ -259,9 +264,9 @@ fn migrate_post(post_id: PostId, entries: Vec<FileRef>) -> Result<(), String> {
     })
 }
 
-#[update]
-fn create_user_index() -> Option<PostId> {
-    mutate(|state| {
+#[export_name = "canister_update create_user_index"]
+fn create_user_index() {
+    reply(mutate(|state| {
         let start = state
             .post_index_last_scanned
             .map(|id| id + 1)
@@ -277,8 +282,8 @@ fn create_user_index() -> Option<PostId> {
             state.post_index.entry(user_id).or_default().push(id);
         }
         state.post_index_last_scanned = Some(last_id);
-        Some(last_id)
-    })
+        Some::<PostId>(last_id)
+    }));
 }
 
 #[export_name = "canister_update withdraw_rewards"]

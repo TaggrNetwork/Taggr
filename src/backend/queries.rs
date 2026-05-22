@@ -501,6 +501,20 @@ fn bucket_wasm() -> Blob {
     ByteBuf::from(env::storage::BUCKET_WASM_GZ.to_vec())
 }
 
+/// Post ids of the caller, sourced from the migration-time `post_index`.
+/// Entries are removed by `migrate_post` once a post is fully on the user's
+/// own bucket, so this list shrinks as the user migrates.
+#[export_name = "canister_query user_post_index"]
+fn user_post_index() {
+    read(|state| {
+        let ids: Vec<PostId> = state
+            .principal_to_user(caller(state))
+            .and_then(|u| state.post_index.get(&u.id).cloned())
+            .unwrap_or_default();
+        reply(ids);
+    })
+}
+
 #[query]
 fn stable_mem_read(page: u64) -> Vec<(u64, Blob)> {
     let offset = page * BACKUP_PAGE_SIZE as u64;
