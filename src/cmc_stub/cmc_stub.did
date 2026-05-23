@@ -1,0 +1,32 @@
+type SubnetFilter = record { subnet_type : opt text };
+type SubnetSelection = variant {
+  Subnet : record { subnet : principal };
+  Filter : SubnetFilter;
+};
+type LogVisibility = variant { controllers; public };
+type CanisterSettings = record {
+  controllers : opt vec principal;
+  compute_allocation : opt nat;
+  memory_allocation : opt nat;
+  freezing_threshold : opt nat;
+  reserved_cycles_limit : opt nat;
+  log_visibility : opt LogVisibility;
+  wasm_memory_limit : opt nat;
+  wasm_memory_threshold : opt nat;
+};
+type NotifyCreateCanister = record {
+  block_index : nat64;
+  controller : principal;
+  subnet_selection : opt SubnetSelection;
+  settings : opt CanisterSettings;
+};
+type NotifyError = variant {
+  Refunded : record { reason : text; block_index : opt nat64 };
+  InvalidTransaction : text;
+  TransactionTooOld : nat64;
+  Processing;
+  Other : record { error_code : nat64; error_message : text };
+};
+service : {
+  notify_create_canister : (NotifyCreateCanister) -> (variant { Ok : principal; Err : NotifyError });
+}

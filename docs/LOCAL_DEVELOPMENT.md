@@ -68,11 +68,19 @@ make dev_build
 make local_reinstall
 ```
 
+`make local_deploy` also deploys the local **CMC stub** at the mainnet CMC id
+(`rkp4c-7iaaa-aaaaa-aaaca-cai`) and fabricates 100 T cycles into it. The
+frontend's media-bucket creation flow hits that id unconditionally, so
+without the stub Settings → STORAGE → CREATE STORAGE fails locally. The
+stub is built from `src/cmc_stub/` and only deploys on local (the production
+CMC takes over on `ic`/`staging`).
+
 Use `make cycles` to fabricate cycles for the canister.
 
 Install the ICP ledger canister at its mainnet ID locally (the backend
 hard-codes `MAINNET_LEDGER_CANISTER_ID`, so the ledger has to answer at
-`ryjl3-tyaaa-aaaaa-aaaba-cai`):
+`ryjl3-tyaaa-aaaaa-aaaba-cai`). It's also required for bucket creation —
+CREATE STORAGE transfers ICP to the CMC stub via this ledger:
 
 ```shell
 ./e2e/import_local_minter.sh

@@ -62,6 +62,7 @@ async fn clear_buckets() {
     }
 }
 
+
 #[update]
 fn replace_user_principal(principal: Principal, user_id: UserId) {
     mutate(|state| {

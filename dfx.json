@@ -14,6 +14,21 @@
                 }
             ]
         },
+        "cmc_stub": {
+            "candid": "src/cmc_stub/cmc_stub.did",
+            "package": "cmc_stub",
+            "type": "custom",
+            "wasm": "target/wasm32-unknown-unknown/release/cmc_stub.wasm.gz",
+            "build": "./build.sh cmc_stub",
+            "specified_id": "rkp4c-7iaaa-aaaaa-aaaca-cai",
+            "remote": {
+                "id": {
+                    "ic": "rkp4c-7iaaa-aaaaa-aaaca-cai",
+                    "staging": "rkp4c-7iaaa-aaaaa-aaaca-cai",
+                    "staging2": "rkp4c-7iaaa-aaaaa-aaaca-cai"
+                }
+            }
+        },
         "icp_ledger": {
             "type": "custom",
             "candid": "e2e/icp_ledger/ledger.did",

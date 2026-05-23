@@ -16,10 +16,12 @@ staging_deploy:
 	FEATURES=staging dfx --identity prod deploy --network $(if $(CANISTER),$(CANISTER),staging) taggr
 
 local_deploy:
-	FEATURES=dev dfx deploy taggr
+	FEATURES=dev dfx deploy taggr cmc_stub
+	dfx ledger fabricate-cycles --canister cmc_stub --t 100
 
 dev_build:
 	FEATURES=dev ./build.sh bucket
+	FEATURES=dev ./build.sh cmc_stub
 	FEATURES=dev ./build.sh taggr
 	FEATURES=dev dfx build
 
@@ -60,6 +62,7 @@ frontend_bundle:
 e2e_build:
 	NODE_ENV=production DFX_NETWORK=local npm run build
 	./build.sh bucket
+	./build.sh cmc_stub
 	FEATURES=dev ./build.sh taggr
 
 e2e_test:

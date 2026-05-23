@@ -331,6 +331,27 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "CONTINUE" }).click();
         await waitForUILoading(page);
 
+        // Provision a personal media bucket via the actual Settings → STORAGE
+        // flow. Hits the local CMC stub through `notify_create_canister`.
+        transferICP(
+            "e6cf5b3addb6f3be053619dad20060f49dce44bb0ae26421c0c4a5da25870a50",
+            1,
+        );
+        await page.goto("/#/settings");
+        await waitForUILoading(page);
+        await page.getByRole("button", { name: "STORAGE" }).click();
+        await page.getByRole("button", { name: "CREATE STORAGE" }).click();
+        // Wait until the bucket is registered (the pane swaps to the
+        // "Bucket canister" view).
+        await pollForCondition(async () => {
+            return await page
+                .getByText("Bucket canister")
+                .isVisible()
+                .catch(() => false);
+        });
+        await page.goto("/");
+        await waitForUILoading(page);
+
         // Read credits balance before upload
         await page.getByTestId("toggle-user-section").click();
         const balanceBefore = parseInt(
@@ -367,7 +388,8 @@ test.describe("Regular users flow", () => {
             page.getByRole("img", { name: "512x512, 2kb" }),
         ).toBeVisible();
 
-        // Verify credits charged: post_cost (2) + blob_cost (20) = 22
+        // Verify credits charged: post_cost (2) only — blob_cost is gone now
+        // that storage cycles are paid by the user's personal bucket.
         await page.goto("/");
         await waitForUILoading(page);
         await page.getByTestId("toggle-user-section").click();
@@ -377,7 +399,7 @@ test.describe("Regular users flow", () => {
                 "",
             ),
         );
-        expect(balanceBefore - balanceAfter).toBe(22);
+        expect(balanceBefore - balanceAfter).toBe(2);
     });
 
     test("Blob space reclamation", async () => {
@@ -473,7 +495,7 @@ test.describe("Regular users flow", () => {
         expect(offset3).toBe(offset1);
         expect(offset3).toBeLessThan(offset2);
 
-        // Verify total credits charged: 3 uploads (3*22=66) + 1 deletion (2) = 68
+        // Verify total credits charged: 3 uploads (3*2=6) + 1 deletion (2) = 8
         await page.goto("/");
         await waitForUILoading(page);
         await page.getByTestId("toggle-user-section").click();
@@ -483,6 +505,6 @@ test.describe("Regular users flow", () => {
                 "",
             ),
         );
-        expect(initialBalance - finalBalance).toBe(68);
+        expect(initialBalance - finalBalance).toBe(8);
     });
 });
