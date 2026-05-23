@@ -11,9 +11,9 @@ use candid::{
 };
 use ic_cdk::call::{Call, CallResult};
 use ic_cdk_management_canister::{
-    create_canister_with_extra_cycles, deposit_cycles, install_code, update_settings,
-    CanisterIdRecord, CanisterInstallMode, CanisterSettings, CanisterStatusResult,
-    CreateCanisterArgs, InstallCodeArgs, UpdateSettingsArgs,
+    create_canister_with_extra_cycles, install_code, update_settings, CanisterIdRecord,
+    CanisterInstallMode, CanisterSettings, CanisterStatusResult, CreateCanisterArgs,
+    InstallCodeArgs, UpdateSettingsArgs,
 };
 use ic_ledger_types::{Tokens, MAINNET_GOVERNANCE_CANISTER_ID};
 use ic_xrc_types::{Asset, GetExchangeRateRequest, GetExchangeRateResult};
@@ -195,14 +195,6 @@ pub async fn rotate_bucket_controllers(
     Ok(())
 }
 
-pub async fn topup_with_cycles(canister_id: Principal, cycles: u128) -> Result<(), String> {
-    open_call("deposit_cycles");
-    let result = deposit_cycles(&CanisterIdRecord { canister_id }, cycles).await;
-    close_call("deposit_cycles");
-    result.map_err(|err| format!("couldn't deposit cycles: {:?}", err))?;
-    Ok(())
-}
-
 pub async fn get_full_neuron(neuron_id: u64) -> Result<String, String> {
     #[derive(CandidType, Deserialize)]
     struct GovernanceError {
@@ -323,10 +315,11 @@ pub async fn call_canister<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(
     result
 }
 
-/// Tops up all canisters
+/// Tops up the main canister and refreshes legacy-bucket cycle stats. Legacy
+/// buckets are no longer topped up — they'll freeze on their own once their
+/// cycles run out, and the shared bucket is being retired wholesale. Stats
+/// gathering stays so the dashboard can still report their balance.
 pub async fn top_up() {
-    // Gather bucket cycle status up front so the main canister top-up can size for
-    // its own burn plus the cycles it will donate to buckets over the survival window.
     let bucket_ids = read(|state| state.storage.buckets.keys().cloned().collect::<Vec<_>>());
     let mut bucket_statuses: Vec<(Principal, u64, u64)> = Vec::with_capacity(bucket_ids.len());
     for canister_id in bucket_ids {
@@ -342,10 +335,6 @@ pub async fn top_up() {
             }),
         }
     }
-    let buckets_cycles_per_day: u64 = bucket_statuses
-        .iter()
-        .map(|(_, _, cycles_per_day)| *cycles_per_day)
-        .sum();
 
     // top up the main canister
     match cycles(id()).await {
@@ -355,13 +344,11 @@ pub async fn top_up() {
                     .canister_cycle_stats
                     .insert(id(), (cycles, cycles_per_day));
             });
-            // Effective burn = main's own burn + aggregate bucket burn, since main funds buckets.
-            let effective_cycles_per_day = cycles_per_day.saturating_add(buckets_cycles_per_day);
             let min_cycles_balance = 10_000_000_000_000;
             if cycles < min_cycles_balance
-                || cycles / effective_cycles_per_day < CONFIG.canister_survival_period_days
+                || cycles / cycles_per_day < CONFIG.canister_survival_period_days
             {
-                let xdrs = ((CONFIG.canister_survival_period_days * effective_cycles_per_day)
+                let xdrs = ((CONFIG.canister_survival_period_days * cycles_per_day)
                     .max(min_cycles_balance)
                     / ICP_CYCLES_PER_XDR)
                     // Circuit breaker: Never top up for more than ~75$ at once.
@@ -395,32 +382,12 @@ pub async fn top_up() {
         }),
     };
 
-    // For any child canister that is below the safety threshold,
-    // top up with cycles for at least `CONFIG.canister_survival_period_days` days.
+    // Refresh legacy-bucket stats only — no top-up action.
     for (canister_id, cycles, cycles_per_day) in bucket_statuses {
         mutate(|state| {
             state
                 .canister_cycle_stats
                 .insert(canister_id, (cycles, cycles_per_day));
         });
-        if cycles / cycles_per_day < CONFIG.canister_survival_period_days {
-            let result = topup_with_cycles(
-                canister_id,
-                (CONFIG.canister_survival_period_days * cycles_per_day) as u128,
-            )
-            .await;
-            mutate(|state| match result {
-                Ok(_) => state.logger.debug(format!(
-                    "The canister {} was topped up (balance was `{}`, now `{}`).",
-                    canister_id,
-                    cycles,
-                    cycles + cycles_per_day
-                )),
-                Err(err) => state.critical(format!(
-                    "FAILED TO TOP UP THE CANISTER {}: {:?}",
-                    canister_id, err
-                )),
-            })
-        }
     }
 }
