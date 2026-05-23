@@ -1,17 +1,18 @@
-use crate::{
-    canisters::{self},
-    mutate, read,
-};
+// Legacy shared-bucket plumbing. `Storage::buckets` records the IDs of buckets
+// that taggr used to own; they remain in state so taggr can still call `free`
+// on them for posts that haven't been migrated. NO writes happen here anymore
+// — new images go directly to per-user buckets via the bucket WASM's `write`
+// method, signed by the user. The shared bucket is no longer topped up and
+// will be retired wholesale in a follow-up.
+
+use crate::{canisters, mutate};
 use candid::Principal;
-use ic_cdk_management_canister::CanisterInstallMode;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use super::config::CONFIG;
-
 #[derive(Default, Serialize, Deserialize)]
 pub struct Storage {
-    // Maps bucket canister IDs to their current offset (i.e. how much data is stored in them).
+    // Read-only inventory of legacy shared buckets.
     pub buckets: BTreeMap<Principal, u64>,
 }
 
@@ -19,57 +20,10 @@ pub const BUCKET_WASM_GZ: &[u8] =
     include_bytes!("../../../target/wasm32-unknown-unknown/release/bucket.wasm.gz");
 
 impl Storage {
-    async fn allocate_space() -> Result<(Principal, u64), String> {
-        if let Some((id, offset)) = read(|state| {
-            state
-                .storage
-                .buckets
-                .iter()
-                .find_map(|(id, size)| (*size < CONFIG.max_bucket_size).then_some((*id, *size)))
-        }) {
-            return Ok((id, offset));
-        }
-        let id = crate::canisters::new().await?;
-        let init_offset = 8;
-        mutate(|state| {
-            state.storage.buckets.insert(id, init_offset);
-            state.logger.debug(format!("New bucket {} created.", id));
-        });
-        canisters::install(id, BUCKET_WASM_GZ, CanisterInstallMode::Install).await?;
-        mutate(|state| {
-            state
-                .logger
-                .debug(format!("WASM installed to bucket {}.", id));
-        });
-        Ok((id, init_offset))
-    }
-
-    pub async fn write_to_bucket(blob: &[u8]) -> Result<(Principal, u64), String> {
-        let (id, curr_offset) = Storage::allocate_space().await?;
-        let response = canisters::call_canister_raw(id, "write", blob)
-            .await
-            .map_err(|err| format!("couldn't call write on a bucket: {:?}", err))?;
-        let mut offset_bytes: [u8; 8] = Default::default();
-        offset_bytes.copy_from_slice(&response);
-        let offset = u64::from_be_bytes(offset_bytes);
-        let new_offset = offset + blob.len() as u64;
-        mutate(|state| {
-            state
-                .storage
-                .buckets
-                // Ensure the offset is only updated if the write was successful and the new offset
-                // is greater than the current one. (It could be smaller if the write went into one
-                // of the "holes" in the bucket created by freeing blobs.)
-                .insert(id, curr_offset.max(new_offset))
-        });
-        Ok((id, offset))
-    }
-
     /// Frees blobs on their respective bucket canisters.
     /// The `files` map has keys in the format `"blob_id@bucket_principal"`
     /// and values of `(offset, length)`.
     pub async fn free_blobs(files: BTreeMap<String, (u64, usize)>) {
-        // Group blobs by bucket canister.
         let mut by_bucket: BTreeMap<Principal, Vec<(u64, u64)>> = BTreeMap::new();
         for (key, (offset, length)) in &files {
             if let Some(bucket_id) = key

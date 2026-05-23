@@ -11,8 +11,7 @@ use candid::{
 };
 use ic_cdk::call::{Call, CallResult};
 use ic_cdk_management_canister::{
-    create_canister_with_extra_cycles, install_code, update_settings, CanisterIdRecord,
-    CanisterInstallMode, CanisterSettings, CanisterStatusResult, CreateCanisterArgs,
+    update_settings, CanisterIdRecord, CanisterInstallMode, CanisterSettings, CanisterStatusResult,
     InstallCodeArgs, UpdateSettingsArgs,
 };
 use ic_ledger_types::{Tokens, MAINNET_GOVERNANCE_CANISTER_ID};
@@ -21,7 +20,6 @@ use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-const CYCLES_FOR_NEW_CANISTER: u128 = 1_000_000_000_000;
 // uf6dk-hyaaa-aaaaq-qaaaq-cai
 const XR_CANISTER_ID: Principal = Principal::from_slice(&[0, 0, 0, 0, 2, 16, 0, 1, 1, 1]);
 // e3mmv-5qaaa-aaaah-aadma-cai — IC blackhole canister, kept as a public read-only
@@ -67,20 +65,6 @@ pub fn calls_open() -> usize {
     CALLS.with(|cell| cell.borrow().values().filter(|v| **v > 0).count())
 }
 
-pub async fn new() -> Result<Principal, String> {
-    open_call("create_canister");
-    let result = create_canister_with_extra_cycles(
-        &CreateCanisterArgs { settings: None },
-        CYCLES_FOR_NEW_CANISTER,
-    )
-    .await;
-    close_call("create_canister");
-
-    let response = result.map_err(|err| format!("couldn't create a new canister: {:?}", err))?;
-
-    Ok(response.canister_id)
-}
-
 /// Returns cycles in the canister and cycles burned per day.
 pub async fn cycles(canister_id: Principal) -> Result<(u64, u64), String> {
     let CanisterStatusResult {
@@ -113,25 +97,6 @@ pub async fn status(canister_id: Principal) -> Result<CanisterStatusResult, Stri
     close_call("status");
 
     response
-}
-
-pub async fn install(
-    canister_id: Principal,
-    wasm_module: &[u8],
-    mode: CanisterInstallMode,
-) -> Result<(), String> {
-    open_call("install_code");
-    let result = install_code(&InstallCodeArgs {
-        mode,
-        canister_id,
-        wasm_module: wasm_module.to_vec(),
-        arg: ic_cdk::api::canister_self().as_slice().to_vec(),
-    })
-    .await;
-    close_call("install_code");
-
-    result.map_err(|err| format!("couldn't install the WASM module: {:?}", err))?;
-    Ok(())
 }
 
 pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: bool) {
