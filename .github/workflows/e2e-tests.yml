@@ -42,18 +42,10 @@ jobs:
       - name: Import local minter
         run: ./e2e/import_local_minter.sh
 
-      - name: Get NNS extension version
-        shell: bash
-        run: echo "nns_extension_version=$(cat .nns-extension-version | xargs)" >> "$GITHUB_ENV"
-
-      - name: Set up NNS canisters
-        run: |
-          dfx extension install nns --version ${{ env.nns_extension_version }}
-          dfx nns install
-
       - name: Deploy canister
         run: |
           dfx canister create --all
+          ./e2e/install_icp_ledger.sh
           make e2e_build
           make local_deploy
 

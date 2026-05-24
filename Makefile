@@ -16,7 +16,8 @@ staging_deploy:
 	FEATURES=staging dfx --identity prod deploy --network $(if $(CANISTER),$(CANISTER),staging) taggr
 
 local_deploy:
-	FEATURES=dev dfx deploy taggr cmc_stub
+	FEATURES=dev dfx deploy taggr
+	dfx deploy cmc_stub
 	dfx ledger fabricate-cycles --canister cmc_stub --t 100
 
 dev_build:
