@@ -81,10 +81,7 @@ fn read_controllers() -> Vec<Principal> {
 fn assert_controller() {
     let caller = msg_caller();
     CONTROLLERS.with(|c| {
-        assert!(
-            c.borrow().iter().any(|p| *p == caller),
-            "unauthorized caller"
-        );
+        assert!(c.borrow().contains(&caller), "unauthorized caller");
     });
 }
 

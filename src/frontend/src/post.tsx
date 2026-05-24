@@ -61,6 +61,7 @@ import {
     validUserId,
 } from "./user_resolve";
 import { TippingPopup } from "./tipping";
+import { uploadBlobsOrFail } from "./new";
 
 export const PostView = ({
     id,
@@ -136,9 +137,11 @@ export const PostView = ({
     const commentSubmissionCallback = React.useCallback(
         async (comment: string, blobs: [string, Uint8Array][]) => {
             if (!post) return false;
+            const refs = await uploadBlobsOrFail(blobs);
+            if (refs === null) return false;
             const result: any = await window.api.add_post(
                 comment,
-                blobs,
+                refs,
                 [post.id],
                 [],
                 [],

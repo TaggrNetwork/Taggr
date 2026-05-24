@@ -3169,7 +3169,6 @@ pub(crate) mod tests {
             pr(1),
             time(),
         )
-        .await
         .unwrap();
 
         read(|state| {
@@ -3706,7 +3705,7 @@ pub(crate) mod tests {
     fn test_covered_by_feed() {
         let m = |v: Vec<&str>| v.into_iter().map(|v| v.to_string()).collect();
         let m2 = |v: Vec<&str>| v.into_iter().map(|v| v.to_string()).collect();
-        let tests = vec![
+        let tests = [
             (
                 vec![m(vec!["tag1", "tag2"]), m(vec!["tag2", "tag3"])],
                 m2(vec!["tag1"]),

@@ -77,7 +77,10 @@ pub fn time() -> u64 {
 }
 
 #[allow(unused_imports)]
-use crate::env::{post::PostId, user::UserId};
+use crate::env::{
+    post::{FileRef, PostId},
+    user::UserId,
+};
 use crate::http::{HttpRequest, HttpResponse};
 #[allow(unused_imports)]
 use crate::realms::RealmId;

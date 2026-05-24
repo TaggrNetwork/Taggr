@@ -23,8 +23,8 @@ Same flag works for `make tests`.
 
 Outputs of a successful run:
 
-- `release-artifacts/taggr.wasm.gz` — the production wasm.
-- `test-results/` and `playwright-report/` — Playwright traces and the HTML report (open `playwright-report/index.html` to inspect any failures).
+-   `release-artifacts/taggr.wasm.gz` — the production wasm.
+-   `test-results/` and `playwright-report/` — Playwright traces and the HTML report (open `playwright-report/index.html` to inspect any failures).
 
 Note: the first run is slow (Chromium install layer is several hundred MB) and `dfx nns install` downloads the NNS canisters on every run.
 

@@ -78,10 +78,11 @@ pub enum NotifyCreateCanisterResult {
 
 #[ic_cdk_macros::update]
 async fn notify_create_canister(arg: NotifyCreateCanister) -> NotifyCreateCanisterResult {
+    let controller = arg.controller;
     let controllers = arg
         .settings
         .and_then(|s| s.controllers)
-        .unwrap_or_else(|| vec![arg.controller]);
+        .unwrap_or_else(|| vec![controller]);
     let settings = CanisterSettings {
         controllers: Some(controllers),
         ..Default::default()

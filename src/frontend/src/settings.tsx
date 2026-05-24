@@ -86,8 +86,8 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
         <>
             <h3>Migration</h3>
             <p className="small_text">
-                Move images from the shared bucket into your own bucket. Safe
-                to stop and resume — progress is server-side.
+                Move images from the shared bucket into your own bucket. Safe to
+                stop and resume — progress is server-side.
             </p>
             {pending === null ? (
                 <p className="small_text">loading…</p>
@@ -126,6 +126,7 @@ const StorageSection = ({ user }: { user: User }) => {
     const [amountE8s, setAmountE8s] = React.useState(DEFAULT_BUCKET_E8S);
     const [stage, setStage] = React.useState<Stage | "done" | null>(null);
     const [error, setError] = React.useState<string | null>(null);
+    const [bucket, setBucket] = React.useState<typeof user.bucket>(user.bucket);
 
     const onCreate = async () => {
         setError(null);
@@ -135,9 +136,10 @@ const StorageSection = ({ user }: { user: User }) => {
                 amountE8s,
                 setStage,
             );
-            setStage("done");
             showPopUp("info", `Bucket created: ${bucketId}`, 5);
-            await window.reloadCache();
+            await window.reloadUser();
+            setBucket(window.user?.bucket);
+            setStage("done");
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err));
             setStage(null);
@@ -148,27 +150,29 @@ const StorageSection = ({ user }: { user: User }) => {
         <>
             <h2>Media Storage</h2>
             <p>
-                Images attached to posts live in a personal bucket canister
-                that you own and pay for. Taggr never touches its cycles. Posts
-                with no images still work without a bucket.
+                Images attached to posts live in a personal bucket canister that
+                you own and pay for. Taggr never touches its cycles. Posts with
+                no images still work without a bucket.
             </p>
-            {user.bucket ? (
+            {bucket ? (
                 <>
                     <div className="bottom_half_spaced">Bucket canister</div>
                     <code className="bottom_spaced">
                         <a
                             target="_blank"
-                            href={`https://dashboard.internetcomputer.org/canister/${user.bucket}`}
+                            href={`https://dashboard.internetcomputer.org/canister/${bucket}`}
                         >
-                            {user.bucket}
+                            {bucket.toString()}
                         </a>
                     </code>
                     <hr />
-                    <MigrationPanel bucket={user.bucket} />
+                    <MigrationPanel bucket={bucket} />
                 </>
             ) : (
                 <>
-                    <div className="bottom_half_spaced">ICP to deposit (e8s)</div>
+                    <div className="bottom_half_spaced">
+                        ICP to deposit (e8s)
+                    </div>
                     <input
                         type="number"
                         className="bottom_spaced"
@@ -188,9 +192,7 @@ const StorageSection = ({ user }: { user: User }) => {
                         </p>
                     )}
                     {error && (
-                        <p className="small_text top_spaced banner">
-                            {error}
-                        </p>
+                        <p className="small_text top_spaced banner">{error}</p>
                     )}
                 </>
             )}
@@ -198,7 +200,13 @@ const StorageSection = ({ user }: { user: User }) => {
     );
 };
 
-const TABS = ["PROFILE", "APPEARANCE", "PRIVACY", "STORAGE", "ADVANCED"] as const;
+const TABS = [
+    "PROFILE",
+    "APPEARANCE",
+    "PRIVACY",
+    "STORAGE",
+    "ADVANCED",
+] as const;
 type Tab = (typeof TABS)[number];
 
 export const Settings = ({ invite }: { invite?: string }) => {
@@ -595,9 +603,7 @@ export const Settings = ({ invite }: { invite?: string }) => {
         </>
     );
 
-    const storageSection = user && (
-        <StorageSection user={user} />
-    );
+    const storageSection = user && <StorageSection user={user} />;
 
     const advancedSection = user && (
         <>

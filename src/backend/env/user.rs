@@ -200,7 +200,7 @@ impl User {
             active_weeks: 0,
             principal,
             treasury_e8s: 0,
-            draft: None,
+            bucket: None,
             filters: Default::default(),
             previous_names: Default::default(),
             rewards: 0,

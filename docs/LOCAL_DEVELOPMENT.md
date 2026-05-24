@@ -19,11 +19,11 @@ Make sure to follow the steps outlined in the rest of this file before using the
 
 ## System Dependencies
 
-- Install [NodeJS](https://nodejs.org/).
-- Install [Rust & Cargo](https://www.rust-lang.org/).
-- Install [ic-wasm](https://github.com/dfinity/ic-wasm).
-- Install [Docker](https://www.docker.com/).
-- Install [Git](https://git-scm.com/).
+-   Install [NodeJS](https://nodejs.org/).
+-   Install [Rust & Cargo](https://www.rust-lang.org/).
+-   Install [ic-wasm](https://github.com/dfinity/ic-wasm).
+-   Install [Docker](https://www.docker.com/).
+-   Install [Git](https://git-scm.com/).
 
 ## First Time Setup
 

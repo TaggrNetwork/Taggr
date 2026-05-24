@@ -101,7 +101,7 @@ const encodeExtension = (extension?: Extension) =>
 // Uploads each attached blob directly into the user's personal bucket and
 // returns refs ready for add_post/edit_post. Returns null (and shows the popup)
 // if the user has no bucket configured.
-const uploadBlobsOrFail = async (
+export const uploadBlobsOrFail = async (
     blobs: [string, Uint8Array][],
 ): Promise<[string, number, number][] | null> => {
     if (blobs.length === 0) return [];

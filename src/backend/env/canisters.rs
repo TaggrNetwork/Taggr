@@ -133,10 +133,7 @@ pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: boo
 /// bucket's internal WASM controller set to `[user, taggr]`. Called after a
 /// `change_principal` so the user keeps custody of their bucket under their new
 /// principal.
-pub async fn rotate_bucket_controllers(
-    bucket: Principal,
-    user: Principal,
-) -> Result<(), String> {
+pub async fn rotate_bucket_controllers(bucket: Principal, user: Principal) -> Result<(), String> {
     let taggr = ic_cdk::api::canister_self();
     let blackhole =
         Principal::from_text(BLACKHOLE_TEXT).expect("invalid blackhole canister principal");
@@ -235,6 +232,7 @@ pub async fn coins_for_one_xdr(coin: &str) -> Result<u64, String> {
         .map(|result| result.rate / 10)
 }
 
+#[cfg(not(any(feature = "dev", feature = "staging")))]
 pub async fn call_canister_raw(id: Principal, method: &str, args: &[u8]) -> CallResult<Vec<u8>> {
     open_call(method);
     let result = Call::unbounded_wait(id, method)

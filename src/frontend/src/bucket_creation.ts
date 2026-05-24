@@ -42,7 +42,10 @@ const loadState = (): State | null => {
 };
 
 const persistSettings = async (settings: { [k: string]: string }) => {
-    const response: any = await window.api.call("update_user_settings", settings);
+    const response: any = await window.api.call(
+        "update_user_settings",
+        settings,
+    );
     if (response && "Err" in response) {
         throw new Error(`failed to persist bucket state: ${response.Err}`);
     }
@@ -87,7 +90,11 @@ const emptyCanisterSettings = {
     wasm_memory_threshold: [],
 };
 
-const decodeReply = <T>(idl: any[], buf: ArrayBuffer | null, label: string): T => {
+const decodeReply = <T>(
+    idl: any[],
+    buf: ArrayBuffer | null,
+    label: string,
+): T => {
     if (!buf) throw new Error(`${label}: empty reply`);
     return IDL.decode(idl, buf)[0] as T;
 };
@@ -116,7 +123,10 @@ export const createBucket = async (
         );
         if (!transferResult || "Err" in transferResult) {
             throw new Error(
-                `ICP transfer to CMC failed: ${JSON.stringify(transferResult)}`,
+                `ICP transfer to CMC failed: ${JSON.stringify(
+                    transferResult,
+                    (_, v) => (typeof v === "bigint" ? v.toString() : v),
+                )}`,
             );
         }
         blockIndex = BigInt(transferResult.Ok);
@@ -178,7 +188,11 @@ export const createBucket = async (
             "notify_create_canister",
             arg,
         );
-        const decoded = decodeReply<any>([NotifyResult], buf, "notify_create_canister");
+        const decoded = decodeReply<any>(
+            [NotifyResult],
+            buf,
+            "notify_create_canister",
+        );
         if ("Err" in decoded) {
             throw new Error(`CMC reported ${JSON.stringify(decoded.Err)}`);
         }
@@ -214,7 +228,16 @@ export const createBucket = async (
                 },
             ],
         );
-        await window.api.call_raw(MANAGEMENT_PRINCIPAL, "update_settings", arg);
+        // Management calls must use the target canister as the URL
+        // canister id (effective_canister_id) so the gateway routes them to
+        // that canister's subnet. Otherwise the local replica's HTTP gateway
+        // rejects with `canister_not_found`.
+        await window.api.call_raw(
+            MANAGEMENT_PRINCIPAL,
+            "update_settings",
+            arg,
+            canisterId,
+        );
         saved = { stage: "controllers_set", canisterId: canisterId.toString() };
         await saveState(saved);
     }
@@ -268,7 +291,12 @@ export const createBucket = async (
                 },
             ],
         );
-        await window.api.call_raw(MANAGEMENT_PRINCIPAL, "install_code", arg);
+        await window.api.call_raw(
+            MANAGEMENT_PRINCIPAL,
+            "install_code",
+            arg,
+            canisterId,
+        );
         saved = { stage: "installed", canisterId: canisterId.toString() };
         await saveState(saved);
     }

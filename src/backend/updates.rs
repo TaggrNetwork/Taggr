@@ -231,9 +231,7 @@ fn migrate_post_impl(post_id: PostId, entries: Vec<FileRef>) -> Result<(), Strin
         let principal = raw_caller(state)?;
         let user = state.principal_to_user(principal).ok_or("user not found")?;
         let user_id = user.id;
-        let bucket = user
-            .bucket
-            .ok_or("personal media bucket not configured")?;
+        let bucket = user.bucket.ok_or("personal media bucket not configured")?;
         Post::mutate(state, &post_id, |post| {
             if post.user != user_id {
                 return Err("unauthorized".to_string());
@@ -267,10 +265,7 @@ fn migrate_post_impl(post_id: PostId, entries: Vec<FileRef>) -> Result<(), Strin
 #[export_name = "canister_update create_user_index"]
 fn create_user_index() {
     reply(mutate(|state| {
-        let start = state
-            .post_index_last_scanned
-            .map(|id| id + 1)
-            .unwrap_or(0);
+        let start = state.post_index_last_scanned.map(|id| id + 1).unwrap_or(0);
         let batch: Vec<(PostId, UserId)> = state
             .posts
             .range(start..)

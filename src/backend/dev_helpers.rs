@@ -46,7 +46,7 @@ async fn check() {
     read(|state| {
         let last_id = state.next_post_id.saturating_sub(1);
         let sum = (0..=last_id)
-            .filter_map(|id| Post::get(&state, &id))
+            .filter_map(|id| Post::get(state, &id))
             .map(|post| post.id)
             .sum::<u64>();
         assert_eq!(sum, (last_id.pow(2) + last_id) / 2);
@@ -61,7 +61,6 @@ async fn clear_buckets() {
         let _: Result<(), _> = delete_canister(&CanisterIdRecord { canister_id }).await;
     }
 }
-
 
 #[update]
 fn replace_user_principal(principal: Principal, user_id: UserId) {
@@ -94,7 +93,7 @@ fn make_stalwart(user_handle: String) {
         state
             .users
             .values_mut()
-            .find(|user| &user.name == &user_handle)
+            .find(|user| user.name == user_handle)
             .map(|user| {
                 user.stalwart = true;
                 user.timestamp = time() - CONFIG.min_stalwart_account_age_weeks * WEEK;
@@ -106,7 +105,7 @@ fn make_stalwart(user_handle: String) {
 // Backup restore method.
 fn stable_mem_write(input: Vec<(u64, ByteBuf)>) {
     use ic_cdk::stable;
-    if let Some((page, buffer)) = input.get(0) {
+    if let Some((page, buffer)) = input.first() {
         if buffer.is_empty() {
             return;
         }

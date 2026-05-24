@@ -1,8 +1,8 @@
 use std::cmp::{Ordering, PartialOrd};
 
 use super::config::DOWNVOTE_REACTION_ID;
-use super::*;
 use super::user::UserId;
+use super::*;
 use crate::mutate;
 use ic_cdk::api::msg_caller as caller;
 use serde::{Deserialize, Serialize};
@@ -446,10 +446,8 @@ impl Post {
                     if existing_ids.contains(blob_id) {
                         continue;
                     }
-                    post.files.insert(
-                        format!("{}@{}", blob_id, bucket),
-                        (*offset, *len as usize),
-                    );
+                    post.files
+                        .insert(format!("{}@{}", blob_id, bucket), (*offset, *len as usize));
                 }
             }
             let costs = post.costs(state);
@@ -568,10 +566,8 @@ impl Post {
         if !refs.is_empty() {
             let bucket = bucket.ok_or("personal media bucket not configured")?;
             for (blob_id, offset, len) in refs {
-                post.files.insert(
-                    format!("{}@{}", blob_id, bucket),
-                    (*offset, *len as usize),
-                );
+                post.files
+                    .insert(format!("{}@{}", blob_id, bucket), (*offset, *len as usize));
             }
         }
         let costs = post.costs(state);

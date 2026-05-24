@@ -39,6 +39,7 @@ export type Backend = {
         canisterId: Principal,
         methodName: string,
         arg: ArrayBuffer,
+        effectiveCanisterId?: Principal,
     ) => Promise<ArrayBuffer | null>;
 
     call: <T>(
@@ -80,10 +81,7 @@ export type Backend = {
         realm: string[],
     ) => Promise<JsonValue | null>;
 
-    bucket_write: (
-        bucket: Principal,
-        blob: Uint8Array,
-    ) => Promise<bigint>;
+    bucket_write: (bucket: Principal, blob: Uint8Array) => Promise<bigint>;
 
     icp_account_balance: (address: string) => Promise<BigInt>;
 
@@ -185,11 +183,12 @@ export const ApiGenerator = (
         canisterId = defaultPrincipal,
         methodName: string,
         arg: ArrayBuffer,
+        effectiveCanisterId?: Principal,
     ): Promise<ArrayBuffer | null> => {
         try {
             let { response, requestId } = await agent.call(
                 canisterId,
-                { methodName, arg, callSync: true },
+                { methodName, arg, callSync: true, effectiveCanisterId },
                 identity,
             );
             if (!response.ok) {

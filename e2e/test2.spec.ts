@@ -1,7 +1,7 @@
 import { waitForUILoading, pollForCondition } from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { resolve } from "node:path";
-import { mkPwd, transferICP } from "./command";
+import { exec, mkPwd, transferICP } from "./command";
 import { handleDialog, handleDialogSequence } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
@@ -333,19 +333,25 @@ test.describe("Regular users flow", () => {
 
         // Provision a personal media bucket via the actual Settings → STORAGE
         // flow. Hits the local CMC stub through `notify_create_canister`.
-        transferICP(
-            "e6cf5b3addb6f3be053619dad20060f49dce44bb0ae26421c0c4a5da25870a50",
-            1,
+        // The bucket creation transfers from alice's wallet (her default
+        // subaccount), not from the invoice subaccount used at registration,
+        // so we top up the wallet account directly. Needs ≥ DEFAULT_BUCKET_E8S
+        // (2 ICP) plus fees.
+        const aliceWallet = exec(
+            "dfx ledger account-id --of-principal " +
+                "xkqsg-2iln4-5zio6-xn4ja-s34n3-g63uk-kc6ex-wklca-7kfzz-67won-yqe",
         );
+        transferICP(aliceWallet, 3);
         await page.goto("/#/settings");
         await waitForUILoading(page);
         await page.getByRole("button", { name: "STORAGE" }).click();
         await page.getByRole("button", { name: "CREATE STORAGE" }).click();
         // Wait until the bucket is registered (the pane swaps to the
-        // "Bucket canister" view).
+        // "Bucket canister" view). Match exactly so the descriptive paragraph
+        // above ("...a personal bucket canister...") doesn't satisfy the poll.
         await pollForCondition(async () => {
             return await page
-                .getByText("Bucket canister")
+                .getByText("Bucket canister", { exact: true })
                 .isVisible()
                 .catch(() => false);
         });

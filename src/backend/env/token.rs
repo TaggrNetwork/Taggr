@@ -687,7 +687,7 @@ mod tests {
         let account2 = account(principal2);
         let account3 = account(principal3);
 
-        let transactions = vec![
+        let transactions = [
             // Mint to account1
             Transaction {
                 timestamp: 100,
@@ -759,7 +759,7 @@ mod tests {
         // Test error cases
 
         // Insufficient funds error
-        let bad_transactions = vec![
+        let bad_transactions = [
             // Mint to account1
             Transaction {
                 timestamp: 100,

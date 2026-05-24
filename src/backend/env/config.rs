@@ -232,7 +232,7 @@ pub const CONFIG: &Config = &Config {
 
     num_hot_posts: 10000,
 
-    #[cfg(feature = "dev")]
+    #[cfg(all(feature = "dev", not(test)))]
     report_confirmation_percentage: 1,
     #[cfg(test)]
     report_confirmation_percentage: 15,

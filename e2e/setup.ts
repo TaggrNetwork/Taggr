@@ -12,9 +12,7 @@ export default async function setup(): Promise<void> {
     // generous cycle balance so each test's bucket creation has cycles to
     // spawn the new canister.
     exec("dfx deploy cmc_stub --yes");
-    exec(
-        "dfx ledger fabricate-cycles --canister cmc_stub --t 100",
-    );
+    exec("dfx ledger fabricate-cycles --canister cmc_stub --t 100");
 
     const webServerPort = exec("dfx info webserver-port");
     const baseURL = `http://${canisterId}.localhost:${webServerPort}`;

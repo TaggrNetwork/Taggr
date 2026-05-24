@@ -683,8 +683,7 @@ pub(crate) mod tests {
                 Some("TAGGRDAO_X".to_string()),
                 p1,
                 time(),
-            )
-            .await,
+            ),
             Err("you're not in the realm".into()),
         );
 
@@ -704,8 +703,7 @@ pub(crate) mod tests {
                 Some("TAGGRDAO".to_string()),
                 p1,
                 time(),
-            )
-            .await,
+            ),
             Ok(())
         );
 
