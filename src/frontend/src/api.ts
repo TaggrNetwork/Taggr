@@ -83,6 +83,17 @@ export type Backend = {
 
     bucket_write: (bucket: Principal, blob: Uint8Array) => Promise<bigint>;
 
+    bucket_free: (
+        bucket: Principal,
+        segments: [bigint, bigint][],
+    ) => Promise<void>;
+
+    add_bucket_controller: (
+        bucket: Principal,
+        existing: Principal[],
+        added: Principal,
+    ) => Promise<void>;
+
     icp_account_balance: (address: string) => Promise<BigInt>;
 
     account_balance: (
@@ -375,6 +386,91 @@ export const ApiGenerator = (
                 throw new Error("bucket.write: short reply");
             }
             return new DataView(buf).getBigUint64(0, false);
+        },
+        bucket_free: async (
+            bucket: Principal,
+            segments: [bigint, bigint][],
+        ): Promise<void> => {
+            if (segments.length === 0) return;
+            const arg = IDL.encode(
+                [IDL.Vec(IDL.Tuple(IDL.Nat64, IDL.Nat64))],
+                [segments],
+            );
+            await call_raw(bucket, "free", arg);
+        },
+        add_bucket_controller: async (
+            bucket: Principal,
+            existing: Principal[],
+            added: Principal,
+        ): Promise<void> => {
+            const controllers = [
+                ...existing.filter((p) => p.toText() !== added.toText()),
+                added,
+            ];
+            const CanisterSettings = IDL.Record({
+                controllers: IDL.Opt(IDL.Vec(IDL.Principal)),
+                compute_allocation: IDL.Opt(IDL.Nat),
+                memory_allocation: IDL.Opt(IDL.Nat),
+                freezing_threshold: IDL.Opt(IDL.Nat),
+                reserved_cycles_limit: IDL.Opt(IDL.Nat),
+                log_visibility: IDL.Opt(
+                    IDL.Variant({
+                        controllers: IDL.Null,
+                        public: IDL.Null,
+                    }),
+                ),
+                wasm_memory_limit: IDL.Opt(IDL.Nat),
+                wasm_memory_threshold: IDL.Opt(IDL.Nat),
+            });
+            const UpdateSettingsArgs = IDL.Record({
+                canister_id: IDL.Principal,
+                settings: CanisterSettings,
+                sender_canister_version: IDL.Opt(IDL.Nat64),
+            });
+            const mgmtArg = IDL.encode(
+                [UpdateSettingsArgs],
+                [
+                    {
+                        canister_id: bucket,
+                        settings: {
+                            controllers: [controllers],
+                            compute_allocation: [],
+                            memory_allocation: [],
+                            freezing_threshold: [],
+                            reserved_cycles_limit: [],
+                            log_visibility: [],
+                            wasm_memory_limit: [],
+                            wasm_memory_threshold: [],
+                        },
+                        sender_canister_version: [],
+                    },
+                ],
+            );
+            const mgmtResult = await call_raw(
+                Principal.fromText("aaaaa-aa"),
+                "update_settings",
+                mgmtArg,
+                bucket,
+            );
+            if (mgmtResult === null) {
+                throw new Error(
+                    "IC management update_settings failed (see console)",
+                );
+            }
+            const internalArg = IDL.encode(
+                [IDL.Vec(IDL.Principal)],
+                [controllers],
+            );
+            const internalResult = await call_raw(
+                bucket,
+                "update_internal_controllers",
+                internalArg,
+            );
+            if (internalResult === null) {
+                throw new Error(
+                    "bucket.update_internal_controllers failed (see console)",
+                );
+            }
         },
         edit_post: async (
             id: number,

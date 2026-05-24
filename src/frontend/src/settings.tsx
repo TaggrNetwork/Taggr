@@ -33,8 +33,6 @@ const stageLabel = (s: Stage | "done" | null): string => {
             return "transferring ICP to CMC…";
         case "creating":
             return "asking CMC to create canister…";
-        case "setting_controllers":
-            return "setting bucket controllers…";
         case "installing":
             return "installing bucket WASM…";
         case "registering":
@@ -730,9 +728,58 @@ export const Settings = ({ invite }: { invite?: string }) => {
                                 );
                                 return;
                             }
+                            const newPrincipalText = principal.trim();
+                            let newPrincipal: Principal;
+                            try {
+                                newPrincipal =
+                                    Principal.fromText(newPrincipalText);
+                            } catch (err) {
+                                return showPopUp(
+                                    "error",
+                                    `Invalid principal: ${err}`,
+                                );
+                            }
+                            if (user.bucket) {
+                                const addController = await confirmPopUp(
+                                    "You own a storage canister. Add the new principal as a controller of that canister now, while the old principal is still authenticated? If you skip, you will lose ALL control of the canister after the principal change (cannot upload, free, upgrade, or delete it). Removing the OLD principal from the canister's controller list afterward is YOUR responsibility — taggr will not do it.",
+                                    {
+                                        confirmLabel: "ADD CONTROLLER",
+                                        cancelLabel: "SKIP",
+                                    },
+                                );
+                                if (addController) {
+                                    try {
+                                        await window.api.add_bucket_controller(
+                                            Principal.fromText(user.bucket),
+                                            [
+                                                Principal.fromText(
+                                                    user.principal,
+                                                ),
+                                            ],
+                                            newPrincipal,
+                                        );
+                                    } catch (err) {
+                                        return showPopUp(
+                                            "error",
+                                            `Failed to add controller — principal change aborted: ${err}`,
+                                            7,
+                                        );
+                                    }
+                                } else if (
+                                    !(await confirmPopUp(
+                                        "Skip adding the new principal? You will lose all control of your storage canister after the principal change. Confirm to proceed anyway, cancel to abort.",
+                                        {
+                                            confirmLabel: "PROCEED ANYWAY",
+                                            cancelLabel: "ABORT",
+                                        },
+                                    ))
+                                ) {
+                                    return;
+                                }
+                            }
                             let response = await window.api.call<any>(
                                 "request_principal_change",
-                                principal.trim(),
+                                newPrincipalText,
                             );
                             if ("Err" in response) {
                                 return showPopUp("error", response.Err);

@@ -8,10 +8,8 @@ import { IDL } from "@dfinity/candid";
 import { AccountIdentifier, SubAccount } from "@dfinity/ledger-icp";
 import { CANISTER_ID } from "./env";
 
-const TAGGR_PRINCIPAL = Principal.fromText(CANISTER_ID);
 const CMC_PRINCIPAL = Principal.fromText("rkp4c-7iaaa-aaaaa-aaaca-cai");
 const MANAGEMENT_PRINCIPAL = Principal.fromText("aaaaa-aa");
-const BLACKHOLE_PRINCIPAL = Principal.fromText("e3mmv-5qaaa-aaaah-aadma-cai");
 const MEMO_CREATE_CANISTER = 0x41455243; // "CREA"
 // Stored on user settings (server-side) so the flow survives across browsers —
 // the user has paid real ICP by step 1 and we must be able to resume from any
@@ -21,15 +19,9 @@ const STATE_KEY = "bucket_creation_state";
 type State =
     | { stage: "transferred"; blockIndex: string }
     | { stage: "created"; canisterId: string }
-    | { stage: "controllers_set"; canisterId: string }
     | { stage: "installed"; canisterId: string };
 
-export type Stage =
-    | "transferring"
-    | "creating"
-    | "setting_controllers"
-    | "installing"
-    | "registering";
+export type Stage = "transferring" | "creating" | "installing" | "registering";
 
 const loadState = (): State | null => {
     const raw = window.user?.settings?.[STATE_KEY];
@@ -134,13 +126,10 @@ export const createBucket = async (
         await saveState(saved);
     }
 
-    // STEP 2: CMC notify_create_canister.
+    // STEP 2: CMC notify_create_canister. Controllers baked in at creation time:
+    // user is the sole controller — taggr is intentionally NOT a controller.
     let canisterId: Principal;
-    if (
-        saved.stage === "created" ||
-        saved.stage === "controllers_set" ||
-        saved.stage === "installed"
-    ) {
+    if (saved.stage === "created" || saved.stage === "installed") {
         canisterId = Principal.fromText(saved.canisterId);
     } else {
         onStage("creating");
@@ -179,7 +168,12 @@ export const createBucket = async (
                     block_index: blockIndex,
                     controller: userPrincipal,
                     subnet_selection: [],
-                    settings: [],
+                    settings: [
+                        {
+                            controllers: [[userPrincipal]],
+                            ...emptyCanisterSettings,
+                        },
+                    ],
                 },
             ],
         );
@@ -201,49 +195,8 @@ export const createBucket = async (
         await saveState(saved);
     }
 
-    // STEP 3: management.update_settings → [user, taggr, blackhole].
+    // STEP 3: management.install_code with bucket wasm; init arg = candid Vec<Principal>[user].
     if (saved.stage === "created") {
-        onStage("setting_controllers");
-        const UpdateSettingsArgs = IDL.Record({
-            canister_id: IDL.Principal,
-            settings: CanisterSettingsIDL,
-            sender_canister_version: IDL.Opt(IDL.Nat64),
-        });
-        const arg = IDL.encode(
-            [UpdateSettingsArgs],
-            [
-                {
-                    canister_id: canisterId,
-                    settings: {
-                        controllers: [
-                            [
-                                userPrincipal,
-                                TAGGR_PRINCIPAL,
-                                BLACKHOLE_PRINCIPAL,
-                            ],
-                        ],
-                        ...emptyCanisterSettings,
-                    },
-                    sender_canister_version: [],
-                },
-            ],
-        );
-        // Management calls must use the target canister as the URL
-        // canister id (effective_canister_id) so the gateway routes them to
-        // that canister's subnet. Otherwise the local replica's HTTP gateway
-        // rejects with `canister_not_found`.
-        await window.api.call_raw(
-            MANAGEMENT_PRINCIPAL,
-            "update_settings",
-            arg,
-            canisterId,
-        );
-        saved = { stage: "controllers_set", canisterId: canisterId.toString() };
-        await saveState(saved);
-    }
-
-    // STEP 4: management.install_code with bucket wasm; init arg = candid Vec<Principal>.
-    if (saved.stage === "controllers_set") {
         onStage("installing");
         const wasmBuf = await window.api.query_raw(
             CANISTER_ID,
@@ -256,10 +209,7 @@ export const createBucket = async (
             "bucket_wasm",
         );
         const initArg = new Uint8Array(
-            IDL.encode(
-                [IDL.Vec(IDL.Principal)],
-                [[userPrincipal, TAGGR_PRINCIPAL]],
-            ),
+            IDL.encode([IDL.Vec(IDL.Principal)], [[userPrincipal]]),
         );
         const InstallCodeArgs = IDL.Record({
             mode: IDL.Variant({
@@ -301,7 +251,7 @@ export const createBucket = async (
         await saveState(saved);
     }
 
-    // STEP 5: taggr.set_bucket(canisterId).
+    // STEP 4: taggr.set_bucket(canisterId).
     onStage("registering");
     const result: any = await window.api.call(
         "set_bucket",

@@ -5,7 +5,6 @@ use self::invoices::{ICPInvoice, USER_ICP_SUBACCOUNT};
 use self::post::{archive_cold_posts, Extension, Post, PostId};
 use self::post_iterators::{IteratorMerger, MergeStrategy};
 use self::proposals::{Payload, ReleaseInfo, Status};
-use self::storage::Storage;
 use self::token::{account, TransferArgs};
 use self::user::{Filters, Mode, Notification, Predicate, UserFilter};
 use crate::assets::export_token_supply;
@@ -19,7 +18,6 @@ use config::CONFIG;
 use domains::{available_realms, domain_realm_post_filter, DomainConfig, DomainSubConfig};
 use ic_cdk::api::stable_size;
 use ic_cdk::api::{self, canister_cycle_balance, performance_counter};
-use ic_cdk::futures::spawn;
 use ic_cdk_management_canister::raw_rand;
 use ic_ledger_types::{AccountIdentifier, DEFAULT_SUBACCOUNT, MAINNET_LEDGER_CANISTER_ID};
 use invoices::Invoices;
@@ -2729,16 +2727,11 @@ impl State {
             _ => {}
         };
 
-        let files = post.files.clone();
         Post::mutate(self, &post_id, |post| {
             post.delete(versions.clone());
             Ok(())
         })
         .expect("couldn't delete post");
-
-        if !files.is_empty() {
-            spawn(Storage::free_blobs(files));
-        }
 
         Ok(())
     }

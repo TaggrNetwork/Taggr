@@ -11,8 +11,7 @@ use candid::{
 };
 use ic_cdk::call::{Call, CallResult};
 use ic_cdk_management_canister::{
-    update_settings, CanisterIdRecord, CanisterInstallMode, CanisterSettings, CanisterStatusResult,
-    InstallCodeArgs, UpdateSettingsArgs,
+    CanisterIdRecord, CanisterInstallMode, CanisterStatusResult, InstallCodeArgs,
 };
 use ic_ledger_types::{Tokens, MAINNET_GOVERNANCE_CANISTER_ID};
 use ic_xrc_types::{Asset, GetExchangeRateRequest, GetExchangeRateResult};
@@ -22,9 +21,6 @@ use std::collections::HashMap;
 
 // uf6dk-hyaaa-aaaaq-qaaaq-cai
 const XR_CANISTER_ID: Principal = Principal::from_slice(&[0, 0, 0, 0, 2, 16, 0, 1, 1, 1]);
-// e3mmv-5qaaa-aaaah-aadma-cai — IC blackhole canister, kept as a public read-only
-// IC controller of every user bucket for transparency.
-const BLACKHOLE_TEXT: &str = "e3mmv-5qaaa-aaaah-aadma-cai";
 
 thread_local! {
     static CALLS: RefCell<HashMap<String, i32>> = Default::default();
@@ -127,34 +123,6 @@ pub fn upgrade_main_canister(logger: &mut Logger, wasm_module: &[u8], force: boo
         })
         .oneway()
         .expect("self-upgrade failed");
-}
-
-/// Rewrites the IC controllers of `bucket` to `[user, taggr, blackhole]` and the
-/// bucket's internal WASM controller set to `[user, taggr]`. Called after a
-/// `change_principal` so the user keeps custody of their bucket under their new
-/// principal.
-pub async fn rotate_bucket_controllers(bucket: Principal, user: Principal) -> Result<(), String> {
-    let taggr = ic_cdk::api::canister_self();
-    let blackhole =
-        Principal::from_text(BLACKHOLE_TEXT).expect("invalid blackhole canister principal");
-
-    open_call("update_settings");
-    let ic_result = update_settings(&UpdateSettingsArgs {
-        canister_id: bucket,
-        settings: CanisterSettings {
-            controllers: Some(vec![user, taggr, blackhole]),
-            ..Default::default()
-        },
-    })
-    .await;
-    close_call("update_settings");
-    ic_result.map_err(|err| format!("update_settings on {}: {:?}", bucket, err))?;
-
-    call_canister::<_, ()>(bucket, "update_internal_controllers", (vec![user, taggr],))
-        .await
-        .map_err(|err| format!("update_internal_controllers on {}: {:?}", bucket, err))?;
-
-    Ok(())
 }
 
 pub async fn get_full_neuron(neuron_id: u64) -> Result<String, String> {

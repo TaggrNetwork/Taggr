@@ -62,6 +62,7 @@ import {
 } from "./user_resolve";
 import { TippingPopup } from "./tipping";
 import { uploadBlobsOrFail } from "./new";
+import { Principal } from "@dfinity/principal";
 
 export const PostView = ({
     id,
@@ -827,7 +828,10 @@ const PostInfo = ({
                                                     "error",
                                                     response.Err,
                                                 );
-                                            } else await callback();
+                                            } else {
+                                                await freePostFiles(post.files);
+                                                await callback();
+                                            }
                                         }}
                                         label={<Trash />}
                                     />
@@ -1186,3 +1190,32 @@ export const filesToUrls = (files: { [id: string]: [number, number] }) =>
         },
         {} as { [id: string]: string },
     );
+
+// Best-effort free of a post's file refs on their respective buckets. Called
+// AFTER taggr has confirmed deletion (or removal of these refs in an edit).
+// Failures are logged but never thrown — taggr-side state is already updated
+// and the only consequence is leaked bytes in the user's own bucket.
+export const freePostFiles = async (files: {
+    [id: string]: [number, number];
+}): Promise<void> => {
+    const byBucket = new Map<string, [bigint, bigint][]>();
+    for (const key of Object.keys(files)) {
+        const at = key.lastIndexOf("@");
+        if (at < 0) continue;
+        const bucketId = key.slice(at + 1);
+        const [offset, len] = files[key];
+        const segs = byBucket.get(bucketId) ?? [];
+        segs.push([BigInt(offset), BigInt(len)]);
+        byBucket.set(bucketId, segs);
+    }
+    for (const [bucketId, segments] of byBucket) {
+        try {
+            await window.api.bucket_free(
+                Principal.fromText(bucketId),
+                segments,
+            );
+        } catch (err) {
+            console.error(`bucket_free on ${bucketId} failed:`, err);
+        }
+    }
+};
