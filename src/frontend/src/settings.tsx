@@ -181,6 +181,7 @@ const StorageSection = ({ user }: { user: User }) => {
                     />
                     <ButtonWithLoading
                         classNameArg="active"
+                        styleArg={{ width: "100%" }}
                         onClick={onCreate}
                         label="CREATE STORAGE"
                     />
@@ -425,6 +426,27 @@ export const Settings = ({
                                 />
                             ))}
                     </div>
+                    <div className="bottom_half_spaced">
+                        Enable ICRC tokens in the wallet
+                    </div>
+                    <select
+                        data-testid="ic-wallet-select"
+                        value={settings.icrcWallet || "false"}
+                        className="bottom_spaced"
+                        onChange={(event) => setSetting("icrcWallet", event)}
+                    >
+                        <option value="true">YES</option>
+                        <option value="false">NO</option>
+                    </select>
+                    <div className="bottom_half_spaced">
+                        Controller principal (one per line)
+                    </div>
+                    <textarea
+                        className="small_text bottom_spaced"
+                        value={controllers}
+                        onChange={(event) => setControllers(event.target.value)}
+                        rows={4}
+                    ></textarea>
                 </>
             )}
         </>
@@ -616,28 +638,6 @@ export const Settings = ({
 
     const advancedSection = user && (
         <>
-            <div className="bottom_half_spaced">
-                Enable ICRC tokens in the wallet
-            </div>
-            <select
-                data-testid="ic-wallet-select"
-                value={settings.icrcWallet || "false"}
-                className="bottom_spaced"
-                onChange={(event) => setSetting("icrcWallet", event)}
-            >
-                <option value="true">YES</option>
-                <option value="false">NO</option>
-            </select>
-            <div className="bottom_half_spaced">
-                Controller principal (one per line)
-            </div>
-            <textarea
-                className="small_text bottom_spaced"
-                value={controllers}
-                onChange={(event) => setControllers(event.target.value)}
-                rows={4}
-            ></textarea>
-            <hr />
             <h2>Account suspension</h2>
             <p>
                 You can suspend your account and encrypt all your messages to
@@ -838,13 +838,15 @@ export const Settings = ({
                 {tab === "PRIVACY" && privacySection}
                 {tab === "STORAGE" && storageSection}
                 {tab === "ADVANCED" && advancedSection}
-                <div className="sticky_save_bar">
-                    <ButtonWithLoading
-                        classNameArg="active"
-                        onClick={submit}
-                        label="SAVE"
-                    />
-                </div>
+                {tab !== "STORAGE" && tab !== "ADVANCED" && (
+                    <div className="sticky_save_bar">
+                        <ButtonWithLoading
+                            classNameArg="active"
+                            onClick={submit}
+                            label="SAVE"
+                        />
+                    </div>
+                )}
             </div>
         </>
     );
