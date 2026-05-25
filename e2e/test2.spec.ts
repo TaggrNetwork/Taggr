@@ -347,11 +347,10 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "STORAGE" }).click();
         await page.getByRole("button", { name: "CREATE STORAGE" }).click();
         // Wait until the bucket is registered (the pane swaps to the
-        // "Bucket canister" view). Match exactly so the descriptive paragraph
-        // above ("...a personal bucket canister...") doesn't satisfy the poll.
+        // "YOUR STORAGE CANISTER" dashboard row).
         await pollForCondition(async () => {
             return await page
-                .getByText("Bucket canister", { exact: true })
+                .getByText("YOUR STORAGE CANISTER", { exact: true })
                 .isVisible()
                 .catch(() => false);
         });

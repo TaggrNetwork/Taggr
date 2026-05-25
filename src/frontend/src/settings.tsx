@@ -122,15 +122,15 @@ const showCycles = (cycles: number | bigint) => (
 const stageLabel = (s: Stage | "done" | null): string => {
     switch (s) {
         case "transferring":
-            return "transferring ICP to CMC…";
+            return "Transferring ICP to CMC…";
         case "creating":
-            return "asking CMC to create canister…";
+            return "Asking CMC to create canister…";
         case "installing":
-            return "installing bucket WASM…";
+            return "Installing bucket WASM…";
         case "registering":
-            return "registering bucket with taggr…";
+            return "Registering bucket with taggr…";
         case "done":
-            return "done";
+            return "Done";
         default:
             return "";
     }
@@ -139,6 +139,7 @@ const stageLabel = (s: Stage | "done" | null): string => {
 const MigrationPanel = ({ bucket }: { bucket: string }) => {
     const [pending, setPending] = React.useState<number[] | null>(null);
     const [done, setDone] = React.useState(0);
+    const [runTotal, setRunTotal] = React.useState(0);
     const [running, setRunning] = React.useState(false);
     const stopRef = React.useRef(false);
 
@@ -153,6 +154,7 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
     const onMigrate = async () => {
         if (!pending) return;
         setDone(0);
+        setRunTotal(pending.length);
         setRunning(true);
         stopRef.current = false;
         try {
@@ -174,38 +176,36 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
         }
     };
 
+    const counterTotal = running || done > 0 ? runTotal : pending?.length || 0;
+
+    if (pending === null) return null;
+    if (pending.length === 0 && !running && done === 0) return null;
+
     return (
         <>
+            <hr />
             <h3>Migration</h3>
             <p>
-                Move images from the shared bucket into your own bucket. Safe to
-                stop and resume — progress is server-side.
+                Move images from the shared storage into your own storage. Safe
+                to stop and resume — progress is server-side.
             </p>
-            {pending === null ? (
-                <p className="small_text">loading…</p>
-            ) : pending.length === 0 ? (
-                <p className="small_text">All caught up.</p>
+            <p>
+                {done} / {counterTotal} posts migrated
+            </p>
+            {running ? (
+                <ButtonWithLoading
+                    classNameArg=""
+                    onClick={async () => {
+                        stopRef.current = true;
+                    }}
+                    label="STOP"
+                />
             ) : (
-                <>
-                    <p>
-                        {done} / {pending.length} posts migrated
-                    </p>
-                    {running ? (
-                        <ButtonWithLoading
-                            classNameArg=""
-                            onClick={async () => {
-                                stopRef.current = true;
-                            }}
-                            label="STOP"
-                        />
-                    ) : (
-                        <ButtonWithLoading
-                            classNameArg="active"
-                            onClick={onMigrate}
-                            label="MIGRATE"
-                        />
-                    )}
-                </>
+                <ButtonWithLoading
+                    classNameArg="active"
+                    onClick={onMigrate}
+                    label="MIGRATE"
+                />
             )}
         </>
     );
@@ -337,7 +337,6 @@ const StorageSection = ({ user }: { user: User }) => {
                             </p>
                         )}
                     </div>
-                    <hr />
                     <MigrationPanel bucket={bucket} />
                 </>
             ) : (
@@ -353,16 +352,16 @@ const StorageSection = ({ user }: { user: User }) => {
                             setAmountE8s(parseInt(e.target.value, 10) || 0)
                         }
                     />
+                    {stage && (
+                        <div className="banner vertically_spaced">
+                            {stageLabel(stage)}
+                        </div>
+                    )}
                     <ButtonWithLoading
                         classNameArg="active max_width_col"
                         onClick={onCreate}
                         label="CREATE STORAGE"
                     />
-                    {stage && (
-                        <p className="small_text top_spaced">
-                            {stageLabel(stage)}
-                        </p>
-                    )}
                 </>
             )}
         </>

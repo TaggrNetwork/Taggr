@@ -48,24 +48,18 @@ export const runMigration = async (
         const posts = await window.api.query<[Post, unknown][]>("posts", [
             postId,
         ]);
-        if (!posts || posts.length === 0) {
-            onProgress(i + 1, total);
-            continue;
-        }
-        const post = posts[0][0];
-        const filesToMigrate = Object.entries(post.files).filter(
-            ([key]) => !key.endsWith(`@${bucketStr}`),
-        ) as [string, [number, number]][];
-        if (filesToMigrate.length === 0) {
-            onProgress(i + 1, total);
-            continue;
-        }
+        const post = posts && posts.length > 0 ? posts[0][0] : null;
         const entries: [string, number, number][] = [];
-        for (const [key, [offset, len]] of filesToMigrate) {
-            const oldBucket = key.split("@")[1];
-            const bytes = await fetchBucketImage(oldBucket, offset, len);
-            const newOffset = await window.api.bucket_write(bucket, bytes);
-            entries.push([key, Number(newOffset), len]);
+        if (post) {
+            const filesToMigrate = Object.entries(post.files).filter(
+                ([key]) => !key.endsWith(`@${bucketStr}`),
+            ) as [string, [number, number]][];
+            for (const [key, [offset, len]] of filesToMigrate) {
+                const oldBucket = key.split("@")[1];
+                const bytes = await fetchBucketImage(oldBucket, offset, len);
+                const newOffset = await window.api.bucket_write(bucket, bytes);
+                entries.push([key, Number(newOffset), len]);
+            }
         }
         await migratePost(postId, entries);
         onProgress(i + 1, total);

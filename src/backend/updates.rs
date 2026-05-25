@@ -232,29 +232,34 @@ fn migrate_post_impl(post_id: PostId, entries: Vec<FileRef>) -> Result<(), Strin
         let user = state.principal_to_user(principal).ok_or("user not found")?;
         let user_id = user.id;
         let bucket = user.bucket.ok_or("personal media bucket not configured")?;
-        Post::mutate(state, &post_id, |post| {
-            if post.user != user_id {
-                return Err("unauthorized".to_string());
-            }
-            for (old_key, _, _) in &entries {
-                if !post.files.contains_key(old_key) {
-                    return Err(format!("file not found in post: {}", old_key));
+        let post_exists = Post::get(state, &post_id).is_some();
+        if post_exists {
+            Post::mutate(state, &post_id, |post| {
+                if post.user != user_id {
+                    return Err("unauthorized".to_string());
                 }
-            }
-            for (old_key, new_offset, new_len) in entries {
-                let blob_id = old_key
-                    .split('@')
-                    .next()
-                    .ok_or("malformed file key")?
-                    .to_string();
-                post.files.remove(&old_key);
-                post.files.insert(
-                    format!("{}@{}", blob_id, bucket),
-                    (new_offset, new_len as usize),
-                );
-            }
-            Ok(())
-        })?;
+                for (old_key, _, _) in &entries {
+                    if !post.files.contains_key(old_key) {
+                        return Err(format!("file not found in post: {}", old_key));
+                    }
+                }
+                for (old_key, new_offset, new_len) in entries {
+                    let blob_id = old_key
+                        .split('@')
+                        .next()
+                        .ok_or("malformed file key")?
+                        .to_string();
+                    post.files.remove(&old_key);
+                    post.files.insert(
+                        format!("{}@{}", blob_id, bucket),
+                        (new_offset, new_len as usize),
+                    );
+                }
+                Ok(())
+            })?;
+        }
+        // Drop the post from the user's migration index even if the post is
+        // gone; otherwise stale entries pile up forever.
         if let Some(ids) = state.post_index.get_mut(&user_id) {
             ids.retain(|id| *id != post_id);
         }
@@ -266,15 +271,17 @@ fn migrate_post_impl(post_id: PostId, entries: Vec<FileRef>) -> Result<(), Strin
 fn create_user_index() {
     reply(mutate(|state| {
         let start = state.post_index_last_scanned.map(|id| id + 1).unwrap_or(0);
-        let batch: Vec<(PostId, UserId)> = state
+        let scanned: Vec<(PostId, UserId, bool)> = state
             .posts
             .range(start..)
             .take(50_000)
-            .map(|(id, post)| (*id, post.user))
+            .map(|(id, post)| (*id, post.user, !post.files.is_empty()))
             .collect();
-        let last_id = batch.last()?.0;
-        for (id, user_id) in batch {
-            state.post_index.entry(user_id).or_default().push(id);
+        let last_id = scanned.last()?.0;
+        for (id, user_id, has_files) in scanned {
+            if has_files {
+                state.post_index.entry(user_id).or_default().push(id);
+            }
         }
         state.post_index_last_scanned = Some(last_id);
         Some::<PostId>(last_id)
