@@ -21,7 +21,7 @@ import { UserList } from "./user_resolve";
 import { UserLinks, linksError } from "./profile";
 import { createBucket, Stage } from "./bucket_creation";
 import { loadPendingPostIds, runMigration } from "./migration";
-import { Box, Credits, Fire, StorageCanister, Gear } from "./icons";
+import { Box, Credits, Fire, StorageCanister, HourGlass } from "./icons";
 
 export const DEFAULT_REACTION_HOLD_TIME = 350;
 
@@ -119,6 +119,20 @@ const showCycles = (cycles: number | bigint) => (
     </code>
 );
 
+const daysToLive = (cycles: bigint, dailyBurn: bigint) => {
+    const burn = Number(dailyBurn);
+    if (burn <= 0) {
+        return <code className="xx_large_text">∞</code>;
+    }
+    const days = Math.floor(Number(cycles) / burn);
+    const color = days < 30 ? "#e25555" : days < 90 ? "#e0b020" : "#2ecc71";
+    return (
+        <code className="xx_large_text" style={{ color }}>
+            {days.toLocaleString()}
+        </code>
+    );
+};
+
 const stageLabel = (s: Stage | "done" | null): string => {
     switch (s) {
         case "transferring":
@@ -190,7 +204,10 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
                 to stop and resume — progress is server-side.
             </p>
             <p>
-                {done} / {counterTotal} posts migrated
+                Posts migrated:{" "}
+                <code>
+                    {done} / {counterTotal}
+                </code>
             </p>
             {running ? (
                 <ButtonWithLoading
@@ -252,16 +269,79 @@ const StorageSection = ({ user }: { user: User }) => {
         }
     };
 
+    const dashboard = bucket && (
+        <div className="text_centered vertically_spaced">
+            <h2>
+                <StorageCanister classNameArg="right_half_spaced" />
+                <a
+                    target="_blank"
+                    href={`https://dashboard.internetcomputer.org/canister/${bucket}`}
+                >
+                    YOUR STORAGE CANISTER
+                </a>
+            </h2>
+            <div className="dynamic_table">
+                <div className="db_cell">
+                    <label>
+                        <Box /> STATE
+                    </label>
+                    {status ? sizeMb(status.memory_size) : <code>…</code>}
+                </div>
+                <div className="db_cell">
+                    <label>
+                        <Credits /> CYCLES
+                    </label>
+                    {status ? showCycles(status.cycles) : <code>…</code>}
+                </div>
+                <div className="db_cell">
+                    <label>
+                        <Fire /> DAILY BURN
+                    </label>
+                    {status ? (
+                        showCycles(status.idle_cycles_burned_per_day)
+                    ) : (
+                        <code>…</code>
+                    )}
+                </div>
+                <div className="db_cell">
+                    <label>
+                        <HourGlass /> DAYS TO LIVE
+                    </label>
+                    {status ? (
+                        daysToLive(
+                            status.cycles,
+                            status.idle_cycles_burned_per_day,
+                        )
+                    ) : (
+                        <code>…</code>
+                    )}
+                </div>
+            </div>
+            {statusError && (
+                <p className="small_text top_spaced banner">
+                    Failed to fetch canister status: {statusError}
+                </p>
+            )}
+        </div>
+    );
+
     return (
         <>
-            <h2>Media Storage</h2>
+            {dashboard}
             <p>
                 Images attached to your posts are hosted in your personal
                 storage canister that you own and pay for.
             </p>
             <p>
-                You can use ICP to top up this canister canister via NNS
-                frontend dapp, follow these steps:
+                You can use ICP to top up this canister via the{" "}
+                <a
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    href="https://nns.ic0.app"
+                >
+                    NNS frontend dapp
+                </a>
+                , follow these steps:
                 <ul>
                     <li>Click on the profile icon in the top right corner.</li>
                     <li>Click on "Canisters".</li>
@@ -278,67 +358,7 @@ const StorageSection = ({ user }: { user: User }) => {
                 </ul>
             </p>
             {bucket ? (
-                <>
-                    <div className="text_centered">
-                        <h2>
-                            <StorageCanister classNameArg="right_half_spaced" />
-                            <a
-                                target="_blank"
-                                href={`https://dashboard.internetcomputer.org/canister/${bucket}`}
-                            >
-                                YOUR STORAGE CANISTER
-                            </a>
-                        </h2>
-                        <div className="dynamic_table">
-                            <div className="db_cell">
-                                <label>
-                                    <Box /> STATE
-                                </label>
-                                {status ? (
-                                    sizeMb(status.memory_size)
-                                ) : (
-                                    <code>…</code>
-                                )}
-                            </div>
-                            <div className="db_cell">
-                                <label>
-                                    <Credits /> CYCLES
-                                </label>
-                                {status ? (
-                                    showCycles(status.cycles)
-                                ) : (
-                                    <code>…</code>
-                                )}
-                            </div>
-                            <div className="db_cell">
-                                <label>
-                                    <Fire /> DAILY BURN
-                                </label>
-                                {status ? (
-                                    showCycles(
-                                        status.idle_cycles_burned_per_day,
-                                    )
-                                ) : (
-                                    <code>…</code>
-                                )}
-                            </div>
-                            <div className="db_cell">
-                                <label>
-                                    <Gear /> STATUS
-                                </label>
-                                <code className="xx_large_text">
-                                    {status ? status.status.toUpperCase() : "…"}
-                                </code>
-                            </div>
-                        </div>
-                        {statusError && (
-                            <p className="small_text top_spaced banner">
-                                Failed to fetch canister status: {statusError}
-                            </p>
-                        )}
-                    </div>
-                    <MigrationPanel bucket={bucket} />
-                </>
+                <MigrationPanel bucket={bucket} />
             ) : (
                 <>
                     <div className="bottom_half_spaced">
@@ -353,9 +373,9 @@ const StorageSection = ({ user }: { user: User }) => {
                         }
                     />
                     {stage && (
-                        <div className="banner vertically_spaced">
-                            {stageLabel(stage)}
-                        </div>
+                        <p>
+                            Status: <code>{stageLabel(stage)}</code>
+                        </p>
                     )}
                     <ButtonWithLoading
                         classNameArg="active max_width_col"
