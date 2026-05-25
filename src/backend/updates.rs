@@ -195,8 +195,8 @@ fn unlink_cold_wallet() -> Result<(), String> {
 }
 
 /// Registers the caller's personal media bucket. Performs no verification — a
-/// misconfigured bucket only impairs the user's own posts. Call again to
-/// replace it.
+/// misconfigured bucket only impairs the user's own posts. No-op if a bucket
+/// is already registered, to prevent accidental rebinding.
 #[export_name = "canister_update set_bucket"]
 fn set_bucket() {
     let bucket_id: String = parse(&arg_data_raw());
@@ -206,6 +206,9 @@ fn set_bucket() {
         let user = state
             .principal_to_user_mut(principal)
             .ok_or("user not found")?;
+        if user.bucket.is_some() {
+            return Ok::<(), String>(());
+        }
         user.bucket = Some(bucket);
         Ok::<(), String>(())
     }));
