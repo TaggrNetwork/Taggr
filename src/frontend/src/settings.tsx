@@ -15,15 +15,109 @@ import {
 } from "./common";
 import { User, UserFilter } from "./types";
 import { Principal } from "@dfinity/principal";
+import { IDL } from "@dfinity/candid";
 import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
 import { UserLinks, linksError } from "./profile";
 import { createBucket, Stage } from "./bucket_creation";
 import { loadPendingPostIds, runMigration } from "./migration";
+import { Box, Credits, Fire, StorageCanister, Gear } from "./icons";
 
 export const DEFAULT_REACTION_HOLD_TIME = 350;
 
 const DEFAULT_BUCKET_E8S = 100_000_000;
+
+const MANAGEMENT_PRINCIPAL = Principal.fromText("aaaaa-aa");
+
+type CanisterStatus = {
+    status: "running" | "stopping" | "stopped";
+    cycles: bigint;
+    memory_size: bigint;
+    idle_cycles_burned_per_day: bigint;
+    module_hash: number[] | null;
+};
+
+const fetchCanisterStatus = async (
+    canisterId: Principal,
+): Promise<CanisterStatus> => {
+    const DefiniteCanisterSettings = IDL.Record({
+        controllers: IDL.Vec(IDL.Principal),
+        compute_allocation: IDL.Nat,
+        memory_allocation: IDL.Nat,
+        freezing_threshold: IDL.Nat,
+        reserved_cycles_limit: IDL.Nat,
+        log_visibility: IDL.Variant({
+            controllers: IDL.Null,
+            public: IDL.Null,
+            allowed_viewers: IDL.Vec(IDL.Principal),
+        }),
+        wasm_memory_limit: IDL.Nat,
+        wasm_memory_threshold: IDL.Nat,
+    });
+    const QueryStats = IDL.Record({
+        num_calls_total: IDL.Nat,
+        num_instructions_total: IDL.Nat,
+        request_payload_bytes_total: IDL.Nat,
+        response_payload_bytes_total: IDL.Nat,
+    });
+    const CanisterStatusResult = IDL.Record({
+        status: IDL.Variant({
+            running: IDL.Null,
+            stopping: IDL.Null,
+            stopped: IDL.Null,
+        }),
+        settings: DefiniteCanisterSettings,
+        module_hash: IDL.Opt(IDL.Vec(IDL.Nat8)),
+        memory_size: IDL.Nat,
+        cycles: IDL.Nat,
+        reserved_cycles: IDL.Nat,
+        idle_cycles_burned_per_day: IDL.Nat,
+        query_stats: QueryStats,
+    });
+    const arg = IDL.encode(
+        [IDL.Record({ canister_id: IDL.Principal })],
+        [{ canister_id: canisterId }],
+    );
+    const reply = await window.api.call_raw(
+        MANAGEMENT_PRINCIPAL,
+        "canister_status",
+        arg,
+        canisterId,
+    );
+    if (!reply) throw new Error("empty reply from canister_status");
+    const decoded: any = IDL.decode([CanisterStatusResult], reply)[0];
+    const statusKey = Object.keys(decoded.status)[0] as
+        | "running"
+        | "stopping"
+        | "stopped";
+    const moduleHashOpt = decoded.module_hash as number[][] | Uint8Array[];
+    return {
+        status: statusKey,
+        cycles: decoded.cycles as bigint,
+        memory_size: decoded.memory_size as bigint,
+        idle_cycles_burned_per_day:
+            decoded.idle_cycles_burned_per_day as bigint,
+        module_hash:
+            moduleHashOpt.length > 0
+                ? Array.from(moduleHashOpt[0] as ArrayLike<number>)
+                : null,
+    };
+};
+
+const sizeMb = (size: number | bigint) => (
+    <code className="xx_large_text">
+        {Math.ceil(Number(size) / 1024 / 1024).toLocaleString()} MB
+    </code>
+);
+
+const showCycles = (cycles: number | bigint) => (
+    <code className="xx_large_text">
+        {(Number(cycles) / 1e12).toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+        })}
+        T
+    </code>
+);
 
 const stageLabel = (s: Stage | "done" | null): string => {
     switch (s) {
@@ -83,7 +177,7 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
     return (
         <>
             <h3>Migration</h3>
-            <p className="small_text">
+            <p>
                 Move images from the shared bucket into your own bucket. Safe to
                 stop and resume — progress is server-side.
             </p>
@@ -121,6 +215,21 @@ const StorageSection = ({ user }: { user: User }) => {
     const [amountE8s, setAmountE8s] = React.useState(DEFAULT_BUCKET_E8S);
     const [stage, setStage] = React.useState<Stage | "done" | null>(null);
     const [bucket, setBucket] = React.useState<typeof user.bucket>(user.bucket);
+    const [status, setStatus] = React.useState<CanisterStatus | null>(null);
+    const [statusError, setStatusError] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (!bucket) return;
+        setStatus(null);
+        setStatusError(null);
+        fetchCanisterStatus(Principal.fromText(bucket))
+            .then(setStatus)
+            .catch((err) =>
+                setStatusError(
+                    err instanceof Error ? err.message : String(err),
+                ),
+            );
+    }, [bucket]);
 
     const onCreate = async () => {
         try {
@@ -147,21 +256,87 @@ const StorageSection = ({ user }: { user: User }) => {
         <>
             <h2>Media Storage</h2>
             <p>
-                Images attached to posts live in a personal bucket canister that
-                you own and pay for. Taggr never touches its cycles. Posts with
-                no images still work without a bucket.
+                Images attached to your posts are hosted in your personal
+                storage canister that you own and pay for.
+            </p>
+            <p>
+                You can use ICP to top up this canister canister via NNS
+                frontend dapp, follow these steps:
+                <ul>
+                    <li>Click on the profile icon in the top right corner.</li>
+                    <li>Click on "Canisters".</li>
+                    <li>
+                        Add the canister to your list of canisters using the
+                        "Link canister" button
+                    </li>
+                    <li>Click on the newly linked canister</li>
+                    <li>
+                        Use the "Add cycles" button. This will work even when an
+                        error like "there was an error loading the details of
+                        the canister" shows up.
+                    </li>
+                </ul>
             </p>
             {bucket ? (
                 <>
-                    <div className="bottom_half_spaced">Bucket canister</div>
-                    <code className="bottom_spaced">
-                        <a
-                            target="_blank"
-                            href={`https://dashboard.internetcomputer.org/canister/${bucket}`}
-                        >
-                            {bucket.toString()}
-                        </a>
-                    </code>
+                    <div className="text_centered">
+                        <h2>
+                            <StorageCanister classNameArg="right_half_spaced" />
+                            <a
+                                target="_blank"
+                                href={`https://dashboard.internetcomputer.org/canister/${bucket}`}
+                            >
+                                YOUR STORAGE CANISTER
+                            </a>
+                        </h2>
+                        <div className="dynamic_table">
+                            <div className="db_cell">
+                                <label>
+                                    <Box /> STATE
+                                </label>
+                                {status ? (
+                                    sizeMb(status.memory_size)
+                                ) : (
+                                    <code>…</code>
+                                )}
+                            </div>
+                            <div className="db_cell">
+                                <label>
+                                    <Credits /> CYCLES
+                                </label>
+                                {status ? (
+                                    showCycles(status.cycles)
+                                ) : (
+                                    <code>…</code>
+                                )}
+                            </div>
+                            <div className="db_cell">
+                                <label>
+                                    <Fire /> DAILY BURN
+                                </label>
+                                {status ? (
+                                    showCycles(
+                                        status.idle_cycles_burned_per_day,
+                                    )
+                                ) : (
+                                    <code>…</code>
+                                )}
+                            </div>
+                            <div className="db_cell">
+                                <label>
+                                    <Gear /> STATUS
+                                </label>
+                                <code className="xx_large_text">
+                                    {status ? status.status.toUpperCase() : "…"}
+                                </code>
+                            </div>
+                        </div>
+                        {statusError && (
+                            <p className="small_text top_spaced banner">
+                                Failed to fetch canister status: {statusError}
+                            </p>
+                        )}
+                    </div>
                     <hr />
                     <MigrationPanel bucket={bucket} />
                 </>
