@@ -446,6 +446,9 @@ export const Form = ({
         </button>
     );
     const tooExpensive = user.cycles < totalCosts;
+    const hasImages =
+        (value.match(/!\[.*?\]\(\/blob\/.*?\)/g) || []).length > 0;
+    const noBucketForImages = !user.bucket && hasImages;
     const realmAccessError =
         realmData && noiseControlBanner("realm", realmData.filter, user);
 
@@ -736,7 +739,14 @@ export const Form = ({
                     introductory part from the rest of the content.
                 </div>
             )}
-            {!tooExpensive && !overflowBanner && (
+            {noBucketForImages && (
+                <div className="banner vertically_spaced">
+                    Attaching images requires a personal storage canister.
+                    Please configure one under{" "}
+                    <a href="#/settings/STORAGE">settings</a>.
+                </div>
+            )}
+            {!tooExpensive && !overflowBanner && !noBucketForImages && (
                 <ButtonWithLoading
                     disabled={!!proposalValidationError}
                     classNameArg={

@@ -207,7 +207,13 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number];
 
-export const Settings = ({ invite }: { invite?: string }) => {
+export const Settings = ({
+    invite,
+    tab: initialTabProp,
+}: {
+    invite?: string;
+    tab?: string;
+}) => {
     const user = window.user;
     const [principal, setPrincipal] = React.useState(window.principalId);
     const [name, setName] = React.useState("");
@@ -229,7 +235,12 @@ export const Settings = ({ invite }: { invite?: string }) => {
         balance: 0,
         num_followers: 0,
     });
-    const [tab, setTab] = React.useState<Tab>("PROFILE");
+    const initialTab = (TABS as readonly string[]).includes(
+        initialTabProp || "",
+    )
+        ? (initialTabProp as Tab)
+        : "PROFILE";
+    const [tab, setTab] = React.useState<Tab>(initialTab);
 
     const updateData = (user: User) => {
         if (!user) return;

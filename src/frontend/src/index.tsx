@@ -138,7 +138,7 @@ const App = () => {
     if (handler == "whitepaper") {
         content = <Whitepaper />;
     } else if (handler == "settings") {
-        content = auth(<Settings />);
+        content = auth(<Settings tab={param} />);
     } else if (handler == "sign-in") {
         headerStyle = "minimal";
         content = <LoginMasks />;
