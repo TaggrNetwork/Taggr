@@ -23,9 +23,7 @@ import { loadPendingPostIds, runMigration } from "./migration";
 
 export const DEFAULT_REACTION_HOLD_TIME = 350;
 
-// ~2 years of cycles ≈ 2 ICP at typical XDR rate. Default-friendly entry point;
-// user can adjust before confirming.
-const DEFAULT_BUCKET_E8S = 200_000_000;
+const DEFAULT_BUCKET_E8S = 100_000_000;
 
 const stageLabel = (s: Stage | "done" | null): string => {
     switch (s) {
@@ -48,7 +46,6 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
     const [pending, setPending] = React.useState<number[] | null>(null);
     const [done, setDone] = React.useState(0);
     const [running, setRunning] = React.useState(false);
-    const [error, setError] = React.useState<string | null>(null);
     const stopRef = React.useRef(false);
 
     const refresh = React.useCallback(async () => {
@@ -61,7 +58,6 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
 
     const onMigrate = async () => {
         if (!pending) return;
-        setError(null);
         setDone(0);
         setRunning(true);
         stopRef.current = false;
@@ -73,7 +69,11 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
                 () => stopRef.current,
             );
         } catch (err) {
-            setError(err instanceof Error ? err.message : String(err));
+            showPopUp(
+                "error",
+                err instanceof Error ? err.message : String(err),
+                7,
+            );
         } finally {
             setRunning(false);
             await refresh();
@@ -111,9 +111,6 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
                             label="MIGRATE"
                         />
                     )}
-                    {error && (
-                        <p className="small_text top_spaced banner">{error}</p>
-                    )}
                 </>
             )}
         </>
@@ -123,11 +120,9 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
 const StorageSection = ({ user }: { user: User }) => {
     const [amountE8s, setAmountE8s] = React.useState(DEFAULT_BUCKET_E8S);
     const [stage, setStage] = React.useState<Stage | "done" | null>(null);
-    const [error, setError] = React.useState<string | null>(null);
     const [bucket, setBucket] = React.useState<typeof user.bucket>(user.bucket);
 
     const onCreate = async () => {
-        setError(null);
         try {
             const bucketId = await createBucket(
                 Principal.fromText(window.principalId),
@@ -139,7 +134,11 @@ const StorageSection = ({ user }: { user: User }) => {
             setBucket(window.user?.bucket);
             setStage("done");
         } catch (err) {
-            setError(err instanceof Error ? err.message : String(err));
+            showPopUp(
+                "error",
+                err instanceof Error ? err.message : String(err),
+                7,
+            );
             setStage(null);
         }
     };
@@ -180,8 +179,7 @@ const StorageSection = ({ user }: { user: User }) => {
                         }
                     />
                     <ButtonWithLoading
-                        classNameArg="active"
-                        styleArg={{ width: "100%" }}
+                        classNameArg="active max_width_col"
                         onClick={onCreate}
                         label="CREATE STORAGE"
                     />
@@ -189,9 +187,6 @@ const StorageSection = ({ user }: { user: User }) => {
                         <p className="small_text top_spaced">
                             {stageLabel(stage)}
                         </p>
-                    )}
-                    {error && (
-                        <p className="small_text top_spaced banner">{error}</p>
                     )}
                 </>
             )}
@@ -841,7 +836,7 @@ export const Settings = ({
                 {tab !== "STORAGE" && tab !== "ADVANCED" && (
                     <div className="sticky_save_bar">
                         <ButtonWithLoading
-                            classNameArg="active"
+                            classNameArg="active max_width_col"
                             onClick={submit}
                             label="SAVE"
                         />
