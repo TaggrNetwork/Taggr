@@ -365,6 +365,20 @@ impl<K: Eq + Ord + Clone + Display, T: Serialize + DeserializeOwned> ObjectManag
         self.index.len()
     }
 
+    /// Returns up to `limit` keys greater or equal to `start`, in ascending
+    /// order, without reading the (stable-memory) values.
+    // TODO: delete with image migration code
+    pub fn keys_from(&self, start: K, limit: usize) -> Vec<K>
+    where
+        K: Clone,
+    {
+        self.index
+            .range(start..)
+            .take(limit)
+            .map(|(id, _)| id.clone())
+            .collect()
+    }
+
     pub fn insert(&mut self, id: K, value: T) -> Result<(), String> {
         assert!(self.initialized, "allocator uninitialized");
         if self.index.contains_key(&id) {
