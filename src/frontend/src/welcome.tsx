@@ -53,7 +53,7 @@ export const Welcome = () => {
         <ButtonWithLoading onClick={signOut} label="SIGN OUT" />
     );
 
-    const { name, blob_cost, post_cost } = window.backendCache.config;
+    const { name, post_cost } = window.backendCache.config;
 
     const invoice = icpInvoice ? { paid: icpInvoice.paid } : null;
 
@@ -92,10 +92,8 @@ export const Welcome = () => {
                                 XDR
                             </a>
                             ). These credits are enough to create{" "}
-                            <code>{1000 / post_cost}</code> text posts or{" "}
-                            <code>{1000 / blob_cost}</code> posts with images
-                            that will be stored on-chain without any expiration
-                            date.
+                            <code>{1000 / post_cost}</code> text posts that will
+                            be stored on-chain without any expiration date.
                         </p>
                         <p>
                             Before you mint credits, make sure you understand{" "}

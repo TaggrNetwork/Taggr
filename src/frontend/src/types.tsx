@@ -369,7 +369,6 @@ export type Config = {
     logo: string;
     poll_revote_deadline_hours: number;
     account_activation_cost: number;
-    blob_cost: number;
     poll_cost: number;
     max_post_length: number;
     max_blob_size_bytes: number;

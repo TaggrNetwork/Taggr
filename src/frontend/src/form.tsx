@@ -790,13 +790,9 @@ const costs = async (value: string, extraCost: number) => {
         tagCosts = (await window.api.query("tags_cost", tags)) || 0;
         tagCache = tags;
     }
-    const images = (value.match(/\(\/blob\/.+\)/g) || []).length;
-    const { post_cost, blob_cost } = window.backendCache.config;
+    const { post_cost } = window.backendCache.config;
     return (
-        post_cost * (Math.floor(value.length / 1024) + 1) +
-        tagCosts +
-        images * blob_cost +
-        extraCost
+        post_cost * (Math.floor(value.length / 1024) + 1) + tagCosts + extraCost
     );
 };
 
