@@ -38,7 +38,7 @@ export const Domains = ({}) => {
                     />
                 }
             />
-            <h2>Taggr domains</h2>
+            <h2>{window.backendCache.config.name} domains</h2>
             <ul>
                 {Object.entries(domainConfigs || {})
                     .filter(([domain]) => domain != "localhost")

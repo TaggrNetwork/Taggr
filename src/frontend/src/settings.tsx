@@ -12,6 +12,7 @@ import {
     tagList,
     RealmList,
     TabBar,
+    shortenTokensAmount,
 } from "./common";
 import { User, UserFilter } from "./types";
 import { Principal } from "@dfinity/principal";
@@ -142,7 +143,7 @@ const stageLabel = (s: Stage | "done" | null): string => {
         case "installing":
             return "Installing bucket WASM…";
         case "registering":
-            return "Registering bucket with taggr…";
+            return `Registering bucket with ${window.backendCache.config.name}…`;
         case "done":
             return "Done";
         default:
@@ -229,7 +230,6 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
 };
 
 const StorageSection = ({ user }: { user: User }) => {
-    const [amountE8s, setAmountE8s] = React.useState(DEFAULT_BUCKET_E8S);
     const [stage, setStage] = React.useState<Stage | "done" | null>(null);
     const [bucket, setBucket] = React.useState<typeof user.bucket>(user.bucket);
     const [status, setStatus] = React.useState<CanisterStatus | null>(null);
@@ -252,7 +252,7 @@ const StorageSection = ({ user }: { user: User }) => {
         try {
             const bucketId = await createBucket(
                 Principal.fromText(window.principalId),
-                amountE8s,
+                DEFAULT_BUCKET_E8S,
                 setStage,
             );
             showPopUp("info", `Bucket created: ${bucketId}`, 5);
@@ -361,17 +361,13 @@ const StorageSection = ({ user }: { user: User }) => {
                 <MigrationPanel bucket={bucket} />
             ) : (
                 <>
-                    <div className="bottom_half_spaced">
-                        ICP to deposit (e8s)
+                    <div className="bottom_spaced">
+                        Creating a storage canister requires{" "}
+                        <code>
+                            {shortenTokensAmount(DEFAULT_BUCKET_E8S, 8)} ICP
+                        </code>{" "}
+                        in your wallet.
                     </div>
-                    <input
-                        type="number"
-                        className="bottom_spaced"
-                        value={amountE8s}
-                        onChange={(e) =>
-                            setAmountE8s(parseInt(e.target.value, 10) || 0)
-                        }
-                    />
                     {stage && (
                         <p>
                             Status: <code>{stageLabel(stage)}</code>
@@ -941,7 +937,7 @@ export const Settings = ({
                             }
                             if (user.bucket) {
                                 const addController = await confirmPopUp(
-                                    "You own a storage canister. Add the new principal as a controller of that canister now, while the old principal is still authenticated? If you skip, you will lose ALL control of the canister after the principal change (cannot upload, free, upgrade, or delete it). Removing the OLD principal from the canister's controller list afterward is YOUR responsibility — taggr will not do it.",
+                                    `You own a storage canister. Add the new principal as a controller of that canister now, while the old principal is still authenticated? If you skip, you will lose ALL control of the canister after the principal change (cannot upload, free, upgrade, or delete it). Removing the OLD principal from the canister's controller list afterward is YOUR responsibility — ${window.backendCache.config.name} will not do it.`,
                                     {
                                         confirmLabel: "ADD CONTROLLER",
                                         cancelLabel: "SKIP",
