@@ -471,6 +471,43 @@ export const ApiGenerator = (
                     "bucket.update_internal_controllers failed (see console)",
                 );
             }
+            // Read the management controllers back and assert the new principal
+            // is present before the caller proceeds; otherwise a silently
+            // mis-applied update would still let the principal change go ahead
+            // and strip the user of all control over the canister.
+            const StatusResult = IDL.Record({
+                settings: IDL.Record({
+                    controllers: IDL.Vec(IDL.Principal),
+                }),
+            });
+            const statusArg = IDL.encode(
+                [IDL.Record({ canister_id: IDL.Principal })],
+                [{ canister_id: bucket }],
+            );
+            const statusBuf = await call_raw(
+                Principal.fromText("aaaaa-aa"),
+                "canister_status",
+                statusArg,
+                bucket,
+            );
+            if (statusBuf === null) {
+                throw new Error(
+                    "IC management canister_status failed (see console)",
+                );
+            }
+            const { settings } = IDL.decode(
+                [StatusResult],
+                statusBuf,
+            )[0] as any;
+            if (
+                !settings.controllers.some(
+                    (p: Principal) => p.toText() === added.toText(),
+                )
+            ) {
+                throw new Error(
+                    "new principal not found in bucket controllers after update",
+                );
+            }
         },
         edit_post: async (
             id: number,
