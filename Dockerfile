@@ -8,9 +8,6 @@
 #       https://registry-1.docker.io/v2/library/debian/manifests/trixie-slim | grep -i docker-content-digest
 FROM docker.io/library/debian:trixie-slim@sha256:cedb1ef40439206b673ee8b33a46a03a0c9fa90bf3732f54704f99cb061d2c5a
 
-ENV NVM_DIR=/root/.nvm
-ENV NVM_VERSION=v0.39.1
-
 ENV RUSTUP_HOME=/opt/rustup
 ENV CARGO_HOME=/opt/cargo
 
@@ -37,27 +34,51 @@ RUN { \
 
 WORKDIR /app
 
-# Install Node.js (NVM_VERSION pins the bootstrap; .node-version pins the toolchain)
-COPY .node-version ./
-RUN curl --fail -sSf https://raw.githubusercontent.com/creationix/nvm/${NVM_VERSION}/install.sh | bash && \
-    . "${NVM_DIR}/nvm.sh" && \
-    nvm install "$(cat .node-version | xargs)" && \
-    nvm use "v$(cat .node-version | xargs)" && \
-    nvm alias default "v$(cat .node-version | xargs)" && \
-    ln -s "/root/.nvm/versions/node/v$(cat .node-version | xargs)" /root/.nvm/versions/node/default
-ENV PATH="/root/.nvm/versions/node/default/bin/:${PATH}"
+# Automatic platform ARG (populated by BuildKit per --platform); consumed by
+# every arch-specific download below.
+ARG TARGETARCH
 
-# Install Rust (rustc/cargo pinned via rust-toolchain.toml; the wrapper script
-# only bootstraps the pinned toolchain so it isn't itself reproducibility-critical)
+# Install Node.js (version pinned by .node-version; tarball pinned by sha256 per
+# arch). Refresh:
+#   curl -s https://nodejs.org/dist/v$(cat .node-version)/SHASUMS256.txt | grep -E 'linux-(x64|arm64)\.tar\.xz'
+ENV PATH=/opt/node/bin:${PATH}
+COPY .node-version ./
+RUN NODE_VERSION="$(cat .node-version | xargs)" && \
+    case "${TARGETARCH:-$(uname -m)}" in \
+        amd64|x86_64) NODE_ARCH=x64; NODE_SHA256=f52ec50e959d72d5c680d9731420b2661cd2a8070e94c7369b6ddfcd8b7278be ;; \
+        arm64|aarch64) NODE_ARCH=arm64; NODE_SHA256=5a5b1dc4906e891a655d2f0689db664879724f2d9e63309486fd588172a052bc ;; \
+        *) echo "Unsupported arch for node: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac && \
+    curl --fail -L "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" -o /tmp/node.tar.xz && \
+    echo "${NODE_SHA256}  /tmp/node.tar.xz" | sha256sum -c - && \
+    mkdir -p /opt/node && \
+    tar -xJf /tmp/node.tar.xz --strip-components=1 -C /opt/node && \
+    rm /tmp/node.tar.xz
+
+# Install Rust (rustup-init pinned by version + sha256 per arch; rustc/cargo plus
+# the components/target are pinned via rust-toolchain.toml and installed eagerly
+# below so they land in this layer). Refresh:
+#   curl -s https://static.rust-lang.org/rustup/release-stable.toml          # RUSTUP_VERSION
+#   curl -s https://static.rust-lang.org/rustup/archive/<ver>/<triple>/rustup-init.sha256
 ENV PATH=/opt/cargo/bin:${PATH}
+ENV RUSTUP_VERSION=1.29.0
 COPY rust-toolchain.toml ./
-RUN curl --fail https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
+RUN case "${TARGETARCH:-$(uname -m)}" in \
+        amd64|x86_64) RUSTUP_TRIPLE=x86_64-unknown-linux-gnu; RUSTUP_SHA256=4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10 ;; \
+        arm64|aarch64) RUSTUP_TRIPLE=aarch64-unknown-linux-gnu; RUSTUP_SHA256=9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792 ;; \
+        *) echo "Unsupported arch for rustup: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac && \
+    curl --fail -L "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${RUSTUP_TRIPLE}/rustup-init" -o /tmp/rustup-init && \
+    echo "${RUSTUP_SHA256}  /tmp/rustup-init" | sha256sum -c - && \
+    chmod +x /tmp/rustup-init && \
+    /tmp/rustup-init -y --no-modify-path --default-toolchain none && \
+    rm /tmp/rustup-init && \
+    rustc --version
 
 # Install ic-wasm (binary release pinned by sha256 for each supported arch). Refresh:
 #   curl -sL https://github.com/dfinity/ic-wasm/releases/download/$(cat .ic-wasm-version | xargs)/sha256.sum
 ENV PATH=/opt/ic-wasm:${PATH}
 COPY .ic-wasm-version ./
-ARG TARGETARCH
 RUN mkdir -p /opt/ic-wasm && \
     ARCH="${TARGETARCH:-$(uname -m)}" && \
     case "${ARCH}" in \
@@ -73,11 +94,24 @@ RUN mkdir -p /opt/ic-wasm && \
     chmod +x /opt/ic-wasm/ic-wasm && \
     rm /tmp/ic-wasm.tar.xz
 
-# Install dfx (dfx version pinned via dfx.json)
+# Install dfx (version pinned via dfx.json; release tarball pinned by sha256 per
+# arch). Refresh:
+#   curl -sL https://github.com/dfinity/sdk/releases/download/<ver>/dfx-<ver>-<triple>.tar.gz.sha256
 ENV HOME=/root
-COPY dfx.json ./
-RUN DFXVM_INIT_YES=1 DFX_VERSION=$(cat dfx.json | jq -r .dfx) sh -c "$(curl -fsSL https://internetcomputer.org/install.sh)"
 ENV PATH=${HOME}/.local/share/dfx/bin:${PATH}
+COPY dfx.json ./
+RUN DFX_VERSION="$(jq -r .dfx dfx.json)" && \
+    case "${TARGETARCH:-$(uname -m)}" in \
+        amd64|x86_64) DFX_TRIPLE=x86_64-linux; DFX_SHA256=218dad11e0519e11c7a310b5c7cb1eadff109bb5db1ea3432f08c870432a80fc ;; \
+        arm64|aarch64) DFX_TRIPLE=aarch64-linux; DFX_SHA256=46e21e0e41a0e3d321f9f125851650205e0e38e4cf8ca98eeaea258074dafa89 ;; \
+        *) echo "Unsupported arch for dfx: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac && \
+    curl --fail -L "https://github.com/dfinity/sdk/releases/download/${DFX_VERSION}/dfx-${DFX_VERSION}-${DFX_TRIPLE}.tar.gz" -o /tmp/dfx.tar.gz && \
+    echo "${DFX_SHA256}  /tmp/dfx.tar.gz" | sha256sum -c - && \
+    mkdir -p ${HOME}/.local/share/dfx/bin && \
+    tar -xzf /tmp/dfx.tar.gz -C ${HOME}/.local/share/dfx/bin && \
+    chmod +x ${HOME}/.local/share/dfx/bin/dfx && \
+    rm /tmp/dfx.tar.gz
 
 # Install NPM dependencies (lock file enforces a deterministic tree)
 COPY package.json package-lock.json ./
