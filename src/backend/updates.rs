@@ -100,16 +100,7 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {
-    // One-time: the previous `create_user_index` scanned only hot posts, which
-    // left the cursor stuck at the newest id and the index missing every cold
-    // (archived) post. Reset both so the index is rebuilt from scratch.
-    // TODO: remove after the next upgrade.
-    mutate(|state| {
-        state.post_index.clear();
-        state.post_index_last_scanned = None;
-    });
-}
+fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {}
