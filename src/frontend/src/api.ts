@@ -18,16 +18,14 @@ import {
 } from "@dfinity/ledger-icrc";
 import { Value } from "@dfinity/ledger-icrc/dist/candid/icrc_ledger";
 import { Icrc1Canister, PostId } from "./types";
+import {
+    CanisterSettingsIDL,
+    emptyCanisterSettings,
+    MANAGEMENT_CANISTER_ID,
+} from "./ic_management";
 
 export type Backend = {
-    query: <T>(
-        methodName: string,
-        arg0?: unknown,
-        arg1?: unknown,
-        arg2?: unknown,
-        arg3?: unknown,
-        arg4?: unknown,
-    ) => Promise<T | null>;
+    query: <T>(methodName: string, ...args: unknown[]) => Promise<T | null>;
 
     query_raw: (
         canisterId: string,
@@ -42,18 +40,7 @@ export type Backend = {
         effectiveCanisterId?: Principal,
     ) => Promise<ArrayBuffer | null>;
 
-    call: <T>(
-        methodName: string,
-        arg0?: unknown,
-        arg1?: unknown,
-        arg2?: unknown,
-        arg3?: unknown,
-        arg4?: unknown,
-        arg5?: unknown,
-        arg6?: unknown,
-        arg7?: unknown,
-        arg8?: unknown,
-    ) => Promise<T | null>;
+    call: <T>(methodName: string, ...args: unknown[]) => Promise<T | null>;
 
     set_emergency_release: (blob: Uint8Array) => Promise<JsonValue | null>;
 
@@ -105,7 +92,7 @@ export type Backend = {
         account: string,
         e8s: number,
         memo?: number,
-    ) => Promise<JsonValue>;
+    ) => Promise<JsonValue | null>;
 
     icrc_transfer: (
         token: Principal,
@@ -173,17 +160,9 @@ export const ApiGenerator = (
 
     const query = async <T>(
         methodName: string,
-        arg0?: unknown,
-        arg1?: unknown,
-        arg2?: unknown,
-        arg3?: unknown,
-        arg4?: unknown,
+        ...args: unknown[]
     ): Promise<T | null> => {
-        let effParams = getEffParams([arg0, arg1, arg2, arg3, arg4]);
-        const arg = new TextEncoder().encode(JSON.stringify(effParams))
-            .buffer as ArrayBuffer;
-
-        const response = await query_raw(undefined, methodName, arg);
+        const response = await query_raw(undefined, methodName, jsonArg(args));
         if (!response) {
             return null;
         }
@@ -257,37 +236,35 @@ export const ApiGenerator = (
 
     const call = async <T>(
         methodName: string,
-        arg0?: unknown,
-        arg1?: unknown,
-        arg2?: unknown,
-        arg3?: unknown,
-        arg4?: unknown,
-        arg5?: unknown,
-        arg6?: unknown,
-        arg7?: unknown,
-        arg8?: unknown,
+        ...args: unknown[]
     ): Promise<T | null> => {
-        const effParams = getEffParams([
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-            arg5,
-            arg6,
-            arg7,
-            arg8,
-        ]);
         const responseBytes = await call_raw(
             undefined,
             methodName,
-            new TextEncoder().encode(JSON.stringify(effParams))
-                .buffer as ArrayBuffer,
+            jsonArg(args),
         );
         if (!responseBytes || !responseBytes.byteLength) {
             return null;
         }
         return JSON.parse(Buffer.from(responseBytes).toString("utf8"));
+    };
+
+    const callCandid = async <T>(
+        methodName: string,
+        argTypes: any[],
+        argVals: any[],
+        retTypes: any[],
+        canisterId: Principal = defaultPrincipal,
+    ): Promise<T | null> => {
+        const response = await call_raw(
+            canisterId,
+            methodName,
+            IDL.encode(argTypes, argVals),
+        );
+        if (!response) {
+            return null;
+        }
+        return IDL.decode(retTypes, response)[0] as T;
     };
 
     return {
@@ -296,60 +273,39 @@ export const ApiGenerator = (
         call_raw,
         call,
 
-        set_emergency_release: async (
-            blob: Uint8Array,
-        ): Promise<JsonValue | null> => {
-            const arg = IDL.encode([IDL.Vec(IDL.Nat8)], [blob]);
-            const response = await call_raw(
-                undefined,
+        set_emergency_release: (blob: Uint8Array) =>
+            callCandid<JsonValue>(
                 "set_emergency_release",
-                arg,
-            );
-            if (!response) {
-                return null;
-            }
-            return IDL.decode([], response)[0];
-        },
+                [IDL.Vec(IDL.Nat8)],
+                [blob],
+                [],
+            ),
 
-        unlink_cold_wallet: async (): Promise<JsonValue | null> => {
-            const arg = IDL.encode([], []);
-            let response = await call_raw(undefined, "unlink_cold_wallet", arg);
-            if (!response) {
-                return null;
-            }
-            return IDL.decode(
+        unlink_cold_wallet: () =>
+            callCandid<JsonValue>(
+                "unlink_cold_wallet",
+                [],
+                [],
                 [IDL.Variant({ Ok: IDL.Null, Err: IDL.Text })],
-                response,
-            )[0];
-        },
+            ),
 
-        propose_release: async (
-            postId: PostId,
-            commit: string,
-            blob: Uint8Array,
-        ): Promise<JsonValue | null> => {
-            const arg = IDL.encode(
+        propose_release: (postId: PostId, commit: string, blob: Uint8Array) =>
+            callCandid<JsonValue>(
+                "propose_release",
                 [IDL.Nat64, IDL.Text, IDL.Vec(IDL.Nat8)],
                 [postId, commit, blob],
-            );
-            const response = await call_raw(undefined, "propose_release", arg);
-            if (!response) {
-                return null;
-            }
-            return IDL.decode(
                 [IDL.Variant({ Ok: IDL.Nat32, Err: IDL.Text })],
-                response,
-            )[0];
-        },
+            ),
 
-        add_post: async (
+        add_post: (
             text: string,
             refs: [string, number, number][],
             parent: number[],
             realm: string[],
             extension: Uint8Array[],
-        ): Promise<JsonValue | null> => {
-            const arg = IDL.encode(
+        ) =>
+            callCandid<JsonValue>(
+                "add_post",
                 [
                     IDL.Text,
                     IDL.Vec(IDL.Tuple(IDL.Text, IDL.Nat64, IDL.Nat64)),
@@ -358,16 +314,8 @@ export const ApiGenerator = (
                     IDL.Opt(IDL.Vec(IDL.Nat8)),
                 ],
                 [text, refs, parent, realm, extension],
-            );
-            const response = await call_raw(undefined, "add_post", arg);
-            if (!response) {
-                return null;
-            }
-            return IDL.decode(
                 [IDL.Variant({ Ok: IDL.Nat64, Err: IDL.Text })],
-                response,
-            )[0];
-        },
+            ),
         bucket_write: async (
             bucket: Principal,
             blob: Uint8Array,
@@ -407,24 +355,9 @@ export const ApiGenerator = (
                 ...existing.filter((p) => p.toText() !== added.toText()),
                 added,
             ];
-            const CanisterSettings = IDL.Record({
-                controllers: IDL.Opt(IDL.Vec(IDL.Principal)),
-                compute_allocation: IDL.Opt(IDL.Nat),
-                memory_allocation: IDL.Opt(IDL.Nat),
-                freezing_threshold: IDL.Opt(IDL.Nat),
-                reserved_cycles_limit: IDL.Opt(IDL.Nat),
-                log_visibility: IDL.Opt(
-                    IDL.Variant({
-                        controllers: IDL.Null,
-                        public: IDL.Null,
-                    }),
-                ),
-                wasm_memory_limit: IDL.Opt(IDL.Nat),
-                wasm_memory_threshold: IDL.Opt(IDL.Nat),
-            });
             const UpdateSettingsArgs = IDL.Record({
                 canister_id: IDL.Principal,
-                settings: CanisterSettings,
+                settings: CanisterSettingsIDL,
                 sender_canister_version: IDL.Opt(IDL.Nat64),
             });
             const mgmtArg = IDL.encode(
@@ -433,21 +366,15 @@ export const ApiGenerator = (
                     {
                         canister_id: bucket,
                         settings: {
+                            ...emptyCanisterSettings,
                             controllers: [controllers],
-                            compute_allocation: [],
-                            memory_allocation: [],
-                            freezing_threshold: [],
-                            reserved_cycles_limit: [],
-                            log_visibility: [],
-                            wasm_memory_limit: [],
-                            wasm_memory_threshold: [],
                         },
                         sender_canister_version: [],
                     },
                 ],
             );
             const mgmtResult = await call_raw(
-                Principal.fromText("aaaaa-aa"),
+                MANAGEMENT_CANISTER_ID,
                 "update_settings",
                 mgmtArg,
                 bucket,
@@ -485,7 +412,7 @@ export const ApiGenerator = (
                 [{ canister_id: bucket }],
             );
             const statusBuf = await call_raw(
-                Principal.fromText("aaaaa-aa"),
+                MANAGEMENT_CANISTER_ID,
                 "canister_status",
                 statusArg,
                 bucket,
@@ -509,14 +436,15 @@ export const ApiGenerator = (
                 );
             }
         },
-        edit_post: async (
+        edit_post: (
             id: number,
             text: string,
             refs: [string, number, number][],
             patch: string,
             realm: string[],
-        ): Promise<JsonValue | null> => {
-            const arg = IDL.encode(
+        ) =>
+            callCandid<JsonValue>(
+                "edit_post",
                 [
                     IDL.Nat64,
                     IDL.Text,
@@ -525,16 +453,8 @@ export const ApiGenerator = (
                     IDL.Opt(IDL.Text),
                 ],
                 [id, text, refs, patch, realm],
-            );
-            const response = await call_raw(undefined, "edit_post", arg);
-            if (!response) {
-                return null;
-            }
-            return IDL.decode(
                 [IDL.Variant({ Ok: IDL.Null, Err: IDL.Text })],
-                response,
-            )[0];
-        },
+            ),
 
         icp_account_balance: async (address: string): Promise<BigInt> => {
             const arg = IDL.encode(
@@ -581,8 +501,9 @@ export const ApiGenerator = (
             }
         },
 
-        icp_transfer: async (account: string, e8s: number, memo = 0) => {
-            const arg = IDL.encode(
+        icp_transfer: (account: string, e8s: number, memo = 0) =>
+            callCandid<JsonValue>(
+                "transfer",
                 [
                     IDL.Record({
                         to: IDL.Vec(IDL.Nat8),
@@ -599,16 +520,9 @@ export const ApiGenerator = (
                         memo,
                     },
                 ],
-            );
-            const response = await call_raw(ICP_LEDGER_ID, "transfer", arg);
-            if (!response) {
-                return null;
-            }
-            return IDL.decode(
                 [IDL.Variant({ Ok: IDL.Nat64, Err: IDL.Unknown })],
-                response,
-            )[0] as any;
-        },
+                ICP_LEDGER_ID,
+            ),
 
         account_balance: async (
             token: Principal,
@@ -644,6 +558,10 @@ export const ApiGenerator = (
         },
     };
 };
+
+const jsonArg = (args: unknown[]): ArrayBuffer =>
+    new TextEncoder().encode(JSON.stringify(getEffParams(args)))
+        .buffer as ArrayBuffer;
 
 const getEffParams = <T>(args: T[]): T | T[] | null => {
     const values = args.filter((val) => typeof val != "undefined");

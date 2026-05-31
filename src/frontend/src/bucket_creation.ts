@@ -7,9 +7,13 @@ import { Principal } from "@dfinity/principal";
 import { IDL } from "@dfinity/candid";
 import { AccountIdentifier, SubAccount } from "@dfinity/ledger-icp";
 import { CANISTER_ID } from "./env";
+import {
+    CanisterSettingsIDL,
+    emptyCanisterSettings,
+    MANAGEMENT_CANISTER_ID,
+} from "./ic_management";
 
 const CMC_PRINCIPAL = Principal.fromText("rkp4c-7iaaa-aaaaa-aaaca-cai");
-const MANAGEMENT_PRINCIPAL = Principal.fromText("aaaaa-aa");
 const MEMO_CREATE_CANISTER = 0x41455243; // "CREA"
 // Stored on user settings (server-side) so the flow survives across browsers —
 // the user has paid real ICP by step 1 and we must be able to resume from any
@@ -57,29 +61,6 @@ const clearState = async () => {
     if (!(STATE_KEY in settings)) return;
     delete settings[STATE_KEY];
     await persistSettings(settings);
-};
-
-const CanisterSettingsIDL = IDL.Record({
-    controllers: IDL.Opt(IDL.Vec(IDL.Principal)),
-    compute_allocation: IDL.Opt(IDL.Nat),
-    memory_allocation: IDL.Opt(IDL.Nat),
-    freezing_threshold: IDL.Opt(IDL.Nat),
-    reserved_cycles_limit: IDL.Opt(IDL.Nat),
-    log_visibility: IDL.Opt(
-        IDL.Variant({ controllers: IDL.Null, public: IDL.Null }),
-    ),
-    wasm_memory_limit: IDL.Opt(IDL.Nat),
-    wasm_memory_threshold: IDL.Opt(IDL.Nat),
-});
-
-const emptyCanisterSettings = {
-    compute_allocation: [],
-    memory_allocation: [],
-    freezing_threshold: [],
-    reserved_cycles_limit: [],
-    log_visibility: [],
-    wasm_memory_limit: [],
-    wasm_memory_threshold: [],
 };
 
 const decodeReply = <T>(
@@ -242,7 +223,7 @@ export const createBucket = async (
             ],
         );
         await window.api.call_raw(
-            MANAGEMENT_PRINCIPAL,
+            MANAGEMENT_CANISTER_ID,
             "install_code",
             arg,
             canisterId,
