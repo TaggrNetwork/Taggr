@@ -9,7 +9,7 @@ The most important key points of $name are:
 -   $name combines features of forums and blogs.
 -   $name is tokenized and is owned and governed by its token holders.
 -   $name is completely ad-free and generates revenue.
--   $name uses its revenue to reward content producers, token holders (pro-rata) and to cover storage and compute costs.
+-   $name uses its revenue to reward content producers, token holders (pro-rata) and to cover compute costs.
 
 ### The Economic Model
 
@@ -172,8 +172,8 @@ Currently vesting tokens: `$vesting_tokens_of_x`.
 ## Autonomy
 
 $name is designed for full autonomy.
-For example, it autonomously creates new storage canisters when space runs out in existing ones.
-$name tops up its canisters using ICP from the Treasury.
+For example, it autonomously manages its compute canisters and tops them up using ICP from the Treasury.
+User media is stored in personal storage canisters: each user creates, owns, controls and pays for their own canister, and $name holds no controller rights over it.
 The [dashboard](/#/dashboard) provides the full information on system status and past events.
 
 ## The $name Network Neuron
