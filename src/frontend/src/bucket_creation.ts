@@ -79,6 +79,9 @@ export const createBucket = async (
     userPrincipal: Principal,
     amountE8s: number,
     onStage: (s: Stage) => void = () => {},
+    // Called when CMC refunds the payment (the saved attempt is unrecoverable).
+    // Return true to restart with a fresh transfer, false to abort.
+    onRefund: () => Promise<boolean> | boolean = () => false,
 ): Promise<Principal> => {
     let saved = loadState();
 
@@ -172,6 +175,20 @@ export const createBucket = async (
             "notify_create_canister",
         );
         if ("Err" in decoded) {
+            // Refunded means CMC returned the ICP to the user, so the saved
+            // block_index is spent — reusing it just re-refunds forever. Clear
+            // the dead state, then offer to restart with a fresh transfer.
+            if ("Refunded" in decoded.Err) {
+                await clearState();
+                if (await onRefund()) {
+                    return createBucket(
+                        userPrincipal,
+                        amountE8s,
+                        onStage,
+                        onRefund,
+                    );
+                }
+            }
             throw new Error(`CMC reported ${JSON.stringify(decoded.Err)}`);
         }
         canisterId = decoded.Ok as Principal;

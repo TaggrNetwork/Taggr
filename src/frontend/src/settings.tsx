@@ -254,6 +254,15 @@ const StorageSection = ({ user }: { user: User }) => {
                 Principal.fromText(window.principalId),
                 DEFAULT_BUCKET_E8S,
                 setStage,
+                () =>
+                    confirm(
+                        "A previous storage-creation payment was refunded to " +
+                            "your wallet because the attempt couldn't be " +
+                            `completed. Start over with a fresh ${shortenTokensAmount(
+                                DEFAULT_BUCKET_E8S,
+                                8,
+                            )} ICP transfer?`,
+                    ),
             );
             showPopUp("info", `Bucket created: ${bucketId}`, 5);
             await window.reloadUser();
