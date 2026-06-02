@@ -5,6 +5,13 @@ import { Principal } from "@dfinity/principal";
 
 export const MANAGEMENT_CANISTER_ID = Principal.fromText("aaaaa-aa");
 
+// Blackhole exposes canister_status publicly, so making it a controller of a
+// canister lets cycles top-up services (and our UI) read that canister's cycle
+// balance without taggr needing to be a controller.
+export const BLACKHOLE_PRINCIPAL = Principal.fromText(
+    "e3mmv-5qaaa-aaaah-aadma-cai",
+);
+
 export const CanisterSettingsIDL = IDL.Record({
     controllers: IDL.Opt(IDL.Vec(IDL.Principal)),
     compute_allocation: IDL.Opt(IDL.Nat),

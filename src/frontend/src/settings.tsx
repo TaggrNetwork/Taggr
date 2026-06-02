@@ -21,6 +21,7 @@ import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
 import { UserLinks, linksError } from "./profile";
 import { createBucket, Stage } from "./bucket_creation";
+import { BLACKHOLE_PRINCIPAL } from "./ic_management";
 import { loadPendingPostIds, runMigration } from "./migration";
 import { Box, Credits, Fire, StorageCanister, HourGlass } from "./icons";
 
@@ -36,6 +37,7 @@ type CanisterStatus = {
     memory_size: bigint;
     idle_cycles_burned_per_day: bigint;
     module_hash: number[] | null;
+    controllers: Principal[];
 };
 
 const fetchCanisterStatus = async (
@@ -102,7 +104,39 @@ const fetchCanisterStatus = async (
             moduleHashOpt.length > 0
                 ? Array.from(moduleHashOpt[0] as ArrayLike<number>)
                 : null,
+        controllers: decoded.settings.controllers as Principal[],
     };
+};
+
+// One-time offer (after migration completes) to add the blackhole canister as a
+// controller of the user's storage canister, so cycles top-up services can read
+// its cycle balance. No-op if blackhole is already a controller.
+const offerBlackholeController = async (bucket: string) => {
+    const bucketP = Principal.fromText(bucket);
+    let controllers: Principal[];
+    try {
+        ({ controllers } = await fetchCanisterStatus(bucketP));
+    } catch {
+        return; // can't read controllers — skip the offer silently
+    }
+    if (controllers.some((p) => p.toText() === BLACKHOLE_PRINCIPAL.toText())) {
+        return; // already a controller
+    }
+    const ok = await confirmPopUp(
+        "Migration complete. Add the blackhole canister as a controller of your storage canister? It lets cycles top-up services read your canister's cycle balance. You keep full control.",
+        { confirmLabel: "ADD BLACKHOLE", cancelLabel: "NOT NOW" },
+    );
+    if (!ok) return;
+    try {
+        await window.api.add_bucket_controller(
+            bucketP,
+            controllers,
+            BLACKHOLE_PRINCIPAL,
+        );
+        showPopUp("success", "Blackhole canister added as controller.", 5);
+    } catch (err) {
+        showPopUp("error", err instanceof Error ? err.message : String(err), 7);
+    }
 };
 
 const sizeMb = (size: number | bigint) => (
@@ -187,7 +221,13 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
             );
         } finally {
             setRunning(false);
-            await refresh();
+            const remaining = await loadPendingPostIds();
+            setPending(remaining);
+            // Migration just finished cleanly — offer the blackhole controller
+            // (one-time, only if it isn't a controller yet).
+            if (!stopRef.current && remaining.length === 0) {
+                await offerBlackholeController(bucket);
+            }
         }
     };
 
@@ -956,9 +996,17 @@ export const Settings = ({
                                     return;
                                 }
                                 try {
+                                    // Preserve the canister's current on-chain
+                                    // controllers (e.g. blackhole) instead of
+                                    // resetting to [old, new], which would
+                                    // silently strip them.
+                                    const { controllers } =
+                                        await fetchCanisterStatus(
+                                            Principal.fromText(user.bucket),
+                                        );
                                     await window.api.add_bucket_controller(
                                         Principal.fromText(user.bucket),
-                                        [Principal.fromText(user.principal)],
+                                        controllers,
                                         newPrincipal,
                                     );
                                 } catch (err) {
