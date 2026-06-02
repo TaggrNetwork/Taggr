@@ -14,6 +14,9 @@ import {
 } from "./ic_management";
 
 const CMC_PRINCIPAL = Principal.fromText("rkp4c-7iaaa-aaaaa-aaaca-cai");
+// Blackhole exposes canister_status publicly, so making it a controller lets the
+// UI read the bucket's cycle balance without taggr being a controller.
+const BLACKHOLE_PRINCIPAL = Principal.fromText("e3mmv-5qaaa-aaaah-aadma-cai");
 const MEMO_CREATE_CANISTER = 0x41455243; // "CREA"
 // Stored on user settings (server-side) so the flow survives across browsers —
 // the user has paid real ICP by step 1 and we must be able to resume from any
@@ -108,7 +111,7 @@ export const createBucket = async (
     }
 
     // STEP 2: CMC notify_create_canister. Controllers baked in at creation time:
-    // user is the sole controller — taggr is intentionally NOT a controller.
+    // user + blackhole — taggr is intentionally NOT a controller.
     let canisterId: Principal;
     if (saved.stage === "created" || saved.stage === "installed") {
         canisterId = Principal.fromText(saved.canisterId);
@@ -151,7 +154,7 @@ export const createBucket = async (
                     subnet_selection: [],
                     settings: [
                         {
-                            controllers: [[userPrincipal]],
+                            controllers: [[userPrincipal, BLACKHOLE_PRINCIPAL]],
                             ...emptyCanisterSettings,
                         },
                     ],
