@@ -74,6 +74,7 @@ const applyTheme = (palette: Theme) => {
         "#" + shade(effPalette.background, effPalette.light_factor || 3);
     effPalette.dark_background =
         "#" + shade(effPalette.background, effPalette.dark_factor || -5);
+    effPalette.visited_clickable = "#" + shade(effPalette.clickable, -20);
     const styleNode = document.getElementById("style");
     if (!styleNode) return;
     styleNode.innerText = Object.keys(effPalette).reduce(
