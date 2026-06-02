@@ -347,10 +347,10 @@ test.describe("Regular users flow", () => {
         await page.getByRole("button", { name: "STORAGE" }).click();
         await page.getByRole("button", { name: "CREATE STORAGE" }).click();
         // Wait until the bucket is registered (the pane swaps to the
-        // "YOUR STORAGE CANISTER" dashboard row).
+        // "Your storage canister" dashboard row).
         await pollForCondition(async () => {
             return await page
-                .getByText("YOUR STORAGE CANISTER", { exact: true })
+                .getByText("Your storage canister", { exact: true })
                 .isVisible()
                 .catch(() => false);
         });
