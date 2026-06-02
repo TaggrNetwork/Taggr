@@ -20,7 +20,7 @@ import { IDL } from "@dfinity/candid";
 import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
 import { UserLinks, linksError } from "./profile";
-import { createBucket, Stage } from "./bucket_creation";
+import { createBucket, topUpCanister, Stage } from "./bucket_creation";
 import { BLACKHOLE_PRINCIPAL } from "./ic_management";
 import { loadPendingPostIds, runMigration } from "./migration";
 import { Box, Credits, Fire, StorageCanister, HourGlass } from "./icons";
@@ -108,37 +108,6 @@ const fetchCanisterStatus = async (
     };
 };
 
-// One-time offer (after migration completes) to add the blackhole canister as a
-// controller of the user's storage canister, so cycles top-up services can read
-// its cycle balance. No-op if blackhole is already a controller.
-const offerBlackholeController = async (bucket: string) => {
-    const bucketP = Principal.fromText(bucket);
-    let controllers: Principal[];
-    try {
-        ({ controllers } = await fetchCanisterStatus(bucketP));
-    } catch {
-        return; // can't read controllers — skip the offer silently
-    }
-    if (controllers.some((p) => p.toText() === BLACKHOLE_PRINCIPAL.toText())) {
-        return; // already a controller
-    }
-    const ok = await confirmPopUp(
-        "Migration complete. Add the blackhole canister as a controller of your storage canister? It lets cycles top-up services read your canister's cycle balance. You keep full control.",
-        { confirmLabel: "ADD BLACKHOLE", cancelLabel: "NOT NOW" },
-    );
-    if (!ok) return;
-    try {
-        await window.api.add_bucket_controller(
-            bucketP,
-            controllers,
-            BLACKHOLE_PRINCIPAL,
-        );
-        showPopUp("success", "Blackhole canister added as controller.", 5);
-    } catch (err) {
-        showPopUp("error", err instanceof Error ? err.message : String(err), 7);
-    }
-};
-
 const sizeMb = (size: number | bigint) => (
     <code className="xx_large_text">
         {Math.ceil(Number(size) / 1024 / 1024).toLocaleString()} MB
@@ -221,13 +190,7 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
             );
         } finally {
             setRunning(false);
-            const remaining = await loadPendingPostIds();
-            setPending(remaining);
-            // Migration just finished cleanly — offer the blackhole controller
-            // (one-time, only if it isn't a controller yet).
-            if (!stopRef.current && remaining.length === 0) {
-                await offerBlackholeController(bucket);
-            }
+            setPending(await loadPendingPostIds());
         }
     };
 
@@ -274,8 +237,9 @@ const StorageSection = ({ user }: { user: User }) => {
     const [bucket, setBucket] = React.useState<typeof user.bucket>(user.bucket);
     const [status, setStatus] = React.useState<CanisterStatus | null>(null);
     const [statusError, setStatusError] = React.useState<string | null>(null);
+    const [topUp, setTopUp] = React.useState("");
 
-    React.useEffect(() => {
+    const loadStatus = React.useCallback(() => {
         if (!bucket) return;
         setStatus(null);
         setStatusError(null);
@@ -287,6 +251,10 @@ const StorageSection = ({ user }: { user: User }) => {
                 ),
             );
     }, [bucket]);
+
+    React.useEffect(() => {
+        loadStatus();
+    }, [loadStatus]);
 
     const onCreate = async () => {
         try {
@@ -318,15 +286,71 @@ const StorageSection = ({ user }: { user: User }) => {
         }
     };
 
+    const addBlackhole = async () => {
+        if (!bucket || !status) return;
+        try {
+            await window.api.add_bucket_controller(
+                Principal.fromText(bucket),
+                status.controllers,
+                BLACKHOLE_PRINCIPAL,
+            );
+            showPopUp("success", "Blackhole canister added as controller.", 5);
+            loadStatus();
+        } catch (err) {
+            showPopUp(
+                "error",
+                err instanceof Error ? err.message : String(err),
+                7,
+            );
+        }
+    };
+
+    const onTopUp = async () => {
+        if (!bucket) return;
+        const icp = parseFloat(topUp);
+        if (!isFinite(icp) || icp <= 0) {
+            showPopUp("error", "Enter a valid ICP amount.", 5);
+            return;
+        }
+        const ok = await confirmPopUp(
+            `Transfer ${icp} ICP from your wallet to top up your storage canister with cycles?`,
+            { confirmLabel: "TOP UP", cancelLabel: "CANCEL" },
+        );
+        if (!ok) return;
+        try {
+            const cycles = await topUpCanister(
+                Principal.fromText(bucket),
+                Math.round(icp * 1e8),
+            );
+            showPopUp(
+                "success",
+                `Canister topped up with ${(
+                    Number(cycles) / 1e12
+                ).toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                })}T cycles.`,
+                5,
+            );
+            setTopUp("");
+            loadStatus();
+        } catch (err) {
+            showPopUp(
+                "error",
+                err instanceof Error ? err.message : String(err),
+                7,
+            );
+        }
+    };
+
     const dashboard = bucket && (
-        <div className="text_centered vertically_spaced">
+        <div className="vertically_spaced">
             <h2>
                 <StorageCanister classNameArg="right_half_spaced" />
                 <a
                     target="_blank"
                     href={`https://dashboard.internetcomputer.org/canister/${bucket}`}
                 >
-                    YOUR STORAGE CANISTER
+                    Your storage canister
                 </a>
             </h2>
             <div className="dynamic_table">
@@ -366,6 +390,48 @@ const StorageSection = ({ user }: { user: User }) => {
                     )}
                 </div>
             </div>
+            {status && (
+                <div className="top_spaced column_container">
+                    <div className="bottom_half_spaced">Controllers</div>
+                    {status.controllers.map((p) => (
+                        <code
+                            key={p.toText()}
+                            className="selectable top_half_spaced"
+                            style={{ wordBreak: "break-all" }}
+                        >
+                            {p.toText()}
+                        </code>
+                    ))}
+                    {!status.controllers.some(
+                        (p) => p.toText() === BLACKHOLE_PRINCIPAL.toText(),
+                    ) && (
+                        <ButtonWithLoading
+                            classNameArg="active top_spaced"
+                            onClick={addBlackhole}
+                            label="ADD BLACKHOLE CONTROLLER"
+                        />
+                    )}
+                </div>
+            )}
+            <div className="top_spaced column_container">
+                <div className="bottom_half_spaced">Top up with cycles</div>
+                <div className="row_container">
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.0001"
+                        placeholder="ICP amount"
+                        value={topUp}
+                        className="max_width_col right_half_spaced"
+                        onChange={(e) => setTopUp(e.target.value)}
+                    />
+                    <ButtonWithLoading
+                        classNameArg="active"
+                        onClick={onTopUp}
+                        label="TOP UP"
+                    />
+                </div>
+            </div>
             {statusError && (
                 <p className="small_text top_spaced banner">
                     Failed to fetch canister status: {statusError}
@@ -377,35 +443,6 @@ const StorageSection = ({ user }: { user: User }) => {
     return (
         <>
             {dashboard}
-            <p>
-                Images attached to your posts are hosted in your personal
-                storage canister that you own and pay for.
-            </p>
-            <p>
-                You can use ICP to top up this canister via the{" "}
-                <a
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    href="https://nns.ic0.app"
-                >
-                    NNS frontend dapp
-                </a>
-                , follow these steps:
-                <ul>
-                    <li>Click on the profile icon in the top right corner.</li>
-                    <li>Click on "Canisters".</li>
-                    <li>
-                        Add the canister to your list of canisters using the
-                        "Link canister" button
-                    </li>
-                    <li>Click on the newly linked canister</li>
-                    <li>
-                        Use the "Add cycles" button. This will work even when an
-                        error like "there was an error loading the details of
-                        the canister" shows up.
-                    </li>
-                </ul>
-            </p>
             {bucket ? (
                 <MigrationPanel bucket={bucket} />
             ) : (

@@ -16,6 +16,22 @@ import {
 
 const CMC_PRINCIPAL = Principal.fromText("rkp4c-7iaaa-aaaaa-aaaca-cai");
 const MEMO_CREATE_CANISTER = 0x41455243; // "CREA"
+const MEMO_TOP_UP_CANISTER = 0x50555054; // "TPUP"
+
+// Shared CMC error variant returned by notify_create_canister & notify_top_up.
+const NotifyError = IDL.Variant({
+    Refunded: IDL.Record({
+        reason: IDL.Text,
+        block_index: IDL.Opt(IDL.Nat64),
+    }),
+    InvalidTransaction: IDL.Text,
+    TransactionTooOld: IDL.Nat64,
+    Processing: IDL.Null,
+    Other: IDL.Record({
+        error_code: IDL.Nat64,
+        error_message: IDL.Text,
+    }),
+});
 // Stored on user settings (server-side) so the flow survives across browsers —
 // the user has paid real ICP by step 1 and we must be able to resume from any
 // device.
@@ -128,19 +144,6 @@ export const createBucket = async (
                 }),
             ),
             settings: IDL.Opt(CanisterSettingsIDL),
-        });
-        const NotifyError = IDL.Variant({
-            Refunded: IDL.Record({
-                reason: IDL.Text,
-                block_index: IDL.Opt(IDL.Nat64),
-            }),
-            InvalidTransaction: IDL.Text,
-            TransactionTooOld: IDL.Nat64,
-            Processing: IDL.Null,
-            Other: IDL.Record({
-                error_code: IDL.Nat64,
-                error_message: IDL.Text,
-            }),
         });
         const NotifyResult = IDL.Variant({
             Ok: IDL.Principal,
@@ -262,4 +265,47 @@ export const createBucket = async (
 
     await clearState();
     return canisterId;
+};
+
+// Top up a canister with cycles: ICP → CMC (memo TPUP, subaccount derived from
+// the target canister) → notify_top_up mints cycles into the canister. Returns
+// the number of cycles minted. No resumable state — a single, self-contained op.
+export const topUpCanister = async (
+    canisterId: Principal,
+    amountE8s: number,
+): Promise<bigint> => {
+    const accountId = AccountIdentifier.fromPrincipal({
+        principal: CMC_PRINCIPAL,
+        subAccount: SubAccount.fromPrincipal(canisterId),
+    }).toHex();
+    const transferResult: any = await window.api.icp_transfer(
+        accountId,
+        amountE8s,
+        MEMO_TOP_UP_CANISTER,
+    );
+    if (!transferResult || "Err" in transferResult) {
+        throw new Error(
+            `ICP transfer to CMC failed: ${JSON.stringify(
+                transferResult,
+                (_, v) => (typeof v === "bigint" ? v.toString() : v),
+            )}`,
+        );
+    }
+    const blockIndex = BigInt(transferResult.Ok);
+
+    const NotifyTopUpArg = IDL.Record({
+        block_index: IDL.Nat64,
+        canister_id: IDL.Principal,
+    });
+    const NotifyTopUpResult = IDL.Variant({ Ok: IDL.Nat, Err: NotifyError });
+    const arg = IDL.encode(
+        [NotifyTopUpArg],
+        [{ block_index: blockIndex, canister_id: canisterId }],
+    );
+    const buf = await window.api.call_raw(CMC_PRINCIPAL, "notify_top_up", arg);
+    const decoded = decodeReply<any>([NotifyTopUpResult], buf, "notify_top_up");
+    if ("Err" in decoded) {
+        throw new Error(`CMC top-up reported ${JSON.stringify(decoded.Err)}`);
+    }
+    return decoded.Ok as bigint;
 };
