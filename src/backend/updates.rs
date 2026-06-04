@@ -21,10 +21,7 @@ use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
 use ic_cdk_management_canister::CanisterId;
 use ic_cdk_timers::{set_timer, set_timer_interval};
 use serde_bytes::ByteBuf;
-use std::{
-    collections::{BTreeMap, HashSet},
-    time::Duration,
-};
+use std::{collections::HashSet, time::Duration};
 
 // Returns the canonical principal (the caller) and checks that it's not anonymous.
 fn canonical_principal() -> Principal {
@@ -217,10 +214,6 @@ fn set_bucket() {
     }));
 }
 
-/// Indexes the next batch of posts by author so the frontend can enumerate a
-/// user's posts during bucket migration. Anyone may call. Returns the highest
-/// `PostId` scanned, or `None` once nothing remains above `last_scanned`. Safe
-/// to re-invoke later as new posts arrive.
 /// Called by the frontend once it has re-written every legacy blob of a post
 /// into the user's personal bucket. Replaces all listed `"<id>@<old_bucket>"`
 /// entries with `"<id>@<user.bucket>"` and the new offset/length. When the
@@ -271,69 +264,6 @@ fn migrate_post_impl(post_id: PostId, entries: Vec<FileRef>) -> Result<(), Strin
         }
         Ok(())
     })
-}
-
-#[export_name = "canister_update create_user_index"]
-fn create_user_index() {
-    // Posts scanned per call. Kept low because cold posts are deserialized
-    // individually from stable memory.
-    const BATCH: usize = 10_000;
-    reply(mutate(|state| {
-        let start = state.post_index_last_scanned.map(|id| id + 1).unwrap_or(0);
-
-        // A post lives either in the hot heap (`state.posts`) or in cold stable
-        // memory (`state.memory.posts`); the two sets are disjoint. Merge the
-        // next batch of ids from both, sorted and capped, advancing the cursor
-        // past gaps left by deleted posts.
-        let mut ids: Vec<PostId> = state
-            .posts
-            .range(start..)
-            .map(|(id, _)| *id)
-            .take(BATCH)
-            .collect();
-        ids.extend(state.memory.posts.keys_from(start, BATCH));
-        ids.sort_unstable();
-        ids.dedup();
-        ids.truncate(BATCH);
-
-        let last_id = *ids.last()?;
-
-        // A post still needs migrating if it holds at least one file that is not
-        // yet on the author's own bucket. Already-migrated posts (all files on
-        // the user's bucket) and file-less posts are skipped. Cold posts are read
-        // directly so we don't populate the heap-side post cache. A user's bucket
-        // is constant across their posts, so the (allocating) lookup is memoized.
-        let mut own_bucket: BTreeMap<UserId, Option<String>> = BTreeMap::new();
-        let pending: Vec<(UserId, PostId)> = ids
-            .into_iter()
-            .filter_map(|id| {
-                let (user_id, files) = match state.posts.get(&id) {
-                    Some(post) => (post.user, post.files.clone()),
-                    None => {
-                        let post = state.memory.posts.get(&id)?;
-                        (post.user, post.files)
-                    }
-                };
-                let own = own_bucket.entry(user_id).or_insert_with(|| {
-                    state
-                        .users
-                        .get(&user_id)
-                        .and_then(|user| user.bucket)
-                        .map(|bucket| bucket.to_string())
-                });
-                let needs_migration = files
-                    .keys()
-                    .any(|key| key.split('@').nth(1) != own.as_deref());
-                needs_migration.then_some((user_id, id))
-            })
-            .collect();
-
-        for (user_id, post_id) in pending {
-            state.post_index.entry(user_id).or_default().push(post_id);
-        }
-        state.post_index_last_scanned = Some(last_id);
-        Some::<PostId>(last_id)
-    }));
 }
 
 #[export_name = "canister_update withdraw_rewards"]

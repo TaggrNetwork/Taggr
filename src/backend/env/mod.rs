@@ -220,14 +220,11 @@ pub struct State {
 
     pub root_posts_index: Vec<PostId>,
 
-    // Per-user list of post ids, backfilled incrementally by `create_user_index`
-    // until `post_index_last_scanned` reaches the highest post id. Used by the
-    // frontend migration loop to enumerate a user's posts without scanning all
-    // posts client-side. Temporary: drop once the shared bucket is retired.
+    // Per-user list of post ids pending migration. Used by the frontend
+    // migration loop to enumerate a user's posts without scanning all posts
+    // client-side. Temporary: drop once the shared bucket is retired.
     #[serde(default)]
     pub post_index: BTreeMap<UserId, Vec<PostId>>,
-    #[serde(default)]
-    pub post_index_last_scanned: Option<PostId>,
 
     e8s_for_one_xdr: u64,
 
