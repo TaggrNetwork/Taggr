@@ -56,6 +56,7 @@ import {
     DELEGATION_PRINCIPAL,
 } from "./delegation";
 import { LoginMasks } from "./authentication";
+import { maybePromptTopUp } from "./user_storage";
 
 const { hash, pathname } = location;
 
@@ -452,6 +453,9 @@ const bootstrap = async () => {
     futures.push(confirmPrincipalChange().then(window.reloadUser));
 
     await Promise.all(futures);
+
+    // Check storage runway once on load and prompt a top-up if it is low.
+    maybePromptTopUp();
 
     updateDoc();
 

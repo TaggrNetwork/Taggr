@@ -1,6 +1,16 @@
 import { Backend } from "./api";
 import { Root } from "react-dom/client";
 import { AuthClient } from "@dfinity/auth-client";
+import { Principal } from "@dfinity/principal";
+
+export type CanisterStatus = {
+    status: "running" | "stopping" | "stopped";
+    cycles: bigint;
+    memory_size: bigint;
+    idle_cycles_burned_per_day: bigint;
+    module_hash: number[] | null;
+    controllers: Principal[];
+};
 
 export type PostId = number;
 export type UserId = number;

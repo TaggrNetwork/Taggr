@@ -34,6 +34,30 @@ export const REPO = "https://github.com/TaggrNetwork/taggr";
 
 export const USD_PER_XDR = 1.37;
 
+export const errorText = (err: unknown): string =>
+    err instanceof Error ? err.message : String(err);
+
+export const show = (
+    val: number | BigInt,
+    unit?: string,
+    unit_position?: string,
+) => (
+    <code>
+        {unit_position == "prefix" && unit}
+        {val?.toLocaleString() ?? "..."}
+        {unit_position != "prefix" && unit}
+    </code>
+);
+
+export const sizeMb = (size: number | BigInt) => (
+    <code className="xx_large_text">
+        {Math.ceil(Number(size) / 1024 / 1024).toLocaleString()} MB
+    </code>
+);
+
+export const showCycles = (cycles: number | bigint) =>
+    show(Number(cycles) / 10 ** 12, "T");
+
 export const MAX_POST_SIZE_BYTES = Math.ceil(1024 * 1024 * 1.9);
 
 export const percentage = (n: number | BigInt, total: number) => {
@@ -878,7 +902,13 @@ export const ReportBanner = ({
     );
 };
 
-export function popUp<T>(content: JSX.Element): null | Promise<T | null> {
+// `opts.closable` gates dismissal (backdrop click + close button). Return false
+// to block closing while an irreversible operation is in flight; the content
+// itself still closes via its injected `parentCallback`.
+export function popUp<T>(
+    content: JSX.Element,
+    opts?: { closable?: () => boolean },
+): null | Promise<T | null> {
     const preview = document.getElementById("preview");
     if (!preview) return null;
     while (preview.hasChildNodes()) {
@@ -898,10 +928,15 @@ export function popUp<T>(content: JSX.Element): null | Promise<T | null> {
             preview.style.display = "none";
             resolve(arg);
         };
+        // User-initiated dismissal (backdrop / X); respects the closable guard.
+        const dismiss = () => {
+            if (opts?.closable && !opts.closable()) return;
+            closePreview(null);
+        };
 
         preview.onclick = (event) => {
             let target: any = event.target;
-            if (target?.id == "preview") closePreview(null);
+            if (target?.id == "preview") dismiss();
         };
 
         createRoot(root).render(
@@ -909,7 +944,7 @@ export function popUp<T>(content: JSX.Element): null | Promise<T | null> {
                 <div
                     data-testid="popup-close-button"
                     className="clickable row_container bottom_spaced"
-                    onClick={() => closePreview(null)}
+                    onClick={dismiss}
                 >
                     <div style={{ marginLeft: "auto" }}>
                         <Close classNameArg="action" size={18} />

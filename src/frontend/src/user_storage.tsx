@@ -1,8 +1,9 @@
-// End-to-end bucket creation flow: ICP → CMC → install → register with taggr.
-// State persists on the user's server-side `settings` map so the flow survives
-// reloads AND cross-browser handoff — by step 1 the user has paid real ICP and
-// must be able to resume from any device.
+// User storage canister ("bucket"): the end-to-end creation/top-up flow plus the
+// shared UI (status fetch, creation modal used by both the post form banner and
+// the settings tab, and the low-runway top-up prompt). Keeping the flow and its
+// UI together avoids duplicating either between `form.tsx` and `settings.tsx`.
 
+import * as React from "react";
 import { Principal } from "@dfinity/principal";
 import { IDL } from "@dfinity/candid";
 import { AccountIdentifier, SubAccount } from "@dfinity/ledger-icp";
@@ -13,6 +14,16 @@ import {
     emptyCanisterSettings,
     MANAGEMENT_CANISTER_ID,
 } from "./ic_management";
+import {
+    ButtonWithLoading,
+    confirmPopUp,
+    errorText,
+    popUp,
+    shortenTokensAmount,
+    showPopUp,
+} from "./common";
+import { CanisterStatus } from "./types";
+import { StorageCanister } from "./icons";
 
 const CMC_PRINCIPAL = Principal.fromText("rkp4c-7iaaa-aaaaa-aaaca-cai");
 const MEMO_CREATE_CANISTER = 0x41455243; // "CREA"
@@ -80,7 +91,7 @@ const clearState = async () => {
     await persistSettings(settings);
 };
 
-const decodeReply = <T>(
+const decodeReply = <T,>(
     idl: any[],
     buf: ArrayBuffer | null,
     label: string,
@@ -308,4 +319,229 @@ export const topUpCanister = async (
         throw new Error(`CMC top-up reported ${JSON.stringify(decoded.Err)}`);
     }
     return decoded.Ok as bigint;
+};
+
+// Blocks dismissal of the creation modal while real ICP is being moved; the
+// flow is server-side resumable, but closing mid-way is confusing.
+let creationInFlight = false;
+
+export const fetchCanisterStatus = async (
+    canisterId: Principal,
+): Promise<CanisterStatus> => {
+    const DefiniteCanisterSettings = IDL.Record({
+        controllers: IDL.Vec(IDL.Principal),
+        compute_allocation: IDL.Nat,
+        memory_allocation: IDL.Nat,
+        freezing_threshold: IDL.Nat,
+        reserved_cycles_limit: IDL.Nat,
+        log_visibility: IDL.Variant({
+            controllers: IDL.Null,
+            public: IDL.Null,
+            allowed_viewers: IDL.Vec(IDL.Principal),
+        }),
+        wasm_memory_limit: IDL.Nat,
+        wasm_memory_threshold: IDL.Nat,
+    });
+    const QueryStats = IDL.Record({
+        num_calls_total: IDL.Nat,
+        num_instructions_total: IDL.Nat,
+        request_payload_bytes_total: IDL.Nat,
+        response_payload_bytes_total: IDL.Nat,
+    });
+    const CanisterStatusResult = IDL.Record({
+        status: IDL.Variant({
+            running: IDL.Null,
+            stopping: IDL.Null,
+            stopped: IDL.Null,
+        }),
+        settings: DefiniteCanisterSettings,
+        module_hash: IDL.Opt(IDL.Vec(IDL.Nat8)),
+        memory_size: IDL.Nat,
+        cycles: IDL.Nat,
+        reserved_cycles: IDL.Nat,
+        idle_cycles_burned_per_day: IDL.Nat,
+        query_stats: QueryStats,
+    });
+    const arg = IDL.encode(
+        [IDL.Record({ canister_id: IDL.Principal })],
+        [{ canister_id: canisterId }],
+    );
+    const reply = await window.api.call_raw(
+        MANAGEMENT_CANISTER_ID,
+        "canister_status",
+        arg,
+        canisterId,
+    );
+    if (!reply) throw new Error("empty reply from canister_status");
+    const decoded: any = IDL.decode([CanisterStatusResult], reply)[0];
+    const statusKey = Object.keys(decoded.status)[0] as
+        | "running"
+        | "stopping"
+        | "stopped";
+    const moduleHashOpt = decoded.module_hash as number[][] | Uint8Array[];
+    return {
+        status: statusKey,
+        cycles: decoded.cycles as bigint,
+        memory_size: decoded.memory_size as bigint,
+        idle_cycles_burned_per_day:
+            decoded.idle_cycles_burned_per_day as bigint,
+        module_hash:
+            moduleHashOpt.length > 0
+                ? Array.from(moduleHashOpt[0] as ArrayLike<number>)
+                : null,
+        controllers: decoded.settings.controllers as Principal[],
+    };
+};
+
+// Days until the canister runs out of cycles at the current idle burn rate.
+// null means an infinite/unknown runway (zero burn).
+export const daysToLiveNum = (
+    cycles: bigint,
+    dailyBurn: bigint,
+): number | null => {
+    const burn = Number(dailyBurn);
+    if (burn <= 0) return null;
+    return Math.floor(Number(cycles) / burn);
+};
+
+export const daysToLive = (cycles: bigint, dailyBurn: bigint) => {
+    const days = daysToLiveNum(cycles, dailyBurn);
+    if (days === null) {
+        return <code className="xx_large_text">∞</code>;
+    }
+    const color = days < 30 ? "#e25555" : days < 90 ? "#e0b020" : "#2ecc71";
+    return (
+        <code className="xx_large_text" style={{ color }}>
+            {days.toLocaleString()}
+        </code>
+    );
+};
+
+export const stageLabel = (s: Stage | "done" | null): string => {
+    switch (s) {
+        case "transferring":
+            return "Transferring ICP to CMC…";
+        case "creating":
+            return "Asking CMC to create canister…";
+        case "installing":
+            return "Installing bucket WASM…";
+        case "registering":
+            return `Registering bucket with ${window.backendCache.config.name}…`;
+        case "done":
+            return "Done";
+        default:
+            return "";
+    }
+};
+
+// 1 XDR worth of ICP (in e8s) at the cached rate. 1 XDR ≡ 1T cycles. The CMC
+// creation fee is 0.5T on a 13-node subnet and scales linearly with subnet
+// size; because we leave `subnet_selection` empty, the CMC picks from its
+// default (13-node) subnets, so 1T comfortably covers the fee and leaves the
+// fresh canister ~0.5T. This also caps the spend at 1 XDR regardless of the
+// ICP price.
+const oneXdrE8s = (): number =>
+    Number(window.backendCache.stats?.e8s_for_one_xdr || 0);
+
+const StorageCreationModal = ({
+    parentCallback,
+}: {
+    parentCallback?: (id: string | null) => void;
+}) => {
+    const [stage, setStage] = React.useState<Stage | "done" | null>(null);
+    const [error, setError] = React.useState<string | null>(null);
+    const amountE8s = oneXdrE8s();
+
+    const run = async () => {
+        setError(null);
+        creationInFlight = true;
+        try {
+            const bucketId = await createBucket(
+                Principal.fromText(window.principalId),
+                amountE8s,
+                setStage,
+                // Native confirm: a popUp here would clobber this modal in the
+                // shared #preview slot.
+                () =>
+                    confirm(
+                        "A previous storage-creation payment was refunded to " +
+                            "your wallet because the attempt couldn't be " +
+                            `completed. Start over with a fresh ${shortenTokensAmount(
+                                amountE8s,
+                                8,
+                            )} ICP transfer?`,
+                    ),
+            );
+            setStage("done");
+            creationInFlight = false;
+            await window.reloadUser();
+            showPopUp("success", `Storage canister created: ${bucketId}`, 5);
+            parentCallback?.(bucketId.toString());
+        } catch (err) {
+            creationInFlight = false;
+            setStage(null);
+            setError(errorText(err));
+        }
+    };
+
+    const inFlight = stage != null && stage !== "done";
+
+    return (
+        <div className="column_container" data-testid="storage-creation-modal">
+            <h2>
+                <StorageCanister classNameArg="right_half_spaced" />
+                Personal storage
+            </h2>
+            <p>
+                Create a personal storage canister to attach images to your
+                posts. Creating it transfers{" "}
+                <code>{shortenTokensAmount(amountE8s, 8)} ICP</code> (≈ 1 XDR)
+                from your wallet.
+            </p>
+            {stage && (
+                <p>
+                    Status: <code>{stageLabel(stage)}</code>
+                </p>
+            )}
+            {inFlight && (
+                <p className="small_text">
+                    Do not close this window until the process completes.
+                </p>
+            )}
+            {error && <p className="banner top_spaced">{error}</p>}
+            {stage !== "done" && (
+                <ButtonWithLoading
+                    classNameArg="active top_spaced"
+                    onClick={run}
+                    label={error ? "RETRY" : "CREATE STORAGE"}
+                />
+            )}
+        </div>
+    );
+};
+
+// Opens the creation modal; resolves to the new canister id, or null if the
+// user closed it without finishing. Dismissal is blocked while in flight.
+export const openStorageCreation = (): Promise<string | null> =>
+    (popUp<string>(<StorageCreationModal />, {
+        closable: () => !creationInFlight,
+    }) as Promise<string | null>) || Promise.resolve(null);
+
+// Fetch the storage-canister status and, if it has less than ~3 months of
+// runway, prompt the user to top up and send them to settings.
+export const maybePromptTopUp = async () => {
+    const bucket = window.user?.bucket;
+    if (!bucket) return;
+    const st = await fetchCanisterStatus(Principal.fromText(bucket)).catch(
+        () => null,
+    );
+    if (!st) return;
+    const days = daysToLiveNum(st.cycles, st.idle_cycles_burned_per_day);
+    if (days === null || days >= 90) return;
+    const ok = await confirmPopUp(
+        `Your storage canister will run out of cycles in ~${days} days. ` +
+            `Top it up to keep your images available.`,
+        { confirmLabel: "TOP UP", cancelLabel: "LATER" },
+    );
+    if (ok) location.href = "#/settings/STORAGE";
 };

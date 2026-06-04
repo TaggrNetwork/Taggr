@@ -3,156 +3,35 @@ import {
     hash,
     ButtonWithLoading,
     confirmPopUp,
+    errorText,
     HeadBar,
     ICP_LEDGER_ID,
     hex,
     showPopUp,
+    sizeMb,
+    showCycles,
     onCanonicalDomain,
     UnavailableOnCustomDomains,
     tagList,
     RealmList,
     TabBar,
-    shortenTokensAmount,
 } from "./common";
-import { User, UserFilter } from "./types";
+import { CanisterStatus, User, UserFilter } from "./types";
 import { Principal } from "@dfinity/principal";
-import { IDL } from "@dfinity/candid";
 import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
 import { UserLinks, linksError } from "./profile";
-import { createBucket, topUpCanister, Stage } from "./bucket_creation";
 import { BLACKHOLE_PRINCIPAL } from "./ic_management";
 import { loadPendingPostIds, runMigration } from "./migration";
 import { Box, Credits, Fire, StorageCanister, HourGlass } from "./icons";
+import {
+    fetchCanisterStatus,
+    daysToLive,
+    openStorageCreation,
+    topUpCanister,
+} from "./user_storage";
 
 export const DEFAULT_REACTION_HOLD_TIME = 350;
-
-const DEFAULT_BUCKET_E8S = 100_000_000;
-
-const MANAGEMENT_PRINCIPAL = Principal.fromText("aaaaa-aa");
-
-type CanisterStatus = {
-    status: "running" | "stopping" | "stopped";
-    cycles: bigint;
-    memory_size: bigint;
-    idle_cycles_burned_per_day: bigint;
-    module_hash: number[] | null;
-    controllers: Principal[];
-};
-
-const fetchCanisterStatus = async (
-    canisterId: Principal,
-): Promise<CanisterStatus> => {
-    const DefiniteCanisterSettings = IDL.Record({
-        controllers: IDL.Vec(IDL.Principal),
-        compute_allocation: IDL.Nat,
-        memory_allocation: IDL.Nat,
-        freezing_threshold: IDL.Nat,
-        reserved_cycles_limit: IDL.Nat,
-        log_visibility: IDL.Variant({
-            controllers: IDL.Null,
-            public: IDL.Null,
-            allowed_viewers: IDL.Vec(IDL.Principal),
-        }),
-        wasm_memory_limit: IDL.Nat,
-        wasm_memory_threshold: IDL.Nat,
-    });
-    const QueryStats = IDL.Record({
-        num_calls_total: IDL.Nat,
-        num_instructions_total: IDL.Nat,
-        request_payload_bytes_total: IDL.Nat,
-        response_payload_bytes_total: IDL.Nat,
-    });
-    const CanisterStatusResult = IDL.Record({
-        status: IDL.Variant({
-            running: IDL.Null,
-            stopping: IDL.Null,
-            stopped: IDL.Null,
-        }),
-        settings: DefiniteCanisterSettings,
-        module_hash: IDL.Opt(IDL.Vec(IDL.Nat8)),
-        memory_size: IDL.Nat,
-        cycles: IDL.Nat,
-        reserved_cycles: IDL.Nat,
-        idle_cycles_burned_per_day: IDL.Nat,
-        query_stats: QueryStats,
-    });
-    const arg = IDL.encode(
-        [IDL.Record({ canister_id: IDL.Principal })],
-        [{ canister_id: canisterId }],
-    );
-    const reply = await window.api.call_raw(
-        MANAGEMENT_PRINCIPAL,
-        "canister_status",
-        arg,
-        canisterId,
-    );
-    if (!reply) throw new Error("empty reply from canister_status");
-    const decoded: any = IDL.decode([CanisterStatusResult], reply)[0];
-    const statusKey = Object.keys(decoded.status)[0] as
-        | "running"
-        | "stopping"
-        | "stopped";
-    const moduleHashOpt = decoded.module_hash as number[][] | Uint8Array[];
-    return {
-        status: statusKey,
-        cycles: decoded.cycles as bigint,
-        memory_size: decoded.memory_size as bigint,
-        idle_cycles_burned_per_day:
-            decoded.idle_cycles_burned_per_day as bigint,
-        module_hash:
-            moduleHashOpt.length > 0
-                ? Array.from(moduleHashOpt[0] as ArrayLike<number>)
-                : null,
-        controllers: decoded.settings.controllers as Principal[],
-    };
-};
-
-const sizeMb = (size: number | bigint) => (
-    <code className="xx_large_text">
-        {Math.ceil(Number(size) / 1024 / 1024).toLocaleString()} MB
-    </code>
-);
-
-const showCycles = (cycles: number | bigint) => (
-    <code className="xx_large_text">
-        {(Number(cycles) / 1e12).toLocaleString(undefined, {
-            maximumFractionDigits: 2,
-        })}
-        T
-    </code>
-);
-
-const daysToLive = (cycles: bigint, dailyBurn: bigint) => {
-    const burn = Number(dailyBurn);
-    if (burn <= 0) {
-        return <code className="xx_large_text">∞</code>;
-    }
-    const days = Math.floor(Number(cycles) / burn);
-    const color = days < 30 ? "#e25555" : days < 90 ? "#e0b020" : "#2ecc71";
-    return (
-        <code className="xx_large_text" style={{ color }}>
-            {days.toLocaleString()}
-        </code>
-    );
-};
-
-const stageLabel = (s: Stage | "done" | null): string => {
-    switch (s) {
-        case "transferring":
-            return "Transferring ICP to CMC…";
-        case "creating":
-            return "Asking CMC to create canister…";
-        case "installing":
-            return "Installing bucket WASM…";
-        case "registering":
-            return `Registering bucket with ${window.backendCache.config.name}…`;
-        case "done":
-            return "Done";
-        default:
-            return "";
-    }
-};
 
 const MigrationPanel = ({ bucket }: { bucket: string }) => {
     const [pending, setPending] = React.useState<number[] | null>(null);
@@ -183,11 +62,7 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
                 () => stopRef.current,
             );
         } catch (err) {
-            showPopUp(
-                "error",
-                err instanceof Error ? err.message : String(err),
-                7,
-            );
+            showPopUp("error", errorText(err), 7);
         } finally {
             setRunning(false);
             setPending(await loadPendingPostIds());
@@ -233,7 +108,6 @@ const MigrationPanel = ({ bucket }: { bucket: string }) => {
 };
 
 const StorageSection = ({ user }: { user: User }) => {
-    const [stage, setStage] = React.useState<Stage | "done" | null>(null);
     const [bucket, setBucket] = React.useState<typeof user.bucket>(user.bucket);
     const [status, setStatus] = React.useState<CanisterStatus | null>(null);
     const [statusError, setStatusError] = React.useState<string | null>(null);
@@ -245,11 +119,7 @@ const StorageSection = ({ user }: { user: User }) => {
         setStatusError(null);
         fetchCanisterStatus(Principal.fromText(bucket))
             .then(setStatus)
-            .catch((err) =>
-                setStatusError(
-                    err instanceof Error ? err.message : String(err),
-                ),
-            );
+            .catch((err) => setStatusError(errorText(err)));
     }, [bucket]);
 
     React.useEffect(() => {
@@ -257,32 +127,10 @@ const StorageSection = ({ user }: { user: User }) => {
     }, [loadStatus]);
 
     const onCreate = async () => {
-        try {
-            const bucketId = await createBucket(
-                Principal.fromText(window.principalId),
-                DEFAULT_BUCKET_E8S,
-                setStage,
-                () =>
-                    confirm(
-                        "A previous storage-creation payment was refunded to " +
-                            "your wallet because the attempt couldn't be " +
-                            `completed. Start over with a fresh ${shortenTokensAmount(
-                                DEFAULT_BUCKET_E8S,
-                                8,
-                            )} ICP transfer?`,
-                    ),
-            );
-            showPopUp("info", `Bucket created: ${bucketId}`, 5);
+        const id = await openStorageCreation();
+        if (id) {
             await window.reloadUser();
             setBucket(window.user?.bucket);
-            setStage("done");
-        } catch (err) {
-            showPopUp(
-                "error",
-                err instanceof Error ? err.message : String(err),
-                7,
-            );
-            setStage(null);
         }
     };
 
@@ -297,11 +145,7 @@ const StorageSection = ({ user }: { user: User }) => {
             showPopUp("success", "Blackhole canister added as controller.", 5);
             loadStatus();
         } catch (err) {
-            showPopUp(
-                "error",
-                err instanceof Error ? err.message : String(err),
-                7,
-            );
+            showPopUp("error", errorText(err), 7);
         }
     };
 
@@ -325,20 +169,15 @@ const StorageSection = ({ user }: { user: User }) => {
             showPopUp(
                 "success",
                 `Canister topped up with ${(
-                    Number(cycles) / 1e12
-                ).toLocaleString(undefined, {
-                    maximumFractionDigits: 2,
-                })}T cycles.`,
+                    Number(cycles) /
+                    10 ** 12
+                ).toLocaleString()}T cycles.`,
                 5,
             );
             setTopUp("");
             loadStatus();
         } catch (err) {
-            showPopUp(
-                "error",
-                err instanceof Error ? err.message : String(err),
-                7,
-            );
+            showPopUp("error", errorText(err), 7);
         }
     };
 
@@ -448,17 +287,9 @@ const StorageSection = ({ user }: { user: User }) => {
             ) : (
                 <>
                     <div className="bottom_spaced">
-                        Creating a storage canister requires{" "}
-                        <code>
-                            {shortenTokensAmount(DEFAULT_BUCKET_E8S, 8)} ICP
-                        </code>{" "}
-                        in your wallet.
+                        Create a personal storage canister to attach images to
+                        your posts.
                     </div>
-                    {stage && (
-                        <p>
-                            Status: <code>{stageLabel(stage)}</code>
-                        </p>
-                    )}
                     <ButtonWithLoading
                         classNameArg="active max_width_col"
                         onClick={onCreate}

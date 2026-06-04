@@ -7,6 +7,9 @@ import {
     icpCode,
     IcpAccountLink,
     USD_PER_XDR,
+    show,
+    sizeMb,
+    showCycles,
 } from "./common";
 import { Content } from "./content";
 import {
@@ -28,14 +31,6 @@ import {
     User,
 } from "./icons";
 import { UserList } from "./user_resolve";
-
-const show = (val: number | BigInt, unit?: string, unit_position?: string) => (
-    <code>
-        {unit_position == "prefix" && unit}
-        {val?.toLocaleString() ?? "..."}
-        {unit_position != "prefix" && unit}
-    </code>
-);
 
 type Log = {
     timestamp: BigInt;
@@ -303,11 +298,3 @@ const level2icon = (level: string) => {
             return "❓";
     }
 };
-
-const sizeMb = (size: number | BigInt) => (
-    <code className="xx_large_text">
-        {Math.ceil(Number(size) / 1024 / 1024).toLocaleString()} MB
-    </code>
-);
-
-const showCycles = (cycles: number) => show(cycles / 10 ** 12, "T");
