@@ -22,9 +22,13 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
     const [timer, setTimer] = React.useState<any>(null);
     const [searching, setSearching] = React.useState(false);
     const [principal, setPrincipal] = React.useState<Principal>();
+    // Identifies the latest request so stale responses can be discarded.
+    const reqId = React.useRef(0);
 
     const search = async (query: string) => {
         setHint(false);
+        setPrincipal(undefined);
+        const id = ++reqId.current;
         if (query.length < 2) {
             setResults([]);
             return;
@@ -34,7 +38,15 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
             return;
         } catch (_) {}
         setSearching(true);
-        setResults((await window.api.query("search", domain(), query)) || []);
+        const results =
+            (await window.api.query<SearchResult[]>(
+                "search",
+                domain(),
+                query,
+            )) || [];
+        // Drop the response if a newer search has started meanwhile.
+        if (id !== reqId.current) return;
+        setResults(results);
         setSearching(false);
     };
 

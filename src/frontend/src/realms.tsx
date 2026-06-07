@@ -718,7 +718,10 @@ export const Realms = () => {
     const [order, setOrder] = React.useState("popularity");
     const [noMoreData, setNoMoreData] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
+    // Identifies the latest request so stale responses can be discarded.
+    const reqId = React.useRef(0);
     const loadRealms = async () => {
+        const id = ++reqId.current;
         const data =
             (filter
                 ? await window.api.query<any>(
@@ -733,10 +736,14 @@ export const Realms = () => {
                       order,
                       page,
                   )) || [];
+        // Drop the response if a newer load has started meanwhile.
+        if (id !== reqId.current) return;
         if (data.length == 0) {
             setNoMoreData(true);
         }
-        setRealms(page == 0 ? data : realms.concat(data));
+        // When filtering, the backend returns the full match set (page is
+        // ignored), so always replace; only paginated listing appends.
+        setRealms(page == 0 || filter ? data : realms.concat(data));
         setLoading(false);
     };
 
@@ -747,7 +754,7 @@ export const Realms = () => {
     React.useEffect(() => {
         setLoading(true);
         clearTimeout(timer);
-        setTimeout(() => loadRealms(), 500);
+        timer = setTimeout(() => loadRealms(), 500);
     }, [filter]);
 
     const user = window.user;

@@ -14,6 +14,11 @@ const SNIPPET_LEN: usize = 100;
 
 const MAX_RESULTS: usize = 100;
 
+// Upper bound on posts scanned by the wildcard search to keep the query within
+// the instruction limit on large state (a no-match query would otherwise scan
+// every post).
+const MAX_POSTS_SCANNED: usize = 100_000;
+
 pub fn search(domain: String, state: &State, mut query: String) -> Vec<SearchResult> {
     query = query.to_lowercase();
     let mut terms = query
@@ -21,7 +26,16 @@ pub fn search(domain: String, state: &State, mut query: String) -> Vec<SearchRes
         .filter(|word| word.len() > 1)
         .collect::<Vec<_>>();
 
-    terms.sort_unstable();
+    // Order tokens by kind (realm `/`, then user `@`, then plain word) so the
+    // match arms below see a canonical order regardless of how the user typed
+    // them. A stable sort keeps relative order within a kind. Don't sort
+    // lexicographically: digit-leading words (ASCII 48-57) would sort between
+    // `/` (47) and `@` (64) and break the arms.
+    terms.sort_by_key(|term| match term.chars().next() {
+        Some('/') => 0,
+        Some('@') => 1,
+        _ => 2,
+    });
     let users = |prefix: String| {
         state.users.values().filter(move |user| {
             user.name
@@ -52,6 +66,7 @@ pub fn search(domain: String, state: &State, mut query: String) -> Vec<SearchRes
             let realm_id = &realm[1..].to_uppercase();
             users(user_name_prefix.to_string())
                 .flat_map(|user| user.posts(Some(&domain), state, 0, true))
+                .filter(|post| !post.is_deleted())
                 .filter_map(
                     |Post {
                          id,
@@ -63,12 +78,11 @@ pub fn search(domain: String, state: &State, mut query: String) -> Vec<SearchRes
                         if realm.as_ref() != Some(realm_id) {
                             return None;
                         }
-                        let search_body = body.to_lowercase();
-                        if let Some(i) = search_body.find(word) {
+                        if body.to_lowercase().contains(word) {
                             return Some(SearchResult {
                                 id: *id,
                                 user_id: *user,
-                                relevant: snippet(body, i),
+                                relevant: snippet(body, word),
                                 result: "post".to_string(),
                                 ..Default::default()
                             });
@@ -86,6 +100,7 @@ pub fn search(domain: String, state: &State, mut query: String) -> Vec<SearchRes
             let realm_id = &realm[1..].to_uppercase();
             users(user_name_prefix.to_string())
                 .flat_map(|user| user.posts(Some(&domain), state, 0, true))
+                .filter(|post| !post.is_deleted())
                 .filter_map(
                     |Post {
                          id,
@@ -100,7 +115,7 @@ pub fn search(domain: String, state: &State, mut query: String) -> Vec<SearchRes
                         Some(SearchResult {
                             id: *id,
                             user_id: *user,
-                            relevant: snippet(body, 0),
+                            relevant: snippet(body, ""),
                             result: "post".to_string(),
                             ..Default::default()
                         })
@@ -113,13 +128,13 @@ pub fn search(domain: String, state: &State, mut query: String) -> Vec<SearchRes
         [user_name_prefix, word] if user_name_prefix.starts_with('@') => {
             users(user_name_prefix.to_string())
                 .flat_map(|user| user.posts(Some(&domain), state, 0, true))
+                .filter(|post| !post.is_deleted())
                 .filter_map(|Post { id, body, user, .. }| {
-                    let search_body = body.to_lowercase();
-                    if let Some(i) = search_body.find(word) {
+                    if body.to_lowercase().contains(word) {
                         return Some(SearchResult {
                             id: *id,
                             user_id: *user,
-                            relevant: snippet(body, i),
+                            relevant: snippet(body, word),
                             result: "post".to_string(),
                             ..Default::default()
                         });
@@ -135,12 +150,11 @@ pub fn search(domain: String, state: &State, mut query: String) -> Vec<SearchRes
             state
                 .last_posts(domain, Some(realm), 0, 0, true)
                 .filter_map(|Post { id, body, user, .. }| {
-                    let search_body = body.to_lowercase();
-                    if let Some(i) = search_body.find(word) {
+                    if body.to_lowercase().contains(word) {
                         return Some(SearchResult {
                             id: *id,
                             user_id: *user,
-                            relevant: snippet(body, i),
+                            relevant: snippet(body, word),
                             result: "post".to_string(),
                             ..Default::default()
                         });
@@ -168,6 +182,7 @@ pub fn search(domain: String, state: &State, mut query: String) -> Vec<SearchRes
                     result: "user".to_string(),
                     ..Default::default()
                 })
+                .take(MAX_RESULTS)
                 .collect()
         }
         // search for realm only
@@ -179,10 +194,11 @@ pub fn search(domain: String, state: &State, mut query: String) -> Vec<SearchRes
                 .filter(|(realm_id, _)| realm_id.starts_with(query))
                 .map(|(realm_id, realm)| SearchResult {
                     generic_id: realm_id.clone(),
-                    relevant: snippet(realm.description.as_str(), 0),
+                    relevant: snippet(realm.description.as_str(), ""),
                     result: "realm".to_string(),
                     ..Default::default()
                 })
+                .take(MAX_RESULTS)
                 .collect()
         }
         // fall back to search through everything
@@ -195,55 +211,73 @@ fn wildcard_search(domain: String, state: &State, term: &str) -> Vec<SearchResul
         .realms
         .iter()
         .filter_map(|(id, realm)| {
-            if let Some(i) = realm.description.to_lowercase().find(term) {
+            if realm.description.to_lowercase().contains(term) {
                 return Some(SearchResult {
                     generic_id: id.clone(),
-                    relevant: snippet(realm.description.as_str(), i),
+                    relevant: snippet(realm.description.as_str(), term),
                     result: "realm".to_string(),
                     ..Default::default()
                 });
             }
             None
         })
-        .chain(state.last_posts(domain, None, 0, 0, true).filter_map(
-            |Post { id, body, user, .. }| {
-                if id.to_string() == term {
-                    return Some(SearchResult {
-                        id: *id,
-                        user_id: *user,
-                        relevant: snippet(body, 0),
-                        result: "post".to_string(),
-                        ..Default::default()
-                    });
-                }
-                let search_body = body.to_lowercase();
-                if let Some(i) = search_body.find(term) {
-                    return Some(SearchResult {
-                        id: *id,
-                        user_id: *user,
-                        relevant: snippet(body, i),
-                        result: "post".to_string(),
-                        ..Default::default()
-                    });
-                }
-                None
-            },
-        ))
+        .chain(
+            state
+                .last_posts(domain, None, 0, 0, true)
+                .take(MAX_POSTS_SCANNED)
+                .filter_map(|Post { id, body, user, .. }| {
+                    if id.to_string() == term {
+                        return Some(SearchResult {
+                            id: *id,
+                            user_id: *user,
+                            relevant: snippet(body, ""),
+                            result: "post".to_string(),
+                            ..Default::default()
+                        });
+                    }
+                    if body.to_lowercase().contains(term) {
+                        return Some(SearchResult {
+                            id: *id,
+                            user_id: *user,
+                            relevant: snippet(body, term),
+                            result: "post".to_string(),
+                            ..Default::default()
+                        });
+                    }
+                    None
+                }),
+        )
         .take(MAX_RESULTS)
         .collect()
 }
 
-fn snippet(value: &str, i: usize) -> String {
+// Returns a ~SNIPPET_LEN window of `value` (markdown stripped) centred on the
+// first occurrence of `term`. `term` must be lowercase; pass "" to anchor at the
+// start. The term is located inside the stripped text so the offset stays valid
+// (the caller's match index would be off after markdown removal and is a byte,
+// not a char, index).
+fn snippet(value: &str, term: &str) -> String {
     let value = remove_markdown(value);
     if value.len() < SNIPPET_LEN {
         value
     } else {
+        let char_offset = if term.is_empty() {
+            0
+        } else {
+            let lower = value.to_lowercase();
+            lower
+                .find(term)
+                // Count chars of the lowercased prefix to get a char offset for
+                // `value.chars()` below (slicing `lower` by its own byte index is
+                // always on a char boundary, so this never panics).
+                .map(|byte_idx| lower[..byte_idx].chars().count())
+                .unwrap_or(0)
+        };
         value
             .chars()
-            .skip(i.saturating_sub(SNIPPET_LEN / 2))
+            .skip(char_offset.saturating_sub(SNIPPET_LEN / 2))
             .skip_while(|c| c.is_alphanumeric())
             .take(SNIPPET_LEN)
-            .skip_while(|c| c.is_alphanumeric())
             .collect::<String>()
     }
     .replace('\n', " ")
