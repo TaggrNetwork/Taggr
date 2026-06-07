@@ -22,7 +22,7 @@ import {
     CanisterSettingsIDL,
     emptyCanisterSettings,
     MANAGEMENT_CANISTER_ID,
-} from "./ic_management";
+} from "./user_storage";
 
 export type Backend = {
     query: <T>(methodName: string, ...args: unknown[]) => Promise<T | null>;

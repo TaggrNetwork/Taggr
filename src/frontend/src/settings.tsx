@@ -21,10 +21,10 @@ import { Principal } from "@dfinity/principal";
 import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
 import { UserLinks, linksError } from "./profile";
-import { BLACKHOLE_PRINCIPAL } from "./ic_management";
 import { loadPendingPostIds, runMigration } from "./migration";
 import { Box, Credits, Fire, StorageCanister, HourGlass } from "./icons";
 import {
+    BLACKHOLE_PRINCIPAL,
     fetchCanisterStatus,
     daysToLive,
     openStorageCreation,
@@ -223,18 +223,16 @@ const StorageSection = ({ user }: { user: User }) => {
             </h2>
             {upgradeAvailable &&
                 (onCanonicalDomain() ? (
-                    <div className="banner top_spaced column_container">
-                        <span className="bottom_half_spaced">
-                            A storage canister update is available.
-                        </span>
+                    <div className="banner vertically_spaced column_container">
+                        A storage canister update is available.
                         <ButtonWithLoading
-                            classNameArg="active"
+                            classNameArg="top_spaced"
                             onClick={onUpgrade}
                             label="UPGRADE STORAGE"
                         />
                     </div>
                 ) : (
-                    <p className="banner top_spaced">
+                    <p className="banner vertically_spaced">
                         A storage canister update is available. Switch to the
                         canonical domain to upgrade.
                     </p>
