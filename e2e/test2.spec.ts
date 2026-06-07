@@ -345,7 +345,14 @@ test.describe("Regular users flow", () => {
         await page.goto("/#/settings");
         await waitForUILoading(page);
         await page.getByRole("button", { name: "STORAGE" }).click();
+        // The section button only opens the creation modal; the modal's own
+        // CREATE STORAGE button runs the provisioning. Scope the second click
+        // to the modal since both buttons share the same accessible name.
         await page.getByRole("button", { name: "CREATE STORAGE" }).click();
+        await page
+            .getByTestId("storage-creation-modal")
+            .getByRole("button", { name: "CREATE STORAGE" })
+            .click();
         // Wait until the bucket is registered (the pane swaps to the
         // "Your storage canister" dashboard row).
         await pollForCondition(async () => {
