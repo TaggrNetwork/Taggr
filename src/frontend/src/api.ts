@@ -70,6 +70,11 @@ export type Backend = {
 
     bucket_write: (bucket: Principal, blob: Uint8Array) => Promise<bigint>;
 
+    bucket_add_session: (
+        bucket: Principal,
+        principal: Principal,
+    ) => Promise<void>;
+
     bucket_free: (
         bucket: Principal,
         segments: [bigint, bigint][],
@@ -334,6 +339,16 @@ export const ApiGenerator = (
                 throw new Error("bucket.write: short reply");
             }
             return new DataView(buf).getBigUint64(0, false);
+        },
+        bucket_add_session: async (
+            bucket: Principal,
+            principal: Principal,
+        ): Promise<void> => {
+            const arg = IDL.encode([IDL.Principal], [principal]);
+            const reply = await call_raw(bucket, "add_session", arg);
+            if (reply === null) {
+                throw new Error("bucket.add_session failed (see console)");
+            }
         },
         bucket_free: async (
             bucket: Principal,

@@ -501,6 +501,15 @@ fn bucket_wasm() -> Blob {
     ByteBuf::from(env::storage::BUCKET_WASM_GZ.to_vec())
 }
 
+/// Hex sha256 of the current bucket wasm (the gzipped module submitted to
+/// `install_code`), matching `canister_status.module_hash` of an up-to-date
+/// bucket. The frontend compares the two to detect stale buckets.
+#[export_name = "canister_query bucket_wasm_hash"]
+fn bucket_wasm_hash() {
+    use sha2::{Digest, Sha256};
+    reply(hex::encode(Sha256::digest(env::storage::BUCKET_WASM_GZ)))
+}
+
 /// Post ids of the caller, sourced from the migration-time `post_index`.
 /// Entries are removed by `migrate_post` once a post is fully on the user's
 /// own bucket, so this list shrinks as the user migrates.

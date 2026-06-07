@@ -1,3 +1,4 @@
+import { Principal } from "@dfinity/principal";
 import {
     ButtonWithLoading,
     NotAllowed,
@@ -45,6 +46,22 @@ export const Delegate = ({}: {}) => {
                         if (response && "Err" in response) {
                             showPopUp("error", response.Err);
                             return;
+                        }
+
+                        // Authorize the delegate in the user's media bucket so
+                        // image uploads work from the custom domain. This runs
+                        // here on the canonical domain, where the signer is a
+                        // bucket controller. Non-fatal: text posts work without
+                        // it, so a failure must not block sign-in.
+                        if (window.user?.bucket && principal) {
+                            try {
+                                await window.api.bucket_add_session(
+                                    Principal.fromText(window.user.bucket),
+                                    Principal.fromText(principal),
+                                );
+                            } catch (e) {
+                                console.error(e);
+                            }
                         }
 
                         location.href = `https://${domain}`;

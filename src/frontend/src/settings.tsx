@@ -29,6 +29,7 @@ import {
     daysToLive,
     openStorageCreation,
     topUpCanister,
+    upgradeBucket,
 } from "./user_storage";
 
 export const DEFAULT_REACTION_HOLD_TIME = 350;
@@ -112,6 +113,14 @@ const StorageSection = ({ user }: { user: User }) => {
     const [status, setStatus] = React.useState<CanisterStatus | null>(null);
     const [statusError, setStatusError] = React.useState<string | null>(null);
     const [topUp, setTopUp] = React.useState("");
+    const [expectedHash, setExpectedHash] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        window.api
+            .query<string>("bucket_wasm_hash")
+            .then(setExpectedHash)
+            .catch(() => {});
+    }, []);
 
     const loadStatus = React.useCallback(() => {
         if (!bucket) return;
@@ -181,6 +190,26 @@ const StorageSection = ({ user }: { user: User }) => {
         }
     };
 
+    const onUpgrade = async () => {
+        if (!bucket) return;
+        const ok = await confirmPopUp(
+            "Upgrade your storage canister to the latest version? Your stored images are preserved.",
+            { confirmLabel: "UPGRADE", cancelLabel: "CANCEL" },
+        );
+        if (!ok) return;
+        try {
+            await upgradeBucket(Principal.fromText(bucket));
+            showPopUp("success", "Storage canister upgraded.", 5);
+            loadStatus();
+        } catch (err) {
+            showPopUp("error", errorText(err), 7);
+        }
+    };
+
+    const deployedHash = status?.module_hash ? hex(status.module_hash) : null;
+    const upgradeAvailable =
+        !!expectedHash && !!deployedHash && expectedHash !== deployedHash;
+
     const dashboard = bucket && (
         <div className="vertically_spaced">
             <h2>
@@ -192,6 +221,24 @@ const StorageSection = ({ user }: { user: User }) => {
                     Your storage canister
                 </a>
             </h2>
+            {upgradeAvailable &&
+                (onCanonicalDomain() ? (
+                    <div className="banner top_spaced column_container">
+                        <span className="bottom_half_spaced">
+                            A storage canister update is available.
+                        </span>
+                        <ButtonWithLoading
+                            classNameArg="active"
+                            onClick={onUpgrade}
+                            label="UPGRADE STORAGE"
+                        />
+                    </div>
+                ) : (
+                    <p className="banner top_spaced">
+                        A storage canister update is available. Switch to the
+                        canonical domain to upgrade.
+                    </p>
+                ))}
             <div className="dynamic_table">
                 <div className="db_cell">
                     <label>

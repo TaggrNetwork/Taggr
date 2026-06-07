@@ -1,6 +1,6 @@
 use candid::{CandidType, Decode, Deserialize, Encode, Principal};
 use ic_cdk::api::{
-    msg_arg_data, msg_caller, msg_reply, stable_grow, stable_read, stable_size, stable_write,
+    msg_arg_data, msg_caller, msg_reply, stable_grow, stable_read, stable_size, stable_write, time,
 };
 use serde::Serialize;
 use serde_bytes::ByteBuf;
@@ -14,6 +14,10 @@ const MAX_BLOB_SIZE: u64 = 8 * 1024 * 1024;
 
 // Minimum remainder size (5KB) to keep when splitting a free segment.
 const MIN_REMAINDER: u64 = 5 * 1024;
+
+// Delegate session lifetime: 4 weeks in nanoseconds. Mirrors the backend
+// delegation TTL so a custom-domain session and its bucket session expire alike.
+const SESSION_TTL: u64 = 4 * 7 * 24 * 60 * 60 * 1_000_000_000;
 
 // Stable memory layout:
 //   [0, 8)              u64 (be): high-water-mark — offset of the next blob write.
@@ -37,6 +41,9 @@ struct Segment {
 thread_local! {
     static FREE_SEGMENTS: RefCell<Vec<Segment>> = const { RefCell::new(Vec::new()) };
     static CONTROLLERS: RefCell<Vec<Principal>> = const { RefCell::new(Vec::new()) };
+    // Authorized delegate sessions: (principal, expiry_ns). Ephemeral by design —
+    // dropped on upgrade, in which case custom-domain users re-authorize.
+    static SESSIONS: RefCell<Vec<(Principal, u64)>> = const { RefCell::new(Vec::new()) };
 }
 
 #[derive(CandidType, Deserialize)]
@@ -82,6 +89,38 @@ fn assert_controller() {
     let caller = msg_caller();
     CONTROLLERS.with(|c| {
         assert!(c.borrow().contains(&caller), "unauthorized caller");
+    });
+}
+
+// Authorizes a controller or a non-expired delegate session. Used for data
+// operations (`write`/`free`) so custom-domain users acting through a delegate
+// identity can manage their own bucket.
+fn assert_authorized() {
+    let caller = msg_caller();
+    if CONTROLLERS.with(|c| c.borrow().contains(&caller)) {
+        return;
+    }
+    let now = time();
+    let authorized = SESSIONS.with(|s| {
+        s.borrow()
+            .iter()
+            .any(|(principal, expiry)| *principal == caller && *expiry > now)
+    });
+    assert!(authorized, "unauthorized caller");
+}
+
+/// Registers a delegate session principal authorized to `write`/`free` until the
+/// TTL elapses. Controller-only: this is called on the canonical domain, where
+/// the signer is the user (a bucket controller), at delegation-authorization time.
+#[ic_cdk_macros::update]
+fn add_session(principal: Principal) {
+    assert_controller();
+    let now = time();
+    SESSIONS.with(|s| {
+        let mut sessions = s.borrow_mut();
+        // Lazy cleanup (the bucket has no timer) plus dedup of this principal.
+        sessions.retain(|(p, expiry)| *expiry > now && *p != principal);
+        sessions.push((principal, now + SESSION_TTL));
     });
 }
 
@@ -204,7 +243,7 @@ fn http_image(args: &str) -> HttpResponse {
 
 #[export_name = "canister_update write"]
 fn write() {
-    assert_controller();
+    assert_authorized();
     let blob = msg_arg_data();
     let blob_len = blob.len() as u64;
 
@@ -243,7 +282,7 @@ fn write() {
 
 #[ic_cdk_macros::update]
 fn free(segments: Vec<(u64, u64)>) {
-    assert_controller();
+    assert_authorized();
     FREE_SEGMENTS.with(|fl| {
         let mut free_list = fl.borrow_mut();
         for (start, length) in segments {

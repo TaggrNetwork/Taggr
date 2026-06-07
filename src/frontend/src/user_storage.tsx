@@ -43,6 +43,27 @@ const NotifyError = IDL.Variant({
         error_message: IDL.Text,
     }),
 });
+// Management-canister install_code argument, shared by bucket creation (install)
+// and upgrade.
+const InstallCodeArgs = IDL.Record({
+    mode: IDL.Variant({
+        install: IDL.Null,
+        reinstall: IDL.Null,
+        upgrade: IDL.Opt(
+            IDL.Record({
+                skip_pre_upgrade: IDL.Opt(IDL.Bool),
+                wasm_memory_persistence: IDL.Opt(
+                    IDL.Variant({ keep: IDL.Null, replace: IDL.Null }),
+                ),
+            }),
+        ),
+    }),
+    canister_id: IDL.Principal,
+    wasm_module: IDL.Vec(IDL.Nat8),
+    arg: IDL.Vec(IDL.Nat8),
+    sender_canister_version: IDL.Opt(IDL.Nat64),
+});
+
 // Stored on user settings (server-side) so the flow survives across browsers —
 // the user has paid real ICP by step 1 and we must be able to resume from any
 // device.
@@ -224,24 +245,6 @@ export const createBucket = async (
         const initArg = new Uint8Array(
             IDL.encode([IDL.Vec(IDL.Principal)], [[userPrincipal]]),
         );
-        const InstallCodeArgs = IDL.Record({
-            mode: IDL.Variant({
-                install: IDL.Null,
-                reinstall: IDL.Null,
-                upgrade: IDL.Opt(
-                    IDL.Record({
-                        skip_pre_upgrade: IDL.Opt(IDL.Bool),
-                        wasm_memory_persistence: IDL.Opt(
-                            IDL.Variant({ keep: IDL.Null, replace: IDL.Null }),
-                        ),
-                    }),
-                ),
-            }),
-            canister_id: IDL.Principal,
-            wasm_module: IDL.Vec(IDL.Nat8),
-            arg: IDL.Vec(IDL.Nat8),
-            sender_canister_version: IDL.Opt(IDL.Nat64),
-        });
         const arg = IDL.encode(
             [InstallCodeArgs],
             [
@@ -276,6 +279,45 @@ export const createBucket = async (
 
     await clearState();
     return canisterId;
+};
+
+// Upgrades an existing bucket to the current wasm (install_code, mode: upgrade).
+// Controller-only, so canonical-domain only. The bucket's pre/post-upgrade hooks
+// preserve controllers and the free list; ephemeral delegate sessions are dropped
+// and re-registered on the next custom-domain sign-in.
+export const upgradeBucket = async (canisterId: Principal): Promise<void> => {
+    const wasmBuf = await window.api.query_raw(
+        CANISTER_ID,
+        "bucket_wasm",
+        new ArrayBuffer(0),
+    );
+    const wasm = decodeReply<Uint8Array | number[]>(
+        [IDL.Vec(IDL.Nat8)],
+        wasmBuf,
+        "bucket_wasm",
+    );
+    const arg = IDL.encode(
+        [InstallCodeArgs],
+        [
+            {
+                // None = default: run pre_upgrade, replace wasm heap, keep stable memory.
+                mode: { upgrade: [] },
+                canister_id: canisterId,
+                wasm_module: wasm,
+                arg: new Uint8Array(0),
+                sender_canister_version: [],
+            },
+        ],
+    );
+    const result = await window.api.call_raw(
+        MANAGEMENT_CANISTER_ID,
+        "install_code",
+        arg,
+        canisterId,
+    );
+    if (result === null) {
+        throw new Error("bucket upgrade (install_code) failed (see console)");
+    }
 };
 
 // Top up a canister with cycles: ICP → CMC (memo TPUP, subaccount derived from
