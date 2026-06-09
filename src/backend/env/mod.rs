@@ -497,9 +497,9 @@ impl State {
         if self.emergency_binary.is_empty() {
             return false;
         }
-        let active_vp = self.active_voting_power(time());
+        let active_vp = self.active_voting_power(time()).max(1);
         let votes = self.emergency_votes.values().sum::<Token>();
-        if votes * 100 >= active_vp * CONFIG.proposal_approval_threshold as u64 {
+        if votes > 0 && votes * 100 >= active_vp * CONFIG.proposal_approval_threshold as u64 {
             let binary = self.emergency_binary.clone();
             upgrade_main_canister(&mut self.logger, &binary, force);
             return true;
