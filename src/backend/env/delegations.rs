@@ -17,11 +17,19 @@ pub fn set_delegation(
         return Err("domain not found".into());
     }
 
-    state.delegations.insert(
-        Principal::from_text(session_principal)
-            .map_err(|err| format!("couldn't parse the principal id: {err}"))?,
-        (caller, domain, now),
-    );
+    let session = Principal::from_text(session_principal)
+        .map_err(|err| format!("couldn't parse the principal id: {err}"))?;
+
+    if session == Principal::anonymous() || state.principals.contains_key(&session) {
+        return Err("invalid session principal".into());
+    }
+    if let Some((existing_owner, _, _)) = state.delegations.get(&session) {
+        if *existing_owner != caller {
+            return Err("session already bound".into());
+        }
+    }
+
+    state.delegations.insert(session, (caller, domain, now));
     Ok(())
 }
 
