@@ -165,8 +165,10 @@ impl Proposal {
 
         let supply_of_users_total = state.active_voting_power(time);
         // decrease the total number according to the delay
-        let delay =
-            ((100 - (time.saturating_sub(self.timestamp) / (HOUR * 24))).max(1)) as f64 / 100.0;
+        let delay = (100u64
+            .saturating_sub(time.saturating_sub(self.timestamp) / (HOUR * 24))
+            .max(1)) as f64
+            / 100.0;
         let voting_power = (supply_of_users_total as f64 * delay) as u64;
         self.voting_power = voting_power;
 
