@@ -22,6 +22,7 @@ import {
     CanisterSettingsIDL,
     emptyCanisterSettings,
     MANAGEMENT_CANISTER_ID,
+    recoverBucket,
 } from "./user_storage";
 
 export type Backend = {
@@ -85,6 +86,13 @@ export type Backend = {
         existing: Principal[],
         added: Principal,
     ) => Promise<void>;
+
+    // Console-only recovery: prompts for confirmation, then reinstalls the
+    // bucket wasm (install_code, mode reinstall), wiping stable memory and
+    // re-running canister_init with the caller as sole controller. Use when a
+    // bucket is bricked (e.g. its HWM/controllers region was overwritten) but
+    // the caller is still a controller. Callable as `window.api.recover_bucket()`.
+    recover_bucket: () => Promise<boolean>;
 
     icp_account_balance: (address: string) => Promise<BigInt>;
 
@@ -451,6 +459,7 @@ export const ApiGenerator = (
                 );
             }
         },
+        recover_bucket: recoverBucket,
         edit_post: (
             id: number,
             text: string,

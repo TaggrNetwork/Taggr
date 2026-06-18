@@ -5,9 +5,11 @@ import {
     blobToUrl,
     ButtonWithLoading,
     confirmPopUp,
+    getCanonicalDomain,
     getTokens,
     Loading,
     IconToggleButton,
+    onCanonicalDomain,
     promptPopUp,
     showPopUp,
     noiseControlBanner,
@@ -29,7 +31,6 @@ import { Extension, Payload, Poll as PollType, PostId, Realm } from "./types";
 import { PollView } from "./poll";
 import { USER_CACHE } from "./user_resolve";
 import { ProposalMask, ProposalType, validateProposal } from "./proposals";
-import { openStorageCreation } from "./user_storage";
 
 const MAX_IMG_SIZE = 16777216;
 const MAX_SUGGESTED_TAGS = 5;
@@ -91,8 +92,6 @@ export const Form = ({
     const [suggestedRealms, setSuggestedRealms] = React.useState<string[]>([]);
     const [choresTimer, setChoresTimer] = React.useState<any>(null);
     const [cursor, setCursor] = React.useState(0);
-    // Bumped after storage creation so the banner re-reads window.user.bucket.
-    const [, forceRender] = React.useState(0);
 
     React.useEffect(() => {
         return () => Object.values(tmpUrls).forEach(URL.revokeObjectURL);
@@ -748,10 +747,11 @@ export const Form = ({
                     <ButtonWithLoading
                         classNameArg="active top_spaced"
                         onClick={async () => {
-                            const id = await openStorageCreation();
-                            if (id) forceRender((x) => x + 1);
+                            location.href = onCanonicalDomain()
+                                ? "#/settings/STORAGE"
+                                : `https://${getCanonicalDomain()}/#/settings/STORAGE`;
                         }}
-                        label="Create storage canister"
+                        label="Open storage settings"
                     />
                 </div>
             )}

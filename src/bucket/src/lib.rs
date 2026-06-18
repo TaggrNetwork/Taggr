@@ -276,6 +276,10 @@ fn write() {
         }
     });
 
+    assert!(
+        offset >= CONTROLLERS_REGION_END,
+        "write offset overlaps the protected header region"
+    );
     stable_write(offset, &blob);
     msg_reply(offset.to_be_bytes());
 }
@@ -286,6 +290,10 @@ fn free(segments: Vec<(u64, u64)>) {
     FREE_SEGMENTS.with(|fl| {
         let mut free_list = fl.borrow_mut();
         for (start, length) in segments {
+            assert!(
+                start >= CONTROLLERS_REGION_END,
+                "cannot free a segment below the controllers region"
+            );
             free_list.push(Segment { start, length });
         }
         free_list.sort_by_key(|s| s.length);

@@ -71,9 +71,9 @@ const NotifyError = IDL.Variant({
         error_message: IDL.Text,
     }),
 });
-// Management-canister install_code argument, shared by bucket creation (install)
-// and upgrade.
-const InstallCodeArgs = IDL.Record({
+// Management-canister install_code argument, shared by bucket creation (install),
+// upgrade, and the console-only reinstall recovery path.
+export const InstallCodeArgs = IDL.Record({
     mode: IDL.Variant({
         install: IDL.Null,
         reinstall: IDL.Null,
@@ -147,6 +147,51 @@ const decodeReply = <T,>(
 ): T => {
     if (!buf) throw new Error(`${label}: empty reply`);
     return IDL.decode(idl, buf)[0] as T;
+};
+
+// Fetches the bucket wasm and installs it on `canisterId` via the management
+// canister. The init arg is always the candid-encoded `[userPrincipal]`
+// (canister_init's controllers list). Shared by bucket creation (mode install)
+// and the console recovery path (mode reinstall). Throws on failure.
+const installBucketCode = async (
+    canisterId: Principal,
+    userPrincipal: Principal,
+    mode: { install: null } | { reinstall: null },
+): Promise<void> => {
+    const wasmBuf = await window.api.query_raw(
+        CANISTER_ID,
+        "bucket_wasm",
+        new ArrayBuffer(0),
+    );
+    const wasm = decodeReply<Uint8Array | number[]>(
+        [IDL.Vec(IDL.Nat8)],
+        wasmBuf,
+        "bucket_wasm",
+    );
+    const initArg = new Uint8Array(
+        IDL.encode([IDL.Vec(IDL.Principal)], [[userPrincipal]]),
+    );
+    const arg = IDL.encode(
+        [InstallCodeArgs],
+        [
+            {
+                mode,
+                canister_id: canisterId,
+                wasm_module: wasm,
+                arg: initArg,
+                sender_canister_version: [],
+            },
+        ],
+    );
+    const result = await window.api.call_raw(
+        MANAGEMENT_CANISTER_ID,
+        "install_code",
+        arg,
+        canisterId,
+    );
+    if (result === null) {
+        throw new Error("install_code failed (see console)");
+    }
 };
 
 export const createBucket = async (
@@ -260,37 +305,7 @@ export const createBucket = async (
     // STEP 3: management.install_code with bucket wasm; init arg = candid Vec<Principal>[user].
     if (saved.stage === "created") {
         onStage("installing");
-        const wasmBuf = await window.api.query_raw(
-            CANISTER_ID,
-            "bucket_wasm",
-            new ArrayBuffer(0),
-        );
-        const wasm = decodeReply<Uint8Array | number[]>(
-            [IDL.Vec(IDL.Nat8)],
-            wasmBuf,
-            "bucket_wasm",
-        );
-        const initArg = new Uint8Array(
-            IDL.encode([IDL.Vec(IDL.Principal)], [[userPrincipal]]),
-        );
-        const arg = IDL.encode(
-            [InstallCodeArgs],
-            [
-                {
-                    mode: { install: null },
-                    canister_id: canisterId,
-                    wasm_module: wasm,
-                    arg: initArg,
-                    sender_canister_version: [],
-                },
-            ],
-        );
-        await window.api.call_raw(
-            MANAGEMENT_CANISTER_ID,
-            "install_code",
-            arg,
-            canisterId,
-        );
+        await installBucketCode(canisterId, userPrincipal, { install: null });
         saved = { stage: "installed", canisterId: canisterId.toString() };
         await saveState(saved);
     }
@@ -346,6 +361,44 @@ export const upgradeBucket = async (canisterId: Principal): Promise<void> => {
     if (result === null) {
         throw new Error("bucket upgrade (install_code) failed (see console)");
     }
+};
+
+// Console-only recovery: prompts for confirmation, then reinstalls the bucket
+// wasm (install_code, mode reinstall), wiping stable memory and re-running
+// canister_init with the caller as sole controller. Exposed on window.api as
+// recover_bucket. Use when a bucket is bricked (e.g. its HWM/controllers region
+// was overwritten) — management-level controllers survive reinstall, so the
+// caller can still authorize install_code even when the internal list is corrupt.
+export const recoverBucket = async (): Promise<boolean> => {
+    const bucketStr = window.user?.bucket;
+    if (!bucketStr) {
+        showPopUp("error", "No storage canister bound to this user.");
+        return false;
+    }
+    const userPrincipal = window.principalId;
+    if (!userPrincipal) {
+        showPopUp("error", "No signed-in principal found.");
+        return false;
+    }
+    const ok = await confirmPopUp(
+        "WARNING: this overwrites your storage canister with a fresh " +
+            "image. ALL images and data in it will be permanently " +
+            "lost. This cannot be undone. Continue?",
+        { confirmLabel: "WIPE & REINSTALL", cancelLabel: "CANCEL" },
+    );
+    if (!ok) return false;
+    try {
+        await installBucketCode(
+            Principal.fromText(bucketStr),
+            Principal.fromText(userPrincipal),
+            { reinstall: null },
+        );
+    } catch (err) {
+        showPopUp("error", errorText(err));
+        return false;
+    }
+    showPopUp("success", "Storage canister reinstalled.", 5);
+    return true;
 };
 
 // Top up a canister with cycles: ICP → CMC (memo TPUP, subaccount derived from

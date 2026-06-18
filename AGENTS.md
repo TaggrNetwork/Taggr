@@ -4,8 +4,8 @@ User instructions **always** override this file.
 
 ## Taggr
 
--   Taggr is a decentralized social network implemented in 2021 and deployed to Internet Computer.
--   Taggr's repo is on radicle: https://radicle.network/nodes/seed.radicle.garden/rad%3Az4TNAuSLgfxXUr8sYpYowk6mcx33B
+Taggr is a decentralized social network implemented in 2021 and deployed to Internet Computer.
+Read the [whitepaper](./src/frontend/assets/WHITEPAPER.md) for more details.
 
 ## Approach
 

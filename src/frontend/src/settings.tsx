@@ -329,7 +329,7 @@ const StorageSection = ({ user }: { user: User }) => {
             {dashboard}
             {bucket ? (
                 <MigrationPanel bucket={bucket} />
-            ) : (
+            ) : onCanonicalDomain() ? (
                 <>
                     <div className="bottom_spaced">
                         Create a personal storage canister to attach images to
@@ -341,6 +341,8 @@ const StorageSection = ({ user }: { user: User }) => {
                         label="CREATE STORAGE"
                     />
                 </>
+            ) : (
+                <UnavailableOnCustomDomains component="Storage creation" />
             )}
         </>
     );
