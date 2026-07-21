@@ -573,6 +573,14 @@ export const Settings = ({
                                 <UserLinks links={links} prefix="Links:" />
                             ))}
                     </div>
+                    <div className="bottom_half_spaced">PGP Public Key</div>
+                    <textarea
+                        placeholder="-----BEGIN PGP PUBLIC KEY BLOCK-----"
+                        className="bottom_spaced"
+                        rows={6}
+                        value={settings.pgp || ""}
+                        onChange={(event) => setSetting("pgp", event)}
+                    ></textarea>
                     <div className="bottom_half_spaced">
                         Enable ICRC tokens in the wallet
                     </div>

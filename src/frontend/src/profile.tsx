@@ -22,9 +22,10 @@ import {
     domain,
     tagList,
     TabBar,
+    CopyToClipboard,
 } from "./common";
 import { Content } from "./content";
-import { Journal } from "./icons";
+import { Journal, Clipboard, ClipboardCheck } from "./icons";
 import { PostFeed } from "./post_feed";
 import { PostId, User, UserId } from "./types";
 import { UserLink, UserList } from "./user_resolve";
@@ -357,6 +358,19 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             {links.length > 0 && (
                 <>
                     <UserLinks links={links} prefix={"Links:"} />
+                    <hr />
+                </>
+            )}
+            {profile.settings.pgp && (
+                <>
+                    <div className="bottom_spaced">
+                        PGP Public Key{" "}
+                        <CopyToClipboard
+                            value={profile.settings.pgp}
+                        pre={() => <Clipboard />}
+                        post={() => <ClipboardCheck />}
+                        />
+                    </div>
                     <hr />
                 </>
             )}
