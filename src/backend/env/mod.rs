@@ -422,8 +422,8 @@ impl State {
     }
 
     pub fn link_cold_wallet(&mut self, caller: Principal, user_id: UserId) -> Result<(), String> {
-        if self.principal_to_user(caller).is_some() || self.cold_wallets.contains_key(&caller) {
-            return Err("this wallet is linked already".into());
+        if !self.principal_allowed(caller) {
+            return Err("principal not allowed".into());
         }
         let user = self.users.get_mut(&user_id).ok_or("user not found")?;
         if user.cold_wallet.is_some() {
@@ -840,11 +840,8 @@ impl State {
         name: String,
         credits: Option<Credits>,
     ) -> Result<UserId, String> {
-        if principal == Principal::anonymous() {
-            return Err("invalid principal".into());
-        }
-        if self.principals.contains_key(&principal) {
-            return Err("another user assigned to the same principal".into());
+        if !self.principal_allowed(principal) {
+            return Err("principal not allowed".into());
         }
         let id = self.new_user_id();
         let mut user = User::new(principal, id, timestamp, name.clone());
@@ -2312,8 +2309,8 @@ impl State {
     ) -> Result<(), String> {
         let new_principal =
             Principal::from_text(new_principal).map_err(|_| "can't parse principal")?;
-        if new_principal == Principal::anonymous() || self.principals.contains_key(&new_principal) {
-            return Err("invalid principal".into());
+        if !self.principal_allowed(new_principal) {
+            return Err("principal not allowed".into());
         }
         self.principal_change_requests
             .retain(|_, principal| principal != &caller);
@@ -2334,11 +2331,8 @@ impl State {
         if self.voted_on_emergency_proposal(old_principal) {
             return Err("pending proposal with the current principal as voter exists".into());
         }
-        if new_principal == Principal::anonymous() {
-            return Err("wrong principal".into());
-        }
-        if self.principals.contains_key(&new_principal) {
-            return Err("principal already assigned to a user".to_string());
+        if !self.principal_allowed(new_principal) {
+            return Err("principal not allowed".into());
         }
         let old_account = account(old_principal);
         let balance = self.balances.get(&old_account).copied().unwrap_or_default();
@@ -2371,6 +2365,13 @@ impl State {
         self.principal_change_requests.remove(&new_principal);
 
         Ok(())
+    }
+
+    pub fn principal_allowed(&self, principal: Principal) -> bool {
+        principal != Principal::anonymous()
+            && !self.principals.contains_key(&principal)
+            && !self.cold_wallets.contains_key(&principal)
+            && !self.principal_change_requests.contains_key(&principal)
     }
 
     pub fn principal_to_user(&self, principal: Principal) -> Option<&User> {
@@ -3074,7 +3075,7 @@ pub(crate) mod tests {
             assert_eq!(user.total_balance(), 80000 + cold_balance);
             assert_eq!(
                 state.link_cold_wallet(pr(200), 0),
-                Err("this wallet is linked already".into())
+                Err("principal not allowed".into())
             );
             let voters = state.active_voters(0).collect::<BTreeMap<_, _>>();
             assert_eq!(*voters.get(&1).unwrap(), (2 << 2) * 10000 + cold_balance);
@@ -3478,13 +3479,13 @@ pub(crate) mod tests {
             // Anonymous principal
             assert_eq!(
                 state.request_principal_change(alice_principal, Principal::anonymous().to_text()),
-                Err("invalid principal".into())
+                Err("principal not allowed".into())
             );
 
             // Already assigned principal
             assert_eq!(
                 state.request_principal_change(alice_principal, bob_principal.to_text()),
-                Err("invalid principal".into())
+                Err("principal not allowed".into())
             );
 
             // Test 2: Request limits

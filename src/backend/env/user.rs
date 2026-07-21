@@ -760,8 +760,8 @@ pub async fn create_user(
     // Validations.
     read(|state| {
         state.validate_username(&name)?;
-        if let Some(user) = state.principal_to_user(principal) {
-            return Err(format!("principal already assigned to user @{}", user.name));
+        if !state.principal_allowed(principal) {
+            return Err::<(), String>("principal not allowed".into());
         }
         Ok(())
     })?;
