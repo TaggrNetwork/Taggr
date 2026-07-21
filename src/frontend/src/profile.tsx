@@ -64,15 +64,14 @@ export const parseLinks = (
 };
 
 export const UserLinks = ({
-    settings,
+    links,
     centered,
     prefix,
 }: {
-    settings: { [key: string]: string };
+    links: { label: string; url: string }[];
     centered?: boolean;
     prefix?: string;
 }) => {
-    const links = parseLinks(settings);
     if (links.length === 0) return null;
     return (
         <div
@@ -335,6 +334,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             </table>
         </>
     );
+    const links = parseLinks(profile.settings);
 
     return (
         <div className="spaced">
@@ -354,8 +354,12 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             ) : (
                 <br />
             )}
-            <UserLinks settings={profile.settings} prefix={"Links:"} />
-            <hr />
+            {links.length > 0 && (
+                <>
+                    <UserLinks links={links} prefix={"Links:"} />
+                    <hr />
+                </>
+            )}
             {getLabels(profile)}
             {noiseControlBanner("user", profile.filters.noise, window.user)}
             {window.user && profile.blacklist.includes(window.user.id) && (
