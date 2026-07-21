@@ -504,13 +504,13 @@ pub fn transfer(
         } else {
             state.balances.insert(from.clone(), resulting_balance);
         }
-        update_user_balance(state, from.owner, resulting_balance as Token);
+        update_user_balance(state, &from, resulting_balance as Token);
     }
     if to.owner != Principal::anonymous() {
         let recipient_balance = state.balances.remove(&to).unwrap_or_default();
         let updated_balance = recipient_balance.saturating_add(amount as Token);
         state.balances.insert(to.clone(), updated_balance);
-        update_user_balance(state, to.owner, updated_balance as Token);
+        update_user_balance(state, &to, updated_balance as Token);
     }
 
     state.token_fees_burned += effective_fee;
@@ -559,14 +559,17 @@ pub fn append_to_ledger(state: &mut State, mut tx: Transaction) -> u128 {
     id as u128
 }
 
-fn update_user_balance(state: &mut State, principal: Principal, balance: Token) {
-    if let Some(user) = state.principal_to_user_mut(principal) {
+fn update_user_balance(state: &mut State, account: &Account, balance: Token) {
+    if account.subaccount.is_some() {
+        return;
+    }
+    if let Some(user) = state.principal_to_user_mut(account.owner) {
         user.balance = balance;
         return;
     }
     if let Some(user) = state
         .cold_wallets
-        .get(&principal)
+        .get(&account.owner)
         .copied()
         .and_then(|id| state.users.get_mut(&id))
     {
