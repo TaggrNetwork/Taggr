@@ -367,8 +367,8 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                         PGP Public Key{" "}
                         <CopyToClipboard
                             value={profile.settings.pgp}
-                        pre={() => <Clipboard />}
-                        post={() => <ClipboardCheck />}
+                            pre={() => <Clipboard />}
+                            post={() => <ClipboardCheck />}
                         />
                     </div>
                     <hr />

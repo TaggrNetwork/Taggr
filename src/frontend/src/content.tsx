@@ -1,6 +1,13 @@
 import * as React from "react";
 import Markdown from "./markdown";
-import { ArrowDown, domain, RealmSpan, timeAgo } from "./common";
+import {
+    ArrowDown,
+    domain,
+    RealmSpan,
+    timeAgo,
+    CopyToClipboard,
+} from "./common";
+import { Key, Clipboard, ClipboardCheck } from "./icons";
 import { BlogTitle } from "./types";
 import { previewImg } from "./image_preview";
 
@@ -62,6 +69,9 @@ const linkTagsAndUsersPart = (value: string) => {
     return result.join("");
 };
 
+const pgpBlockExp =
+    /-----BEGIN PGP MESSAGE-----\n[\s\S]*?\n-----END PGP MESSAGE-----/g;
+
 export const Content = ({
     post,
     blogTitle,
@@ -79,7 +89,15 @@ export const Content = ({
     preview?: boolean;
     primeMode?: boolean;
 }) => {
-    const linkedValue = React.useMemo(() => linkTagsAndUsers(value), [value]);
+    const pgpWrappedValue = React.useMemo(
+        () =>
+            value.replace(pgpBlockExp, (match) => "```pgp\n" + match + "\n```"),
+        [value],
+    );
+    const linkedValue = React.useMemo(
+        () => linkTagsAndUsers(pgpWrappedValue),
+        [pgpWrappedValue],
+    );
 
     const simpleComponents = React.useMemo(
         () => ({
@@ -322,6 +340,41 @@ const markdownizer = (
                                     </a>
                                 </span>
                             </div>
+                        );
+                    },
+                    code: ({ className, children, ...props }: any) => {
+                        const pgpContent =
+                            typeof children === "string" ? children : "";
+                        if (
+                            (className && className.includes("language-pgp")) ||
+                            pgpContent.includes("-----BEGIN PGP MESSAGE-----")
+                        ) {
+                            const size =
+                                pgpContent.length < 1024
+                                    ? `${pgpContent.length} bytes`
+                                    : `${(pgpContent.length / 1024).toFixed(1)} KB`;
+                            return (
+                                <CopyToClipboard
+                                    value={pgpContent}
+                                    pre={() => (
+                                        <>
+                                            <Key /> PGP Encrypted message (
+                                            {size}) <Clipboard />
+                                        </>
+                                    )}
+                                    post={() => (
+                                        <>
+                                            <Key /> PGP Encrypted message (
+                                            {size}) <ClipboardCheck />
+                                        </>
+                                    )}
+                                />
+                            );
+                        }
+                        return (
+                            <code className={className} {...props}>
+                                {children}
+                            </code>
                         );
                     },
                 }}
