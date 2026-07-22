@@ -2331,7 +2331,7 @@ impl State {
         if self.voted_on_emergency_proposal(old_principal) {
             return Err("pending proposal with the current principal as voter exists".into());
         }
-        if !self.principal_allowed(new_principal) {
+        if new_principal == Principal::anonymous() || self.principals.contains_key(&new_principal) {
             return Err("principal not allowed".into());
         }
         let old_account = account(old_principal);
@@ -3574,7 +3574,7 @@ pub(crate) mod tests {
                 .insert(Principal::anonymous(), bob_principal);
             assert_eq!(
                 state.change_principal(Principal::anonymous()),
-                Err("wrong principal".into())
+                Err("principal not allowed".into())
             );
         });
     }
