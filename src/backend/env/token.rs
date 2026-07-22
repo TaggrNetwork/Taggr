@@ -560,6 +560,8 @@ pub fn append_to_ledger(state: &mut State, mut tx: Transaction) -> u128 {
 }
 
 fn update_user_balance(state: &mut State, account: &Account, balance: Token) {
+    // We do not count tokens on subaccounts for governance because it's an edge case
+    // that we don't need to handle because it is not even reachable from the UI.
     if account.subaccount.is_some() {
         return;
     }
