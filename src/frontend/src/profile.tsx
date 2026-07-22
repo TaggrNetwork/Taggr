@@ -22,9 +22,10 @@ import {
     domain,
     tagList,
     TabBar,
+    CopyToClipboard,
 } from "./common";
 import { Content } from "./content";
-import { Journal } from "./icons";
+import { Journal, Clipboard, ClipboardCheck } from "./icons";
 import { PostFeed } from "./post_feed";
 import { PostId, User, UserId } from "./types";
 import { UserLink, UserList } from "./user_resolve";
@@ -64,15 +65,14 @@ export const parseLinks = (
 };
 
 export const UserLinks = ({
-    settings,
+    links,
     centered,
     prefix,
 }: {
-    settings: { [key: string]: string };
+    links: { label: string; url: string }[];
     centered?: boolean;
     prefix?: string;
 }) => {
-    const links = parseLinks(settings);
     if (links.length === 0) return null;
     return (
         <div
@@ -335,6 +335,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             </table>
         </>
     );
+    const links = parseLinks(profile.settings);
 
     return (
         <div className="spaced">
@@ -354,8 +355,25 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             ) : (
                 <br />
             )}
-            <UserLinks settings={profile.settings} prefix={"Links:"} />
-            <hr />
+            {links.length > 0 && (
+                <>
+                    <UserLinks links={links} prefix={"Links:"} />
+                    <hr />
+                </>
+            )}
+            {profile.settings.pgp && (
+                <>
+                    <div className="bottom_spaced">
+                        PGP Public Key{" "}
+                        <CopyToClipboard
+                            value={profile.settings.pgp}
+                            pre={() => <Clipboard />}
+                            post={() => <ClipboardCheck />}
+                        />
+                    </div>
+                    <hr />
+                </>
+            )}
             {getLabels(profile)}
             {noiseControlBanner("user", profile.filters.noise, window.user)}
             {window.user && profile.blacklist.includes(window.user.id) && (

@@ -463,8 +463,13 @@ code {
     color: $code;
 }
 
+.pgp_block {
+    color: $code;
+    overflow: hidden;
+}
+
 pre {
-    overflow: scroll;
+    overflow: auto;
 }
 
 a {
@@ -1080,6 +1085,7 @@ label svg {
 .post_box > article h5,
 .post_box > article h6,
 .post_box > article pre,
+.post_box > article .pgp_block,
 .post_box > article table {
     margin-left: 0.8rem;
     margin-right: 0.8rem;

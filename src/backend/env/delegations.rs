@@ -20,8 +20,8 @@ pub fn set_delegation(
     let session = Principal::from_text(session_principal)
         .map_err(|err| format!("couldn't parse the principal id: {err}"))?;
 
-    if session == Principal::anonymous() || state.principals.contains_key(&session) {
-        return Err("invalid session principal".into());
+    if !state.principal_allowed(session) {
+        return Err("principal not allowed".into());
     }
     if let Some((existing_owner, _, _)) = state.delegations.get(&session) {
         if *existing_owner != caller {

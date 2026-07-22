@@ -774,10 +774,17 @@ export function CopyToClipboard({
         <span
             title="Copy to clipboard"
             className={`clickable ${classNameArg}`}
-            onClick={async () => {
+            onClick={async (e) => {
+                e.stopPropagation();
                 try {
                     const cb = navigator.clipboard;
-                    await cb.writeText(map(value));
+                    const text = map(value);
+                    await cb.writeText(text);
+                    showPopUp(
+                        "success",
+                        `Copied ${text.length} bytes into clipboard`,
+                        3,
+                    );
                 } catch (err) {
                     console.error(err);
                 }

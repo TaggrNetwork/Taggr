@@ -20,7 +20,7 @@ import { CanisterStatus, User, UserFilter } from "./types";
 import { Principal } from "@dfinity/principal";
 import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
-import { UserLinks, linksError } from "./profile";
+import { UserLinks, linksError, parseLinks } from "./profile";
 import { loadPendingPostIds, runMigration } from "./migration";
 import { Box, Credits, Fire, StorageCanister, HourGlass } from "./icons";
 import {
@@ -391,6 +391,7 @@ export const Settings = ({
         ? (initialTabProp as Tab)
         : "PROFILE";
     const [tab, setTab] = React.useState<Tab>(initialTab);
+    const links = parseLinks(settings);
 
     const updateData = (user: User) => {
         if (!user) return;
@@ -563,18 +564,23 @@ export const Settings = ({
                         onChange={(event) => setSetting("links", event)}
                     ></textarea>
                     <div className="bottom_spaced">
-                        {settings.links &&
+                        {links.length > 0 &&
                             (linksError(settings.links) ? (
                                 <span className="error">
                                     {linksError(settings.links)}
                                 </span>
                             ) : (
-                                <UserLinks
-                                    settings={settings}
-                                    prefix="Links:"
-                                />
+                                <UserLinks links={links} prefix="Links:" />
                             ))}
                     </div>
+                    <div className="bottom_half_spaced">PGP Public Key</div>
+                    <textarea
+                        placeholder="-----BEGIN PGP PUBLIC KEY BLOCK-----"
+                        className="bottom_spaced"
+                        rows={6}
+                        value={settings.pgp || ""}
+                        onChange={(event) => setSetting("pgp", event)}
+                    ></textarea>
                     <div className="bottom_half_spaced">
                         Enable ICRC tokens in the wallet
                     </div>

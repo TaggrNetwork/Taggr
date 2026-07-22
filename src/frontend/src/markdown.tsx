@@ -814,16 +814,23 @@ const renderBlock = (
             return el("p", {}, ...children);
         }
         case "code":
+            if (block.lang === "pgp") {
+                return React.createElement(
+                    "div",
+                    { key, className: "pgp_block" },
+                    el("code", { className: "language-pgp" }, block.content),
+                );
+            }
             return React.createElement(
                 "pre",
                 { key },
-                React.createElement(
+                el(
                     "code",
                     block.lang
                         ? {
                               className: `language-${block.lang.replace(/[^a-zA-Z0-9_-]/g, "")}`,
                           }
-                        : undefined,
+                        : {},
                     block.content,
                 ),
             );

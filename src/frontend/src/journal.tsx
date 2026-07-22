@@ -12,7 +12,7 @@ import { PostFeed } from "./post_feed";
 import { PostView } from "./post";
 import { PostId, User, Post } from "./types";
 import { loadPosts } from "./common";
-import { FollowButton, UserLinks } from "./profile";
+import { FollowButton, UserLinks, parseLinks } from "./profile";
 import { Pin } from "./icons";
 import { UserLink } from "./user_resolve";
 
@@ -51,6 +51,7 @@ export const Journal = ({ handle }: { handle: string }) => {
     }
 
     const hasPinnedPosts = pinnedPosts.length > 0;
+    const links = parseLinks(profile.settings);
 
     return (
         <>
@@ -67,7 +68,7 @@ export const Journal = ({ handle }: { handle: string }) => {
                     <div className="spaced text_centered vertically_spaced">
                         <Content value={profile.about} />
                     </div>
-                    <UserLinks settings={profile.settings} centered={true} />
+                    <UserLinks links={links} centered={true} />
                     <div
                         className="row_container vertically_spaced"
                         style={{ justifyContent: "center" }}
