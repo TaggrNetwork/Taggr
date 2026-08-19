@@ -54,6 +54,12 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
     );
 
     add_asset(
+        &["/ios-auth-callback"],
+        vec![("Content-Type".into(), "text/html; charset=UTF-8".into())],
+        b"<!doctype html><meta charset=\"utf-8\"><title>TAGGR sign-in</title><p>Authentication complete. You can return to TAGGR.</p>".to_vec(),
+    );
+
+    add_asset(
         &["/index.js"],
         vec![
             ("Content-Type".into(), "text/javascript".into()),
@@ -93,6 +99,12 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
     );
 
     add_asset(
+        &["/.well-known/apple-app-site-association"],
+        vec![("Content-Type".into(), "application/json".into())],
+        include_bytes!("../../src/frontend/assets/.well-known/apple-app-site-association").to_vec(),
+    );
+
+    add_asset(
         &["/.well-known/ii-alternative-origins"],
         vec![("Content-Type".into(), "application/json".into())],
         format!(
@@ -105,9 +117,25 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
         .to_vec(),
     );
 
+    add_asset(
+        &["/.well-known/ii-auth-callbacks"],
+        vec![
+            ("Content-Type".into(), "application/json".into()),
+            ("Access-Control-Allow-Origin".into(), "*".into()),
+        ],
+        ii_auth_callbacks().into_bytes(),
+    );
+
     add_domains(domains);
 
     certify();
+}
+
+fn ii_auth_callbacks() -> String {
+    serde_json::json!({
+        "callbacks": [format!("https://{}.icp0.io/ios-auth-callback", id())]
+    })
+    .to_string()
 }
 
 pub fn add_domains(domains: &HashMap<String, DomainConfig>) {
@@ -194,4 +222,46 @@ fn certificate_header(path: &str) -> (String, String) {
             general_purpose::STANDARD.encode(serializer.into_inner())
         ),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn loads_icrc_167_callback_declaration_and_terminal_page() {
+        let domains = HashMap::from([("taggr.link".to_string(), DomainConfig::default())]);
+        load(&domains);
+
+        let (headers, body) =
+            asset("/.well-known/ii-auth-callbacks").expect("callback declaration");
+        assert!(headers.contains(&("Content-Type".into(), "application/json".into())));
+        assert!(headers.contains(&("Access-Control-Allow-Origin".into(), "*".into())));
+        let value: serde_json::Value = serde_json::from_slice(&body).expect("valid callback JSON");
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "callbacks": [
+                    "https://6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io/ios-auth-callback"
+                ]
+            })
+        );
+
+        let (headers, body) = asset("/ios-auth-callback").expect("terminal callback page");
+        assert!(headers.contains(&("Content-Type".into(), "text/html; charset=UTF-8".into())));
+        assert!(String::from_utf8_lossy(&body).contains("Authentication complete"));
+        assert_ne!(asset_hashes().get(b"/.well-known/ii-auth-callbacks"), None);
+        assert_ne!(asset_hashes().get(b"/ios-auth-callback"), None);
+
+        let (_, body) = asset("/.well-known/apple-app-site-association").expect("AASA");
+        let value: serde_json::Value = serde_json::from_slice(&body).expect("valid AASA JSON");
+        assert_eq!(
+            value["applinks"]["details"][0]["paths"],
+            serde_json::json!(["/*"])
+        );
+        assert_eq!(
+            value["webcredentials"]["apps"],
+            serde_json::json!(["AKN976G7AK.network.taggr.ios"])
+        );
+    }
 }
