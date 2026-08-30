@@ -1,0 +1,14 @@
+{
+    "applinks": {
+        "apps": [],
+        "details": [
+            {
+                "appID": "AKN976G7AK.network.taggr.ios",
+                "paths": ["/*"]
+            }
+        ]
+    },
+    "webcredentials": {
+        "apps": ["AKN976G7AK.network.taggr.ios"]
+    }
+}
