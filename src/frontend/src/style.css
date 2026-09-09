@@ -85,7 +85,8 @@ code {
     padding: 1em;
     border-radius: 15px;
     background: $background;
-    overflow: scroll;
+    overflow-y: auto;
+    overflow-x: hidden;
     max-height: 90vh;
     z-index: 1000;
 }
