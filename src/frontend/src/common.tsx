@@ -1339,6 +1339,18 @@ export const signOut = async () => {
     localStorage.clear();
     sessionStorage.clear();
     await window.authClient.logout();
+    // Wipe the IndexedDB database used by @dfinity/auth-client where stale
+    // delegation sessions can survive authClient.logout().
+    try {
+        indexedDB.deleteDatabase("auth-client-storage");
+    } catch (err) {
+        console.error(err);
+    }
+    return true;
+};
+
+export const signOutAndRestart = async () => {
+    await signOut();
     restartApp();
     return true;
 };

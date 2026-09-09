@@ -4,7 +4,7 @@ import {
     currentRealm,
     IconToggleButton,
     RealmList,
-    signOut,
+    signOutAndRestart,
     bigScreen,
     DropDown,
     getCanonicalDomain,
@@ -243,7 +243,7 @@ const UserSection = ({ user }: { user: UserType }) => {
                     title="SIGN OUT"
                     className="icon_link"
                     href=""
-                    onClick={signOut}
+                    onClick={signOutAndRestart}
                 >
                     <Logout /> SIGN OUT
                 </a>

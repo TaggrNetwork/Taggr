@@ -4,7 +4,7 @@ import {
     NotAllowed,
     onCanonicalDomain,
     showPopUp,
-    signOut,
+    signOutAndRestart,
     domain as getDomain,
 } from "./common";
 
@@ -27,7 +27,7 @@ export const Delegate = ({}: {}) => {
             <div className="row_container">
                 <button
                     className="medium_text max_width_col right_half_spaced"
-                    onClick={signOut}
+                    onClick={signOutAndRestart}
                 >
                     SIGN OUT
                 </button>

@@ -7,7 +7,7 @@ import {
     hex,
     bigScreen,
     USD_PER_XDR,
-    signOut,
+    signOutAndRestart,
     showPopUp,
     ButtonWithLoading,
 } from "./common";
@@ -50,7 +50,7 @@ export const Welcome = () => {
     };
 
     const logOutButton = (
-        <ButtonWithLoading onClick={signOut} label="SIGN OUT" />
+        <ButtonWithLoading onClick={signOutAndRestart} label="SIGN OUT" />
     );
 
     const { name, post_cost } = window.backendCache.config;

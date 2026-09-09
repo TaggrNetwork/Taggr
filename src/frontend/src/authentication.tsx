@@ -7,6 +7,7 @@ import {
     restartApp,
     showPopUp,
     signOut,
+    signOutAndRestart,
     getCanonicalDomain,
     onCanonicalDomain,
 } from "./common";
@@ -118,7 +119,10 @@ const finalize = async (signUp?: boolean) => {
             location.href = localStorage.getItem(DELEGATION_PRINCIPAL)
                 ? "#/delegate"
                 : "#/";
-        else showPopUp("error", "User not found");
+        else {
+            await signOut();
+            showPopUp("error", "User not found");
+        }
     } else restartApp();
 };
 
@@ -286,7 +290,7 @@ export const SeedPhraseForm = ({
                     {window.principalId && (
                         <ButtonWithLoading
                             classNameArg="max_width_col"
-                            onClick={signOut}
+                            onClick={signOutAndRestart}
                             label="SIGN OUT"
                         />
                     )}
