@@ -20,13 +20,13 @@ Whitepaper uses `$placeholders` (e.g. `$post_cost`, `$token_symbol`) — concret
 
 -   `src/backend/` — main canister (Rust). Entry `lib.rs`; `updates.rs`/`queries.rs` = all endpoints; `http.rs` = asset serving; `taggr.did` = public Candid interface.
 -   `src/bucket/` — user media storage canisters (per-user, user-owned).
--   `src/cmc_stub/` — cycles-minting stub for local dev.
 -   `src/frontend/` — React/TS SPA served by the canister; `api.ts` wraps the Candid interface.
--   `e2e/` — Playwright tests, local ledger/minter setup scripts.
+-   `e2e/` — Playwright tests and local minter identity setup.
+-   `icp.yaml` — icp-cli project config (canisters, environments); `.icp/data/mappings/` holds mainnet canister IDs.
 
 ## Commands
 
 -   `make format` then `cargo check --tests` after any backend change; `npx tsc --noEmit` after frontend changes. Full gate: `make check`.
--   `make start` (dfx), `make local_deploy` (taggr + cmc_stub + cycles), `make local_reinstall` for clean state.
+-   `make start` (icp network), `make local_deploy` (taggr), `make local_reinstall` for clean state.
 -   `make test` = full suite (clippy `-D all`, cargo test single-threaded, e2e). `make tests` runs everything in a container (podman preferred).
 -   Wasm builds via `./build.sh <pkg>` with `FEATURES=dev|staging` (not plain cargo).

@@ -5,30 +5,25 @@ DOCKER_ARCH := $(patsubst x86_64,amd64,$(patsubst aarch64,arm64,$(HOST_ARCH)))
 TEST_PLATFORM ?= linux/$(DOCKER_ARCH)
 
 start:
-	ulimit -n 65000 && dfx start --background -qqqq &
+	ulimit -n 65000 && icp network start -d
 
 cycles:
-	dfx --identity local-minter ledger fabricate-cycles --all --cycles 1000000000000000
+	icp canister top-up taggr --amount 100T --identity local-minter
 
 staging_deploy:
 	NODE_ENV=production DFX_NETWORK=$(if $(CANISTER),$(CANISTER),staging) make fe
-	DFX_NETWORK=$(if $(CANISTER),$(CANISTER),staging) FEATURES=staging dfx build
-	FEATURES=staging dfx --identity prod deploy --network $(if $(CANISTER),$(CANISTER),staging) taggr
+	FEATURES=staging icp deploy -e $(if $(CANISTER),$(CANISTER),staging) taggr --identity prod
 
 local_deploy:
-	FEATURES=dev dfx deploy taggr
-	dfx deploy cmc_stub
-	dfx ledger fabricate-cycles --canister cmc_stub --t 100
+	FEATURES=dev icp deploy taggr
 
 dev_build:
 	FEATURES=dev ./build.sh bucket
-	FEATURES=dev ./build.sh cmc_stub
-	FEATURES=dev ./build.sh taggr
-	FEATURES=dev dfx build
+	FEATURES=dev icp build taggr
 
 local_reinstall:
 	make fe
-	FEATURES=dev dfx deploy --mode=reinstall taggr -y
+	FEATURES=dev icp deploy --mode=reinstall taggr -y
 
 build:
 	NODE_ENV=production make fe
@@ -46,8 +41,7 @@ format:
 	npm run format
 
 test:
-	make e2e_build
-	make local_deploy
+	make e2e_setup
 	cargo clippy --tests --benches -- -D clippy::all
 	cargo test -- --test-threads 1
 	npm run test:e2e
@@ -63,18 +57,22 @@ frontend_bundle:
 e2e_build:
 	NODE_ENV=production DFX_NETWORK=local npm run build
 	./build.sh bucket
-	./build.sh cmc_stub
 	FEATURES=dev ./build.sh taggr
+
+e2e_setup:
+	./e2e/import_local_minter.sh
+	icp network start -d
+	icp network ping
+	icp canister create taggr || true
+	make e2e_build
+	icp canister install taggr --mode reinstall -y --wasm target/wasm32-unknown-unknown/release/taggr.wasm.gz
+	icp canister top-up taggr --amount 100T --identity local-minter
 
 e2e_test:
 	npm run install:e2e
-	dfx canister create --all
-	./e2e/import_local_minter.sh
-	./e2e/install_icp_ledger.sh
-	make e2e_build
-	make start || true # don't fail if DFX is already running
+	make e2e_setup
 	npm run test:e2e
-	dfx stop
+	icp network stop
 
 podman_machine:
 ifeq ($(shell uname),Darwin)
@@ -112,7 +110,7 @@ ifeq ($(DOCKER_ARCH),amd64)
 		-v $(shell pwd)/playwright-report:/app/playwright-report \
 		taggr-release release
 else
-	# Split: host-native tests (dfx/PocketIC don't tolerate qemu), then
+	# Split: host-native tests (icp-cli/PocketIC don't tolerate qemu), then
 	# amd64 artifact stage with prime_release_target.
 	$(CONTAINER) build --platform=$(TEST_PLATFORM) $(if $(VERBOSE),,--quiet) -t taggr-tests .
 	$(CONTAINER) run --rm \

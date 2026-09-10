@@ -1,4 +1,4 @@
-import { waitForUILoading, pollForCondition } from "./helpers";
+import { waitForUILoading, pollForCondition, invoiceAccount } from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { exec, mkPwd, transferICP } from "./command";
 
@@ -32,10 +32,7 @@ test.describe("Regular users flow, part two", () => {
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
             .click();
         const value = await page.getByTestId("invoice-amount").textContent();
-        transferICP(
-            "68498cde2c0dd4f5e21baeb053116db6deb280287230ef3ac62aae1d4d76656f",
-            value,
-        );
+        transferICP(await invoiceAccount(page), value);
         await page.getByRole("button", { name: "CHECK BALANCE" }).click();
         await page.getByRole("button", { name: "CREATE USER" }).click();
         await page.getByPlaceholder("alphanumeric").fill("john");
@@ -148,10 +145,7 @@ test.describe("Regular users flow, part two", () => {
             const value = await page
                 .getByTestId("invoice-amount")
                 .textContent();
-            transferICP(
-                "7d0c7667560d70acd15508e059e40bf8a5589d739500eb9550d7874446f92a14",
-                value,
-            );
+            transferICP(await invoiceAccount(page), value);
             await page.getByRole("button", { name: "CHECK BALANCE" }).click();
             await waitForUILoading(page);
 
@@ -167,7 +161,7 @@ test.describe("Regular users flow, part two", () => {
 
         test("Find post and tip it", async () => {
             exec(
-                `dfx canister call taggr mint_tokens '("jpyii-f2pki-kh72w-7dnbq-4j7h7-yly5o-k3lik-zgk3g-wnfwo-2w6jd-5ae", 500 : nat64)'`,
+                `icp canister call taggr mint_tokens '("jpyii-f2pki-kh72w-7dnbq-4j7h7-yly5o-k3lik-zgk3g-wnfwo-2w6jd-5ae", 500 : nat64)'`,
             );
             await page.goto("/");
             await waitForUILoading(page);
@@ -214,7 +208,7 @@ test.describe("Regular users flow, part two", () => {
                 },
                 {
                     maxAttempts: 20,
-                    interval: 500,
+                    interval: 2000,
                     errorMessage:
                         "Token balance did not update to 4 within timeout",
                 },

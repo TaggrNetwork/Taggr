@@ -1,4 +1,4 @@
-import { waitForUILoading, pollForCondition } from "./helpers";
+import { waitForUILoading, pollForCondition, invoiceAccount } from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { resolve } from "node:path";
 import { exec, mkPwd, transferICP } from "./command";
@@ -34,13 +34,12 @@ test.describe("Regular users flow", () => {
         const alicePrincipal =
             "xkqsg-2iln4-5zio6-xn4ja-s34n3-g63uk-kc6ex-wklca-7kfzz-67won-yqe";
         await expect(page.getByText(alicePrincipal)).toBeVisible();
-        transferICP(
-            "e6cf5b3addb6f3be053619dad20060f49dce44bb0ae26421c0c4a5da25870a50",
-            1,
-        );
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
             .click();
+        transferICP(await invoiceAccount(page), 1);
+        await page.getByRole("button", { name: "CHECK BALANCE" }).click();
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "CREATE USER" }).click();
         await page.getByPlaceholder("alphanumeric").fill("alice");
         await page
@@ -332,13 +331,13 @@ test.describe("Regular users flow", () => {
         await waitForUILoading(page);
 
         // Provision a personal media bucket via the actual Settings → STORAGE
-        // flow. Hits the local CMC stub through `notify_create_canister`.
+        // flow. Hits local CMC through `notify_create_canister`.
         // The bucket creation transfers from alice's wallet (her default
         // subaccount), not from the invoice subaccount used at registration,
         // so we top up the wallet account directly. Needs ≥ DEFAULT_BUCKET_E8S
         // (2 ICP) plus fees.
         const aliceWallet = exec(
-            "dfx ledger account-id --of-principal " +
+            "icp identity account-id --of-principal " +
                 "xkqsg-2iln4-5zio6-xn4ja-s34n3-g63uk-kc6ex-wklca-7kfzz-67won-yqe",
         );
         transferICP(aliceWallet, 3);

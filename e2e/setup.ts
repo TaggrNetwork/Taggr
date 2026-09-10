@@ -1,22 +1,22 @@
 import { exec } from "./command";
 
-export const canisterId = "uxrrr-q7777-77774-qaaaq-cai";
+// Resolved at worker startup from the environment that globalSetup populated.
+export const canisterId = process.env["CANISTER_ID"] || "";
 
 export default async function setup(): Promise<void> {
     console.debug("Global setup routine");
 
-    exec(`dfx canister call taggr reset '("${canisterId}")'`);
-    exec("dfx canister update-settings taggr --add-controller " + canisterId);
+    const taggrId = exec("icp canister status taggr --id-only");
 
-    // CMC stub for the bucket-creation e2e flow. Deploys once; fabricates a
-    // generous cycle balance so each test's bucket creation has cycles to
-    // spawn the new canister.
-    exec("dfx deploy cmc_stub --yes");
-    exec("dfx ledger fabricate-cycles --canister cmc_stub --t 100");
+    exec(`icp canister call taggr reset '("${taggrId}")'`);
+    exec("icp canister settings update taggr --add-controller " + taggrId);
 
-    const webServerPort = exec("dfx info webserver-port");
-    const baseURL = `http://${canisterId}.localhost:${webServerPort}`;
+    const status = JSON.parse(exec("icp network status --json"));
+    const gatewayUrl = new URL(status.gateway_url || status.api_url);
+    const port = gatewayUrl.port || "8000";
+    const baseURL = `http://${taggrId}.localhost:${port}`;
     process.env["BASE_URL"] = baseURL;
+    process.env["CANISTER_ID"] = taggrId;
 
     // add a timeout to allow canister to reset
     await new Promise((resolve) => setTimeout(resolve, 4000));

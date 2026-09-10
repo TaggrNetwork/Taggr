@@ -6,7 +6,7 @@ Make sure to follow the steps outlined in the rest of this file before using the
 
 | Description                       | Command                                       | Note                                                    |
 | --------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
-| Start the local replica           | make start                                    |                                                         |
+| Start the local network           | make start                                    |                                                         |
 | Start the frontend server         | npm start                                     |                                                         |
 | Build the canister                | make build                                    |                                                         |
 | Build the frontend                | npm run build                                 |                                                         |
@@ -22,6 +22,7 @@ Make sure to follow the steps outlined in the rest of this file before using the
 -   Install [NodeJS](https://nodejs.org/).
 -   Install [Rust & Cargo](https://www.rust-lang.org/).
 -   Install [ic-wasm](https://github.com/dfinity/ic-wasm).
+-   Install [icp-cli](https://github.com/dfinity/icp-cli).
 -   Install [Docker](https://www.docker.com/).
 -   Install [Git](https://git-scm.com/).
 
@@ -39,25 +40,23 @@ Change your directory to the newly cloned Taggr repo:
 cd taggr
 ```
 
-Install DFX
+Install icp-cli and ic-wasm:
 
 ```shell
-DFX_VERSION=$(cat dfx.json | jq -r .dfx) sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+npm install -g @icp-sdk/icp-cli @icp-sdk/ic-wasm
 ```
 
-The remaining steps are only necessary for deploying the local ICP ledger canister. This makes it easier to test new account creation with Internet Identity, to make ICP transfers to those accounts or to run Taggr e2e tests without a Docker container. Alternatively, you can [create a backup](#creating-and-restoring-backups) and then refer to the [command reference](#command-reference) to build and deploy.
-
-Stop DFX if it's running:
+Start the local network:
 
 ```shell
-dfx stop
+make start
 ```
 
-Start DFX with a clean environment:
-
-```shell
-dfx start --clean --background
-```
+The managed network launched by icp-cli ships the system canisters Taggr
+depends on at their mainnet IDs (the ICP ledger at
+`ryjl3-tyaaa-aaaaa-aaaba-cai` and the Cycles Minting Canister at
+`rkp4c-7iaaa-aaaaa-aaaca-cai`), and seeds every identity that exists at
+network start with ICP and cycles. No custom ledger or CMC stub is needed.
 
 Install Taggr canister:
 
@@ -68,56 +67,21 @@ make dev_build
 make local_reinstall
 ```
 
-`make local_deploy` also deploys the local **CMC stub** at the mainnet CMC id
-(`rkp4c-7iaaa-aaaaa-aaaca-cai`) and fabricates 100 T cycles into it. The
-frontend's media-bucket creation flow hits that id unconditionally, so
-without the stub Settings → STORAGE → CREATE STORAGE fails locally. The
-stub is built from `src/cmc_stub/` and only deploys on local (the production
-CMC takes over on `ic`/`staging`).
+`make local_deploy` builds and installs the backend at the current local
+canister ID, recorded in `.icp/cache/mappings/local.ids.json`.
 
-Use `make cycles` to fabricate cycles for the canister.
+Use `make cycles` to top the canister up with cycles.
 
-Install the ICP ledger canister at its mainnet ID locally (the backend
-hard-codes `MAINNET_LEDGER_CANISTER_ID`, so the ledger has to answer at
-`ryjl3-tyaaa-aaaaa-aaaba-cai`). It's also required for bucket creation —
-CREATE STORAGE transfers ICP to the CMC stub via this ledger:
+Now you are ready to create a new Taggr account with Internet Identity locally
+and, if you want, transfer ICP to it. Identify the account ID from the Taggr UI
+and send ICP from a funded identity:
 
 ```shell
-./e2e/import_local_minter.sh
-./e2e/install_icp_ledger.sh
+icp token transfer 10 ${accountId}
 ```
 
-Now you are ready to create a new Taggr account with Internet Identity locally. If you also want to make ICP transfers to this account then continue with the remaining steps, the remaining steps are not necessary for running e2e tests.
-
-Set up the private key for the local minting account:
-
-```shell
-cat <<EOF >~/.config/dfx/local-minter.pem
------BEGIN EC PRIVATE KEY-----
-MHQCAQEEICJxApEbuZznKFpV+VKACRK30i6+7u5Z13/DOl18cIC+oAcGBSuBBAAK
-oUQDQgAEPas6Iag4TUx+Uop+3NhE6s3FlayFtbwdhRVjvOar0kPTfE/N8N6btRnd
-74ly5xXEBNSXiENyxhEuzOZrIWMCNQ==
------END EC PRIVATE KEY-----
-EOF
-```
-
-Import the key into DFX:
-
-```shell
-dfx identity import local-minter --disable-encryption ~/.config/dfx/local-minter.pem
-```
-
-Change to the new identity in DFX:
-
-```shell
-dfx identity use local-minter
-```
-
-At this point, you can refer to the [command reference](#command-reference) to deploy and run Taggr, create a new account and grab your account ID. Then you can transfer ICP to that account with this command:
-
-```shell
-dfx ledger transfer --memo 1000 --amount 10 ${accountId}
-```
+The identity you deploy with is seeded with 100k ICP and 1,000T cycles by the
+local network.
 
 ## e2e Tests
 
