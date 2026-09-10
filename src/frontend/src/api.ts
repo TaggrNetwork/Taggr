@@ -153,22 +153,42 @@ export const ApiGenerator = (
         methodName: string,
         arg = new ArrayBuffer(0),
     ): Promise<ArrayBuffer | null> => {
-        try {
-            let response = await agent.query(
-                canisterId,
-                { methodName, arg },
-                identity,
+        // The agent has no request timeout, so a stalled gateway can leave a
+        // query pending forever and block bootstrap. Bound each attempt and
+        // retry a couple of times.
+        const withTimeout = <T>(promise: Promise<T>): Promise<T> => {
+            let timer: ReturnType<typeof setTimeout>;
+            const timeout = new Promise<never>((_, reject) => {
+                timer = setTimeout(
+                    () => reject(new Error("query timed out")),
+                    10000,
+                );
+            });
+            return Promise.race([promise, timeout]).finally(() =>
+                clearTimeout(timer),
             );
-            if (response.status != "replied") {
-                console.error(methodName, response);
-                return null;
-            }
+        };
+        const attempts = 3;
+        for (let attempt = 0; attempt < attempts; attempt++) {
+            try {
+                let response = await withTimeout(
+                    agent.query(canisterId, { methodName, arg }, identity),
+                );
+                if (response.status != "replied") {
+                    console.error(methodName, response);
+                    return null;
+                }
 
-            return response.reply.arg;
-        } catch (error) {
-            console.error(error);
-            return null;
+                return response.reply.arg;
+            } catch (error) {
+                console.error(error);
+                if (attempt === attempts - 1) {
+                    return null;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
         }
+        return null;
     };
 
     const query = async <T>(
