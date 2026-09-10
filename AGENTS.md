@@ -4,30 +4,29 @@ User instructions **always** override this file.
 
 ## Taggr
 
-Taggr is a decentralized social network implemented in 2021 and deployed to Internet Computer.
-Read the [whitepaper](./src/frontend/assets/WHITEPAPER.md) for more details.
+Taggr is a decentralized social network on the Internet Computer, governed by its token holders. Read [WHITEPAPER.md](./src/frontend/assets/WHITEPAPER.md) first — it defines the domain model behind the codebase:
 
-## Approach
+-   **Credits**: users prepay ICP for credits; every interaction (post, react, poll, realm) burns credits → Treasury revenue.
+-   **Rewards**: users earn reward points from reactions/responses, converted to ICP weekly or auto-topped-up to credits when low.
+-   **Token**: fixed max supply; burned on transfer fees, minted via weekly mining (rewards / market price from weekly auction) or minting proposals. Founder vesting logic applies.
+-   **Realms**: sub-communities with own rules; moderators can move/flag posts.
+-   **Stalwarts**: top active token holders; moderate reported users, share penalty rewards.
+-   **Governance**: proposals with locked token escrow; controversial rejections burn the escrow; quorum decays 1%/day.
+-   **Domains**: one frontend, configured per domain — moderation pushed to edge domain owners.
 
--   Be very concise in output but thorough in reasoning.
--   Think before acting and make absolutely sure you understand the problem before trying to solve it.
--   Always ask for clarifications in case of doubts. Never guess.
--   Challenge the user if their inputs are inconsistent with your reasoning.
--   Avoid dependencies at any cost as long as they are not strictly necessary. If you need to use a library, make sure it is widely used and well maintained.
--   Do not re-read files you have already read unless the file may have changed.
--   Keep solutions simple and direct. No over-engineering. Do not invent things if possible, do everything in an idiomatic way.
--   Only fix bugs based on evidence obtained by debugging; never ever create speculative fixes unless user explicitly approved.
+Whitepaper uses `$placeholders` (e.g. `$post_cost`, `$token_symbol`) — concrete values live in backend constants (see `src/backend/env` / config module).
 
-## Control
+## Layout
 
--   Never execute mutable Git commands: the user needs to review all your changes.
--   **Never** execute mutable system commands without user's explicit confirmation unless they asked you to do so.
+-   `src/backend/` — main canister (Rust). Entry `lib.rs`; `updates.rs`/`queries.rs` = all endpoints; `http.rs` = asset serving; `taggr.did` = public Candid interface.
+-   `src/bucket/` — user media storage canisters (per-user, user-owned).
+-   `src/cmc_stub/` — cycles-minting stub for local dev.
+-   `src/frontend/` — React/TS SPA served by the canister; `api.ts` wraps the Candid interface.
+-   `e2e/` — Playwright tests, local ledger/minter setup scripts.
 
-## Efficiency
+## Commands
 
--   Always think ahead and try to optimize your steps to reduce the token expense.
--   If you need to consume a really big input, get a user confirmation.
-
-## Code
-
--   Always apply formatting (make format) and cargo check.
+-   `make format` then `cargo check --tests` after any backend change; `npx tsc --noEmit` after frontend changes. Full gate: `make check`.
+-   `make start` (dfx), `make local_deploy` (taggr + cmc_stub + cycles), `make local_reinstall` for clean state.
+-   `make test` = full suite (clippy `-D all`, cargo test single-threaded, e2e). `make tests` runs everything in a container (podman preferred).
+-   Wasm builds via `./build.sh <pkg>` with `FEATURES=dev|staging` (not plain cargo).
