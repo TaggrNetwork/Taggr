@@ -5,10 +5,10 @@ DOCKER_ARCH := $(patsubst x86_64,amd64,$(patsubst aarch64,arm64,$(HOST_ARCH)))
 TEST_PLATFORM ?= linux/$(DOCKER_ARCH)
 
 start:
-	ulimit -n 65000 && icp network start -d
+	ulimit -n 65000 && (icp network ping >/dev/null 2>&1 || icp network start -d)
 
 cycles:
-	icp canister top-up taggr --amount 100T --identity local-minter
+	icp canister top-up taggr --amount 100T
 
 staging_deploy:
 	NODE_ENV=production DFX_NETWORK=$(if $(CANISTER),$(CANISTER),staging) make fe
@@ -60,13 +60,12 @@ e2e_build:
 	FEATURES=dev ./build.sh taggr
 
 e2e_setup:
-	./e2e/import_local_minter.sh
-	icp network start -d
+	icp network ping >/dev/null 2>&1 || icp network start -d
 	icp network ping
 	icp canister create taggr || true
 	make e2e_build
 	icp canister install taggr --mode reinstall -y --wasm target/wasm32-unknown-unknown/release/taggr.wasm.gz
-	icp canister top-up taggr --amount 100T --identity local-minter
+	icp canister top-up taggr --amount 100T
 
 e2e_test:
 	npm run install:e2e

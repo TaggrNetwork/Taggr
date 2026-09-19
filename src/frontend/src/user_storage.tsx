@@ -7,7 +7,7 @@ import * as React from "react";
 import { Principal } from "@dfinity/principal";
 import { IDL } from "@dfinity/candid";
 import { AccountIdentifier, SubAccount } from "@dfinity/ledger-icp";
-import { CANISTER_ID } from "./env";
+import { CANISTER_ID, MAINNET_MODE } from "./env";
 import {
     ButtonWithLoading,
     confirmPopUp,
@@ -572,10 +572,12 @@ export const stageLabel = (s: Stage | "done" | null): string => {
 const oneXdrE8s = (): number =>
     Number(window.backendCache.stats?.e8s_for_one_xdr || 0);
 
-// The managed test network seeds a deliberately cheap XDR rate, which would
-// make the CMC creation payment fall below its 0.5T fee. Charge at least this
-// much (0.25 ICP, comfortably above the fee) so creation works there; on
-// mainnet the real rate is larger, so this floor never applies.
+// The managed test network seeds a deliberately cheap XDR rate (see
+// `reset_xdr_rate_for_testing`), which would make the CMC creation payment fall
+// below its 0.5T fee. On the local network charge at least this much (0.25 ICP,
+// comfortably above the fee) so creation works there; on mainnet the real rate
+// covers the fee, so the floor must not apply or the user would pay more ICP
+// than the "≈ 1 XDR" shown in the modal.
 const MIN_BUCKET_E8S = 25_000_000;
 
 const StorageCreationModal = ({
@@ -585,7 +587,9 @@ const StorageCreationModal = ({
 }) => {
     const [stage, setStage] = React.useState<Stage | "done" | null>(null);
     const [error, setError] = React.useState<string | null>(null);
-    const amountE8s = Math.max(oneXdrE8s(), MIN_BUCKET_E8S);
+    const amountE8s = MAINNET_MODE
+        ? oneXdrE8s()
+        : Math.max(oneXdrE8s(), MIN_BUCKET_E8S);
 
     const run = async () => {
         setError(null);

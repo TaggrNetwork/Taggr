@@ -65,10 +65,7 @@ run_cargo_tests() {
 }
 
 run_e2e() {
-  echo "==> [4/7] e2e: identity + network + canister create"
-  # Import the minter before the network starts so it gets seeded with ICP and
-  # cycles by the managed network launcher.
-  ./e2e/import_local_minter.sh >&3 2>&4
+  echo "==> [4/7] e2e: network + canister create"
   icp network start -d >&3 2>&4
   icp network ping >&3 2>&4
   icp canister create taggr >&3 2>&4 || true
@@ -83,7 +80,7 @@ run_e2e() {
   echo "==> [6/7] e2e: install + cycles"
   icp canister install taggr --mode reinstall -y \
     --wasm target/wasm32-unknown-unknown/release/taggr.wasm.gz >&3 2>&4
-  icp canister top-up taggr --amount 100T --identity local-minter >&3 2>&4
+  icp canister top-up taggr --amount 100T >&3 2>&4
 
   echo "==> [7/7] e2e: playwright"
   npm run test:e2e

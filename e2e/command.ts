@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 
 export const transferICP = (acc: string, amount: number | string) => {
-    const cmd = `icp token transfer ${amount} ${acc} --identity local-minter`;
+    const cmd = `icp token transfer ${amount} ${acc} --identity anonymous`;
     exec(cmd);
 };
 
