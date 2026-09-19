@@ -29,7 +29,7 @@ RUN { \
         echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${APT_SNAPSHOT_DATE} trixie-updates main"; \
     } > /etc/apt/sources.list && \
     apt-get -yq update && \
-    apt-get -yqq install --no-install-recommends curl ca-certificates build-essential jq xz-utils && \
+    apt-get -yqq install --no-install-recommends curl ca-certificates build-essential jq xz-utils libdbus-1-3 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -94,24 +94,28 @@ RUN mkdir -p /opt/ic-wasm && \
     chmod +x /opt/ic-wasm/ic-wasm && \
     rm /tmp/ic-wasm.tar.xz
 
-# Install dfx (version pinned via dfx.json; release tarball pinned by sha256 per
-# arch). Refresh:
-#   curl -sL https://github.com/dfinity/sdk/releases/download/<ver>/dfx-<ver>-<triple>.tar.gz.sha256
+# Install icp-cli (version pinned here; release tarball pinned by sha256 per
+# arch). The network launcher and pocket-ic binary are downloaded by icp-cli on
+# first `icp network start`. Refresh:
+#   curl -sL https://github.com/dfinity/icp-cli/releases/download/<ver>/icp-cli-<triple>.tar.xz.sha256
 ENV HOME=/root
-ENV PATH=${HOME}/.local/share/dfx/bin:${PATH}
-COPY dfx.json ./
-RUN DFX_VERSION="$(jq -r .dfx dfx.json)" && \
-    case "${TARGETARCH:-$(uname -m)}" in \
-        amd64|x86_64) DFX_TRIPLE=x86_64-linux; DFX_SHA256=218dad11e0519e11c7a310b5c7cb1eadff109bb5db1ea3432f08c870432a80fc ;; \
-        arm64|aarch64) DFX_TRIPLE=aarch64-linux; DFX_SHA256=46e21e0e41a0e3d321f9f125851650205e0e38e4cf8ca98eeaea258074dafa89 ;; \
-        *) echo "Unsupported arch for dfx: ${TARGETARCH}" >&2; exit 1 ;; \
+# Treat the release/test container as CI: Playwright retries flaky e2e tests
+# (PocketIC queries occasionally return empty on the first load).
+ENV CI=1
+ENV PATH=/opt/icp:${PATH}
+ENV ICP_CLI_VERSION=1.5.0
+ENV DO_NOT_TRACK=1
+RUN case "${TARGETARCH:-$(uname -m)}" in \
+        amd64|x86_64) ICP_TRIPLE=x86_64-unknown-linux-gnu; ICP_SHA256=a6ffbc61ca728ce13492493b828f4cfd8aa9c953384e56e46fa6f2d86284d9bd ;; \
+        arm64|aarch64) ICP_TRIPLE=aarch64-unknown-linux-gnu; ICP_SHA256=8dc266d1b5b93b80e8bca2025a7268329e5b0d9a0b74f21bba4dad59267a363a ;; \
+        *) echo "Unsupported arch for icp-cli: ${TARGETARCH}" >&2; exit 1 ;; \
     esac && \
-    curl --fail -L "https://github.com/dfinity/sdk/releases/download/${DFX_VERSION}/dfx-${DFX_VERSION}-${DFX_TRIPLE}.tar.gz" -o /tmp/dfx.tar.gz && \
-    echo "${DFX_SHA256}  /tmp/dfx.tar.gz" | sha256sum -c - && \
-    mkdir -p ${HOME}/.local/share/dfx/bin && \
-    tar -xzf /tmp/dfx.tar.gz -C ${HOME}/.local/share/dfx/bin && \
-    chmod +x ${HOME}/.local/share/dfx/bin/dfx && \
-    rm /tmp/dfx.tar.gz
+    curl --fail -L "https://github.com/dfinity/icp-cli/releases/download/v${ICP_CLI_VERSION}/icp-cli-${ICP_TRIPLE}.tar.xz" -o /tmp/icp-cli.tar.xz && \
+    echo "${ICP_SHA256}  /tmp/icp-cli.tar.xz" | sha256sum -c - && \
+    mkdir -p /opt/icp && \
+    tar -xJf /tmp/icp-cli.tar.xz --strip-components=1 -C /opt/icp && \
+    rm /tmp/icp-cli.tar.xz && \
+    icp --version
 
 # Install NPM dependencies (lock file enforces a deterministic tree)
 COPY package.json package-lock.json ./

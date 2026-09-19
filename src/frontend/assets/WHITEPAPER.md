@@ -186,7 +186,7 @@ The neuron is only controlled by $name's canister as the assigned neuron's contr
 The $name canister votes via the hot-key mechanism.
 $name canister's `get_neuron_info` method confirms this:
 
-    dfx canister --network ic call $canister_id get_neuron_info
+    icp canister call --network ic $canister_id get_neuron_info
 
 #### Voting
 

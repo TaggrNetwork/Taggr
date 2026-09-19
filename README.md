@@ -13,9 +13,11 @@ Assume you want to verify a new upgrade proposal with code commit `<COMMIT>` and
 
 `make release` runs the full validation pipeline (lints, Rust tests, Playwright e2e) inside a container and only produces a hash if everything passes. A failing release therefore cannot be hashed — the printed hash is a signal that the source passed validation and the production wasm was built by the reproducible release builder. Podman is used automatically if installed; otherwise Docker. Override with `CONTAINER=docker make release`.
 
-The production wasm is always built in a `linux/amd64` container so its hash matches Linux verifiers. On amd64 hosts this is a single container that runs tests then the production build. On non-amd64 hosts the e2e gate runs in a host-native container (`TEST_PLATFORM`, e.g. `linux/arm64` on Apple Silicon — `dfx`/PocketIC don't tolerate qemu emulation), then the production wasm is built by a separate amd64 artifact container. The build is reproducible from a cold Cargo target via `codegen-units = 1`, `lto = true`, `strip = true`, `panic = "abort"` in `Cargo.toml` plus `--remap-path-prefix` in the Dockerfile, so the two-container path produces the same hash as the single-container path. Only `taggr.wasm.gz` is copied out via `RELEASE_ARTIFACT_DIR`; the Cargo target directory stays inside the container so macOS bind-mount semantics don't change the hash.
+The production wasm is always built in a `linux/amd64` container so its hash matches Linux verifiers. On amd64 hosts this is a single container that runs tests then the production build. On non-amd64 hosts the e2e gate runs in a host-native container (`TEST_PLATFORM`, e.g. `linux/arm64` on Apple Silicon — PocketIC doesn't tolerate qemu emulation), then the production wasm is built by a separate amd64 artifact container. The build is reproducible from a cold Cargo target via `codegen-units = 1`, `lto = true`, `strip = true`, `panic = "abort"` in `Cargo.toml` plus `--remap-path-prefix` in the Dockerfile, so the two-container path produces the same hash as the single-container path. Only `taggr.wasm.gz` is copied out via `RELEASE_ARTIFACT_DIR`; the Cargo target directory stays inside the container so macOS bind-mount semantics don't change the hash.
 
-By default `make release` is quiet — only stage markers (`==> [N/7] ...`), the Playwright run, and the final hash print. To stream every underlying tool's stdout/stderr (cargo, dfx, npm, build.sh) for debugging, set `VERBOSE=1`:
+> **Note:** the migration from dfx to icp-cli changed the released `taggr.wasm.gz` hash basis: `candid:service` metadata now comes from `src/backend/taggr.did` (added by `ic-wasm` in `build.sh`) and compression is done by `gzip -nf9` in `build.sh`. Rebuilds of the same commit remain deterministic; hashes from before the migration are not reproducible with the new pipeline.
+
+By default `make release` is quiet — only stage markers (`==> [N/7] ...`), the Playwright run, and the final hash print. To stream every underlying tool's stdout/stderr (cargo, icp, npm, build.sh) for debugging, set `VERBOSE=1`:
 
     VERBOSE=1 make release
 
@@ -26,7 +28,7 @@ Outputs of a successful run:
 -   `release-artifacts/taggr.wasm.gz` — the production wasm.
 -   `test-results/` and `playwright-report/` — Playwright traces and the HTML report (open `playwright-report/index.html` to inspect any failures).
 
-Note: the first run is slow (Chromium install layer is several hundred MB) and `dfx nns install` downloads the NNS canisters on every run.
+Note: the first run is slow (Chromium install layer is several hundred MB) and icp-cli downloads the network launcher and PocketIC binaries on first use.
 
 ## Release proposal
 

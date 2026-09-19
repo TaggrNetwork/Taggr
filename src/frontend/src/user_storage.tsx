@@ -7,7 +7,7 @@ import * as React from "react";
 import { Principal } from "@dfinity/principal";
 import { IDL } from "@dfinity/candid";
 import { AccountIdentifier, SubAccount } from "@dfinity/ledger-icp";
-import { CANISTER_ID } from "./env";
+import { CANISTER_ID, MAINNET_MODE } from "./env";
 import {
     ButtonWithLoading,
     confirmPopUp,
@@ -71,6 +71,12 @@ const NotifyError = IDL.Variant({
         error_message: IDL.Text,
     }),
 });
+
+const stringify = (value: unknown): string =>
+    JSON.stringify(value, (_key, v) =>
+        typeof v === "bigint" ? v.toString() : v,
+    );
+
 // Management-canister install_code argument, shared by bucket creation (install),
 // upgrade, and the console-only reinstall recovery path.
 export const InstallCodeArgs = IDL.Record({
@@ -295,7 +301,7 @@ export const createBucket = async (
                     );
                 }
             }
-            throw new Error(`CMC reported ${JSON.stringify(decoded.Err)}`);
+            throw new Error(`CMC reported ${stringify(decoded.Err)}`);
         }
         canisterId = decoded.Ok as Principal;
         saved = { stage: "created", canisterId: canisterId.toString() };
@@ -439,7 +445,7 @@ export const topUpCanister = async (
     const buf = await window.api.call_raw(CMC_PRINCIPAL, "notify_top_up", arg);
     const decoded = decodeReply<any>([NotifyTopUpResult], buf, "notify_top_up");
     if ("Err" in decoded) {
-        throw new Error(`CMC top-up reported ${JSON.stringify(decoded.Err)}`);
+        throw new Error(`CMC top-up reported ${stringify(decoded.Err)}`);
     }
     return decoded.Ok as bigint;
 };
@@ -566,6 +572,14 @@ export const stageLabel = (s: Stage | "done" | null): string => {
 const oneXdrE8s = (): number =>
     Number(window.backendCache.stats?.e8s_for_one_xdr || 0);
 
+// The managed test network seeds a deliberately cheap XDR rate (see
+// `reset_xdr_rate_for_testing`), which would make the CMC creation payment fall
+// below its 0.5T fee. On the local network charge at least this much (0.25 ICP,
+// comfortably above the fee) so creation works there; on mainnet the real rate
+// covers the fee, so the floor must not apply or the user would pay more ICP
+// than the "≈ 1 XDR" shown in the modal.
+const MIN_BUCKET_E8S = 25_000_000;
+
 const StorageCreationModal = ({
     parentCallback,
 }: {
@@ -573,7 +587,9 @@ const StorageCreationModal = ({
 }) => {
     const [stage, setStage] = React.useState<Stage | "done" | null>(null);
     const [error, setError] = React.useState<string | null>(null);
-    const amountE8s = oneXdrE8s();
+    const amountE8s = MAINNET_MODE
+        ? oneXdrE8s()
+        : Math.max(oneXdrE8s(), MIN_BUCKET_E8S);
 
     const run = async () => {
         setError(null);
