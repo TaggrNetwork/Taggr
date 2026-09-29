@@ -17,11 +17,11 @@ mkdir -p $DIR
 
 if [ "$CMD" == "restore" ]; then
     echo "Running restore from $DIR..."
-    GATEWAY_URL=$(icp network status --json | jq -r .gateway_url)
+    GATEWAY_URL=$(icp network status --json | jq -r '.gateway_url // .api_url')
     WEBSERVER_PORT=${GATEWAY_URL##*:}
     DFX_URL="http://localhost:${WEBSERVER_PORT}" $BACKUP $DIR restore $(jq -r ".taggr" .icp/cache/mappings/local.ids.json) $PAGE_START
     echo "Clearing buckets before restoring heap..."
-    icp canister call taggr clear_buckets '("")' || 1
+    icp canister call taggr clear_buckets '("")' || true
     echo "Restoring heap..."
     icp canister call taggr stable_to_heap
     echo "Clearing buckets after restoring heap..."
