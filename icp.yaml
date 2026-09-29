@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/dfinity/icp-cli/main/docs/schemas/icp-yaml-schema.json
+canisters:
+  - name: taggr
+    build:
+      steps:
+        - type: script
+          commands:
+            - ./build.sh taggr
+            - cp target/wasm32-unknown-unknown/release/taggr.wasm.gz "$ICP_WASM_OUTPUT_PATH"
+
+environments:
+  - name: staging
+    network: ic
+    canisters: [taggr]
+
+  - name: staging2
+    network: ic
+    canisters: [taggr]

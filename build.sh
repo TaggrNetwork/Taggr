@@ -19,5 +19,10 @@ for pkg in "$@"; do
     WASM_FILE=target/$TARGET/release/$pkg.wasm
     ic-wasm $WASM_FILE -o $WASM_FILE shrink
     ic-wasm $WASM_FILE -o $WASM_FILE optimize Oz
+    # icp-cli does not embed candid:service itself; add it here so the public
+    # interface ships in the wasm (this used to happen via dfx).
+    if [ "$pkg" == "taggr" ]; then
+        ic-wasm $WASM_FILE -o $WASM_FILE metadata candid:service -f src/backend/taggr.did -v public
+    fi
     gzip -nf9 $WASM_FILE
 done

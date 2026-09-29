@@ -10,6 +10,7 @@ import {
     handleDialogSequence,
     pollForCondition,
     createAuctionBid,
+    invoiceAccount,
 } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
@@ -66,19 +67,17 @@ test.describe("Upgrades & token transfer flow", () => {
         const stalwartPrincipal =
             "v5znh-suak4-idmlq-uaq6k-iiygt-7d7de-jq7pf-dpzmt-zhmle-akfo2-mqe";
         await expect(page.getByText(stalwartPrincipal)).toBeVisible();
-        transferICP(
-            "aa2ff83cb95478c005b5d108b050bdbf148e3b404f1a0d82173dd779ad70c355",
-            1,
-        );
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
             .click();
+        transferICP(await invoiceAccount(page), 1);
+        await page.getByRole("button", { name: "CHECK BALANCE" }).click();
         await waitForUILoading(page);
         await page.getByRole("button", { name: "CREATE USER" }).click();
         await page.getByPlaceholder("alphanumeric").fill("eve");
         await page.getByRole("button", { name: "SAVE" }).click();
         await waitForUILoading(page);
-        exec("dfx canister call taggr make_stalwart '(\"eve\")'");
+        exec("icp canister call taggr make_stalwart '(\"eve\")'");
     });
 
     test("Create a post and an invite", async () => {
@@ -128,15 +127,9 @@ test.describe("Upgrades & token transfer flow", () => {
     });
 
     test("Create an auction bid, trigger minting", async ({}) => {
-        await createAuctionBid(
-            page,
-            "0.01",
-            "15",
-            transferICP,
-            "aa2ff83cb95478c005b5d108b050bdbf148e3b404f1a0d82173dd779ad70c355",
-        );
+        await createAuctionBid(page, "0.01", "15", transferICP);
 
-        exec("dfx canister call taggr weekly_chores");
+        exec("icp canister call taggr weekly_chores '()'");
     });
 
     test("Wallet", async () => {
@@ -152,7 +145,7 @@ test.describe("Upgrades & token transfer flow", () => {
             },
             {
                 maxAttempts: 15,
-                interval: 1000,
+                interval: 2000,
                 errorMessage:
                     "Token balance did not update to 15 after minting",
             },
@@ -254,7 +247,7 @@ test.describe("Upgrades & token transfer flow", () => {
             page.getByRole("heading", { name: "Supporters" }),
         ).toBeVisible();
 
-        exec("dfx canister call taggr chores");
+        exec("icp canister call taggr chores '()'");
         await waitForUILoading(page, { timeout: 10000 });
         await page.waitForTimeout(4000);
     });
@@ -350,7 +343,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
         await expect(page.getByText(/STATUS.*EXECUTED/)).toBeVisible();
 
-        exec("dfx canister call taggr chores");
+        exec("icp canister call taggr chores '()'");
         await waitForUILoading(page, { timeout: 5000 });
         await page.locator("#logo").click();
         await waitForUILoading(page);

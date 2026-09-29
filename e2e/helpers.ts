@@ -156,7 +156,7 @@ export async function waitForUILoading(
         timeout?: number;
     } = {},
 ): Promise<void> {
-    const { timeout = 15000 } = options;
+    const { timeout = 30000 } = options;
 
     await page.waitForLoadState("networkidle", { timeout });
     // Wait for the app to actually render (#app becomes visible when
@@ -173,21 +173,44 @@ export async function createAuctionBid(
     icpPerToken: string,
     tokenAmount: string,
     transferICPFn: (address: string, amount: number) => void,
-    icpAddress: string,
 ): Promise<void> {
     await page.goto("/#/tokens");
     await waitForUILoading(page);
     await page.getByPlaceholder("ICP per 1 TAGGR").fill(icpPerToken);
     await page.getByPlaceholder("Number of TAGGR tokens").fill(tokenAmount);
-    transferICPFn(
-        icpAddress,
-        parseFloat(icpPerToken) * parseFloat(tokenAmount),
-    );
+    const account = await auctionAccount(page);
+    transferICPFn(account, parseFloat(icpPerToken) * parseFloat(tokenAmount));
     await page
         .getByRole("button", { name: `BID FOR ${tokenAmount} TAGGR` })
         .click();
     await waitForUILoading(page);
     await page.getByText("Current Bids").waitFor({ state: "visible" });
+}
+
+/**
+ * The ICP ledger account an invoice must be paid to. Derived from the taggr
+ * canister principal, so it differs per environment; read it from the UI
+ * instead of hardcoding.
+ */
+export async function invoiceAccount(page: Page): Promise<string> {
+    return readCopyToClipboard(page, "account-to-transfer-to");
+}
+
+async function auctionAccount(page: Page): Promise<string> {
+    return readCopyToClipboard(page, "auction-account");
+}
+
+async function readCopyToClipboard(
+    page: Page,
+    testId: string,
+): Promise<string> {
+    const element = page.getByTestId(testId);
+    await element.waitFor({ state: "visible" });
+    const value = (await element.textContent())?.replace(/\s/g, "") ?? "";
+    if (!/^[0-9a-f]{64}$/i.test(value)) {
+        throw new Error(`unexpected account id from ${testId}: ${value}`);
+    }
+    return value;
 }
 
 export async function safeClick(

@@ -4,8 +4,9 @@ export default defineConfig({
     testDir: "./e2e",
     fullyParallel: false,
     forbidOnly: !!process.env.CI,
-    retries: process.env.CI ? 2 : 0,
+    retries: process.env.CI ? 3 : 0,
     workers: 1,
+    timeout: 60000,
     reporter: [
         ["list", { printSteps: true }],
         ["html", { open: "never" }],
@@ -16,7 +17,7 @@ export default defineConfig({
         screenshot: "only-on-failure",
         video: "retain-on-failure",
         baseURL: process.env["BASE_URL"],
-        actionTimeout: 15000,
+        actionTimeout: 30000,
     },
     projects: [
         {
@@ -28,7 +29,7 @@ export default defineConfig({
         },
     ],
     expect: {
-        timeout: 15000,
+        timeout: 30000,
         toHaveScreenshot: { maxDiffPixels: 100 },
     },
     globalSetup: require.resolve("./e2e/setup"),

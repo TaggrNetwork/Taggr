@@ -7,42 +7,40 @@ const TerserPlugin = require("terser-webpack-plugin");
 const isDevelopment = process.env.NODE_ENV !== "production";
 const NETWORK = process.env.DFX_NETWORK || (isDevelopment ? "local" : "ic");
 
-function getDfxPort() {
+function getGatewayPort() {
     try {
         const { execSync } = require("child_process");
-        const port = execSync("dfx info webserver-port", {
-            encoding: "utf8",
-        }).trim();
-        return port;
+        const status = JSON.parse(
+            execSync("icp network status --json", {
+                encoding: "utf8",
+                stdio: ["ignore", "pipe", "ignore"],
+            }),
+        );
+        const url = new URL(status.gateway_url || status.api_url);
+        return url.port || "8000";
     } catch (error) {
-        return "8080";
+        return "8000";
     }
 }
 
 function initCanisterEnv() {
-    let localCanisters, prodCanisters;
+    // icp-cli records canister IDs per environment. Managed networks (local)
+    // live in .icp/cache; connected networks (ic, staging, ...) are committed
+    // under .icp/data.
+    const mappingPath =
+        NETWORK === "local"
+            ? path.resolve(".icp", "cache", "mappings", "local.ids.json")
+            : path.resolve(".icp", "data", "mappings", `${NETWORK}.ids.json`);
+
+    let mapping;
     try {
-        localCanisters = require(
-            path.resolve(".dfx", "local", "canister_ids.json"),
-        );
+        mapping = require(mappingPath);
     } catch (error) {
-        console.log("No local canister_ids.json found. Continuing production");
-    }
-    try {
-        prodCanisters = require(path.resolve("canister_ids.json"));
-    } catch (error) {
-        console.log(
-            "No production canister_ids.json found. Continuing with local",
-        );
+        console.log(`No canister ID mapping found at ${mappingPath}`);
+        return {};
     }
 
-    const canisterConfig = NETWORK === "local" ? localCanisters : prodCanisters;
-
-    return Object.entries(canisterConfig).reduce((prev, current) => {
-        const [_canisterName, canisterDetails] = current;
-        prev["CANISTER_ID"] = canisterDetails[NETWORK];
-        return prev;
-    }, {});
+    return { CANISTER_ID: mapping["taggr"] };
 }
 const canisterEnvVariables = initCanisterEnv();
 
@@ -157,7 +155,7 @@ module.exports = {
         proxy: [
             {
                 context: ["/api"],
-                target: `http://127.0.0.1:${getDfxPort()}`,
+                target: `http://127.0.0.1:${getGatewayPort()}`,
                 changeOrigin: true,
                 pathRewrite: {
                     "^/api": "/api",

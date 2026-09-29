@@ -8,7 +8,11 @@
 .DS_Store
 **/.DS_Store
 
-# dfx temporary files
+# icp-cli temporary files (build artifacts, local mappings).
+# .icp/data/ is committed: it holds mainnet canister ID mappings.
+.icp/cache/
+
+# legacy dfx leftovers
 .dfx/
 
 # rust
@@ -22,8 +26,6 @@ dist/
 # e2e tests
 test-results/
 playwright-report/
-e2e/icp_ledger/ledger.wasm.gz
-e2e/icp_ledger/ledger.did
 
 # reviews
 /reviews

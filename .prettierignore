@@ -8,7 +8,10 @@
 .DS_Store
 **/.DS_Store
 
-# dfx temporary files
+# icp-cli temporary files
+.icp/
+
+# legacy dfx leftovers
 .dfx/
 
 # rust

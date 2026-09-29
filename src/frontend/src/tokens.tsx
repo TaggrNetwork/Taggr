@@ -263,6 +263,7 @@ const AuctionCard = ({}) => {
                                 <br />
                                 <CopyToClipboard
                                     value={internalAccount}
+                                    testId="auction-account"
                                     displayMap={(account) =>
                                         bigScreen()
                                             ? account

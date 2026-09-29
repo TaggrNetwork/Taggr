@@ -4,6 +4,7 @@ import {
     handleDialogSequence,
     pollForCondition,
     createAuctionBid,
+    invoiceAccount,
 } from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { exec, mkPwd, transferICP } from "./command";
@@ -35,13 +36,12 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "CONTINUE" }).click();
         await reloadPromise;
         await waitForUILoading(page);
-        transferICP(
-            "e93e7f1cfa411dafa8debb4769c6cc1b7972434f1669083fd08d86d11c0c0722",
-            1,
-        );
         await page
             .getByRole("button", { name: "MINT CREDITS WITH ICP" })
             .click();
+        transferICP(await invoiceAccount(page), 1);
+        await page.getByRole("button", { name: "CHECK BALANCE" }).click();
+        await waitForUILoading(page);
         await page.getByRole("button", { name: "CREATE USER" }).click();
         await page.getByPlaceholder("alphanumeric").fill("joe");
         await page.getByRole("button", { name: "SAVE" }).click();
@@ -203,16 +203,10 @@ test.describe("Report and transfer to user", () => {
         await page.getByRole("button", { name: "SAVE" }).click();
         await waitForUILoading(page);
 
-        await createAuctionBid(
-            page,
-            "0.01",
-            "15",
-            transferICP,
-            "12f7ce64042b48e49f6c502c002035acfb3e037cb057ec184f88c04d45e8c03b",
-        );
+        await createAuctionBid(page, "0.01", "15", transferICP);
 
-        exec("dfx canister call taggr weekly_chores");
-        exec("dfx canister call taggr make_stalwart '(\"joe\")'");
+        exec("icp canister call taggr weekly_chores '()'");
+        exec("icp canister call taggr make_stalwart '(\"joe\")'");
         await page.waitForTimeout(3000);
     });
 
