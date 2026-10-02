@@ -214,58 +214,6 @@ fn set_bucket() {
     }));
 }
 
-/// Called by the frontend once it has re-written every legacy blob of a post
-/// into the user's personal bucket. Replaces all listed `"<id>@<old_bucket>"`
-/// entries with `"<id>@<user.bucket>"` and the new offset/length. When the
-/// post no longer references any other bucket, drops it from `post_index`.
-/// Does not touch the old (shared) bucket — those segments leak.
-#[export_name = "canister_update migrate_post"]
-fn migrate_post() {
-    let (post_id, entries): (PostId, Vec<FileRef>) = parse(&arg_data_raw());
-    reply(migrate_post_impl(post_id, entries));
-}
-
-fn migrate_post_impl(post_id: PostId, entries: Vec<FileRef>) -> Result<(), String> {
-    mutate(|state| {
-        let principal = raw_caller(state)?;
-        let user = state.principal_to_user(principal).ok_or("user not found")?;
-        let user_id = user.id;
-        let bucket = user.bucket.ok_or("personal media bucket not configured")?;
-        let post_exists = Post::get(state, &post_id).is_some();
-        if post_exists {
-            Post::mutate(state, &post_id, |post| {
-                if post.user != user_id {
-                    return Err("unauthorized".to_string());
-                }
-                for (old_key, _, _) in &entries {
-                    if !post.files.contains_key(old_key) {
-                        return Err(format!("file not found in post: {}", old_key));
-                    }
-                }
-                for (old_key, new_offset, new_len) in entries {
-                    let blob_id = old_key
-                        .split('@')
-                        .next()
-                        .ok_or("malformed file key")?
-                        .to_string();
-                    post.files.remove(&old_key);
-                    post.files.insert(
-                        format!("{}@{}", blob_id, bucket),
-                        (new_offset, new_len as usize),
-                    );
-                }
-                Ok(())
-            })?;
-        }
-        // Drop the post from the user's migration index even if the post is
-        // gone; otherwise stale entries pile up forever.
-        if let Some(ids) = state.post_index.get_mut(&user_id) {
-            ids.retain(|id| *id != post_id);
-        }
-        Ok(())
-    })
-}
-
 #[export_name = "canister_update withdraw_rewards"]
 fn withdraw_rewards() {
     in_executor_context(|| {
