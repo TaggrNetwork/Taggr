@@ -9,7 +9,6 @@ use serde_bytes::ByteBuf;
 
 #[update]
 async fn reset(canister_id: String) {
-    clear_buckets().await;
     STATE.with(|cell| {
         let mut state: State = Default::default();
         state.init();
@@ -51,15 +50,6 @@ async fn check() {
             .sum::<u64>();
         assert_eq!(sum, (last_id.pow(2) + last_id) / 2);
     });
-}
-
-#[update]
-async fn clear_buckets() {
-    use ic_cdk_management_canister::{delete_canister, stop_canister, CanisterIdRecord};
-    for (canister_id, _) in mutate(|state| std::mem::take(&mut state.storage.buckets)) {
-        let _: Result<(), _> = stop_canister(&CanisterIdRecord { canister_id }).await;
-        let _: Result<(), _> = delete_canister(&CanisterIdRecord { canister_id }).await;
-    }
 }
 
 #[update]

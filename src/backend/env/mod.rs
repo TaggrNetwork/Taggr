@@ -32,6 +32,7 @@ use token::base;
 use user::{User, UserId};
 
 pub mod auction;
+pub mod bucket;
 pub mod canisters;
 pub mod config;
 pub mod delegations;
@@ -47,7 +48,6 @@ pub mod proposals;
 pub mod realms;
 pub mod reports;
 pub mod search;
-pub mod storage;
 pub mod token;
 pub mod user;
 
@@ -103,8 +103,6 @@ pub struct Stats {
     active_users: usize,
     active_users_vp: u64,
     invited_users: usize,
-    // (id, state_size, cycles, cycles_per_day)
-    buckets: Vec<(String, u64, u64, u64)>,
     users_online: usize,
     module_hash: String,
     last_release: ReleaseInfo,
@@ -170,7 +168,6 @@ pub struct State {
     pub next_post_id: PostId,
     pub next_user_id: UserId,
     pub accounting: Invoices,
-    pub storage: storage::Storage,
 
     pub logger: Logger,
     pub invite_codes: BTreeMap<String, Invite>,
@@ -219,12 +216,6 @@ pub struct State {
     pub last_nns_proposal: u64,
 
     pub root_posts_index: Vec<PostId>,
-
-    // Per-user list of post ids pending migration. Used by the frontend
-    // migration loop to enumerate a user's posts without scanning all posts
-    // client-side. Temporary: drop once the shared bucket is retired.
-    #[serde(default)]
-    pub post_index: BTreeMap<UserId, Vec<PostId>>,
 
     e8s_for_one_xdr: u64,
 
@@ -2509,19 +2500,6 @@ impl State {
             active_users,
             active_users_vp: active_users_vp / token::base(),
             circulating_supply: self.balances.values().sum(),
-            buckets: self
-                .storage
-                .buckets
-                .iter()
-                .map(|(id, size)| {
-                    let (cycles, cycles_per_day) = self
-                        .canister_cycle_stats
-                        .get(id)
-                        .copied()
-                        .unwrap_or_default();
-                    (id.to_string(), *size, cycles, cycles_per_day)
-                })
-                .collect(),
         }
     }
 

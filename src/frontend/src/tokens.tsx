@@ -54,6 +54,9 @@ export const Tokens = () => {
 
     const { balances, circulating_supply } = data;
     const topSupply = balances.reduce((acc, balance) => acc + balance[1], 0);
+    // The Nakamoto coefficient is computed against the voting power of active
+    // users only (see `token_stats` in the backend), so show that basis too.
+    const activeVp = data.active_users_vp * tokenBase();
 
     return (
         <>
@@ -147,7 +150,18 @@ export const Tokens = () => {
                         <tr>
                             <th style={{ textAlign: "left" }}>Principal</th>
                             <th style={{ textAlign: "right" }}>Balance</th>
-                            <th style={{ textAlign: "right" }}>Share</th>
+                            <th
+                                style={{ textAlign: "right" }}
+                                title="% of circulating supply"
+                            >
+                                Share
+                            </th>
+                            <th
+                                style={{ textAlign: "right" }}
+                                title="% of active voting power (Nakamoto basis)"
+                            >
+                                VP
+                            </th>
                             <th style={{ textAlign: "right" }}>User</th>
                         </tr>
                     </thead>
@@ -164,6 +178,9 @@ export const Tokens = () => {
                                     <code>{token(b[1])}</code>
                                 </td>
                                 <td>{percentage(b[1], circulating_supply)}</td>
+                                <td>
+                                    {b[3] ? percentage(b[1], activeVp) : "0%"}
+                                </td>
                                 <td>
                                     <UserLink id={b[2]} />
                                 </td>

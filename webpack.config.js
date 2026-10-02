@@ -36,8 +36,18 @@ function initCanisterEnv() {
     try {
         mapping = require(mappingPath);
     } catch (error) {
-        console.log(`No canister ID mapping found at ${mappingPath}`);
-        return {};
+        if (NETWORK === "local") {
+            console.log(`No canister ID mapping found at ${mappingPath}`);
+            return {};
+        }
+        throw new Error(
+            `No canister ID mapping found at ${mappingPath}; ` +
+                `run "icp deploy -e ${NETWORK}" or restore the committed mapping`,
+        );
+    }
+
+    if (NETWORK !== "local" && !mapping["taggr"]) {
+        throw new Error(`No "taggr" entry in ${mappingPath}`);
     }
 
     return { CANISTER_ID: mapping["taggr"] };

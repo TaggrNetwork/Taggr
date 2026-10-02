@@ -498,7 +498,7 @@ fn realm_search() {
 
 #[query]
 fn bucket_wasm() -> Blob {
-    ByteBuf::from(env::storage::BUCKET_WASM_GZ.to_vec())
+    ByteBuf::from(env::bucket::BUCKET_WASM_GZ.to_vec())
 }
 
 /// Hex sha256 of the current bucket wasm (the gzipped module submitted to
@@ -507,21 +507,7 @@ fn bucket_wasm() -> Blob {
 #[export_name = "canister_query bucket_wasm_hash"]
 fn bucket_wasm_hash() {
     use sha2::{Digest, Sha256};
-    reply(hex::encode(Sha256::digest(env::storage::BUCKET_WASM_GZ)))
-}
-
-/// Post ids of the caller, sourced from the migration-time `post_index`.
-/// Entries are removed by `migrate_post` once a post is fully on the user's
-/// own bucket, so this list shrinks as the user migrates.
-#[export_name = "canister_query user_post_index"]
-fn user_post_index() {
-    read(|state| {
-        let ids: Vec<PostId> = state
-            .principal_to_user(caller(state))
-            .and_then(|u| state.post_index.get(&u.id).cloned())
-            .unwrap_or_default();
-        reply(ids);
-    })
+    reply(hex::encode(Sha256::digest(env::bucket::BUCKET_WASM_GZ)))
 }
 
 #[query]
