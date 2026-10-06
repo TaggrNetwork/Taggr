@@ -4,6 +4,7 @@ use super::*;
 use candid::Principal;
 use env::{
     config::CONFIG,
+    ethereum::address_from_public_key,
     memory,
     post::{Post, PostId},
     user::UserId,
@@ -468,6 +469,11 @@ fn recovery_state() {
 #[export_name = "canister_query stats"]
 fn stats() {
     read(|state| reply(state.stats(api::time())));
+}
+
+#[export_name = "canister_query eth_address"]
+fn eth_address() {
+    read(|state| reply(address_from_public_key(&state.eth_public_key).unwrap_or_default()))
 }
 
 #[export_name = "canister_query search"]

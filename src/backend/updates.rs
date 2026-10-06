@@ -57,6 +57,7 @@ fn init() {
         state.init();
     });
     set_timer(Duration::from_millis(0), State::fetch_xdr_rate());
+    set_timer(Duration::from_millis(0), env::ethereum::update_eth_key());
     set_timer_interval(Duration::from_secs(15 * 60), || State::chores(api::time()));
 }
 
@@ -100,7 +101,9 @@ fn post_upgrade() {
 fn sync_post_upgrade_fixtures() {}
 
 #[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {}
+async fn async_post_upgrade_fixtures() {
+    env::ethereum::update_eth_key().await;
+}
 
 /*
  * UPDATES

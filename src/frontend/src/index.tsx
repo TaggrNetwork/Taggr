@@ -45,6 +45,7 @@ import {
 import { setRealmUI, setUI } from "./theme";
 import { Search } from "./search";
 import { Distribution } from "./distribution";
+import { Ethereum } from "./ethereum";
 import { populateUserNameCache } from "./user_resolve";
 import { LinksPage } from "./links";
 import { ApiGenerator } from "./api";
@@ -229,6 +230,8 @@ const App = () => {
         content = <Proposals />;
     } else if (handler == "tokens") {
         content = <Tokens />;
+    } else if (handler == "ethereum") {
+        content = <Ethereum />;
     } else if (handler == "dashboard" || handler == "stats") {
         content = <Dashboard />;
     } else if (handler == "search") {

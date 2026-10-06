@@ -142,6 +142,8 @@ pub struct Config {
     // rejected without a controversy. On a controversial rejection, the tokens will be burned.
     // The amount is in XDR.
     pub proposal_escrow_amount_xdr: u64,
+
+    pub ecdsa_key_name: &'static str,
 }
 
 mod string {
@@ -354,6 +356,11 @@ pub const CONFIG: &Config = &Config {
     proposal_escrow_amount_xdr: 1,
     #[cfg(not(feature = "dev"))]
     proposal_escrow_amount_xdr: 144,
+
+    #[cfg(any(test, feature = "dev"))]
+    ecdsa_key_name: "dfx_test_key",
+    #[cfg(not(any(test, feature = "dev")))]
+    ecdsa_key_name: "key_1",
 };
 
 pub fn reaction_rewards() -> BTreeMap<u16, i64> {
