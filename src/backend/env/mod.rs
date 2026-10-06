@@ -36,6 +36,7 @@ pub mod canisters;
 pub mod config;
 pub mod delegations;
 pub mod domains;
+pub mod ethereum;
 pub mod invite;
 pub mod invoices;
 pub mod memory;
@@ -252,6 +253,9 @@ pub struct State {
     // Per-canister snapshot of (cycles, idle_cycles_burned_per_day), refreshed by `canisters::top_up()` (hourly).
     #[serde(default)]
     pub canister_cycle_stats: BTreeMap<Principal, (u64, u64)>,
+
+    #[serde(default)]
+    pub eth_public_key: Vec<u8>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
