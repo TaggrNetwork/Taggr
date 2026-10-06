@@ -846,10 +846,12 @@ export const Settings = ({
             <ol>
                 <li>
                     Log in using the new authentication method (a new II anchor
-                    or a seed phrase).
+                    or a seed phrase). Use <b>Sign-up</b>, not Sign-in.
                 </li>
                 <li>
-                    Copy the displayed principal and log out again{" "}
+                    On the "New user detected" page, copy the principal shown
+                    next to "Your {window.backendCache.config.name} principal"
+                    and log out again{" "}
                     <b>without creating a new user</b>.
                 </li>
                 <li>
