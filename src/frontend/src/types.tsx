@@ -343,7 +343,6 @@ export type Stats = {
     e8s_revenue_per_1k: BigInt;
     canister_id: string;
     vesting_tokens_of_x: [number, number];
-    buckets: [string, number, number, number][];
     stalwarts: UserId[];
 };
 

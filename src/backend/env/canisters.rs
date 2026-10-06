@@ -246,27 +246,8 @@ pub async fn call_canister<T: ArgumentEncoder, R: for<'a> ArgumentDecoder<'a>>(
     result
 }
 
-/// Tops up the main canister and refreshes legacy-bucket cycle stats. Legacy
-/// buckets are no longer topped up — they'll freeze on their own once their
-/// cycles run out, and the shared bucket is being retired wholesale. Stats
-/// gathering stays so the dashboard can still report their balance.
+/// Tops up the main canister.
 pub async fn top_up() {
-    let bucket_ids = read(|state| state.storage.buckets.keys().cloned().collect::<Vec<_>>());
-    let mut bucket_statuses: Vec<(Principal, u64, u64)> = Vec::with_capacity(bucket_ids.len());
-    for canister_id in bucket_ids {
-        match cycles(canister_id).await {
-            Ok((cycles, cycles_per_day)) => {
-                bucket_statuses.push((canister_id, cycles, cycles_per_day))
-            }
-            Err(err) => mutate(|state| {
-                state.logger.error(format!(
-                    "failed to fetch the cycle balance from `{}`: {}",
-                    canister_id, err
-                ))
-            }),
-        }
-    }
-
     // top up the main canister
     match cycles(id()).await {
         Ok((cycles, cycles_per_day)) => {
@@ -312,13 +293,4 @@ pub async fn top_up() {
             ))
         }),
     };
-
-    // Refresh legacy-bucket stats only — no top-up action.
-    for (canister_id, cycles, cycles_per_day) in bucket_statuses {
-        mutate(|state| {
-            state
-                .canister_cycle_stats
-                .insert(canister_id, (cycles, cycles_per_day));
-        });
-    }
 }
