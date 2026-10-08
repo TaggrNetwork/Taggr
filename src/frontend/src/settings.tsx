@@ -8,6 +8,7 @@ import {
     ICP_LEDGER_ID,
     hex,
     showPopUp,
+    signOutAndRestart,
     sizeMb,
     showCycles,
     onCanonicalDomain,
@@ -366,6 +367,8 @@ export const Settings = ({
 }) => {
     const user = window.user;
     const [principal, setPrincipal] = React.useState(window.principalId);
+    const [principalChangeRequested, setPrincipalChangeRequested] =
+        React.useState<string | null>(null);
     const [name, setName] = React.useState("");
     const [about, setAbout] = React.useState("");
     const [settings, setSettings] = React.useState<{ [name: string]: string }>(
@@ -851,8 +854,7 @@ export const Settings = ({
                 <li>
                     On the "New user detected" page, copy the principal shown
                     next to "Your {window.backendCache.config.name} principal"
-                    and log out again{" "}
-                    <b>without creating a new user</b>.
+                    and log out again <b>without creating a new user</b>.
                 </li>
                 <li>
                     Login back to your account using the old authentication
@@ -860,99 +862,130 @@ export const Settings = ({
                 </li>
                 <li>Change the principal.</li>
                 <li>
-                    Login with the new authentication method and confirm the
-                    principal change.
+                    Sign out, then log in with the new authentication method.
+                    The change is confirmed automatically on login.
                 </li>
             </ol>
             {onCanonicalDomain() ? (
-                <>
-                    <div className="bottom_half_spaced">New principal</div>
-                    <input
-                        placeholder="Your principal"
-                        className="bottom_spaced"
-                        type="text"
-                        value={principal}
-                        onChange={(event) => setPrincipal(event.target.value)}
-                    />
-                    <ButtonWithLoading
-                        classNameArg={
-                            principal != window.principalId ? "" : "inactive"
-                        }
-                        onClick={async () => {
-                            const accountBalance =
-                                await window.api.account_balance(
-                                    ICP_LEDGER_ID,
-                                    {
-                                        owner: Principal.fromText(
-                                            user.principal,
-                                        ),
-                                    },
-                                );
-                            if (accountBalance > 0) {
-                                showPopUp(
-                                    "warning",
-                                    "Your ICP balance is not empty. Please withdraw all funds before changing the principal.",
-                                    5,
-                                );
-                                return;
+                principalChangeRequested ? (
+                    <>
+                        <p className="bottom_spaced">
+                            <b>Request registered.</b> The principal{" "}
+                            <code>{principalChangeRequested}</code> is now
+                            waiting to replace your current one.
+                        </p>
+                        <p className="bottom_spaced">
+                            To finish, sign out and log in again using the new
+                            authentication method. The change is confirmed
+                            automatically on login.
+                        </p>
+                        <ButtonWithLoading
+                            classNameArg="active"
+                            onClick={async () => {
+                                location.hash = "#/sign-in";
+                                await signOutAndRestart();
+                            }}
+                            label="SIGN OUT AND SIGN IN WITH NEW PRINCIPAL"
+                        />
+                    </>
+                ) : (
+                    <>
+                        <div className="bottom_half_spaced">New principal</div>
+                        <input
+                            placeholder="Your principal"
+                            className="bottom_spaced"
+                            type="text"
+                            value={principal}
+                            onChange={(event) =>
+                                setPrincipal(event.target.value)
                             }
-                            const newPrincipalText = principal.trim();
-                            let newPrincipal: Principal;
-                            try {
-                                newPrincipal =
-                                    Principal.fromText(newPrincipalText);
-                            } catch (err) {
-                                return showPopUp(
-                                    "error",
-                                    `Invalid principal: ${err}`,
-                                );
+                        />
+                        <ButtonWithLoading
+                            classNameArg={
+                                principal != window.principalId
+                                    ? ""
+                                    : "inactive"
                             }
-                            if (user.bucket) {
-                                const addController = await confirmPopUp(
-                                    `You own a storage canister. The new principal must be added as a controller of that canister now, while the old principal is still authenticated; otherwise you would lose ALL control of the canister after the principal change (cannot upload, free, upgrade, or delete it). Removing the OLD principal from the canister's controller list afterward is YOUR responsibility — ${window.backendCache.config.name} will not do it.`,
-                                    {
-                                        confirmLabel: "ADD CONTROLLER",
-                                        cancelLabel: "ABORT",
-                                    },
-                                );
-                                if (!addController) {
+                            onClick={async () => {
+                                const accountBalance =
+                                    await window.api.account_balance(
+                                        ICP_LEDGER_ID,
+                                        {
+                                            owner: Principal.fromText(
+                                                user.principal,
+                                            ),
+                                        },
+                                    );
+                                if (accountBalance > 0) {
+                                    showPopUp(
+                                        "warning",
+                                        "Your ICP balance is not empty. Please withdraw all funds before changing the principal.",
+                                        5,
+                                    );
                                     return;
                                 }
+                                const newPrincipalText = principal.trim();
+                                let newPrincipal: Principal;
                                 try {
-                                    // Preserve the canister's current on-chain
-                                    // controllers (e.g. blackhole) instead of
-                                    // resetting to [old, new], which would
-                                    // silently strip them.
-                                    const { controllers } =
-                                        await fetchCanisterStatus(
-                                            Principal.fromText(user.bucket),
-                                        );
-                                    await window.api.add_bucket_controller(
-                                        Principal.fromText(user.bucket),
-                                        controllers,
-                                        newPrincipal,
-                                    );
+                                    newPrincipal =
+                                        Principal.fromText(newPrincipalText);
                                 } catch (err) {
                                     return showPopUp(
                                         "error",
-                                        `Failed to add controller — principal change aborted: ${err}`,
-                                        7,
+                                        `Invalid principal: ${err}`,
                                     );
                                 }
-                            }
-                            let response = await window.api.call<any>(
-                                "request_principal_change",
-                                newPrincipalText,
-                            );
-                            if ("Err" in response) {
-                                return showPopUp("error", response.Err);
-                            }
-                            localStorage.clear();
-                            location.href = "/";
-                        }}
-                        label="CHANGE PRINCIPAL"
-                    />
-                </>
+                                if (user.bucket) {
+                                    const addController = await confirmPopUp(
+                                        `You own a storage canister. The new principal must be added as a controller of that canister now, while the old principal is still authenticated; otherwise you would lose ALL control of the canister after the principal change (cannot upload, free, upgrade, or delete it). Removing the OLD principal from the canister's controller list afterward is YOUR responsibility — ${window.backendCache.config.name} will not do it.`,
+                                        {
+                                            confirmLabel: "ADD CONTROLLER",
+                                            cancelLabel: "ABORT",
+                                        },
+                                    );
+                                    if (!addController) {
+                                        return;
+                                    }
+                                    try {
+                                        // Preserve the canister's current on-chain
+                                        // controllers (e.g. blackhole) instead of
+                                        // resetting to [old, new], which would
+                                        // silently strip them.
+                                        const { controllers } =
+                                            await fetchCanisterStatus(
+                                                Principal.fromText(user.bucket),
+                                            );
+                                        await window.api.add_bucket_controller(
+                                            Principal.fromText(user.bucket),
+                                            controllers,
+                                            newPrincipal,
+                                        );
+                                        showPopUp(
+                                            "success",
+                                            "The new principal was added as a controller of your storage canister.",
+                                            5,
+                                        );
+                                    } catch (err) {
+                                        return showPopUp(
+                                            "error",
+                                            `Failed to add controller — principal change aborted: ${err}`,
+                                            7,
+                                        );
+                                    }
+                                }
+                                let response = await window.api.call<any>(
+                                    "request_principal_change",
+                                    newPrincipalText,
+                                );
+                                if ("Err" in response) {
+                                    return showPopUp("error", response.Err);
+                                }
+                                setPrincipalChangeRequested(newPrincipalText);
+                            }}
+                            label="CHANGE PRINCIPAL"
+                        />
+                    </>
+                )
             ) : (
                 <UnavailableOnCustomDomains />
             )}

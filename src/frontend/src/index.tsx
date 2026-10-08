@@ -317,7 +317,7 @@ const reloadCache = async () => {
     }
 };
 
-const confirmPrincipalChange = async () => {
+export const confirmPrincipalChange = async () => {
     if (
         !window.principalId ||
         !(await window.api.query<boolean>("migration_pending"))

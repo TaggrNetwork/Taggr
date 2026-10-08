@@ -2313,6 +2313,10 @@ impl State {
     ) -> Result<(), String> {
         let new_principal =
             Principal::from_text(new_principal).map_err(|_| "can't parse principal")?;
+        // Re-requesting the exact same change is a no-op instead of an error.
+        if self.principal_change_requests.get(&new_principal) == Some(&caller) {
+            return Ok(());
+        }
         if !self.principal_allowed(new_principal) {
             return Err("principal not allowed".into());
         }
@@ -3514,6 +3518,15 @@ pub(crate) mod tests {
             assert!(state
                 .principal_change_requests
                 .contains_key(&valid_principal));
+            assert_eq!(
+                state.principal_change_requests.get(&valid_principal),
+                Some(&alice_principal)
+            );
+
+            // Re-requesting the same change is idempotent.
+            assert!(state
+                .request_principal_change(alice_principal, valid_principal_str.to_string())
+                .is_ok());
             assert_eq!(
                 state.principal_change_requests.get(&valid_principal),
                 Some(&alice_principal)

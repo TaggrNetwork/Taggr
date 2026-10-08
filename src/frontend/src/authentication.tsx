@@ -16,7 +16,7 @@ import { Infinity, Incognito, Ticket } from "./icons";
 import { II_URL } from "./env";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { DELEGATION_PRINCIPAL } from "./delegation";
-import { instantiateApi } from ".";
+import { confirmPrincipalChange, instantiateApi } from ".";
 import { InviteInfo } from "./invite_page";
 
 export const authMethods = [
@@ -114,6 +114,11 @@ const finalize = async (signUp?: boolean) => {
     ) {
         window.resetUI();
         await instantiateApi();
+        // A pending principal change targeting the freshly authenticated
+        // principal is confirmed here, before checking whether a user exists.
+        // Without this, signing in with the new principal would just report
+        // "User not found" and sign the user out.
+        await confirmPrincipalChange();
         await window.reloadUser();
         if (window.user)
             location.href = localStorage.getItem(DELEGATION_PRINCIPAL)
