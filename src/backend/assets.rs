@@ -81,9 +81,9 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
     );
 
     add_asset(
-        &["/_/raw/social-image.jpg"],
-        vec![("Content-Type".into(), "image/jpeg".into())],
-        include_bytes!("../../src/frontend/assets/social-image.jpg").to_vec(),
+        &["/_/raw/social-image.webp"],
+        vec![("Content-Type".into(), "image/webp".into())],
+        include_bytes!("../../src/frontend/assets/social-image.webp").to_vec(),
     );
 
     add_asset(

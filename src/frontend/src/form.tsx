@@ -831,13 +831,24 @@ const loadImage = (blob: Uint8Array): Promise<HTMLImageElement> => {
 };
 
 const canvasToBlob = (canvas: HTMLCanvasElement): Promise<ArrayBuffer> =>
-    new Promise((resolve) =>
-        canvas.toBlob(
-            (blob) => blob && blob.arrayBuffer().then(resolve),
-            "image/jpeg",
-            0.5,
-        ),
-    );
+    new Promise((resolve) => {
+        const encode = (type: string) =>
+            canvas.toBlob(
+                (blob) => {
+                    if (!blob) return;
+                    // Safari/WebKit cannot encode WebP and silently returns a
+                    // PNG instead, so fall back to JPEG when that happens.
+                    if (type === "image/webp" && blob.type !== "image/webp") {
+                        encode("image/jpeg");
+                    } else {
+                        blob.arrayBuffer().then(resolve);
+                    }
+                },
+                type,
+                0.5,
+            );
+        encode("image/webp");
+    });
 
 const hash = async (buffer: Uint8Array): Promise<string> => {
     const result = await crypto.subtle.digest("SHA-256", buffer);
