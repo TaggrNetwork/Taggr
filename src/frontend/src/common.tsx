@@ -1346,6 +1346,9 @@ export const signOut = async () => {
     } catch (err) {
         console.error(err);
     }
+    // Clear the in-memory identity so the app reflects the signed-out state
+    // without needing a page reload.
+    window.principalId = "";
     return true;
 };
 

@@ -112,7 +112,6 @@ const finalize = async (signUp?: boolean) => {
         window.reloadUser &&
         !signUp
     ) {
-        window.resetUI();
         await instantiateApi();
         // A pending principal change targeting the freshly authenticated
         // principal is confirmed here, before checking whether a user exists.
@@ -120,11 +119,15 @@ const finalize = async (signUp?: boolean) => {
         // "User not found" and sign the user out.
         await confirmPrincipalChange();
         await window.reloadUser();
-        if (window.user)
+        if (window.user) {
+            // Only wipe the UI once we know the sign-in succeeded, so a failed
+            // attempt leaves the sign-in page in place instead of a blank,
+            // half signed-out screen.
+            window.resetUI();
             location.href = localStorage.getItem(DELEGATION_PRINCIPAL)
                 ? "#/delegate"
                 : "#/";
-        else {
+        } else {
             await signOut();
             showPopUp("error", "User not found");
         }
