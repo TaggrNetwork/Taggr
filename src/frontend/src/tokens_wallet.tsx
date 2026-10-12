@@ -12,6 +12,7 @@ import {
     icpSwapLogoFallback,
     icrcTransfer,
     promptPopUp,
+    handleError,
     showPopUp,
 } from "./common";
 import { Principal } from "@dfinity/principal";
@@ -175,7 +176,7 @@ export const Icrc1TokensWallet = () => {
                 "update_wallet_tokens",
                 user.wallet_tokens,
             );
-            if (response?.Err) return showPopUp("error", response.Err);
+            if (handleError(response)) return;
 
             cacheLocalStorage(getUserCanisterKey(canisterId), meta);
             const balances = await loadBalances([canisterId]);
@@ -227,9 +228,7 @@ export const Icrc1TokensWallet = () => {
                 "update_wallet_tokens",
                 user.wallet_tokens,
             );
-            if (response?.Err) {
-                return showPopUp("error", response.Err);
-            }
+            if (handleError(response)) return;
 
             localStorage.removeItem(getUserCanisterKey(canisterId));
 

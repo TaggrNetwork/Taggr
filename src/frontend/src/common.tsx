@@ -37,6 +37,28 @@ export const USD_PER_XDR = 1.37;
 export const errorText = (err: unknown): string =>
     err instanceof Error ? err.message : String(err);
 
+/**
+ * Shows an error popup if a backend call failed — either there was no reply at
+ * all (`null`/`undefined`) or the reply is an `Err` result — and returns `true`
+ * in that case, so callers can bail out with:
+ *
+ *     if (handleError(response)) return;
+ *
+ * Pass `fallback` for a context-specific message; the backend's error text
+ * takes precedence when present.
+ *
+ * This relies on the convention that every update method replies a `Result`
+ * (`{"Ok": …}` / `{"Err": …}`; see `src/backend/updates.rs`), so a `null` reply
+ * can only mean the call itself failed.
+ */
+export const handleError = (response: any, fallback?: string): boolean => {
+    const failed =
+        response == null || (typeof response == "object" && "Err" in response);
+    if (!failed) return false;
+    showPopUp("error", response?.Err || fallback || "Call failed");
+    return true;
+};
+
 export const show = (
     val: number | BigInt,
     unit?: string,
@@ -463,7 +485,7 @@ export const ToggleButton = ({
     testId = null,
     showPopup = true,
 }: {
-    toggler: () => void;
+    toggler: () => void | Promise<unknown>;
     offTitle?: string;
     onTitle?: string;
     classNameArg?: string;
@@ -480,12 +502,14 @@ export const ToggleButton = ({
         <button
             title={on ? onTitle : offTitle}
             className={`medium_text ${classNameArg}`}
-            onClick={(e) => {
+            onClick={async (e) => {
                 e.preventDefault();
                 setStatus(on ? -1 : 1);
                 if (showPopup && onTitle && offTitle)
                     showPopUp("success", on ? onTitle : offTitle);
-                toggler();
+                // A toggler resolving to `false` signals a failed backend call:
+                // revert the optimistic state (the backend didn't change).
+                if ((await toggler()) === false) setStatus(0);
             }}
             data-testid={testId}
         >
@@ -868,14 +892,7 @@ export const FlagButton = ({ id, text }: { id: number; text?: boolean }) => (
                     id,
                     reason,
                 );
-                if (!response) {
-                    showPopUp("error", "Call failed");
-                    return;
-                }
-                if ("Err" in response) {
-                    showPopUp("error", response.Err);
-                    return;
-                }
+                if (handleError(response)) return;
                 showPopUp("success", "Report accepted! Thank you!");
             }
         }}
@@ -919,10 +936,7 @@ export const ReportBanner = ({
                                 let result = await window.api.call<{
                                     [name: string]: any;
                                 }>("vote_on_report", id, val);
-                                if (result && "Err" in result) {
-                                    showPopUp("error", result.Err);
-                                    return;
-                                }
+                                if (handleError(result)) return;
                                 const updatedReport = (
                                     await window.api.query<User>(
                                         "user",

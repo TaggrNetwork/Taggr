@@ -8,7 +8,7 @@ import {
     bigScreen,
     USD_PER_XDR,
     signOutAndRestart,
-    showPopUp,
+    handleError,
     ButtonWithLoading,
 } from "./common";
 
@@ -39,10 +39,7 @@ export const Welcome = () => {
                 "mint_credits_with_icp",
                 0,
             );
-            if (!result || "Err" in result) {
-                showPopUp("error", result?.Err || "Call failed");
-                return;
-            }
+            if (handleError(result)) return;
             setICPInvoice(result.Ok);
         } finally {
             setLoadingInvoice(false);

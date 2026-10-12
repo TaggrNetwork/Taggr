@@ -11,6 +11,7 @@ import {
     setTitle,
     ToggleButton,
     foregroundColor,
+    handleError,
     showPopUp,
     domain,
 } from "./common";
@@ -520,10 +521,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             name,
                             realm,
                         );
-                        if (!response || "Err" in response) {
-                            showPopUp("error", response?.Err || "Call failed");
-                            return;
-                        }
+                        if (handleError(response)) return;
                         if (!editing) {
                             await window.api.call(
                                 "toggle_realm_membership",
@@ -659,11 +657,16 @@ export const RealmHeader = ({
                                 currState={() =>
                                     user.filters.realms.includes(name)
                                 }
-                                toggler={() =>
-                                    window.api
-                                        .call("toggle_filter", "realm", name)
-                                        .then(window.reloadUser)
-                                }
+                                toggler={async () => {
+                                    const response = await window.api.call(
+                                        "toggle_filter",
+                                        "realm",
+                                        name,
+                                    );
+                                    if (handleError(response)) return false;
+                                    await window.reloadUser();
+                                    return true;
+                                }}
                             />
                             {!user.realms.includes(name) && (
                                 <ButtonWithLoading

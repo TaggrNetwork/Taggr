@@ -23,7 +23,7 @@ import {
     currentRealm,
     loadFeed,
     expandMeta,
-    showPopUp,
+    handleError,
     domain,
     onCanonicalDomain,
     getCanonicalDomain,
@@ -324,9 +324,7 @@ export const confirmPrincipalChange = async () => {
     )
         return;
     const response = await window.api.call<any>("confirm_principal_change");
-    if (response && "Err" in response) {
-        showPopUp("error", response.Err);
-    }
+    handleError(response);
 };
 
 const Footer = ({}) => (

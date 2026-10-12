@@ -5,7 +5,7 @@ import {
     CopyToClipboard,
     HeadBar,
     Loading,
-    showPopUp,
+    handleError,
 } from "./common";
 import { UserList } from "./user_resolve";
 
@@ -86,9 +86,7 @@ export const Invites = () => {
             credits_per_user,
             inviteRealm,
         );
-        if (!result || "Err" in result) {
-            showPopUp("error", result?.Err || "Call failed");
-        } else loadInvites();
+        if (!handleError(result)) await loadInvites();
         setBusy(false);
     };
 
@@ -104,8 +102,7 @@ export const Invites = () => {
                     : null,
                 invite.realm_id !== undefined ? invite.realm_id : null,
             );
-            if ("Err" in (response || {})) {
-                showPopUp("error", response.Err);
+            if (handleError(response)) {
                 setBusy(true);
                 await loadInvites(); // Set back to prior state
                 setBusy(false);

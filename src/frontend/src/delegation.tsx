@@ -3,7 +3,7 @@ import {
     ButtonWithLoading,
     NotAllowed,
     onCanonicalDomain,
-    showPopUp,
+    handleError,
     signOutAndRestart,
     domain as getDomain,
 } from "./common";
@@ -43,10 +43,7 @@ export const Delegate = ({}: {}) => {
                             domain,
                             principal,
                         );
-                        if (response && "Err" in response) {
-                            showPopUp("error", response.Err);
-                            return;
-                        }
+                        if (handleError(response)) return;
 
                         // Authorize the delegate in the user's media bucket so
                         // image uploads work from the custom domain. This runs

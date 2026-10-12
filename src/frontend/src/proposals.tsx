@@ -14,6 +14,7 @@ import {
     hex,
     parseNumber,
     REPO,
+    handleError,
     showPopUp,
     onCanonicalDomain,
     UnavailableOnCustomDomains,
@@ -385,10 +386,7 @@ export const ProposalView = ({
             adopted,
             data || "",
         );
-        if (!result || "Err" in result) {
-            showPopUp("error", result?.Err || "Call failed");
-            return;
-        }
+        if (handleError(result)) return;
         window.api.call("toggle_following_post", postId);
         await loadState();
     };

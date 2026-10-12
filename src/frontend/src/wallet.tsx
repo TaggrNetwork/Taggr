@@ -14,6 +14,7 @@ import {
     promptPopUp,
     tokens,
     ICP_DEFAULT_FEE,
+    handleError,
     showPopUp,
     onCanonicalDomain,
     UnavailableOnCustomDomains,
@@ -86,11 +87,7 @@ export const Wallet = () => {
                         onClick={async () => {
                             let result =
                                 await window.api.call<any>("withdraw_rewards");
-                            if (!result || "Err" in result)
-                                showPopUp(
-                                    "error",
-                                    result?.Err || "Call failed",
-                                );
+                            handleError(result);
                             await window.reloadUser();
                             setUser(window.user);
                         }}
@@ -135,10 +132,8 @@ export const Wallet = () => {
                                         recipient,
                                         amount,
                                     );
-                                if (!response || "Err" in response) {
+                                if (handleError(response, "Transfer failed"))
                                     console.error(response);
-                                    showPopUp("error", "Transfer failed");
-                                }
                                 await window.reloadUser();
                                 setUser(window.user);
                                 return;
@@ -221,13 +216,7 @@ export const Wallet = () => {
                             return;
                         }
                         const invoice_result = await future_invoice;
-                        if (!invoice_result || "Err" in invoice_result) {
-                            showPopUp(
-                                "error",
-                                invoice_result?.Err || "Call failed",
-                            );
-                            return;
-                        }
+                        if (handleError(invoice_result)) return;
                         const { account, e8s } = invoice_result.Ok;
                         const userSubaccount = hex(account);
                         const amount = Number(e8s) * kilo_credits;
@@ -247,10 +236,7 @@ export const Wallet = () => {
                             return;
                         }
                         const result: any = await mintCredits(kilo_credits);
-                        if (!result || "Err" in result) {
-                            showPopUp("error", result?.Err || "Call failed");
-                            return;
-                        }
+                        if (handleError(result)) return;
                         const invoice = result.Ok;
                         if (invoice.paid) {
                             await window.reloadUser();
@@ -275,10 +261,7 @@ export const Wallet = () => {
                             const response = await actor.link_cold_wallet(
                                 window.user.id,
                             );
-                            if (response && "Err" in response) {
-                                showPopUp("error", response.Err);
-                                return;
-                            }
+                            if (handleError(response)) return;
                             await window.reloadUser();
                             setUser(window.user);
                         }}
@@ -298,10 +281,7 @@ export const Wallet = () => {
                                 return;
                             const response: any =
                                 await window.api.unlink_cold_wallet();
-                            if (response && "Err" in response) {
-                                showPopUp("error", response.Err);
-                                return;
-                            }
+                            if (handleError(response)) return;
                             await window.reloadUser();
                             setUser(window.user);
                         }}

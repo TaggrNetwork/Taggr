@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ButtonWithLoading, showPopUp, token } from "./common";
+import { ButtonWithLoading, handleError, token } from "./common";
 import { Content } from "./content";
 import { Poll, PostId } from "./types";
 import { systemUserId, UserList } from "./user_resolve";
@@ -129,14 +129,7 @@ export const PollView = ({
                                     vote,
                                     anonymously,
                                 );
-                                if (!response) {
-                                    showPopUp("error", "Call failed");
-                                    return;
-                                }
-                                if ("Err" in response) {
-                                    showPopUp("error", response.Err);
-                                    return;
-                                }
+                                if (handleError(response)) return;
                                 const list = poll.votes[vote] || [];
                                 list.push(
                                     anonymously ? systemUserId - 1 : user_id,

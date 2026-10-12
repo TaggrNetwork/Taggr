@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HeadBar, MoreButton, showPopUp } from "./common";
+import { HeadBar, handleError, MoreButton, showPopUp } from "./common";
 import { Content } from "./content";
 import { BellOff, Close } from "./icons";
 import { PostView } from "./post";
@@ -17,7 +17,9 @@ export const Inbox = () => {
     ids.reverse();
 
     const closeNotification = (k: number, callback?: () => void) => {
-        window.api.call("clear_notifications", [k]).then(window.reloadUser);
+        window.api.call("clear_notifications", [k]).then((response) => {
+            if (!handleError(response)) window.reloadUser();
+        });
         clearTimeout(timer);
         setClosing(k);
         timer = setTimeout(() => {
@@ -38,9 +40,8 @@ export const Inbox = () => {
             msg = message.NewPost[0];
         } else if ("Conditional" in message) {
             const payload = message.Conditional[1];
-            // `UserReportOpen` carries a user id, not a post id; the message
-            // text already links to the reported user and the report post.
-            if ("Proposal" in payload) id = payload.Proposal;
+            if ("ReportOpen" in payload) id = payload.ReportOpen;
+            else if ("Proposal" in payload) id = payload.Proposal;
             msg = message.Conditional[0];
         } else if ("WatchedPostEntries" in message) {
             id = message.WatchedPostEntries[0];
@@ -112,11 +113,12 @@ export const Inbox = () => {
                 title="INBOX"
                 content={
                     <button
-                        onClick={() => {
-                            window.api.call(
+                        onClick={async () => {
+                            const response = await window.api.call(
                                 "clear_notifications",
                                 Object.keys(inbox).map((id) => Number(id)),
                             );
+                            if (handleError(response)) return;
                             window.user.notifications = {};
                             location.href = "#/";
                         }}

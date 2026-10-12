@@ -1,5 +1,10 @@
 import * as React from "react";
-import { ButtonWithLoading, FileUploadInput, HeadBar } from "./common";
+import {
+    ButtonWithLoading,
+    FileUploadInput,
+    handleError,
+    HeadBar,
+} from "./common";
 import { LoginMasks } from "./authentication";
 import { User } from "./types";
 
@@ -74,10 +79,11 @@ export const Recovery = () => {
                         />
                         <ButtonWithLoading
                             onClick={async () => {
-                                await window.api.call(
+                                const response = await window.api.call(
                                     "confirm_emergency_release",
                                     hash,
                                 );
+                                if (handleError(response)) return;
                                 alert(
                                     "Your vote was submitted. If the hash was correct, your principal will appear in the list of supporters.",
                                 );

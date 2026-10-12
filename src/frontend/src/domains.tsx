@@ -3,6 +3,7 @@ import {
     ButtonWithLoading,
     commaSeparated,
     HeadBar,
+    handleError,
     showPopUp,
 } from "./common";
 import { DomainConfig } from "./types";
@@ -221,16 +222,9 @@ const DomainForm = ({
                             {},
                             "remove",
                         );
-                        if (!response || "Err" in response) {
-                            return showPopUp(
-                                "error",
-                                response
-                                    ? response.Err
-                                    : "failed to remove domain",
-                            );
-                        } else {
-                            showPopUp("success", "Domain removed");
-                        }
+                        if (handleError(response, "failed to remove domain"))
+                            return;
+                        showPopUp("success", "Domain removed");
                         callback();
                     }}
                 />
@@ -262,14 +256,8 @@ const DomainForm = ({
                             cfg,
                             "update",
                         );
-                        if (!response || "Err" in response)
-                            showPopUp(
-                                "error",
-                                response
-                                    ? response.Err
-                                    : "failed to update config",
-                            );
-                        else showPopUp("success", "Config updated");
+                        if (!handleError(response, "failed to update config"))
+                            showPopUp("success", "Config updated");
                         callback();
                     }}
                 />
@@ -302,17 +290,10 @@ const NewDomainForm = ({ callback }: { callback: () => void }) => {
                             {},
                             "insert",
                         );
-                        if (!response || "Err" in response)
-                            showPopUp(
-                                "error",
-                                response
-                                    ? response.Err
-                                    : "failed to add domain",
-                            );
-                        else {
-                            showPopUp("success", "Domain added");
-                            setDomainAdded(true);
-                        }
+                        if (handleError(response, "failed to add domain"))
+                            return;
+                        showPopUp("success", "Domain added");
+                        setDomainAdded(true);
                         callback();
                     }}
                     label={"ADD"}

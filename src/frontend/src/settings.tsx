@@ -7,6 +7,7 @@ import {
     HeadBar,
     ICP_LEDGER_ID,
     hex,
+    handleError,
     showPopUp,
     signOutAndRestart,
     sizeMb,
@@ -451,9 +452,7 @@ export const Settings = ({
                 name,
                 invite || "",
             );
-            if (!response || "Err" in response) {
-                return showPopUp("error", response?.Err || "Call failed");
-            }
+            if (handleError(response)) return;
             registrationRealmId = response?.Ok;
         }
 
@@ -489,10 +488,7 @@ export const Settings = ({
         ]);
         for (let i in responses) {
             const response = responses[i];
-            if (!response || "Err" in response) {
-                showPopUp("error", response?.Err || "Call failed");
-                return;
-            }
+            if (handleError(response)) return;
         }
         if (registrationFlow) {
             await window.reloadUser();
@@ -980,12 +976,7 @@ export const Settings = ({
                                     "request_principal_change",
                                     newPrincipalText,
                                 );
-                                if (!response || "Err" in response) {
-                                    return showPopUp(
-                                        "error",
-                                        response?.Err || "Call failed",
-                                    );
-                                }
+                                if (handleError(response)) return;
                                 setPrincipalChangeRequested(newPrincipalText);
                             }}
                             label="CHANGE PRINCIPAL"

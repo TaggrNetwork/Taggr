@@ -1,5 +1,11 @@
 import * as React from "react";
-import { ButtonWithLoading, HeadBar, showPopUp, TabBar } from "./common";
+import {
+    ButtonWithLoading,
+    handleError,
+    HeadBar,
+    showPopUp,
+    TabBar,
+} from "./common";
 import { Summary } from "./types";
 import { Content } from "./content";
 
@@ -26,16 +32,18 @@ export const Distribution = () => {
                     window.user?.stalwart && (
                         <ButtonWithLoading
                             label="VOTE FOR DELAY"
-                            onClick={async () =>
+                            onClick={async () => {
+                                const response = await window.api.call<any>(
+                                    "delay_weekly_chores",
+                                );
+                                if (handleError(response)) return;
                                 showPopUp(
                                     "info",
-                                    (await window.api.call(
-                                        "delay_weekly_chores",
-                                    ))
+                                    response.Ok
                                         ? "Thanks! Your vote was accepted."
                                         : "Minting is already delayed.",
-                                )
-                            }
+                                );
+                            }}
                         />
                     )
                 }
