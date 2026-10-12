@@ -13,11 +13,21 @@ type SearchResult = {
     relevant: string;
 };
 
+// `parseHash` already decodes with `decodeURI`, which leaves `%xx` escapes
+// for reserved characters (`%23`, `%2F`, …) intact. Decode those too, but
+// tolerate already-decoded input (e.g. a literal `%`), which would make
+// `decodeURIComponent` throw.
+export const safeDecode = (value: string) => {
+    try {
+        return decodeURIComponent(value);
+    } catch (_) {
+        return value;
+    }
+};
+
 export const Search = ({ initQuery }: { initQuery?: string }) => {
     const [hint, setHint] = React.useState(false);
-    const [query, setTerm] = React.useState(
-        decodeURIComponent(initQuery || ""),
-    );
+    const [query, setTerm] = React.useState(safeDecode(initQuery || ""));
     const [results, setResults] = React.useState<SearchResult[]>([]);
     const [timer, setTimer] = React.useState<any>(null);
     const [searching, setSearching] = React.useState(false);
@@ -31,12 +41,19 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
         const id = ++reqId.current;
         if (query.length < 2) {
             setResults([]);
+            setSearching(false);
             return;
         }
+        let principal: Principal | undefined;
         try {
-            setPrincipal(Principal.fromText(query));
-            return;
+            principal = Principal.fromText(query);
         } catch (_) {}
+        if (principal) {
+            setResults([]);
+            setSearching(false);
+            setPrincipal(principal);
+            return;
+        }
         setSearching(true);
         const results =
             (await window.api.query<SearchResult[]>(

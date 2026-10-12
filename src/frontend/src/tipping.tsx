@@ -19,14 +19,14 @@ export const TippingPopup = ({
     const finalizeTip = async (popUpCallback: () => void) => {
         try {
             const numericAmount = Number(tippingAmount);
-            if (!numericAmount || isNaN(numericAmount)) return;
+            if (!isFinite(numericAmount) || numericAmount <= 0) return;
             const amount = Number(
                 (numericAmount * Math.pow(10, token_decimals)).toFixed(0),
             );
 
             const response = await window.api.call<any>("tip", post.id, amount);
-            if ("Err" in response) {
-                throw new Error(response.Err);
+            if (!response || "Err" in response) {
+                throw new Error(response?.Err || "Call failed");
             }
             await callback();
             popUpCallback();
@@ -67,7 +67,14 @@ export const TippingPopup = ({
                 <ButtonWithLoading
                     classNameArg="active"
                     label={"SEND"}
-                    onClick={async () => setShowConfirmation(true)}
+                    onClick={async () => {
+                        const numericAmount = Number(tippingAmount);
+                        if (!isFinite(numericAmount) || numericAmount <= 0) {
+                            showPopUp("error", "Please enter a valid amount.");
+                            return;
+                        }
+                        setShowConfirmation(true);
+                    }}
                 />
             ) : (
                 <div className="row_container">

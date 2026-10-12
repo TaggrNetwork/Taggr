@@ -220,7 +220,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                                     `Enter the amount (fee: 1 credit)`,
                                                 )) || "",
                                             );
-                                            if (!amount) return;
+                                            if (!amount || amount < 0) return;
                                             if (
                                                 !(await confirmPopUp(
                                                     `You are transferring ${amount} credits to @${profile.name}`,
@@ -233,8 +233,12 @@ export const Profile = ({ handle }: { handle: string }) => {
                                                     profile.id,
                                                     amount,
                                                 );
-                                            if ("Err" in result) {
-                                                showPopUp("error", result.Err);
+                                            if (!result || "Err" in result) {
+                                                showPopUp(
+                                                    "error",
+                                                    result?.Err ||
+                                                        "Call failed",
+                                                );
                                                 return;
                                             }
                                             window.reloadUser();

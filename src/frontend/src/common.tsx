@@ -72,18 +72,30 @@ export const RealmList = ({
     ids?: string[];
     classNameArg?: string;
 }) => {
-    if (ids.length == 0) return null;
-    const [realmsData, setRealmsData] = React.useState<Realm[]>([]);
+    const [realmsData, setRealmsData] = React.useState<[string, Realm][]>([]);
     const [loaded, setLoaded] = React.useState(false);
 
+    // Fetch each realm separately so that names and metadata stay paired even
+    // when some ids no longer resolve to a realm (the backend drops them).
     const loadData = async () => {
-        setRealmsData((await window.api.query("realms", ids)) || []);
+        const data = await Promise.all(
+            ids.map(async (id) => {
+                const [realm] =
+                    (await window.api.query<Realm[]>("realms", [id])) || [];
+                return [id, realm] as [string, Realm | undefined];
+            }),
+        );
+        setRealmsData(
+            data.filter(([_, realm]) => !!realm) as [string, Realm][],
+        );
         setLoaded(true);
     };
 
     React.useEffect(() => {
         loadData();
-    }, []);
+    }, [ids.join(",")]);
+
+    if (ids.length == 0) return null;
 
     if (!loaded) return <Loading />;
 
@@ -92,10 +104,10 @@ export const RealmList = ({
             className={`row_container ${classNameArg || ""}`}
             style={{ alignItems: "center" }}
         >
-            {realmsData.map((data, i) => (
+            {realmsData.map(([name, data]) => (
                 <RealmSpan
-                    key={i}
-                    name={ids[i]}
+                    key={name}
+                    name={name}
                     background={data.label_color}
                     classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
                 />
@@ -1102,7 +1114,7 @@ export function parseNumber(
 ): number | null {
     const parse = (s: string): number | null => {
         let num = Number(s);
-        if (isNaN(num)) {
+        if (isNaN(num) || !isFinite(num) || num < 0) {
             return null;
         }
         return num;
@@ -1292,11 +1304,17 @@ export const InfoPopup = ({
     }
 
     // Capitalize the message and add punctation if needed.
-    let formattedMessage = message[0].toUpperCase() + message.slice(1);
-    if (
-        ![".", "!", "?"].includes(formattedMessage[formattedMessage.length - 1])
-    )
-        formattedMessage += ".";
+    let formattedMessage = message || "";
+    if (formattedMessage.length > 0) {
+        formattedMessage =
+            formattedMessage[0].toUpperCase() + formattedMessage.slice(1);
+        if (
+            ![".", "!", "?"].includes(
+                formattedMessage[formattedMessage.length - 1],
+            )
+        )
+            formattedMessage += ".";
+    }
 
     return (
         <div className="info_popup">

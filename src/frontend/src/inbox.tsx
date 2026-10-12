@@ -38,8 +38,9 @@ export const Inbox = () => {
             msg = message.NewPost[0];
         } else if ("Conditional" in message) {
             const payload = message.Conditional[1];
-            if ("ReportOpen" in payload) id = payload.ReportOpen;
-            else if ("Proposal" in payload) id = payload.Proposal;
+            // `UserReportOpen` carries a user id, not a post id; the message
+            // text already links to the reported user and the report post.
+            if ("Proposal" in payload) id = payload.Proposal;
             msg = message.Conditional[0];
         } else if ("WatchedPostEntries" in message) {
             id = message.WatchedPostEntries[0];

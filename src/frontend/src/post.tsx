@@ -137,9 +137,9 @@ export const PostView = ({
 
     const commentSubmissionCallback = React.useCallback(
         async (comment: string, blobs: [string, Uint8Array][]) => {
-            if (!post) return false;
+            if (!post) return null;
             const refs = await uploadBlobsOrFail(blobs);
-            if (refs === null) return false;
+            if (refs === null) return null;
             const result: any = await window.api.add_post(
                 comment,
                 refs,
@@ -147,9 +147,13 @@ export const PostView = ({
                 [],
                 [],
             );
+            if (!result) {
+                showPopUp("error", "Call failed");
+                return null;
+            }
             if (result.Err) {
                 showPopUp("error", result.Err);
-                return false;
+                return null;
             }
             const commentId = result.Ok;
             post.children.push(Number(commentId));
@@ -157,7 +161,7 @@ export const PostView = ({
             setPost({ ...post });
             toggleInfo(false);
             toggleComments(true);
-            return true;
+            return Number(commentId);
         },
         [post],
     );
@@ -192,7 +196,8 @@ export const PostView = ({
                 return;
             }
             window.api.call<any>("react", post.id, id).then((response) => {
-                if ("Err" in response) showPopUp("error", response.Err);
+                if (response && "Err" in response)
+                    showPopUp("error", response.Err);
                 window.reloadUser();
             });
             users.push(userId);
@@ -530,7 +535,7 @@ const PostInfo = ({
             // @ts-ignore
             .concat(post.watchers)
             // @ts-ignore
-            .concat(Object.keys(post.tips).map(Number));
+            .concat(post.tips.map(([id]) => id));
 
         await populateUserNameCache(ids, setLoading);
 
@@ -745,14 +750,20 @@ const PostInfo = ({
                                         "Please specify the reason for moving the post out of its realm.",
                                         "rules violation",
                                     );
-                                    realmMoveOutCallback();
+                                    if (!reason) return;
                                     const response = await window.api.call<any>(
                                         "realm_clean_up",
                                         post.id,
                                         reason,
                                     );
-                                    if ("Err" in response)
-                                        showPopUp("error", response.Err);
+                                    if (!response || "Err" in response) {
+                                        showPopUp(
+                                            "error",
+                                            response?.Err || "Call failed",
+                                        );
+                                        return;
+                                    }
+                                    realmMoveOutCallback();
                                 }}
                                 label={<Close />}
                             />
@@ -823,10 +834,14 @@ const PostInfo = ({
                                                     post.id,
                                                     versions,
                                                 );
-                                            if ("Err" in response) {
+                                            if (
+                                                !response ||
+                                                "Err" in response
+                                            ) {
                                                 showPopUp(
                                                     "error",
-                                                    response.Err,
+                                                    response?.Err ||
+                                                        "Call failed",
                                                 );
                                             } else {
                                                 await freePostFiles(post.files);

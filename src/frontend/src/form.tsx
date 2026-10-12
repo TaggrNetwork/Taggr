@@ -133,8 +133,9 @@ export const Form = ({
         }
 
         if (
-            (value.match(/!\[.*?\]\(\/blob\/.*?\)/g) || []).length !=
-            blobIds.length
+            [...value.matchAll(/\(\/blob\/([^)]+)\)/g)].some(
+                (match) => !(match[1] in tmpUrls),
+            )
         ) {
             showPopUp(
                 "error",
@@ -161,6 +162,7 @@ export const Form = ({
                 realm,
             );
             if (postId == null) {
+                setSubmitting(false);
                 return false;
             }
             if (proposal) {
@@ -205,60 +207,66 @@ export const Form = ({
     const dropHandler = async (ev: any) => {
         ev.preventDefault();
         setBusy(true);
-        const files = (ev.dataTransfer || ev.target).files;
-        const fileLinks = [];
-        for (let i = 0; i < files.length; i++) {
-            let file = files[i];
-            let content = await loadFile(file);
-            let image = await loadImage(new Uint8Array(content));
-            if (iOS() && image.height * image.width > MAX_IMG_SIZE) {
-                showPopUp(
-                    "error",
-                    "Image resolution should be under 16 megapixels.",
-                );
-                setBusy(false);
-                return;
-            }
-            let resized_content = content,
-                low = 0,
-                high = 100;
-            if (content.byteLength > max_blob_size_bytes)
-                while (true) {
-                    const scale = (low + high) / 2;
-                    resized_content = await resize(
-                        new Uint8Array(content),
-                        scale / 100,
+        try {
+            const files = (ev.dataTransfer || ev.target).files;
+            const fileLinks = [];
+            for (let i = 0; i < files.length; i++) {
+                let file = files[i];
+                let content = await loadFile(file);
+                let image = await loadImage(new Uint8Array(content));
+                if (iOS() && image.height * image.width > MAX_IMG_SIZE) {
+                    showPopUp(
+                        "error",
+                        "Image resolution should be under 16 megapixels.",
                     );
-                    const ratio =
-                        resized_content.byteLength / max_blob_size_bytes;
-                    if (ratio < 1 && (0.92 < ratio || low > 99)) {
-                        break;
-                    } else if (ratio > 1) {
-                        content = resized_content;
-                        high = 100;
-                    } else {
-                        low = scale;
-                    }
+                    return;
                 }
-            const size = Math.ceil(resized_content.byteLength / 1024);
-            const resized_content_bytes = new Uint8Array(resized_content);
-            let key = await hash(resized_content_bytes);
-            tmpBlobs[key] = resized_content_bytes;
-            setTmpBlobs(tmpBlobs);
-            tmpUrls[key] = blobToUrl(resized_content_bytes);
-            setTmpUrls(tmpUrls);
-            image = await loadImage(new Uint8Array(resized_content));
-            fileLinks.push(
-                `![${image.width}x${image.height}, ${size}kb](/blob/${key})`,
-            );
+                let resized_content = content,
+                    low = 0,
+                    high = 100;
+                if (content.byteLength > max_blob_size_bytes)
+                    while (true) {
+                        const scale = (low + high) / 2;
+                        resized_content = await resize(
+                            new Uint8Array(content),
+                            scale / 100,
+                        );
+                        const ratio =
+                            resized_content.byteLength / max_blob_size_bytes;
+                        if (ratio < 1 && (0.92 < ratio || low > 99)) {
+                            break;
+                        } else if (ratio > 1) {
+                            content = resized_content;
+                            high = 100;
+                        } else {
+                            low = scale;
+                        }
+                    }
+                const size = Math.ceil(resized_content.byteLength / 1024);
+                const resized_content_bytes = new Uint8Array(resized_content);
+                let key = await hash(resized_content_bytes);
+                tmpBlobs[key] = resized_content_bytes;
+                setTmpBlobs(tmpBlobs);
+                tmpUrls[key] = blobToUrl(resized_content_bytes);
+                setTmpUrls(tmpUrls);
+                image = await loadImage(new Uint8Array(resized_content));
+                fileLinks.push(
+                    `![${image.width}x${image.height}, ${size}kb](/blob/${key})`,
+                );
+            }
             setDragAndDropping(false);
+            if (fileLinks.length > 0) {
+                const result = insertNewPicture(value, cursor, fileLinks);
+                setValue(result.newValue);
+                localStorage.setItem(draftKey, result.newValue);
+                setFocus();
+                setCursor(result.newCursor);
+            }
+        } catch (error) {
+            showPopUp("error", "Couldn't attach the file!");
+        } finally {
+            setBusy(false);
         }
-        const result = insertNewPicture(value, cursor, fileLinks);
-        setValue(result.newValue);
-        localStorage.setItem(draftKey, result.newValue);
-        setFocus();
-        setCursor(result.newCursor);
-        setBusy(false);
     };
 
     const onValueChange = (value: string) => {
@@ -308,8 +316,19 @@ export const Form = ({
     const insertSuggestion = (event: any, trigger: string, token: string) => {
         event.preventDefault();
         const cursor = textarea.current?.selectionStart || 0;
-        let i;
-        for (i = cursor; value[i] != trigger; i--) {}
+        let i = cursor;
+        while (i >= 0 && value[i] != trigger) i--;
+        if (i < 0) {
+            // No trigger before the cursor: insert the token at the cursor.
+            setValue(
+                value.slice(0, cursor) + token + value.slice(cursor) + " ",
+            );
+            setSuggestedTags([]);
+            setSuggestedUsers([]);
+            setSuggestedRealms([]);
+            setFocus();
+            return;
+        }
         setValue(value.slice(0, i + 1) + token + value.slice(cursor) + " ");
         setSuggestedTags([]);
         setSuggestedUsers([]);
@@ -665,11 +684,15 @@ export const Form = ({
                                 <select
                                     className="max_width_col"
                                     value={proposalType}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
                                         setProposalType(
                                             e.target.value as unknown as any,
-                                        )
-                                    }
+                                        );
+                                        // Discard the payload built for the
+                                        // previously selected type.
+                                        setProposal(undefined);
+                                        setProposalValidationError("");
+                                    }}
                                 >
                                     {Object.values(ProposalType).map((id) => (
                                         <option key={id} value={id}>
@@ -801,7 +824,10 @@ const costs = async (value: string, extraCost: number) => {
     }
     const { post_cost } = window.backendCache.config;
     return (
-        post_cost * (Math.floor(value.length / 1024) + 1) + tagCosts + extraCost
+        post_cost *
+            (Math.floor(new TextEncoder().encode(value).length / 1024) + 1) +
+        tagCosts +
+        extraCost
     );
 };
 
@@ -821,10 +847,14 @@ export const loadFile = (file: any): Promise<ArrayBuffer> => {
 const loadImage = (blob: Uint8Array): Promise<HTMLImageElement> => {
     const image = new Image();
     const url = blobToUrl(blob);
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         image.onload = () => {
             URL.revokeObjectURL(url);
             resolve(image);
+        };
+        image.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error("Couldn't load the image!"));
         };
         image.src = url;
     });

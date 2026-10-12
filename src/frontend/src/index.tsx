@@ -43,7 +43,7 @@ import {
     getJournal,
 } from "./types";
 import { setRealmUI, setUI } from "./theme";
-import { Search } from "./search";
+import { Search, safeDecode } from "./search";
 import { Distribution } from "./distribution";
 import { Ethereum } from "./ethereum";
 import { populateUserNameCache } from "./user_resolve";
@@ -254,7 +254,7 @@ const App = () => {
     } else if (handler == "invites") {
         content = auth(<Invites />);
     } else if (handler == "feed") {
-        const params = param.split(/\+/).map(decodeURIComponent);
+        const params = param.split(/\+/).map(safeDecode);
         content = <Feed params={params} />;
     } else if (handler == "thread") {
         content = <Thread id={parseInt(param)} />;

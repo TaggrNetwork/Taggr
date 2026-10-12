@@ -243,7 +243,13 @@ const UserSection = ({ user }: { user: UserType }) => {
                     title="SIGN OUT"
                     className="icon_link"
                     href=""
-                    onClick={signOutAndRestart}
+                    onClick={(e) => {
+                        // Prevent the default navigation: `signOutAndRestart`
+                        // reloads the app itself once the async sign-out
+                        // (including the IndexedDB wipe) has finished.
+                        e.preventDefault();
+                        signOutAndRestart();
+                    }}
                 >
                     <Logout /> SIGN OUT
                 </a>

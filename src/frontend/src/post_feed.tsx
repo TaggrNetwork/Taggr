@@ -42,28 +42,32 @@ export const PostFeed = ({
 
     React.useEffect(() => {
         if (!refreshRateSecs) return;
-        let t = setTimeout(async () => {
+        const t = setTimeout(async () => {
             if (
                 Number(new Date()) - Number(window.lastActivity) >=
                 refreshRateSecs * 1000
             ) {
                 setRefreshBeat(refreshBeat + 1);
             }
-            return () => clearTimeout(t);
         }, refreshRateSecs * 1000);
+        return () => clearTimeout(t);
     }, [refreshBeat, refreshRateSecs]);
 
     const loadPage = async (page: number) => {
-        // only show the loading indicator on the first load
-        setLoading(refreshBeat == 0);
+        // only show the loading indicator on the first load and while flipping
+        // pages (to prevent double loads); auto-refreshes don't blank the feed
+        setLoading(page > 0 || refreshBeat == 0);
         const loadedPosts = await feedLoader(
             page,
             page == 0 ? 0 : offset,
             !!includeComments,
         );
-        if (!loadedPosts) return;
+        if (!loadedPosts) {
+            setLoading(false);
+            return;
+        }
         let nextPosts = loadedPosts.map(expandMeta);
-        setPosts(page == 0 ? nextPosts : posts.concat(nextPosts));
+        setPosts((prev) => (page == 0 ? nextPosts : prev.concat(nextPosts)));
         if (page == 0 && nextPosts.length > 0) setOffset(nextPosts[0].id);
         if (nextPosts.length < window.backendCache.config.feed_page_size)
             setPageVlipperVisibility(false);

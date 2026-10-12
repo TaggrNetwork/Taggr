@@ -39,8 +39,8 @@ export const Welcome = () => {
                 "mint_credits_with_icp",
                 0,
             );
-            if ("Err" in result) {
-                showPopUp("error", result.Err);
+            if (!result || "Err" in result) {
+                showPopUp("error", result?.Err || "Call failed");
                 return;
             }
             setICPInvoice(result.Ok);

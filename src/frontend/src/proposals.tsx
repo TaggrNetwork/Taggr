@@ -33,7 +33,7 @@ const REPO_COMPARE = `${REPO}/compare`;
 let timer: any = null;
 
 export enum ProposalType {
-    IcpTranfer = "ICP TRANSFER",
+    ICPTransfer = "ICP TRANSFER",
     AddRealmController = "ADD REALM CONTROLLER",
     Funding = "FUNDING",
     Rewards = "REWARDS",
@@ -94,7 +94,7 @@ const ProposalForm = ({}) => {
         <>
             <h2>New Proposal Form</h2>
             {onCanonicalDomain() ? (
-                userBalance > balance ? (
+                userBalance >= balance ? (
                     <Form
                         proposalCreation={true}
                         submitCallback={newPostCallback}
@@ -143,7 +143,7 @@ export const ProposalMask = ({
                     ["AddRealmController"]: [realmId, user.id],
                 });
                 break;
-            case ProposalType.IcpTranfer:
+            case ProposalType.ICPTransfer:
                 saveProposal({
                     ["ICPTransfer"]: [
                         hexToBytes(receiver),
@@ -182,6 +182,18 @@ export const ProposalMask = ({
                 });
         }
     };
+
+    // Reset the mask when the proposal type changes: the fields of the
+    // previously selected type would otherwise leak into the new payload.
+    React.useEffect(() => {
+        setReceiver("");
+        setFundingAmount(0);
+        setICPAmount(0);
+        setUserName("");
+        setRealmId("");
+        setBinary(new Uint8Array());
+        setCommit("");
+    }, [proposalType]);
 
     React.useEffect(() => {
         if (
@@ -226,7 +238,7 @@ export const ProposalMask = ({
                     </div>
                 </div>
             )}
-            {proposalType == ProposalType.IcpTranfer && (
+            {proposalType == ProposalType.ICPTransfer && (
                 <div className="spaced column_container">
                     <div className="vcentered bottom_half_spaced">
                         ICP ADDRESS
@@ -314,7 +326,7 @@ export const ProposalView = ({
 
     const loadState = async () => {
         const result = await window.api.query<any>("proposal", id);
-        if ("Err" in result) {
+        if (!result || "Err" in result) {
             setStatus(-1);
             return;
         }
@@ -373,8 +385,8 @@ export const ProposalView = ({
             adopted,
             data || "",
         );
-        if ("Err" in result) {
-            showPopUp("error", result.Err);
+        if (!result || "Err" in result) {
+            showPopUp("error", result?.Err || "Call failed");
             return;
         }
         window.api.call("toggle_following_post", postId);

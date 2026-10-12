@@ -428,11 +428,14 @@ export const Settings = ({
                     () =>
                         window.api
                             .query<any>("validate_username", name)
-                            .then((result) =>
-                                setLabel(
-                                    "Err" in result ? result.Err : "available!",
-                                ),
-                            ),
+                            .then((result) => {
+                                if (result)
+                                    setLabel(
+                                        "Err" in result
+                                            ? result.Err
+                                            : "available!",
+                                    );
+                            }),
                     300,
                 ),
             );
@@ -448,8 +451,8 @@ export const Settings = ({
                 name,
                 invite || "",
             );
-            if ("Err" in response) {
-                return showPopUp("error", response.Err);
+            if (!response || "Err" in response) {
+                return showPopUp("error", response?.Err || "Call failed");
             }
             registrationRealmId = response?.Ok;
         }
@@ -486,8 +489,8 @@ export const Settings = ({
         ]);
         for (let i in responses) {
             const response = responses[i];
-            if ("Err" in response) {
-                showPopUp("error", response.Err);
+            if (!response || "Err" in response) {
+                showPopUp("error", response?.Err || "Call failed");
                 return;
             }
         }
@@ -658,7 +661,7 @@ export const Settings = ({
                 type="text"
                 value={
                     "tap_and_hold" in settings
-                        ? Number(settings.tap_and_hold)
+                        ? settings.tap_and_hold
                         : DEFAULT_REACTION_HOLD_TIME
                 }
                 onChange={(event) => setSetting("tap_and_hold", event)}
@@ -977,8 +980,11 @@ export const Settings = ({
                                     "request_principal_change",
                                     newPrincipalText,
                                 );
-                                if ("Err" in response) {
-                                    return showPopUp("error", response.Err);
+                                if (!response || "Err" in response) {
+                                    return showPopUp(
+                                        "error",
+                                        response?.Err || "Call failed",
+                                    );
                                 }
                                 setPrincipalChangeRequested(newPrincipalText);
                             }}

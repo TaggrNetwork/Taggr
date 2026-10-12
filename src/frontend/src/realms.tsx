@@ -26,6 +26,10 @@ import {
 } from "./user_resolve";
 
 let timer: any = null;
+// The realm form debounces its inputs separately from the realms list
+// (and from each other) so that pending updates don't cancel out.
+let controllersTimer: any = null;
+let whitelistTimer: any = null;
 
 export const RealmForm = ({ existingName }: { existingName?: string }) => {
     const editing = !!existingName;
@@ -263,11 +267,11 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         type="text"
                         value={controllersString}
                         onChange={(event) => {
-                            clearTimeout(timer);
+                            clearTimeout(controllersTimer);
                             const input = event.target.value;
                             setControllersString(input);
 
-                            timer = setTimeout(async () => {
+                            controllersTimer = setTimeout(async () => {
                                 // @ts-ignore
                                 realm.controllers = await userNameToIds(
                                     input.split(/[,\s]/),
@@ -292,11 +296,11 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                         type="text"
                         value={whitelistString}
                         onChange={(event) => {
-                            clearTimeout(timer);
+                            clearTimeout(whitelistTimer);
                             const input = event.target.value;
                             setWhitelistString(input);
 
-                            timer = setTimeout(async () => {
+                            whitelistTimer = setTimeout(async () => {
                                 // @ts-ignore
                                 realm.whitelist = await userNameToIds(
                                     input.split(/[,\s]/),
@@ -516,8 +520,8 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             name,
                             realm,
                         );
-                        if ("Err" in response) {
-                            showPopUp("error", response.Err);
+                        if (!response || "Err" in response) {
+                            showPopUp("error", response?.Err || "Call failed");
                             return;
                         }
                         if (!editing) {
@@ -738,9 +742,7 @@ export const Realms = () => {
                   )) || [];
         // Drop the response if a newer load has started meanwhile.
         if (id !== reqId.current) return;
-        if (data.length == 0) {
-            setNoMoreData(true);
-        }
+        setNoMoreData(data.length == 0);
         // When filtering, the backend returns the full match set (page is
         // ignored), so always replace; only paginated listing appends.
         setRealms(page == 0 || filter ? data : realms.concat(data));

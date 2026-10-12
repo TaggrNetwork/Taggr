@@ -50,6 +50,7 @@ export const Tokens = () => {
     const { maximum_supply, proposal_approval_threshold, transaction_fee } =
         window.backendCache.config;
 
+    if (status == -1) return <NotFound />;
     if (status == 0 || !data) return <Loading />;
 
     const { balances, circulating_supply } = data;
@@ -232,6 +233,10 @@ const AuctionCard = ({}) => {
             setPayment(volume);
             setParsedBidSize(tokens);
             setParsedE8sPerToken(e8s);
+        } else {
+            setPayment(0);
+            setParsedBidSize(0);
+            setParsedE8sPerToken(0);
         }
     }, [e8sPerToken, bidSize]);
 
@@ -499,7 +504,7 @@ export const TransactionView = ({ id }: { id: number }) => {
     const [tx, setTransaction] = React.useState({} as Transaction);
     React.useEffect(() => {
         window.api.query("transaction", id).then((result: any) => {
-            if ("Err" in result) {
+            if (!result || "Err" in result) {
                 setStatus(-1);
                 return;
             }

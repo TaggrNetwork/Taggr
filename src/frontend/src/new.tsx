@@ -44,8 +44,8 @@ export const PostSubmissionForm = ({
                 patch,
                 optionalRealm,
             );
-            if ("Err" in response) {
-                showPopUp("error", response.Err);
+            if (!response || "Err" in response) {
+                showPopUp("error", response?.Err || "Call failed");
                 return null;
             }
             return Number(post.id);

@@ -86,8 +86,9 @@ export const Invites = () => {
             credits_per_user,
             inviteRealm,
         );
-        if ("Err" in result) showPopUp("error", result.Err);
-        else loadInvites();
+        if (!result || "Err" in result) {
+            showPopUp("error", result?.Err || "Call failed");
+        } else loadInvites();
         setBusy(false);
     };
 
@@ -176,7 +177,9 @@ export const Invites = () => {
                             value={credits}
                             className="max_width_col top_spaced bottom_spaced"
                             onChange={(event) =>
-                                setCredits(parseInt(event.target.value))
+                                setCredits(
+                                    parseInt(event.target.value, 10) || 0,
+                                )
                             }
                         />
                         Spend per user
@@ -185,7 +188,9 @@ export const Invites = () => {
                             value={credits_per_user}
                             className="max_width_col top_spaced bottom_spaced"
                             onChange={(event) =>
-                                setCreditsPerUser(parseInt(event.target.value))
+                                setCreditsPerUser(
+                                    parseInt(event.target.value, 10) || 0,
+                                )
                             }
                         />
                         Realm (optional)

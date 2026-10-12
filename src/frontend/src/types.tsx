@@ -223,9 +223,6 @@ type Filters = {
 
 export type Predicate =
     | {
-          ["ReportOpen"]: PostId;
-      }
-    | {
           ["UserReportOpen"]: UserId;
       }
     | {

@@ -36,13 +36,17 @@ export const previewImg = (
     pinchZoom(pic);
     fadeInPicture(pic);
 
-    const closePreview = () => (preview.style.display = "none");
+    const closePreview = () => {
+        preview.style.display = "none";
+        document.removeEventListener("scroll", closePreview);
+    };
 
-    document.onscroll = closePreview;
+    // Note: the `#preview` element is also used by popups, so don't hijack
+    // `document.onscroll`; register a listener that removes itself instead.
+    document.addEventListener("scroll", closePreview);
     preview.onclick = (event) => {
         let target: any = event.target;
-        if (target?.id == "preview" || notGallery)
-            preview.style.display = "none";
+        if (target?.id == "preview" || notGallery) closePreview();
     };
 
     if (notGallery) return;
