@@ -803,7 +803,7 @@ const PostInfo = ({
                                                     post_deletion_penalty_factor;
                                             if (
                                                 !(await confirmPopUp(
-                                                    `Please confirm the post deletion: it will costs ${cost} credits.`,
+                                                    `Please confirm the post deletion: it will cost ${cost} credits.`,
                                                 ))
                                             )
                                                 return;

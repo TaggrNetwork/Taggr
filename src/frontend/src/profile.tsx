@@ -351,7 +351,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 </div>
             )}
             {profile.about ? (
-                <div className="larger_text">
+                <div className="large_text">
                     <Content value={profile.about} />
                     <hr />
                 </div>

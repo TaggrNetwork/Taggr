@@ -282,7 +282,9 @@ const App = () => {
 };
 
 const reloadCache = async () => {
-    window.backendCache = window.backendCache || { users: [], recent_tags: [] };
+    window.backendCache =
+        window.backendCache ||
+        ({ recent_tags: [] } as typeof window.backendCache);
     const [recent_tags, stats, config, domainsCfgResp] = await Promise.all([
         window.api.query<[string, any][]>("recent_tags", domain(), "", 500),
         window.api.query<Stats>("stats"),

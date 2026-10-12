@@ -655,7 +655,7 @@ export const Form = ({
                                     (!realm || user.realms.includes(realm)) && (
                                         <select
                                             value={realm || ""}
-                                            className="small_text left_spaced"
+                                            className="left_spaced"
                                             onChange={(event) =>
                                                 setRealm(event.target.value)
                                             }

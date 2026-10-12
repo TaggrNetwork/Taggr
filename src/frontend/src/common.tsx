@@ -305,7 +305,7 @@ export const HeadBar = ({
             <div className="vcentered">
                 <h1
                     className={`max_width_col ${
-                        bigScreen() ? "x_large_text" : "larger_text"
+                        bigScreen() ? "x_large_text" : "large_text"
                     }`}
                 >
                     {title}
@@ -962,23 +962,20 @@ export function popUp<T>(
     content: JSX.Element,
     opts?: { closable?: () => boolean },
 ): null | Promise<T | null> {
-    const preview = document.getElementById("preview");
-    if (!preview) return null;
-    while (preview.hasChildNodes()) {
-        let firstChild = preview.firstChild;
-        if (firstChild) preview.removeChild(firstChild);
-    }
-    preview.style.display = "flex";
-    preview.style.flexDirection = "column";
-    preview.style.justifyContent = "center";
-
+    // Each popup gets its own stacked overlay instead of sharing the #preview
+    // element, so a dialog opened from within another dialog (e.g. a confirm
+    // inside the storage-creation modal) no longer clobbers it, and the image
+    // lightbox keeps #preview to itself.
+    const overlay = document.createElement("div");
+    overlay.className = "modal_overlay";
     const root = document.createElement("div");
     root.className = "popup_body";
-    preview.appendChild(root);
+    overlay.appendChild(root);
+    document.body.appendChild(overlay);
 
     const promise = new Promise((resolve: (arg: T | null) => void) => {
         const closePreview = (arg: T | null) => {
-            preview.style.display = "none";
+            overlay.remove();
             resolve(arg);
         };
         // User-initiated dismissal (backdrop / X); respects the closable guard.
@@ -987,9 +984,8 @@ export function popUp<T>(
             closePreview(null);
         };
 
-        preview.onclick = (event) => {
-            let target: any = event.target;
-            if (target?.id == "preview") dismiss();
+        overlay.onclick = (event) => {
+            if (event.target === overlay) dismiss();
         };
 
         createRoot(root).render(

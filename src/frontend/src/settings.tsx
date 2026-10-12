@@ -642,7 +642,7 @@ export const Settings = ({
                 Multi-column layout on landing page
             </div>
             <select
-                value={settings.columns}
+                value={settings.columns || "on"}
                 className="bottom_spaced"
                 onChange={(event) => setSetting("columns", event)}
             >

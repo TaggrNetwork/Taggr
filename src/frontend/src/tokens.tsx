@@ -448,7 +448,7 @@ export const TransactionsView = ({
                     <div className="stands_out top_spaced">
                         {identifiedUser && (
                             <>
-                                <h3 className="larger_text ">
+                                <h3 className="large_text ">
                                     <UserLink
                                         id={identifiedUser.id}
                                         name={identifiedUser.name}

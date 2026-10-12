@@ -795,7 +795,6 @@ export const Realms = () => {
                     }
                 />
                 <select
-                    className="small_text"
                     value={order}
                     onChange={(e: any) => {
                         setOrder(e.target.value);
