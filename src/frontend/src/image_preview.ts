@@ -70,7 +70,7 @@ export const previewImg = (
     preview.appendChild(closeButton);
 };
 
-// We need this becasue the native modulo function doesn't work on negative numbers as expected.
+// We need this because the native modulo function doesn't work on negative numbers as expected.
 function mod(n: number, m: number) {
     return ((n % m) + m) % m;
 }

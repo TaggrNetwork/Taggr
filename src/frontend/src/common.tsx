@@ -1317,7 +1317,7 @@ export const InfoPopup = ({
             typeIcon = "ℹ️";
     }
 
-    // Capitalize the message and add punctation if needed.
+    // Capitalize the message and add punctuation if needed.
     let formattedMessage = message || "";
     if (formattedMessage.length > 0) {
         formattedMessage =

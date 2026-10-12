@@ -42,7 +42,7 @@ impl Report {
             || self.rejected_by.contains(&stalwart)
         {
             return Err(
-                "you can't vote on this report becasue you created it or voted already".into(),
+                "you can't vote on this report because you created it or voted already".into(),
             );
         }
         if confirmed {
