@@ -251,11 +251,7 @@ pub async fn top_up() {
     // top up the main canister
     match cycles(id()).await {
         Ok((cycles, cycles_per_day)) => {
-            mutate(|state| {
-                state
-                    .canister_cycle_stats
-                    .insert(id(), (cycles, cycles_per_day));
-            });
+            mutate(|state| state.canister_cycle_burn = cycles_per_day);
             let min_cycles_balance = 10_000_000_000_000;
             if cycles < min_cycles_balance
                 || cycles / cycles_per_day < CONFIG.canister_survival_period_days
@@ -293,13 +289,4 @@ pub async fn top_up() {
             ))
         }),
     };
-
-    // Legacy buckets are no longer tracked; drop any leftovers so the map only
-    // ever holds the main canister.
-    mutate(|state| {
-        let main = id();
-        state
-            .canister_cycle_stats
-            .retain(|canister, _| canister == &main);
-    });
 }

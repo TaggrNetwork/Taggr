@@ -241,9 +241,10 @@ pub struct State {
     #[serde(default)]
     pub cold_wallets: HashMap<Principal, UserId>,
 
-    // Per-canister snapshot of (cycles, idle_cycles_burned_per_day), refreshed by `canisters::top_up()` (hourly).
+    // Cycles burned per day by the main canister, refreshed hourly by
+    // `canisters::top_up()`.
     #[serde(default)]
-    pub canister_cycle_stats: BTreeMap<Principal, (u64, u64)>,
+    pub canister_cycle_burn: u64,
 
     #[serde(default)]
     pub eth_public_key: Vec<u8>,
@@ -2487,11 +2488,7 @@ impl State {
             last_daily_chores: self.timers.last_daily,
             last_hourly_chores: self.timers.last_hourly,
             canister_cycle_balance: canister_cycle_balance() as u64,
-            canister_cycle_burn: self
-                .canister_cycle_stats
-                .get(&api::canister_self())
-                .map(|(_, burn)| *burn)
-                .unwrap_or_default(),
+            canister_cycle_burn: self.canister_cycle_burn,
             users: self.users.len(),
             posts,
             comments: Post::count(self) - posts,
