@@ -14,7 +14,7 @@ use env::{
     State,
 };
 use ic_cdk::{
-    api::{self, msg_arg_data as arg_data_raw},
+    api::{self, msg_arg_data as arg_data_raw, msg_reply},
     futures::{internals::in_executor_context, spawn},
 };
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
@@ -620,30 +620,23 @@ async fn set_emergency_release(binary: ByteBuf) {
 #[export_name = "canister_update confirm_emergency_release"]
 fn confirm_emergency_release() {
     mutate(|state| {
-        let hash: String = parse(&arg_data_raw());
-        reply(match raw_caller(state) {
-            Err(err) => Err(err),
-            Ok(principal) => match state.principal_to_user(principal) {
-                None => Err("user not found".to_string()),
-                Some(user) => {
-                    let user_balance = user.balance;
-                    let user_cold_balance = user.cold_balance;
-                    let user_cold_wallet = user.cold_wallet;
-                    use sha2::{Digest, Sha256};
-                    let mut hasher = Sha256::new();
-                    hasher.update(&state.emergency_binary);
-                    if hash == format!("{:x}", hasher.finalize()) {
-                        state.emergency_votes.insert(principal, user_balance);
-                        if let Some(principal) = user_cold_wallet {
-                            state.emergency_votes.insert(principal, user_cold_balance);
-                        }
-                        Ok(())
-                    } else {
-                        Err("wrong hash".to_string())
-                    }
+        let principal = raw_caller(state).unwrap();
+        if let Some(user) = state.principal_to_user(principal) {
+            let user_balance = user.balance;
+            let user_cold_balance = user.cold_balance;
+            let user_cold_wallet = user.cold_wallet;
+            let hash: String = parse(&arg_data_raw());
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            hasher.update(&state.emergency_binary);
+            if hash == format!("{:x}", hasher.finalize()) {
+                state.emergency_votes.insert(principal, user_balance);
+                if let Some(principal) = user_cold_wallet {
+                    state.emergency_votes.insert(principal, user_cold_balance);
                 }
-            },
-        });
+            }
+        }
+        msg_reply([]);
     })
 }
 
