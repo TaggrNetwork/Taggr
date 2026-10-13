@@ -32,6 +32,7 @@ use token::base;
 use user::{User, UserId};
 
 pub mod auction;
+pub mod bucket;
 pub mod canisters;
 pub mod config;
 pub mod delegations;
@@ -48,7 +49,6 @@ pub mod proposals;
 pub mod realms;
 pub mod reports;
 pub mod search;
-pub mod storage;
 pub mod token;
 pub mod user;
 
@@ -104,8 +104,6 @@ pub struct Stats {
     active_users: usize,
     active_users_vp: u64,
     invited_users: usize,
-    // (id, state_size, cycles, cycles_per_day)
-    buckets: Vec<(String, u64, u64, u64)>,
     users_online: usize,
     module_hash: String,
     last_release: ReleaseInfo,
@@ -171,7 +169,6 @@ pub struct State {
     pub next_post_id: PostId,
     pub next_user_id: UserId,
     pub accounting: Invoices,
-    pub storage: storage::Storage,
 
     pub logger: Logger,
     pub invite_codes: BTreeMap<String, Invite>,
@@ -220,12 +217,6 @@ pub struct State {
     pub last_nns_proposal: u64,
 
     pub root_posts_index: Vec<PostId>,
-
-    // Per-user list of post ids pending migration. Used by the frontend
-    // migration loop to enumerate a user's posts without scanning all posts
-    // client-side. Temporary: drop once the shared bucket is retired.
-    #[serde(default)]
-    pub post_index: BTreeMap<UserId, Vec<PostId>>,
 
     e8s_for_one_xdr: u64,
 
@@ -2513,19 +2504,6 @@ impl State {
             active_users,
             active_users_vp: active_users_vp / token::base(),
             circulating_supply: self.balances.values().sum(),
-            buckets: self
-                .storage
-                .buckets
-                .iter()
-                .map(|(id, size)| {
-                    let (cycles, cycles_per_day) = self
-                        .canister_cycle_stats
-                        .get(id)
-                        .copied()
-                        .unwrap_or_default();
-                    (id.to_string(), *size, cycles, cycles_per_day)
-                })
-                .collect(),
         }
     }
 
@@ -2542,7 +2520,10 @@ impl State {
             let (user_id, active) = match user {
                 Some(u) => {
                     held_by_users += balance;
-                    let active = u.active_within(CONFIG.voting_power_activity_weeks, WEEK, now);
+                    // Subaccount tokens don't count for governance (see
+                    // `update_user_balance`), so treat them as inactive too.
+                    let active = acc.subaccount.is_none()
+                        && u.active_within(CONFIG.voting_power_activity_weeks, WEEK, now);
                     if active {
                         active_balances.push((u.id, *balance));
                     }
@@ -3107,6 +3088,35 @@ pub(crate) mod tests {
             let voters = state.active_voters(now).collect::<BTreeMap<_, _>>();
             assert_eq!(voters.len(), 1);
             assert_eq!(*voters.get(&1).unwrap(), (2 << 2) * 10000);
+        })
+    }
+
+    #[test]
+    fn test_token_stats_excludes_subaccounts() {
+        mutate(|state| {
+            create_user(state, pr(1));
+            insert_balance(state, pr(1), 100 * token::base());
+
+            // Move 1000 tokens of the active user to their own subaccount.
+            let subaccount = Account {
+                owner: pr(1),
+                subaccount: Some(vec![1; 32]),
+            };
+            state.minting_mode = true;
+            token::mint(state, subaccount.clone(), 1000 * token::base(), "");
+            state.minting_mode = false;
+
+            let stats = state.token_stats(0);
+            // Subaccount balances don't count for governance.
+            assert_eq!(stats.active_users_vp, 100);
+            let entry = stats
+                .balances
+                .iter()
+                .find(|(acc, ..)| *acc == subaccount)
+                .expect("subaccount entry missing");
+            assert_eq!(entry.1, 1000 * token::base());
+            // Subaccount entries must be inactive so the UI shows 0% VP.
+            assert!(!entry.3);
         })
     }
 

@@ -39,7 +39,7 @@ copy_release_artifact() {
 }
 
 prepare_artifacts() {
-  # Backend src/backend/assets.rs and env/storage.rs use include_bytes! on
+  # Backend src/backend/assets.rs and env/bucket.rs use include_bytes! on
   # dist/frontend/* and target/wasm32-unknown-unknown/release/bucket.wasm.gz,
   # so cargo cannot compile the backend (host-side, for tests/clippy) until
   # those files exist. Nothing embeds the taggr wasm itself, so we don't

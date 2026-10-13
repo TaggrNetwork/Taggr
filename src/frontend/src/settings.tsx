@@ -21,7 +21,6 @@ import { Principal } from "@dfinity/principal";
 import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
 import { UserLinks, linksError, parseLinks } from "./profile";
-import { loadPendingPostIds, runMigration } from "./migration";
 import { Box, Credits, Fire, StorageCanister, HourGlass } from "./icons";
 import {
     BLACKHOLE_PRINCIPAL,
@@ -33,80 +32,6 @@ import {
 } from "./user_storage";
 
 export const DEFAULT_REACTION_HOLD_TIME = 350;
-
-const MigrationPanel = ({ bucket }: { bucket: string }) => {
-    const [pending, setPending] = React.useState<number[] | null>(null);
-    const [done, setDone] = React.useState(0);
-    const [runTotal, setRunTotal] = React.useState(0);
-    const [running, setRunning] = React.useState(false);
-    const stopRef = React.useRef(false);
-
-    const refresh = React.useCallback(async () => {
-        setPending(await loadPendingPostIds());
-    }, []);
-
-    React.useEffect(() => {
-        refresh();
-    }, [refresh]);
-
-    const onMigrate = async () => {
-        if (!pending) return;
-        setDone(0);
-        setRunTotal(pending.length);
-        setRunning(true);
-        stopRef.current = false;
-        try {
-            await runMigration(
-                Principal.fromText(bucket),
-                pending,
-                (d) => setDone(d),
-                () => stopRef.current,
-            );
-        } catch (err) {
-            showPopUp("error", errorText(err), 7);
-        } finally {
-            setRunning(false);
-            setPending(await loadPendingPostIds());
-        }
-    };
-
-    const counterTotal = running || done > 0 ? runTotal : pending?.length || 0;
-
-    if (pending === null) return null;
-    if (pending.length === 0 && !running && done === 0) return null;
-
-    return (
-        <>
-            <hr />
-            <h3>Migration</h3>
-            <p>
-                Move images from the shared storage into your own storage. Safe
-                to stop and resume — progress is server-side.
-            </p>
-            <p>
-                Posts migrated:{" "}
-                <code>
-                    {done} / {counterTotal}
-                </code>
-            </p>
-            {running ? (
-                <ButtonWithLoading
-                    classNameArg=""
-                    onClick={async () => {
-                        stopRef.current = true;
-                    }}
-                    label="STOP"
-                />
-            ) : (
-                <ButtonWithLoading
-                    classNameArg="active"
-                    onClick={onMigrate}
-                    label="MIGRATE"
-                />
-            )}
-        </>
-    );
-};
 
 const StorageSection = ({ user }: { user: User }) => {
     const [bucket, setBucket] = React.useState<typeof user.bucket>(user.bucket);
@@ -327,9 +252,7 @@ const StorageSection = ({ user }: { user: User }) => {
     return (
         <>
             {dashboard}
-            {bucket ? (
-                <MigrationPanel bucket={bucket} />
-            ) : onCanonicalDomain() ? (
+            {bucket ? null : onCanonicalDomain() ? (
                 <>
                     <div className="bottom_spaced">
                         Create a personal storage canister to attach images to

@@ -26,7 +26,6 @@ import {
     Online,
     Post,
     Realm,
-    StorageCanister,
     Treasury,
     User,
 } from "./icons";
@@ -102,13 +101,7 @@ export const Dashboard = ({}) => {
                         <label>
                             <Box /> APP STATE
                         </label>
-                        {sizeMb(
-                            stats.state_size +
-                                stats.buckets.reduce(
-                                    (acc, [, size]) => acc + size,
-                                    0,
-                                ),
-                        )}
+                        {sizeMb(stats.state_size)}
                     </div>
                     <div className="db_cell">
                         <label>
@@ -208,39 +201,6 @@ export const Dashboard = ({}) => {
                         </div>
                     </div>
                 </div>
-                {stats.buckets.map(([bucket_id, size, cycles, burn], i) => (
-                    <div key={bucket_id} className="text_centered">
-                        <hr />
-                        <h2>
-                            <StorageCanister classNameArg="right_half_spaced" />
-                            <a
-                                href={`https://dashboard.internetcomputer.org/canister/${bucket_id}`}
-                            >
-                                STORAGE {i}
-                            </a>
-                        </h2>
-                        <div className="dynamic_table">
-                            <div className="db_cell">
-                                <label>
-                                    <Box /> STATE
-                                </label>
-                                {sizeMb(size)}
-                            </div>
-                            <div className="db_cell">
-                                <label>
-                                    <Credits /> CYCLES
-                                </label>
-                                {showCycles(cycles)}
-                            </div>
-                            <div className="db_cell">
-                                <label>
-                                    <Fire /> DAILY BURN
-                                </label>
-                                {showCycles(burn)}
-                            </div>
-                        </div>
-                    </div>
-                ))}
                 <hr />
                 <div>
                     <h2>STALWARTS</h2>
