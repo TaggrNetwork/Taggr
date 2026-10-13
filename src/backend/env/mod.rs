@@ -2516,7 +2516,10 @@ impl State {
             let (user_id, active) = match user {
                 Some(u) => {
                     held_by_users += balance;
-                    let active = u.active_within(CONFIG.voting_power_activity_weeks, WEEK, now);
+                    // Subaccount tokens don't count for governance (see
+                    // `update_user_balance`), so treat them as inactive too.
+                    let active = acc.subaccount.is_none()
+                        && u.active_within(CONFIG.voting_power_activity_weeks, WEEK, now);
                     if active {
                         active_balances.push((u.id, *balance));
                     }
@@ -3081,6 +3084,35 @@ pub(crate) mod tests {
             let voters = state.active_voters(now).collect::<BTreeMap<_, _>>();
             assert_eq!(voters.len(), 1);
             assert_eq!(*voters.get(&1).unwrap(), (2 << 2) * 10000);
+        })
+    }
+
+    #[test]
+    fn test_token_stats_excludes_subaccounts() {
+        mutate(|state| {
+            create_user(state, pr(1));
+            insert_balance(state, pr(1), 100 * token::base());
+
+            // Move 1000 tokens of the active user to their own subaccount.
+            let subaccount = Account {
+                owner: pr(1),
+                subaccount: Some(vec![1; 32]),
+            };
+            state.minting_mode = true;
+            token::mint(state, subaccount.clone(), 1000 * token::base(), "");
+            state.minting_mode = false;
+
+            let stats = state.token_stats(0);
+            // Subaccount balances don't count for governance.
+            assert_eq!(stats.active_users_vp, 100);
+            let entry = stats
+                .balances
+                .iter()
+                .find(|(acc, ..)| *acc == subaccount)
+                .expect("subaccount entry missing");
+            assert_eq!(entry.1, 1000 * token::base());
+            // Subaccount entries must be inactive so the UI shows 0% VP.
+            assert!(!entry.3);
         })
     }
 
