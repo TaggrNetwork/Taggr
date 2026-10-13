@@ -293,4 +293,13 @@ pub async fn top_up() {
             ))
         }),
     };
+
+    // Legacy buckets are no longer tracked; drop any leftovers so the map only
+    // ever holds the main canister.
+    mutate(|state| {
+        let main = id();
+        state
+            .canister_cycle_stats
+            .retain(|canister, _| canister == &main);
+    });
 }

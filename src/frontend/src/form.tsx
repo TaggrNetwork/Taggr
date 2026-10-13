@@ -861,17 +861,24 @@ const loadImage = (blob: Uint8Array): Promise<HTMLImageElement> => {
 };
 
 const canvasToBlob = (canvas: HTMLCanvasElement): Promise<ArrayBuffer> =>
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
         const encode = (type: string) =>
             canvas.toBlob(
                 (blob) => {
-                    if (!blob) return;
+                    if (!blob) {
+                        // `toBlob` signals failure with a null blob rather than
+                        // throwing; retry as JPEG once, then reject instead of
+                        // leaving the caller awaiting forever.
+                        if (type !== "image/jpeg") encode("image/jpeg");
+                        else reject(new Error("Couldn't encode the image!"));
+                        return;
+                    }
                     // Safari/WebKit cannot encode WebP and silently returns a
                     // PNG instead, so fall back to JPEG when that happens.
                     if (type === "image/webp" && blob.type !== "image/webp") {
                         encode("image/jpeg");
                     } else {
-                        blob.arrayBuffer().then(resolve);
+                        blob.arrayBuffer().then(resolve, reject);
                     }
                 },
                 type,

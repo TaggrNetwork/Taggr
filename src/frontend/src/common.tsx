@@ -47,9 +47,10 @@ export const errorText = (err: unknown): string =>
  * Pass `fallback` for a context-specific message; the backend's error text
  * takes precedence when present.
  *
- * This relies on the convention that every update method replies a `Result`
- * (`{"Ok": …}` / `{"Err": …}`; see `src/backend/updates.rs`), so a `null` reply
- * can only mean the call itself failed.
+ * Most update methods reply a `Result` (`{"Ok": …}` / `{"Err": …}`; see
+ * `src/backend/updates.rs`), but some still reply a bare value. A missing reply
+ * always counts as a failure regardless, and a non-`Result` reply can never be
+ * mistaken for an error since it cannot carry an `Err` field.
  */
 export const handleError = (response: any, fallback?: string): boolean => {
     const failed =
@@ -96,17 +97,21 @@ export const RealmList = ({
 }) => {
     const [realmsData, setRealmsData] = React.useState<[string, Realm][]>([]);
     const [loaded, setLoaded] = React.useState(false);
+    const reqId = React.useRef(0);
 
-    // Fetch each realm separately so that names and metadata stay paired even
-    // when some ids no longer resolve to a realm (the backend drops them).
-    const loadData = async () => {
+    // One query per id: the `realms` endpoint drops ids it can't resolve, so a
+    // single batched query can't tell which returned realm belongs to which id.
+    const loadData = async (names: string[]) => {
+        const id = ++reqId.current;
         const data = await Promise.all(
-            ids.map(async (id) => {
+            names.map(async (name) => {
                 const [realm] =
-                    (await window.api.query<Realm[]>("realms", [id])) || [];
-                return [id, realm] as [string, Realm | undefined];
+                    (await window.api.query<Realm[]>("realms", [name])) || [];
+                return [name, realm] as [string, Realm | undefined];
             }),
         );
+        // Drop the response if a newer load has started meanwhile.
+        if (id !== reqId.current) return;
         setRealmsData(
             data.filter(([_, realm]) => !!realm) as [string, Realm][],
         );
@@ -114,7 +119,8 @@ export const RealmList = ({
     };
 
     React.useEffect(() => {
-        loadData();
+        setLoaded(false);
+        loadData([...new Set(ids)]);
     }, [ids.join(",")]);
 
     if (ids.length == 0) return null;
@@ -973,8 +979,11 @@ export function popUp<T>(
     overlay.appendChild(root);
     document.body.appendChild(overlay);
 
+    const reactRoot = createRoot(root);
     const promise = new Promise((resolve: (arg: T | null) => void) => {
         const closePreview = (arg: T | null) => {
+            // Unmount before detaching so React tears the tree down cleanly.
+            reactRoot.unmount();
             overlay.remove();
             resolve(arg);
         };
@@ -988,7 +997,7 @@ export function popUp<T>(
             if (event.target === overlay) dismiss();
         };
 
-        createRoot(root).render(
+        reactRoot.render(
             <div data-testid="popup">
                 <div
                     data-testid="popup-close-button"

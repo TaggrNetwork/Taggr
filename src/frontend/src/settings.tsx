@@ -293,6 +293,13 @@ export const Settings = ({
     const [principal, setPrincipal] = React.useState(window.principalId);
     const [principalChangeRequested, setPrincipalChangeRequested] =
         React.useState<string | null>(null);
+    // Rehydrate a pending principal change on mount so a reload doesn't lose
+    // the "request registered" state.
+    React.useEffect(() => {
+        window.api
+            .query<string | null>("principal_change_target")
+            .then((target) => setPrincipalChangeRequested(target || null));
+    }, []);
     const [name, setName] = React.useState("");
     const [about, setAbout] = React.useState("");
     const [settings, setSettings] = React.useState<{ [name: string]: string }>(

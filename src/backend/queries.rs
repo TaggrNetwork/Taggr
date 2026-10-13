@@ -34,6 +34,24 @@ fn migration_pending() {
     });
 }
 
+/// The new principal the caller has requested, if a principal change is pending
+/// for them, or `null` otherwise. Keyed by the canonical principal, matching how
+/// `request_principal_change` stores the request.
+#[export_name = "canister_query principal_change_target"]
+fn principal_change_target() {
+    let caller = api::msg_caller();
+    read(|state| {
+        reply(
+            state
+                .principal_change_requests
+                .iter()
+                .find_map(|(new_principal, old_principal)| {
+                    (*old_principal == caller).then(|| new_principal.to_text())
+                }),
+        )
+    });
+}
+
 #[export_name = "canister_query auction"]
 fn auction() {
     read(|state| {
