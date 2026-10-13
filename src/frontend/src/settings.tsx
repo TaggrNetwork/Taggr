@@ -293,12 +293,17 @@ export const Settings = ({
     const [principal, setPrincipal] = React.useState(window.principalId);
     const [principalChangeRequested, setPrincipalChangeRequested] =
         React.useState<string | null>(null);
+    const principalChangeSubmitted = React.useRef(false);
     // Rehydrate a pending principal change on mount so a reload doesn't lose
-    // the "request registered" state.
+    // the "request registered" state. Ignore a late reply once the user has
+    // submitted a request here, so it can't wipe the fresh value.
     React.useEffect(() => {
         window.api
             .query<string | null>("principal_change_target")
-            .then((target) => setPrincipalChangeRequested(target || null));
+            .then((target) => {
+                if (!principalChangeSubmitted.current)
+                    setPrincipalChangeRequested(target || null);
+            });
     }, []);
     const [name, setName] = React.useState("");
     const [about, setAbout] = React.useState("");
@@ -907,6 +912,7 @@ export const Settings = ({
                                     newPrincipalText,
                                 );
                                 if (handleError(response)) return;
+                                principalChangeSubmitted.current = true;
                                 setPrincipalChangeRequested(newPrincipalText);
                             }}
                             label="CHANGE PRINCIPAL"

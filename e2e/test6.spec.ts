@@ -37,7 +37,11 @@ test.describe("Principal change", () => {
         );
         expect(newPrincipal.length).toBeGreaterThan(0);
 
+        // Sign-out reloads the app; wait for the reload so it can't interrupt
+        // the next test's navigation.
+        const signOutReload = page.waitForEvent("load", { timeout: 30000 });
         await page.getByRole("button", { name: "SIGN OUT" }).click();
+        await signOutReload;
         await waitForUILoading(page);
     });
 
@@ -72,6 +76,15 @@ test.describe("Principal change", () => {
         await page.getByRole("button", { name: "CREATE USER" }).click();
         await page.getByPlaceholder("alphanumeric").fill("migrator");
         await page.getByRole("button", { name: "SAVE" }).click();
+        // Registration redirects to the root via a same-document hash change;
+        // wait for it so it can't interrupt the next test's `goto`.
+        await page.waitForFunction(
+            () => window.location.hash === "",
+            undefined,
+            {
+                timeout: 30000,
+            },
+        );
         await waitForUILoading(page);
     });
 
@@ -92,11 +105,15 @@ test.describe("Principal change", () => {
         });
         await expect(page.getByText(newPrincipal)).toBeVisible();
 
+        // Signs out and reloads into the sign-in page; wait for the reload so
+        // it can't race the next test.
+        const signOutReload = page.waitForEvent("load", { timeout: 30000 });
         await page
             .getByRole("button", {
                 name: "SIGN OUT AND SIGN IN WITH NEW PRINCIPAL",
             })
             .click();
+        await signOutReload;
         await waitForUILoading(page);
     });
 
