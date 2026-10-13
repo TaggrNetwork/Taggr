@@ -95,33 +95,17 @@ export const RealmList = ({
     ids?: string[];
     classNameArg?: string;
 }) => {
-    const [realmsData, setRealmsData] = React.useState<[string, Realm][]>([]);
+    const [realmsData, setRealmsData] = React.useState<Realm[]>([]);
     const [loaded, setLoaded] = React.useState(false);
-    const reqId = React.useRef(0);
 
-    // One query per id: the `realms` endpoint drops ids it can't resolve, so a
-    // single batched query can't tell which returned realm belongs to which id.
-    const loadData = async (names: string[]) => {
-        const id = ++reqId.current;
-        const data = await Promise.all(
-            names.map(async (name) => {
-                const [realm] =
-                    (await window.api.query<Realm[]>("realms", [name])) || [];
-                return [name, realm] as [string, Realm | undefined];
-            }),
-        );
-        // Drop the response if a newer load has started meanwhile.
-        if (id !== reqId.current) return;
-        setRealmsData(
-            data.filter(([_, realm]) => !!realm) as [string, Realm][],
-        );
+    const loadData = async () => {
+        setRealmsData((await window.api.query("realms", ids)) || []);
         setLoaded(true);
     };
 
     React.useEffect(() => {
-        setLoaded(false);
-        loadData([...new Set(ids)]);
-    }, [ids.join(",")]);
+        loadData();
+    }, []);
 
     if (ids.length == 0) return null;
 
@@ -132,10 +116,10 @@ export const RealmList = ({
             className={`row_container ${classNameArg || ""}`}
             style={{ alignItems: "center" }}
         >
-            {realmsData.map(([name, data]) => (
+            {realmsData.map((data, i) => (
                 <RealmSpan
-                    key={name}
-                    name={name}
+                    key={i}
+                    name={ids[i]}
                     background={data.label_color}
                     classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
                 />
