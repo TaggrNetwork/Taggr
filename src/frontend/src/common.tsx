@@ -37,6 +37,28 @@ export const USD_PER_XDR = 1.37;
 export const errorText = (err: unknown): string =>
     err instanceof Error ? err.message : String(err);
 
+/**
+ * Shows an error popup if a backend call failed — either there was no reply at
+ * all (`null`/`undefined`) or the reply is an `Err` result — and returns `true`
+ * in that case, so callers can bail out with:
+ *
+ *     if (handleError(response)) return;
+ *
+ * Pass `fallback` for a context-specific message; the backend's error text
+ * takes precedence when present.
+ *
+ * This relies on the convention that every update method replies a `Result`
+ * (`{"Ok": …}` / `{"Err": …}`; see `src/backend/updates.rs`), so a `null` reply
+ * can only mean the call itself failed.
+ */
+export const handleError = (response: any, fallback?: string): boolean => {
+    const failed =
+        response == null || (typeof response == "object" && "Err" in response);
+    if (!failed) return false;
+    showPopUp("error", response?.Err || fallback || "Call failed");
+    return true;
+};
+
 export const show = (
     val: number | BigInt,
     unit?: string,
@@ -72,18 +94,30 @@ export const RealmList = ({
     ids?: string[];
     classNameArg?: string;
 }) => {
-    if (ids.length == 0) return null;
-    const [realmsData, setRealmsData] = React.useState<Realm[]>([]);
+    const [realmsData, setRealmsData] = React.useState<[string, Realm][]>([]);
     const [loaded, setLoaded] = React.useState(false);
 
+    // Fetch each realm separately so that names and metadata stay paired even
+    // when some ids no longer resolve to a realm (the backend drops them).
     const loadData = async () => {
-        setRealmsData((await window.api.query("realms", ids)) || []);
+        const data = await Promise.all(
+            ids.map(async (id) => {
+                const [realm] =
+                    (await window.api.query<Realm[]>("realms", [id])) || [];
+                return [id, realm] as [string, Realm | undefined];
+            }),
+        );
+        setRealmsData(
+            data.filter(([_, realm]) => !!realm) as [string, Realm][],
+        );
         setLoaded(true);
     };
 
     React.useEffect(() => {
         loadData();
-    }, []);
+    }, [ids.join(",")]);
+
+    if (ids.length == 0) return null;
 
     if (!loaded) return <Loading />;
 
@@ -92,10 +126,10 @@ export const RealmList = ({
             className={`row_container ${classNameArg || ""}`}
             style={{ alignItems: "center" }}
         >
-            {realmsData.map((data, i) => (
+            {realmsData.map(([name, data]) => (
                 <RealmSpan
-                    key={i}
-                    name={ids[i]}
+                    key={name}
+                    name={name}
                     background={data.label_color}
                     classNameArg="clickable padded_rounded right_half_spaced top_half_spaced"
                 />
@@ -271,7 +305,7 @@ export const HeadBar = ({
             <div className="vcentered">
                 <h1
                     className={`max_width_col ${
-                        bigScreen() ? "x_large_text" : "larger_text"
+                        bigScreen() ? "x_large_text" : "large_text"
                     }`}
                 >
                     {title}
@@ -451,7 +485,7 @@ export const ToggleButton = ({
     testId = null,
     showPopup = true,
 }: {
-    toggler: () => void;
+    toggler: () => void | Promise<unknown>;
     offTitle?: string;
     onTitle?: string;
     classNameArg?: string;
@@ -468,12 +502,14 @@ export const ToggleButton = ({
         <button
             title={on ? onTitle : offTitle}
             className={`medium_text ${classNameArg}`}
-            onClick={(e) => {
+            onClick={async (e) => {
                 e.preventDefault();
                 setStatus(on ? -1 : 1);
                 if (showPopup && onTitle && offTitle)
                     showPopUp("success", on ? onTitle : offTitle);
-                toggler();
+                // A toggler resolving to `false` signals a failed backend call:
+                // revert the optimistic state (the backend didn't change).
+                if ((await toggler()) === false) setStatus(0);
             }}
             data-testid={testId}
         >
@@ -657,9 +693,29 @@ export const loadFeed = async (ids: PostId[]) =>
 export const loadPosts = async (ids: PostId[]) =>
     ((await loadFeed(ids)) || []).map(expandMeta);
 
+export const imageMime = (b: Uint8Array): string => {
+    if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47)
+        return "image/png";
+    if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+    if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return "image/gif";
+    if (
+        b.length >= 12 &&
+        b[0] === 0x52 &&
+        b[1] === 0x49 &&
+        b[2] === 0x46 &&
+        b[3] === 0x46 &&
+        b[8] === 0x57 &&
+        b[9] === 0x45 &&
+        b[10] === 0x42 &&
+        b[11] === 0x50
+    )
+        return "image/webp";
+    return "application/octet-stream";
+};
+
 export const blobToUrl = (blob: Uint8Array) =>
     URL.createObjectURL(
-        new Blob([new Uint8Array(blob).buffer], { type: "image/png" }),
+        new Blob([new Uint8Array(blob).buffer], { type: imageMime(blob) }),
     );
 
 export const isRoot = (post: Post) => post.parent == null;
@@ -836,14 +892,7 @@ export const FlagButton = ({ id, text }: { id: number; text?: boolean }) => (
                     id,
                     reason,
                 );
-                if (!response) {
-                    showPopUp("error", "Call failed");
-                    return;
-                }
-                if ("Err" in response) {
-                    showPopUp("error", response.Err);
-                    return;
-                }
+                if (handleError(response)) return;
                 showPopUp("success", "Report accepted! Thank you!");
             }
         }}
@@ -887,10 +936,7 @@ export const ReportBanner = ({
                                 let result = await window.api.call<{
                                     [name: string]: any;
                                 }>("vote_on_report", id, val);
-                                if (result && "Err" in result) {
-                                    showPopUp("error", result.Err);
-                                    return;
-                                }
+                                if (handleError(result)) return;
                                 const updatedReport = (
                                     await window.api.query<User>(
                                         "user",
@@ -916,23 +962,20 @@ export function popUp<T>(
     content: JSX.Element,
     opts?: { closable?: () => boolean },
 ): null | Promise<T | null> {
-    const preview = document.getElementById("preview");
-    if (!preview) return null;
-    while (preview.hasChildNodes()) {
-        let firstChild = preview.firstChild;
-        if (firstChild) preview.removeChild(firstChild);
-    }
-    preview.style.display = "flex";
-    preview.style.flexDirection = "column";
-    preview.style.justifyContent = "center";
-
+    // Each popup gets its own stacked overlay instead of sharing the #preview
+    // element, so a dialog opened from within another dialog (e.g. a confirm
+    // inside the storage-creation modal) no longer clobbers it, and the image
+    // lightbox keeps #preview to itself.
+    const overlay = document.createElement("div");
+    overlay.className = "modal_overlay";
     const root = document.createElement("div");
     root.className = "popup_body";
-    preview.appendChild(root);
+    overlay.appendChild(root);
+    document.body.appendChild(overlay);
 
     const promise = new Promise((resolve: (arg: T | null) => void) => {
         const closePreview = (arg: T | null) => {
-            preview.style.display = "none";
+            overlay.remove();
             resolve(arg);
         };
         // User-initiated dismissal (backdrop / X); respects the closable guard.
@@ -941,9 +984,8 @@ export function popUp<T>(
             closePreview(null);
         };
 
-        preview.onclick = (event) => {
-            let target: any = event.target;
-            if (target?.id == "preview") dismiss();
+        overlay.onclick = (event) => {
+            if (event.target === overlay) dismiss();
         };
 
         createRoot(root).render(
@@ -1082,7 +1124,7 @@ export function parseNumber(
 ): number | null {
     const parse = (s: string): number | null => {
         let num = Number(s);
-        if (isNaN(num)) {
+        if (isNaN(num) || !isFinite(num) || num < 0) {
             return null;
         }
         return num;
@@ -1271,12 +1313,18 @@ export const InfoPopup = ({
             typeIcon = "ℹ️";
     }
 
-    // Capitalize the message and add punctation if needed.
-    let formattedMessage = message[0].toUpperCase() + message.slice(1);
-    if (
-        ![".", "!", "?"].includes(formattedMessage[formattedMessage.length - 1])
-    )
-        formattedMessage += ".";
+    // Capitalize the message and add punctuation if needed.
+    let formattedMessage = message || "";
+    if (formattedMessage.length > 0) {
+        formattedMessage =
+            formattedMessage[0].toUpperCase() + formattedMessage.slice(1);
+        if (
+            ![".", "!", "?"].includes(
+                formattedMessage[formattedMessage.length - 1],
+            )
+        )
+            formattedMessage += ".";
+    }
 
     return (
         <div className="info_popup">
@@ -1346,6 +1394,9 @@ export const signOut = async () => {
     } catch (err) {
         console.error(err);
     }
+    // Clear the in-memory identity so the app reflects the signed-out state
+    // without needing a page reload.
+    window.principalId = "";
     return true;
 };
 

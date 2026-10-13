@@ -18,7 +18,7 @@ import {
     RealmList,
     noiseControlBanner,
     setTitle,
-    showPopUp,
+    handleError,
     domain,
     tagList,
     TabBar,
@@ -183,14 +183,17 @@ export const Profile = ({ handle }: { handle: string }) => {
                                         currState={() =>
                                             user.blacklist.includes(profile.id)
                                         }
-                                        toggler={() =>
-                                            window.api
-                                                .call(
+                                        toggler={async () => {
+                                            const response =
+                                                await window.api.call(
                                                     "toggle_blacklist",
                                                     profile.id,
-                                                )
-                                                .then(window.reloadUser)
-                                        }
+                                                );
+                                            if (handleError(response))
+                                                return false;
+                                            await window.reloadUser();
+                                            return true;
+                                        }}
                                     />
                                     <ToggleButton
                                         offLabel="MUTE"
@@ -201,15 +204,18 @@ export const Profile = ({ handle }: { handle: string }) => {
                                                 profile.id,
                                             )
                                         }
-                                        toggler={() =>
-                                            window.api
-                                                .call(
+                                        toggler={async () => {
+                                            const response =
+                                                await window.api.call(
                                                     "toggle_filter",
                                                     "user",
                                                     profile.id.toString(),
-                                                )
-                                                .then(window.reloadUser)
-                                        }
+                                                );
+                                            if (handleError(response))
+                                                return false;
+                                            await window.reloadUser();
+                                            return true;
+                                        }}
                                     />
                                     <ButtonWithLoading
                                         label="SEND CREDITS"
@@ -220,7 +226,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                                     `Enter the amount (fee: 1 credit)`,
                                                 )) || "",
                                             );
-                                            if (!amount) return;
+                                            if (!amount || amount < 0) return;
                                             if (
                                                 !(await confirmPopUp(
                                                     `You are transferring ${amount} credits to @${profile.name}`,
@@ -233,10 +239,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                                     profile.id,
                                                     amount,
                                                 );
-                                            if ("Err" in result) {
-                                                showPopUp("error", result.Err);
-                                                return;
-                                            }
+                                            if (handleError(result)) return;
                                             window.reloadUser();
                                             await updateState();
                                         }}
@@ -348,7 +351,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 </div>
             )}
             {profile.about ? (
-                <div className="larger_text">
+                <div className="large_text">
                     <Content value={profile.about} />
                     <hr />
                 </div>
@@ -568,11 +571,15 @@ const followeeList = (ids: UserId[]) => (
                         onLabel="UNFOLLOW"
                         classNameArg="left_half_spaced right_half_spaced"
                         currState={() => window.user.followees.includes(id)}
-                        toggler={() =>
-                            window.api
-                                .call("toggle_following_user", id)
-                                .then(window.reloadUser)
-                        }
+                        toggler={async () => {
+                            const response = await window.api.call(
+                                "toggle_following_user",
+                                id,
+                            );
+                            if (handleError(response)) return false;
+                            await window.reloadUser();
+                            return true;
+                        }}
                     />
                 )}
             </div>
@@ -596,11 +603,15 @@ export const FollowButton = ({ id }: { id: UserId }) => {
             onLabel="UNFOLLOW"
             classNameArg="left_half_spaced right_half_spaced"
             currState={() => user.followees.includes(id)}
-            toggler={() =>
-                window.api
-                    .call("toggle_following_user", id)
-                    .then(window.reloadUser)
-            }
+            toggler={async () => {
+                const response = await window.api.call(
+                    "toggle_following_user",
+                    id,
+                );
+                if (handleError(response)) return false;
+                await window.reloadUser();
+                return true;
+            }}
         />
     );
 };

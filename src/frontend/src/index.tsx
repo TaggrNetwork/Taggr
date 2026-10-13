@@ -23,7 +23,7 @@ import {
     currentRealm,
     loadFeed,
     expandMeta,
-    showPopUp,
+    handleError,
     domain,
     onCanonicalDomain,
     getCanonicalDomain,
@@ -43,7 +43,7 @@ import {
     getJournal,
 } from "./types";
 import { setRealmUI, setUI } from "./theme";
-import { Search } from "./search";
+import { Search, safeDecode } from "./search";
 import { Distribution } from "./distribution";
 import { Ethereum } from "./ethereum";
 import { populateUserNameCache } from "./user_resolve";
@@ -254,7 +254,7 @@ const App = () => {
     } else if (handler == "invites") {
         content = auth(<Invites />);
     } else if (handler == "feed") {
-        const params = param.split(/\+/).map(decodeURIComponent);
+        const params = param.split(/\+/).map(safeDecode);
         content = <Feed params={params} />;
     } else if (handler == "thread") {
         content = <Thread id={parseInt(param)} />;
@@ -282,7 +282,9 @@ const App = () => {
 };
 
 const reloadCache = async () => {
-    window.backendCache = window.backendCache || { users: [], recent_tags: [] };
+    window.backendCache =
+        window.backendCache ||
+        ({ recent_tags: [] } as typeof window.backendCache);
     const [recent_tags, stats, config, domainsCfgResp] = await Promise.all([
         window.api.query<[string, any][]>("recent_tags", domain(), "", 500),
         window.api.query<Stats>("stats"),
@@ -317,16 +319,14 @@ const reloadCache = async () => {
     }
 };
 
-const confirmPrincipalChange = async () => {
+export const confirmPrincipalChange = async () => {
     if (
         !window.principalId ||
         !(await window.api.query<boolean>("migration_pending"))
     )
         return;
     const response = await window.api.call<any>("confirm_principal_change");
-    if (response && "Err" in response) {
-        showPopUp("error", response.Err);
-    }
+    handleError(response);
 };
 
 const Footer = ({}) => (

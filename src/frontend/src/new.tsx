@@ -1,7 +1,13 @@
 import * as React from "react";
 import { Principal } from "@dfinity/principal";
 import { Form } from "./form";
-import { getPatch, loadPosts, currentRealm, showPopUp } from "./common";
+import {
+    getPatch,
+    loadPosts,
+    currentRealm,
+    handleError,
+    showPopUp,
+} from "./common";
 import { Extension, Post, PostId } from "./types";
 import { filesToUrls } from "./post";
 
@@ -44,10 +50,7 @@ export const PostSubmissionForm = ({
                 patch,
                 optionalRealm,
             );
-            if ("Err" in response) {
-                showPopUp("error", response.Err);
-                return null;
-            }
+            if (handleError(response)) return null;
             return Number(post.id);
         }
         const postId = await newPostCallback(text, blobs, extension, realm);
@@ -139,12 +142,6 @@ export const newPostCallback = async (
         optionalRealm,
         encodeExtension(extension),
     );
-    if (!result) {
-        showPopUp("error", "Call failed");
-        return null;
-    } else if ("Err" in result) {
-        showPopUp("error", result.Err);
-        return null;
-    }
+    if (handleError(result)) return null;
     return Number(result.Ok);
 };

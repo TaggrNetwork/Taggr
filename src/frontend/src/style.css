@@ -6,6 +6,23 @@
     --text-lg: 1.125rem;
     --text-xl: 1.5rem;
     --text-2xl: 2rem;
+    --radius-sm: 5px;
+    --radius-md: 10px;
+    --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "Menlo", "Consolas", "Roboto Mono",
+        "DejaVu Sans Mono", monospace;
+    --border-width: 2px;
+    /* Cap for post / preview bodies so a huge post scrolls internally instead
+       of stretching the page. */
+    --post-max-height: 150vh;
+    --on-accent: #111111;
+    --overlay: rgba(0, 0, 0, 0.9);
+    --overlay-strong: rgba(0, 0, 0, 0.8);
+    --z-sticky: 100;
+    --z-overlay: 1000;
+    --z-modal: 1001;
+    --z-toast: 2000;
 }
 
 body {
@@ -31,28 +48,19 @@ button,
 input,
 textarea,
 select {
-    font-family:
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        Roboto,
-        "Helvetica Neue",
-        Arial,
-        sans-serif;
+    font-family: var(--font-sans);
 }
 
 code,
 pre,
 kbd,
 samp {
-    font-family: ui-monospace, "Menlo", "Consolas", "Roboto Mono",
-        "DejaVu Sans Mono", monospace;
+    font-family: var(--font-mono);
 }
 
 article.preview,
 textarea {
-    max-height: 150vh;
+    max-height: var(--post-max-height);
 }
 
 article.preview {
@@ -81,25 +89,20 @@ code {
 }
 
 .popup_body {
-    margin-top: 1em;
+    margin: 1em auto;
+    width: 30%;
     padding: 1em;
-    border-radius: 15px;
+    border-radius: var(--radius-md);
     background: $background;
     overflow-y: auto;
     overflow-x: hidden;
     max-height: 90vh;
-    z-index: 1000;
 }
 
 .journal {
     margin-left: auto;
     margin-right: auto;
     width: 60%;
-}
-.popup_body {
-    margin-left: auto;
-    margin-right: auto;
-    width: 30%;
 }
 
 .db_cell code,
@@ -127,7 +130,7 @@ h4,
 h5,
 th {
     font-weight: bolder;
-    filter: brightness(110%);
+    color: $header_text;
     text-transform: capitalize;
 }
 
@@ -149,14 +152,13 @@ h5 {
 
 .monospace *,
 .monospace {
-    font-family: ui-monospace, "Menlo", "Consolas", "Roboto Mono",
-        "DejaVu Sans Mono", monospace;
+    font-family: var(--font-mono);
 }
 
 .prime .blog_title,
 .prime h2,
 .prime h3 {
-    border-bottom: 2px solid $light_background;
+    border-bottom: var(--border-width) solid $light_background;
     padding-bottom: 0.5em;
 }
 
@@ -184,21 +186,14 @@ input,
 select {
     padding: 0.5em;
     color: $text;
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     background: $dark_background;
     border: none;
-    font-size: var(--text-lg);
+    font-size: var(--text-base);
 }
 
 .grid_column {
     width: 49%;
-}
-
-.thread_button {
-    padding: 0;
-    position: absolute;
-    left: -0.75em;
-    top: 1.25em;
 }
 
 .thread > .comment:before {
@@ -212,10 +207,10 @@ ul.comments {
     margin-bottom: 0.5em;
     padding: 0;
     list-style-type: none;
-    border-left: 2px solid $dark_background;
-    border-bottom: 2px solid $dark_background;
-    border-top-left-radius: 10px;
-    border-bottom-left-radius: 10px;
+    border-left: var(--border-width) solid $dark_background;
+    border-bottom: var(--border-width) solid $dark_background;
+    border-top-left-radius: var(--radius-md);
+    border-bottom-left-radius: var(--radius-md);
 }
 
 .comments li .post_head:before {
@@ -235,8 +230,8 @@ ul.comments {
 
 .comments .post_head .user_link {
     margin-left: 0;
-    border: 2px solid $dark_background;
-    border-radius: 10px;
+    border: var(--border-width) solid $dark_background;
+    border-radius: var(--radius-md);
     padding: 0.5em;
 }
 
@@ -266,7 +261,7 @@ article {
 }
 
 .feed_item article {
-    max-height: 150vh;
+    max-height: var(--post-max-height);
     position: relative;
 }
 
@@ -275,7 +270,7 @@ article {
 }
 
 .prime .post_extension article {
-    max-height: 150vh;
+    max-height: var(--post-max-height);
 }
 
 .feed_item {
@@ -284,8 +279,8 @@ article {
 
 .post_extension,
 .feed_item {
-    border-radius: 10px;
-    border: 2px solid $dark_background;
+    border-radius: var(--radius-md);
+    border: var(--border-width) solid $dark_background;
 }
 
 .drag_and_drop {
@@ -297,8 +292,8 @@ article {
 }
 
 .post_head {
-    border-top-left-radius: 10px;
-    border-top-right-radius: 10px;
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
     font-size: var(--text-base);
     padding: 0;
     padding-bottom: 0.8rem;
@@ -307,7 +302,7 @@ article {
 
 .prime .post_head {
     border-radius: 0px;
-    border-bottom: 2px solid $dark_background;
+    border-bottom: var(--border-width) solid $dark_background;
 }
 
 .video-container {
@@ -317,7 +312,7 @@ article {
     margin-bottom: 1em;
     height: 0;
     overflow: hidden;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
 }
 
 #tag_cloud {
@@ -333,17 +328,20 @@ article {
     margin-right: 0.2em;
 }
 
-.stands_out {
+.stands_out,
+.drop_down,
+.info_item {
     background: $light_background;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
+}
+
+.stands_out {
     border-bottom: 1px solid $dark_background;
     padding: 0.5em;
     margin-bottom: 1em;
 }
 
 .drop_down {
-    background: $light_background;
-    border-radius: 10px;
     padding-top: 1em;
     padding-bottom: 1em;
     margin: 0.5em;
@@ -352,8 +350,6 @@ article {
 .info_item {
     padding: 1em;
     margin: 1em;
-    background: $light_background;
-    border-radius: 10px;
 }
 
 .triangle {
@@ -381,7 +377,8 @@ button {
     background: $dark_background;
     font-weight: bold;
     border: none;
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-base);
     padding: 0.75em;
     padding-left: 0.6em;
     padding-right: 0.6em;
@@ -395,7 +392,7 @@ button {
 
 .realm_span:hover,
 .reply_tag:hover {
-    filter: brightness(130%);
+    opacity: 0.85;
 }
 
 .icon_bar {
@@ -414,8 +411,7 @@ button {
     padding-bottom: 0.5rem;
 }
 
-.breakable,
-.logs code {
+.breakable {
     word-break: break-all;
 }
 
@@ -483,21 +479,17 @@ a:visited {
 }
 
 a:hover {
-    filter: brightness(120%);
+    background: $hover_background;
     text-decoration: underline dotted;
 }
 
-a.iconed:hover {
-    text-decoration: none;
-}
-
 a.external:hover {
-    filter: brightness(120%);
+    opacity: 0.85;
     text-decoration: none;
 }
 
 a.external {
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     background: $clickable;
     color: $light_background;
     padding-left: 0.3em;
@@ -543,12 +535,6 @@ path {
     grid-template-columns: 33% 33% 33%;
 }
 
-.two_columns_grid {
-    display: grid;
-    row-gap: 1em;
-    grid-template-columns: 50% 50%;
-}
-
 footer {
     padding: 2em;
     justify-content: center;
@@ -568,7 +554,7 @@ header {
     background: black;
     font-family: "Impact", sans-serif;
     font-weight: bold;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     color: white;
     font-size: var(--text-2xl);
     display: flex;
@@ -586,7 +572,7 @@ header {
     opacity: 0.95;
     height: 60px;
     width: 60px;
-    border-radius: 30px;
+    border-radius: 50%;
     position: fixed;
     cursor: pointer;
     bottom: 5%;
@@ -599,8 +585,8 @@ header {
 }
 
 hr {
-    border-style: none none none;
-    border-top: 2px solid $dark_background;
+    border: none;
+    border-top: var(--border-width) solid $dark_background;
     margin-top: 1em;
     margin-bottom: 1em;
 }
@@ -611,7 +597,7 @@ hr {
 
 .selected {
     background: $dark_background;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
 }
 
 .unselected {
@@ -621,7 +607,7 @@ hr {
 .reaction_button {
     cursor: pointer;
     color: $text;
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     font-weight: normal;
     padding: 0.75em;
     display: flex;
@@ -647,20 +633,16 @@ hr {
     padding-top: 0.75em;
     padding-bottom: 0.75em;
     margin-top: 1em;
-    border-top: 2px solid $dark_background;
-    z-index: 100;
+    border-top: var(--border-width) solid $dark_background;
+    z-index: var(--z-sticky);
     display: flex;
     justify-content: flex-end;
-}
-
-.reaction_button.selected .reaction_icon path {
-    fill: $accent;
 }
 
 article table,
 article th,
 article td {
-    border: 2px solid $dark_background;
+    border: var(--border-width) solid $dark_background;
 }
 
 article,
@@ -699,29 +681,18 @@ table {
     text-align: center;
 }
 
-#tail {
-    flex: 1;
-}
-
-#stats {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    align-items: center;
-}
-
 p > img {
     margin-top: 1em;
     margin-bottom: 1em;
 }
 
 .prime img {
-    border-radius: 10px;
+    border-radius: var(--radius-md);
 }
 
 .comment article img {
     max-width: 70%;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     margin: 1em;
 }
 
@@ -741,17 +712,13 @@ article img {
     text-align: center;
     font-family: monospace;
     font-size: var(--text-2xs);
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
 }
 
 .padded_rounded {
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     padding-left: 0.5em;
     padding-right: 0.5em;
-}
-
-.current > img {
-    border: 2px solid $accent;
 }
 
 .realm_span,
@@ -768,8 +735,8 @@ article img {
 }
 
 .reply_tag {
-    border-top-right-radius: 5px;
-    border-bottom-right-radius: 5px;
+    border-top-right-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
     background: $clickable;
 }
 
@@ -779,40 +746,39 @@ a.reply_tag {
 }
 
 .realm_tag {
-    border-top-left-radius: 5px;
-    border-bottom-left-radius: 5px;
+    border-top-left-radius: var(--radius-sm);
+    border-bottom-left-radius: var(--radius-sm);
     right: 0;
 }
 
 .top_framed {
-    border-top: 2px solid $dark_background;
+    border-top: var(--border-width) solid $dark_background;
 }
 
 .framed {
-    border: 2px solid $dark_background;
+    border: var(--border-width) solid $dark_background;
     padding: 0.5em;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
 }
 
 .post_extension {
     background: $light_background;
     margin: 1em;
-    margin-bottom: 1em;
     font-size: var(--text-base);
     padding: 0.5em;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
 }
 
 #preview {
     display: none;
     position: fixed;
-    z-index: 1000;
+    z-index: var(--z-overlay);
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0, 0, 0, 0.9);
+    background-color: var(--overlay);
 }
 
 #preview > .button {
@@ -828,8 +794,8 @@ a.reply_tag {
     display: flex;
     justify-content: center;
     align-items: center;
-    border-radius: 10px;
-    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: var(--radius-md);
+    background-color: var(--overlay-strong);
 }
 
 #preview > .close {
@@ -851,6 +817,20 @@ a.reply_tag {
     margin: auto;
 }
 
+/* Modal overlays are created per-popup and stacked, so a dialog opened from
+   within another dialog (e.g. a confirm inside the storage-creation modal) no
+   longer clobbers it — which the shared #preview element used to do. */
+.modal_overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background-color: var(--overlay);
+    overflow: auto;
+}
+
 .button_text {
     font-size: var(--text-xs);
 }
@@ -859,15 +839,15 @@ a.reply_tag {
     font-size: var(--text-sm);
 }
 .smaller_text {
-    font-size: 0.875em;
+    font-size: var(--text-xs);
 }
 .medium_text {
     font-size: var(--text-base);
 }
-.larger_text {
-    font-size: 1.125em;
-}
 .large_text {
+    font-size: var(--text-lg);
+}
+.enlarged_text {
     font-size: var(--text-lg);
 }
 .x_large_text {
@@ -935,7 +915,7 @@ a.accent,
 }
 
 .active path {
-    fill: black;
+    fill: var(--on-accent);
 }
 
 .accent path {
@@ -1005,7 +985,7 @@ a.accent,
 .banner a,
 .banner h3,
 .banner h4 {
-    color: black;
+    color: var(--on-accent);
 }
 
 .banner a {
@@ -1014,8 +994,8 @@ a.accent,
 
 .banner {
     background: $accent;
-    color: black;
-    border-radius: 5px;
+    color: var(--on-accent);
+    border-radius: var(--radius-sm);
 }
 
 .banner,
@@ -1050,30 +1030,14 @@ a.accent,
 button.active,
 .active_element {
     background: $accent;
-    color: #111111;
+    color: var(--on-accent);
 }
 
-.iconed {
-    white-space: nowrap;
-    margin: 0.5em;
-    justify-self: center;
-    width: 50%;
-}
-
-.iconed svg,
 label svg {
     margin-right: 0.3em;
     align-items: center;
     position: relative;
     top: -2px;
-}
-
-.mobile_only {
-    display: none;
-}
-
-.marginized {
-    margin: 0.1em;
 }
 
 .post_box > article summary,
@@ -1156,10 +1120,6 @@ label svg {
         grid-template-columns: 50% 50%;
     }
 
-    .iconed {
-        justify-self: left;
-    }
-
     .banner {
         border-radius: 0;
     }
@@ -1175,17 +1135,13 @@ label svg {
 
     .feed_item {
         border: none;
-        border-top: 2px solid $dark_background;
+        border-top: var(--border-width) solid $dark_background;
         padding-top: 1em;
         margin-bottom: 0.5em;
     }
 
     .popup_body {
         width: 80%;
-    }
-
-    a:hover {
-        filter: none;
     }
 
     .realm_tag {
@@ -1200,10 +1156,6 @@ label svg {
         width: 100%;
     }
 
-    .mobile_only {
-        display: inline;
-    }
-
     .feed_item article img {
         width: 100%;
     }
@@ -1215,10 +1167,6 @@ label svg {
 
     #tag_cloud {
         font-size: 80%;
-    }
-
-    .desktop_only {
-        display: none;
     }
 
     .prime h1 {
@@ -1235,7 +1183,7 @@ label svg {
     top: 0;
     left: 0;
     right: 0;
-    z-index: 1000;
+    z-index: var(--z-toast);
     display: flex;
     flex-direction: column;
     padding: 10px;
@@ -1243,8 +1191,7 @@ label svg {
     margin: 1em auto;
     width: calc(100% - 2em);
     background-color: $light_background;
-    border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    border-radius: var(--radius-md);
     overflow: hidden;
 }
 
@@ -1287,7 +1234,7 @@ div.thumbnails img {
     width: 25px;
     object-fit: cover;
     margin: 0.15em;
-    border-radius: 20px;
+    border-radius: 50%;
     border: 1px solid $text;
 }
 

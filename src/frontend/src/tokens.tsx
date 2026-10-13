@@ -11,7 +11,7 @@ import {
     parseNumber,
     percentage,
     shortenAccount,
-    showPopUp,
+    handleError,
     timeAgo,
     token,
     TokenBalance,
@@ -50,6 +50,7 @@ export const Tokens = () => {
     const { maximum_supply, proposal_approval_threshold, transaction_fee } =
         window.backendCache.config;
 
+    if (status == -1) return <NotFound />;
     if (status == 0 || !data) return <Loading />;
 
     const { balances, circulating_supply } = data;
@@ -232,6 +233,10 @@ const AuctionCard = ({}) => {
             setPayment(volume);
             setParsedBidSize(tokens);
             setParsedE8sPerToken(e8s);
+        } else {
+            setPayment(0);
+            setParsedBidSize(0);
+            setParsedE8sPerToken(0);
         }
     }, [e8sPerToken, bidSize]);
 
@@ -304,14 +309,7 @@ const AuctionCard = ({}) => {
                                         return;
                                     const response: any =
                                         await window.api.call("cancel_bid");
-                                    if (!response) {
-                                        showPopUp("error", "Call failed");
-                                        return;
-                                    }
-                                    if ("Err" in response) {
-                                        showPopUp("error", response.Err);
-                                        return;
-                                    }
+                                    if (handleError(response)) return;
                                     await loadData();
                                 }}
                                 label="CANCEL MY BID"
@@ -325,14 +323,7 @@ const AuctionCard = ({}) => {
                                         parsedBidSize,
                                         parsedE8sPerToken,
                                     );
-                                    if (!response) {
-                                        showPopUp("error", "Call failed");
-                                        return;
-                                    }
-                                    if ("Err" in response) {
-                                        showPopUp("error", response.Err);
-                                        return;
-                                    }
+                                    if (handleError(response)) return;
                                     setE8sPerToken("");
                                     setBidSize("");
                                     await loadData();
@@ -457,7 +448,7 @@ export const TransactionsView = ({
                     <div className="stands_out top_spaced">
                         {identifiedUser && (
                             <>
-                                <h3 className="larger_text ">
+                                <h3 className="large_text ">
                                     <UserLink
                                         id={identifiedUser.id}
                                         name={identifiedUser.name}
@@ -499,7 +490,7 @@ export const TransactionView = ({ id }: { id: number }) => {
     const [tx, setTransaction] = React.useState({} as Transaction);
     React.useEffect(() => {
         window.api.query("transaction", id).then((result: any) => {
-            if ("Err" in result) {
+            if (!result || "Err" in result) {
                 setStatus(-1);
                 return;
             }

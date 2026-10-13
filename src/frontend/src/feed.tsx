@@ -4,7 +4,7 @@ import {
     domain,
     HeadBar,
     setTitle,
-    showPopUp,
+    handleError,
     ToggleButton,
 } from "./common";
 import { PostFeed } from "./post_feed";
@@ -83,19 +83,14 @@ const FeedExtender = ({
                         offLabel="FOLLOW"
                         onLabel="UNFOLLOW"
                         currState={() => contains(user.feeds, filter)}
-                        toggler={() =>
-                            window.api
-                                .call<
-                                    { Ok: boolean } | { Err: string }
-                                >("toggle_following_feed", filter)
-                                .then((result) => {
-                                    if (result && "Err" in result) {
-                                        showPopUp("error", result.Err);
-                                        return;
-                                    }
-                                    window.reloadUser();
-                                })
-                        }
+                        toggler={async () => {
+                            const result = await window.api.call<
+                                { Ok: boolean } | { Err: string }
+                            >("toggle_following_feed", filter);
+                            if (handleError(result)) return false;
+                            await window.reloadUser();
+                            return true;
+                        }}
                     />
                     {filter.length == 1 && (
                         <ToggleButton
@@ -107,11 +102,16 @@ const FeedExtender = ({
                                     filter[0].toLowerCase(),
                                 )
                             }
-                            toggler={() =>
-                                window.api
-                                    .call("toggle_filter", "tag", filter[0])
-                                    .then(window.reloadUser)
-                            }
+                            toggler={async () => {
+                                const response = await window.api.call(
+                                    "toggle_filter",
+                                    "tag",
+                                    filter[0],
+                                );
+                                if (handleError(response)) return false;
+                                await window.reloadUser();
+                                return true;
+                            }}
                         />
                     )}
                 </>

@@ -203,14 +203,9 @@ fn http_request(req: HttpRequest) -> HttpResponse {
     }
 }
 
-/// Serves a PNG image from the stable memory.
+/// Serves an image from the stable memory.
 /// It expects the arguments in the form: `offset=123&len=456`.
 fn http_image(args: &str) -> HttpResponse {
-    const HEADERS: &[(&str, &str)] = &[
-        ("Content-Type", "image/png"),
-        ("Cache-Control", "public, max-age=1000000"),
-    ];
-
     fn error(msg: &str) -> HttpResponse {
         HttpResponse {
             status_code: 400,
@@ -230,14 +225,33 @@ fn http_image(args: &str) -> HttpResponse {
     match read_blob(offset.unwrap(), len.unwrap()) {
         Ok(blob) => HttpResponse {
             status_code: 200,
-            headers: HEADERS
-                .iter()
-                .map(|(key, value)| (key.to_string(), value.to_string()))
-                .collect(),
+            headers: vec![
+                ("Content-Type".to_string(), image_mime(&blob).to_string()),
+                (
+                    "Cache-Control".to_string(),
+                    "public, max-age=1000000".to_string(),
+                ),
+            ],
             body: ByteBuf::from(blob),
             upgrade: None,
         },
         Err(msg) => error(msg),
+    }
+}
+
+/// Detects the image format from its magic bytes so the response advertises the
+/// correct `Content-Type`, regardless of the format the blob was written in.
+fn image_mime(bytes: &[u8]) -> &'static str {
+    if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]) {
+        "image/png"
+    } else if bytes.starts_with(&[0xff, 0xd8, 0xff]) {
+        "image/jpeg"
+    } else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        "image/gif"
+    } else if bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        "image/webp"
+    } else {
+        "application/octet-stream"
     }
 }
 
@@ -332,4 +346,22 @@ fn read_blob(offset: u64, len: u64) -> Result<Vec<u8>, &'static str> {
     }
     stable_read(offset, &mut buf);
     Ok(buf)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::image_mime;
+
+    #[test]
+    fn detects_image_mime_from_magic_bytes() {
+        assert_eq!(
+            image_mime(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]),
+            "image/png"
+        );
+        assert_eq!(image_mime(&[0xff, 0xd8, 0xff, 0xe0]), "image/jpeg");
+        assert_eq!(image_mime(b"GIF89a...."), "image/gif");
+        assert_eq!(image_mime(b"RIFF\0\0\0\0WEBPVP8 "), "image/webp",);
+        assert_eq!(image_mime(b"not an image"), "application/octet-stream");
+        assert_eq!(image_mime(&[]), "application/octet-stream");
+    }
 }

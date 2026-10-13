@@ -14,6 +14,7 @@ import {
     promptPopUp,
     tokens,
     ICP_DEFAULT_FEE,
+    handleError,
     showPopUp,
     onCanonicalDomain,
     UnavailableOnCustomDomains,
@@ -86,7 +87,7 @@ export const Wallet = () => {
                         onClick={async () => {
                             let result =
                                 await window.api.call<any>("withdraw_rewards");
-                            if ("Err" in result) showPopUp("error", result.Err);
+                            handleError(result);
                             await window.reloadUser();
                             setUser(window.user);
                         }}
@@ -131,10 +132,8 @@ export const Wallet = () => {
                                         recipient,
                                         amount,
                                     );
-                                if ("Err" in response) {
+                                if (handleError(response, "Transfer failed"))
                                     console.error(response);
-                                    showPopUp("error", "Transfer failed");
-                                }
                                 await window.reloadUser();
                                 setUser(window.user);
                                 return;
@@ -146,7 +145,11 @@ export const Wallet = () => {
                                 ICP_DEFAULT_FEE,
                                 recipient,
                             );
-                            if (Number.isNaN(Number(response)))
+                            if (response === undefined) return; // cancelled
+                            if (
+                                response === null ||
+                                Number.isNaN(Number(response))
+                            )
                                 showPopUp(
                                     "error",
                                     `Transfer failed: ${response}`,
@@ -209,11 +212,11 @@ export const Wallet = () => {
                         if (!kilo_credits || isNaN(kilo_credits)) {
                             return;
                         }
-                        const invoice_result = await future_invoice;
-                        if ("Err" in invoice_result) {
-                            showPopUp("error", invoice_result.Err);
+                        if (kilo_credits < 0) {
                             return;
                         }
+                        const invoice_result = await future_invoice;
+                        if (handleError(invoice_result)) return;
                         const { account, e8s } = invoice_result.Ok;
                         const userSubaccount = hex(account);
                         const amount = Number(e8s) * kilo_credits;
@@ -221,7 +224,7 @@ export const Wallet = () => {
                             userSubaccount,
                             amount,
                         );
-                        if ("Err" in response) {
+                        if (!response || "Err" in response) {
                             showPopUp(
                                 "error",
                                 `Couldn't transfer ICP for minting. Make sure you have at least ${tokens(
@@ -230,12 +233,10 @@ export const Wallet = () => {
                                 )} ICP on your wallet and try again.`,
                                 7,
                             );
-                        }
-                        const result: any = await mintCredits(kilo_credits);
-                        if ("Err" in result) {
-                            showPopUp("error", result.Err);
                             return;
                         }
+                        const result: any = await mintCredits(kilo_credits);
+                        if (handleError(result)) return;
                         const invoice = result.Ok;
                         if (invoice.paid) {
                             await window.reloadUser();
@@ -260,10 +261,7 @@ export const Wallet = () => {
                             const response = await actor.link_cold_wallet(
                                 window.user.id,
                             );
-                            if (response && "Err" in response) {
-                                showPopUp("error", response.Err);
-                                return;
-                            }
+                            if (handleError(response)) return;
                             await window.reloadUser();
                             setUser(window.user);
                         }}
@@ -283,10 +281,7 @@ export const Wallet = () => {
                                 return;
                             const response: any =
                                 await window.api.unlink_cold_wallet();
-                            if (response && "Err" in response) {
-                                showPopUp("error", response.Err);
-                                return;
-                            }
+                            if (handleError(response)) return;
                             await window.reloadUser();
                             setUser(window.user);
                         }}
@@ -303,7 +298,8 @@ export const Wallet = () => {
                             token_decimals,
                             transaction_fee,
                         );
-                        if (Number.isNaN(Number(response)))
+                        if (response === undefined) return; // cancelled
+                        if (response === null || Number.isNaN(Number(response)))
                             showPopUp("error", response as string);
                         await window.reloadUser();
                         setUser(window.user);

@@ -14,7 +14,7 @@ use env::{
     State,
 };
 use ic_cdk::{
-    api::{self, msg_arg_data as arg_data_raw, msg_reply},
+    api::{self, msg_arg_data as arg_data_raw},
     futures::{internals::in_executor_context, spawn},
 };
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, update};
@@ -172,10 +172,13 @@ fn vote_on_report() {
 fn clear_notifications() {
     mutate(|state| {
         let ids: Vec<u64> = parse(&arg_data_raw());
-        if let Some(user) = state.principal_to_user_mut(caller(state)) {
-            user.clear_notifications(ids)
-        }
-        msg_reply([]);
+        reply(match state.principal_to_user_mut(caller(state)) {
+            Some(user) => {
+                user.clear_notifications(ids);
+                Ok(())
+            }
+            None => Err("user not found".to_string()),
+        });
     })
 }
 
@@ -243,11 +246,14 @@ fn react() {
 #[export_name = "canister_update update_last_activity"]
 fn update_last_activity() {
     mutate(|state| {
-        if let Some(user) = state.principal_to_user_mut(caller(state)) {
-            user.last_activity = api::time()
-        }
+        reply(match state.principal_to_user_mut(caller(state)) {
+            Some(user) => {
+                user.last_activity = api::time();
+                Ok(())
+            }
+            None => Err("user not found".to_string()),
+        });
     });
-    msg_reply([]);
 }
 
 #[export_name = "canister_update request_principal_change"]
@@ -367,7 +373,9 @@ fn update_invite() {
 
 #[export_name = "canister_update delay_weekly_chores"]
 fn delay_weekly_chores() {
-    reply(mutate(|state| state.delay_weekly_chores(caller(state))))
+    reply(Ok::<bool, String>(mutate(|state| {
+        state.delay_weekly_chores(caller(state))
+    })))
 }
 
 #[export_name = "canister_update create_proposal"]
@@ -460,11 +468,10 @@ fn delete_post() {
 fn toggle_bookmark() {
     mutate(|state| {
         let post_id: PostId = parse(&arg_data_raw());
-        if let Some(user) = state.principal_to_user_mut(caller(state)) {
-            reply(user.toggle_bookmark(post_id));
-            return;
-        };
-        reply(false);
+        reply(match state.principal_to_user_mut(caller(state)) {
+            Some(user) => Ok(user.toggle_bookmark(post_id)),
+            None => Err("user not found".to_string()),
+        });
     });
 }
 
@@ -483,37 +490,38 @@ fn toggle_pinned_post() {
 #[export_name = "canister_update toggle_following_post"]
 fn toggle_following_post() {
     let post_id: PostId = parse(&arg_data_raw());
-    let user_id = read(|state| {
-        state
-            .principal_to_user(caller(state))
-            .expect("user not found")
-            .id
-    });
-    reply(
-        mutate(|state| Post::mutate(state, &post_id, |post| Ok(post.toggle_following(user_id))))
-            .unwrap_or_default(),
-    )
+    let user_id = read(|state| state.principal_to_user(caller(state)).map(|user| user.id));
+    reply(match user_id {
+        Some(user_id) => {
+            mutate(|state| Post::mutate(state, &post_id, |post| Ok(post.toggle_following(user_id))))
+        }
+        None => Err("user not found".to_string()),
+    })
 }
 
 #[export_name = "canister_update toggle_hide_post"]
 fn toggle_hide_post() {
-    let user_id = read(|state| {
-        state
-            .principal_to_user(caller(state))
-            .expect("user not found")
-            .id
-    });
     let post_id: PostId = parse(&arg_data_raw());
-    reply(
-        mutate(|state| Post::mutate(state, &post_id, |post| Ok(post.toggle_hidden(user_id))))
-            .unwrap_or_default(),
-    )
+    let user_id = read(|state| state.principal_to_user(caller(state)).map(|user| user.id));
+    reply(match user_id {
+        Some(user_id) => {
+            mutate(|state| Post::mutate(state, &post_id, |post| Ok(post.toggle_hidden(user_id))))
+        }
+        None => Err("user not found".to_string()),
+    })
 }
 
 #[export_name = "canister_update toggle_following_user"]
 fn toggle_following_user() {
     let followee_id: UserId = parse(&arg_data_raw());
-    mutate(|state| reply(state.toggle_following_user(caller(state), followee_id)))
+    let registered = read(|state| state.principal_to_user(caller(state)).is_some());
+    reply(if registered {
+        Ok(mutate(|state| {
+            state.toggle_following_user(caller(state), followee_id)
+        }))
+    } else {
+        Err("user not found".to_string())
+    })
 }
 
 #[export_name = "canister_update toggle_following_feed"]
@@ -565,11 +573,14 @@ fn toggle_realm_membership() {
 fn toggle_blacklist() {
     mutate(|state| {
         let user_id: UserId = parse(&arg_data_raw());
-        if let Some(user) = state.principal_to_user_mut(caller(state)) {
-            user.toggle_blacklist(user_id);
-        }
-    });
-    msg_reply([])
+        reply(match state.principal_to_user_mut(caller(state)) {
+            Some(user) => {
+                user.toggle_blacklist(user_id);
+                Ok(())
+            }
+            None => Err("user not found".to_string()),
+        });
+    })
 }
 
 #[export_name = "canister_update toggle_filter"]
@@ -609,23 +620,30 @@ async fn set_emergency_release(binary: ByteBuf) {
 #[export_name = "canister_update confirm_emergency_release"]
 fn confirm_emergency_release() {
     mutate(|state| {
-        let principal = raw_caller(state).unwrap();
-        if let Some(user) = state.principal_to_user(principal) {
-            let user_balance = user.balance;
-            let user_cold_balance = user.cold_balance;
-            let user_cold_wallet = user.cold_wallet;
-            let hash: String = parse(&arg_data_raw());
-            use sha2::{Digest, Sha256};
-            let mut hasher = Sha256::new();
-            hasher.update(&state.emergency_binary);
-            if hash == format!("{:x}", hasher.finalize()) {
-                state.emergency_votes.insert(principal, user_balance);
-                if let Some(principal) = user_cold_wallet {
-                    state.emergency_votes.insert(principal, user_cold_balance);
+        let hash: String = parse(&arg_data_raw());
+        reply(match raw_caller(state) {
+            Err(err) => Err(err),
+            Ok(principal) => match state.principal_to_user(principal) {
+                None => Err("user not found".to_string()),
+                Some(user) => {
+                    let user_balance = user.balance;
+                    let user_cold_balance = user.cold_balance;
+                    let user_cold_wallet = user.cold_wallet;
+                    use sha2::{Digest, Sha256};
+                    let mut hasher = Sha256::new();
+                    hasher.update(&state.emergency_binary);
+                    if hash == format!("{:x}", hasher.finalize()) {
+                        state.emergency_votes.insert(principal, user_balance);
+                        if let Some(principal) = user_cold_wallet {
+                            state.emergency_votes.insert(principal, user_cold_balance);
+                        }
+                        Ok(())
+                    } else {
+                        Err("wrong hash".to_string())
+                    }
                 }
-            }
-        }
-        msg_reply([]);
+            },
+        });
     })
 }
 

@@ -25,7 +25,7 @@ import {
     bucketImageUrl,
     currentRealm,
     noiseControlBanner,
-    showPopUp,
+    handleError,
     postAllowed,
     NotAllowed,
     onCanonicalDomain,
@@ -137,9 +137,9 @@ export const PostView = ({
 
     const commentSubmissionCallback = React.useCallback(
         async (comment: string, blobs: [string, Uint8Array][]) => {
-            if (!post) return false;
+            if (!post) return null;
             const refs = await uploadBlobsOrFail(blobs);
-            if (refs === null) return false;
+            if (refs === null) return null;
             const result: any = await window.api.add_post(
                 comment,
                 refs,
@@ -147,17 +147,14 @@ export const PostView = ({
                 [],
                 [],
             );
-            if (result.Err) {
-                showPopUp("error", result.Err);
-                return false;
-            }
+            if (handleError(result)) return null;
             const commentId = result.Ok;
             post.children.push(Number(commentId));
             post.tree_size += 1;
             setPost({ ...post });
             toggleInfo(false);
             toggleComments(true);
-            return true;
+            return Number(commentId);
         },
         [post],
     );
@@ -192,7 +189,7 @@ export const PostView = ({
                 return;
             }
             window.api.call<any>("react", post.id, id).then((response) => {
-                if ("Err" in response) showPopUp("error", response.Err);
+                handleError(response);
                 window.reloadUser();
             });
             users.push(userId);
@@ -530,7 +527,7 @@ const PostInfo = ({
             // @ts-ignore
             .concat(post.watchers)
             // @ts-ignore
-            .concat(Object.keys(post.tips).map(Number));
+            .concat(post.tips.map(([id]) => id));
 
         await populateUserNameCache(ids, setLoading);
 
@@ -622,12 +619,15 @@ const PostInfo = ({
                             currState={() =>
                                 post.watchers.includes(window.user?.id)
                             }
-                            toggler={() =>
-                                window.api.call(
+                            toggler={async () => {
+                                const response = await window.api.call(
                                     "toggle_following_post",
                                     post.id,
-                                )
-                            }
+                                );
+                                if (handleError(response)) return false;
+                                await window.reloadUser();
+                                return true;
+                            }}
                         />
                         <button
                             title="Repost"
@@ -651,11 +651,15 @@ const PostInfo = ({
                             currState={() =>
                                 window.user.bookmarks.includes(post.id)
                             }
-                            toggler={() =>
-                                window.api
-                                    .call("toggle_bookmark", post.id)
-                                    .then(window.reloadUser)
-                            }
+                            toggler={async () => {
+                                const response = await window.api.call(
+                                    "toggle_bookmark",
+                                    post.id,
+                                );
+                                if (handleError(response)) return false;
+                                await window.reloadUser();
+                                return true;
+                            }}
                             testId="bookmark-post"
                         />
                         <ToggleButton
@@ -668,28 +672,33 @@ const PostInfo = ({
                             currState={() =>
                                 post.hidden_for.includes(window.user?.id)
                             }
-                            toggler={() => {
-                                if (!window.user) return;
+                            toggler={async () => {
+                                if (!window.user) return false;
                                 const userId = window.user.id;
+                                const previousHiddenFor = post.hidden_for;
                                 const isHidden =
-                                    post.hidden_for.includes(userId);
+                                    previousHiddenFor.includes(userId);
                                 setPost({
                                     ...post,
                                     hidden_for: isHidden
-                                        ? post.hidden_for.filter(
+                                        ? previousHiddenFor.filter(
                                               (id) => id !== userId,
                                           )
-                                        : [...post.hidden_for, userId],
+                                        : [...previousHiddenFor, userId],
                                 });
-                                window.api
-                                    .call("toggle_hide_post", post.id)
-                                    .catch(() => {
-                                        showPopUp(
-                                            "error",
-                                            "Failed to toggle hide",
-                                        );
-                                        loadData();
+                                const response = await window.api.call(
+                                    "toggle_hide_post",
+                                    post.id,
+                                );
+                                if (handleError(response)) {
+                                    // Revert the optimistic update.
+                                    setPost({
+                                        ...post,
+                                        hidden_for: previousHiddenFor,
                                     });
+                                    return false;
+                                }
+                                return true;
                             }}
                             testId="hide-post"
                         />
@@ -709,12 +718,9 @@ const PostInfo = ({
                                     const result = await window.api.call<{
                                         [key: string]: any;
                                     }>("toggle_pinned_post", post.id);
-                                    if (result && "Err" in result)
-                                        showPopUp(
-                                            "error",
-                                            result.Err as string,
-                                        );
-                                    window.reloadUser();
+                                    if (handleError(result)) return false;
+                                    await window.reloadUser();
+                                    return true;
                                 }}
                                 testId="pin-post"
                             />
@@ -745,14 +751,14 @@ const PostInfo = ({
                                         "Please specify the reason for moving the post out of its realm.",
                                         "rules violation",
                                     );
-                                    realmMoveOutCallback();
+                                    if (!reason) return;
                                     const response = await window.api.call<any>(
                                         "realm_clean_up",
                                         post.id,
                                         reason,
                                     );
-                                    if ("Err" in response)
-                                        showPopUp("error", response.Err);
+                                    if (handleError(response)) return;
+                                    realmMoveOutCallback();
                                 }}
                                 label={<Close />}
                             />
@@ -797,7 +803,7 @@ const PostInfo = ({
                                                     post_deletion_penalty_factor;
                                             if (
                                                 !(await confirmPopUp(
-                                                    `Please confirm the post deletion: it will costs ${cost} credits.`,
+                                                    `Please confirm the post deletion: it will cost ${cost} credits.`,
                                                 ))
                                             )
                                                 return;
@@ -823,15 +829,9 @@ const PostInfo = ({
                                                     post.id,
                                                     versions,
                                                 );
-                                            if ("Err" in response) {
-                                                showPopUp(
-                                                    "error",
-                                                    response.Err,
-                                                );
-                                            } else {
-                                                await freePostFiles(post.files);
-                                                await callback();
-                                            }
+                                            if (handleError(response)) return;
+                                            await freePostFiles(post.files);
+                                            await callback();
                                         }}
                                         label={<Trash />}
                                     />

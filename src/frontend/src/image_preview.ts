@@ -36,13 +36,17 @@ export const previewImg = (
     pinchZoom(pic);
     fadeInPicture(pic);
 
-    const closePreview = () => (preview.style.display = "none");
+    const closePreview = () => {
+        preview.style.display = "none";
+        document.removeEventListener("scroll", closePreview);
+    };
 
-    document.onscroll = closePreview;
+    // Note: the `#preview` element is also used by popups, so don't hijack
+    // `document.onscroll`; register a listener that removes itself instead.
+    document.addEventListener("scroll", closePreview);
     preview.onclick = (event) => {
         let target: any = event.target;
-        if (target?.id == "preview" || notGallery)
-            preview.style.display = "none";
+        if (target?.id == "preview" || notGallery) closePreview();
     };
 
     if (notGallery) return;
@@ -66,7 +70,7 @@ export const previewImg = (
     preview.appendChild(closeButton);
 };
 
-// We need this becasue the native modulo function doesn't work on negative numbers as expected.
+// We need this because the native modulo function doesn't work on negative numbers as expected.
 function mod(n: number, m: number) {
     return ((n % m) + m) % m;
 }

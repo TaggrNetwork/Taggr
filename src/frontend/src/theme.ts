@@ -19,6 +19,21 @@ var shade = function (color: string, percent: number) {
         .slice(1);
 };
 
+// Perceived brightness (0-255) used to pick the direction of the flat hover and
+// header shades: lighten dark themes, darken light ones.
+const luminance = (color: string) => {
+    const num = parseInt(color.replace("#", ""), 16);
+    return (
+        (((num >> 16) & 0xff) * 299 +
+            ((num >> 8) & 0xff) * 587 +
+            (num & 0xff) * 114) /
+        1000
+    );
+};
+
+const HOVER_SHIFT = 8;
+const HEADER_SHIFT = 10;
+
 export const getTheme = (name: string) => themes[name];
 
 const themes: { [name: string]: Theme } = {
@@ -75,6 +90,13 @@ const applyTheme = (palette: Theme) => {
     effPalette.dark_background =
         "#" + shade(effPalette.background, effPalette.dark_factor || -5);
     effPalette.visited_clickable = "#" + shade(effPalette.clickable, -20);
+    // Flat hover fill and header ink; direction depends on theme brightness so
+    // both dark and light palettes get a visible, non-glowing shift.
+    const dark = luminance(effPalette.background) < 140;
+    effPalette.hover_background =
+        "#" + shade(effPalette.background, dark ? HOVER_SHIFT : -HOVER_SHIFT);
+    effPalette.header_text =
+        "#" + shade(effPalette.text, dark ? HEADER_SHIFT : -HEADER_SHIFT);
     const styleNode = document.getElementById("style");
     if (!styleNode) return;
     styleNode.innerText = Object.keys(effPalette).reduce(

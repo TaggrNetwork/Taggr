@@ -599,10 +599,10 @@ const StorageCreationModal = ({
                 Principal.fromText(window.principalId),
                 amountE8s,
                 setStage,
-                // Native confirm: a popUp here would clobber this modal in the
-                // shared #preview slot.
+                // In-app dialog: popups stack on their own overlays now, so it
+                // no longer clobbers the storage-creation modal.
                 () =>
-                    confirm(
+                    confirmPopUp(
                         "A previous storage-creation payment was refunded to " +
                             "your wallet because the attempt couldn't be " +
                             `completed. Start over with a fresh ${shortenTokensAmount(

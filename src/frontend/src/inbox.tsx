@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HeadBar, MoreButton, showPopUp } from "./common";
+import { HeadBar, handleError, MoreButton, showPopUp } from "./common";
 import { Content } from "./content";
 import { BellOff, Close } from "./icons";
 import { PostView } from "./post";
@@ -17,7 +17,9 @@ export const Inbox = () => {
     ids.reverse();
 
     const closeNotification = (k: number, callback?: () => void) => {
-        window.api.call("clear_notifications", [k]).then(window.reloadUser);
+        window.api.call("clear_notifications", [k]).then((response) => {
+            if (!handleError(response)) window.reloadUser();
+        });
         clearTimeout(timer);
         setClosing(k);
         timer = setTimeout(() => {
@@ -111,11 +113,12 @@ export const Inbox = () => {
                 title="INBOX"
                 content={
                     <button
-                        onClick={() => {
-                            window.api.call(
+                        onClick={async () => {
+                            const response = await window.api.call(
                                 "clear_notifications",
                                 Object.keys(inbox).map((id) => Number(id)),
                             );
+                            if (handleError(response)) return;
                             window.user.notifications = {};
                             location.href = "#/";
                         }}

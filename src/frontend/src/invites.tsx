@@ -5,7 +5,7 @@ import {
     CopyToClipboard,
     HeadBar,
     Loading,
-    showPopUp,
+    handleError,
 } from "./common";
 import { UserList } from "./user_resolve";
 
@@ -86,8 +86,7 @@ export const Invites = () => {
             credits_per_user,
             inviteRealm,
         );
-        if ("Err" in result) showPopUp("error", result.Err);
-        else loadInvites();
+        if (!handleError(result)) await loadInvites();
         setBusy(false);
     };
 
@@ -103,8 +102,7 @@ export const Invites = () => {
                     : null,
                 invite.realm_id !== undefined ? invite.realm_id : null,
             );
-            if ("Err" in (response || {})) {
-                showPopUp("error", response.Err);
+            if (handleError(response)) {
                 setBusy(true);
                 await loadInvites(); // Set back to prior state
                 setBusy(false);
@@ -176,7 +174,9 @@ export const Invites = () => {
                             value={credits}
                             className="max_width_col top_spaced bottom_spaced"
                             onChange={(event) =>
-                                setCredits(parseInt(event.target.value))
+                                setCredits(
+                                    parseInt(event.target.value, 10) || 0,
+                                )
                             }
                         />
                         Spend per user
@@ -185,7 +185,9 @@ export const Invites = () => {
                             value={credits_per_user}
                             className="max_width_col top_spaced bottom_spaced"
                             onChange={(event) =>
-                                setCreditsPerUser(parseInt(event.target.value))
+                                setCreditsPerUser(
+                                    parseInt(event.target.value, 10) || 0,
+                                )
                             }
                         />
                         Realm (optional)

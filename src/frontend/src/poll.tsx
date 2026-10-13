@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ButtonWithLoading, showPopUp, token } from "./common";
+import { ButtonWithLoading, handleError, token } from "./common";
 import { Content } from "./content";
 import { Poll, PostId } from "./types";
 import { systemUserId, UserList } from "./user_resolve";
@@ -123,25 +123,20 @@ export const PollView = ({
                             key={label}
                             classNameArg="top_spaced bottom_spaced max_width_col"
                             onClick={async () => {
-                                window.api
-                                    .call<any>(
-                                        "vote_on_poll",
-                                        post_id,
-                                        vote,
-                                        anonymously,
-                                    )
-                                    .then((response) => {
-                                        if (response.Err) {
-                                            showPopUp("error", response.Err);
-                                            return;
-                                        }
-                                    });
+                                const response = await window.api.call<any>(
+                                    "vote_on_poll",
+                                    post_id,
+                                    vote,
+                                    anonymously,
+                                );
+                                if (handleError(response)) return;
                                 const list = poll.votes[vote] || [];
                                 list.push(
                                     anonymously ? systemUserId - 1 : user_id,
                                 );
                                 poll.votes[vote] = list;
-                                poll.voters.push(user_id);
+                                if (!poll.voters.includes(user_id))
+                                    poll.voters.push(user_id);
                                 setRevoteMode(false);
                                 setData({ ...poll });
                             }}

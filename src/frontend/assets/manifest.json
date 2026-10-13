@@ -29,9 +29,9 @@
     "categories": ["social", "news"],
     "screenshots": [
         {
-            "src": "https://6qfxa-ryaaa-aaaai-qbhsq-cai.raw.ic0.app/_/raw/social-image.jpg",
-            "sizes": "1200x630",
-            "type": "image/jpeg"
+            "src": "https://6qfxa-ryaaa-aaaai-qbhsq-cai.raw.ic0.app/_/raw/social-image.webp",
+            "sizes": "600x314",
+            "type": "image/webp"
         }
     ]
 }
