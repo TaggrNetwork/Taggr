@@ -283,50 +283,86 @@ fn snippet(value: &str, term: &str) -> String {
     .replace('\n', " ")
 }
 
+// Drops markdown syntax for search snippets. Link text is kept; image alt text,
+// link/image destinations and reference labels are dropped. Markers glued to
+// text (e.g. `snake_case`, `C#`, a lone backtick) are kept.
 fn remove_markdown(md: &str) -> String {
+    let chars: Vec<char> = md.chars().collect();
+    let n = chars.len();
     let mut result = String::new();
-    let mut in_parentheses = false;
-    let mut in_square_brackets = false;
-    let mut after_exclamation = false;
+    let mut i = 0;
 
-    for ch in md.chars() {
-        match ch {
-            '#' | '*' | '_' | '`' => continue,
-            '!' => {
-                after_exclamation = true;
-                continue;
-            }
-            '(' => {
-                in_parentheses = true;
-                continue;
-            }
-            ')' => {
-                in_parentheses = false;
-                after_exclamation = false;
-                continue;
-            }
-            '[' => {
-                in_square_brackets = true;
-                if after_exclamation {
-                    continue;
+    while i < n {
+        match chars[i] {
+            // Emphasis and code-span markers are only dropped at word
+            // boundaries, so literal text like `snake_case` survives.
+            '`' | '*' | '_' if !intraword(&chars, i) => i += 1,
+            // Heading markers carry no meaning for a snippet; keep `#` glued to
+            // text, like `C#` or `#42`.
+            '#' if !adjacent_alnum(&chars, i) => i += 1,
+            // Image: drop `![alt]` and the following destination or label.
+            '!' if i + 1 < n && chars[i + 1] == '[' => {
+                let mut j = i + 2;
+                while j < n && chars[j] != ']' {
+                    j += 1;
+                }
+                if j < n {
+                    i = skip_dest(&chars, j + 1);
+                } else {
+                    // Unterminated `![`: keep the `!` as literal text.
+                    result.push('!');
+                    i += 1;
                 }
             }
-            ']' => {
-                in_square_brackets = false;
-                if after_exclamation {
-                    after_exclamation = false;
-                    continue;
-                }
-            }
+            // Link: keep the text, drop `](dest)` or `][label]`.
+            ']' => i = skip_dest(&chars, i + 1),
+            '[' => i += 1,
             _ => {
-                if !(in_parentheses || in_square_brackets && after_exclamation) {
-                    result.push(ch);
-                }
+                result.push(chars[i]);
+                i += 1;
             }
         }
     }
 
     result
+}
+
+// True when both neighbours of `chars[i]` are alphanumeric, i.e. the marker sits
+// inside a word.
+fn intraword(chars: &[char], i: usize) -> bool {
+    i > 0 && chars[i - 1].is_alphanumeric() && i + 1 < chars.len() && chars[i + 1].is_alphanumeric()
+}
+
+// True when either neighbour of `chars[i]` is alphanumeric.
+fn adjacent_alnum(chars: &[char], i: usize) -> bool {
+    (i > 0 && chars[i - 1].is_alphanumeric())
+        || (i + 1 < chars.len() && chars[i + 1].is_alphanumeric())
+}
+
+// If `i` points at a link/image destination `(...)` or a reference label
+// `[...]`, returns the index just past the matching closer. Otherwise, or when
+// the closer is missing, returns `i` unchanged.
+fn skip_dest(chars: &[char], i: usize) -> usize {
+    let close = match chars.get(i) {
+        Some('(') => ')',
+        Some('[') => ']',
+        _ => return i,
+    };
+    let open = chars[i];
+    let mut depth = 0usize;
+    let mut j = i;
+    while j < chars.len() {
+        if chars[j] == open {
+            depth += 1;
+        } else if chars[j] == close {
+            depth -= 1;
+            if depth == 0 {
+                return j + 1;
+            }
+        }
+        j += 1;
+    }
+    i
 }
 
 pub fn realm_search(
@@ -355,4 +391,76 @@ pub fn realm_search(
             (key, realm)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::remove_markdown;
+
+    #[test]
+    fn keeps_link_text_after_exclamation() {
+        assert_eq!(
+            remove_markdown("Wow! see [the docs](http://example.com)"),
+            "Wow! see the docs"
+        );
+    }
+
+    #[test]
+    fn drops_image_but_keeps_surrounding_text() {
+        assert_eq!(
+            remove_markdown("before ![alt](img.png) after"),
+            "before  after"
+        );
+    }
+
+    #[test]
+    fn keeps_literal_emphasis_markers_inside_words() {
+        assert_eq!(remove_markdown("snake_case and a*b"), "snake_case and a*b");
+    }
+
+    #[test]
+    fn strips_emphasis_markers() {
+        assert_eq!(remove_markdown("*bold* and _italic_"), "bold and italic");
+    }
+
+    #[test]
+    fn keeps_parentheses_in_plain_text() {
+        assert_eq!(
+            remove_markdown("see (this) [x](http://a(b))"),
+            "see (this) x"
+        );
+    }
+
+    #[test]
+    fn drops_reference_link_label() {
+        assert_eq!(remove_markdown("see [the docs][ref]"), "see the docs");
+        assert_eq!(remove_markdown("see [the docs][]"), "see the docs");
+    }
+
+    #[test]
+    fn drops_reference_image() {
+        assert_eq!(remove_markdown("a ![alt][ref] b"), "a  b");
+    }
+
+    #[test]
+    fn keeps_hash_glued_to_text() {
+        assert_eq!(remove_markdown("C# and #42 stay"), "C# and #42 stay");
+    }
+
+    #[test]
+    fn strips_heading_markers() {
+        assert_eq!(remove_markdown("## Title"), " Title");
+        assert_eq!(remove_markdown("#hashtag"), "#hashtag");
+    }
+
+    #[test]
+    fn keeps_literal_backticks_inside_words() {
+        assert_eq!(remove_markdown("don`t"), "don`t");
+        assert_eq!(remove_markdown("a `code` b"), "a code b");
+    }
+
+    #[test]
+    fn keeps_bang_when_unterminated_image() {
+        assert_eq!(remove_markdown("look![oops"), "look!oops");
+    }
 }

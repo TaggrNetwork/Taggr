@@ -30,5 +30,6 @@
         "emitDecoratorMetadata": false,
         "experimentalDecorators": false
     },
-    "include": ["src/frontend/**/*"]
+    "include": ["src/frontend/**/*"],
+    "exclude": ["**/*.test.ts"]
 }

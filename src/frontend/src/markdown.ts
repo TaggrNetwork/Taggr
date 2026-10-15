@@ -123,6 +123,16 @@ const findClosingParen = (text: string, open: number): number => {
     return -1;
 };
 
+// Skips a backtick code span starting at `i` (which must be a backtick) and
+// returns the index just past the closing run, or -1 when unclosed. Handles
+// runs of any length so delimiters inside multi-backtick spans are ignored.
+const skipCodeSpan = (text: string, i: number): number => {
+    let n = 0;
+    while (i + n < text.length && text[i + n] === "`") n++;
+    const closer = text.indexOf("`".repeat(n), i + n);
+    return closer === -1 ? -1 : closer + n;
+};
+
 const findDelimiter = (text: string, start: number, delim: string): number => {
     for (let i = start; i < text.length; i++) {
         if (text[i] === "\\") {
@@ -130,9 +140,9 @@ const findDelimiter = (text: string, start: number, delim: string): number => {
             continue;
         }
         if (text[i] === "`") {
-            const end = text.indexOf("`", i + 1);
+            const end = skipCodeSpan(text, i);
             if (end !== -1) {
-                i = end;
+                i = end - 1;
                 continue;
             }
         }
@@ -152,9 +162,9 @@ const findSingleDelimiter = (
             continue;
         }
         if (text[i] === "`") {
-            const end = text.indexOf("`", i + 1);
+            const end = skipCodeSpan(text, i);
             if (end !== -1) {
-                i = end;
+                i = end - 1;
                 continue;
             }
         }
@@ -291,8 +301,10 @@ const parseInline = (
             ) {
                 const srcEnd = findClosingParen(text, altEnd + 1);
                 if (srcEnd !== -1) {
-                    const alt = text.slice(i + 2, altEnd);
-                    const src = text.slice(altEnd + 2, srcEnd);
+                    const alt = decodeEntities(text.slice(i + 2, altEnd));
+                    // Decode entities before the safety check, so `&#106;avascript:`
+                    // can't slip past as an apparently-relative URL.
+                    const src = decodeEntities(text.slice(altEnd + 2, srcEnd));
                     if (isSafeUrl(src)) {
                         flush();
                         result.push(
@@ -322,7 +334,11 @@ const parseInline = (
                 const urlEnd = findClosingParen(text, textEnd + 1);
                 if (urlEnd !== -1) {
                     const linkText = text.slice(i + 1, textEnd);
-                    const href = text.slice(textEnd + 2, urlEnd);
+                    // Decode entities before the safety check, so `&#106;avascript:`
+                    // can't slip past as an apparently-relative URL.
+                    const href = decodeEntities(
+                        text.slice(textEnd + 2, urlEnd),
+                    );
                     if (isSafeUrl(href)) {
                         flush();
                         const children = parseInline(
@@ -353,7 +369,7 @@ const parseInline = (
                 flush();
                 const url = urlMatch[1];
                 const href = url.startsWith("www.") ? "https://" + url : url;
-                result.push(el("a", { href }, url));
+                result.push(el("a", { href: decodeEntities(href) }, url));
                 i += url.length;
                 continue;
             }
@@ -480,7 +496,7 @@ const parseInline = (
         if (
             ch === "_" &&
             !text.startsWith("__", i) &&
-            (i === 0 || /\s/.test(text[i - 1]))
+            (i === 0 || !/[A-Za-z0-9]/.test(text[i - 1]))
         ) {
             const end = findSDel(i + 1, "_");
             if (
@@ -529,18 +545,14 @@ const parseCells = (line: string): string[] => {
 };
 
 const parseAlignments = (line: string): (Alignment | null)[] =>
-    line
-        .replace(/^\||\|$/g, "")
-        .split("|")
-        .map((cell) => {
-            const c = cell.trim();
-            const left = c.startsWith(":");
-            const right = c.endsWith(":");
-            if (left && right) return "center";
-            if (right) return "right";
-            if (left) return "left";
-            return null;
-        });
+    parseCells(line).map((c) => {
+        const left = c.startsWith(":");
+        const right = c.endsWith(":");
+        if (left && right) return "center";
+        if (right) return "right";
+        if (left) return "left";
+        return null;
+    });
 
 const isBlockStart = (line: string, nextLine?: string): boolean => {
     const t = line.trim();
@@ -617,7 +629,7 @@ const parseBlocks = (input: string, depth: number = 0): Block[] => {
         }
 
         // Horizontal rule
-        if (/^(?:[-*_]\s*){3,}$/.test(trimmed) && !/^[-*+] \S/.test(trimmed)) {
+        if (/^(?:[-*_]\s*){3,}$/.test(trimmed)) {
             blocks.push({ type: "hr" });
             i++;
             continue;
@@ -626,16 +638,16 @@ const parseBlocks = (input: string, depth: number = 0): Block[] => {
         // Table
         if (trimmed.includes("|") && i + 1 < lines.length) {
             const nextTrimmed = lines[i + 1]?.trim() || "";
+            const allHeaders = parseCells(line);
+            const allAligns = parseAlignments(lines[i + 1]);
             if (
+                allHeaders.length === allAligns.length &&
                 /^\|?\s*(?:-{3,}|:-{2,}|-{2,}:|:-+:)\s*(\|\s*(?:-{3,}|:-{2,}|-{2,}:|:-+:)\s*)*\|?\s*$/.test(
                     nextTrimmed,
                 )
             ) {
-                const headers = parseCells(line).slice(0, MAX_TABLE_COLUMNS);
-                const aligns = parseAlignments(lines[i + 1]).slice(
-                    0,
-                    MAX_TABLE_COLUMNS,
-                );
+                const headers = allHeaders.slice(0, MAX_TABLE_COLUMNS);
+                const aligns = allAligns.slice(0, MAX_TABLE_COLUMNS);
                 const rows: string[][] = [];
                 i += 2;
                 while (
@@ -711,7 +723,8 @@ const parseBlocks = (input: string, depth: number = 0): Block[] => {
                     break;
                 }
             }
-            if (currentItem.length) items.push(currentItem);
+            if (currentItem.length && items.length < MAX_LIST_ITEMS)
+                items.push(currentItem);
             blocks.push({
                 type: "list",
                 ordered,
@@ -966,11 +979,13 @@ const Markdown = ({
 }: MarkdownProps) => {
     try {
         const blocks = parseBlocks(children || "");
-        return (
-            <>{blocks.map((block, i) => renderBlock(block, components, i))}</>
+        return React.createElement(
+            React.Fragment,
+            null,
+            ...blocks.map((block, i) => renderBlock(block, components, i)),
         );
     } catch {
-        return <pre>{children}</pre>;
+        return React.createElement("pre", null, children);
     }
 };
 
