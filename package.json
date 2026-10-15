@@ -2,6 +2,9 @@
     "name": "taggr",
     "version": "0.1.0",
     "description": "Decentralized Social Network",
+    "imports": {
+        "#markdown": "./src/frontend/src/markdown.ts"
+    },
     "keywords": [
         "TypeScript",
         "Canister"
