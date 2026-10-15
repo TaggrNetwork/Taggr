@@ -70,6 +70,7 @@ export const Header = ({
     }, [route]);
     React.useEffect(refreshMessageCounter, [user]);
     React.useEffect(() => {
+        refreshMessageCounter();
         if (inboxMode) interval = setInterval(refreshMessageCounter, 500);
         else clearInterval(interval);
     }, [inboxMode]);
