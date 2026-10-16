@@ -22,8 +22,11 @@ import {
 } from "./common";
 import * as React from "react";
 import { Transaction, User, Account, Auction, TokenStats } from "./types";
-import { Principal } from "@dfinity/principal";
-import { decodeIcrcAccount, encodeIcrcAccount } from "@dfinity/ledger-icrc";
+import { Principal } from "@icp-sdk/core/principal";
+import {
+    decodeIcrcAccount,
+    encodeIcrcAccount,
+} from "@icp-sdk/canisters/ledger/icrc";
 import { Content } from "./content";
 import { CANISTER_ID } from "./env";
 import { UserLink } from "./user_resolve";

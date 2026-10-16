@@ -7,9 +7,13 @@
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true,
         "isolatedModules": true,
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
+        "paths": {
+            "#markdown": ["./src/frontend/src/markdown.ts"]
+        },
         "resolveJsonModule": true,
         "lib": ["dom", "esnext"],
+        "types": ["node"],
         "allowJs": false,
         "checkJs": false,
         "skipLibCheck": true,
@@ -30,5 +34,6 @@
         "emitDecoratorMetadata": false,
         "experimentalDecorators": false
     },
-    "include": ["src/frontend/**/*"]
+    "include": ["src/frontend/**/*"],
+    "exclude": ["**/*.test.ts"]
 }

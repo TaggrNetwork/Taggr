@@ -15,7 +15,7 @@ import {
     handleError,
     showPopUp,
 } from "./common";
-import { Principal } from "@dfinity/principal";
+import { Principal } from "@icp-sdk/core/principal";
 import { Icrc1Canister } from "./types";
 import { Add, Repost, Trash } from "./icons";
 

@@ -1,6 +1,6 @@
 import * as React from "react";
-import { AuthClient } from "@dfinity/auth-client";
-import { Ed25519KeyIdentity } from "@dfinity/identity";
+import { AuthClient } from "@icp-sdk/auth/client";
+import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { createRoot } from "react-dom/client";
 import { PostView } from "./post";
 import { PostFeed } from "./post_feed";
@@ -382,14 +382,14 @@ const updateDoc = async () => {
 };
 
 export const instantiateApi = async () => {
-    const authClient = await AuthClient.create({
-        idleOptions: { disableIdle: true },
+    const authClient = new AuthClient({
+        derivationOrigin: window.location.origin,
     });
 
     window.authClient = authClient;
     let identity;
-    if (await authClient.isAuthenticated()) {
-        identity = authClient.getIdentity();
+    if (authClient.isAuthenticated()) {
+        identity = await authClient.getIdentity();
     } else if (localStorage.getItem("IDENTITY")) {
         const serializedIdentity = localStorage.getItem("IDENTITY");
         if (serializedIdentity) {

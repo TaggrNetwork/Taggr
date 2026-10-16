@@ -19,7 +19,7 @@ import {
     TabBar,
 } from "./common";
 import { CanisterStatus, User, UserFilter } from "./types";
-import { Principal } from "@dfinity/principal";
+import { Principal } from "@icp-sdk/core/principal";
 import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
 import { UserLinks, linksError, parseLinks } from "./profile";

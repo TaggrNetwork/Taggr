@@ -887,7 +887,7 @@ const canvasToBlob = (canvas: HTMLCanvasElement): Promise<ArrayBuffer> =>
         encode("image/webp");
     });
 
-const hash = async (buffer: Uint8Array): Promise<string> => {
+const hash = async (buffer: BufferSource): Promise<string> => {
     const result = await crypto.subtle.digest("SHA-256", buffer);
     const hashArray = Array.from(new Uint8Array(result)).slice(0, 4);
     return hashArray

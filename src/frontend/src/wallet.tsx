@@ -19,7 +19,7 @@ import {
     onCanonicalDomain,
     UnavailableOnCustomDomains,
 } from "./common";
-import { Principal } from "@dfinity/principal";
+import { Principal } from "@icp-sdk/core/principal";
 import { CANISTER_ID } from "./env";
 import { Icrc1TokensWallet } from "./tokens_wallet";
 

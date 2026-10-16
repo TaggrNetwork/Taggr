@@ -1,37 +1,39 @@
-import * as React from "react";
+// Framework- and markup-agnostic markdown parser.
+//
+// `parseMarkdown` turns a markdown string into a semantic AST (`Block[]`) with
+// inline content parsed into `Inline[]`. Nothing here depends on React or on
+// HTML tag names; the React binding lives in `markdown-react.ts`.
 
 // --- Types ---
 
-type Alignment = "left" | "center" | "right";
+export type Alignment = "left" | "center" | "right";
 
-type Block =
-    | { type: "heading"; level: number; content: string }
-    | { type: "paragraph"; content: string }
+export type Inline =
+    | { type: "text"; value: string }
+    | { type: "br" }
+    | { type: "code"; value: string }
+    | { type: "strong"; children: Inline[] }
+    | { type: "em"; children: Inline[] }
+    | { type: "del"; children: Inline[] }
+    | { type: "link"; href: string; children: Inline[] }
+    | { type: "image"; src: string; alt: string };
+
+export type TableCell = Inline[];
+
+export type Block =
+    | { type: "heading"; level: number; content: Inline[] }
+    | { type: "paragraph"; content: Inline[] }
     | { type: "code"; lang: string; content: string }
     | { type: "blockquote"; blocks: Block[] }
-    | {
-          type: "list";
-          ordered: boolean;
-          start: number;
-          items: Block[][];
-      }
+    | { type: "list"; ordered: boolean; start: number; items: Block[][] }
     | {
           type: "table";
-          headers: string[];
+          headers: TableCell[];
           aligns: (Alignment | null)[];
-          rows: string[][];
+          rows: TableCell[][];
       }
     | { type: "hr" }
-    | { type: "details"; summary: string; blocks: Block[] };
-
-interface Components {
-    [key: string]: React.ComponentType<any>;
-}
-
-interface MarkdownProps {
-    children: string;
-    components?: Components;
-}
+    | { type: "details"; summary: Inline[]; blocks: Block[] };
 
 // --- Entity Decoding ---
 
@@ -56,8 +58,6 @@ const MAX_NESTING_DEPTH = 10;
 const MAX_TABLE_COLUMNS = 50;
 const MAX_TABLE_ROWS = 1000;
 const MAX_LIST_ITEMS = 1000;
-
-const EMPTY_COMPONENTS: Components = {};
 
 const SAFE_PROTOCOLS = new Set(["https:", "http:", "mailto:"]);
 
@@ -123,6 +123,16 @@ const findClosingParen = (text: string, open: number): number => {
     return -1;
 };
 
+// Skips a backtick code span starting at `i` (which must be a backtick) and
+// returns the index just past the closing run, or -1 when unclosed. Handles
+// runs of any length so delimiters inside multi-backtick spans are ignored.
+const skipCodeSpan = (text: string, i: number): number => {
+    let n = 0;
+    while (i + n < text.length && text[i + n] === "`") n++;
+    const closer = text.indexOf("`".repeat(n), i + n);
+    return closer === -1 ? -1 : closer + n;
+};
+
 const findDelimiter = (text: string, start: number, delim: string): number => {
     for (let i = start; i < text.length; i++) {
         if (text[i] === "\\") {
@@ -130,9 +140,9 @@ const findDelimiter = (text: string, start: number, delim: string): number => {
             continue;
         }
         if (text[i] === "`") {
-            const end = text.indexOf("`", i + 1);
+            const end = skipCodeSpan(text, i);
             if (end !== -1) {
-                i = end;
+                i = end - 1;
                 continue;
             }
         }
@@ -152,9 +162,9 @@ const findSingleDelimiter = (
             continue;
         }
         if (text[i] === "`") {
-            const end = text.indexOf("`", i + 1);
+            const end = skipCodeSpan(text, i);
             if (end !== -1) {
-                i = end;
+                i = end - 1;
                 continue;
             }
         }
@@ -170,13 +180,9 @@ const findSingleDelimiter = (
 
 // --- Inline Parser ---
 
-const parseInline = (
-    text: string,
-    comps: Components,
-    depth: number = 0,
-): React.ReactNode[] => {
+export const parseInline = (text: string, depth: number = 0): Inline[] => {
     if (!text) return [];
-    if (depth > MAX_NESTING_DEPTH) return [text];
+    if (depth > MAX_NESTING_DEPTH) return [{ type: "text", value: text }];
 
     const brRe = /<br\s*\/?\s*>/iy;
     const autolinkRe =
@@ -207,40 +213,18 @@ const parseInline = (
     const lastBracket = text.lastIndexOf("]");
     const lastParen = text.lastIndexOf(")");
 
-    const result: React.ReactNode[] = [];
+    const result: Inline[] = [];
     let buf = "";
     let i = 0;
-    let k = 0;
 
     const flush = () => {
         if (buf) {
-            result.push(buf.includes("&") ? decodeEntities(buf) : buf);
+            result.push({
+                type: "text",
+                value: buf.includes("&") ? decodeEntities(buf) : buf,
+            });
             buf = "";
         }
-    };
-
-    const el = (
-        tag: string,
-        props: Record<string, any>,
-        ...children: React.ReactNode[]
-    ) => {
-        const key = k++;
-        const Comp = comps[tag];
-        if (Comp)
-            return children.length > 0
-                ? React.createElement(
-                      Comp,
-                      { key, node: undefined, ...props },
-                      ...children,
-                  )
-                : React.createElement(Comp, {
-                      key,
-                      node: undefined,
-                      ...props,
-                  });
-        return children.length > 0
-            ? React.createElement(tag, { key, ...props }, ...children)
-            : React.createElement(tag, { key, ...props });
     };
 
     while (i < text.length) {
@@ -263,7 +247,7 @@ const parseInline = (
             while (j < text.length && text[j] === " ") j++;
             if (text[j] === "\n") {
                 flush();
-                result.push(React.createElement("br", { key: k++ }));
+                result.push({ type: "br" });
                 i = j + 1;
                 continue;
             }
@@ -275,7 +259,7 @@ const parseInline = (
             const brMatch = brRe.exec(text);
             if (brMatch) {
                 flush();
-                result.push(React.createElement("br", { key: k++ }));
+                result.push({ type: "br" });
                 i += brMatch[0].length;
                 continue;
             }
@@ -291,17 +275,13 @@ const parseInline = (
             ) {
                 const srcEnd = findClosingParen(text, altEnd + 1);
                 if (srcEnd !== -1) {
-                    const alt = text.slice(i + 2, altEnd);
-                    const src = text.slice(altEnd + 2, srcEnd);
+                    const alt = decodeEntities(text.slice(i + 2, altEnd));
+                    // Decode entities before the safety check, so `&#106;avascript:`
+                    // can't slip past as an apparently-relative URL.
+                    const src = decodeEntities(text.slice(altEnd + 2, srcEnd));
                     if (isSafeUrl(src)) {
                         flush();
-                        result.push(
-                            el("img", {
-                                src,
-                                alt,
-                                referrerPolicy: "no-referrer",
-                            }),
-                        );
+                        result.push({ type: "image", src, alt });
                     } else {
                         buf += text.slice(i, srcEnd + 1);
                     }
@@ -322,15 +302,18 @@ const parseInline = (
                 const urlEnd = findClosingParen(text, textEnd + 1);
                 if (urlEnd !== -1) {
                     const linkText = text.slice(i + 1, textEnd);
-                    const href = text.slice(textEnd + 2, urlEnd);
+                    // Decode entities before the safety check, so `&#106;avascript:`
+                    // can't slip past as an apparently-relative URL.
+                    const href = decodeEntities(
+                        text.slice(textEnd + 2, urlEnd),
+                    );
                     if (isSafeUrl(href)) {
                         flush();
-                        const children = parseInline(
-                            linkText,
-                            comps,
-                            depth + 1,
-                        );
-                        result.push(el("a", { href }, ...children));
+                        result.push({
+                            type: "link",
+                            href,
+                            children: parseInline(linkText, depth + 1),
+                        });
                     } else {
                         buf += text.slice(i, urlEnd + 1);
                     }
@@ -353,7 +336,11 @@ const parseInline = (
                 flush();
                 const url = urlMatch[1];
                 const href = url.startsWith("www.") ? "https://" + url : url;
-                result.push(el("a", { href }, url));
+                result.push({
+                    type: "link",
+                    href: decodeEntities(href),
+                    children: [{ type: "text", value: url }],
+                });
                 i += url.length;
                 continue;
             }
@@ -378,7 +365,7 @@ const parseInline = (
                     code[code.length - 1] === " "
                 )
                     code = code.slice(1, -1);
-                result.push(el("code", {}, code));
+                result.push({ type: "code", value: code });
                 i = closer + ticks;
                 continue;
             }
@@ -393,18 +380,18 @@ const parseInline = (
             const end = findDel(i + 3, "***");
             if (end !== -1) {
                 flush();
-                const inner = parseInline(
-                    text.slice(i + 3, end),
-                    comps,
-                    depth + 1,
-                );
-                result.push(
-                    React.createElement(
-                        "strong",
-                        { key: k++ },
-                        React.createElement("em", { key: k++ }, ...inner),
-                    ),
-                );
+                result.push({
+                    type: "strong",
+                    children: [
+                        {
+                            type: "em",
+                            children: parseInline(
+                                text.slice(i + 3, end),
+                                depth + 1,
+                            ),
+                        },
+                    ],
+                });
                 i = end + 3;
                 continue;
             }
@@ -415,14 +402,10 @@ const parseInline = (
             const end = findDel(i + 2, "**");
             if (end !== -1) {
                 flush();
-                const inner = parseInline(
-                    text.slice(i + 2, end),
-                    comps,
-                    depth + 1,
-                );
-                result.push(
-                    React.createElement("strong", { key: k++ }, ...inner),
-                );
+                result.push({
+                    type: "strong",
+                    children: parseInline(text.slice(i + 2, end), depth + 1),
+                });
                 i = end + 2;
                 continue;
             }
@@ -433,12 +416,10 @@ const parseInline = (
             const end = findDel(i + 2, "~~");
             if (end !== -1) {
                 flush();
-                const inner = parseInline(
-                    text.slice(i + 2, end),
-                    comps,
-                    depth + 1,
-                );
-                result.push(React.createElement("del", { key: k++ }, ...inner));
+                result.push({
+                    type: "del",
+                    children: parseInline(text.slice(i + 2, end), depth + 1),
+                });
                 i = end + 2;
                 continue;
             }
@@ -449,12 +430,10 @@ const parseInline = (
             const end = findSDel(i + 1, "~");
             if (end !== -1) {
                 flush();
-                const inner = parseInline(
-                    text.slice(i + 1, end),
-                    comps,
-                    depth + 1,
-                );
-                result.push(React.createElement("del", { key: k++ }, ...inner));
+                result.push({
+                    type: "del",
+                    children: parseInline(text.slice(i + 1, end), depth + 1),
+                });
                 i = end + 1;
                 continue;
             }
@@ -465,12 +444,10 @@ const parseInline = (
             const end = findSDel(i + 1, "*");
             if (end !== -1) {
                 flush();
-                const inner = parseInline(
-                    text.slice(i + 1, end),
-                    comps,
-                    depth + 1,
-                );
-                result.push(React.createElement("em", { key: k++ }, ...inner));
+                result.push({
+                    type: "em",
+                    children: parseInline(text.slice(i + 1, end), depth + 1),
+                });
                 i = end + 1;
                 continue;
             }
@@ -480,7 +457,7 @@ const parseInline = (
         if (
             ch === "_" &&
             !text.startsWith("__", i) &&
-            (i === 0 || /\s/.test(text[i - 1]))
+            (i === 0 || !/[A-Za-z0-9]/.test(text[i - 1]))
         ) {
             const end = findSDel(i + 1, "_");
             if (
@@ -488,12 +465,10 @@ const parseInline = (
                 (end + 1 >= text.length || /[\s.,;:!?)\]}]/.test(text[end + 1]))
             ) {
                 flush();
-                const inner = parseInline(
-                    text.slice(i + 1, end),
-                    comps,
-                    depth + 1,
-                );
-                result.push(React.createElement("em", { key: k++ }, ...inner));
+                result.push({
+                    type: "em",
+                    children: parseInline(text.slice(i + 1, end), depth + 1),
+                });
                 i = end + 1;
                 continue;
             }
@@ -529,18 +504,14 @@ const parseCells = (line: string): string[] => {
 };
 
 const parseAlignments = (line: string): (Alignment | null)[] =>
-    line
-        .replace(/^\||\|$/g, "")
-        .split("|")
-        .map((cell) => {
-            const c = cell.trim();
-            const left = c.startsWith(":");
-            const right = c.endsWith(":");
-            if (left && right) return "center";
-            if (right) return "right";
-            if (left) return "left";
-            return null;
-        });
+    parseCells(line).map((c) => {
+        const left = c.startsWith(":");
+        const right = c.endsWith(":");
+        if (left && right) return "center";
+        if (right) return "right";
+        if (left) return "left";
+        return null;
+    });
 
 const isBlockStart = (line: string, nextLine?: string): boolean => {
     const t = line.trim();
@@ -566,7 +537,9 @@ const isBlockStart = (line: string, nextLine?: string): boolean => {
 
 const parseBlocks = (input: string, depth: number = 0): Block[] => {
     if (depth > MAX_NESTING_DEPTH)
-        return input ? [{ type: "paragraph", content: input }] : [];
+        return input
+            ? [{ type: "paragraph", content: parseInline(input) }]
+            : [];
     const lines = input.split("\n");
     const blocks: Block[] = [];
     let i = 0;
@@ -610,14 +583,14 @@ const parseBlocks = (input: string, depth: number = 0): Block[] => {
             blocks.push({
                 type: "heading",
                 level: headingMatch[1].length,
-                content: headingMatch[2],
+                content: parseInline(headingMatch[2]),
             });
             i++;
             continue;
         }
 
         // Horizontal rule
-        if (/^(?:[-*_]\s*){3,}$/.test(trimmed) && !/^[-*+] \S/.test(trimmed)) {
+        if (/^(?:[-*_]\s*){3,}$/.test(trimmed)) {
             blocks.push({ type: "hr" });
             i++;
             continue;
@@ -626,17 +599,19 @@ const parseBlocks = (input: string, depth: number = 0): Block[] => {
         // Table
         if (trimmed.includes("|") && i + 1 < lines.length) {
             const nextTrimmed = lines[i + 1]?.trim() || "";
+            const allHeaders = parseCells(line);
+            const allAligns = parseAlignments(lines[i + 1]);
             if (
+                allHeaders.length === allAligns.length &&
                 /^\|?\s*(?:-{3,}|:-{2,}|-{2,}:|:-+:)\s*(\|\s*(?:-{3,}|:-{2,}|-{2,}:|:-+:)\s*)*\|?\s*$/.test(
                     nextTrimmed,
                 )
             ) {
-                const headers = parseCells(line).slice(0, MAX_TABLE_COLUMNS);
-                const aligns = parseAlignments(lines[i + 1]).slice(
-                    0,
-                    MAX_TABLE_COLUMNS,
-                );
-                const rows: string[][] = [];
+                const headers: TableCell[] = allHeaders
+                    .slice(0, MAX_TABLE_COLUMNS)
+                    .map((c) => parseInline(c));
+                const aligns = allAligns.slice(0, MAX_TABLE_COLUMNS);
+                const rows: TableCell[][] = [];
                 i += 2;
                 while (
                     i < lines.length &&
@@ -644,7 +619,11 @@ const parseBlocks = (input: string, depth: number = 0): Block[] => {
                     lines[i].includes("|") &&
                     rows.length < MAX_TABLE_ROWS
                 ) {
-                    rows.push(parseCells(lines[i]).slice(0, MAX_TABLE_COLUMNS));
+                    rows.push(
+                        parseCells(lines[i])
+                            .slice(0, MAX_TABLE_COLUMNS)
+                            .map((c) => parseInline(c)),
+                    );
                     i++;
                 }
                 blocks.push({ type: "table", headers, aligns, rows });
@@ -711,7 +690,8 @@ const parseBlocks = (input: string, depth: number = 0): Block[] => {
                     break;
                 }
             }
-            if (currentItem.length) items.push(currentItem);
+            if (currentItem.length && items.length < MAX_LIST_ITEMS)
+                items.push(currentItem);
             blocks.push({
                 type: "list",
                 ordered,
@@ -738,13 +718,13 @@ const parseBlocks = (input: string, depth: number = 0): Block[] => {
                 /<summary[^>]*>([\s\S]*?)<\/summary\s*>/i,
             );
             const summary = summaryMatch ? summaryMatch[1].trim() : "";
-            let inner = raw
+            const inner = raw
                 .replace(/<\/?details[^>]*>/gi, "")
                 .replace(/<summary[^>]*>[\s\S]*?<\/summary\s*>/i, "")
                 .trim();
             blocks.push({
                 type: "details",
-                summary,
+                summary: parseInline(summary),
                 blocks: parseBlocks(inner, depth + 1),
             });
             continue;
@@ -763,7 +743,7 @@ const parseBlocks = (input: string, depth: number = 0): Block[] => {
         if (paraLines.length) {
             blocks.push({
                 type: "paragraph",
-                content: paraLines.join("\n"),
+                content: parseInline(paraLines.join("\n")),
             });
         } else {
             i++;
@@ -773,205 +753,4 @@ const parseBlocks = (input: string, depth: number = 0): Block[] => {
     return blocks;
 };
 
-// --- Block Renderer ---
-
-const renderBlock = (
-    block: Block,
-    comps: Components,
-    key: number,
-): React.ReactNode => {
-    const el = (
-        tag: string,
-        props: Record<string, any>,
-        ...children: React.ReactNode[]
-    ) => {
-        const Comp = comps[tag];
-        if (Comp)
-            return children.length > 0
-                ? React.createElement(
-                      Comp,
-                      { key, node: undefined, ...props },
-                      ...children,
-                  )
-                : React.createElement(Comp, {
-                      key,
-                      node: undefined,
-                      ...props,
-                  });
-        return children.length > 0
-            ? React.createElement(tag, { key, ...props }, ...children)
-            : React.createElement(tag, { key, ...props });
-    };
-
-    switch (block.type) {
-        case "heading": {
-            const tag = `h${block.level}` as string;
-            const children = parseInline(block.content, comps);
-            return el(tag, {}, ...children);
-        }
-        case "paragraph": {
-            const children = parseInline(block.content, comps);
-            return el("p", {}, ...children);
-        }
-        case "code":
-            if (block.lang === "pgp") {
-                return React.createElement(
-                    "div",
-                    { key, className: "pgp_block" },
-                    el("code", { className: "language-pgp" }, block.content),
-                );
-            }
-            return React.createElement(
-                "pre",
-                { key },
-                el(
-                    "code",
-                    block.lang
-                        ? {
-                              className: `language-${block.lang.replace(/[^a-zA-Z0-9_-]/g, "")}`,
-                          }
-                        : {},
-                    block.content,
-                ),
-            );
-        case "blockquote":
-            return el(
-                "blockquote",
-                {},
-                ...block.blocks.map((b, i) => renderBlock(b, comps, i)),
-            );
-        case "hr":
-            return el("hr", {});
-        case "list": {
-            const tag = block.ordered ? "ol" : "ul";
-            const listProps: any = {};
-            if (block.ordered && block.start !== 1)
-                listProps.start = block.start;
-            return React.createElement(
-                tag,
-                { key, ...listProps },
-                block.items.map((itemBlocks, i) => {
-                    // Task list detection
-                    const first = itemBlocks[0];
-                    let taskChecked: boolean | null = null;
-                    let adjustedBlocks = itemBlocks;
-                    if (first && first.type === "paragraph") {
-                        const cbMatch =
-                            first.content.match(/^\[([ xX])\]\s(.*)/s);
-                        if (cbMatch) {
-                            taskChecked = cbMatch[1] !== " ";
-                            adjustedBlocks = [
-                                {
-                                    type: "paragraph" as const,
-                                    content: cbMatch[2],
-                                },
-                                ...itemBlocks.slice(1),
-                            ];
-                        }
-                    }
-                    const liChildren = adjustedBlocks.map((b, j) => {
-                        if (
-                            adjustedBlocks.length === 1 &&
-                            b.type === "paragraph"
-                        )
-                            return React.createElement(
-                                React.Fragment,
-                                { key: j },
-                                ...parseInline(b.content, comps),
-                            );
-                        return renderBlock(b, comps, j);
-                    });
-                    if (taskChecked !== null) {
-                        liChildren.unshift(
-                            React.createElement("input", {
-                                key: "cb",
-                                type: "checkbox",
-                                checked: taskChecked,
-                                disabled: true,
-                                readOnly: true,
-                            }),
-                            " ",
-                        );
-                    }
-                    return React.createElement("li", { key: i }, ...liChildren);
-                }),
-            );
-        }
-        case "details":
-            return React.createElement(
-                "details",
-                { key },
-                React.createElement(
-                    "summary",
-                    null,
-                    ...parseInline(block.summary, comps),
-                ),
-                ...block.blocks.map((b, i) => renderBlock(b, comps, i)),
-            );
-        case "table":
-            return React.createElement(
-                "table",
-                { key },
-                React.createElement(
-                    "thead",
-                    null,
-                    React.createElement(
-                        "tr",
-                        null,
-                        block.headers.map((h, i) =>
-                            React.createElement(
-                                "th",
-                                {
-                                    key: i,
-                                    style: block.aligns[i]
-                                        ? { textAlign: block.aligns[i]! }
-                                        : undefined,
-                                },
-                                ...parseInline(h, comps),
-                            ),
-                        ),
-                    ),
-                ),
-                React.createElement(
-                    "tbody",
-                    null,
-                    block.rows.map((row, ri) =>
-                        React.createElement(
-                            "tr",
-                            { key: ri },
-                            row.map((cell, ci) =>
-                                React.createElement(
-                                    "td",
-                                    {
-                                        key: ci,
-                                        style: block.aligns[ci]
-                                            ? { textAlign: block.aligns[ci]! }
-                                            : undefined,
-                                    },
-                                    ...parseInline(cell, comps),
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            );
-    }
-};
-
-// --- Component ---
-
-const Markdown = ({
-    children,
-    components = EMPTY_COMPONENTS,
-}: MarkdownProps) => {
-    try {
-        const blocks = parseBlocks(children || "");
-        return (
-            <>{blocks.map((block, i) => renderBlock(block, components, i))}</>
-        );
-    } catch {
-        return <pre>{children}</pre>;
-    }
-};
-
-export default Markdown;
+export const parseMarkdown = (md: string): Block[] => parseBlocks(md);
