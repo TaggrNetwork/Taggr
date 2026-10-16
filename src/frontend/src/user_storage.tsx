@@ -4,9 +4,9 @@
 // UI together avoids duplicating either between `form.tsx` and `settings.tsx`.
 
 import * as React from "react";
-import { Principal } from "@dfinity/principal";
-import { IDL } from "@dfinity/candid";
-import { AccountIdentifier, SubAccount } from "@dfinity/ledger-icp";
+import { Principal } from "@icp-sdk/core/principal";
+import { IDL } from "@icp-sdk/core/candid";
+import { AccountIdentifier, SubAccount } from "@icp-sdk/canisters/ledger/icp";
 import { CANISTER_ID, MAINNET_MODE } from "./env";
 import {
     ButtonWithLoading,
@@ -148,7 +148,7 @@ const clearState = async () => {
 
 const decodeReply = <T,>(
     idl: any[],
-    buf: ArrayBuffer | null,
+    buf: Uint8Array | null,
     label: string,
 ): T => {
     if (!buf) throw new Error(`${label}: empty reply`);
@@ -167,7 +167,7 @@ const installBucketCode = async (
     const wasmBuf = await window.api.query_raw(
         CANISTER_ID,
         "bucket_wasm",
-        new ArrayBuffer(0),
+        new Uint8Array(0),
     );
     const wasm = decodeReply<Uint8Array | number[]>(
         [IDL.Vec(IDL.Nat8)],
@@ -338,7 +338,7 @@ export const upgradeBucket = async (canisterId: Principal): Promise<void> => {
     const wasmBuf = await window.api.query_raw(
         CANISTER_ID,
         "bucket_wasm",
-        new ArrayBuffer(0),
+        new Uint8Array(0),
     );
     const wasm = decodeReply<Uint8Array | number[]>(
         [IDL.Vec(IDL.Nat8)],

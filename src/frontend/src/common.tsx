@@ -25,8 +25,8 @@ import {
     UserFilter,
 } from "./types";
 import { createRoot } from "react-dom/client";
-import { Principal } from "@dfinity/principal";
-import { IcrcAccount } from "@dfinity/ledger-icrc";
+import { Principal } from "@icp-sdk/core/principal";
+import { IcrcAccount } from "@icp-sdk/canisters/ledger/icrc";
 import { Content } from "./content";
 import { MAINNET_MODE } from "./env";
 
@@ -1379,9 +1379,9 @@ export const showPopUp = (
 export const signOut = async () => {
     localStorage.clear();
     sessionStorage.clear();
-    await window.authClient.logout();
-    // Wipe the IndexedDB database used by @dfinity/auth-client where stale
-    // delegation sessions can survive authClient.logout().
+    await window.authClient.signOut();
+    // Wipe the IndexedDB database used by @icp-sdk/auth/client where stale
+    // delegation sessions can survive authClient.signOut().
     try {
         indexedDB.deleteDatabase("auth-client-storage");
     } catch (err) {

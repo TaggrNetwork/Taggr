@@ -30,14 +30,14 @@
         "prettier": "^3.3.3",
         "process": "0.11.10",
         "raw-loader": "4.0.2",
-        "react": "19.0.0",
-        "react-dom": "19.0.0",
+        "react": "19.3.1",
+        "react-dom": "19.3.1",
         "terser-webpack-plugin": "^5.3.10",
-        "ts-loader": "9.5.0",
-        "typescript": "5.8.3",
-        "webpack": "^5.106.2",
-        "webpack-cli": "5.1.4",
-        "webpack-dev-server": "^5.1.0"
+        "esbuild-loader": "4.5.0",
+        "typescript": "7.0.2",
+        "webpack": "^5.111.1",
+        "webpack-cli": "7.2.3",
+        "webpack-dev-server": "^6.0.0"
     },
     "browserslist": [
         "last 2 chrome version",
@@ -46,13 +46,10 @@
         "last 2 edge version"
     ],
     "dependencies": {
-        "@dfinity/agent": "2.4.1",
-        "@dfinity/auth-client": "2.4.1",
-        "@dfinity/candid": "2.4.1",
-        "@dfinity/identity": "2.4.1",
-        "@dfinity/ledger-icp": "2.6.13",
-        "@dfinity/ledger-icrc": "2.8.0",
-        "@dfinity/principal": "2.4.1",
+        "@dfinity/utils": "5.0.0",
+        "@icp-sdk/auth": "10.0.2",
+        "@icp-sdk/canisters": "4.0.0",
+        "@icp-sdk/core": "6.1.1",
         "diff-match-patch": "1.0.5"
     }
 }

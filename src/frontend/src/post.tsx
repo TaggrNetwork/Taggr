@@ -62,7 +62,7 @@ import {
 } from "./user_resolve";
 import { TippingPopup } from "./tipping";
 import { uploadBlobsOrFail } from "./new";
-import { Principal } from "@dfinity/principal";
+import { Principal } from "@icp-sdk/core/principal";
 
 export const PostView = ({
     id,
@@ -953,7 +953,7 @@ const PostBar = ({
         30 * 60 * 1000;
     const newComments =
         window.user && (post.tree_update > window.lastVisit || updatedRecently);
-    const ref = React.useRef(null);
+    const ref = React.useRef<HTMLDivElement>(null);
     const delay =
         user && "tap_and_hold" in user.settings
             ? Number(user.settings.tap_and_hold)
@@ -966,8 +966,7 @@ const PostBar = ({
         }
         clearInterval(progressInterval);
         reactionIndicatorWidth = 0;
-        // @ts-ignore
-        ref.current?.style.width = 0;
+        if (ref.current) ref.current.style.width = "0";
         setShowEmojis(false);
     };
 
@@ -981,9 +980,9 @@ const PostBar = ({
         timeStart = new Date();
         progressInterval = setInterval(() => {
             reactionIndicatorWidth += 100 / (delay / 50);
-            // @ts-ignore
-            ref.current?.style.width =
-                Math.min(100, reactionIndicatorWidth) + "%";
+            if (ref.current)
+                ref.current.style.width =
+                    Math.min(100, reactionIndicatorWidth) + "%";
             if (reactionIndicatorWidth > 100) {
                 react(id);
                 unreact();

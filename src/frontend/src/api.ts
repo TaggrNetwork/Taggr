@@ -1,4 +1,4 @@
-import { Principal } from "@dfinity/principal";
+import { Principal } from "@icp-sdk/core/principal";
 import {
     Certificate,
     HttpAgent,
@@ -6,8 +6,8 @@ import {
     Identity,
     lookupResultToBuffer,
     polling,
-} from "@dfinity/agent";
-import { bufFromBufLike, IDL, JsonValue } from "@dfinity/candid";
+} from "@icp-sdk/core/agent";
+import { uint8FromBufLike, IDL, JsonValue } from "@icp-sdk/core/candid";
 import { CANISTER_ID } from "./env";
 import { ICP_DEFAULT_FEE, ICP_LEDGER_ID } from "./common";
 import {
@@ -15,8 +15,8 @@ import {
     IcrcTransferError,
     IcrcAccount,
     IcrcMetadataResponseEntries,
-} from "@dfinity/ledger-icrc";
-import { Value } from "@dfinity/ledger-icrc/dist/candid/icrc_ledger";
+} from "@icp-sdk/canisters/ledger/icrc";
+import type { IcrcLedgerDid } from "@icp-sdk/canisters/ledger/icrc";
 import { Icrc1Canister, PostId } from "./types";
 import {
     CanisterSettingsIDL,
@@ -31,15 +31,15 @@ export type Backend = {
     query_raw: (
         canisterId: string,
         methodName: string,
-        arg: ArrayBuffer,
-    ) => Promise<ArrayBuffer | null>;
+        arg: Uint8Array,
+    ) => Promise<Uint8Array | null>;
 
     call_raw: (
         canisterId: Principal,
         methodName: string,
-        arg: ArrayBuffer,
+        arg: Uint8Array,
         effectiveCanisterId?: Principal,
-    ) => Promise<ArrayBuffer | null>;
+    ) => Promise<Uint8Array | null>;
 
     call: <T>(methodName: string, ...args: unknown[]) => Promise<T | null>;
 
@@ -151,8 +151,8 @@ export const ApiGenerator = (
     const query_raw = async (
         canisterId = CANISTER_ID,
         methodName: string,
-        arg = new ArrayBuffer(0),
-    ): Promise<ArrayBuffer | null> => {
+        arg: Uint8Array = new Uint8Array(0),
+    ): Promise<Uint8Array | null> => {
         // The agent has no request timeout, so a stalled gateway can leave a
         // query pending forever and block bootstrap. Bound each attempt and
         // retry a couple of times.
@@ -205,15 +205,16 @@ export const ApiGenerator = (
     const call_raw = async (
         canisterId = defaultPrincipal,
         methodName: string,
-        arg: ArrayBuffer,
+        arg: Uint8Array,
         effectiveCanisterId?: Principal,
-    ): Promise<ArrayBuffer | null> => {
+    ): Promise<Uint8Array | null> => {
         try {
-            let { response, requestId } = await agent.call(
-                canisterId,
-                { methodName, arg, callSync: true, effectiveCanisterId },
-                identity,
-            );
+            let { response, requestId } = await agent.call(canisterId, {
+                methodName,
+                arg,
+                callSync: true,
+                effectiveCanisterId,
+            });
             if (!response.ok) {
                 console.error(`Call error: ${response.statusText}`);
                 return null;
@@ -223,9 +224,9 @@ export const ApiGenerator = (
             if (response.body && "certificate" in response.body) {
                 const cert = response.body.certificate;
                 certificate = await Certificate.create({
-                    certificate: bufFromBufLike(cert),
-                    rootKey: agent.rootKey || new ArrayBuffer(0),
-                    canisterId: Principal.from(canisterId),
+                    certificate: uint8FromBufLike(cert),
+                    rootKey: agent.rootKey || new Uint8Array(0),
+                    principal: { canisterId: Principal.from(canisterId) },
                 });
                 const path = [
                     new TextEncoder().encode("request_status"),
@@ -233,8 +234,7 @@ export const ApiGenerator = (
                 ];
                 const status = new TextDecoder().decode(
                     lookupResultToBuffer(
-                        // @ts-ignore
-                        certificate.lookup([...path, "status"]),
+                        certificate.lookup_path([...path, "status"]),
                     ),
                 );
 
@@ -242,8 +242,7 @@ export const ApiGenerator = (
                     case "replied":
                         return (
                             lookupResultToBuffer(
-                                // @ts-ignore
-                                certificate.lookup([...path, "reply"]),
+                                certificate.lookup_path([...path, "reply"]),
                             ) || null
                         );
                     case "rejected":
@@ -256,9 +255,11 @@ export const ApiGenerator = (
             return (
                 await polling.pollForResponse(
                     agent,
-                    canisterId,
+                    { canisterId },
                     requestId,
-                    polling.defaultStrategy(),
+                    {
+                        strategy: polling.defaultStrategy(),
+                    },
                 )
             ).reply;
         } catch (error) {
@@ -355,18 +356,15 @@ export const ApiGenerator = (
         ): Promise<bigint> => {
             // Bucket `write` takes raw bytes and replies with the 8-byte
             // big-endian offset where the blob was stored.
-            const buf = await call_raw(
-                bucket,
-                "write",
-                blob.buffer.slice(
-                    blob.byteOffset,
-                    blob.byteOffset + blob.byteLength,
-                ) as ArrayBuffer,
-            );
+            const buf = await call_raw(bucket, "write", blob);
             if (!buf || buf.byteLength < 8) {
                 throw new Error("bucket.write: short reply");
             }
-            return new DataView(buf).getBigUint64(0, false);
+            return new DataView(
+                buf.buffer,
+                buf.byteOffset,
+                buf.byteLength,
+            ).getBigUint64(0, false);
         },
         bucket_add_session: async (
             bucket: Principal,
@@ -586,7 +584,9 @@ export const ApiGenerator = (
                 certified: false,
             });
 
-            const m = new Map<IcrcMetadataResponseEntries, Value>(meta as any);
+            const m = new Map<IcrcMetadataResponseEntries, IcrcLedgerDid.Value>(
+                meta as any,
+            );
 
             return {
                 decimals: new Number(
@@ -603,9 +603,8 @@ export const ApiGenerator = (
     };
 };
 
-const jsonArg = (args: unknown[]): ArrayBuffer =>
-    new TextEncoder().encode(JSON.stringify(getEffParams(args)))
-        .buffer as ArrayBuffer;
+const jsonArg = (args: unknown[]): Uint8Array =>
+    new TextEncoder().encode(JSON.stringify(getEffParams(args)));
 
 const getEffParams = <T>(args: T[]): T | T[] | null => {
     const values = args.filter((val) => typeof val != "undefined");
