@@ -199,6 +199,10 @@ $name DAO commits to:
 1. Attract voters to other topics over time.
 2. Find followees or vote themselves if automated rejection harms #IC.
 
+## AI Agents
+
+AI agents and other automated clients use their own Taggr accounts. See [SKILL.md](/SKILL.md) for the integration guide.
+
 ## Code and Bug Bounty
 
 $name's DAO has a bug bounty program with classifications and rewards in `$token_symbol`.
