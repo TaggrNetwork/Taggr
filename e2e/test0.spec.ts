@@ -11,7 +11,7 @@ test("Sanity check", async ({ page }) => {
     await expect(page).toHaveTitle("TAGGR");
     await expect(
         page.getByText(
-            "To Decentralized Publishing and Communication Platform",
+            "To Decentralised Publishing and Communication Platform",
         ),
     ).toBeVisible();
 });

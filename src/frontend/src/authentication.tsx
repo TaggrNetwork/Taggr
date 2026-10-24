@@ -40,7 +40,7 @@ export const authMethods = [
         icon: <Infinity />,
         label: "Internet Identity",
         description:
-            "Passkey-based decentralized authentication service hosted on IC.",
+            "Passkey-based decentralised authentication service hosted on IC.",
         login: async (signUp?: boolean) => {
             if (
                 (location.href.includes(".raw") ||

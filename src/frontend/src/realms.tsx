@@ -201,7 +201,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                     className="bottom_spaced vcentered"
                     style={{ position: "relative" }}
                 >
-                    <div className="max_width_col">Label Color</div>
+                    <div className="max_width_col">Label Colour</div>
                     <input
                         type="color"
                         className="top_half_spaced"
@@ -427,7 +427,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                 </div>
                 <hr />
 
-                <h2>Color Theme</h2>
+                <h2>Colour Theme</h2>
                 <div className="vcentered">
                     <input
                         type="checkbox"

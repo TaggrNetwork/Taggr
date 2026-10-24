@@ -632,7 +632,7 @@ export const ProposalView = ({
                                 onClick={async () => {
                                     if (
                                         !(await confirmPopUp(
-                                            "You're canceling the proposal. Please confirm.",
+                                            "You're cancelling the proposal. Please confirm.",
                                         ))
                                     )
                                         return;

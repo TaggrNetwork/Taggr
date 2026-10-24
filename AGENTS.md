@@ -2,6 +2,10 @@
 
 User instructions **always** override this file.
 
+## Language
+
+Use British English in all user-facing copy (UI strings, labels, and the whitepaper, e.g. `colour`, `behaviour`, `cancelled`, `initialise`). Do not change code identifiers, comments, non-UI docs, or external API names.
+
 ## Taggr
 
 Taggr is a decentralized social network on the Internet Computer, governed by its token holders. Read [WHITEPAPER.md](./src/frontend/assets/WHITEPAPER.md) first — it defines the domain model behind the codebase:

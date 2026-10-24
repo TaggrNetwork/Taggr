@@ -117,8 +117,8 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
                     <p>Search query examples:</p>
                     <ul>
                         <li>
-                            <code>@XZY</code>: will show all users with names
-                            starting with "XZY".
+                            <code>@XYZ</code>: will show all users with names
+                            starting with "XYZ".
                         </li>
                         <li>
                             <code>/ABC</code>: will show all realms with names
@@ -126,7 +126,7 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
                         </li>
                         <li>
                             <code>@XYZ WORD</code>: will show all posts from
-                            users matching the name "XZY" and containing the
+                            users matching the name "XYZ" and containing the
                             word "WORD".
                         </li>
                         <li>
@@ -136,7 +136,7 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
                         </li>
                         <li>
                             <code>@XYZ /ABC WORD</code>: will show all posts
-                            from users matching the name "XZY" from the realm
+                            from users matching the name "XYZ" from the realm
                             starting with "ABC" and containing the word "WORD".
                         </li>
                         <li>

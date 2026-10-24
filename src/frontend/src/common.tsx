@@ -259,7 +259,7 @@ export const Unauthorized = () => (
         <h1 style={{ fontSize: "4em" }}>
             <code>401</code>
         </h1>
-        Unauthorized
+        Unauthorised
     </div>
 );
 

@@ -257,7 +257,7 @@ const AuctionCard = ({}) => {
                 {token_symbol}
             </p>
             <p>
-                This is the decentralized auction establishing the market price
+                This is the decentralised auction establishing the market price
                 of {token_symbol}. Users create their bids during a week, then{" "}
                 {name} sells the available tokens to the bidders with the
                 highest bids. The next sale is in{" "}

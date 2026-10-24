@@ -317,7 +317,7 @@ const DomainInstructions = ({ domain }: { domain: string }) => (
                     Add a <code>ANAME</code> or <code>ALIAS</code> record with
                     value <code>{`${domain}.icp1.io`}</code>. If your registrar
                     does not support these record types, ping the{" "}
-                    <code>icp1.io</code> domain and add a <code>A</code> record
+                    <code>icp1.io</code> domain and add an <code>A</code> record
                     with name <code>@</code> and the IP address you observed in
                     the ping output.
                 </li>

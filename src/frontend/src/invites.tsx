@@ -54,7 +54,7 @@ const InviteQRCard = ({ code }: { code: string }) => {
                 }}
                 loading="lazy"
             />
-            <p className="vertically_spaced">Decentralized Social Network</p>
+            <p className="vertically_spaced">Decentralised Social Network</p>
         </div>
     );
 };
@@ -164,7 +164,8 @@ export const Invites = () => {
                             this invite will automatically join the realm.
                         </li>
                         <li>
-                            Invites can be canceled by setting the credits to 0.
+                            Invites can be cancelled by setting the credits to
+                            0.
                         </li>
                     </ul>
                     <div className="column_container">

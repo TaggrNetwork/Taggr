@@ -530,7 +530,7 @@ export const Settings = ({
 
     const appearanceSection = (
         <>
-            <div className="bottom_half_spaced">Color scheme</div>
+            <div className="bottom_half_spaced">Colour scheme</div>
             <select
                 value={settings.theme}
                 className="bottom_spaced"
@@ -547,7 +547,7 @@ export const Settings = ({
                 <option value="light">LIGHT</option>
             </select>
             <div className="bottom_half_spaced">
-                Override realm color themes
+                Override realm colour themes
             </div>
             <select
                 value={settings.overrideRealmColors || "false"}
