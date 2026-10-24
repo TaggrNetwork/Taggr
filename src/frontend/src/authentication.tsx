@@ -13,8 +13,7 @@ import {
 } from "./common";
 import { HASH_ITERATIONS, hash } from "./common";
 import { Infinity, Incognito, Ticket } from "./icons";
-import { II_URL } from "./env";
-import { Ed25519KeyIdentity } from "@dfinity/identity";
+import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { DELEGATION_PRINCIPAL } from "./delegation";
 import { confirmPrincipalChange, instantiateApi } from ".";
 import { InviteInfo } from "./invite_page";
@@ -53,12 +52,10 @@ export const authMethods = [
                 location.href = location.href.replace(".raw", "");
                 return null;
             }
-            window.authClient.login({
-                onSuccess: () => finalize(signUp),
-                identityProvider: II_URL,
+            await window.authClient.signIn({
                 maxTimeToLive: BigInt(30 * 24 * 3600000000000),
-                derivationOrigin: window.location.origin,
             });
+            await finalize(signUp);
             return null;
         },
     },

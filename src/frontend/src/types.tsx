@@ -1,7 +1,7 @@
 import { Backend } from "./api";
 import { Root } from "react-dom/client";
-import { AuthClient } from "@dfinity/auth-client";
-import { Principal } from "@dfinity/principal";
+import { AuthClient } from "@icp-sdk/auth/client";
+import { Principal } from "@icp-sdk/core/principal";
 
 export type CanisterStatus = {
     status: "running" | "stopping" | "stopped";
