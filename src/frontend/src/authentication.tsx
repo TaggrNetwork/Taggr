@@ -13,8 +13,7 @@ import {
 } from "./common";
 import { HASH_ITERATIONS, hash } from "./common";
 import { Infinity, Incognito, Ticket } from "./icons";
-import { II_URL } from "./env";
-import { Ed25519KeyIdentity } from "@dfinity/identity";
+import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { DELEGATION_PRINCIPAL } from "./delegation";
 import { confirmPrincipalChange, instantiateApi } from ".";
 import { InviteInfo } from "./invite_page";
@@ -41,7 +40,7 @@ export const authMethods = [
         icon: <Infinity />,
         label: "Internet Identity",
         description:
-            "Passkey-based decentralized authentication service hosted on IC.",
+            "Passkey-based decentralised authentication service hosted on IC.",
         login: async (signUp?: boolean) => {
             if (
                 (location.href.includes(".raw") ||
@@ -53,12 +52,16 @@ export const authMethods = [
                 location.href = location.href.replace(".raw", "");
                 return null;
             }
-            window.authClient.login({
-                onSuccess: () => finalize(signUp),
-                identityProvider: II_URL,
-                maxTimeToLive: BigInt(30 * 24 * 3600000000000),
-                derivationOrigin: window.location.origin,
-            });
+            try {
+                await window.authClient.signIn({
+                    maxTimeToLive: BigInt(30 * 24 * 3600000000000),
+                });
+                await finalize(signUp);
+            } catch (err) {
+                // Cancelling the signer window rejects; keep the sign-in page
+                // usable instead of leaving the button stuck in loading.
+                console.error("Internet Identity sign-in failed", err);
+            }
             return null;
         },
     },

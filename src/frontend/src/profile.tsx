@@ -514,9 +514,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
 export const getLabels = (profile: User) => {
     const labels = [];
     // Account created before end of 2022
-    if (isBot(profile)) {
-        labels.push(["BOT", "RoyalBlue"]);
-    } else if (Number(profile.timestamp) < 1672500000000000000) {
+    if (Number(profile.timestamp) < 1672500000000000000) {
         labels.push(["OG", "PaleVioletRed"]);
     }
     if (profile.stalwart) {
@@ -591,9 +589,6 @@ const daySeconds = 24 * 3600;
 
 const secondsSince = (val: BigInt) =>
     (Number(new Date()) - Number(val) / 1000000) / 1000;
-
-const isBot = (profile: User) =>
-    profile.controllers.find((p) => p.length == 27);
 
 export const FollowButton = ({ id }: { id: UserId }) => {
     const user = window.user;

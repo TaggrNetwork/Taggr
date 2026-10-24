@@ -1,13 +1,13 @@
-# $name: a decentralized social network.
+# $name: a decentralised social network.
 
 ## Introduction
 
-$name is a fully decentralized social media platform that lives on a public distributed compute network powered by the [Internet Computer](https://internetcomputer.org). Unlike traditional social media platforms controlled by corporations, $name is owned and governed entirely by its users.
+$name is a fully decentralised social media platform that lives on a public distributed compute network powered by the [Internet Computer](https://internetcomputer.org). Unlike traditional social media platforms controlled by corporations, $name is owned and governed entirely by its users.
 
 The most important key points of $name are:
 
 -   $name combines features of forums and blogs.
--   $name is tokenized and is owned and governed by its token holders.
+-   $name is tokenised and is owned and governed by its token holders.
 -   $name is completely ad-free and generates revenue.
 -   $name uses its revenue to reward content producers, token holders (pro-rata) and to cover compute costs.
 
@@ -55,7 +55,7 @@ Notes:
 1. Each response to a post increases post author's rewards by `$response_reward`.
 2. Inactive users' credits decrease by `$inactivity_penalty` per week after `$inactivity_duration_weeks` weeks of inactivity.
 3. Users with negative reward balances don't participate in reward distributions or mining.
-4. To curb the inorganic behavior, $name automatically charges excess fees for all posts above `$max_posts_per_day`  per rolling 24h interval and for all comments above  `$max_comments_per_hour` per hour.
+4. To curb the inorganic behaviour, $name automatically charges excess fees for all posts above `$max_posts_per_day`  per rolling 24h interval and for all comments above  `$max_comments_per_hour` per hour.
 The fee is computed by multiplying `$excess_penalty` with the number of excessive items. If the excessive items contain images, the computed excess fee is additionally charged per image.
 
 ## Rewards and Revenue Distribution
@@ -69,11 +69,11 @@ The fee is computed by multiplying `$excess_penalty` with the number of excessiv
 ## Stalwarts
 
 Stalwarts represent the top `$stalwart_percentage%` of users with the highest $`$token_symbol`  balance, active during the last  `$min_stalwart_activity_weeks` consecutive weeks and possessing accounts older than `$min_stalwart_account_age_weeks` weeks.
-They are considered trusted community members, authorized to carry out moderating actions.
+They are considered trusted community members, authorised to carry out moderating actions.
 
 ## Realms
 
-Realms are sub-communities centered around specific topics.
+Realms are sub-communities centred around specific topics.
 Each realm can establish its terms and conditions, breaching which can lead to:
 
 -   Flagging of the user's post to stalwarts.
@@ -87,7 +87,7 @@ Currently, `$realm_revenue_percentage%` of revenue generated inside the realm is
 
 $name has one frontend served by the smart contract, but this frontend is configured according to the domain it is loaded from. This architecture is designed to push censorship decisions down to the edges of the content delivery chain.
 
-Domains are centralized pieces of infrastructure owned by concrete individuals who live in different jurisdictions. Each domain owner should decide themselves what content can or cannot be served via domains they are responsible for. This decentralized approach to content moderation respects local laws and cultural sensitivities while maintaining the core decentralized nature of $name.
+Domains are centralised pieces of infrastructure owned by concrete individuals who live in different jurisdictions. Each domain owner should decide themselves what content can or cannot be served via domains they are responsible for. This decentralised approach to content moderation respects local laws and cultural sensitivities while maintaining the core decentralised nature of $name.
 
 Each domain can be configured with its own moderation settings, including:
 
@@ -95,7 +95,7 @@ Each domain can be configured with its own moderation settings, including:
 -   Hiding posts that have received a certain number of downvotes
 -   Applying custom content filters based on the domain owner's preferences and local regulations
 
-All these settings are defined and controlled by the owner of each domain, allowing for a diverse ecosystem of $name access points with varying content policies while preserving the underlying decentralized social network.
+All these settings are defined and controlled by the owner of each domain, allowing for a diverse ecosystem of $name access points with varying content policies while preserving the underlying decentralised social network.
 
 ## User penalties
 
@@ -180,7 +180,7 @@ The [dashboard](/#/dashboard) provides the full information on system status and
 
 $name DAO votes on NNS proposals with neuron [$neuron_id](http://dashboard.internetcomputer.org/neuron/$neuron_id) and doesn't follow anyone.
 
-#### Neuron Decentralization
+#### Neuron Decentralisation
 
 The neuron is only controlled by $name's canister as the assigned neuron's controller lacks a known secret key.
 The $name canister votes via the hot-key mechanism.
@@ -190,7 +190,7 @@ $name canister's `get_neuron_info` method confirms this:
 
 #### Voting
 
-Proposals categorized as "Governance" and "SNS & Community Fund" are displayed as posts with polls.
+Proposals categorised as "Governance" and "SNS & Community Fund" are displayed as posts with polls.
 $name canister votes on these proposals after 3 days, weighted by voters' token balances.
 
 Other proposals are automatically rejected.
@@ -199,25 +199,9 @@ $name DAO commits to:
 1. Attract voters to other topics over time.
 2. Find followees or vote themselves if automated rejection harms #IC.
 
-## Bots
+## AI Agents
 
-$name users can become bots by adding principal IDs in account settings.
-These IDs (canisters or self-authenticating) can call $name's `add_post` method in Candid format as follows:
-
-    "add_post": (text, vec record { text; blob }, opt nat64, opt text) -> (variant { Ok: nat64; Err: text });
-
-Arguments:
-
--   `text`: body text.
--   `vec record {text; blob}`: vector of attached pictures, each tuple containing a blob ID and the blob itself. Tuple requirements:
-    -   ID length < `9` characters.
-    -   Blob < `$max_blob_size_bytes` bytes.
-    -   Pictures referenced from the post by URL `/blob/<id>`.
--   `opt nat64`: parent post ID.
--   `opt text`: realm name.
-
-Note: #IC doesn't support messages > `2Mb`.
-The result of `add_post` contains the new post's ID or an error message.
+AI agents and other automated clients use their own Taggr accounts. See [SKILL.md](SKILL.md) for the integration guide.
 
 ## Code and Bug Bounty
 
@@ -226,7 +210,7 @@ $name's DAO has a bug bounty program with classifications and rewards in `$token
 | SEV | DESCRIPTION                                                                                                                                                                                   | BOUNTY |
 | :-: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -----: |
 |  0  | Bugs enabling unsanctioned state mutations critically affecting and endangering $name with a negligible attack cost.                                                                          | `1000` |
-|  1  | Bugs enabling unsanctioned state mutations affecting data, with moderate impact on decentralization or autonomy with moderate attack costs or taking a significant amount of time to execute. |  `400` |
+|  1  | Bugs enabling unsanctioned state mutations affecting data, with moderate impact on decentralisation or autonomy with moderate attack costs or taking a significant amount of time to execute. |  `400` |
 |  2  | Bugs enabling unsanctioned state mutations without substantial impact on $name.                                                                                                               |  `100` |
 
 Report bugs to stalwarts immediately if they fall under any of these categories.

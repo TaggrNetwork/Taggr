@@ -1,4 +1,9 @@
-import { waitForUILoading, pollForCondition, invoiceAccount } from "./helpers";
+import {
+    waitForUILoading,
+    pollForCondition,
+    invoiceAccount,
+    withSettledUpdates,
+} from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { exec, mkPwd, transferICP } from "./command";
 
@@ -193,7 +198,11 @@ test.describe("Regular users flow, part two", () => {
 
             // Wait for confirmation UI to appear and click CONFIRM
             await expect(popup.getByText("CONFIRM")).toBeVisible();
-            await popup.getByText("CONFIRM").click();
+            // The tip is an update call; navigating away (as the poll below
+            // does) aborts it before the replica accepts it.
+            await withSettledUpdates(page, () =>
+                popup.getByText("CONFIRM").click(),
+            );
 
             await pollForCondition(
                 async () => {

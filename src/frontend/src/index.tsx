@@ -1,6 +1,6 @@
 import * as React from "react";
-import { AuthClient } from "@dfinity/auth-client";
-import { Ed25519KeyIdentity } from "@dfinity/identity";
+import { AuthClient } from "@icp-sdk/auth/client";
+import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { createRoot } from "react-dom/client";
 import { PostView } from "./post";
 import { PostFeed } from "./post_feed";
@@ -77,6 +77,11 @@ const headerRoot = createRoot(document.getElementById("header") as Element);
 const footerRoot = createRoot(document.getElementById("footer") as Element);
 const stack = document.getElementById("stack") as HTMLElement;
 
+const dropFrame = (frame: Element) => {
+    (frame as any).root?.unmount();
+    frame.remove();
+};
+
 const renderFrame = (content: React.ReactNode) => {
     document.getElementById("logo_container")?.remove();
 
@@ -93,15 +98,17 @@ const renderFrame = (content: React.ReactNode) => {
     const lastFrame = frames[frames.length - 2];
 
     if (lastFrame && lastFrame.dataset.hash == location.hash) {
-        currentFrame.remove();
+        dropFrame(currentFrame);
         lastFrame.style.display = "block";
         return;
     }
 
-    let frame = document.createElement("div");
+    const frame = document.createElement("div");
     frame.dataset.hash = location.hash;
     stack.appendChild(frame);
-    createRoot(frame).render(content);
+    const root = createRoot(frame);
+    (frame as any).root = root;
+    root.render(content);
 };
 
 const App = () => {
@@ -281,12 +288,20 @@ const App = () => {
     renderFrame(<React.StrictMode>{content}</React.StrictMode>);
 };
 
-const reloadCache = async () => {
+const reloadCache = async (includeTags = true) => {
     window.backendCache =
         window.backendCache ||
         ({ recent_tags: [] } as typeof window.backendCache);
+    const previous = window.backendCache;
     const [recent_tags, stats, config, domainsCfgResp] = await Promise.all([
-        window.api.query<[string, any][]>("recent_tags", domain(), "", 500),
+        includeTags
+            ? window.api.query<[string, any][]>(
+                  "recent_tags",
+                  domain(),
+                  "",
+                  500,
+              )
+            : previous.recent_tags,
         window.api.query<Stats>("stats"),
         window.api.query<Config>("config"),
         window.api.query<any>("domains", domain()),
@@ -294,10 +309,13 @@ const reloadCache = async () => {
     if (!config) console.error("Config wasn't loaded!");
     if (!stats) console.error("Stats weren't loaded!");
     window.backendCache = {
-        recent_tags: recent_tags || [],
-        stats: stats || ({} as Stats),
-        config: config || ({} as Config),
-        domains: domainsCfgResp || ({} as { [domain: string]: DomainConfig }),
+        recent_tags: recent_tags || previous.recent_tags || [],
+        stats: stats || previous.stats || ({} as Stats),
+        config: config || previous.config || ({} as Config),
+        domains:
+            domainsCfgResp ||
+            previous.domains ||
+            ({} as { [domain: string]: DomainConfig }),
     };
     const domainCfg =
         window.backendCache.domains[domain() || getCanonicalDomain()];
@@ -353,8 +371,6 @@ const updateDoc = async () => {
     window.scrollUpButton.className = "clickable action";
     window.addEventListener("scroll", () => {
         window.lastActivity = new Date();
-        window.scrollUpButton.style.display =
-            window.scrollY > 1500 ? "flex" : "none";
         const h = document.documentElement,
             b = document.body,
             st = "scrollTop",
@@ -362,6 +378,8 @@ const updateDoc = async () => {
 
         const percent =
             ((h[st] || b[st]) / ((h[sh] || b[sh]) - h.clientHeight)) * 100;
+        window.scrollUpButton.style.display =
+            window.scrollY > 1500 ? "flex" : "none";
         if (percent > 60) {
             const visibleFrame = stack.lastElementChild;
             const pageFlipper = visibleFrame?.getElementsByClassName(
@@ -382,14 +400,18 @@ const updateDoc = async () => {
 };
 
 export const instantiateApi = async () => {
-    const authClient = await AuthClient.create({
-        idleOptions: { disableIdle: true },
-    });
+    // Reuse the client that signed in; constructing another instance would
+    // leave the previous one's activity and state watchers running.
+    const authClient =
+        window.authClient ||
+        new AuthClient({
+            derivationOrigin: window.location.origin,
+        });
 
     window.authClient = authClient;
     let identity;
-    if (await authClient.isAuthenticated()) {
-        identity = authClient.getIdentity();
+    if (authClient.isAuthenticated()) {
+        identity = await authClient.getIdentity();
     } else if (localStorage.getItem("IDENTITY")) {
         const serializedIdentity = localStorage.getItem("IDENTITY");
         if (serializedIdentity) {
@@ -408,7 +430,7 @@ const bootstrap = async () => {
     /*
      *  RECOVERY SHORTCUT
      */
-    if (window.location.href.includes("recovery")) {
+    if (parseHash()[0] === "recovery") {
         createRoot(document.body as HTMLElement).render(
             <React.StrictMode>
                 <Recovery />
@@ -426,7 +448,7 @@ const bootstrap = async () => {
     window.resetUI = () => {
         window.uiInitialized = false;
         const frames = Array.from(stack.children);
-        frames.forEach((frame) => frame.remove());
+        frames.forEach(dropFrame);
     };
 
     const futures = [reloadCache()];
@@ -450,7 +472,7 @@ const bootstrap = async () => {
 
     setInterval(async () => {
         await window.reloadUser();
-        await reloadCache();
+        await reloadCache(false);
     }, REFRESH_RATE_SECS * 1000);
 
     futures.push(confirmPrincipalChange().then(window.reloadUser));

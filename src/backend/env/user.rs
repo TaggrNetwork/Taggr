@@ -86,7 +86,6 @@ pub struct User {
     messages: u64,
     pub last_activity: u64,
     pub stalwart: bool,
-    pub controllers: Vec<String>,
     pub invited_by: Option<UserId>,
     pub accounting: VecDeque<(Time, String, i64, String)>,
     pub realms: Vec<RealmId>,
@@ -188,7 +187,6 @@ impl User {
             followees: vec![id].into_iter().collect(),
             followers: Default::default(),
             accounting: Default::default(),
-            controllers: Default::default(),
             controlled_realms: Default::default(),
             last_activity: timestamp,
             stalwart: false,
@@ -322,18 +320,13 @@ impl User {
         self.last_activity + n * time_units > now
     }
 
-    pub fn validate_info(
-        about: &str,
-        principals: &[String],
-        settings: &BTreeMap<String, String>,
-    ) -> Result<(), String> {
+    pub fn validate_info(about: &str, settings: &BTreeMap<String, String>) -> Result<(), String> {
         if about.len()
             + settings
                 .keys()
                 .chain(settings.values())
                 .map(|v| v.len())
                 .sum::<usize>()
-            + principals.iter().map(|v| v.len()).sum::<usize>()
             >= CONFIG.max_user_info_length
         {
             return Err("inputs too long".into());
@@ -342,9 +335,6 @@ impl User {
     }
 
     fn insert_notifications(&mut self, notification: Notification) {
-        if self.is_bot() {
-            return;
-        }
         self.messages += 1;
         self.notifications
             .insert(self.messages, (notification, false));
@@ -468,10 +458,6 @@ impl User {
             })
             .unwrap_or_else(|| Notification::WatchedPostEntries(post_id, vec![comment]));
         self.insert_notifications(notification);
-    }
-
-    pub fn is_bot(&self) -> bool {
-        self.controllers.iter().any(|p| p.len() == 27)
     }
 
     pub fn change_credits<T: ToString>(
@@ -651,41 +637,25 @@ impl User {
     ) -> Result<(), String> {
         mutate(|state| {
             if let Some(user) = state.principal_to_user_mut(caller) {
-                User::validate_info(&user.about, &[], &settings)?;
+                User::validate_info(&user.about, &settings)?;
                 user.settings = settings;
             }
             Ok(())
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn update(
         caller: Principal,
         new_name: Option<String>,
         about: String,
-        principals: Vec<String>,
         filter: UserFilter,
         governance: bool,
         mode: Mode,
         show_posts_in_realms: bool,
     ) -> Result<(), String> {
-        if read(|state| {
-            state
-                .users
-                .values()
-                .filter(|user| user.principal != caller)
-                .flat_map(|user| user.controllers.iter())
-                .collect::<BTreeSet<_>>()
-                .intersection(&principals.iter().collect())
-                .count()
-        }) > 0
-        {
-            return Err("controller already assigned to another user".into());
-        }
-
         mutate(|state| {
             let user = state.principal_to_user(caller).ok_or("user not found")?;
-            User::validate_info(&about, &principals, &user.settings)?;
+            User::validate_info(&about, &user.settings)?;
             let user_id = user.id;
             let current_name = user.name.clone();
             if let Some(name) = &new_name {
@@ -702,7 +672,6 @@ impl User {
                 return Err("switching to the credits mode is only possible when a user has no pending rewards".into());
             }
             user.about = about;
-            user.controllers = principals;
             user.governance = governance;
             user.mode = mode;
             user.filters.noise = filter;

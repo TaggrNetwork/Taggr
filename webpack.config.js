@@ -84,6 +84,12 @@ module.exports = {
     },
     resolve: {
         extensions: [".js", ".ts", ".jsx", ".tsx"],
+        alias: {
+            "#markdown": path.resolve(
+                __dirname,
+                "src/frontend/src/markdown.ts",
+            ),
+        },
         fallback: {
             buffer: require.resolve("buffer/"),
         },
@@ -112,7 +118,11 @@ module.exports = {
             },
             {
                 test: /\.(ts|tsx|jsx)$/,
-                loader: "ts-loader",
+                loader: "esbuild-loader",
+                options: {
+                    target: "es2018",
+                    jsx: "automatic",
+                },
                 exclude: [/node_modules/],
             },
             { test: /\.(md|css|svg)/i, use: "raw-loader" },

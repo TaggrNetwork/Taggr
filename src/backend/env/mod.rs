@@ -99,7 +99,6 @@ pub struct Stats {
     last_daily_chores: u64,
     last_hourly_chores: u64,
     stalwarts: Vec<UserId>,
-    bots: Vec<UserId>,
     state_size: u64,
     active_users: usize,
     active_users_vp: u64,
@@ -1846,7 +1845,6 @@ impl State {
         for u in users {
             if !u.governance
                 || !u.organic()
-                || u.is_bot()
                 || u.controversial()
                 || now.saturating_sub(u.timestamp) < WEEK * CONFIG.min_stalwart_account_age_weeks
             {
@@ -2423,7 +2421,6 @@ impl State {
         let mut invited_users = 0;
         let mut active_users = 0;
         let mut active_users_vp = 0;
-        let mut bots = Vec::new();
         let mut credits = 0;
         let mut speculative_revenue = 0;
         for user in self.users.values() {
@@ -2435,9 +2432,6 @@ impl State {
             }
             if now < user.last_activity + CONFIG.online_activity_minutes {
                 users_online += 1;
-            }
-            if user.is_bot() {
-                bots.push(user.id);
             }
             if user.invited_by.is_some() {
                 invited_users += 1;
@@ -2499,7 +2493,6 @@ impl State {
             account: invoices::main_account().to_string(),
             users_online,
             stalwarts: stalwarts.into_iter().map(|u| u.id).collect(),
-            bots,
             state_size: stable_size() << 16,
             invited_users,
             active_users,
@@ -3238,7 +3231,6 @@ pub(crate) mod tests {
             pr(1),
             Some("john".into()),
             Default::default(),
-            vec![],
             Default::default(),
             false,
             Mode::Mining,
@@ -3251,7 +3243,6 @@ pub(crate) mod tests {
             pr(0),
             Some("john".into()),
             Default::default(),
-            vec![],
             Default::default(),
             false,
             Mode::Mining,

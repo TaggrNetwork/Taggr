@@ -37,8 +37,6 @@ export const Header = ({
     route: string;
     inboxMode: boolean;
 }) => {
-    if (style === "hidden") return null;
-
     const user = window.user;
     const [showUserSection, toggleUserSection] = React.useState(false);
     const [showRealms, toggleRealms] = React.useState(false);
@@ -62,7 +60,7 @@ export const Header = ({
         const logo = document.getElementById("logo");
         if (!logo) return;
         logo.innerHTML = window.backendCache.config.logo;
-    }, []);
+    }, [style]);
     React.useEffect(() => {
         toggleUserSection(false);
         toggleRealms(false);
@@ -70,9 +68,12 @@ export const Header = ({
     }, [route]);
     React.useEffect(refreshMessageCounter, [user]);
     React.useEffect(() => {
+        refreshMessageCounter();
         if (inboxMode) interval = setInterval(refreshMessageCounter, 500);
         else clearInterval(interval);
     }, [inboxMode]);
+
+    if (style === "hidden") return null;
 
     return (
         <>

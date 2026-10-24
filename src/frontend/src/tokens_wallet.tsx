@@ -15,7 +15,7 @@ import {
     handleError,
     showPopUp,
 } from "./common";
-import { Principal } from "@dfinity/principal";
+import { Principal } from "@icp-sdk/core/principal";
 import { Icrc1Canister } from "./types";
 import { Add, Repost, Trash } from "./icons";
 
@@ -323,7 +323,13 @@ export const Icrc1TokensWallet = () => {
                                 className="right_spaced"
                                 data-testid={canisterId + "-balance"}
                             >
-                                {isNaN(Number(canisterBalances[canisterId])) ? (
+                                {canisterBalances[canisterId] === "NaN" ? (
+                                    <span title="Failed to load balance">
+                                        —
+                                    </span>
+                                ) : isNaN(
+                                      Number(canisterBalances[canisterId]),
+                                  ) ? (
                                     <Loading spaced={false} />
                                 ) : (
                                     (

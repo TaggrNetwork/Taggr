@@ -1,4 +1,4 @@
-import { Principal } from "@dfinity/principal";
+import { Principal } from "@icp-sdk/core/principal";
 import {
     ButtonWithLoading,
     NotAllowed,
@@ -33,7 +33,7 @@ export const Delegate = ({}: {}) => {
                 </button>
                 <ButtonWithLoading
                     classNameArg="active max_width_col left_half_spaced"
-                    label="AUTHORIZE"
+                    label="AUTHORISE"
                     onClick={async () => {
                         localStorage.removeItem(DELEGATION_DOMAIN);
                         localStorage.removeItem(DELEGATION_PRINCIPAL);

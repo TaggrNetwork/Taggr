@@ -50,7 +50,7 @@ export const Recovery = () => {
                         )
                             return;
                         await window.api.set_emergency_release(binary);
-                        alert("Done!");
+                        alert("Submitted.");
                     }}
                 />
                 {votes.length > 0 && (

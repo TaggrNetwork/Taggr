@@ -444,6 +444,23 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn test_read_back_large_post() {
+        let mut memory = Memory::default();
+        memory.init_test_api();
+
+        let body = "x".repeat(4096);
+        let mut post = Post::default();
+        post.id = 7;
+        post.body.clone_from(&body);
+
+        memory.posts.insert(7, post).unwrap();
+
+        let post = memory.posts.get(&7).unwrap();
+        assert_eq!(post.id, 7);
+        assert_eq!(post.body, body);
+    }
+
+    #[test]
     fn test_allocator() {
         static mut MEM_END: u64 = 16;
         let mem_grow = |n| unsafe {

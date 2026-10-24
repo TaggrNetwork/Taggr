@@ -1,5 +1,5 @@
 import * as React from "react";
-import Markdown from "./markdown";
+import Markdown from "./markdown-react";
 import {
     ArrowDown,
     domain,
@@ -315,6 +315,7 @@ const markdownizer = (
                         const element = (
                             <img
                                 {...props}
+                                loading="lazy"
                                 onClick={() =>
                                     previewImg(
                                         props.src,

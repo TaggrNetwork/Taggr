@@ -682,6 +682,33 @@ mod tests {
     }
 
     #[test]
+    fn test_ledger_read_back() {
+        let mut state = State::default();
+        state.memory.init_test_api();
+
+        let tx = Transaction {
+            timestamp: 100,
+            from: account(pr(0)),
+            to: account(pr(1)),
+            amount: 42,
+            fee: 1,
+            memo: Some(vec![1, 2, 3]),
+            parent_hash: [7; 32],
+            id: 0,
+        };
+
+        state.memory.ledger.insert(0, tx).unwrap();
+
+        let tx = state.memory.ledger.get(&0).unwrap();
+        assert_eq!(tx.timestamp, 100);
+        assert_eq!(tx.amount, 42);
+        assert_eq!(tx.fee, 1);
+        assert_eq!(tx.memo, Some(vec![1, 2, 3]));
+        assert_eq!(tx.parent_hash, [7; 32]);
+        assert_eq!(tx.id, 0);
+    }
+
+    #[test]
     fn test_balances_from_ledger() {
         // Setup test transactions
         let minting_account = icrc1_minting_account().expect("no minting account");

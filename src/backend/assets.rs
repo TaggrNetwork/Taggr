@@ -93,6 +93,12 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
     );
 
     add_asset(
+        &["/SKILL.md"],
+        vec![("Content-Type".into(), "text/markdown".into())],
+        include_bytes!("../../src/frontend/assets/SKILL.md").to_vec(),
+    );
+
+    add_asset(
         &["/manifest.json"],
         vec![("Content-Type".into(), "application/json".into())],
         include_bytes!("../../src/frontend/assets/manifest.json").to_vec(),
@@ -109,7 +115,7 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
         vec![("Content-Type".into(), "application/json".into())],
         format!(
             "{{\"alternativeOrigins\": [ {} ]}}",
-            ["ic0.app", "icp0.io"]
+            ["ic0.app", "icp0.io", "icp.net"]
                 .map(|domain| format!("\"https://{}.{domain}\"", id()))
                 .join(",")
         )
@@ -252,6 +258,11 @@ mod tests {
         assert!(String::from_utf8_lossy(&body).contains("Authentication complete"));
         assert_ne!(asset_hashes().get(b"/.well-known/ii-auth-callbacks"), None);
         assert_ne!(asset_hashes().get(b"/ios-auth-callback"), None);
+
+        let (headers, body) = asset("/SKILL.md").expect("agent skill");
+        assert!(headers.contains(&("Content-Type".into(), "text/markdown".into())));
+        assert!(String::from_utf8_lossy(&body).contains("name: taggr"));
+        assert_ne!(asset_hashes().get(b"/SKILL.md"), None);
 
         let (_, body) = asset("/.well-known/apple-app-site-association").expect("AASA");
         let value: serde_json::Value = serde_json::from_slice(&body).expect("valid AASA JSON");

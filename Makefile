@@ -44,6 +44,7 @@ test:
 	make e2e_setup
 	cargo clippy --tests --benches -- -D clippy::all
 	cargo test -- --test-threads 1
+	npm run test:unit
 	npm run test:e2e
 
 fe:

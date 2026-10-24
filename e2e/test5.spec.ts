@@ -135,7 +135,16 @@ test.describe("Domain config management", () => {
         await expect(page.getByText("/BLOCKEDREALM")).toBeVisible();
 
         // Remove
-        await domainForm().getByRole("button", { name: "REMOVE" }).click();
+        await handleDialog(
+            page,
+            "Remove the configuration of test.domain",
+            "",
+            async () => {
+                await domainForm()
+                    .getByRole("button", { name: "REMOVE" })
+                    .click();
+            },
+        );
         await waitForUILoading(page);
         await expect(page.locator(".info_popup_message")).toContainText(
             "Domain removed",

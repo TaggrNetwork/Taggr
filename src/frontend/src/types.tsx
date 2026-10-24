@@ -1,7 +1,7 @@
 import { Backend } from "./api";
 import { Root } from "react-dom/client";
-import { AuthClient } from "@dfinity/auth-client";
-import { Principal } from "@dfinity/principal";
+import { AuthClient } from "@icp-sdk/auth/client";
+import { Principal } from "@icp-sdk/core/principal";
 
 export type CanisterStatus = {
     status: "running" | "stopping" | "stopped";
@@ -289,7 +289,6 @@ export type User = {
     balance: number;
     cold_balance: number;
     cold_wallet: string;
-    controllers: string[];
     filters: Filters;
     blacklist: UserId[];
     notifications: { [key: number]: [Notification, boolean] };
@@ -330,7 +329,6 @@ export type Stats = {
     canister_cycle_balance: BigInt;
     canister_cycle_burn: number;
     last_release: LastReleaseInfo;
-    bots: UserId[];
     weekly_karma_leaders: [UserId, number][];
     invited_users: number;
     posts: number;

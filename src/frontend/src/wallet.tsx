@@ -19,7 +19,7 @@ import {
     onCanonicalDomain,
     UnavailableOnCustomDomains,
 } from "./common";
-import { Principal } from "@dfinity/principal";
+import { Principal } from "@icp-sdk/core/principal";
 import { CANISTER_ID } from "./env";
 import { Icrc1TokensWallet } from "./tokens_wallet";
 
@@ -27,6 +27,10 @@ const coldWalletFunctionalityAvailable = window.ic && window.ic.plug;
 
 export const Wallet = () => {
     const [user, setUser] = React.useState(window.user);
+    const principalAddress = React.useMemo(
+        () => Principal.fromText(user.principal),
+        [user.principal],
+    );
     const mintCredits = async (kilo_credits: number) =>
         await window.api.call("mint_credits_with_icp", kilo_credits);
 
@@ -166,8 +170,8 @@ export const Wallet = () => {
                 <div className="max_width_col">Wallet</div>
                 <code data-testid="icp-balance">
                     <ICPAccountBalance
-                        heartbeat={new Date()}
-                        address={Principal.fromText(user.principal)}
+                        heartbeat={user}
+                        address={principalAddress}
                         units={false}
                         decimals={8}
                     />

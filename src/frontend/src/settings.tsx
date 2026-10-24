@@ -19,7 +19,7 @@ import {
     TabBar,
 } from "./common";
 import { CanisterStatus, User, UserFilter } from "./types";
-import { Principal } from "@dfinity/principal";
+import { Principal } from "@icp-sdk/core/principal";
 import { setTheme } from "./theme";
 import { UserList } from "./user_resolve";
 import { UserLinks, linksError, parseLinks } from "./profile";
@@ -310,7 +310,6 @@ export const Settings = ({
     const [settings, setSettings] = React.useState<{ [name: string]: string }>(
         {},
     );
-    const [controllers, setControllers] = React.useState("");
     const [encKey, setEncKey] = React.useState("");
     const [label, setLabel] = React.useState(null);
     const [timer, setTimer] = React.useState<any>();
@@ -336,7 +335,6 @@ export const Settings = ({
         if (!user) return;
         setName(user.name);
         setAbout(user.about);
-        setControllers(user.controllers.join("\n"));
         setSettings(user.settings);
         setGovernance(user.governance.toString());
         setMode(user.mode);
@@ -344,7 +342,7 @@ export const Settings = ({
         setUserFilter(user.filters.noise);
     };
 
-    React.useEffect(() => updateData(user), [user]);
+    React.useEffect(() => updateData(user), []);
 
     const setSetting = (key: string, e: any) => {
         const newSettings: { [name: string]: string } = {};
@@ -403,16 +401,11 @@ export const Settings = ({
                 return;
         }
 
-        const principal_ids = controllers
-            .split("\n")
-            .map((v) => v.trim())
-            .filter((id) => id.length > 0);
         const responses = await Promise.all([
             window.api.call<any>(
                 "update_user",
                 nameChange ? name : "",
                 about,
-                principal_ids,
                 userFilter,
                 governance == "true",
                 // For new and invited users, set the mode to "Credits"
@@ -530,15 +523,6 @@ export const Settings = ({
                         <option value="true">YES</option>
                         <option value="false">NO</option>
                     </select>
-                    <div className="bottom_half_spaced">
-                        Controller principal (one per line)
-                    </div>
-                    <textarea
-                        className="small_text bottom_spaced"
-                        value={controllers}
-                        onChange={(event) => setControllers(event.target.value)}
-                        rows={4}
-                    ></textarea>
                 </>
             )}
         </>
@@ -546,7 +530,7 @@ export const Settings = ({
 
     const appearanceSection = (
         <>
-            <div className="bottom_half_spaced">Color scheme</div>
+            <div className="bottom_half_spaced">Colour scheme</div>
             <select
                 value={settings.theme}
                 className="bottom_spaced"
@@ -563,7 +547,7 @@ export const Settings = ({
                 <option value="light">LIGHT</option>
             </select>
             <div className="bottom_half_spaced">
-                Override realm color themes
+                Override realm colour themes
             </div>
             <select
                 value={settings.overrideRealmColors || "false"}
@@ -929,7 +913,7 @@ export const Settings = ({
     if (!user) {
         return (
             <>
-                <HeadBar title="SETTINGS" shareLink="setting" />
+                <HeadBar title="SETTINGS" shareLink="settings" />
                 <div className="spaced column_container">
                     {profileSection}
                     <ButtonWithLoading
@@ -944,7 +928,7 @@ export const Settings = ({
 
     return (
         <>
-            <HeadBar title="SETTINGS" shareLink="setting" />
+            <HeadBar title="SETTINGS" shareLink="settings" />
             <div className="spaced column_container">
                 <TabBar
                     tabs={[...TABS]}

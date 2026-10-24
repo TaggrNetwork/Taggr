@@ -22,8 +22,11 @@ import {
 } from "./common";
 import * as React from "react";
 import { Transaction, User, Account, Auction, TokenStats } from "./types";
-import { Principal } from "@dfinity/principal";
-import { decodeIcrcAccount, encodeIcrcAccount } from "@dfinity/ledger-icrc";
+import { Principal } from "@icp-sdk/core/principal";
+import {
+    decodeIcrcAccount,
+    encodeIcrcAccount,
+} from "@icp-sdk/canisters/ledger/icrc";
 import { Content } from "./content";
 import { CANISTER_ID } from "./env";
 import { UserLink } from "./user_resolve";
@@ -254,7 +257,7 @@ const AuctionCard = ({}) => {
                 {token_symbol}
             </p>
             <p>
-                This is the decentralized auction establishing the market price
+                This is the decentralised auction establishing the market price
                 of {token_symbol}. Users create their bids during a week, then{" "}
                 {name} sells the available tokens to the bidders with the
                 highest bids. The next sale is in{" "}

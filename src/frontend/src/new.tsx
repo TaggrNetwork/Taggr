@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Principal } from "@dfinity/principal";
+import { Principal } from "@icp-sdk/core/principal";
 import { Form } from "./form";
 import {
     getPatch,

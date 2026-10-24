@@ -98,7 +98,20 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    let canonical_domain = format!("{}.icp.net", id());
+    mutate(|state| {
+        state
+            .domains
+            .entry(canonical_domain)
+            .or_insert_with(|| DomainConfig {
+                max_downvotes: CONFIG.default_max_downvotes,
+                ..Default::default()
+            });
+        crate::assets::add_domains(&state.domains);
+        crate::assets::certify();
+    });
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {
@@ -271,10 +284,9 @@ fn confirm_principal_change() {
 
 #[export_name = "canister_update update_user"]
 fn update_user() {
-    let (new_name, about, principals, filter, governance, mode, show_posts_in_realms): (
+    let (new_name, about, filter, governance, mode, show_posts_in_realms): (
         String,
         String,
-        Vec<String>,
         UserFilter,
         bool,
         Mode,
@@ -284,7 +296,6 @@ fn update_user() {
         read(caller),
         optional(new_name),
         about,
-        principals,
         filter,
         governance,
         mode,
