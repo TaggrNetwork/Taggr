@@ -11,6 +11,7 @@ import {
     pollForCondition,
     createAuctionBid,
     invoiceAccount,
+    withSettledUpdates,
 } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
@@ -214,7 +215,7 @@ test.describe("Upgrades & token transfer flow", () => {
         await dialog1.accept();
 
         const dialog2 = await page.waitForEvent("dialog", { timeout: 30000 });
-        expect(dialog2.message().includes("Done")).toBe(true);
+        expect(dialog2.message().includes("Submitted.")).toBe(true);
         await dialog2.accept();
 
         await pollForCondition(
@@ -382,7 +383,9 @@ test.describe("Upgrades & token transfer flow", () => {
             await icrcWalletEnableSelect.selectOption("YES");
             await icrcWalletEnableSelect.selectOption("YES");
 
-            await page.getByRole("button", { name: "SAVE" }).click();
+            await withSettledUpdates(page, () =>
+                page.getByRole("button", { name: "SAVE" }).click(),
+            );
             await waitForUILoading(page);
             await page.reload();
             await waitForUILoading(page);

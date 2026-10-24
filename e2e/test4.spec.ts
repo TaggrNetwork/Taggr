@@ -5,6 +5,7 @@ import {
     pollForCondition,
     createAuctionBid,
     invoiceAccount,
+    withSettledUpdates,
 } from "./helpers";
 import { test, expect, Page } from "@playwright/test";
 import { exec, mkPwd, transferICP } from "./command";
@@ -261,7 +262,9 @@ test.describe("Report and transfer to user", () => {
 
         await page.goto("/#/user/kyle");
         await waitForUILoading(page);
-        await page.getByRole("button", { name: "✅ AGREE" }).click();
+        await withSettledUpdates(page, () =>
+            page.getByRole("button", { name: "✅ AGREE" }).click(),
+        );
         await waitForUILoading(page);
 
         await pollForCondition(
@@ -300,26 +303,28 @@ test.describe("Report and transfer to user", () => {
 
         await expect(page.getByTestId("token-balance")).toHaveText("15");
 
-        await handleDialogSequence(
-            page,
-            [
-                {
-                    expectedPattern: "Enter the recipient principal",
-                    response:
-                        "evuet-jp2tc-7uwe3-dpgmg-xxr4f-duv55-36d7t-i5nxm-vgc33-cddq3-wae",
+        await withSettledUpdates(page, () =>
+            handleDialogSequence(
+                page,
+                [
+                    {
+                        expectedPattern: "Enter the recipient principal",
+                        response:
+                            "evuet-jp2tc-7uwe3-dpgmg-xxr4f-duv55-36d7t-i5nxm-vgc33-cddq3-wae",
+                    },
+                    {
+                        expectedPattern: "Enter the amount",
+                        response: "5",
+                    },
+                    {
+                        expectedPattern: "You are transferring",
+                        response: "",
+                    },
+                ],
+                async () => {
+                    await page.getByTestId("tokens-transfer-button").click();
                 },
-                {
-                    expectedPattern: "Enter the amount",
-                    response: "5",
-                },
-                {
-                    expectedPattern: "You are transferring",
-                    response: "",
-                },
-            ],
-            async () => {
-                await page.getByTestId("tokens-transfer-button").click();
-            },
+            ),
         );
 
         await pollForCondition(

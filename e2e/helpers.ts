@@ -1,4 +1,4 @@
-import { Page } from "@playwright/test";
+import { Page, Request } from "@playwright/test";
 
 function patternMatches(message: string, pattern: string | RegExp): boolean {
     return typeof pattern === "string"
@@ -211,6 +211,55 @@ async function readCopyToClipboard(
         throw new Error(`unexpected account id from ${testId}: ${value}`);
     }
     return value;
+}
+
+const isUpdateCallRequest = (request: Request): boolean => {
+    if (request.method() !== "POST") return false;
+    try {
+        return /\/api\/v[0-9]+\/canister\/[^/]+\/call$/.test(
+            new URL(request.url()).pathname,
+        );
+    } catch {
+        return false;
+    }
+};
+
+/**
+ * Runs an action that triggers canister update call(s) and waits until all of
+ * them have settled. Navigating away while an update is in flight aborts it,
+ * so tests must await the update(s) before reloading the page.
+ */
+export async function withSettledUpdates<T>(
+    page: Page,
+    action: () => Promise<T>,
+    timeout = 30000,
+): Promise<T> {
+    const pending = new Set<Request>();
+    const track = (request: Request) => {
+        if (isUpdateCallRequest(request)) pending.add(request);
+    };
+    const settle = (request: Request) => pending.delete(request);
+    page.on("request", track);
+    page.on("requestfinished", settle);
+    page.on("requestfailed", settle);
+    try {
+        const result = await action();
+        const deadline = Date.now() + timeout;
+        // Let the action's handler dispatch its request(s), then wait until
+        // they have all been answered (or have failed).
+        await page.waitForTimeout(100);
+        while (pending.size > 0) {
+            if (Date.now() > deadline) {
+                throw new Error("canister update call did not settle");
+            }
+            await page.waitForTimeout(50);
+        }
+        return result;
+    } finally {
+        page.off("request", track);
+        page.off("requestfinished", settle);
+        page.off("requestfailed", settle);
+    }
 }
 
 export async function safeClick(
