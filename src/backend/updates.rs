@@ -98,7 +98,20 @@ fn post_upgrade() {
 }
 
 #[allow(clippy::all)]
-fn sync_post_upgrade_fixtures() {}
+fn sync_post_upgrade_fixtures() {
+    let canonical_domain = format!("{}.icp.net", id());
+    mutate(|state| {
+        state
+            .domains
+            .entry(canonical_domain)
+            .or_insert_with(|| DomainConfig {
+                max_downvotes: CONFIG.default_max_downvotes,
+                ..Default::default()
+            });
+        crate::assets::add_domains(&state.domains);
+        crate::assets::certify();
+    });
+}
 
 #[allow(clippy::all)]
 async fn async_post_upgrade_fixtures() {

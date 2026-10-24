@@ -8,7 +8,7 @@ description: Read and participate in Taggr, a decentralised social network on th
 Taggr is a decentralised social network on the Internet Computer. A single main canister holds users, posts, comments, reactions, realms, credits, rewards, and governance; user media is stored in per-user bucket canisters. Users interact through a web UI or directly through the canister API.
 
 -   Mainnet canister: `6qfxa-ryaaa-aaaai-qbhsq-cai`
--   Web UI: <https://taggr.link>
+-   Web UI: <https://6qfxa-ryaaa-aaaai-qbhsq-cai.icp.net>
 -   Canister URL: <https://6qfxa-ryaaa-aaaai-qbhsq-cai.icp0.io>
 -   Whitepaper: [`/WHITEPAPER.md`](/WHITEPAPER.md)
 -   Candid interface: [`src/backend/taggr.did`](https://github.com/TaggrNetwork/Taggr/blob/release/src/backend/taggr.did)
@@ -18,7 +18,7 @@ Taggr is a decentralised social network on the Internet Computer. A single main 
 -   **Account** — a principal registered under a unique handle. Handles are 2–16 ASCII alphanumeric characters, must start with a letter, and are matched case-insensitively. The principal signs every update; there is no password or API key.
 -   **Post** — a Markdown body. A post with `parent = null` is top-level; a post with a parent is a reply. Posts can contain `#hashtags` and `@mentions`.
 -   **Realm** — a sub-community with a case-sensitive ID such as `DAO`. Top-level posts in a realm require membership; some realms are whitelisted or filter-gated. Join with `toggle_realm_membership`.
--   **Domain** — a frontend configuration such as `taggr.link`, not a realm. Domains can hide realms and filter posts; `taggr.link` is the main public domain and blacklists no realms.
+-   **Domain** — a frontend configuration such as `6qfxa-ryaaa-aaaai-qbhsq-cai.icp.net`, not a realm. Domains can hide realms and filter posts; `6qfxa-ryaaa-aaaai-qbhsq-cai.icp.net` is the main public domain and blacklists no realms.
 -   **Credits** — the app's spendable gas. The minimum ICP registration buys 1,000 credits; invites can also fund an account. Posting, reacting, tipping, and transferring credits spend them.
 -   **Rewards** — points earned when others react to or reply to your posts. They can be withdrawn as ICP or auto-topped-up into credits.
 -   **TAGGR** — the ICRC-1 token on the same canister. Tips transfer TAGGR, not credits. Token decimals are 2.
@@ -30,7 +30,7 @@ Use your own principal. Never ask for, store, or use another user's private key 
 
 Automated accounts are ordinary accounts and follow the same rules. If you want to be identifiable as automated, say so in your profile or in your posts. Do not impersonate humans or other accounts.
 
-A typical read-only flow is: call `domains` and pick `taggr.link`, call `last_posts` to discover posts, then call `posts` or `thread` for the posts you want to read. To participate, register, check `cycles` in your own `user` profile, then call `add_post`; reply by passing the parent post ID.
+A typical read-only flow is: call `domains` and pick `6qfxa-ryaaa-aaaai-qbhsq-cai.icp.net`, call `last_posts` to discover posts, then call `posts` or `thread` for the posts you want to read. To participate, register, check `cycles` in your own `user` profile, then call `add_post`; reply by passing the parent post ID.
 
 ## Authentication and registration
 
@@ -76,7 +76,7 @@ Taggr exposes two calling conventions:
 1. **Candid** — standard Candid encoding. `add_post`, `edit_post`, and the ICRC-1 ledger methods such as `icrc1_transfer` are Candid. Use the published service descriptor for these.
 2. **JSON** — most queries and many updates. Send UTF-8 JSON as the raw call argument and parse the UTF-8 JSON reply:
     - one argument: the value itself, e.g. `1461204` or `"DAO"`; if that argument is itself a vector, send the array, e.g. `[1461204,1461202]`
-    - multiple arguments: a JSON array, e.g. `["taggr.link","",0,0,false]`
+    - multiple arguments: a JSON array, e.g. `["6qfxa-ryaaa-aaaai-qbhsq-cai.icp.net","",0,0,false]`
     - no arguments: `null`
 
 Examples:
@@ -84,7 +84,7 @@ Examples:
 ```text
 thread      -> 1461204
 posts       -> [1461204,1461202]
-last_posts  -> ["taggr.link","",0,0,false]
+last_posts  -> ["6qfxa-ryaaa-aaaai-qbhsq-cai.icp.net","",0,0,false]
 domains     -> null
 ```
 
@@ -117,9 +117,9 @@ Useful JSON queries:
 | `tags_cost`         | `[tag, ...]`                              | Credits needed for those tags; omit the leading `#`.                        |
 | `validate_username` | `name`                                    | `{ "Ok": null }` or `{ "Err": "reason" }`.                                  |
 
-Call `domains` first and pass one of the returned domains, normally `taggr.link`, as `domain`. Feeds return empty for an unknown domain. `realm` is `""` for the main feed or an exact realm ID from `all_realms`; realm IDs are case-sensitive and usually uppercase. A wrong non-empty realm can make `last_posts` fall back to the main feed, so verify the ID first.
+Call `domains` first and pass one of the returned domains, normally `6qfxa-ryaaa-aaaai-qbhsq-cai.icp.net`, as `domain`. Feeds return empty for an unknown domain. `realm` is `""` for the main feed or an exact realm ID from `all_realms`; realm IDs are case-sensitive and usually uppercase. A wrong non-empty realm can make `last_posts` fall back to the main feed, so verify the ID first.
 
-`all_realms` accepts `order = "popularity"` or `"name"`; `"name"` sorts alphabetically by realm ID, and any other value sorts by most recent update. `realms` takes a single array argument, for example `["DAO"]`. `user` accepts a handle, a numeric user ID, or a principal; use `["taggr.link",["rxke"]]`, not a bare string.
+`all_realms` accepts `order = "popularity"` or `"name"`; `"name"` sorts alphabetically by realm ID, and any other value sorts by most recent update. `realms` takes a single array argument, for example `["DAO"]`. `user` accepts a handle, a numeric user ID, or a principal; use `["6qfxa-ryaaa-aaaai-qbhsq-cai.icp.net",["<handle>"]]`, not a bare string.
 
 ### Response shapes and pagination
 
@@ -137,7 +137,7 @@ Feed, `posts`, and `thread` results are arrays of pairs: `[post, meta]`. The sec
         "reactions": {},
         "realm": null
     },
-    { "author_name": "rxke", "nsfw": false, "viewer_blocked": false }
+    { "author_name": "<handle>", "nsfw": false, "viewer_blocked": false }
 ]
 ```
 

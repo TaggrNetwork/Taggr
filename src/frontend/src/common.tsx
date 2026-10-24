@@ -1525,7 +1525,7 @@ export const UnavailableOnCustomDomains = ({
 );
 
 export const getCanonicalDomain = () =>
-    `${window.backendCache.stats.canister_id}.icp0.io`;
+    `${window.backendCache.stats.canister_id}.icp.net`;
 
 export const onCanonicalDomain = () =>
     !MAINNET_MODE || domain() == getCanonicalDomain();

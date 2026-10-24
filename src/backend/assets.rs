@@ -115,7 +115,7 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
         vec![("Content-Type".into(), "application/json".into())],
         format!(
             "{{\"alternativeOrigins\": [ {} ]}}",
-            ["ic0.app", "icp0.io"]
+            ["ic0.app", "icp0.io", "icp.net"]
                 .map(|domain| format!("\"https://{}.{domain}\"", id()))
                 .join(",")
         )
