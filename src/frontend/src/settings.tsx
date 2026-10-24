@@ -310,7 +310,6 @@ export const Settings = ({
     const [settings, setSettings] = React.useState<{ [name: string]: string }>(
         {},
     );
-    const [controllers, setControllers] = React.useState("");
     const [encKey, setEncKey] = React.useState("");
     const [label, setLabel] = React.useState(null);
     const [timer, setTimer] = React.useState<any>();
@@ -336,7 +335,6 @@ export const Settings = ({
         if (!user) return;
         setName(user.name);
         setAbout(user.about);
-        setControllers(user.controllers.join("\n"));
         setSettings(user.settings);
         setGovernance(user.governance.toString());
         setMode(user.mode);
@@ -403,16 +401,11 @@ export const Settings = ({
                 return;
         }
 
-        const principal_ids = controllers
-            .split("\n")
-            .map((v) => v.trim())
-            .filter((id) => id.length > 0);
         const responses = await Promise.all([
             window.api.call<any>(
                 "update_user",
                 nameChange ? name : "",
                 about,
-                principal_ids,
                 userFilter,
                 governance == "true",
                 // For new and invited users, set the mode to "Credits"
@@ -530,15 +523,6 @@ export const Settings = ({
                         <option value="true">YES</option>
                         <option value="false">NO</option>
                     </select>
-                    <div className="bottom_half_spaced">
-                        Controller principal (one per line)
-                    </div>
-                    <textarea
-                        className="small_text bottom_spaced"
-                        value={controllers}
-                        onChange={(event) => setControllers(event.target.value)}
-                        rows={4}
-                    ></textarea>
                 </>
             )}
         </>

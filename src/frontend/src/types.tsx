@@ -289,7 +289,6 @@ export type User = {
     balance: number;
     cold_balance: number;
     cold_wallet: string;
-    controllers: string[];
     filters: Filters;
     blacklist: UserId[];
     notifications: { [key: number]: [Notification, boolean] };
@@ -330,7 +329,6 @@ export type Stats = {
     canister_cycle_balance: BigInt;
     canister_cycle_burn: number;
     last_release: LastReleaseInfo;
-    bots: UserId[];
     weekly_karma_leaders: [UserId, number][];
     invited_users: number;
     posts: number;

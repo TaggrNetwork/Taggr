@@ -199,26 +199,6 @@ $name DAO commits to:
 1. Attract voters to other topics over time.
 2. Find followees or vote themselves if automated rejection harms #IC.
 
-## Bots
-
-$name users can become bots by adding principal IDs in account settings.
-These IDs (canisters or self-authenticating) can call $name's `add_post` method in Candid format as follows:
-
-    "add_post": (text, vec record { text; blob }, opt nat64, opt text) -> (variant { Ok: nat64; Err: text });
-
-Arguments:
-
--   `text`: body text.
--   `vec record {text; blob}`: vector of attached pictures, each tuple containing a blob ID and the blob itself. Tuple requirements:
-    -   ID length < `9` characters.
-    -   Blob < `$max_blob_size_bytes` bytes.
-    -   Pictures referenced from the post by URL `/blob/<id>`.
--   `opt nat64`: parent post ID.
--   `opt text`: realm name.
-
-Note: #IC doesn't support messages > `2Mb`.
-The result of `add_post` contains the new post's ID or an error message.
-
 ## Code and Bug Bounty
 
 $name's DAO has a bug bounty program with classifications and rewards in `$token_symbol`.
