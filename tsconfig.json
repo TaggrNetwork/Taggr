@@ -8,6 +8,10 @@
         "esModuleInterop": true,
         "isolatedModules": true,
         "moduleResolution": "node",
+        "baseUrl": ".",
+        "paths": {
+            "#markdown": ["src/frontend/src/markdown.ts"]
+        },
         "resolveJsonModule": true,
         "lib": ["dom", "esnext"],
         "allowJs": false,
@@ -30,5 +34,6 @@
         "emitDecoratorMetadata": false,
         "experimentalDecorators": false
     },
-    "include": ["src/frontend/**/*"]
+    "include": ["src/frontend/**/*"],
+    "exclude": ["**/*.test.ts"]
 }

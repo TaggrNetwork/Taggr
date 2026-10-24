@@ -84,6 +84,12 @@ module.exports = {
     },
     resolve: {
         extensions: [".js", ".ts", ".jsx", ".tsx"],
+        alias: {
+            "#markdown": path.resolve(
+                __dirname,
+                "src/frontend/src/markdown.ts",
+            ),
+        },
         fallback: {
             buffer: require.resolve("buffer/"),
         },

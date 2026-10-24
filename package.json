@@ -2,6 +2,9 @@
     "name": "taggr",
     "version": "0.1.0",
     "description": "Decentralized Social Network",
+    "imports": {
+        "#markdown": "./src/frontend/src/markdown.ts"
+    },
     "keywords": [
         "TypeScript",
         "Canister"
@@ -11,6 +14,7 @@
         "postbuild": "find dist/frontend -name '*.js' -exec gzip -9n {} +",
         "start": "webpack serve --mode development --env development",
         "test:e2e": "playwright test",
+        "test:unit": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON src/frontend/src/*.test.ts",
         "install:e2e": "playwright install chromium --with-deps",
         "format": "prettier --write .",
         "format:check": "prettier --check ."
