@@ -323,7 +323,13 @@ export const Icrc1TokensWallet = () => {
                                 className="right_spaced"
                                 data-testid={canisterId + "-balance"}
                             >
-                                {isNaN(Number(canisterBalances[canisterId])) ? (
+                                {canisterBalances[canisterId] === "NaN" ? (
+                                    <span title="Failed to load balance">
+                                        —
+                                    </span>
+                                ) : isNaN(
+                                      Number(canisterBalances[canisterId]),
+                                  ) ? (
                                     <Loading spaced={false} />
                                 ) : (
                                     (

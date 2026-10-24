@@ -52,10 +52,16 @@ export const authMethods = [
                 location.href = location.href.replace(".raw", "");
                 return null;
             }
-            await window.authClient.signIn({
-                maxTimeToLive: BigInt(30 * 24 * 3600000000000),
-            });
-            await finalize(signUp);
+            try {
+                await window.authClient.signIn({
+                    maxTimeToLive: BigInt(30 * 24 * 3600000000000),
+                });
+                await finalize(signUp);
+            } catch (err) {
+                // Cancelling the signer window rejects; keep the sign-in page
+                // usable instead of leaving the button stuck in loading.
+                console.error("Internet Identity sign-in failed", err);
+            }
             return null;
         },
     },

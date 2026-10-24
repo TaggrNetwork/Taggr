@@ -99,7 +99,6 @@ export const Landing = () => {
             <Search />
             <PostFeed
                 heartbeat={feed + filtered}
-                refreshRateSecs={10 * 60}
                 title={title}
                 feedLoader={async (page: number, offset: PostId) => {
                     if (feed == FOR_ME)

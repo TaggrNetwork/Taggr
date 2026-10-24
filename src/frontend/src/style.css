@@ -275,6 +275,8 @@ article {
 
 .feed_item {
     margin-bottom: 1em;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 600px;
 }
 
 .post_extension,

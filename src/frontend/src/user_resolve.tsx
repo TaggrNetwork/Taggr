@@ -40,7 +40,7 @@ export const userNameToIds = async (names: string[]) => {
         )
     )
         .map((user) => user?.id)
-        .filter((user) => user != undefined);
+        .filter((user): user is UserId => user != undefined);
 };
 
 export const UserLink = ({

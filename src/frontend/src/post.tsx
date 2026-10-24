@@ -64,7 +64,7 @@ import { TippingPopup } from "./tipping";
 import { uploadBlobsOrFail } from "./new";
 import { Principal } from "@icp-sdk/core/principal";
 
-export const PostView = ({
+const PostViewImpl = ({
     id,
     data,
     version,
@@ -105,6 +105,7 @@ export const PostView = ({
     const [commentIncoming, setCommentIncoming] = React.useState(false);
 
     const refPost = React.useRef();
+    const postRef = React.useRef<HTMLDivElement>(null);
 
     const loadData = React.useCallback(
         async (preloadedData?: Post) => {
@@ -188,10 +189,7 @@ export const PostView = ({
             if (allReactionUsers.includes(userId)) {
                 return;
             }
-            window.api.call<any>("react", post.id, id).then((response) => {
-                handleError(response);
-                window.reloadUser();
-            });
+            window.api.call<any>("react", post.id, id).then(handleError);
             users.push(userId);
             setPost({ ...post });
             toggleInfo(commentIncoming);
@@ -218,6 +216,10 @@ export const PostView = ({
         if (prime && post)
             setTitle(`Post #${post.id} by @${post.meta.author_name}`);
     }, [prime, post]);
+
+    React.useEffect(() => {
+        if (focused) postRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [focused, post?.id]);
 
     if (!post) {
         if (notFound) return <NotFound />;
@@ -274,10 +276,7 @@ export const PostView = ({
 
     return (
         <div
-            ref={(post) => {
-                if (post && focused)
-                    post.scrollIntoView({ behavior: "smooth" });
-            }}
+            ref={postRef}
             className={classNameArg}
             data-testid={`post-body${repost ? "-repost" : ""}`}
         >
@@ -439,6 +438,8 @@ export const PostView = ({
         </div>
     );
 };
+
+export const PostView = React.memo(PostViewImpl);
 
 const Comments = ({
     heartbeat,
@@ -912,10 +913,6 @@ const PostInfo = ({
     );
 };
 
-let reactionIndicatorWidth = 0;
-let progressInterval: any = null;
-let timeStart: any = null;
-
 const PostBar = ({
     post,
     react,
@@ -959,13 +956,19 @@ const PostBar = ({
             ? Number(user.settings.tap_and_hold)
             : DEFAULT_REACTION_HOLD_TIME;
 
+    const reactionIndicatorWidth = React.useRef(0);
+    const progressInterval = React.useRef<any>(null);
+    const timeStart = React.useRef<any>(null);
+
+    React.useEffect(() => () => clearInterval(progressInterval.current), []);
+
     const unreact = () => {
-        if (Number(new Date()) - timeStart < delay) {
+        if (Number(new Date()) - timeStart.current < delay) {
             setShowHint(true);
             setTimeout(() => setShowHint(false), 1000);
         }
-        clearInterval(progressInterval);
-        reactionIndicatorWidth = 0;
+        clearInterval(progressInterval.current);
+        reactionIndicatorWidth.current = 0;
         if (ref.current) ref.current.style.width = "0";
         setShowEmojis(false);
     };
@@ -977,13 +980,13 @@ const PostBar = ({
             unreact();
             return;
         }
-        timeStart = new Date();
-        progressInterval = setInterval(() => {
-            reactionIndicatorWidth += 100 / (delay / 50);
+        timeStart.current = new Date();
+        progressInterval.current = setInterval(() => {
+            reactionIndicatorWidth.current += 100 / (delay / 50);
             if (ref.current)
                 ref.current.style.width =
-                    Math.min(100, reactionIndicatorWidth) + "%";
-            if (reactionIndicatorWidth > 100) {
+                    Math.min(100, reactionIndicatorWidth.current) + "%";
+            if (reactionIndicatorWidth.current > 100) {
                 react(id);
                 unreact();
             }

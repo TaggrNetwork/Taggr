@@ -72,9 +72,9 @@ canister ID, recorded in `.icp/cache/mappings/local.ids.json`.
 
 Use `make cycles` to top the canister up with cycles.
 
-Now you are ready to create a new Taggr account with Internet Identity locally
-and, if you want, transfer ICP to it. Identify the account ID from the Taggr UI
-and send ICP from a funded identity:
+Now you are ready to create a new Taggr account using the seed phrase flow and,
+if you want, transfer ICP to it. Identify the account ID from the Taggr UI and
+send ICP from a funded identity:
 
 ```shell
 icp token transfer 10 ${accountId}

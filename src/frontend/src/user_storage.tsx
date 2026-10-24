@@ -456,6 +456,7 @@ let creationInFlight = false;
 
 export const fetchCanisterStatus = async (
     canisterId: Principal,
+    certified = true,
 ): Promise<CanisterStatus> => {
     const DefiniteCanisterSettings = IDL.Record({
         controllers: IDL.Vec(IDL.Principal),
@@ -495,12 +496,19 @@ export const fetchCanisterStatus = async (
         [IDL.Record({ canister_id: IDL.Principal })],
         [{ canister_id: canisterId }],
     );
-    const reply = await window.api.call_raw(
-        MANAGEMENT_CANISTER_ID,
-        "canister_status",
-        arg,
-        canisterId,
-    );
+    const reply = certified
+        ? await window.api.call_raw(
+              MANAGEMENT_CANISTER_ID,
+              "canister_status",
+              arg,
+              canisterId,
+          )
+        : await window.api.query_raw(
+              MANAGEMENT_CANISTER_ID.toText(),
+              "canister_status",
+              arg,
+              canisterId,
+          );
     if (!reply) throw new Error("empty reply from canister_status");
     const decoded: any = IDL.decode([CanisterStatusResult], reply)[0];
     const statusKey = Object.keys(decoded.status)[0] as
@@ -671,9 +679,10 @@ export const openStorageCreation = (): Promise<string | null> =>
 export const maybePromptTopUp = async () => {
     const bucket = window.user?.bucket;
     if (!bucket) return;
-    const st = await fetchCanisterStatus(Principal.fromText(bucket)).catch(
-        () => null,
-    );
+    const st = await fetchCanisterStatus(
+        Principal.fromText(bucket),
+        false,
+    ).catch(() => null);
     if (!st) return;
     const days = daysToLiveNum(st.cycles, st.idle_cycles_burned_per_day);
     if (days === null || days >= 90) return;

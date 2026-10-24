@@ -65,6 +65,7 @@ export const Form = ({
 }) => {
     const draftKey = `draft_for_${comment ? "comment" : "post"}_${postId}`;
     const [value, setValue] = React.useState("");
+    const deferredValue = React.useDeferredValue(value);
     const [realm, setRealm] = React.useState(realmArg);
     const [realmData, setRealmData] = React.useState<Realm | null>();
     const [submitting, setSubmitting] = React.useState(false);
@@ -93,9 +94,15 @@ export const Form = ({
     const [choresTimer, setChoresTimer] = React.useState<any>(null);
     const [cursor, setCursor] = React.useState(0);
 
+    const tmpUrlsRef = React.useRef(tmpUrls);
     React.useEffect(() => {
-        return () => Object.values(tmpUrls).forEach(URL.revokeObjectURL);
-    }, []);
+        tmpUrlsRef.current = tmpUrls;
+    }, [tmpUrls]);
+    React.useEffect(
+        () => () =>
+            Object.values(tmpUrlsRef.current).forEach(URL.revokeObjectURL),
+        [],
+    );
     const [proposalValidationError, setProposalValidationError] =
         React.useState("");
     const textarea = React.useRef<HTMLTextAreaElement>();
@@ -245,10 +252,12 @@ export const Form = ({
                 const size = Math.ceil(resized_content.byteLength / 1024);
                 const resized_content_bytes = new Uint8Array(resized_content);
                 let key = await hash(resized_content_bytes);
-                tmpBlobs[key] = resized_content_bytes;
-                setTmpBlobs(tmpBlobs);
-                tmpUrls[key] = blobToUrl(resized_content_bytes);
-                setTmpUrls(tmpUrls);
+                const url = blobToUrl(resized_content_bytes);
+                setTmpBlobs((prev) => ({
+                    ...prev,
+                    [key]: resized_content_bytes,
+                }));
+                setTmpUrls((prev) => ({ ...prev, [key]: url }));
                 image = await loadImage(new Uint8Array(resized_content));
                 fileLinks.push(
                     `![${image.width}x${image.height}, ${size}kb](/blob/${key})`,
@@ -388,7 +397,8 @@ export const Form = ({
     const articleRef = React.useRef();
 
     const self = document.getElementById(id);
-    if (self && self.clientHeight < self.scrollHeight) setLines(lines + 2);
+    if (lines < 50 && self && self.clientHeight < self.scrollHeight)
+        setLines(lines + 2);
 
     let trigger = "",
         completionList = [];
@@ -419,7 +429,7 @@ export const Form = ({
                 <Content
                     post={true}
                     urls={tmpUrls}
-                    value={value}
+                    value={deferredValue}
                     preview={true}
                     primeMode={postId == null}
                 />
@@ -759,9 +769,8 @@ export const Form = ({
             )}
             {overflowBanner && (
                 <div className="banner vertically_spaced">
-                    Your post is too long and will be cut when displayed in
-                    feeds! Please, use three empty lines to separate the
-                    introductory part from the rest of the content.
+                    Your post is too long to submit. Feeds cut posts after three
+                    empty lines — add them to split the post, or shorten it.
                 </div>
             )}
             {noBucketForImages && (

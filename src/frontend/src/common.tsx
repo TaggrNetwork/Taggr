@@ -455,8 +455,11 @@ export const ButtonWithLoading = ({
             onClick={async (e) => {
                 e.preventDefault();
                 setLoading(true);
-                await onClick();
-                setLoading(false);
+                try {
+                    await onClick();
+                } finally {
+                    setLoading(false);
+                }
             }}
         >
             {loading ? <Loading spaced={false} /> : label}
@@ -605,6 +608,7 @@ export const ICPAccountBalance = ({
         loadData();
     }, [address, heartbeat]);
 
+    if (Number(e8s) < 0) return <code title="Balance unavailable">...</code>;
     return icpCode(e8s, decimals, units);
 };
 
@@ -966,11 +970,19 @@ export function popUp<T>(
     const reactRoot = createRoot(root);
     const promise = new Promise((resolve: (arg: T | null) => void) => {
         const closePreview = (arg: T | null) => {
+            // Navigation is handled by the app's popstate router; drop the
+            // listener so navigating away closes the popup instead of leaving
+            // it stacked on top of the new page (e.g. follows -> user journal).
+            window.removeEventListener("popstate", navigateAway);
             // Unmount before detaching so React tears the tree down cleanly.
             reactRoot.unmount();
             overlay.remove();
             resolve(arg);
         };
+        // Dismiss on navigation; bypasses `opts.closable` since the popup's
+        // page is gone anyway.
+        const navigateAway = () => closePreview(null);
+        window.addEventListener("popstate", navigateAway);
         // User-initiated dismissal (backdrop / X); respects the closable guard.
         const dismiss = () => {
             if (opts?.closable && !opts.closable()) return;
@@ -1379,13 +1391,20 @@ export const showPopUp = (
 export const signOut = async () => {
     localStorage.clear();
     sessionStorage.clear();
-    await window.authClient.signOut();
-    // Wipe the IndexedDB database used by @icp-sdk/auth/client where stale
-    // delegation sessions can survive authClient.signOut().
+    // A failed server-side revoke must not block the local sign-out.
     try {
-        indexedDB.deleteDatabase("auth-client-storage");
+        await window.authClient.signOut();
     } catch (err) {
-        console.error(err);
+        console.error("Failed to revoke the auth session", err);
+    }
+    // Wipe the IndexedDB databases used by current and legacy auth clients
+    // where stale delegation sessions can survive authClient.signOut().
+    for (const dbName of ["auth-client-storage", "auth-client-db"]) {
+        try {
+            indexedDB.deleteDatabase(dbName);
+        } catch (err) {
+            console.error(err);
+        }
     }
     // Clear the in-memory identity so the app reflects the signed-out state
     // without needing a page reload.
@@ -1394,8 +1413,11 @@ export const signOut = async () => {
 };
 
 export const signOutAndRestart = async () => {
-    await signOut();
-    restartApp();
+    try {
+        await signOut();
+    } finally {
+        restartApp();
+    }
     return true;
 };
 
@@ -1590,9 +1612,15 @@ export function getFromLocalStorage<T>(
     cacheKey: string,
     staleness = 0,
 ): T | null {
-    const cachedValue = JSON.parse(
-        localStorage.getItem(cacheKey) || "{}",
-    ) as LocalStorageData;
+    const cachedValue = (() => {
+        try {
+            return JSON.parse(
+                localStorage.getItem(cacheKey) || "{}",
+            ) as LocalStorageData;
+        } catch {
+            return {} as LocalStorageData;
+        }
+    })();
     const staleDate = new Date();
     staleDate.setSeconds(staleDate.getSeconds() - staleness);
     if (

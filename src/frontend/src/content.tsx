@@ -315,6 +315,7 @@ const markdownizer = (
                         const element = (
                             <img
                                 {...props}
+                                loading="lazy"
                                 onClick={() =>
                                     previewImg(
                                         props.src,

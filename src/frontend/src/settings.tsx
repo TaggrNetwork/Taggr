@@ -342,7 +342,7 @@ export const Settings = ({
         setUserFilter(user.filters.noise);
     };
 
-    React.useEffect(() => updateData(user), [user]);
+    React.useEffect(() => updateData(user), []);
 
     const setSetting = (key: string, e: any) => {
         const newSettings: { [name: string]: string } = {};
@@ -913,7 +913,7 @@ export const Settings = ({
     if (!user) {
         return (
             <>
-                <HeadBar title="SETTINGS" shareLink="setting" />
+                <HeadBar title="SETTINGS" shareLink="settings" />
                 <div className="spaced column_container">
                     {profileSection}
                     <ButtonWithLoading
@@ -928,7 +928,7 @@ export const Settings = ({
 
     return (
         <>
-            <HeadBar title="SETTINGS" shareLink="setting" />
+            <HeadBar title="SETTINGS" shareLink="settings" />
             <div className="spaced column_container">
                 <TabBar
                     tabs={[...TABS]}

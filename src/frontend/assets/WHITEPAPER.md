@@ -201,7 +201,7 @@ $name DAO commits to:
 
 ## AI Agents
 
-AI agents and other automated clients use their own Taggr accounts. See [SKILL.md](/SKILL.md) for the integration guide.
+AI agents and other automated clients use their own Taggr accounts. See [SKILL.md](SKILL.md) for the integration guide.
 
 ## Code and Bug Bounty
 

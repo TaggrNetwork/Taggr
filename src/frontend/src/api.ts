@@ -32,6 +32,7 @@ export type Backend = {
         canisterId: string,
         methodName: string,
         arg: Uint8Array,
+        effectiveCanisterId?: Principal,
     ) => Promise<Uint8Array | null>;
 
     call_raw: (
@@ -152,6 +153,7 @@ export const ApiGenerator = (
         canisterId = CANISTER_ID,
         methodName: string,
         arg: Uint8Array = new Uint8Array(0),
+        effectiveCanisterId?: Principal,
     ): Promise<Uint8Array | null> => {
         // The agent has no request timeout, so a stalled gateway can leave a
         // query pending forever and block bootstrap. Bound each attempt and
@@ -172,7 +174,11 @@ export const ApiGenerator = (
         for (let attempt = 0; attempt < attempts; attempt++) {
             try {
                 let response = await withTimeout(
-                    agent.query(canisterId, { methodName, arg }, identity),
+                    agent.query(
+                        canisterId,
+                        { methodName, arg, effectiveCanisterId },
+                        identity,
+                    ),
                 );
                 if (response.status != "replied") {
                     console.error(methodName, response);
@@ -208,6 +214,10 @@ export const ApiGenerator = (
         arg: Uint8Array,
         effectiveCanisterId?: Principal,
     ): Promise<Uint8Array | null> => {
+        // Management canister calls (install_code, update_settings, ...) are
+        // certified for the effective canister, not the management canister
+        // itself; certificate verification fails if the wrong one is used.
+        const target = effectiveCanisterId ?? canisterId;
         try {
             let { response, requestId } = await agent.call(canisterId, {
                 methodName,
@@ -226,7 +236,7 @@ export const ApiGenerator = (
                 certificate = await Certificate.create({
                     certificate: uint8FromBufLike(cert),
                     rootKey: agent.rootKey || new Uint8Array(0),
-                    principal: { canisterId: Principal.from(canisterId) },
+                    principal: { canisterId: Principal.from(target) },
                 });
                 const path = [
                     new TextEncoder().encode("request_status"),
@@ -255,7 +265,7 @@ export const ApiGenerator = (
             return (
                 await polling.pollForResponse(
                     agent,
-                    { canisterId },
+                    { canisterId: target },
                     requestId,
                     {
                         strategy: polling.defaultStrategy(),

@@ -94,7 +94,6 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
     const {
         logo,
         description,
-        controllers,
         whitelist,
         filter,
         label_color,
@@ -104,7 +103,10 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
         max_downvotes,
     } = realm;
 
-    const valid = name && description && controllers.length > 0;
+    const valid =
+        !!name &&
+        !!description &&
+        (!!controllersString.trim() || realm.controllers.length > 0);
     return (
         <div className="spaced">
             <h2 className="vcentered">
@@ -275,7 +277,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             controllersTimer = setTimeout(async () => {
                                 // @ts-ignore
                                 realm.controllers = await userNameToIds(
-                                    input.split(/[,\s]/),
+                                    input.split(/[,\s]+/).filter(Boolean),
                                 );
                                 setRealm({ ...realm });
                             }, 500);
@@ -304,7 +306,7 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                             whitelistTimer = setTimeout(async () => {
                                 // @ts-ignore
                                 realm.whitelist = await userNameToIds(
-                                    input.split(/[,\s]/),
+                                    input.split(/[,\s]+/).filter(Boolean),
                                 );
                                 setRealm({ ...realm });
                             }, 500);
@@ -515,6 +517,18 @@ export const RealmForm = ({ existingName }: { existingName?: string }) => {
                     classNameArg={`top_spaced ${valid ? "active" : "inactive"}`}
                     onClick={async () => {
                         if (!valid) return;
+                        // The inputs are debounced for the live preview; make
+                        // sure the submitted lists match what is in the text
+                        // fields even if SAVE is clicked before the debounce.
+                        if (controllersString.trim())
+                            realm.controllers = await userNameToIds(
+                                controllersString
+                                    .split(/[,\s]+/)
+                                    .filter(Boolean),
+                            );
+                        realm.whitelist = await userNameToIds(
+                            whitelistString.split(/[,\s]+/).filter(Boolean),
+                        );
                         realm.theme = JSON.stringify(theme) || "";
                         const response = await window.api.call<any>(
                             editing ? "edit_realm" : "create_realm",
@@ -759,7 +773,10 @@ export const Realms = () => {
     React.useEffect(() => {
         setLoading(true);
         clearTimeout(timer);
-        timer = setTimeout(() => loadRealms(), 500);
+        timer = setTimeout(() => {
+            if (page != 0) setPage(0);
+            else loadRealms();
+        }, 500);
     }, [filter]);
 
     const user = window.user;

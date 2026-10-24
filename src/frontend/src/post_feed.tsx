@@ -14,7 +14,6 @@ export const PostFeed = ({
     highlighted,
     useList,
     journal,
-    refreshRateSecs = 0,
 }: {
     classNameArg?: string;
     focusedPost?: PostId;
@@ -30,38 +29,27 @@ export const PostFeed = ({
     highlighted?: PostId[];
     useList?: boolean;
     journal?: boolean;
-    refreshRateSecs?: number;
 }) => {
     const [page, setPage] = React.useState(0);
     const [offset, setOffset] = React.useState(0);
     const [posts, setPosts] = React.useState<Post[]>([]);
-    const [loading, setLoading] = React.useState(false);
+    const [loading, setLoading] = React.useState(true);
     const [displayPageFlipper, setPageVlipperVisibility] =
         React.useState(!thread);
-    const [refreshBeat, setRefreshBeat] = React.useState(0);
-
-    React.useEffect(() => {
-        if (!refreshRateSecs) return;
-        const t = setTimeout(async () => {
-            if (
-                Number(new Date()) - Number(window.lastActivity) >=
-                refreshRateSecs * 1000
-            ) {
-                setRefreshBeat(refreshBeat + 1);
-            }
-        }, refreshRateSecs * 1000);
-        return () => clearTimeout(t);
-    }, [refreshBeat, refreshRateSecs]);
+    const reqId = React.useRef(0);
 
     const loadPage = async (page: number) => {
-        // only show the loading indicator on the first load and while flipping
-        // pages (to prevent double loads); auto-refreshes don't blank the feed
-        setLoading(page > 0 || refreshBeat == 0);
+        const id = ++reqId.current;
+        // Only show the loading indicator while flipping pages; the first
+        // load already starts with `loading` set.
+        if (page > 0) setLoading(true);
         const loadedPosts = await feedLoader(
             page,
             page == 0 ? 0 : offset,
             !!includeComments,
         );
+        // Drop the response if a newer load has started meanwhile.
+        if (id !== reqId.current) return;
         if (!loadedPosts) {
             setLoading(false);
             return;
@@ -78,7 +66,7 @@ export const PostFeed = ({
         setPage(0);
         loadPage(0);
         setPageVlipperVisibility(!thread);
-    }, [heartbeat, refreshBeat]);
+    }, [heartbeat]);
 
     const itemRenderer = (
         post: Post,

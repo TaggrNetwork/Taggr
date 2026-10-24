@@ -2,6 +2,7 @@ import * as React from "react";
 import {
     ButtonWithLoading,
     commaSeparated,
+    confirmPopUp,
     HeadBar,
     handleError,
     showPopUp,
@@ -216,6 +217,16 @@ const DomainForm = ({
                     classNameArg="max_width_col"
                     label="REMOVE"
                     onClick={async () => {
+                        if (
+                            !(await confirmPopUp(
+                                `Remove the configuration of ${domain}? This cannot be undone.`,
+                                {
+                                    confirmLabel: "REMOVE",
+                                    cancelLabel: "CANCEL",
+                                },
+                            ))
+                        )
+                            return;
                         const response = await window.api.call<any>(
                             "set_domain_config",
                             domain,
