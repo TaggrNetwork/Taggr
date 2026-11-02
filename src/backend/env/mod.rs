@@ -127,6 +127,7 @@ pub struct TokenStats {
     e8s_revenue_per_1k: u64,
     active_users_vp: u64,
     last_weekly_chores: u64,
+    bridged_out: Token,
     balances: Vec<(Account, Token, Option<UserId>, bool)>,
 }
 
@@ -246,6 +247,9 @@ pub struct State {
 
     #[serde(default)]
     pub eth_public_key: Vec<u8>,
+
+    #[serde(default)]
+    pub eth_bridge: ethereum::EthBridge,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -657,6 +661,7 @@ impl State {
         if self.auction.amount == 0 {
             self.auction.amount = CONFIG.weekly_auction_size_tokens_max;
         }
+        self.refresh_signing_fee();
         self.last_upgrade = time();
         self.timers.last_hourly = time();
     }
@@ -1533,6 +1538,7 @@ impl State {
         mutate(|state| {
             state.distribution_reports.clear();
             state.distribute_realm_revenue(now);
+            state.refresh_signing_fee();
         });
 
         #[cfg(not(feature = "dev"))] // don't create rewards in e2e tests
@@ -2418,11 +2424,27 @@ impl State {
         self.users.get_mut(id)
     }
 
-    /// All tokens in existence.
-    pub fn total_supply(&self) -> Token {
+    /// Like `principal_to_user`, but also resolves cold wallet principals.
+    pub fn principal_to_user_or_cold_wallet(&self, principal: Principal) -> Option<&User> {
+        self.principal_to_user(principal).or_else(|| {
+            self.cold_wallets
+                .get(&principal)
+                .and_then(|id| self.users.get(id))
+        })
+    }
+
+    /// Sum of the IC balances, excluding tokens burned into the bridge.
+    pub fn circulating_supply(&self) -> Token {
         self.balances
             .values()
             .fold(0, |total, balance| total.saturating_add(*balance))
+    }
+
+    /// IC balances plus everything burned into the Ethereum bridge. This is the
+    /// supply that counts against `CONFIG.maximum_supply`.
+    pub fn total_supply(&self) -> Token {
+        self.circulating_supply()
+            .saturating_add(self.eth_bridge.bridged_out)
     }
 
     /// How many tokens can still be minted without exceeding the maximum supply.
@@ -2544,7 +2566,7 @@ impl State {
             invited_users,
             active_users,
             active_users_vp: active_users_vp / token::base(),
-            circulating_supply: self.total_supply(),
+            circulating_supply: self.circulating_supply(),
         }
     }
 
@@ -2553,11 +2575,7 @@ impl State {
         let mut active_balances: Vec<(UserId, Token)> = Vec::new();
         let mut entries: Vec<(Account, Token, Option<UserId>, bool)> = Vec::new();
         for (acc, balance) in &self.balances {
-            let user = self.principal_to_user(acc.owner).or_else(|| {
-                self.cold_wallets
-                    .get(&acc.owner)
-                    .and_then(|id| self.users.get(id))
-            });
+            let user = self.principal_to_user_or_cold_wallet(acc.owner);
             let (user_id, active) = match user {
                 Some(u) => {
                     held_by_users += balance;
@@ -2613,7 +2631,7 @@ impl State {
         let volume_week = last_week_txs.into_iter().map(|(_, tx)| tx.amount).sum();
 
         TokenStats {
-            circulating_supply: self.total_supply(),
+            circulating_supply: self.circulating_supply(),
             holders: self.balances.len(),
             held_by_users,
             nakamoto_coefficient,
@@ -2631,6 +2649,7 @@ impl State {
                 .sum::<Token>()
                 / token::base(),
             last_weekly_chores: self.timers.last_weekly,
+            bridged_out: self.eth_bridge.bridged_out,
             balances: entries,
         }
     }
@@ -4637,8 +4656,26 @@ pub(crate) mod tests {
             );
             assert!(token::mint(state, account(pr(2)), token::base(), "").is_ok());
             state.minting_mode = false;
-            assert_eq!(state.total_supply(), CONFIG.maximum_supply);
+            assert_eq!(state.circulating_supply(), CONFIG.maximum_supply);
             assert_eq!(state.remaining_supply(), 0);
+        });
+    }
+
+    #[test]
+    fn supply_helpers_include_the_bridged_amount() {
+        mutate(|state| {
+            state.init();
+            create_user(state, pr(1));
+            insert_balance(state, pr(1), 10 * token::base());
+            let circulating = state.circulating_supply();
+            assert!(circulating >= 10 * token::base());
+
+            state.eth_bridge.bridged_out = 7 * token::base();
+            assert_eq!(state.total_supply(), circulating + 7 * token::base());
+            assert_eq!(
+                state.remaining_supply(),
+                CONFIG.maximum_supply - circulating - 7 * token::base()
+            );
         });
     }
 }

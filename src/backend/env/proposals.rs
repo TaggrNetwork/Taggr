@@ -332,10 +332,8 @@ impl Payload {
                 }
             }
             Payload::Funding(_, tokens) => {
-                if current_supply >= CONFIG.maximum_supply {
-                    return Err(
-                        "no funding is allowed when the current supply is above maximum".into(),
-                    );
+                if current_supply.saturating_add(*tokens) > CONFIG.maximum_supply {
+                    return Err("the funding would exceed the maximum supply".into());
                 }
                 let max_funding_amount = CONFIG.max_funding_amount;
                 if *tokens > max_funding_amount {
@@ -542,12 +540,9 @@ pub mod tests {
         mutate(|state| {
             state.init();
             create_user(state, pr(1));
-            // The supply is almost exhausted.
-            insert_balance(
-                state,
-                pr(1),
-                CONFIG.maximum_supply - 5 * token::base() + 3 * token::base(),
-            );
+            // Bridging accounts for most of the supply.
+            state.eth_bridge.bridged_out = CONFIG.maximum_supply - 5 * token::base();
+            insert_balance(state, pr(1), 3 * token::base());
 
             assert_eq!(
                 mint_tokens(state, pr(1), 3 * token::base(), "test"),
@@ -555,6 +550,17 @@ pub mod tests {
             );
             assert_eq!(mint_tokens(state, pr(1), 2 * token::base(), "test"), Ok(()));
             assert_eq!(state.total_supply(), CONFIG.maximum_supply);
+        });
+    }
+
+    #[test]
+    fn funding_is_rejected_when_bridging_accounts_for_the_cap() {
+        mutate(|state| {
+            state.init();
+            create_user(state, pr(1));
+            state.eth_bridge.bridged_out = CONFIG.maximum_supply - token::base();
+            let payload = Payload::Funding(pr(1), 2 * token::base());
+            assert!(payload.validate(state).is_err());
         });
     }
 
@@ -997,7 +1003,7 @@ pub mod tests {
             let funding_payload = Payload::Funding(pr(2), 1000);
             assert_eq!(
                 funding_payload.validate(state),
-                Err("no funding is allowed when the current supply is above maximum".into())
+                Err("the funding would exceed the maximum supply".into())
             );
 
             // Remove maxed supply and test

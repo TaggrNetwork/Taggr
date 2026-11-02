@@ -356,7 +356,24 @@ export type TokenStats = {
     e8s_revenue_per_1k: BigInt;
     active_users_vp: number;
     last_weekly_chores: BigInt;
+    bridged_out: number;
     balances: [Account, number, UserId, boolean][];
+};
+
+export type EthMintRecipe = {
+    index: number;
+    user_id: number;
+    eth_address: string;
+    amount: number;
+    burn_block: number;
+    signature: number[];
+};
+
+export type EthConfig = {
+    token_address: string;
+    chain_id: number;
+    fee_credits: number;
+    min_amount: number;
 };
 
 export type Config = {

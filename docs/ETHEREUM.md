@@ -6,22 +6,22 @@ TAGGR moves to an ERC20 on Ethereum L1. Phase 1 is the token and a one-way IC �
 
 ## Decisions
 
-| Topic                 | Decision                                                               |
-| --------------------- | ---------------------------------------------------------------------- |
-| L1                    | Ethereum mainnet only (chain id 1)                                     |
-| Digest scheme         | EIP-712                                                                |
-| Recipe deadline       | None — replay protection is the index bitmask                          |
-| Role-change signing   | Deferred to the governance phase; no user-reachable signing in phase 1 |
-| Decimals / max supply | 18 decimals, `MAX_SUPPLY = 1e24` wei (1,000,000 TAGGR)                 |
-| Bridge economics      | Fee-free, minimum 1 TAGGR                                              |
-| Controller change     | Two-step nominate/accept                                               |
-| Frontend              | Out of scope; any external UI/relayer uses the canister API            |
+| Topic                 | Decision                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| L1                    | Ethereum mainnet only (chain id 1)                                                     |
+| Digest scheme         | EIP-712                                                                                |
+| Recipe deadline       | None — replay protection is the mint index bitmask, controller nominations use a nonce |
+| Role-change signing   | Deferred to the governance phase; no user-reachable signing in phase 1                 |
+| Decimals / max supply | 18 decimals, `MAX_SUPPLY = 1e24` wei (1,000,000 TAGGR)                                 |
+| Bridge economics      | No protocol fee; signing cycles charged at cost in credits; minimum 1 TAGGR            |
+| Controller change     | Two-step nominate/accept                                                               |
+| Frontend              | In-app `/ethereum` page with an injected EIP-1193 wallet; no relayer or WalletConnect  |
 
 ## Canister EOA
 
 Implemented: secp256k1, key `CONFIG.ecdsa_key_name` (`dfx_test_key` dev, `key_1` mainnet), derivation path `b"ethereum"` (`src/backend/env/ethereum.rs`), address cached in state and exposed via `eth_address`.
 
-Signing endpoint (to build):
+Signing endpoint (implemented):
 
 -   `sign_with_ecdsa` through `canisters::call_canister_with_payment` (upgrade guard), attaching `ic_cdk::api::cost_sign_with_ecdsa`.
 -   Signs only canister-constructed digests. No `sign(hash)` endpoint; that would be a signing oracle for the EOA.
@@ -30,24 +30,24 @@ Signing endpoint (to build):
 
 ## Token contract
 
-Immutable ERC20 on OpenZeppelin; no proxy, pause, fees or burn. 18 decimals, `MAX_SUPPLY = 1e24` wei. `mint` is minter-only; `controller` sets the minter and transfers control two-step (`nominateController` / `acceptController`). `mintWithAuthorization(to, amount, index, sig)` and `nominateControllerWithAuthorization(candidate, sig)` are permissionless (anyone may relay) and verify EIP-712 signatures against the current role holder; the latter is reserved for a later handover.
+Immutable ERC20 on OpenZeppelin; no proxy, pause or fees; `burn(amount)` is self-only and reduces `totalSupply`, so explorer supply accounting stays on-chain. 18 decimals, `MAX_SUPPLY = 1e24` wei. `mint` is minter-only; `controller` sets the minter and transfers control two-step (`nominateController` / `acceptController`). `mintWithAuthorization(to, amount, index, sig)` and `nominateControllerWithAuthorization(candidate, nonce, sig)` are permissionless (anyone may relay) and verify EIP-712 signatures against the current role holder; the latter is reserved for a later handover.
 
-Replay protection is a bitmask over the canister-assigned, monotonically increasing recipe `index`; each signature is stored with its recipe, and a failed signing consumes only the index. One slot covers 256 mints. Events: `MinterChanged`, `ControllerNominated`, `ControllerChanged`.
+Replay protection for mints is a bitmask over the canister-assigned, monotonically increasing recipe `index`; each signature is stored with its recipe, and a failed signing consumes only the index. One slot covers 256 mints. Controller nominations do not use indices: they carry `nominationNonce`, the controller generation, which moves on every nomination and on every `acceptController`, so a nomination signature is single use and never shares state with mint recipes. Events: `MinterChanged`, `ControllerNominated`, `ControllerChanged`.
 
 ## Digest
 
-EIP-712 domain: name `TAGGR`, version `1`, chainId `1`, `verifyingContract` = token. Mint struct: `Mint(address to, uint256 amount, uint256 index)`. No deadline: the index prevents reuse, the recipient is fixed, and a minter rotation invalidates pending signatures (drain recipes before rotating). 1 IC base unit = `1e16` wei.
+EIP-712 domain: name `TAGGR`, version `1`, chainId `1`, `verifyingContract` = token. Mint struct: `Mint(address to, uint256 amount, uint256 index)`. Nomination struct: `NominateController(address candidate, uint256 nonce)`. No deadline: the index and the nomination nonce prevent reuse, the recipient and candidate are fixed, and a minter or controller rotation invalidates pending signatures (drain recipes before rotating). 1 IC base unit = `1e16` wei.
 
 ## Bridge
 
-`EthMintRecipe { index, principal, eth_address, amount, burn_block, signature }` in stable state, never `#[serde(skip)]`. `bridge_out(amount, eth_address)` is authenticated: validate the address and the minimum (1 TAGGR), reserve the index, build the digest, await `sign_with_ecdsa`, then atomically burn (fee 0), store the recipe with its signature and return both, so a stored recipe always has a matching burn. `bridge_recipe(index)` is a public query. Signatures are never re-issued; a failed signing burns nothing and costs only an index, and a retry costs one signature. The burn inherits existing escrow and emergency-vote locks (`token.rs:440`, `:496`).
+`EthMintRecipe { index, user_id, eth_address, amount, burn_block, signature }` in stable state, never `#[serde(skip)]`; every field has a `serde` default so recipes and the bridge state stay readable when fields are added. `bridge_out(amount, eth_address)` is authenticated: validate the address and the minimum (1 TAGGR), refuse the caller while an emergency-proposal vote is registered or while the caller has an open proposal (which locks tokens), then check the balance, charge the signing fee, reserve the index, build the digest, await `sign_with_ecdsa`, then atomically burn (fee 0), store the recipe with its signature and return both, so a stored recipe always has a matching burn. The fee is exactly the cycle cost of one signature, so it is charged off the revenue ledger (not `State::charge`): counting it as revenue would distribute ICP the canister also pays for the signature. The fee is charged before signing and is not refunded: it pays for the signature attempt, so a failed signing or a failed burn costs an index and the fee but produces no recipe. `eth_recipes` returns the caller's recipes, `bridge_recipe(index)` is a public query. The caller must be a registered user or one of its cold wallet principals; balances on subaccounts are not bridgeable. The burn inherits existing escrow and emergency-vote locks (`token.rs:440`, `:496`).
 
-Supply: `ic_total_supply + bridged_out + new_mint <= maximum_supply`, with `bridged_out` cumulative and persisted, enforced at weekly mining, auction close and Funding/Rewards execution; `bridged_out` exposed in `token_stats`.
+Supply: `ic_total_supply + bridged_out + new_mint <= maximum_supply`, computed once by `State::total_supply` / `remaining_supply`, with `bridged_out` cumulative and persisted. Enforced at weekly mining, founder vesting, auction close and Funding/Rewards execution; `TokenStats::circulating_supply` stays IC-only and `bridged_out` is exposed next to it.
 
 ## Deployment, testing, risks
 
--   Mainnet; the token constructor sets `minter` and `controller` to the canister EOA; phase 2 hands the controller to the stake contract via the reserved signed nomination. Verified source; cycles budgeted; no frontend shipped.
--   Foundry: mint paths, index reuse, wrong signer, cap, two-step controller, nominate-with-signature, events. Rust: shared digest vectors, recipe persistence, supply invariant, min amount, address validation, failed-signing retry. E2E: local IC (`dfx_test_key`) + Anvil.
+-   Mainnet; the token constructor sets `minter` and `controller` to the canister EOA; phase 2 hands the controller to the stake contract via the reserved signed nomination, which must be signed against the current `nominationNonce()` and relayed promptly, since any nomination moves the nonce and makes it stale. Verified source; cycles budgeted; desktop-only injected-wallet UI on `/ethereum`.
+-   Foundry: mint paths, index reuse, wrong signer, cap, two-step controller, signed nomination (single use, stale after a direct nomination and after a handover), events. Rust: digest vector, signature normalisation and recovery, address parsing and fee conversion, bridge pre-checks (user, cold wallet, key readiness, balance, locks) and the supply cap (`total_supply`, `mint_tokens`, Funding validation). E2E: **not implemented yet**. Nothing exercises a canister signature against a deployed `TaggrToken`, so the two suites above cover the wire format only from their own side. Also unverified: the local replica's `cost_sign_with_ecdsa("dfx_test_key")` cost — if it reports zero cycles, the `fee == 0` guard in `bridge_out` refuses every dev bridge. The `dev` build points at Anvil (`chain id 31337`, token `0x5FbDB2315678afecb367f032d93F642f64180aa3`).
 -   Risks: trusted peg until governance (canister can mint to the cap); the contract cannot verify IC burns, the signature is the sole proof; canister key loss breaks the peg; a backup/restore index regression makes one recipe unmintable (fails safe, no double mint); immutable, bugs are fixed by migration.
 
 # Phase 2 — Stake contract and L1 voting power

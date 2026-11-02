@@ -494,6 +494,37 @@ fn eth_address() {
     read(|state| reply(address_from_public_key(&state.eth_public_key).unwrap_or_default()))
 }
 
+#[export_name = "canister_query eth_config"]
+fn eth_config() {
+    reply(env::ethereum::eth_config());
+}
+
+#[export_name = "canister_query eth_recipes"]
+fn eth_recipes() {
+    read(|state| {
+        let principal = caller(state);
+        let recipes = state
+            .principal_to_user_or_cold_wallet(principal)
+            .map(|user| {
+                state
+                    .eth_bridge
+                    .recipes
+                    .values()
+                    .filter(|recipe| recipe.user_id == user.id)
+                    .cloned()
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        reply(recipes);
+    });
+}
+
+#[export_name = "canister_query bridge_recipe"]
+fn bridge_recipe() {
+    let index: u64 = parse(&arg_data_raw());
+    read(|state| reply(state.eth_bridge.recipes.get(&index).cloned()));
+}
+
 #[export_name = "canister_query search"]
 fn search() {
     let (domain, query): (String, String) = parse(&arg_data_raw());

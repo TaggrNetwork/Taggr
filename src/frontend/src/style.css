@@ -164,6 +164,10 @@ h5 {
     font-size: var(--text-xs);
 }
 
+.section_heading {
+    margin: var(--space-4) 0 var(--space-2);
+}
+
 .monospace *,
 .monospace {
     font-family: var(--font-mono);
@@ -205,6 +209,10 @@ select {
     background: $dark_background;
     border: none;
     font-size: var(--text-base);
+}
+
+.short_input {
+    width: 10em;
 }
 
 .grid_column {
