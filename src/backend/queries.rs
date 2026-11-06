@@ -520,6 +520,13 @@ fn realm_search() {
     })
 }
 
+/// Prose (markdown) guide to calling this canister: units, authentication,
+/// costs, lifecycle and gotchas. Discoverable through `candid:service`.
+#[query]
+fn get_api_doc() -> String {
+    include_str!("../frontend/assets/SKILL.md").to_string()
+}
+
 #[query]
 fn bucket_wasm() -> Blob {
     ByteBuf::from(env::bucket::BUCKET_WASM_GZ.to_vec())

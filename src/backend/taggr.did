@@ -134,6 +134,7 @@ service : () -> {
       Result_1,
     );
   force_emergency_upgrade : () -> (bool);
+  get_api_doc : () -> (text) query;
   get_neuron_info : () -> (Result_2);
   get_transactions : (GetBlocksRequest) -> (GetTransactionsResponse) query;
   http_request : (HttpRequest) -> (HttpResponse) query;

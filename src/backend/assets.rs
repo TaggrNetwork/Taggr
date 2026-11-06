@@ -123,6 +123,24 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
         .to_vec(),
     );
 
+    // Service discoverability: declare the app's composition so an agent handed
+    // only the origin can find the canister and its API.
+    add_asset(
+        &["/.well-known/ic-architecture"],
+        vec![("Content-Type".into(), "application/json".into())],
+        serde_json::json!({
+            "version": "1.0.0",
+            "canisters": [{
+                "id": id().to_string(),
+                "name": "taggr",
+                "role": "the app: frontend assets, social network API and ICRC-1 token",
+                "description": "call get_api_doc() first; most query methods take and return JSON, not Candid",
+            }],
+        })
+        .to_string()
+        .into_bytes(),
+    );
+
     add_asset(
         &["/.well-known/ii-auth-callbacks"],
         vec![
@@ -263,6 +281,13 @@ mod tests {
         assert!(headers.contains(&("Content-Type".into(), "text/markdown".into())));
         assert!(String::from_utf8_lossy(&body).contains("name: taggr"));
         assert_ne!(asset_hashes().get(b"/SKILL.md"), None);
+
+        let (headers, body) = asset("/.well-known/ic-architecture").expect("manifest");
+        assert!(headers.contains(&("Content-Type".into(), "application/json".into())));
+        let value: serde_json::Value = serde_json::from_slice(&body).expect("valid manifest JSON");
+        assert_eq!(value["version"], "1.0.0");
+        assert_eq!(value["canisters"][0]["id"], "6qfxa-ryaaa-aaaai-qbhsq-cai");
+        assert_ne!(asset_hashes().get(b"/.well-known/ic-architecture"), None);
 
         let (_, body) = asset("/.well-known/apple-app-site-association").expect("AASA");
         let value: serde_json::Value = serde_json::from_slice(&body).expect("valid AASA JSON");
