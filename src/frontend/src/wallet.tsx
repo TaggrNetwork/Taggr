@@ -15,7 +15,7 @@ import {
     tokens,
     ICP_DEFAULT_FEE,
     handleError,
-    showPopUp,
+    errorText,
     onCanonicalDomain,
     UnavailableOnCustomDomains,
 } from "./common";
@@ -27,6 +27,7 @@ const coldWalletFunctionalityAvailable = window.ic && window.ic.plug;
 
 export const Wallet = () => {
     const [user, setUser] = React.useState(window.user);
+    const [walletError, setWalletError] = React.useState("");
     const principalAddress = React.useMemo(
         () => Principal.fromText(user.principal),
         [user.principal],
@@ -54,6 +55,11 @@ export const Wallet = () => {
                     account displayed below and press the MINT button.
                 </div>
             )}
+            {walletError && (
+                <div className="error bottom_spaced" role="alert">
+                    {walletError}
+                </div>
+            )}
             <div className="column_container">
                 <div className="row_container bottom_spaced">
                     <div className="max_width_col">Principal</div>
@@ -67,7 +73,7 @@ export const Wallet = () => {
                     </code>
                 </div>
                 <div className="row_container">
-                    <div className="max_width_col">ICP Account</div>
+                    <div className="max_width_col">ICP account</div>
                     <code>
                         <CopyToClipboard
                             value={user.account}
@@ -87,20 +93,21 @@ export const Wallet = () => {
                 <h2 className="max_width_col">ICP</h2>
                 {Number(user.treasury_e8s) > 0 && (
                     <ButtonWithLoading
-                        label="WITHDRAW REWARDS"
+                        label="Withdraw rewards"
                         onClick={async () => {
                             let result =
                                 await window.api.call<any>("withdraw_rewards");
-                            handleError(result);
+                            handleError(result, undefined, setWalletError);
                             await window.reloadUser();
                             setUser(window.user);
                         }}
                     />
                 )}
                 <ButtonWithLoading
-                    label="SEND"
+                    label="Send"
                     testId="icp-transfer-button"
                     onClick={async () => {
+                        setWalletError("");
                         try {
                             const recipient =
                                 (
@@ -136,7 +143,13 @@ export const Wallet = () => {
                                         recipient,
                                         amount,
                                     );
-                                if (handleError(response, "Transfer failed"))
+                                if (
+                                    handleError(
+                                        response,
+                                        "Transfer failed",
+                                        setWalletError,
+                                    )
+                                )
                                     console.error(response);
                                 await window.reloadUser();
                                 setUser(window.user);
@@ -154,14 +167,11 @@ export const Wallet = () => {
                                 response === null ||
                                 Number.isNaN(Number(response))
                             )
-                                showPopUp(
-                                    "error",
-                                    `Transfer failed: ${response}`,
-                                );
+                                setWalletError(`Transfer failed: ${response}`);
                             await window.reloadUser();
                             setUser(window.user);
                         } catch (e) {
-                            showPopUp("error", `${e}`, 5);
+                            setWalletError(errorText(e));
                         }
                     }}
                 />
@@ -189,8 +199,9 @@ export const Wallet = () => {
             <div className="vcentered">
                 <h2 className="max_width_col">Credits</h2>
                 <ButtonWithLoading
-                    label="MINT"
+                    label="Mint"
                     onClick={async () => {
+                        setWalletError("");
                         const future_invoice = window.api.call<any>(
                             "mint_credits_with_icp",
                             0,
@@ -205,8 +216,7 @@ export const Wallet = () => {
                             )) || "0",
                         );
                         if (Number(kilo_credits) > maxKilos) {
-                            showPopUp(
-                                "error",
+                            setWalletError(
                                 `You can't mint more than ${
                                     1000 * maxKilos
                                 } credits at once.`,
@@ -220,7 +230,14 @@ export const Wallet = () => {
                             return;
                         }
                         const invoice_result = await future_invoice;
-                        if (handleError(invoice_result)) return;
+                        if (
+                            handleError(
+                                invoice_result,
+                                undefined,
+                                setWalletError,
+                            )
+                        )
+                            return;
                         const { account, e8s } = invoice_result.Ok;
                         const userSubaccount = hex(account);
                         const amount = Number(e8s) * kilo_credits;
@@ -229,18 +246,17 @@ export const Wallet = () => {
                             amount,
                         );
                         if (!response || "Err" in response) {
-                            showPopUp(
-                                "error",
+                            setWalletError(
                                 `Couldn't transfer ICP for minting. Make sure you have at least ${tokens(
                                     amount + ICP_DEFAULT_FEE,
                                     8,
                                 )} ICP on your wallet and try again.`,
-                                7,
                             );
                             return;
                         }
                         const result: any = await mintCredits(kilo_credits);
-                        if (handleError(result)) return;
+                        if (handleError(result, undefined, setWalletError))
+                            return;
                         const invoice = result.Ok;
                         if (invoice.paid) {
                             await window.reloadUser();
@@ -265,11 +281,14 @@ export const Wallet = () => {
                             const response = await actor.link_cold_wallet(
                                 window.user.id,
                             );
-                            if (handleError(response)) return;
+                            if (
+                                handleError(response, undefined, setWalletError)
+                            )
+                                return;
                             await window.reloadUser();
                             setUser(window.user);
                         }}
-                        label="LINK COLD WALLET"
+                        label="Link cold wallet"
                     />
                 )}
                 {user.cold_wallet && (
@@ -285,17 +304,21 @@ export const Wallet = () => {
                                 return;
                             const response: any =
                                 await window.api.unlink_cold_wallet();
-                            if (handleError(response)) return;
+                            if (
+                                handleError(response, undefined, setWalletError)
+                            )
+                                return;
                             await window.reloadUser();
                             setUser(window.user);
                         }}
-                        label="UNLINK COLD WALLET"
+                        label="Unlink cold wallet"
                     />
                 )}
                 <ButtonWithLoading
-                    label="SEND"
+                    label="Send"
                     testId="tokens-transfer-button"
                     onClick={async () => {
+                        setWalletError("");
                         const response = await icrcTransfer(
                             Principal.fromText(CANISTER_ID),
                             token_symbol,
@@ -304,7 +327,7 @@ export const Wallet = () => {
                         );
                         if (response === undefined) return; // cancelled
                         if (response === null || Number.isNaN(Number(response)))
-                            showPopUp("error", response as string);
+                            setWalletError(String(response));
                         await window.reloadUser();
                         setUser(window.user);
                     }}
@@ -322,7 +345,7 @@ export const Wallet = () => {
             </div>
             {user.cold_wallet && (
                 <div className="row_container vcentered">
-                    <div className="max_width_col">Cold Wallet</div>
+                    <div className="max_width_col">Cold wallet</div>
                     <a
                         className="xx_large_text"
                         href={`#/transactions/${user.cold_wallet}`}

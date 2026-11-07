@@ -348,6 +348,18 @@ export const More = () => (
     </svg>
 );
 
+export const Ellipsis = ({ classNameArg }: { classNameArg?: string }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className={`vertically_aligned ${classNameArg}`}
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+    >
+        <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3m5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3m5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3" />
+    </svg>
+);
+
 export const Fire = () => (
     <svg
         xmlns="http://www.w3.org/2000/svg"

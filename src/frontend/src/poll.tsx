@@ -116,8 +116,8 @@ export const PollView = ({
             {vote != null && (!voted || revoteMode) && (
                 <div className="row_container">
                     {[
-                        ["SUBMIT ANONYMOUSLY", true],
-                        ["SUBMIT", false],
+                        ["Submit anonymously", true],
+                        ["Submit", false],
                     ].map(([label, anonymously]: any) => (
                         <ButtonWithLoading
                             key={label}
@@ -169,7 +169,7 @@ export const PollView = ({
                                     setRevoteMode(true);
                                 }}
                             >
-                                CHANGE VOTE
+                                Change vote
                             </a>
                         </>
                     )}
@@ -177,13 +177,13 @@ export const PollView = ({
             )}
             {expired && Object.keys(data.weighted_by_tokens).length == 0 && (
                 <span className="top_spaced small_text text_centered inactive">
-                    RESULTS ARE PENDING
+                    Results are pending
                 </span>
             )}
             {expired && Object.keys(data.weighted_by_tokens).length > 0 && (
                 <>
                     <h4 className="top_framed" style={{ paddingTop: "1em" }}>
-                        RESULTS BY VOTING POWER
+                        Results by voting power
                     </h4>
                     {Object.entries(data.weighted_by_tokens).map(
                         ([index, vp]: [string, number]) => (

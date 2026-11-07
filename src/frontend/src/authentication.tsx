@@ -177,7 +177,7 @@ export const LoginMasks = ({
                         {methods.map((method) => (
                             <div
                                 key={method.label}
-                                className="left_spaced right_spaced bottom_spaced"
+                                className="left_half_spaced right_spaced bottom_spaced"
                             >
                                 <ButtonWithLoading
                                     key={method.label}
@@ -277,6 +277,7 @@ export const SeedPhraseForm = ({
             >
                 <input
                     ref={field as unknown as any}
+                    aria-label="Seed phrase"
                     onChange={(e) => setValue(e.target.value)}
                     onKeyPress={async (e) => {
                         if (!confirmationRequired && e.charCode == 13) {
@@ -291,6 +292,7 @@ export const SeedPhraseForm = ({
                 />
                 {confirmationRequired && (
                     <input
+                        aria-label="Repeat seed phrase"
                         onChange={(e) => setConfirmedValue(e.target.value)}
                         className="max_width_col bottom_spaced"
                         type="password"
@@ -302,7 +304,7 @@ export const SeedPhraseForm = ({
                         <ButtonWithLoading
                             classNameArg="max_width_col"
                             onClick={signOutAndRestart}
-                            label="SIGN OUT"
+                            label="Sign out"
                         />
                     )}
                     <ButtonWithLoading
@@ -321,7 +323,7 @@ export const SeedPhraseForm = ({
                             }
                             await callback(value);
                         }}
-                        label="CONTINUE"
+                        label="Continue"
                     />
                 </div>
             </div>

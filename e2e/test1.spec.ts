@@ -163,10 +163,10 @@ test.describe("Upgrades & token transfer flow", () => {
         await page.getByTestId("token-balance").click();
         await page.getByRole("link", { name: "6qfxa" }).click();
         await expect(
-            page.getByRole("heading", { name: "TRANSACTIONS OF 6QFXA" }),
+            page.getByRole("heading", { name: "Transactions of 6qfxa" }),
         ).toBeVisible();
         await expect(
-            page.getByRole("heading", { name: "BALANCE: 5.00 TAGGR" }),
+            page.getByRole("heading", { name: "Balance: 5.00 TAGGR" }),
         ).toBeVisible();
     });
 
@@ -306,7 +306,7 @@ test.describe("Upgrades & token transfer flow", () => {
             async () => {
                 const commitField = await page
                     .locator("div")
-                    .filter({ hasText: /^GIT COMMIT$/ })
+                    .filter({ hasText: /^Git commit$/ })
                     .getByRole("textbox")
                     .isVisible()
                     .catch(() => false);
@@ -321,7 +321,7 @@ test.describe("Upgrades & token transfer flow", () => {
 
         await page
             .locator("div")
-            .filter({ hasText: /^GIT COMMIT$/ })
+            .filter({ hasText: /^Git commit$/ })
             .getByRole("textbox")
             .fill("coffeecoffeecoffee");
 
@@ -329,8 +329,8 @@ test.describe("Upgrades & token transfer flow", () => {
 
         await page.getByRole("button", { name: "SUBMIT" }).click();
         await waitForUILoading(page);
-        await expect(page.getByText(/STATUS.*OPEN/)).toBeVisible();
-        await expect(page.getByText("TYPE: RELEASE")).toBeVisible();
+        await expect(page.getByText(/Status.*Open/)).toBeVisible();
+        await expect(page.getByText("Type: Release")).toBeVisible();
 
         await handleDialog(
             page,
@@ -342,7 +342,7 @@ test.describe("Upgrades & token transfer flow", () => {
         );
         await waitForUILoading(page);
 
-        await expect(page.getByText(/STATUS.*EXECUTED/)).toBeVisible();
+        await expect(page.getByText(/Status.*Executed/)).toBeVisible();
 
         exec("icp canister call taggr chores '()'");
         await waitForUILoading(page, { timeout: 5000 });
@@ -380,8 +380,7 @@ test.describe("Upgrades & token transfer flow", () => {
             await waitForUILoading(page);
             const icrcWalletEnableSelect = page.getByTestId("ic-wallet-select");
             await expect(icrcWalletEnableSelect).toBeVisible();
-            await icrcWalletEnableSelect.selectOption("YES");
-            await icrcWalletEnableSelect.selectOption("YES");
+            await icrcWalletEnableSelect.selectOption("true");
 
             await withSettledUpdates(page, () =>
                 page.getByRole("button", { name: "SAVE" }).click(),

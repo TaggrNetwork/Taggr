@@ -41,13 +41,27 @@ export enum ProposalType {
     Release = "RELEASE",
 }
 
+// Enum values are API payloads; only the labels are sentence case.
+const PROPOSAL_TYPE_LABELS: { [type: string]: string } = {
+    [ProposalType.ICPTransfer]: "ICP transfer",
+    [ProposalType.AddRealmController]: "Add realm controller",
+    [ProposalType.Funding]: "Funding",
+    [ProposalType.Rewards]: "Rewards",
+    [ProposalType.Release]: "Release",
+    ALL: "All",
+    "REALM CONTROLLER": "Realm controller",
+};
+
+export const proposalTypeLabel = (type: string) =>
+    PROPOSAL_TYPE_LABELS[type] || type;
+
 export const Proposals = () => {
     const [selectedType, setSelectedType] = React.useState("ALL");
 
     return (
         <>
             <HeadBar
-                title="PROPOSALS"
+                title="Proposals"
                 shareLink="proposals"
                 menu={true}
                 burgerTestId="proposals-burger-button"
@@ -62,11 +76,13 @@ export const Proposals = () => {
                     "REALM CONTROLLER",
                     "ICP TRANSFER",
                 ]}
+                labels={PROPOSAL_TYPE_LABELS}
                 activeTab={selectedType}
                 onTabChange={setSelectedType}
             />
             <PostFeed
                 key={selectedType}
+                emptyMessage="No proposals yet."
                 useList={true}
                 feedLoader={async (page) =>
                     await window.api.query("proposals", page, selectedType)
@@ -93,7 +109,7 @@ const ProposalForm = ({}) => {
 
     return (
         <>
-            <h2>New Proposal Form</h2>
+            <h2>New proposal form</h2>
             {onCanonicalDomain() ? (
                 userBalance >= balance ? (
                     <Form
@@ -216,10 +232,11 @@ export const ProposalMask = ({
             {proposalType == ProposalType.AddRealmController && (
                 <div className="spaced column_container">
                     <div className="vcentered bottom_half_spaced">
-                        NEW CONTROLLER
+                        New controller
                         <input
+                            aria-label="New controller"
                             type="text"
-                            className="left_spaced max_width_col"
+                            className="left_half_spaced max_width_col"
                             value={userName}
                             onChange={async (ev) => {
                                 setUserName(ev.target.value);
@@ -227,10 +244,11 @@ export const ProposalMask = ({
                         />
                     </div>
                     <div className="vcentered bottom_half_spaced">
-                        REALM
+                        Realm
                         <input
+                            aria-label="Realm"
                             type="text"
-                            className="left_spaced max_width_col"
+                            className="left_half_spaced max_width_col"
                             value={realmId}
                             onChange={async (ev) => {
                                 setRealmId(ev.target.value);
@@ -242,20 +260,22 @@ export const ProposalMask = ({
             {proposalType == ProposalType.ICPTransfer && (
                 <div className="spaced column_container">
                     <div className="vcentered bottom_half_spaced">
-                        ICP ADDRESS
+                        ICP address
                         <input
+                            aria-label="ICP address"
                             type="text"
-                            className="left_spaced max_width_col"
+                            className="left_half_spaced max_width_col"
                             onChange={async (ev) => {
                                 setReceiver(ev.target.value.toString());
                             }}
                         />
                     </div>
                     <div className="vcentered bottom_half_spaced">
-                        ICP AMOUNT
+                        ICP amount
                         <input
+                            aria-label="ICP amount"
                             type="text"
-                            className="left_spaced max_width_col"
+                            className="left_half_spaced max_width_col"
                             onChange={async (ev) => {
                                 setICPAmount(Number(ev.target.value));
                             }}
@@ -267,10 +287,11 @@ export const ProposalMask = ({
                 proposalType == ProposalType.Rewards) && (
                 <div className="spaced column_container">
                     <div className="vcentered bottom_half_spaced">
-                        PRINCIPAL
+                        Principal
                         <input
+                            aria-label="Principal"
                             type="text"
-                            className="left_spaced max_width_col"
+                            className="left_half_spaced max_width_col"
                             onChange={async (ev) => {
                                 setReceiver(ev.target.value);
                             }}
@@ -278,10 +299,11 @@ export const ProposalMask = ({
                     </div>
                     {proposalType == ProposalType.Funding && (
                         <div className="vcentered bottom_half_spaced">
-                            TOKEN AMOUNT
+                            Token amount
                             <input
+                                aria-label="Token amount"
                                 type="text"
-                                className="left_spaced max_width_col"
+                                className="left_half_spaced max_width_col"
                                 onChange={async (ev) => {
                                     setFundingAmount(Number(ev.target.value));
                                 }}
@@ -293,10 +315,11 @@ export const ProposalMask = ({
             {proposalType == ProposalType.Release && (
                 <div className="spaced column_container">
                     <div className="vcentered bottom_half_spaced">
-                        GIT COMMIT
+                        Git commit
                         <input
+                            aria-label="Git commit"
                             type="text"
-                            className="left_spaced max_width_col"
+                            className="left_half_spaced max_width_col"
                             onChange={async (ev) => {
                                 setCommit(ev.target.value);
                             }}
@@ -305,7 +328,7 @@ export const ProposalMask = ({
                     <div className="vcentered bottom_half_spaced">
                         BINARY{" "}
                         <FileUploadInput
-                            classNameArg="left_spaced max_width_col"
+                            classNameArg="left_half_spaced max_width_col"
                             callback={setBinary as unknown as any}
                         />
                     </div>
@@ -344,11 +367,11 @@ export const ProposalView = ({
     if (!proposal || status == 0) return <Loading />;
     // @ts-ignore
     if (proposal.payload == "Noop")
-        return <div className="banner">UNSUPPORTED PROPOSAL TYPE</div>;
+        return <div className="banner">Unsupported proposal type</div>;
 
     const statusEmoji = (status: string) => {
         return (
-            { OPEN: "✨", REJECTED: "🟥", CANCELLED: "❌", EXECUTED: "✅" }[
+            { Open: "✨", Rejected: "🟥", Cancelled: "❌", Executed: "✅" }[
                 status
             ] || <HourGlass />
         );
@@ -414,7 +437,7 @@ export const ProposalView = ({
             (adopted > rejected ? adopted / t : rejected / (100 - t)) * 100) /
             dailyDrop,
     );
-    const propStatus = proposal.status.toUpperCase();
+    const propStatus = proposal.status;
     return (
         <div
             key={proposal.timestamp.toString()}
@@ -425,7 +448,7 @@ export const ProposalView = ({
                 ID: <code>{proposal.id}</code>
             </div>
             <div className="bottom_half_spaced">
-                TYPE:{" "}
+                Type:{" "}
                 <strong>
                     {
                         // @ts-ignore
@@ -437,10 +460,10 @@ export const ProposalView = ({
                 PROPOSER: <UserLink id={proposal.proposer} />
             </div>
             <div className="bottom_half_spaced">
-                CREATED: {timeAgo(proposal.timestamp)}
+                Created: {timeAgo(proposal.timestamp)}
             </div>
             <div className="bottom_spaced">
-                STATUS: {statusEmoji(propStatus)}{" "}
+                Status: {statusEmoji(propStatus)}{" "}
                 <span className={open ? "accent" : undefined}>
                     {propStatus}
                 </span>
@@ -449,12 +472,12 @@ export const ProposalView = ({
                 <div className="bottom_spaced">
                     {commit && (
                         <div className="row_container bottom_half_spaced">
-                            <span>CODE LINKS:</span>
+                            <span>Code links:</span>
                             <a
                                 className="breakable left_half_spaced"
                                 href={`${REPO_COMMIT}/${proposal.payload.Release.commit}`}
                             >
-                                GIT COMMIT
+                                Git commit
                             </a>
                             {open && (
                                 <>
@@ -465,7 +488,7 @@ export const ProposalView = ({
                                         className="breakable left_half_spaced"
                                         href={`${REPO_COMPARE}/${window.backendCache.stats.last_release.commit}..${commit}`}
                                     >
-                                        DIFF WITH PREVIOUS RELEASE
+                                        Diff with previous release
                                     </a>
                                 </>
                             )}
@@ -473,7 +496,7 @@ export const ProposalView = ({
                     )}
                     {!open && (
                         <div className="row_container">
-                            <span>BUILD HASH:</span>
+                            <span>Build hash:</span>
                             <code className="left_half_spaced breakable">
                                 {hash}
                             </code>
@@ -484,11 +507,11 @@ export const ProposalView = ({
             {"AddRealmController" in proposal.payload && (
                 <>
                     <div className="bottom_half_spaced">
-                        NEW CONTROLLER:{" "}
+                        New controller:{" "}
                         <UserLink id={proposal.payload.AddRealmController[1]} />
                     </div>
                     <div className="bottom_spaced">
-                        REALM:{" "}
+                        Realm:{" "}
                         <a
                             href={`#/realm/${proposal.payload.AddRealmController[0]}`}
                         >
@@ -500,13 +523,13 @@ export const ProposalView = ({
             {"ICPTransfer" in proposal.payload && (
                 <>
                     <div className="bottom_half_spaced">
-                        RECEIVER:{" "}
+                        Receiver:{" "}
                         <code className="breakable">
                             {hex(proposal.payload.ICPTransfer[0])}
                         </code>
                     </div>
                     <div className="bottom_spaced">
-                        AMOUNT:{" "}
+                        Amount:{" "}
                         <code>
                             {tokens(
                                 Number(proposal.payload.ICPTransfer[1].e8s),
@@ -519,7 +542,7 @@ export const ProposalView = ({
             {"Rewards" in proposal.payload && (
                 <>
                     <div className="bottom_half_spaced">
-                        RECEIVER:{" "}
+                        Receiver:{" "}
                         <a
                             className="breakable"
                             href={`#/transactions/${proposal.payload.Rewards.receiver.toString()}`}
@@ -529,7 +552,7 @@ export const ProposalView = ({
                     </div>
                     {proposal.status == "Executed" && (
                         <div className="bottom_spaced">
-                            TOKENS MINTED:{" "}
+                            Tokens minted:{" "}
                             <code>
                                 {tokenBalance(proposal.payload.Rewards.minted)}
                             </code>
@@ -540,7 +563,7 @@ export const ProposalView = ({
             {"Funding" in proposal.payload && (
                 <>
                     <div className="bottom_half_spaced">
-                        RECEIVER:{" "}
+                        Receiver:{" "}
                         <a
                             className="breakable"
                             href={`#/transactions/${proposal.payload.Funding[0].toString()}`}
@@ -549,13 +572,13 @@ export const ProposalView = ({
                         </a>
                     </div>
                     <div className="bottom_spaced">
-                        AMOUNT:{" "}
+                        Amount:{" "}
                         <code>{tokenBalance(proposal.payload.Funding[1])}</code>
                     </div>
                 </>
             )}
             <div className="bottom_spaced">
-                EFFECTIVE VOTING POWER:{" "}
+                Effective voting power:{" "}
                 <code>{token(proposal.voting_power)}</code>
             </div>
             {open && !isNaN(days) && (
@@ -565,7 +588,7 @@ export const ProposalView = ({
             )}
             <div className="bottom_spaced">
                 <div className="bottom_half_spaced">
-                    ACCEPTED:{" "}
+                    Accepted:{" "}
                     <b
                         className={`right_half_spaced ${
                             adopted > rejected && open ? "accent" : undefined
@@ -585,7 +608,7 @@ export const ProposalView = ({
             </div>
             <div className="bottom_spaced">
                 <div className="bottom_half_spaced">
-                    REJECTED:{" "}
+                    Rejected:{" "}
                     <b
                         className={`right_half_spaced ${
                             adopted < rejected && open ? "accent" : undefined
@@ -617,12 +640,12 @@ export const ProposalView = ({
                                             )) && (await vote(proposal, false))
                                         }
                                         classNameArg="max_width_col"
-                                        label="REJECT"
+                                        label="Reject"
                                     />
                                     <ButtonWithLoading
                                         onClick={() => vote(proposal, true)}
                                         classNameArg="max_width_col"
-                                        label="ACCEPT"
+                                        label="Accept"
                                     />
                                 </div>
                             </>
@@ -643,7 +666,7 @@ export const ProposalView = ({
                                     await loadState();
                                 }}
                                 classNameArg="top_spaced max_width_col"
-                                label="CANCEL"
+                                label="Cancel"
                             />
                         )}
                     </>

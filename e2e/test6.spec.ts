@@ -130,8 +130,8 @@ test.describe("Principal change", () => {
         // "User not found" and signed the user out instead of confirming the
         // pending change. The account (with its name) must now be reachable.
         await page.getByTestId("toggle-user-section").click();
-        await expect(
-            page.getByRole("link", { name: /.*MIGRATOR.*/ }),
-        ).toBeVisible();
+        await expect(page.getByTestId("menu-profile-link")).toHaveText(
+            /migrator/i,
+        );
     });
 });

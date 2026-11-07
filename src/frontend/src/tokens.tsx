@@ -64,11 +64,11 @@ export const Tokens = () => {
 
     return (
         <>
-            <HeadBar title="TOKENS" shareLink="tokens" />
+            <HeadBar title="Tokens" shareLink="tokens" />
             <div className="spaced">
                 <div className="dynamic_table vertically_spaced">
                     <div className="db_cell">
-                        CIRCULATING
+                        Circulating
                         <code>{token(circulating_supply)}</code>
                     </div>
                     <div className="db_cell">
@@ -78,15 +78,15 @@ export const Tokens = () => {
                         HOLDERS<code>{data.holders}</code>
                     </div>
                     <div className="db_cell">
-                        HELD BY USERS
+                        Held by users
                         <code>{token(data.held_by_users)}</code>
                     </div>
                     <div className="db_cell">
-                        ACTIVE VP
+                        Active VP
                         <code>{data.active_users_vp.toLocaleString()}</code>
                     </div>
                     <div className="db_cell">
-                        WEEKLY REVENUE / 1K
+                        Weekly revenue / 1k
                         <code>
                             $
                             {(
@@ -97,23 +97,23 @@ export const Tokens = () => {
                         </code>
                     </div>
                     <div className="db_cell">
-                        APPROVAL THRESHOLD
+                        Approval threshold
                         <code>{proposal_approval_threshold}%</code>
                     </div>
                     <div className="db_cell">
-                        NAKAMOTO COEFF.
+                        Nakamoto coeff.
                         <code>{data.nakamoto_coefficient}</code>
                     </div>
                     <div className="db_cell">
-                        VOLUME 24H
+                        Volume 24h
                         <code>{token(data.volume_day)}</code>
                     </div>
                     <div className="db_cell">
-                        VOLUME 7D
+                        Volume 7d
                         <code>{token(data.volume_week)}</code>
                     </div>
                     <div className="db_cell">
-                        TRANSACTION FEE
+                        Transaction fee
                         <code>
                             {Number(
                                 transaction_fee /
@@ -126,12 +126,12 @@ export const Tokens = () => {
                         </code>
                     </div>
                     <div className="db_cell">
-                        TOTAL FEES BURNED
+                        Total fees burned
                         <code>{token(data.fees_burned)}</code>
                     </div>
                 </div>
                 <h2>Top token holders</h2>
-                <div className="bottom_spaced" style={{ display: "flex" }}>
+                <div className="bottom_spaced hflex">
                     {balances.map((b, i) => (
                         <div
                             key={i}
@@ -149,33 +149,34 @@ export const Tokens = () => {
                     ))}
                 </div>
                 Holder: {holder < 0 ? "none" : <UserLink id={holder} />}
-                <table style={{ width: "100%" }}>
+                <table className="full_width">
                     <thead className={bigScreen() ? undefined : "small_text"}>
                         <tr>
-                            <th style={{ textAlign: "left" }}>Principal</th>
-                            <th style={{ textAlign: "right" }}>Balance</th>
+                            <th className="text_left">Principal</th>
+                            <th className="text_right">Balance</th>
                             <th
-                                style={{ textAlign: "right" }}
+                                className="text_right"
                                 title="% of circulating supply"
                             >
                                 Share
                             </th>
                             <th
-                                style={{ textAlign: "right" }}
+                                className="text_right"
                                 title="% of active voting power (Nakamoto basis)"
                             >
                                 VP
                             </th>
-                            <th style={{ textAlign: "right" }}>User</th>
+                            <th className="text_right">User</th>
                         </tr>
                     </thead>
                     <tbody
-                        style={{ textAlign: "right" }}
-                        className={bigScreen() ? "" : "small_text"}
+                        className={`text_right ${
+                            bigScreen() ? "" : "small_text"
+                        }`}
                     >
                         {balances.map((b, i) => (
                             <tr key={i} className={b[3] ? "" : "inactive"}>
-                                <td style={{ textAlign: "left" }}>
+                                <td className="text_left">
                                     {showPrincipal(b[0])}
                                 </td>
                                 <td>
@@ -251,7 +252,7 @@ const AuctionCard = ({}) => {
 
     return (
         <>
-            <h2>Upcoming Auction</h2>
+            <h2>Upcoming auction</h2>
             <p>
                 Amount: <code>{tokens(auction.amount, token_decimals)}</code>{" "}
                 {token_symbol}
@@ -269,12 +270,14 @@ const AuctionCard = ({}) => {
                     <div className="column_container top_spaced">
                         <input
                             type="text"
+                            aria-label={`ICP per 1 ${token_symbol}`}
                             value={e8sPerToken}
                             onChange={(e) => setE8sPerToken(e.target.value)}
                             placeholder={`ICP per 1 ${token_symbol}`}
                         />
                         <input
                             type="text"
+                            aria-label={`Number of ${token_symbol} tokens`}
                             value={bidSize}
                             onChange={(e) => setBidSize(e.target.value)}
                             className="top_half_spaced"
@@ -315,7 +318,7 @@ const AuctionCard = ({}) => {
                                     if (handleError(response)) return;
                                     await loadData();
                                 }}
-                                label="CANCEL MY BID"
+                                label="Cancel my bid"
                             />
                             <ButtonWithLoading
                                 classNameArg="top_spaced active max_width_col left_half_spaced"
@@ -333,8 +336,8 @@ const AuctionCard = ({}) => {
                                 }}
                                 label={
                                     parsedBidSize == 0
-                                        ? "BID"
-                                        : `BID FOR ${bidSize} ${token_symbol}`
+                                        ? "Bid"
+                                        : `Bid for ${bidSize} ${token_symbol}`
                                 }
                             />
                         </div>
@@ -430,17 +433,16 @@ export const TransactionsView = ({
                     <HeadBar
                         title={
                             <>
-                                TRANSACTIONS OF{" "}
+                                Transactions of{" "}
                                 <CopyToClipboard
                                     value={icrcAccount}
                                     displayMap={(value) => {
                                         const [acc, subacc] = value.split(".");
-                                        let result = (
+                                        let result =
                                             acc.split("-")[0] +
                                             (subacc
                                                 ? `.${subacc.slice(0, 6)}`
-                                                : "")
-                                        ).toUpperCase();
+                                                : "");
                                         return result;
                                     }}
                                 />
@@ -462,7 +464,7 @@ export const TransactionsView = ({
                         )}
                         {icrcAccount && (
                             <h2>
-                                BALANCE:{" "}
+                                Balance:{" "}
                                 <code>
                                     <TokenBalance
                                         ledgerId={Principal.fromText(
@@ -514,14 +516,14 @@ export const TransactionView = ({ id }: { id: number }) => {
                 shareLink={`transaction/${id}`}
             />
             <div className="column_container">
-                TIMESTAMP
+                Timestamp
                 <code className="x_large_text">
                     {new Date(Number(tx.timestamp) / 1000000).toLocaleString()}
                 </code>
                 <hr />
-                FROM
+                From
                 {tx.from.owner == Principal.anonymous().toString() ? (
-                    <code>MINTING ACCOUNT 🌱</code>
+                    <code>Minting account 🌱</code>
                 ) : (
                     showPrincipal(tx.from, "long")
                 )}
@@ -555,37 +557,25 @@ const Transactions = ({
 }: {
     transactions: [number, Transaction][];
 }) => (
-    <table style={{ width: "100%" }}>
-        <thead
-            style={{ textAlign: "right" }}
-            className={bigScreen() ? undefined : "small_text"}
-        >
+    <table className="full_width">
+        <thead className={`text_right ${bigScreen() ? "" : "small_text"}`}>
             <tr>
-                <th style={{ textAlign: "left" }}>ID</th>
-                <th style={{ textAlign: "left" }}>Time</th>
-                <th style={{ textAlign: "center" }}>From</th>
-                <th style={{ textAlign: "center" }}>To</th>
+                <th className="text_left">ID</th>
+                <th className="text_left">Time</th>
+                <th className="text_centered">From</th>
+                <th className="text_centered">To</th>
                 <th>#</th>
             </tr>
         </thead>
-        <tbody
-            style={{ textAlign: "right" }}
-            className={bigScreen() ? undefined : "small_text"}
-        >
+        <tbody className={`text_right ${bigScreen() ? "" : "small_text"}`}>
             {transactions.map(([id, t]) => (
                 <tr key={JSON.stringify(t)}>
-                    <td style={{ textAlign: "left" }}>
+                    <td className="text_left">
                         <a href={`#/transaction/${id}`}>{id}</a>
                     </td>
-                    <td style={{ textAlign: "left" }}>
-                        {timeAgo(t.timestamp)}
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                        {showPrincipal(t.from)}
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                        {showPrincipal(t.to)}
-                    </td>
+                    <td className="text_left">{timeAgo(t.timestamp)}</td>
+                    <td className="text_centered">{showPrincipal(t.from)}</td>
+                    <td className="text_centered">{showPrincipal(t.to)}</td>
                     <td>
                         <code>{tokenBalance(t.amount)}</code>
                     </td>
@@ -633,6 +623,6 @@ const showPrincipal = ({ owner, subaccount }: Account, long?: string) => {
 };
 
 const knownAddresses: { [key: string]: string } = {
-    "cetrr-jaaaa-aaaak-afgxq-cai": "BEACON",
+    "cetrr-jaaaa-aaaak-afgxq-cai": "Beacon",
     "opl73-raaaa-aaaag-qcunq-cai": "ICPSwap",
 };

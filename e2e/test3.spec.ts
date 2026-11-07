@@ -46,7 +46,7 @@ test.describe("Regular users flow, part two", () => {
             .fill("I am John");
         await page.getByRole("button", { name: "SAVE" }).click();
         await waitForUILoading(page);
-        await expect(page).toHaveTitle("TAGGR");
+        await expect(page).toHaveTitle(/taggr/i);
     });
 
     test("Create a post with poll", async () => {
@@ -73,12 +73,12 @@ test.describe("Regular users flow, part two", () => {
         const feedItem = page.locator(".feed_item", { hasText: /Poll/ });
         await feedItem.locator("input[type=radio]").first().click();
         await feedItem
-            .getByRole("button", { name: "SUBMIT", exact: true })
+            .getByRole("button", { name: "Submit", exact: true })
             .click();
         await waitForUILoading(page);
         await expect(feedItem).toHaveText(/100%/);
 
-        await feedItem.getByRole("link", { name: /CHANGE VOTE/ }).click();
+        await feedItem.getByRole("link", { name: /Change vote/ }).click();
         await feedItem.locator("input[type=radio]").nth(1).click();
         await feedItem
             .getByRole("button", { name: "SUBMIT ANONYMOUSLY" })
@@ -119,11 +119,11 @@ test.describe("Regular users flow, part two", () => {
     test.describe("Tips", () => {
         test('Logout and login with "eye" user', async () => {
             await page.getByTestId("toggle-user-section").click();
-            await expect(page.locator(`a[title="SIGN OUT"]`)).toBeVisible();
-            await page.locator(`a[title="SIGN OUT"]`).click();
+            await expect(page.locator(`a[title="Sign out"]`)).toBeVisible();
+            await page.locator(`a[title="Sign out"]`).click();
             await waitForUILoading(page);
 
-            await expect(page).toHaveTitle("TAGGR");
+            await expect(page).toHaveTitle(/taggr/i);
 
             await page.getByRole("button", { name: "SIGN UP" }).click();
             await page.getByRole("button", { name: "SEED PHRASE" }).click();
@@ -161,7 +161,7 @@ test.describe("Regular users flow, part two", () => {
                 .fill("I am one");
             await page.getByRole("button", { name: "SAVE" }).click();
             await waitForUILoading(page);
-            await expect(page).toHaveTitle("TAGGR");
+            await expect(page).toHaveTitle(/taggr/i);
         });
 
         test("Find post and tip it", async () => {

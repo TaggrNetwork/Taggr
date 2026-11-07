@@ -29,11 +29,11 @@ export const Delegate = ({}: {}) => {
                     className="medium_text max_width_col right_half_spaced"
                     onClick={signOutAndRestart}
                 >
-                    SIGN OUT
+                    Sign out
                 </button>
                 <ButtonWithLoading
                     classNameArg="active max_width_col left_half_spaced"
-                    label="AUTHORISE"
+                    label="Authorise"
                     onClick={async () => {
                         localStorage.removeItem(DELEGATION_DOMAIN);
                         localStorage.removeItem(DELEGATION_PRINCIPAL);

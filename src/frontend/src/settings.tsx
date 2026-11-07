@@ -94,7 +94,7 @@ const StorageSection = ({ user }: { user: User }) => {
         }
         const ok = await confirmPopUp(
             `Transfer ${icp} ICP from your wallet to top up your storage canister with cycles?`,
-            { confirmLabel: "TOP UP", cancelLabel: "CANCEL" },
+            { confirmLabel: "Top up", cancelLabel: "Cancel" },
         );
         if (!ok) return;
         try {
@@ -121,7 +121,7 @@ const StorageSection = ({ user }: { user: User }) => {
         if (!bucket) return;
         const ok = await confirmPopUp(
             "Upgrade your storage canister to the latest version? Your stored images are preserved.",
-            { confirmLabel: "UPGRADE", cancelLabel: "CANCEL" },
+            { confirmLabel: "Upgrade", cancelLabel: "Cancel" },
         );
         if (!ok) return;
         try {
@@ -155,7 +155,7 @@ const StorageSection = ({ user }: { user: User }) => {
                         <ButtonWithLoading
                             classNameArg="top_spaced"
                             onClick={onUpgrade}
-                            label="UPGRADE STORAGE"
+                            label="Upgrade storage"
                         />
                     </div>
                 ) : (
@@ -207,8 +207,7 @@ const StorageSection = ({ user }: { user: User }) => {
                     {status.controllers.map((p) => (
                         <code
                             key={p.toText()}
-                            className="selectable top_half_spaced"
-                            style={{ wordBreak: "break-all" }}
+                            className="selectable top_half_spaced breakable"
                         >
                             {p.toText()}
                         </code>
@@ -219,15 +218,18 @@ const StorageSection = ({ user }: { user: User }) => {
                         <ButtonWithLoading
                             classNameArg="active top_spaced"
                             onClick={addBlackhole}
-                            label="ADD BLACKHOLE CONTROLLER"
+                            label="Add blackhole controller"
                         />
                     )}
                 </div>
             )}
             <div className="top_spaced column_container">
-                <div className="bottom_half_spaced">Top up with cycles</div>
+                <label className="bottom_half_spaced" htmlFor="storage-top-up">
+                    Top up with cycles
+                </label>
                 <div className="row_container">
                     <input
+                        id="storage-top-up"
                         type="number"
                         min="0"
                         step="0.0001"
@@ -239,7 +241,7 @@ const StorageSection = ({ user }: { user: User }) => {
                     <ButtonWithLoading
                         classNameArg="active"
                         onClick={onTopUp}
-                        label="TOP UP"
+                        label="Top up"
                     />
                 </div>
             </div>
@@ -263,7 +265,7 @@ const StorageSection = ({ user }: { user: User }) => {
                     <ButtonWithLoading
                         classNameArg="active max_width_col"
                         onClick={onCreate}
-                        label="CREATE STORAGE"
+                        label="Create storage"
                     />
                 </>
             ) : (
@@ -274,13 +276,22 @@ const StorageSection = ({ user }: { user: User }) => {
 };
 
 const TABS = [
-    "PROFILE",
-    "APPEARANCE",
-    "PRIVACY",
-    "STORAGE",
-    "ADVANCED",
+    "Profile",
+    "Appearance",
+    "Privacy",
+    "Storage",
+    "Advanced",
 ] as const;
 type Tab = (typeof TABS)[number];
+
+// Compare settings objects by sorted keys so backend key order can't make a
+// saved form look dirty.
+const stableKey = (value: any) =>
+    JSON.stringify(
+        Object.keys(value || {})
+            .sort()
+            .map((key) => [key, value[key]]),
+    );
 
 export const Settings = ({
     invite,
@@ -305,31 +316,57 @@ export const Settings = ({
                     setPrincipalChangeRequested(target || null);
             });
     }, []);
-    const [name, setName] = React.useState("");
-    const [about, setAbout] = React.useState("");
+    const [name, setName] = React.useState(user?.name || "");
+    const [about, setAbout] = React.useState(user?.about || "");
     const [settings, setSettings] = React.useState<{ [name: string]: string }>(
-        {},
+        user?.settings || {},
     );
     const [encKey, setEncKey] = React.useState("");
     const [label, setLabel] = React.useState(null);
     const [timer, setTimer] = React.useState<any>();
     const [uiRefresh, setUIRefresh] = React.useState(false);
-    const [governance, setGovernance] = React.useState("true");
-    const [mode, setMode] = React.useState("Mining");
-    const [showPostsInRealms, setShowPostsInRealms] = React.useState("true");
-    const [userFilter, setUserFilter] = React.useState<UserFilter>({
-        safe: false,
-        age_days: 0,
-        balance: 0,
-        num_followers: 0,
-    });
-    const initialTab = (TABS as readonly string[]).includes(
-        initialTabProp || "",
-    )
-        ? (initialTabProp as Tab)
-        : "PROFILE";
-    const [tab, setTab] = React.useState<Tab>(initialTab);
+    const [settingsError, setSettingsError] = React.useState("");
+    const [governance, setGovernance] = React.useState(
+        user?.governance.toString() || "true",
+    );
+    const [mode, setMode] = React.useState<string>(user?.mode || "Mining");
+    const [showPostsInRealms, setShowPostsInRealms] = React.useState(
+        user?.show_posts_in_realms.toString() || "true",
+    );
+    const [userFilter, setUserFilter] = React.useState<UserFilter>(
+        user?.filters.noise || {
+            safe: false,
+            age_days: 0,
+            balance: 0,
+            num_followers: 0,
+        },
+    );
+    // Route params keep their historical casing (e.g. #/settings/STORAGE).
+    const initialTab = TABS.find(
+        (t) => t.toUpperCase() === (initialTabProp || "").toUpperCase(),
+    );
+    const [tab, setTab] = React.useState<Tab>(initialTab || "Profile");
     const links = parseLinks(settings);
+
+    const snapshot = (u: User | undefined) => ({
+        name: u?.name || "",
+        about: u?.about || "",
+        governance: u?.governance.toString() || "true",
+        mode: u?.mode || "Mining",
+        showPostsInRealms: u?.show_posts_in_realms.toString() || "true",
+        settings: stableKey(u?.settings),
+        noise: stableKey(u?.filters.noise),
+    });
+    const [saved, setSaved] = React.useState(() => snapshot(user));
+    const dirty =
+        !!user &&
+        (name !== saved.name ||
+            about !== saved.about ||
+            governance !== saved.governance ||
+            mode !== saved.mode ||
+            showPostsInRealms !== saved.showPostsInRealms ||
+            stableKey(settings) !== saved.settings ||
+            stableKey(userFilter) !== saved.noise);
 
     const updateData = (user: User) => {
         if (!user) return;
@@ -340,6 +377,7 @@ export const Settings = ({
         setMode(user.mode);
         setShowPostsInRealms(user.show_posts_in_realms.toString());
         setUserFilter(user.filters.noise);
+        setSaved(snapshot(user));
     };
 
     React.useEffect(() => updateData(user), []);
@@ -377,6 +415,7 @@ export const Settings = ({
     };
 
     const submit = async () => {
+        setSettingsError("");
         const registrationFlow = !user;
         let registrationRealmId: string | undefined;
         if (registrationFlow) {
@@ -385,7 +424,7 @@ export const Settings = ({
                 name,
                 invite || "",
             );
-            if (handleError(response)) return;
+            if (handleError(response, undefined, setSettingsError)) return;
             registrationRealmId = response?.Ok;
         }
 
@@ -416,7 +455,7 @@ export const Settings = ({
         ]);
         for (let i in responses) {
             const response = responses[i];
-            if (handleError(response)) return;
+            if (handleError(response, undefined, setSettingsError)) return;
         }
         if (registrationFlow) {
             await window.reloadUser();
@@ -431,23 +470,28 @@ export const Settings = ({
             updateData(window.user);
         }
         await window.reloadUser();
+        setSaved(snapshot(window.user));
     };
 
     const profileSection = (
         <>
-            <div className="bottom_half_spaced">
+            <label className="bottom_half_spaced" htmlFor="settings-name">
                 User name <span className="accent">[required]</span>
-                <code className="left_spaced">{label}</code>
-            </div>
+                <code className="left_half_spaced">{label}</code>
+            </label>
             <input
+                id="settings-name"
                 type="text"
                 value={name}
                 className="bottom_spaced"
                 placeholder="alphanumeric"
                 onChange={namePicker}
             />
-            <div className="bottom_half_spaced">About you</div>
+            <label className="bottom_half_spaced" htmlFor="settings-about">
+                About you
+            </label>
             <input
+                id="settings-about"
                 placeholder="tell us what we should know about you"
                 className="bottom_spaced"
                 type="text"
@@ -456,8 +500,14 @@ export const Settings = ({
             />
             {user && (
                 <>
-                    <div className="bottom_half_spaced">Usage mode</div>
+                    <label
+                        className="bottom_half_spaced"
+                        htmlFor="settings-mode"
+                    >
+                        Usage mode
+                    </label>
                     <select
+                        id="settings-mode"
                         data-testid="mode-selector"
                         value={mode}
                         className="bottom_spaced"
@@ -476,17 +526,22 @@ export const Settings = ({
                         Participate in governance
                     </div>
                     <select
+                        aria-label="Participate in governance"
                         value={governance}
                         className="bottom_spaced"
                         onChange={(event) => setGovernance(event.target.value)}
                     >
-                        <option value="true">YES</option>
-                        <option value="false">NO</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
                     </select>
-                    <div className="bottom_half_spaced">
+                    <label
+                        className="bottom_half_spaced"
+                        htmlFor="settings-links"
+                    >
                         Your links (one per line)
-                    </div>
+                    </label>
                     <textarea
+                        id="settings-links"
                         placeholder="Twitter: https://twitter.com/user_name"
                         className="bottom_half_spaced"
                         rows={4}
@@ -503,8 +558,14 @@ export const Settings = ({
                                 <UserLinks links={links} prefix="Links:" />
                             ))}
                     </div>
-                    <div className="bottom_half_spaced">PGP Public Key</div>
+                    <label
+                        className="bottom_half_spaced"
+                        htmlFor="settings-pgp"
+                    >
+                        PGP public key
+                    </label>
                     <textarea
+                        id="settings-pgp"
                         placeholder="-----BEGIN PGP PUBLIC KEY BLOCK-----"
                         className="bottom_spaced"
                         rows={6}
@@ -516,12 +577,13 @@ export const Settings = ({
                     </div>
                     <select
                         data-testid="ic-wallet-select"
+                        aria-label="Enable ICRC tokens in the wallet"
                         value={settings.icrcWallet || "false"}
                         className="bottom_spaced"
                         onChange={(event) => setSetting("icrcWallet", event)}
                     >
-                        <option value="true">YES</option>
-                        <option value="false">NO</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
                     </select>
                 </>
             )}
@@ -530,8 +592,11 @@ export const Settings = ({
 
     const appearanceSection = (
         <>
-            <div className="bottom_half_spaced">Colour scheme</div>
+            <label className="bottom_half_spaced" htmlFor="settings-theme">
+                Colour scheme
+            </label>
             <select
+                id="settings-theme"
                 value={settings.theme}
                 className="bottom_spaced"
                 onChange={(event) => {
@@ -539,41 +604,48 @@ export const Settings = ({
                     setTheme(name);
                 }}
             >
-                <option value="dark">DARK</option>
-                <option value="calm">CALM</option>
-                <option value="midnight">MIDNIGHT</option>
-                <option value="classic">CLASSIC</option>
-                <option value="black">BLACK</option>
-                <option value="light">LIGHT</option>
+                <option value="dark">Dark</option>
+                <option value="calm">Calm</option>
+                <option value="midnight">Midnight</option>
+                <option value="classic">Classic</option>
+                <option value="black">Black</option>
+                <option value="light">Light</option>
             </select>
             <div className="bottom_half_spaced">
                 Override realm colour themes
             </div>
             <select
+                aria-label="Override realm colour themes"
                 value={settings.overrideRealmColors || "false"}
                 className="bottom_spaced"
                 onChange={(event) => setSetting("overrideRealmColors", event)}
             >
-                <option value="true">YES</option>
-                <option value="false">NO</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
             </select>
             <div className="bottom_half_spaced">
                 Multi-column layout on landing page
             </div>
             <select
+                aria-label="Multi-column layout on landing page"
                 value={settings.columns || "on"}
                 className="bottom_spaced"
                 onChange={(event) => setSetting("columns", event)}
             >
-                <option value="on">ON</option>
-                <option value="off">OFF</option>
+                <option value="on">On</option>
+                <option value="off">Off</option>
             </select>
-            <div className="bottom_half_spaced">
+            <label
+                className="bottom_half_spaced"
+                htmlFor="settings-tap-and-hold"
+            >
                 Reaction tap-and-hold delay (smaller is faster)
-            </div>
+            </label>
             <input
+                id="settings-tap-and-hold"
                 className="bottom_spaced"
-                type="text"
+                type="number"
+                min="0"
                 value={
                     "tap_and_hold" in settings
                         ? settings.tap_and_hold
@@ -670,16 +742,17 @@ export const Settings = ({
                 member of:
             </div>
             <select
+                aria-label="Show posts from followed people posted in realms you are not a member of"
                 value={showPostsInRealms}
                 className="bottom_spaced"
                 onChange={(event) => setShowPostsInRealms(event.target.value)}
             >
-                <option value="true">YES</option>
-                <option value="false">NO</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
             </select>
             {user && user.filters.users.length > 0 && (
                 <>
-                    <h2>Muted Users</h2>
+                    <h2>Muted users</h2>
                     <div>
                         <UserList profile={true} ids={user.filters.users} />
                     </div>
@@ -687,7 +760,7 @@ export const Settings = ({
             )}
             {user && user.blacklist.length > 0 && (
                 <>
-                    <h2>Blocked Users</h2>
+                    <h2>Blocked users</h2>
                     <div>
                         <UserList profile={true} ids={user.blacklist} />
                     </div>
@@ -695,13 +768,13 @@ export const Settings = ({
             )}
             {user && user.filters.tags.length > 0 && (
                 <>
-                    <h2>Muted Tags</h2>
+                    <h2>Muted tags</h2>
                     <div>{tagList(user.filters.tags.map((tag) => [tag]))}</div>
                 </>
             )}
             {user && user.filters.realms.length > 0 && (
                 <>
-                    <h2>Muted Realms</h2>
+                    <h2>Muted realms</h2>
                     <div>
                         <RealmList ids={user.filters.realms} />
                     </div>
@@ -724,7 +797,14 @@ export const Settings = ({
             </p>
             {onCanonicalDomain() ? (
                 <>
+                    <label
+                        className="bottom_half_spaced"
+                        htmlFor="settings-enc-key"
+                    >
+                        Encryption password
+                    </label>
                     <input
+                        id="settings-enc-key"
                         placeholder="Encryption password"
                         className="bottom_spaced"
                         type="password"
@@ -755,14 +835,14 @@ export const Settings = ({
                                 );
                             }
                         }}
-                        label={`${user.deactivated ? "AC" : "DEAC"}TIVATE`}
+                        label={user.deactivated ? "Activate" : "Deactivate"}
                     />
                 </>
             ) : (
                 <UnavailableOnCustomDomains />
             )}
             <hr />
-            <h2>Principal Change</h2>
+            <h2>Principal change</h2>
             You can change your principal as follows:
             <ol>
                 <li>
@@ -803,13 +883,19 @@ export const Settings = ({
                                 location.hash = "#/sign-in";
                                 await signOutAndRestart();
                             }}
-                            label="SIGN OUT AND SIGN IN WITH NEW PRINCIPAL"
+                            label="Sign out and sign in with new principal"
                         />
                     </>
                 ) : (
                     <>
-                        <div className="bottom_half_spaced">New principal</div>
+                        <label
+                            className="bottom_half_spaced"
+                            htmlFor="settings-principal"
+                        >
+                            New principal
+                        </label>
                         <input
+                            id="settings-principal"
                             placeholder="Your principal"
                             className="bottom_spaced"
                             type="text"
@@ -857,8 +943,8 @@ export const Settings = ({
                                     const addController = await confirmPopUp(
                                         `You own a storage canister. The new principal must be added as a controller of that canister now, while the old principal is still authenticated; otherwise you would lose ALL control of the canister after the principal change (cannot upload, free, upgrade, or delete it). Removing the OLD principal from the canister's controller list afterward is YOUR responsibility — ${window.backendCache.config.name} will not do it.`,
                                         {
-                                            confirmLabel: "ADD CONTROLLER",
-                                            cancelLabel: "ABORT",
+                                            confirmLabel: "Add controller",
+                                            cancelLabel: "Abort",
                                         },
                                     );
                                     if (!addController) {
@@ -895,11 +981,18 @@ export const Settings = ({
                                     "request_principal_change",
                                     newPrincipalText,
                                 );
-                                if (handleError(response)) return;
+                                if (
+                                    handleError(
+                                        response,
+                                        undefined,
+                                        setSettingsError,
+                                    )
+                                )
+                                    return;
                                 principalChangeSubmitted.current = true;
                                 setPrincipalChangeRequested(newPrincipalText);
                             }}
-                            label="CHANGE PRINCIPAL"
+                            label="Change principal"
                         />
                     </>
                 )
@@ -913,13 +1006,18 @@ export const Settings = ({
     if (!user) {
         return (
             <>
-                <HeadBar title="SETTINGS" shareLink="settings" />
+                <HeadBar title="Settings" shareLink="settings" />
                 <div className="spaced column_container">
+                    {settingsError && (
+                        <div className="error bottom_spaced" role="alert">
+                            {settingsError}
+                        </div>
+                    )}
                     {profileSection}
                     <ButtonWithLoading
                         classNameArg="active top_spaced"
                         onClick={submit}
-                        label="SAVE"
+                        label="Save"
                     />
                 </div>
             </>
@@ -928,24 +1026,34 @@ export const Settings = ({
 
     return (
         <>
-            <HeadBar title="SETTINGS" shareLink="settings" />
+            <HeadBar title="Settings" shareLink="settings" />
             <div className="spaced column_container">
+                {settingsError && (
+                    <div className="error bottom_spaced" role="alert">
+                        {settingsError}
+                    </div>
+                )}
                 <TabBar
                     tabs={[...TABS]}
                     activeTab={tab}
                     onTabChange={(t) => setTab(t as Tab)}
                 />
-                {tab === "PROFILE" && profileSection}
-                {tab === "APPEARANCE" && appearanceSection}
-                {tab === "PRIVACY" && privacySection}
-                {tab === "STORAGE" && storageSection}
-                {tab === "ADVANCED" && advancedSection}
-                {tab !== "STORAGE" && tab !== "ADVANCED" && (
+                {tab === "Profile" && profileSection}
+                {tab === "Appearance" && appearanceSection}
+                {tab === "Privacy" && privacySection}
+                {tab === "Storage" && storageSection}
+                {tab === "Advanced" && advancedSection}
+                {tab !== "Storage" && tab !== "Advanced" && (
                     <div className="sticky_save_bar">
+                        {dirty && (
+                            <span className="small_text right_spaced">
+                                Unsaved changes
+                            </span>
+                        )}
                         <ButtonWithLoading
                             classNameArg="active max_width_col"
                             onClick={submit}
-                            label="SAVE"
+                            label="Save"
                         />
                     </div>
                 )}

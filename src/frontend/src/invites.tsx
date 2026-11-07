@@ -130,7 +130,7 @@ export const Invites = () => {
 
     return (
         <>
-            <HeadBar title="INVITES" shareLink="invites" />
+            <HeadBar title="Invites" shareLink="invites" />
             <div className="spaced bottom_spaced">
                 <div className="stands_out">
                     <h2>Invite creation</h2>
@@ -169,8 +169,9 @@ export const Invites = () => {
                         </li>
                     </ul>
                     <div className="column_container">
-                        Total credits
+                        <label htmlFor="invite-credits">Total credits</label>
                         <input
+                            id="invite-credits"
                             type="number"
                             value={credits}
                             className="max_width_col top_spaced bottom_spaced"
@@ -180,8 +181,11 @@ export const Invites = () => {
                                 )
                             }
                         />
-                        Spend per user
+                        <label htmlFor="invite-credits-per-user">
+                            Spend per user
+                        </label>
                         <input
+                            id="invite-credits-per-user"
                             type="number"
                             value={credits_per_user}
                             className="max_width_col top_spaced bottom_spaced"
@@ -191,8 +195,9 @@ export const Invites = () => {
                                 )
                             }
                         />
-                        Realm (optional)
+                        <label htmlFor="invite-realm">Realm (optional)</label>
                         <input
+                            id="invite-realm"
                             type="text"
                             value={inviteRealm}
                             className="max_width_col top_spaced bottom_spaced"
@@ -207,7 +212,7 @@ export const Invites = () => {
                         <ButtonWithLoading
                             classNameArg="active"
                             onClick={create}
-                            label="CREATE"
+                            label="Create"
                         />
                     </div>
                 </div>
@@ -233,6 +238,7 @@ export const Invites = () => {
                                                     Credits:
                                                 </strong>
                                                 <input
+                                                    aria-label="Credits"
                                                     type="number"
                                                     className="max_width_col top_half_spaced"
                                                     defaultValue={credits}
@@ -247,7 +253,7 @@ export const Invites = () => {
                                             </div>
                                             <div className="bottom_half_spaced top_half_spaced">
                                                 <strong className="right_half_spaced">
-                                                    Credits Per User:
+                                                    Credits per user:
                                                 </strong>
                                                 <code>{credits_per_user}</code>
                                             </div>
@@ -256,6 +262,7 @@ export const Invites = () => {
                                                     Realm:
                                                 </strong>
                                                 <input
+                                                    aria-label="Realm"
                                                     type="text"
                                                     className="max_width_col top_half_spaced"
                                                     defaultValue={
@@ -311,7 +318,7 @@ export const Invites = () => {
                         <ButtonWithLoading
                             classNameArg="active"
                             onClick={saveInvites}
-                            label="SAVE"
+                            label="Save"
                             disabled={
                                 !invites.some(([_, invite]) => invite.dirty)
                             }

@@ -69,10 +69,7 @@ export const Journal = ({ handle }: { handle: string }) => {
                         <Content value={profile.about} />
                     </div>
                     <UserLinks links={links} centered={true} />
-                    <div
-                        className="row_container vertically_spaced"
-                        style={{ justifyContent: "center" }}
-                    >
+                    <div className="row_container hcentered vertically_spaced">
                         <FollowButton id={profile.id} />
                         <ShareButton text={true} url={`journal/${handle}`} />
                     </div>

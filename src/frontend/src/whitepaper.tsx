@@ -52,7 +52,7 @@ export const Whitepaper = () => {
     }, template);
     return (
         <>
-            <HeadBar title="WHITE PAPER" shareLink="whitepaper" />
+            <HeadBar title="White paper" shareLink="whitepaper" />
             <div className="spaced prime">
                 <Content value={value} />
             </div>

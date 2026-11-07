@@ -58,7 +58,7 @@ test.describe("Domain config management", () => {
         await page.goto("/#/domains");
         await waitForUILoading(page);
         await expect(
-            page.getByRole("heading", { name: "DOMAINS", exact: true }),
+            page.getByRole("heading", { name: "Domains", exact: true }),
         ).toBeVisible();
 
         // Add a new domain via the page-level burger menu

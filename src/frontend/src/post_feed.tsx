@@ -14,6 +14,7 @@ export const PostFeed = ({
     highlighted,
     useList,
     journal,
+    emptyMessage = "Nothing here yet.",
 }: {
     classNameArg?: string;
     focusedPost?: PostId;
@@ -29,6 +30,7 @@ export const PostFeed = ({
     highlighted?: PostId[];
     useList?: boolean;
     journal?: boolean;
+    emptyMessage?: string;
 }) => {
     const [page, setPage] = React.useState(0);
     const [offset, setOffset] = React.useState(0);
@@ -108,9 +110,17 @@ export const PostFeed = ({
             {title && title}
             {(!loading || page > 0) &&
                 (useGrid ? renderGrid() : renderColumns())}
+            {!loading && posts.length == 0 && (
+                <div
+                    className="text_centered vertically_spaced small_text"
+                    role="status"
+                >
+                    {emptyMessage}
+                </div>
+            )}
             {loading && <Loading />}
             {displayPageFlipper && !loading && posts.length > 0 && (
-                <div style={{ display: "flex", justifyContent: "center" }}>
+                <div className="hcentered">
                     <button
                         className="pageFlipper"
                         onClick={async () => {
@@ -119,7 +129,7 @@ export const PostFeed = ({
                             await loadPage(nextPage);
                         }}
                     >
-                        MORE
+                        More
                     </button>
                 </div>
             )}

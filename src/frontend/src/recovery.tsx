@@ -35,7 +35,7 @@ export const Recovery = () => {
 
     return (
         <>
-            <HeadBar title="RECOVERY" />
+            <HeadBar title="Recovery" />
             Your principal id: {window.principalId}
             <div className="spaced">
                 <h2>Status</h2>
@@ -83,7 +83,7 @@ export const Recovery = () => {
                                 );
                                 location.reload();
                             }}
-                            label="SUBMIT HASH"
+                            label="Submit hash"
                         />
                     </>
                 )}

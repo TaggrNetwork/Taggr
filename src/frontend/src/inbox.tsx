@@ -59,7 +59,7 @@ export const Inbox = () => {
                 }
             >
                 <div className="row_container">
-                    <div className="medium_text left_spaced right_spaced max_width_col">
+                    <div className="medium_text left_half_spaced right_spaced max_width_col">
                         <Content value={msg} />
                     </div>
                     {!archive && (
@@ -110,7 +110,7 @@ export const Inbox = () => {
     return (
         <>
             <HeadBar
-                title="INBOX"
+                title="Inbox"
                 content={
                     <button
                         onClick={async () => {
@@ -123,24 +123,24 @@ export const Inbox = () => {
                             location.href = "#/";
                         }}
                     >
-                        CLEAR ALL
+                        Clear all
                     </button>
                 }
             />
             {fresh.length == 0 && (
-                <h1 className="text_centered vertically_spaced">
-                    Inbox Zero Achieved! 🚀
+                <h1 className="text_centered vertically_spaced" role="status">
+                    Inbox zero achieved! 🚀
                 </h1>
             )}
             {fresh.map((id) => displayEntry(Number(id)))}
             {!showArchive && (
                 <MoreButton
                     callback={async () => setShowArchive(true)}
-                    label="SHOW ARCHIVE"
+                    label="Show archive"
                 />
             )}
             {showArchive && archived.length > 0 && (
-                <div style={{ opacity: 0.65 }}>
+                <div className="muted">
                     <h2 className="spaced">Archive</h2>
                     {archived.map((id) => displayEntry(Number(id), true))}
                 </div>

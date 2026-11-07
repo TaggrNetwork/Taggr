@@ -207,7 +207,7 @@ const linkRenderer =
                             label = props.href.replace("#", "");
                     } else if (child == props.href.replace(/&amp;/g, "&")) {
                         className = "external";
-                        label = url.hostname.toUpperCase();
+                        label = url.hostname;
                         props.rel = "nofollow noopener noreferrer";
                         props.target = "_blank";
                     } else {
@@ -259,7 +259,8 @@ const markdownizer = (
                                                 background={background}
                                                 classNameArg="realm_tag"
                                                 styleArg={{
-                                                    borderRadius: "5px",
+                                                    borderRadius:
+                                                        "var(--radius-sm)",
                                                 }}
                                             />
                                         </>
@@ -419,7 +420,7 @@ const YouTube = ({ id, preview }: { id: string; preview?: boolean }) => {
     const [open, setOpen] = React.useState(!preview);
     if (open)
         return (
-            <span className="video-container" style={{ display: "block" }}>
+            <span className="video-container">
                 <iframe
                     loading="lazy"
                     allowFullScreen={true}

@@ -187,7 +187,7 @@ const App = () => {
                     <HeadBar
                         title={
                             <>
-                                REPOSTS OF <a href={`#/post/${id}`}>#{id}</a>
+                                Reposts of <a href={`#/post/${id}`}>#{id}</a>
                             </>
                         }
                         shareLink={`/reposts/${id}`}
@@ -253,7 +253,8 @@ const App = () => {
         content = auth(
             <PostFeed
                 useList={true}
-                title={<HeadBar title="BOOKMARKS" shareLink="bookmarks" />}
+                title={<HeadBar title="Bookmarks" shareLink="bookmarks" />}
+                emptyMessage="No bookmarks yet."
                 includeComments={true}
                 feedLoader={async () => await loadFeed(window.user.bookmarks)}
             />,
@@ -330,7 +331,7 @@ const reloadCache = async (includeTags = true) => {
         const banner = document.getElementById("upgrade_banner") as HTMLElement;
         banner.innerHTML = "New app version is available! Click me to reload.";
         banner.onclick = () => {
-            banner.innerHTML = "RELOADING...";
+            banner.innerHTML = "Reloading...";
             setTimeout(() => location.reload(), 100);
         };
         banner.style.display = "block";

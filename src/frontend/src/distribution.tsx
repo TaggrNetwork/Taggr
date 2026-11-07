@@ -26,12 +26,12 @@ export const Distribution = () => {
     return (
         <>
             <HeadBar
-                title="DISTRIBUTION"
+                title="Distribution"
                 shareLink="distribution"
                 content={
                     window.user?.stalwart && (
                         <ButtonWithLoading
-                            label="VOTE FOR DELAY"
+                            label="Vote for delay"
                             onClick={async () => {
                                 const response = await window.api.call<any>(
                                     "delay_weekly_chores",
@@ -50,6 +50,11 @@ export const Distribution = () => {
             />
             <TabBar
                 tabs={["mint", "dao revenue", "realm revenue"]}
+                labels={{
+                    mint: "Mint",
+                    "dao revenue": "DAO revenue",
+                    "realm revenue": "Realm revenue",
+                }}
                 activeTab={tab}
                 onTabChange={setTab}
             />

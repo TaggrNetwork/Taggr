@@ -76,6 +76,7 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
             <div className="row_container">
                 <input
                     id="search_field"
+                    aria-label="Search"
                     className="max_width_col"
                     type="search"
                     placeholder={`Search #${window.backendCache.config.name}`}
@@ -112,6 +113,18 @@ export const Search = ({ initQuery }: { initQuery?: string }) => {
                     ))}
                 </ul>
             )}
+            {!searching &&
+                !principal &&
+                !hint &&
+                query.length >= 2 &&
+                results.length == 0 && (
+                    <div
+                        className="text_centered vertically_spaced small_text"
+                        role="status"
+                    >
+                        No results.
+                    </div>
+                )}
             {hint && (
                 <div className="stands_out top_spaced medium_text">
                     <p>Search query examples:</p>

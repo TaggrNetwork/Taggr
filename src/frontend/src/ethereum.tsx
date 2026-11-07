@@ -12,7 +12,7 @@ export const Ethereum = () => {
 
     return (
         <>
-            <HeadBar title="ETHEREUM" shareLink="ethereum" />
+            <HeadBar title="Ethereum" shareLink="ethereum" />
             <div className="column_container spaced">
                 <p className="stands_out">
                     The canister controls this Ethereum L1 account (EOA). It can
@@ -28,7 +28,7 @@ export const Ethereum = () => {
                             target="_blank"
                             rel="noreferrer"
                         >
-                            VIEW ON ETHERSCAN
+                            View on Etherscan
                         </a>
                     </>
                 ) : (

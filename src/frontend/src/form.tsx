@@ -30,7 +30,12 @@ import { PostView } from "./post";
 import { Extension, Payload, Poll as PollType, PostId, Realm } from "./types";
 import { PollView } from "./poll";
 import { USER_CACHE } from "./user_resolve";
-import { ProposalMask, ProposalType, validateProposal } from "./proposals";
+import {
+    ProposalMask,
+    ProposalType,
+    proposalTypeLabel,
+    validateProposal,
+} from "./proposals";
 
 const MAX_IMG_SIZE = 16777216;
 const MAX_SUGGESTED_TAGS = 5;
@@ -105,6 +110,7 @@ export const Form = ({
     );
     const [proposalValidationError, setProposalValidationError] =
         React.useState("");
+    const [formError, setFormError] = React.useState("");
     const textarea = React.useRef<HTMLTextAreaElement>();
     const form = React.useRef();
     const tags = window.backendCache.recent_tags.map(([tag]) => tag);
@@ -116,11 +122,10 @@ export const Form = ({
     const previewAtLeft = bigScreen() && !comment;
 
     const handleSubmit = async () => {
+        setFormError("");
         if (value.length == 0 || value.length > max_post_length) {
-            showPopUp(
-                "error",
+            setFormError(
                 `Post length should be larger than 0 and shorter than ${max_post_length} characters.`,
-                5,
             );
             return false;
         }
@@ -144,10 +149,8 @@ export const Form = ({
                 (match) => !(match[1] in tmpUrls),
             )
         ) {
-            showPopUp(
-                "error",
+            setFormError(
                 "You're referencing pictures that are not attached anymore. Please re-upload.",
-                5,
             );
             setSubmitting(false);
             return false;
@@ -279,6 +282,7 @@ export const Form = ({
     };
 
     const onValueChange = (value: string) => {
+        if (formError) setFormError("");
         setValue(value);
         clearTimeout(choresTimer);
         const cursor = (textarea.current?.selectionStart || 0) - 1;
@@ -457,9 +461,12 @@ export const Form = ({
     const formButton = (
         content: JSX.Element,
         map: (arg: string) => string | Promise<string>,
+        label: string,
     ) => (
         <button
             className="max_width_col"
+            aria-label={label}
+            title={label}
             onClick={async (e) => {
                 e.preventDefault();
                 const element: any = textarea.current;
@@ -492,6 +499,7 @@ export const Form = ({
             {!showTextField && (
                 <input
                     type="text"
+                    aria-label="Reply"
                     className="bottom_spaced"
                     placeholder="Reply here..."
                     onFocus={() => setShowTextField(true)}
@@ -520,41 +528,84 @@ export const Form = ({
                                     : ""
                             }`}
                         >
-                            <div className="row_container bottom_half_spaced">
-                                {formButton(<b>B</b>, (v) => `**${v}**`)}
-                                {formButton(<i>I</i>, (v) => `_${v}_`)}
-                                {formButton(<s>S</s>, (v) => `~${v}~`)}
-                                {formButton(<List />, (v) =>
-                                    v
-                                        .split("\n")
-                                        .map((line) => "- " + line)
-                                        .join("\n"),
+                            <div className="row_container bottom_half_spaced form_toolbar">
+                                {formButton(
+                                    <b>B</b>,
+                                    (v) => `**${v}**`,
+                                    "Bold",
                                 )}
-                                {formButton(<ListNumbered />, (v) =>
-                                    v
-                                        .split("\n")
-                                        .map((line, i) => i + 1 + ". " + line)
-                                        .join("\n"),
+                                {formButton(
+                                    <i>I</i>,
+                                    (v) => `_${v}_`,
+                                    "Italic",
                                 )}
-                                {formButton(<Quote />, (v) => `> ${v}`)}
-                                {formButton(<Link />, async (v) => {
-                                    const link = await promptPopUp("URL:");
-                                    if (!link) return v;
-                                    return `[${v}](${link})`;
-                                })}
-                                {formButton(<Pic />, async () => {
-                                    const alt = await promptPopUp("Image name");
-                                    if (!alt) return "";
-                                    const src = await promptPopUp("URL");
-                                    if (!src) return "";
-                                    return `![${alt}](${src})`;
-                                })}
-                                {formButton(<Code />, (v) => `\`${v}\``)}
-                                {formButton(<Table />, (_) => tableTemplate)}
+                                {formButton(
+                                    <s>S</s>,
+                                    (v) => `~${v}~`,
+                                    "Strikethrough",
+                                )}
+                                {formButton(
+                                    <List />,
+                                    (v) =>
+                                        v
+                                            .split("\n")
+                                            .map((line) => "- " + line)
+                                            .join("\n"),
+                                    "Bulleted list",
+                                )}
+                                {formButton(
+                                    <ListNumbered />,
+                                    (v) =>
+                                        v
+                                            .split("\n")
+                                            .map(
+                                                (line, i) =>
+                                                    i + 1 + ". " + line,
+                                            )
+                                            .join("\n"),
+                                    "Numbered list",
+                                )}
+                                {formButton(
+                                    <Quote />,
+                                    (v) => `> ${v}`,
+                                    "Quote",
+                                )}
+                                {formButton(
+                                    <Link />,
+                                    async (v) => {
+                                        const link = await promptPopUp("URL:");
+                                        if (!link) return v;
+                                        return `[${v}](${link})`;
+                                    },
+                                    "Link",
+                                )}
+                                {formButton(
+                                    <Pic />,
+                                    async () => {
+                                        const alt =
+                                            await promptPopUp("Image name");
+                                        if (!alt) return "";
+                                        const src = await promptPopUp("URL");
+                                        if (!src) return "";
+                                        return `![${alt}](${src})`;
+                                    },
+                                    "Picture",
+                                )}
+                                {formButton(
+                                    <Code />,
+                                    (v) => `\`${v}\``,
+                                    "Code",
+                                )}
+                                {formButton(
+                                    <Table />,
+                                    (_) => tableTemplate,
+                                    "Table",
+                                )}
                             </div>
                             <textarea
                                 id={id}
                                 ref={textarea as unknown as any}
+                                aria-label={comment ? "Comment" : "Post"}
                                 rows={lines}
                                 disabled={submitting}
                                 value={value}
@@ -582,10 +633,7 @@ export const Form = ({
                         <Loading classNameArg="top_spaced" spaced={false} />
                     )}
                     {!busy && completionList.length > 0 && (
-                        <div
-                            className="top_spaced "
-                            style={{ textAlign: "right" }}
-                        >
+                        <div className="top_spaced text_right">
                             {completionList.map((token, i) => (
                                 <button
                                     key={token}
@@ -612,7 +660,7 @@ export const Form = ({
                                     id="file_picker_label"
                                     title="Attach a picture"
                                     htmlFor="file-picker"
-                                    className="action left_spaced clickable"
+                                    className="action left_half_spaced clickable file_picker"
                                     data-testid="file-picker"
                                 >
                                     <Paperclip />
@@ -665,14 +713,17 @@ export const Form = ({
                                     (!realm || user.realms.includes(realm)) && (
                                         <select
                                             value={realm || ""}
-                                            className="left_spaced"
+                                            className="left_half_spaced"
                                             onChange={(event) =>
                                                 setRealm(event.target.value)
                                             }
                                         >
                                             {!window.hideRealmless && (
                                                 <option value="">
-                                                    {window.backendCache.config.name.toUpperCase()}
+                                                    {
+                                                        window.backendCache
+                                                            .config.name
+                                                    }
                                                 </option>
                                             )}
                                             {user.realms.map((name) => (
@@ -689,7 +740,7 @@ export const Form = ({
                         <>
                             <div className="top_spaced row_container vcentered">
                                 <span className="right_spaced">
-                                    PROPOSAL TYPE
+                                    Proposal type
                                 </span>
                                 <select
                                     className="max_width_col"
@@ -706,7 +757,7 @@ export const Form = ({
                                 >
                                     {Object.values(ProposalType).map((id) => (
                                         <option key={id} value={id}>
-                                            {id}
+                                            {proposalTypeLabel(id)}
                                         </option>
                                     ))}
                                 </select>
@@ -727,8 +778,15 @@ export const Form = ({
                     {poll && (
                         <div className="column_container bottom_spaced">
                             <h2>Poll</h2>
-                            VARIANTS (ONE PER LINE):
+                            <label
+                                className="bottom_half_spaced"
+                                htmlFor="poll-variants"
+                            >
+                                Variants (one per line):
+                            </label>
                             <textarea
+                                id="poll-variants"
+                                aria-label="Poll variants"
                                 data-testid="poll-editor"
                                 rows={poll.options.length + 2}
                                 className="bottom_spaced"
@@ -740,8 +798,15 @@ export const Form = ({
                                     })
                                 }
                             ></textarea>
-                            EXPIRATION:
+                            <label
+                                className="bottom_half_spaced"
+                                htmlFor="poll-expiration"
+                            >
+                                Expiration:
+                            </label>
                             <select
+                                id="poll-expiration"
+                                aria-label="Poll expiration"
                                 value={poll.deadline}
                                 onChange={(e) =>
                                     setPoll({
@@ -754,7 +819,7 @@ export const Form = ({
                                     <option
                                         key={d}
                                         value={`${d * 24}`}
-                                    >{`${d} DAY${d == 1 ? "" : "S"}`}</option>
+                                    >{`${d} ${d == 1 ? "day" : "days"}`}</option>
                                 ))}
                             </select>
                         </div>
@@ -765,6 +830,11 @@ export const Form = ({
             {proposalValidationError && (
                 <div className="accent bottom_spaced">
                     Proposal validation failed: {proposalValidationError}
+                </div>
+            )}
+            {formError && (
+                <div className="error bottom_spaced" role="alert">
+                    {formError}
                 </div>
             )}
             {overflowBanner && (
@@ -793,7 +863,7 @@ export const Form = ({
                     classNameArg={
                         "active" + (proposalValidationError ? " inactive" : "")
                     }
-                    label="SUBMIT"
+                    label="Submit"
                     onClick={handleSubmit}
                 />
             )}
