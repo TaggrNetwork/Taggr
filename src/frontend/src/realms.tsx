@@ -11,6 +11,7 @@ import {
     setTitle,
     ToggleButton,
     foregroundColor,
+    contrast,
     handleError,
     showPopUp,
     domain,
@@ -636,8 +637,7 @@ export const RealmHeader = ({
 
     const user = window.user;
     // The name reads as a cut-out of the realm's own page background: use the
-    // effective background (user override wins, otherwise the realm theme) and
-    // fall back to black/white when the realm has no theme.
+    // effective background (user override wins, otherwise the realm theme).
     const override = user?.settings.overrideRealmColors == "true";
     const userTheme = getTheme(user?.settings.theme) || getTheme("dark");
     let realmBackground: string | undefined;
@@ -648,11 +648,16 @@ export const RealmHeader = ({
             console.error("Invalid realm theme", err);
         }
     }
+    // The cut-out only reads while it stays legible on the label colour: the
+    // name is large text and the close glyph is non-text, so 3:1 is the AA
+    // floor. Themes close to the label colour fall back to black/white.
+    const cutOut = (override ? userTheme?.background : realmBackground) || "";
     const colors = {
         background: realm.label_color,
         color:
-            (override ? userTheme?.background : realmBackground) ||
-            foregroundColor(realm.label_color),
+            cutOut && contrast(cutOut, realm.label_color) >= 3
+                ? cutOut
+                : foregroundColor(realm.label_color),
     };
     return (
         <div className="top_spaced">

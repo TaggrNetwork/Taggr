@@ -336,17 +336,27 @@ export const HeadBar = ({
     );
 };
 
-export const foregroundColor = (background: string) => {
+// WCAG relative luminance of a `#rrggbb` colour. Anything else (named colours,
+// shorthand hex) parses to NaN, which every caller treats as "not legible".
+export const luminance = (background: string) => {
     const hex = background.replace("#", "");
     const channel = (offset: number) => {
         const c = parseInt(hex.substring(offset, offset + 2), 16) / 255;
         return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
     };
-    // WCAG relative luminance; black and white reach equal contrast at ~0.179,
-    // so pick the ink with the higher ratio instead of a brightness threshold.
-    const luminance =
-        0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
-    return luminance > 0.179 ? "black" : "white";
+    return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
+};
+
+// WCAG contrast ratio between two `#rrggbb` colours.
+export const contrast = (a: string, b: string) => {
+    const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (high + 0.05) / (low + 0.05);
+};
+
+export const foregroundColor = (background: string) => {
+    // Black and white reach equal contrast at ~0.179, so pick the ink with the
+    // higher ratio instead of a brightness threshold.
+    return luminance(background) > 0.179 ? "black" : "white";
 };
 
 export const RealmSpan = ({

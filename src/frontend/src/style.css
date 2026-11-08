@@ -973,8 +973,7 @@ blockquote {
 }
 
 textarea:focus,
-input:focus,
-select:focus {
+input:focus {
     outline: none;
 }
 
