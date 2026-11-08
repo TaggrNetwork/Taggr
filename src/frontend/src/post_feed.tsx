@@ -39,9 +39,11 @@ export const PostFeed = ({
     const [displayPageFlipper, setPageVlipperVisibility] =
         React.useState(!thread);
     const reqId = React.useRef(0);
+    const generation = React.useRef(0);
 
     const loadPage = async (page: number) => {
         const id = ++reqId.current;
+        const gen = generation.current;
         // Only show the loading indicator while flipping pages; the first
         // load already starts with `loading` set.
         if (page > 0) setLoading(true);
@@ -50,8 +52,8 @@ export const PostFeed = ({
             page == 0 ? 0 : offset,
             !!includeComments,
         );
-        // Drop the response if a newer load has started meanwhile.
-        if (id !== reqId.current) return;
+        // Drop the response if a newer load or a different feed has started.
+        if (id !== reqId.current || gen !== generation.current) return;
         if (!loadedPosts) {
             setLoading(false);
             return;
@@ -65,7 +67,13 @@ export const PostFeed = ({
     };
 
     React.useEffect(() => {
+        // A different tab/filter is a different feed: drop the old posts
+        // instead of appending the new page to them while it loads.
+        generation.current++;
         setPage(0);
+        setOffset(0);
+        setPosts([]);
+        setLoading(true);
         loadPage(0);
         setPageVlipperVisibility(!thread);
     }, [heartbeat]);

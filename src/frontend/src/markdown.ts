@@ -180,6 +180,8 @@ const findSingleDelimiter = (
 
 // --- Inline Parser ---
 
+const isWordChar = (char: string) => /[\p{L}\p{N}\p{M}]/u.test(char);
+
 export const parseInline = (text: string, depth: number = 0): Inline[] => {
     if (!text) return [];
     if (depth > MAX_NESTING_DEPTH) return [{ type: "text", value: text }];
@@ -457,7 +459,7 @@ export const parseInline = (text: string, depth: number = 0): Inline[] => {
         if (
             ch === "_" &&
             !text.startsWith("__", i) &&
-            (i === 0 || !/[A-Za-z0-9]/.test(text[i - 1]))
+            (i === 0 || !isWordChar(text[i - 1]))
         ) {
             const end = findSDel(i + 1, "_");
             if (
@@ -485,7 +487,7 @@ export const parseInline = (text: string, depth: number = 0): Inline[] => {
 // --- Block Parsing Helpers ---
 
 const parseCells = (line: string): string[] => {
-    const trimmed = line.replace(/^\||\|$/g, "");
+    const trimmed = line.trim().replace(/^\||\|$/g, "");
     const cells: string[] = [];
     let buf = "";
     for (let i = 0; i < trimmed.length; i++) {
