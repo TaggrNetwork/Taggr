@@ -634,11 +634,26 @@ export const RealmHeader = ({
     if (loading) return <Loading />;
     if (!realm) return null;
 
+    const user = window.user;
+    // The name reads as a cut-out of the realm's own page background: use the
+    // effective background (user override wins, otherwise the realm theme) and
+    // fall back to black/white when the realm has no theme.
+    const override = user?.settings.overrideRealmColors == "true";
+    const userTheme = getTheme(user?.settings.theme) || getTheme("dark");
+    let realmBackground: string | undefined;
+    if (realm.theme) {
+        try {
+            realmBackground = JSON.parse(realm.theme).background;
+        } catch (err) {
+            console.error("Invalid realm theme", err);
+        }
+    }
     const colors = {
         background: realm.label_color,
-        color: foregroundColor(realm.label_color),
+        color:
+            (override ? userTheme?.background : realmBackground) ||
+            foregroundColor(realm.label_color),
     };
-    const user = window.user;
     return (
         <div className="top_spaced">
             <HeadBar
