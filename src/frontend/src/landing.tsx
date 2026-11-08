@@ -91,9 +91,7 @@ export const Landing = () => {
             {!user && !realm && (
                 <div className="spaced vertically_spaced text_centered">
                     <h1>Welcome aboard</h1>
-                    <p>
-                        To Decentralised Publishing and Communication Platform.
-                    </p>
+                    <p>Decentralised publishing and communication.</p>
                     <button onClick={() => (location.href = "#/whitepaper")}>
                         Learn more
                     </button>
