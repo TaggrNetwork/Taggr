@@ -43,6 +43,7 @@ export const TippingPopup = ({
             </p>
             <input
                 className="bottom_spaced"
+                aria-label="Tip amount"
                 value={tippingAmount}
                 onChange={(e) => {
                     setTippingAmount(e.target.value);
@@ -66,7 +67,7 @@ export const TippingPopup = ({
             {!showConfirmation ? (
                 <ButtonWithLoading
                     classNameArg="active"
-                    label={"SEND"}
+                    label={"Send"}
                     onClick={async () => {
                         const numericAmount = Number(tippingAmount);
                         if (!isFinite(numericAmount) || numericAmount <= 0) {
@@ -80,14 +81,14 @@ export const TippingPopup = ({
                 <div className="row_container">
                     <ButtonWithLoading
                         classNameArg="max_width_col right_half_spaced"
-                        label={"CANCEL"}
+                        label={"Cancel"}
                         onClick={async () => {
                             if (parentCallback) parentCallback();
                         }}
                     />
                     <ButtonWithLoading
                         classNameArg="active max_width_col"
-                        label={"CONFIRM"}
+                        label={"Confirm"}
                         onClick={() =>
                             finalizeTip(parentCallback || (() => {}))
                         }

@@ -103,7 +103,7 @@ export const UserLinks = ({
 export const Profile = ({ handle }: { handle: string }) => {
     const [status, setStatus] = React.useState(0);
     const [profile, setProfile] = React.useState({} as User);
-    const [tab, setTab] = React.useState("LAST");
+    const [tab, setTab] = React.useState("Last");
 
     const updateState = async () => {
         const profile = await window.api.query<User>("user", domain(), [
@@ -141,7 +141,7 @@ export const Profile = ({ handle }: { handle: string }) => {
 
     const title = (
         <TabBar
-            tabs={["LAST", "TAGS", "REWARDED"]}
+            tabs={["Last", "Tags", "Rewarded"]}
             activeTab={tab}
             onTabChange={setTab}
         />
@@ -177,8 +177,8 @@ export const Profile = ({ handle }: { handle: string }) => {
                                 <>
                                     <FlagButton id={profile.id} text={true} />
                                     <ToggleButton
-                                        offLabel="BLOCK"
-                                        onLabel="UNBLOCK"
+                                        offLabel="Block"
+                                        onLabel="Unblock"
                                         classNameArg="max_width_col"
                                         currState={() =>
                                             user.blacklist.includes(profile.id)
@@ -196,8 +196,8 @@ export const Profile = ({ handle }: { handle: string }) => {
                                         }}
                                     />
                                     <ToggleButton
-                                        offLabel="MUTE"
-                                        onLabel="UNMUTE"
+                                        offLabel="Mute"
+                                        onLabel="Unmute"
                                         classNameArg="max_width_col"
                                         currState={() =>
                                             user.filters.users.includes(
@@ -218,7 +218,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                         }}
                                     />
                                     <ButtonWithLoading
-                                        label="SEND CREDITS"
+                                        label="Send credits"
                                         classNameArg="max_width_col"
                                         onClick={async () => {
                                             const amount = parseInt(
@@ -264,7 +264,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                     useList={true}
                     feedLoader={async (page: number, offset: PostId) => {
                         if (status != 1) return null;
-                        if (tab == "TAGS")
+                        if (tab == "Tags")
                             return await window.api.query(
                                 "user_tags",
                                 domain(),
@@ -272,7 +272,7 @@ export const Profile = ({ handle }: { handle: string }) => {
                                 page,
                                 offset,
                             );
-                        if (tab == "REWARDED")
+                        if (tab == "Rewarded")
                             return await window.api.query(
                                 "rewarded_posts",
                                 domain(),
@@ -308,11 +308,8 @@ export const UserInfo = ({ profile }: { profile: User }) => {
     );
     const accountingList = (
         <>
-            <h2>Rewards and Credits Accounting</h2>
-            <table
-                style={{ width: "100%" }}
-                className={bigScreen() ? undefined : "small_text"}
-            >
+            <h2>Rewards and credits accounting</h2>
+            <table className={`full_width ${bigScreen() ? "" : "small_text"}`}>
                 <tbody>
                     {profile.accounting.map(
                         ([timestamp, type, delta, log], i) => (
@@ -328,7 +325,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                                     {delta}{" "}
                                     {type == "CRE" ? "credits" : "rewards"}
                                 </td>
-                                <td style={{ textAlign: "right" }}>
+                                <td className="text_right">
                                     {<Content post={false} value={log} />}
                                 </td>
                             </tr>
@@ -344,7 +341,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
         <div className="spaced">
             {profile.previous_names.length > 0 && (
                 <div className="bottom_spaced">
-                    AKA:{" "}
+                    Also known as:{" "}
                     {commaSeparated(
                         profile.previous_names.map((handle) => <b>{handle}</b>),
                     )}
@@ -386,7 +383,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
             )}
             <div className="top_spaced dynamic_table">
                 <div className="db_cell">
-                    TOKENS
+                    Tokens
                     <a
                         className="xx_large_text"
                         href={`#/transactions/${profile.principal}`}
@@ -396,7 +393,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 </div>
                 {profile.cold_balance > 0 && (
                     <div className="db_cell">
-                        COLD WALLET
+                        Cold wallet
                         <a
                             className="xx_large_text"
                             href={`#/transactions/${profile.cold_wallet}`}
@@ -407,31 +404,31 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 )}
                 {(profile.mode == "Rewards" || profile.rewards < 0) && (
                     <div className="db_cell">
-                        REWARDS
+                        Rewards
                         <code className="accent">
                             {profile.rewards.toLocaleString()}
                         </code>
                     </div>
                 )}
                 <div className="db_cell">
-                    JOINED
+                    Joined
                     <span>{`${timeAgo(profile.timestamp)}`}</span>
                 </div>
                 <div className="db_cell">
-                    LAST ACTIVE
+                    Last active
                     <span>{`${timeAgo(profile.last_activity, true)}`}</span>
                 </div>
                 <div className="db_cell">
-                    ACTIVE WEEKS
+                    Active weeks
                     <code>{profile.active_weeks.toLocaleString()}</code>
                 </div>
                 <div className="db_cell">
-                    POSTS
+                    Posts
                     <code>{profile.num_posts.toLocaleString()}</code>
                 </div>
                 {profile.followees.length > 0 && (
                     <div className="db_cell">
-                        FOLLOWS
+                        Follows
                         {placeholder(
                             // we need to subtract 1 because every user follows themselves by default
                             profile.followees.length - 1,
@@ -448,7 +445,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 )}
                 {profile.followers.length > 0 && (
                     <div className="db_cell">
-                        FOLLOWERS
+                        Followers
                         {placeholder(
                             profile.followers.length,
                             <>
@@ -460,7 +457,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 )}
                 {profile.feeds.length > 0 && (
                     <div className="db_cell">
-                        FEEDS
+                        Feeds
                         {placeholder(
                             profile.feeds.length,
                             tagList(profile.feeds),
@@ -469,7 +466,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 )}
                 {profile.realms.length > 0 && (
                     <div className="db_cell">
-                        JOINED REALMS
+                        Joined realms
                         {placeholder(
                             profile.realms.length,
                             <RealmList
@@ -481,7 +478,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 )}
                 {profile.controlled_realms.length > 0 && (
                     <div className="db_cell">
-                        CONTROLS REALMS
+                        Controls realms
                         {placeholder(
                             profile.controlled_realms.length,
                             <RealmList
@@ -493,7 +490,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                 )}
                 {profile.accounting.length > 0 && (
                     <div className="db_cell">
-                        ACCOUNTING
+                        Accounting
                         <code
                             className="clickable clickable_color"
                             onClick={() => popUp(accountingList)}
@@ -503,7 +500,7 @@ export const UserInfo = ({ profile }: { profile: User }) => {
                     </div>
                 )}
                 <div className="db_cell">
-                    CREDITS
+                    Credits
                     <code>{`${profile.cycles.toLocaleString()}`}</code>
                 </div>
             </div>
@@ -518,23 +515,23 @@ export const getLabels = (profile: User) => {
         labels.push(["OG", "PaleVioletRed"]);
     }
     if (profile.stalwart) {
-        labels.push(["STALWART", "Salmon"]);
+        labels.push(["Stalwart", "Salmon"]);
     }
     if (profile.active_weeks > 12) {
-        labels.push(["FREQUENTER", "SlateBlue"]);
+        labels.push(["Frequenter", "SlateBlue"]);
     }
     if (
         window.user &&
         profile.followees.includes(window.user.id) &&
         window.user.id != profile.id
     ) {
-        labels.push(["FOLLOWS YOU", "SeaGreen"]);
+        labels.push(["Follows you", "SeaGreen"]);
     }
     if (
         secondsSince(profile.last_activity) / daySeconds >
         window.backendCache.config.voting_power_activity_weeks * 7
     ) {
-        labels.push(["INACTIVE", "White"]);
+        labels.push(["Inactive", "White"]);
     }
 
     if (labels.length == 0) return null;
@@ -565,8 +562,8 @@ const followeeList = (ids: UserId[]) => (
                 <UserLink id={id} classNameArg="max_width_col" />
                 {window.user && window.user.id != id && (
                     <ToggleButton
-                        offLabel="FOLLOW"
-                        onLabel="UNFOLLOW"
+                        offLabel="Follow"
+                        onLabel="Unfollow"
                         classNameArg="left_half_spaced right_half_spaced"
                         currState={() => window.user.followees.includes(id)}
                         toggler={async () => {
@@ -594,8 +591,8 @@ export const FollowButton = ({ id }: { id: UserId }) => {
     const user = window.user;
     return !user || user.id == id ? null : (
         <ToggleButton
-            offLabel="FOLLOW"
-            onLabel="UNFOLLOW"
+            offLabel="Follow"
+            onLabel="Unfollow"
             classNameArg="left_half_spaced right_half_spaced"
             currState={() => user.followees.includes(id)}
             toggler={async () => {

@@ -14,6 +14,7 @@ export const PostFeed = ({
     highlighted,
     useList,
     journal,
+    emptyMessage = "Nothing here yet.",
 }: {
     classNameArg?: string;
     focusedPost?: PostId;
@@ -29,6 +30,7 @@ export const PostFeed = ({
     highlighted?: PostId[];
     useList?: boolean;
     journal?: boolean;
+    emptyMessage?: string;
 }) => {
     const [page, setPage] = React.useState(0);
     const [offset, setOffset] = React.useState(0);
@@ -37,9 +39,11 @@ export const PostFeed = ({
     const [displayPageFlipper, setPageVlipperVisibility] =
         React.useState(!thread);
     const reqId = React.useRef(0);
+    const generation = React.useRef(0);
 
     const loadPage = async (page: number) => {
         const id = ++reqId.current;
+        const gen = generation.current;
         // Only show the loading indicator while flipping pages; the first
         // load already starts with `loading` set.
         if (page > 0) setLoading(true);
@@ -48,8 +52,8 @@ export const PostFeed = ({
             page == 0 ? 0 : offset,
             !!includeComments,
         );
-        // Drop the response if a newer load has started meanwhile.
-        if (id !== reqId.current) return;
+        // Drop the response if a newer load or a different feed has started.
+        if (id !== reqId.current || gen !== generation.current) return;
         if (!loadedPosts) {
             setLoading(false);
             return;
@@ -63,7 +67,13 @@ export const PostFeed = ({
     };
 
     React.useEffect(() => {
+        // A different tab/filter is a different feed: drop the old posts
+        // instead of appending the new page to them while it loads.
+        generation.current++;
         setPage(0);
+        setOffset(0);
+        setPosts([]);
+        setLoading(true);
         loadPage(0);
         setPageVlipperVisibility(!thread);
     }, [heartbeat]);
@@ -108,9 +118,17 @@ export const PostFeed = ({
             {title && title}
             {(!loading || page > 0) &&
                 (useGrid ? renderGrid() : renderColumns())}
+            {!loading && posts.length == 0 && (
+                <div
+                    className="text_centered vertically_spaced small_text"
+                    role="status"
+                >
+                    {emptyMessage}
+                </div>
+            )}
             {loading && <Loading />}
             {displayPageFlipper && !loading && posts.length > 0 && (
-                <div style={{ display: "flex", justifyContent: "center" }}>
+                <div className="hcentered">
                     <button
                         className="pageFlipper"
                         onClick={async () => {
@@ -119,7 +137,7 @@ export const PostFeed = ({
                             await loadPage(nextPage);
                         }}
                     >
-                        MORE
+                        More
                     </button>
                 </div>
             )}

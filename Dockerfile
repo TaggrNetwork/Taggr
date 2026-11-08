@@ -28,7 +28,7 @@ RUN { \
         echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${APT_SNAPSHOT_DATE} trixie-security main"; \
         echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${APT_SNAPSHOT_DATE} trixie-updates main"; \
     } > /etc/apt/sources.list && \
-    apt-get -yq update && \
+    apt-get -yq -o Acquire::Retries=5 update && \
     apt-get -yqq install --no-install-recommends curl ca-certificates build-essential jq xz-utils libdbus-1-3 && \
     rm -rf /var/lib/apt/lists/*
 
@@ -49,7 +49,7 @@ RUN NODE_VERSION="$(cat .node-version | xargs)" && \
         arm64|aarch64) NODE_ARCH=arm64; NODE_SHA256=5a5b1dc4906e891a655d2f0689db664879724f2d9e63309486fd588172a052bc ;; \
         *) echo "Unsupported arch for node: ${TARGETARCH}" >&2; exit 1 ;; \
     esac && \
-    curl --fail -L "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" -o /tmp/node.tar.xz && \
+    curl --fail -L --retry 5 --retry-delay 2 --retry-connrefused "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" -o /tmp/node.tar.xz && \
     echo "${NODE_SHA256}  /tmp/node.tar.xz" | sha256sum -c - && \
     mkdir -p /opt/node && \
     tar -xJf /tmp/node.tar.xz --strip-components=1 -C /opt/node && \
@@ -68,7 +68,7 @@ RUN case "${TARGETARCH:-$(uname -m)}" in \
         arm64|aarch64) RUSTUP_TRIPLE=aarch64-unknown-linux-gnu; RUSTUP_SHA256=9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792 ;; \
         *) echo "Unsupported arch for rustup: ${TARGETARCH}" >&2; exit 1 ;; \
     esac && \
-    curl --fail -L "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${RUSTUP_TRIPLE}/rustup-init" -o /tmp/rustup-init && \
+    curl --fail -L --retry 5 --retry-delay 2 --retry-connrefused "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${RUSTUP_TRIPLE}/rustup-init" -o /tmp/rustup-init && \
     echo "${RUSTUP_SHA256}  /tmp/rustup-init" | sha256sum -c - && \
     chmod +x /tmp/rustup-init && \
     /tmp/rustup-init -y --no-modify-path --default-toolchain none && \
@@ -86,7 +86,7 @@ RUN mkdir -p /opt/ic-wasm && \
         arm64|aarch64) IC_WASM_TRIPLE=aarch64-unknown-linux-gnu; IC_WASM_SHA256=56f150be3e413f9637df4b4fa41950c79d39cf738969be0231bfae37ac4f3b1a ;; \
         *) echo "Unsupported Docker target arch: ${ARCH}" >&2; exit 1 ;; \
     esac && \
-    curl --fail -L \
+    curl --fail -L --retry 5 --retry-delay 2 --retry-connrefused \
         "https://github.com/dfinity/ic-wasm/releases/download/$(cat .ic-wasm-version | xargs)/ic-wasm-${IC_WASM_TRIPLE}.tar.xz" \
         -o /tmp/ic-wasm.tar.xz && \
     echo "${IC_WASM_SHA256}  /tmp/ic-wasm.tar.xz" | sha256sum -c - && \
@@ -110,7 +110,7 @@ RUN case "${TARGETARCH:-$(uname -m)}" in \
         arm64|aarch64) ICP_TRIPLE=aarch64-unknown-linux-gnu; ICP_SHA256=8dc266d1b5b93b80e8bca2025a7268329e5b0d9a0b74f21bba4dad59267a363a ;; \
         *) echo "Unsupported arch for icp-cli: ${TARGETARCH}" >&2; exit 1 ;; \
     esac && \
-    curl --fail -L "https://github.com/dfinity/icp-cli/releases/download/v${ICP_CLI_VERSION}/icp-cli-${ICP_TRIPLE}.tar.xz" -o /tmp/icp-cli.tar.xz && \
+    curl --fail -L --retry 5 --retry-delay 2 --retry-connrefused "https://github.com/dfinity/icp-cli/releases/download/v${ICP_CLI_VERSION}/icp-cli-${ICP_TRIPLE}.tar.xz" -o /tmp/icp-cli.tar.xz && \
     echo "${ICP_SHA256}  /tmp/icp-cli.tar.xz" | sha256sum -c - && \
     mkdir -p /opt/icp && \
     tar -xJf /tmp/icp-cli.tar.xz --strip-components=1 -C /opt/icp && \

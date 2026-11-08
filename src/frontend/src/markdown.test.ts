@@ -67,3 +67,37 @@ test("table cells become inline nodes", () => {
         },
     ]);
 });
+
+test("table header with a trailing space keeps the header", () => {
+    assert.deepEqual(parseMarkdown("| a | \n| --- |\n| b |"), [
+        {
+            type: "table",
+            headers: [[{ type: "text", value: "a" }]],
+            aligns: [null],
+            rows: [[[{ type: "text", value: "b" }]]],
+        },
+    ]);
+});
+
+test("table delimiter row with a trailing space keeps the header", () => {
+    assert.deepEqual(parseMarkdown("| a |\n| --- | \n| b |"), [
+        {
+            type: "table",
+            headers: [[{ type: "text", value: "a" }]],
+            aligns: [null],
+            rows: [[[{ type: "text", value: "b" }]]],
+        },
+    ]);
+});
+
+test("underscore inside a Cyrillic word stays literal", () => {
+    assert.deepEqual(parseInline("при_вет_"), [
+        { type: "text", value: "при_вет_" },
+    ]);
+});
+
+test("underscore emphasis still works around Cyrillic", () => {
+    assert.deepEqual(parseInline("_привет_"), [
+        { type: "em", children: [{ type: "text", value: "привет" }] },
+    ]);
+});

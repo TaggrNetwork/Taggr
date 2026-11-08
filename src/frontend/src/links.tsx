@@ -4,8 +4,8 @@ export const LinksPage = ({}) => {
     const { token_symbol, staging, staging2 } = window.backendCache.config;
     return (
         <div className="spaced">
-            <HeadBar title="LINKS" shareLink="links" />
-            <h2>Price Listings</h2>
+            <HeadBar title="Links" shareLink="links" />
+            <h2>Price listings</h2>
             <ul>
                 <li>
                     <a
@@ -24,7 +24,7 @@ export const LinksPage = ({}) => {
                     </a>
                 </li>
             </ul>
-            <h2>{token_symbol} Trading</h2>
+            <h2>{token_symbol} trading</h2>
             <ul>
                 <li>
                     <a

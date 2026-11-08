@@ -4,7 +4,6 @@ import { Content } from "./content";
 import { PollView } from "./poll";
 import {
     isRoot,
-    BurgerButton,
     timeAgo,
     ToggleButton,
     NotFound,
@@ -50,6 +49,7 @@ import {
     Pin,
     Eye,
     EyeSlash,
+    Ellipsis,
 } from "./icons";
 import { ProposalView } from "./proposals";
 import { DEFAULT_REACTION_HOLD_TIME } from "./settings";
@@ -293,7 +293,7 @@ const PostViewImpl = ({
                                 className="reply_tag"
                                 href={`#/thread/${post.id}`}
                             >
-                                &#9664; REPLY
+                                &#9664; Reply
                             </a>
                         )}
                         <UserLink
@@ -320,7 +320,7 @@ const PostViewImpl = ({
                     </div>
                 )}
                 {post.encrypted && (
-                    <div className="text_centered x_large_text">ENCRYPTED</div>
+                    <div className="text_centered x_large_text">Encrypted</div>
                 )}
                 {isNSFW && (
                     <div
@@ -335,7 +335,7 @@ const PostViewImpl = ({
                         className="nsfw x_large_text"
                         onClick={() => setSafeToOpen(true)}
                     >
-                        HIDDEN
+                        Hidden
                     </div>
                 )}
                 {notAllowed && (
@@ -369,8 +369,8 @@ const PostViewImpl = ({
                             post={true}
                             value={body}
                             collapse={!expanded}
-                            primeMode={isRoot(post) && !repost}
                             urls={urls}
+                            primeMode={isRoot(post) && !repost}
                         />
                     </article>
                 )}
@@ -851,15 +851,12 @@ const PostInfo = ({
                     </>
                 )}
             </div>
-            <div
-                style={{ paddingBottom: "1em" }}
-                className="small_text top_spaced bottom_spaced"
-            >
-                <b>CREATED</b>:{" "}
+            <div className="small_text top_spaced bottom_spaced">
+                <b>Created</b>:{" "}
                 {new Date(Number(postCreated) / 1000000).toLocaleString()}
                 {post.patches.length > 0 && (
                     <div>
-                        <b>VERSIONS</b>:{" "}
+                        <b>Versions</b>:{" "}
                         {commaSeparated(
                             post.patches
                                 .concat([[post.timestamp, ""]])
@@ -880,12 +877,12 @@ const PostInfo = ({
                 )}
                 {post.watchers.length > 0 && (
                     <div>
-                        <b>WATCHERS</b>: <UserList ids={post.watchers} />
+                        <b>Watchers</b>: <UserList ids={post.watchers} />
                     </div>
                 )}
                 {post.tips.length > 0 && (
                     <div>
-                        <b>{token_symbol} TIPS</b>:{" "}
+                        <b>{token_symbol} tips</b>:{" "}
                         {commaSeparated(
                             post.tips.map(([id, tip]) => (
                                 <span key={id + Number(tip)}>
@@ -951,9 +948,12 @@ const PostBar = ({
     const newComments =
         window.user && (post.tree_update > window.lastVisit || updatedRecently);
     const ref = React.useRef<HTMLDivElement>(null);
+    // A stored delay of "", "0" or garbage parses to 0 or NaN, which would make
+    // reactions fire on touch; fall back to the default instead.
+    const storedHoldTime = Number(user?.settings.tap_and_hold);
     const delay =
-        user && "tap_and_hold" in user.settings
-            ? Number(user.settings.tap_and_hold)
+        Number.isFinite(storedHoldTime) && storedHoldTime > 0
+            ? storedHoldTime
             : DEFAULT_REACTION_HOLD_TIME;
 
     const reactionIndicatorWidth = React.useRef(0);
@@ -1002,11 +1002,8 @@ const PostBar = ({
             ></div>
             <div className="post_bar vcentered">
                 {showHint && (
-                    <div
-                        className="max_width_col"
-                        style={{ textAlign: "left", opacity: 0.7 }}
-                    >
-                        TAP AND HOLD!
+                    <div className="max_width_col text_left muted">
+                        Tap and hold!
                     </div>
                 )}
                 {showEmojis && !showHint && (
@@ -1047,6 +1044,11 @@ const PostBar = ({
                         )}
                         {replies > 0 && !isThreadView && (
                             <IconToggleButton
+                                title={
+                                    showComments
+                                        ? "Hide comments"
+                                        : "Show comments"
+                                }
                                 pressed={showComments}
                                 testId="post-comments-toggle"
                                 onClick={
@@ -1072,13 +1074,15 @@ const PostBar = ({
                             />
                         )}
                         {!isThreadView && !showCarret && (
-                            <BurgerButton
+                            <IconToggleButton
+                                title="More"
                                 onClick={() => {
                                     toggleInfo(!showInfo);
                                     toggleComments(false);
                                 }}
                                 pressed={showInfo}
                                 testId="post-info-toggle"
+                                icon={<Ellipsis />}
                             />
                         )}
                         {(isThreadView || showCarret) && (
@@ -1107,10 +1111,6 @@ export const ReactionPicker = ({
         className={`framed right_spaced max_width_col ${
             bigScreen() ? "row_container" : "emoji_table"
         }`}
-        style={{
-            justifyContent: "flex-start",
-            padding: "0.5em",
-        }}
         data-meta="skipClicks"
     >
         {window.backendCache.config.reactions.map(([reactId, rewards]) => (
@@ -1141,10 +1141,7 @@ export const Reactions = ({
 }) => {
     const entries = Object.entries(reactionsMap);
     return (
-        <div
-            className="max_width_col row_container"
-            style={{ justifyContent: "flex-start" }}
-        >
+        <div className="max_width_col row_container">
             {entries.map(([reactId, users]) => {
                 const reacted = users.includes(window.user?.id);
                 return (

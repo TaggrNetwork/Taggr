@@ -80,9 +80,7 @@ export const UserLink = ({
     // Special case for the system user
     if (id != null && id == systemUserId)
         userLabel = (
-            <span className="accent">
-                {window.backendCache.config.name.toUpperCase()}
-            </span>
+            <span className="accent">{window.backendCache.config.name}</span>
         );
     else if (userName || validUserId(id))
         userLabel = (

@@ -234,10 +234,7 @@ export const Icrc1TokensWallet = () => {
 
             setTokens(tokens.filter(([id]) => id !== canisterId));
         } catch (error: any) {
-            showPopUp(
-                "error",
-                error?.message || "Failed to add token to your wallet",
-            );
+            showPopUp("error", error?.message || "Failed to remove the token");
         } finally {
             setDisabled(false);
         }
@@ -249,7 +246,7 @@ export const Icrc1TokensWallet = () => {
                 className="vcentered bottom_spaced"
                 data-testid="ic-tokens-div"
             >
-                <h2 className="max_width_col">ICRC TOKENS</h2>
+                <h2 className="max_width_col">ICRC tokens</h2>
                 <div className="vcentered">
                     <input
                         id="canisters-hide-zero-balance"
@@ -306,6 +303,7 @@ export const Icrc1TokensWallet = () => {
                             key={canisterId}
                         >
                             <img
+                                alt=""
                                 style={{
                                     height: 32,
                                     width: 32,
@@ -355,7 +353,7 @@ export const Icrc1TokensWallet = () => {
                                     }
                                     await loadBalances([canisterId]); // Refresh balance
                                 }}
-                                label={"SEND"}
+                                label={"Send"}
                             ></ButtonWithLoading>
                             <ButtonWithLoading
                                 testId={canisterId + "-remove"}

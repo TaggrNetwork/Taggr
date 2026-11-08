@@ -52,6 +52,7 @@ const FeedExtender = ({
                 <div className="row_container max_width_col">
                     <input
                         type="text"
+                        aria-label="Filter"
                         className="medium_text max_width_col"
                         value={filterVal}
                         onChange={(e) => setFilterVal(e.target.value)}
@@ -64,7 +65,7 @@ const FeedExtender = ({
                             setExtending(false);
                         }}
                     >
-                        DONE
+                        Done
                     </button>
                 </div>
             )}
@@ -73,15 +74,15 @@ const FeedExtender = ({
                     className="medium_text max_width_col"
                     onClick={() => setExtending(!extending)}
                 >
-                    EXTEND
+                    Extend
                 </button>
             )}
             {!extending && user && (
                 <>
                     <ToggleButton
                         classNameArg="max_width_col"
-                        offLabel="FOLLOW"
-                        onLabel="UNFOLLOW"
+                        offLabel="Follow"
+                        onLabel="Unfollow"
                         currState={() => contains(user.feeds, filter)}
                         toggler={async () => {
                             const result = await window.api.call<
@@ -94,8 +95,8 @@ const FeedExtender = ({
                     />
                     {filter.length == 1 && (
                         <ToggleButton
-                            offLabel="MUTE"
-                            onLabel="UNMUTE"
+                            offLabel="Mute"
+                            onLabel="Unmute"
                             classNameArg="max_width_col"
                             currState={() =>
                                 user.filters.tags.includes(

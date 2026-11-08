@@ -390,7 +390,7 @@ export const recoverBucket = async (): Promise<boolean> => {
         "WARNING: this overwrites your storage canister with a fresh " +
             "image. ALL images and data in it will be permanently " +
             "lost. This cannot be undone. Continue?",
-        { confirmLabel: "WIPE & REINSTALL", cancelLabel: "CANCEL" },
+        { confirmLabel: "Wipe & reinstall", cancelLabel: "Cancel" },
     );
     if (!ok) return false;
     try {
@@ -689,7 +689,7 @@ export const maybePromptTopUp = async () => {
     const ok = await confirmPopUp(
         `Your storage canister will run out of cycles in ~${days} days. ` +
             `Top it up to keep your images available.`,
-        { confirmLabel: "TOP UP", cancelLabel: "LATER" },
+        { confirmLabel: "Top up", cancelLabel: "Later" },
     );
     if (ok) location.href = "#/settings/STORAGE";
 };

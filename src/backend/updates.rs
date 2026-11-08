@@ -87,9 +87,6 @@ fn post_upgrade() {
     sync_post_upgrade_fixtures();
 
     // post upgrade logic goes here
-    set_timer(Duration::from_millis(0), async {
-        async_post_upgrade_fixtures().await;
-    });
 
     ic_cdk::println!(
         "Post-upgrade spent {}B instructions",
@@ -99,6 +96,8 @@ fn post_upgrade() {
 
 #[allow(clippy::all)]
 fn sync_post_upgrade_fixtures() {
+    // Idempotent, and the only seed for the canonical host after a reinstall or
+    // a restore of a snapshot older than the `.icp.net` migration.
     let canonical_domain = format!("{}.icp.net", id());
     mutate(|state| {
         state
@@ -108,14 +107,7 @@ fn sync_post_upgrade_fixtures() {
                 max_downvotes: CONFIG.default_max_downvotes,
                 ..Default::default()
             });
-        crate::assets::add_domains(&state.domains);
-        crate::assets::certify();
     });
-}
-
-#[allow(clippy::all)]
-async fn async_post_upgrade_fixtures() {
-    env::ethereum::update_eth_key().await;
 }
 
 /*

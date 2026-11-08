@@ -47,7 +47,7 @@ test.describe("Regular users flow", () => {
             .fill("I am a #Taggr fan");
         await page.getByRole("button", { name: "SAVE" }).click();
         await waitForUILoading(page);
-        await expect(page).toHaveTitle("TAGGR");
+        await expect(page).toHaveTitle(/taggr/i);
 
         await page.goto("/#/inbox");
         await waitForUILoading(page);
@@ -59,7 +59,7 @@ test.describe("Regular users flow", () => {
         ).toBeVisible();
 
         await page.getByTestId("toggle-user-section").click();
-        await page.getByRole("link", { name: /.*SIGN OUT.*/ }).click();
+        await page.getByRole("link", { name: /.*Sign out.*/ }).click();
         await waitForUILoading(page);
     });
 
@@ -73,8 +73,8 @@ test.describe("Regular users flow", () => {
         await waitForUILoading(page);
         await page.getByTestId("toggle-user-section").click();
         await waitForUILoading(page);
-        const profileButton = page.getByRole("link", { name: /.*ALICE.*/ });
-        await expect(profileButton).toBeVisible();
+        const profileButton = page.getByTestId("menu-profile-link");
+        await expect(profileButton).toHaveText(/alice/i);
 
         await profileButton.click();
         await waitForUILoading(page);
@@ -228,7 +228,7 @@ test.describe("Regular users flow", () => {
         inviteLink = await page.getByText(/.*#\/welcome.*/).textContent();
 
         await page.getByTestId("toggle-user-section").click();
-        await page.getByRole("link", { name: /.*SIGN OUT.*/ }).click();
+        await page.getByRole("link", { name: /.*Sign out.*/ }).click();
         await waitForUILoading(page);
     });
 
@@ -320,7 +320,7 @@ test.describe("Regular users flow", () => {
 
         // Sign out bob and sign back in as alice
         await page.getByTestId("toggle-user-section").click();
-        await page.getByRole("link", { name: /.*SIGN OUT.*/ }).click();
+        await page.getByRole("link", { name: /.*Sign out.*/ }).click();
         await waitForUILoading(page);
         await page.getByRole("button", { name: "SIGN IN" }).click();
         await page.getByRole("button", { name: "SEED PHRASE" }).click();

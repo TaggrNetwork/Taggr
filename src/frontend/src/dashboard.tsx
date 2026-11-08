@@ -56,7 +56,7 @@ export const Dashboard = ({}) => {
     const { config, stats } = window.backendCache;
     return (
         <>
-            <HeadBar title="DASHBOARD" shareLink="dashboard" />
+            <HeadBar title="Dashboard" shareLink="dashboard" />
             <div className="text_centered vertically_spaced">
                 <div className="dynamic_table">
                     <div className="db_cell">
@@ -108,7 +108,7 @@ export const Dashboard = ({}) => {
                             <Treasury />{" "}
                             <IcpAccountLink
                                 address={stats.account}
-                                label={"ICP TREASURY"}
+                                label={"ICP treasury"}
                             />
                         </label>
                         <ICPAccountBalance
@@ -165,31 +165,31 @@ export const Dashboard = ({}) => {
                         <a
                             href={`https://dashboard.internetcomputer.org/canister/${window.backendCache.stats.canister_id}`}
                         >
-                            MAIN CANISTER
+                            Main canister
                         </a>
                     </h2>
                     <div className="dynamic_table">
                         <div className="db_cell">
                             <label>
-                                <Box /> STATE
+                                <Box /> State
                             </label>
                             {sizeMb(stats.state_size)}
                         </div>
                         <div className="db_cell">
                             <label>
-                                <Credits /> CYCLES
+                                <Credits /> Cycles
                             </label>
                             {showCycles(Number(stats.canister_cycle_balance))}
                         </div>
                         <div className="db_cell">
                             <label>
-                                <Fire /> DAILY BURN
+                                <Fire /> Daily burn
                             </label>
                             {showCycles(Number(stats.canister_cycle_burn))}
                         </div>
                         <div className="db_cell">
                             <label>
-                                <Gear /> LAST UPGRADE
+                                <Gear /> Last upgrade
                             </label>
                             <a
                                 className="xx_large_text"
@@ -203,11 +203,11 @@ export const Dashboard = ({}) => {
                 </div>
                 <hr />
                 <div>
-                    <h2>STALWARTS</h2>
+                    <h2>Stalwarts</h2>
                     <UserList ids={stats.stalwarts} />
                 </div>
                 <hr />
-                <h2>LOGS</h2>
+                <h2>Logs</h2>
                 <table className="dashboard_logs">
                     <tbody>
                         {logs.map(({ timestamp, level, message }, i) => {

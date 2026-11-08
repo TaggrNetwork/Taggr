@@ -28,6 +28,16 @@ import { connect } from "./authentication";
 
 let interval: any = null;
 
+// Deterministic "up" target for deep links, where there is no in-app frame to
+// go back to.
+const parentHash = (hash: string) => {
+    const [handler, param] = hash.replace(/^#\/?/, "").split("/");
+    if ((handler === "post" || handler === "edit") && param)
+        return `#/thread/${param}`;
+    if (handler === "thread" && param) return `#/post/${param}`;
+    return "#/";
+};
+
 export const Header = ({
     style,
     route,
@@ -38,13 +48,25 @@ export const Header = ({
     inboxMode: boolean;
 }) => {
     const user = window.user;
-    const [showUserSection, toggleUserSection] = React.useState(false);
-    const [showRealms, toggleRealms] = React.useState(false);
-    const [showLinks, toggleLinks] = React.useState(false);
+    const [openMenu, setOpenMenu] = React.useState<
+        "user" | "realms" | "links" | null
+    >(null);
     const [messages, setMessages] = React.useState(0);
     const [offset, setOffset] = React.useState(0);
 
     const realm = currentRealm();
+
+    const toggleMenu = (menu: "user" | "realms" | "links") =>
+        setOpenMenu(openMenu === menu ? null : menu);
+
+    const goBack = () => {
+        const stack = document.getElementById("stack");
+        if (stack && stack.children.length > 1) {
+            history.back();
+            return;
+        }
+        location.href = parentHash(location.hash);
+    };
 
     const refreshMessageCounter = () => {
         const user = window.user;
@@ -62,10 +84,40 @@ export const Header = ({
         logo.innerHTML = window.backendCache.config.logo;
     }, [style]);
     React.useEffect(() => {
-        toggleUserSection(false);
-        toggleRealms(false);
-        toggleLinks(false);
+        setOpenMenu(null);
     }, [route]);
+    // Menus behave like menus: dismiss on an outside click or Escape instead of
+    // staying open until the same trigger is pressed again.
+    React.useEffect(() => {
+        if (!openMenu) return;
+        const close = () => setOpenMenu(null);
+        const onPointerDown = (event: MouseEvent) => {
+            // A dialog owns the interaction; closing the menu underneath it
+            // would lose the form the dialog was opened from.
+            if (document.querySelector(".modal_overlay")) return;
+            const target = event.target;
+            if (!(target instanceof Element)) return close();
+            if (
+                target.closest(
+                    '.drop_down, [data-testid="toggle-user-section"], [data-testid="toggle-realms"], [data-testid="toggle-links"]',
+                )
+            )
+                return;
+            close();
+        };
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== "Escape") return;
+            // A dialog stacked on top handles its own dismissal.
+            if (document.querySelector(".modal_overlay")) return;
+            close();
+        };
+        document.addEventListener("mousedown", onPointerDown);
+        document.addEventListener("keydown", onKeyDown);
+        return () => {
+            document.removeEventListener("mousedown", onPointerDown);
+            document.removeEventListener("keydown", onKeyDown);
+        };
+    }, [openMenu]);
     React.useEffect(refreshMessageCounter, [user]);
     React.useEffect(() => {
         refreshMessageCounter();
@@ -80,17 +132,19 @@ export const Header = ({
             {STAGING_MODE && (
                 <div className="banner vertically_spaced">
                     THIS IS THE STAGING VERSION OF{" "}
-                    {window.backendCache.config.name.toUpperCase()}!
+                    {window.backendCache.config.name}!
                 </div>
             )}
             <header className="spaced top_half_spaced vcentered">
-                {!["/", "#/", "", "#/inbox"].includes(location.hash) && (
-                    <span
-                        className="clickable_color clickable right_half_spaced left_half_spaced"
-                        onClick={() => history.back()}
+                {!["/", "#/", "", "#/home"].includes(location.hash) && (
+                    <button
+                        className="unselected reaction_button clickable_color"
+                        aria-label="Back"
+                        title="Back"
+                        onClick={goBack}
                     >
                         &#9664;
-                    </span>
+                    </button>
                 )}
                 <a
                     href="#/home"
@@ -120,11 +174,9 @@ export const Header = ({
                             />
                             {user.realms.length > 0 && !window.monoRealm && (
                                 <IconToggleButton
-                                    pressed={showRealms}
+                                    pressed={openMenu === "realms"}
                                     onClick={(event) => {
-                                        toggleRealms(!showRealms);
-                                        toggleUserSection(false);
-                                        toggleLinks(false);
+                                        toggleMenu("realms");
                                         setOffset(getOffset(event));
                                     }}
                                     icon={<Realm />}
@@ -132,11 +184,9 @@ export const Header = ({
                                 />
                             )}
                             <IconToggleButton
-                                pressed={showUserSection}
+                                pressed={openMenu === "user"}
                                 onClick={(event) => {
-                                    toggleUserSection(!showUserSection);
-                                    toggleRealms(false);
-                                    toggleLinks(false);
+                                    toggleMenu("user");
                                     setOffset(getOffset(event));
                                 }}
                                 icon={<User />}
@@ -144,27 +194,26 @@ export const Header = ({
                             />
                             {!window.monoRealm && (
                                 <BurgerButton
-                                    pressed={showLinks}
+                                    pressed={openMenu === "links"}
                                     onClick={(event) => {
-                                        toggleRealms(false);
-                                        toggleUserSection(false);
-                                        toggleLinks(!showLinks);
+                                        toggleMenu("links");
                                         setOffset(getOffset(event));
                                     }}
                                     testId="toggle-links"
                                 />
                             )}
-                            {(!realm ||
-                                (user && user.realms.includes(realm))) && (
-                                <button
-                                    className="active left_half_spaced"
-                                    onClick={() => (location.href = "#/new")}
-                                >
-                                    POST
-                                </button>
-                            )}
                         </>
                     )}
+                    {!style &&
+                        user &&
+                        (!realm || user.realms.includes(realm)) && (
+                            <button
+                                className="active left_half_spaced"
+                                onClick={() => (location.href = "#/new")}
+                            >
+                                Post
+                            </button>
+                        )}
                     {!window.user && !style && (
                         <>
                             <button
@@ -173,19 +222,19 @@ export const Header = ({
                                     (location.href = `${MAINNET_MODE ? "https://" + getCanonicalDomain() : ""}/#/sign-up`)
                                 }
                             >
-                                SIGN UP
+                                Sign up
                             </button>
                             <button className="active" onClick={connect}>
-                                SIGN IN
+                                Sign in
                             </button>
                         </>
                     )}
                 </div>
             </header>
             <DropDown offset={offset}>
-                {showUserSection && <UserSection user={user} />}
-                {showLinks && <Links />}
-                {showRealms && (
+                {openMenu === "user" && <UserSection user={user} />}
+                {openMenu === "links" && <Links />}
+                {openMenu === "realms" && (
                     <RealmList classNameArg="centered" ids={user.realms} />
                 )}
             </DropDown>
@@ -196,8 +245,7 @@ export const Header = ({
 
 function getOffset(event: React.MouseEvent) {
     const rect = event.currentTarget.getBoundingClientRect();
-    const position = rect.left;
-    return position;
+    return rect.left;
 }
 
 const UserSection = ({ user }: { user: UserType }) => {
@@ -212,36 +260,37 @@ const UserSection = ({ user }: { user: UserType }) => {
                         title={user.name}
                         className="icon_link"
                         href={`/#/user/${user.name}`}
+                        data-testid="menu-profile-link"
                     >
-                        <User /> {user.name.toUpperCase()}
+                        <User /> {user.name}
                     </a>
                     <a
-                        title="JOURNAL"
+                        title="Journal"
                         className="icon_link"
                         href={`/#/journal/${user.name}`}
                     >
-                        <Journal /> JOURNAL
+                        <Journal /> Journal
                     </a>
-                    <a title="INVITES" className="icon_link" href="/#/invites">
-                        <Ticket /> INVITES
+                    <a title="Invites" className="icon_link" href="/#/invites">
+                        <Ticket /> Invites
                     </a>
                     <a
-                        title="BOOKMARKS"
+                        title="Bookmarks"
                         className="icon_link"
                         href={`/#/bookmarks`}
                     >
-                        <Save /> BOOKMARKS
+                        <Save /> Bookmarks
                     </a>
                     <a
-                        title="SETTINGS"
+                        title="Settings"
                         className="icon_link"
                         href="/#/settings"
                     >
-                        <Gear /> SETTINGS
+                        <Gear /> Settings
                     </a>
                 </>
                 <a
-                    title="SIGN OUT"
+                    title="Sign out"
                     className="icon_link"
                     href=""
                     onClick={(e) => {
@@ -252,7 +301,7 @@ const UserSection = ({ user }: { user: UserType }) => {
                         signOutAndRestart();
                     }}
                 >
-                    <Logout /> SIGN OUT
+                    <Logout /> Sign out
                 </a>
             </div>
             <Wallet />

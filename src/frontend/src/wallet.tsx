@@ -67,7 +67,7 @@ export const Wallet = () => {
                     </code>
                 </div>
                 <div className="row_container">
-                    <div className="max_width_col">ICP Account</div>
+                    <div className="max_width_col">ICP account</div>
                     <code>
                         <CopyToClipboard
                             value={user.account}
@@ -87,7 +87,7 @@ export const Wallet = () => {
                 <h2 className="max_width_col">ICP</h2>
                 {Number(user.treasury_e8s) > 0 && (
                     <ButtonWithLoading
-                        label="WITHDRAW REWARDS"
+                        label="Withdraw rewards"
                         onClick={async () => {
                             let result =
                                 await window.api.call<any>("withdraw_rewards");
@@ -98,7 +98,7 @@ export const Wallet = () => {
                     />
                 )}
                 <ButtonWithLoading
-                    label="SEND"
+                    label="Send"
                     testId="icp-transfer-button"
                     onClick={async () => {
                         try {
@@ -189,7 +189,7 @@ export const Wallet = () => {
             <div className="vcentered">
                 <h2 className="max_width_col">Credits</h2>
                 <ButtonWithLoading
-                    label="MINT"
+                    label="Mint"
                     onClick={async () => {
                         const future_invoice = window.api.call<any>(
                             "mint_credits_with_icp",
@@ -269,7 +269,7 @@ export const Wallet = () => {
                             await window.reloadUser();
                             setUser(window.user);
                         }}
-                        label="LINK COLD WALLET"
+                        label="Link cold wallet"
                     />
                 )}
                 {user.cold_wallet && (
@@ -289,11 +289,11 @@ export const Wallet = () => {
                             await window.reloadUser();
                             setUser(window.user);
                         }}
-                        label="UNLINK COLD WALLET"
+                        label="Unlink cold wallet"
                     />
                 )}
                 <ButtonWithLoading
-                    label="SEND"
+                    label="Send"
                     testId="tokens-transfer-button"
                     onClick={async () => {
                         const response = await icrcTransfer(
@@ -322,7 +322,7 @@ export const Wallet = () => {
             </div>
             {user.cold_wallet && (
                 <div className="row_container vcentered">
-                    <div className="max_width_col">Cold Wallet</div>
+                    <div className="max_width_col">Cold wallet</div>
                     <a
                         className="xx_large_text"
                         href={`#/transactions/${user.cold_wallet}`}

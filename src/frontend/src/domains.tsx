@@ -30,7 +30,7 @@ export const Domains = ({}) => {
     return (
         <div className="spaced">
             <HeadBar
-                title="DOMAINS"
+                title="Domains"
                 shareLink="domains"
                 menu={true}
                 burgerTestId="domain-burger-menu"
@@ -153,13 +153,14 @@ const DomainForm = ({
         <div className="stands_out top_spaced column_container">
             <h4>{domain}</h4>
             <select
+                aria-label="Domain content"
                 value={cfgType}
                 className="bottom_spaced"
                 onChange={(event) => setCfgType(event.target.value)}
             >
-                <option value="journal">JOURNAL</option>
-                <option value="whitelist">REALM WHITE LIST</option>
-                <option value="blacklist">REALM BLACK LIST</option>
+                <option value="journal">Journal</option>
+                <option value="whitelist">Realm white list</option>
+                <option value="blacklist">Realm black list</option>
             </select>
             {cfgType == "journal" && (
                 <p>This domain will only display the journal of the owner.</p>
@@ -170,8 +171,14 @@ const DomainForm = ({
                         This domain will only display posts from the realms that
                         are white-listed below.
                     </p>
-                    WHITE-LIST (one per line):
+                    <label
+                        className="small_text top_half_spaced"
+                        htmlFor={`domain-${domain}-whitelist`}
+                    >
+                        White list (one per line):
+                    </label>
                     <textarea
+                        id={`domain-${domain}-whitelist`}
                         className="small_text bottom_spaced top_half_spaced"
                         value={whitelist}
                         onChange={(event) => setWhitelist(event.target.value)}
@@ -185,8 +192,14 @@ const DomainForm = ({
                         This domain will only display all posts except from the
                         realms that are black-listed below.
                     </p>
-                    BLACK-LIST (one per line):
+                    <label
+                        className="small_text top_half_spaced"
+                        htmlFor={`domain-${domain}-blacklist`}
+                    >
+                        Black list (one per line):
+                    </label>
                     <textarea
+                        id={`domain-${domain}-blacklist`}
                         className="small_text bottom_spaced top_half_spaced"
                         value={blacklist}
                         onChange={(event) => setBlacklist(event.target.value)}
@@ -195,9 +208,15 @@ const DomainForm = ({
                 </>
             )}
             <div className="row_container spaced vcentered">
-                <span>Maximum number of downvotes for posts displayed:</span>
+                <label
+                    htmlFor={`domain-${domain}-max-downvotes`}
+                    className="no_wrap"
+                >
+                    Maximum number of downvotes for posts displayed:
+                </label>
                 <input
-                    className="left_spaced max_width_col"
+                    id={`domain-${domain}-max-downvotes`}
+                    className="left_half_spaced max_width_col"
                     type="number"
                     value={maxDownvotes}
                     onChange={(e) => setMaxDownvotes(Number(e.target.value))}
@@ -210,19 +229,19 @@ const DomainForm = ({
                         className="max_width_col medium_text"
                         onClick={() => showInstructions(true)}
                     >
-                        SHOW INSTRUCTIONS
+                        Show instructions
                     </button>
                 )}
                 <ButtonWithLoading
                     classNameArg="max_width_col"
-                    label="REMOVE"
+                    label="Remove"
                     onClick={async () => {
                         if (
                             !(await confirmPopUp(
                                 `Remove the configuration of ${domain}? This cannot be undone.`,
                                 {
-                                    confirmLabel: "REMOVE",
-                                    cancelLabel: "CANCEL",
+                                    confirmLabel: "Remove",
+                                    cancelLabel: "Cancel",
                                 },
                             ))
                         )
@@ -241,7 +260,7 @@ const DomainForm = ({
                 />
                 <ButtonWithLoading
                     classNameArg="max_width_col"
-                    label="SUBMIT"
+                    label="Submit"
                     onClick={async () => {
                         const cfg: DomainConfig = {
                             owner: initCfg.owner,
@@ -284,7 +303,11 @@ const NewDomainForm = ({ callback }: { callback: () => void }) => {
     return (
         <div className="column_container">
             <h2>Add your domain</h2>
+            <label className="bottom_half_spaced" htmlFor="new-domain-name">
+                Domain name
+            </label>
             <input
+                id="new-domain-name"
                 type="text"
                 value={domain}
                 className="bottom_spaced"
@@ -307,7 +330,7 @@ const NewDomainForm = ({ callback }: { callback: () => void }) => {
                         setDomainAdded(true);
                         callback();
                     }}
-                    label={"ADD"}
+                    label={"Add"}
                 />
             )}
             {domainAdded && <DomainInstructions domain={domain} />}

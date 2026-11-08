@@ -47,7 +47,7 @@ export const Welcome = () => {
     };
 
     const logOutButton = (
-        <ButtonWithLoading onClick={signOutAndRestart} label="SIGN OUT" />
+        <ButtonWithLoading onClick={signOutAndRestart} label="Sign out" />
     );
 
     const { name, post_cost } = window.backendCache.config;
@@ -56,7 +56,7 @@ export const Welcome = () => {
 
     return (
         <>
-            <HeadBar title={"WELCOME!"} shareLink="welcome" />
+            <HeadBar title={"Welcome!"} shareLink="welcome" />
             <div className="spaced">
                 {(!invoice || !invoice.paid) && (
                     <div className="bottom_spaced">
@@ -70,7 +70,7 @@ export const Welcome = () => {
                                     : shortenPrincipal(principal)
                             }
                         />
-                        <h2>JOINING</h2>
+                        <h2>Joining</h2>
                         <p>
                             To join {name} you need "credits". Credits are
                             app-internal tokens which you spend as a "gas" while
@@ -119,7 +119,7 @@ export const Welcome = () => {
                                 <ButtonWithLoading
                                     classNameArg="active bottom_spaced"
                                     onClick={checkICPPayment}
-                                    label="MINT CREDITS WITH ICP"
+                                    label="Mint credits with ICP"
                                 />
                                 {logOutButton}
                             </div>
@@ -128,7 +128,7 @@ export const Welcome = () => {
                             <>
                                 {invoice.paid && (
                                     <div>
-                                        <h2>CREDITS MINTED! ✅</h2>
+                                        <h2>Credits minted! ✅</h2>
                                         <p>
                                             You can create a user account now.
                                         </p>
@@ -138,7 +138,7 @@ export const Welcome = () => {
                                                 (location.href = "/#/settings")
                                             }
                                         >
-                                            CREATE USER
+                                            Create user
                                         </button>
                                     </div>
                                 )}
@@ -174,7 +174,7 @@ export const Welcome = () => {
                                                 className="active bottom_spaced large_text"
                                                 onClick={checkICPPayment}
                                             >
-                                                CHECK BALANCE
+                                                Check balance
                                             </button>
                                             <button
                                                 className="bottom_spaced large_text"
@@ -182,7 +182,7 @@ export const Welcome = () => {
                                                     setICPInvoice(null);
                                                 }}
                                             >
-                                                CHANGE PAYMENT
+                                                Change payment
                                             </button>
                                             {logOutButton}
                                         </div>

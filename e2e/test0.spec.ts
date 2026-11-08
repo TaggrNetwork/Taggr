@@ -8,11 +8,9 @@ test("Sanity check", async ({ page }) => {
     await expect(
         page.getByRole("heading", { name: "WELCOME ABOARD" }),
     ).toBeVisible();
-    await expect(page).toHaveTitle("TAGGR");
+    await expect(page).toHaveTitle(/taggr/i);
     await expect(
-        page.getByText(
-            "To Decentralised Publishing and Communication Platform",
-        ),
+        page.getByText("Decentralised publishing and communication."),
     ).toBeVisible();
 });
 
@@ -32,5 +30,5 @@ test("Important links work", async ({ page }) => {
     await page.getByRole("link", { name: "DASHBOARD" }).click();
     await expect(page.getByText("LAST UPGRADE")).toBeVisible();
     await page.goBack();
-    await expect(page).toHaveTitle("TAGGR");
+    await expect(page).toHaveTitle(/taggr/i);
 });

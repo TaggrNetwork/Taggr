@@ -14,6 +14,10 @@ jobs:
 
       - name: Build, test, and produce release artifact
         run: make release
+        env:
+          # icp network start fetches the launcher version from the GitHub API;
+          # authenticate to avoid the unauthenticated rate limit (503).
+          ICP_CLI_GITHUB_TOKEN: ${{ github.token }}
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4

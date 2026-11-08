@@ -45,18 +45,25 @@ export const errorText = (err: unknown): string =>
  *     if (handleError(response)) return;
  *
  * Pass `fallback` for a context-specific message; the backend's error text
- * takes precedence when present.
+ * takes precedence when present. Pass `report` to render the failure inline
+ * instead of the toast (for screens that own an error line).
  *
  * Most update methods reply a `Result` (`{"Ok": …}` / `{"Err": …}`; see
  * `src/backend/updates.rs`), but some still reply a bare value. A missing reply
  * always counts as a failure regardless, and a non-`Result` reply can never be
  * mistaken for an error since it cannot carry an `Err` field.
  */
-export const handleError = (response: any, fallback?: string): boolean => {
+export const handleError = (
+    response: any,
+    fallback?: string,
+    report?: (message: string) => void,
+): boolean => {
     const failed =
         response == null || (typeof response == "object" && "Err" in response);
     if (!failed) return false;
-    showPopUp("error", response?.Err || fallback || "Call failed");
+    const message = response?.Err || fallback || "Call failed";
+    if (report) report(String(message));
+    else showPopUp("error", message);
     return true;
 };
 
@@ -112,10 +119,7 @@ export const RealmList = ({
     if (!loaded) return <Loading />;
 
     return (
-        <div
-            className={`row_container ${classNameArg || ""}`}
-            style={{ alignItems: "center" }}
-        >
+        <div className={`row_container vcentered ${classNameArg || ""}`}>
             {realmsData.map((data, i) => (
                 <RealmSpan
                     key={i}
@@ -135,12 +139,12 @@ export const hex = (arr: number[]) =>
 
 export const MoreButton = ({
     callback,
-    label = "MORE",
+    label = "More",
 }: {
     callback: () => Promise<any>;
     label?: string;
 }) => (
-    <div style={{ display: "flex", justifyContent: "center" }}>
+    <div className="hcentered">
         <ButtonWithLoading
             classNameArg="top_spaced"
             onClick={callback}
@@ -153,10 +157,13 @@ export const TabBar = ({
     tabs,
     activeTab,
     onTabChange,
+    labels,
 }: {
     tabs: string[];
     activeTab: string;
     onTabChange: (tab: string) => void;
+    // Ids may be API values; labels are what the user reads.
+    labels?: { [id: string]: string };
 }) => (
     <div className="text_centered vertically_spaced">
         {tabs.map((id) => (
@@ -167,7 +174,7 @@ export const TabBar = ({
                     "medium_text " + (activeTab == id ? "active" : "unselected")
                 }
             >
-                {id.toUpperCase()}
+                {labels?.[id] || id}
             </button>
         ))}
     </div>
@@ -238,7 +245,7 @@ export const interleaved = (
 
 export const NotAllowed = ({ where }: { where: string }) => (
     <div className="text_centered vertically_spaced">
-        <h1 style={{ fontSize: "4em" }}>
+        <h1 className="xx_large_text">
             <code>403</code>
         </h1>
         Not available on {where}
@@ -247,7 +254,7 @@ export const NotAllowed = ({ where }: { where: string }) => (
 
 export const NotFound = () => (
     <div className="text_centered vertically_spaced">
-        <h1 style={{ fontSize: "4em" }}>
+        <h1 className="xx_large_text">
             <code>404</code>
         </h1>
         Not found
@@ -256,7 +263,7 @@ export const NotFound = () => (
 
 export const Unauthorized = () => (
     <div className="text_centered vertically_spaced">
-        <h1 style={{ fontSize: "4em" }}>
+        <h1 className="xx_large_text">
             <code>401</code>
         </h1>
         Unauthorised
@@ -294,6 +301,9 @@ export const HeadBar = ({
         <div className="column_container stands_out" style={styleArg}>
             <div className="vcentered">
                 <h1
+                    style={
+                        styleArg?.color ? { color: styleArg.color } : undefined
+                    }
                     className={`max_width_col ${
                         bigScreen() ? "x_large_text" : "large_text"
                     }`}
@@ -326,16 +336,27 @@ export const HeadBar = ({
     );
 };
 
-export const foregroundColor = (background: string) => {
-    const light = (col: string) => {
-        const hex = col.replace("#", "");
-        const c_r = parseInt(hex.substring(0, 0 + 2), 16);
-        const c_g = parseInt(hex.substring(2, 2 + 2), 16);
-        const c_b = parseInt(hex.substring(4, 4 + 2), 16);
-        const brightness = (c_r * 299 + c_g * 587 + c_b * 114) / 1000;
-        return brightness > 155;
+// WCAG relative luminance of a `#rrggbb` colour. Anything else (named colours,
+// shorthand hex) parses to NaN, which every caller treats as "not legible".
+export const luminance = (background: string) => {
+    const hex = background.replace("#", "");
+    const channel = (offset: number) => {
+        const c = parseInt(hex.substring(offset, offset + 2), 16) / 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
     };
-    return light(background) ? "black" : "white";
+    return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
+};
+
+// WCAG contrast ratio between two `#rrggbb` colours.
+export const contrast = (a: string, b: string) => {
+    const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (high + 0.05) / (low + 0.05);
+};
+
+export const foregroundColor = (background: string) => {
+    // Black and white reach equal contrast at ~0.179, so pick the ink with the
+    // higher ratio instead of a brightness threshold.
+    return luminance(background) > 0.179 ? "black" : "white";
 };
 
 export const RealmSpan = ({
@@ -388,7 +409,7 @@ export const ShareButton = ({
                 showPopUp("info", `Link copied to clipboard: ${fullUlr}`);
             }}
         >
-            {text ? "SHARE" : <Share styleArg={styleArg} />}
+            {text ? "Share" : <Share styleArg={styleArg} />}
         </button>
     );
 };
@@ -411,11 +432,10 @@ export const getTokens = (prefix: string, value: string) => {
 
 export const setTitle = (value: string) => {
     const name = window.backendCache.config.name;
+    const label = value ? value.charAt(0).toUpperCase() + value.slice(1) : "";
     const titleElement = document.getElementsByTagName("title")[0];
     if (titleElement)
-        titleElement.innerText = (
-            value ? `${name}: ${value}` : name
-        ).toUpperCase();
+        titleElement.innerText = label ? `${name}: ${label}` : name;
 };
 
 export const HASH_ITERATIONS = 15000;
@@ -655,7 +675,6 @@ export const Loading = ({
     spaced?: boolean;
 }) => {
     const [dot, setDot] = React.useState(0);
-    const md = <span> ■ </span>;
     React.useEffect(() => {
         const id = setTimeout(() => setDot(dot + 1), 200);
         return () => clearTimeout(id);
@@ -664,12 +683,18 @@ export const Loading = ({
         <div
             className={`${classNameArg} ${
                 spaced ? "vertically_spaced" : ""
-            } accent small_text no_wrap text_centered left_spaced right_spaced`}
+            } accent small_text no_wrap text_centered left_half_spaced right_spaced`}
             data-testid="loading-spinner"
+            role="status"
+            aria-label="Loading"
         >
-            {[md, md, md].map((v, i) => (
-                <span key={i} style={{ opacity: i == dot % 3 ? 0.6 : 1 }}>
-                    {v}
+            {[0, 1, 2].map((i) => (
+                <span
+                    key={i}
+                    aria-hidden="true"
+                    style={{ opacity: i == dot % 3 ? 0.6 : 1 }}
+                >
+                    {" ■ "}
                 </span>
             ))}
         </div>
@@ -739,6 +764,7 @@ export const IconToggleButton = ({
             onClick(e);
         }}
         data-testid={testId}
+        aria-pressed={pressed === undefined ? undefined : pressed}
         className={`button_text ${
             pressed ? "" : "un"
         }selected reaction_button vcentered ${classNameArg}`}
@@ -890,7 +916,7 @@ export const FlagButton = ({ id, text }: { id: number; text?: boolean }) => (
                 showPopUp("success", "Report accepted! Thank you!");
             }
         }}
-        label={text ? "REPORT" : <Flag />}
+        label={text ? "Report" : <Flag />}
     />
 );
 
@@ -918,10 +944,7 @@ export const ReportBanner = ({
             </strong>
             <Content value={report.reason} post={false} />
             {!tookAction && (
-                <div
-                    className="row_container"
-                    style={{ justifyContent: "center" }}
-                >
+                <div className="row_container hcentered">
                     {buttons.map(([label, val]) => (
                         <ButtonWithLoading
                             title={label}
@@ -962,21 +985,28 @@ export function popUp<T>(
     // lightbox keeps #preview to itself.
     const overlay = document.createElement("div");
     overlay.className = "modal_overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
     const root = document.createElement("div");
     root.className = "popup_body";
+    root.tabIndex = -1;
     overlay.appendChild(root);
     document.body.appendChild(overlay);
 
     const reactRoot = createRoot(root);
+    const previousFocus = document.activeElement as HTMLElement | null;
     const promise = new Promise((resolve: (arg: T | null) => void) => {
         const closePreview = (arg: T | null) => {
             // Navigation is handled by the app's popstate router; drop the
             // listener so navigating away closes the popup instead of leaving
             // it stacked on top of the new page (e.g. follows -> user journal).
             window.removeEventListener("popstate", navigateAway);
+            window.removeEventListener("keydown", escape);
+            root.removeEventListener("keydown", trapTab);
             // Unmount before detaching so React tears the tree down cleanly.
             reactRoot.unmount();
             overlay.remove();
+            previousFocus?.focus?.();
             resolve(arg);
         };
         // Dismiss on navigation; bypasses `opts.closable` since the popup's
@@ -988,6 +1018,54 @@ export function popUp<T>(
             if (opts?.closable && !opts.closable()) return;
             closePreview(null);
         };
+        // Escape dismisses like the close button, and is ignored while the
+        // caller blocks closing. Only the topmost dialog reacts, so stacked
+        // dialogs close one at a time.
+        const escape = (event: KeyboardEvent) => {
+            if (event.key !== "Escape") return;
+            const overlays = document.querySelectorAll(".modal_overlay");
+            if (overlays[overlays.length - 1] !== overlay) return;
+            dismiss();
+        };
+        window.addEventListener("keydown", escape);
+
+        // Keep Tab inside the dialog. Focus starts on the first focusable
+        // element (or the dialog itself when there is none); elements that ask
+        // for autofocus keep it.
+        const focusables = () =>
+            Array.from(
+                root.querySelectorAll<HTMLElement>(
+                    'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+                ),
+            ).filter((element) => element.getClientRects().length > 0);
+        const focusInitial = () => {
+            if (root.contains(document.activeElement)) return;
+            (focusables()[0] || root).focus();
+        };
+        const trapTab = (event: KeyboardEvent) => {
+            if (event.key !== "Tab") return;
+            const items = focusables();
+            if (items.length == 0) {
+                event.preventDefault();
+                root.focus();
+                return;
+            }
+            const first = items[0];
+            const last = items[items.length - 1];
+            if (
+                event.shiftKey &&
+                (document.activeElement === first ||
+                    document.activeElement === root)
+            ) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        root.addEventListener("keydown", trapTab);
+        setTimeout(focusInitial, 0);
 
         overlay.onclick = (event) => {
             if (event.target === overlay) dismiss();
@@ -1000,7 +1078,7 @@ export function popUp<T>(
                     className="clickable row_container bottom_spaced"
                     onClick={dismiss}
                 >
-                    <div style={{ marginLeft: "auto" }}>
+                    <div className="push_right">
                         <Close classNameArg="action" size={18} />
                     </div>
                 </div>
@@ -1019,7 +1097,7 @@ export function popUp<T>(
 const ConfirmDialog = ({
     message,
     confirmLabel = "OK",
-    cancelLabel = "CANCEL",
+    cancelLabel = "Cancel",
     parentCallback,
 }: {
     message: string;
@@ -1029,8 +1107,7 @@ const ConfirmDialog = ({
 }) => (
     <div className="column_container" data-testid="popup-confirm">
         <div
-            className="bottom_spaced"
-            style={{ whiteSpace: "pre-line" }}
+            className="bottom_spaced preserve_lines"
             data-testid="popup-confirm-message"
         >
             {message}
@@ -1040,6 +1117,7 @@ const ConfirmDialog = ({
                 className="right_half_spaced"
                 onClick={() => parentCallback?.(false)}
                 data-testid="popup-confirm-cancel"
+                autoFocus
             >
                 {cancelLabel}
             </button>
@@ -1047,7 +1125,6 @@ const ConfirmDialog = ({
                 className="active"
                 onClick={() => parentCallback?.(true)}
                 data-testid="popup-confirm-ok"
-                autoFocus
             >
                 {confirmLabel}
             </button>
@@ -1068,14 +1145,15 @@ const PromptDialog = ({
     return (
         <div className="column_container" data-testid="popup-prompt">
             <div
-                className="bottom_spaced"
-                style={{ whiteSpace: "pre-line" }}
+                className="bottom_spaced preserve_lines"
+                id="popup-prompt-message"
                 data-testid="popup-prompt-message"
             >
                 {message}
             </div>
             <input
                 autoFocus
+                aria-labelledby="popup-prompt-message"
                 className="bottom_spaced"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
@@ -1091,7 +1169,7 @@ const PromptDialog = ({
                     onClick={() => parentCallback?.(null)}
                     data-testid="popup-prompt-cancel"
                 >
-                    CANCEL
+                    Cancel
                 </button>
                 <button
                     className="active"
@@ -1318,30 +1396,22 @@ export const InfoPopup = ({
             typeIcon = "ℹ️";
     }
 
-    // Capitalize the message and add punctuation if needed.
-    let formattedMessage = message || "";
-    if (formattedMessage.length > 0) {
-        formattedMessage =
-            formattedMessage[0].toUpperCase() + formattedMessage.slice(1);
-        if (
-            ![".", "!", "?"].includes(
-                formattedMessage[formattedMessage.length - 1],
-            )
-        )
-            formattedMessage += ".";
-    }
-
     return (
-        <div className="info_popup">
+        <div
+            className="info_popup"
+            role={type === "error" ? "alert" : "status"}
+        >
             <div className="info_popup_content">
                 <div className="info_popup_message vcentered">
                     <span className="xx_large_text right_spaced">
                         {typeIcon}
                     </span>{" "}
-                    {formattedMessage}
+                    {message}
                 </div>
                 <button
                     className="info_popup_close"
+                    aria-label="Dismiss"
+                    title="Dismiss"
                     onClick={() => setVisible(false)}
                 >
                     <Close size={14} />
@@ -1360,7 +1430,7 @@ export const InfoPopup = ({
 export const showPopUp = (
     type: string = "info",
     message: string,
-    duration_secs: number = 3,
+    duration_secs: number = type === "error" ? 7 : 3,
 ) => {
     const duration = duration_secs * 1000;
     let domElem = document.getElementById("info_popup_container");
@@ -1460,12 +1530,7 @@ export const DropDown = ({
     }
 
     return (
-        <div
-            className="drop_down"
-            style={{
-                position: "relative",
-            }}
-        >
+        <div className="drop_down" style={{ position: "relative" }}>
             {localOffset > 0 && (
                 <div
                     className="triangle"

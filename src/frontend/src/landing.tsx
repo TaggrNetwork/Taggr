@@ -20,6 +20,12 @@ import { PostId } from "./types";
 const NEW = "NEW";
 const HOT = "HOT";
 const FOR_ME = "FOR ME";
+// Tab ids are persisted in user settings; labels are display-only.
+const TAB_LABELS: { [id: string]: string } = {
+    [NEW]: "New",
+    [HOT]: "Hot",
+    [FOR_ME]: "For me",
+};
 
 export const Landing = () => {
     const user = window.user;
@@ -67,7 +73,7 @@ export const Landing = () => {
                         `${bigScreen() ? "small_text" : "smaller_text"}`
                     }
                 >
-                    {icon}&nbsp; {id}
+                    {icon}&nbsp; {TAB_LABELS[id]}
                     {user && feed == NEW && id == NEW && (
                         <span
                             className={`${filtered ? "inactive" : undefined} left_half_spaced`}
@@ -84,12 +90,10 @@ export const Landing = () => {
         <>
             {!user && !realm && (
                 <div className="spaced vertically_spaced text_centered">
-                    <h1>WELCOME ABOARD</h1>
-                    <p>
-                        To Decentralised Publishing and Communication Platform.
-                    </p>
+                    <h1>Welcome aboard</h1>
+                    <p>Decentralised publishing and communication.</p>
                     <button onClick={() => (location.href = "#/whitepaper")}>
-                        LEARN MORE
+                        Learn more
                     </button>
                 </div>
             )}
@@ -140,33 +144,33 @@ export const Links = ({ classNameArg }: { classNameArg?: string }) => {
                 ${classNameArg}
             `}
         >
-            <a title="WHITE PAPER" className="icon_link" href="/#/whitepaper">
-                <Document /> WHITE PAPER
+            <a title="White paper" className="icon_link" href="/#/whitepaper">
+                <Document /> White paper
             </a>
-            <a title="DASHBOARD" className="icon_link" href="/#/dashboard">
-                <Bars /> DASHBOARD
+            <a title="Dashboard" className="icon_link" href="/#/dashboard">
+                <Bars /> Dashboard
             </a>
-            <a title="PROPOSALS" className="icon_link" href="/#/proposals">
-                <Balloon /> PROPOSALS
+            <a title="Proposals" className="icon_link" href="/#/proposals">
+                <Balloon /> Proposals
             </a>
-            <a title="TOKENS" className="icon_link" href="/#/tokens">
-                <Gem /> TOKENS
+            <a title="Tokens" className="icon_link" href="/#/tokens">
+                <Gem /> Tokens
             </a>
-            <a title="REALMS" className="icon_link" href={`/#/realms`}>
-                <Realm /> REALMS
+            <a title="Realms" className="icon_link" href={`/#/realms`}>
+                <Realm /> Realms
             </a>
-            <a title="LINK" className="icon_link" href="/#/links">
-                <Link /> LINKS
+            <a title="Links" className="icon_link" href="/#/links">
+                <Link /> Links
             </a>
-            <a title="DOMAINS" className="icon_link" href="/#/domains">
-                <Globe /> DOMAINS
+            <a title="Domains" className="icon_link" href="/#/domains">
+                <Globe /> Domains
             </a>
             <a
-                title="DISTRIBUTION"
+                title="Distribution"
                 className="icon_link"
                 href="/#/distribution"
             >
-                <CashCoin /> DISTRIBUTION
+                <CashCoin /> Distribution
             </a>
         </div>
     );
