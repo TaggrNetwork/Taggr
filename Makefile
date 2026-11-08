@@ -91,6 +91,7 @@ tests:
 		--platform=$(TEST_PLATFORM) \
 		--shm-size=1g \
 		$(if $(VERBOSE),-e VERBOSE=1) \
+		$(if $(ICP_CLI_GITHUB_TOKEN),-e ICP_CLI_GITHUB_TOKEN) \
 		-v $(shell pwd)/test-results:/app/test-results \
 		-v $(shell pwd)/playwright-report:/app/playwright-report \
 		taggr-tests tests
@@ -104,6 +105,7 @@ ifeq ($(DOCKER_ARCH),amd64)
 		--platform=linux/amd64 \
 		--shm-size=1g \
 		$(if $(VERBOSE),-e VERBOSE=1) \
+		$(if $(ICP_CLI_GITHUB_TOKEN),-e ICP_CLI_GITHUB_TOKEN) \
 		-e RELEASE_ARTIFACT_DIR=/app/release-artifacts \
 		-v $(shell pwd)/release-artifacts:/app/release-artifacts \
 		-v $(shell pwd)/test-results:/app/test-results \
@@ -117,6 +119,7 @@ else
 		--platform=$(TEST_PLATFORM) \
 		--shm-size=1g \
 		$(if $(VERBOSE),-e VERBOSE=1) \
+		$(if $(ICP_CLI_GITHUB_TOKEN),-e ICP_CLI_GITHUB_TOKEN) \
 		-v $(shell pwd)/test-results:/app/test-results \
 		-v $(shell pwd)/playwright-report:/app/playwright-report \
 		taggr-tests tests
@@ -124,6 +127,7 @@ else
 	$(CONTAINER) run --rm \
 		--platform=linux/amd64 \
 		$(if $(VERBOSE),-e VERBOSE=1) \
+		$(if $(ICP_CLI_GITHUB_TOKEN),-e ICP_CLI_GITHUB_TOKEN) \
 		-e RELEASE_ARTIFACT_DIR=/app/release-artifacts \
 		-v $(shell pwd)/release-artifacts:/app/release-artifacts \
 		taggr-release artifact
