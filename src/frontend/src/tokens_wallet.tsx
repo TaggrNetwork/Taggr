@@ -41,7 +41,6 @@ export const Icrc1TokensWallet = () => {
         getLocalFilters()?.hideZeroBalance || false,
     );
     const [disabled, setDisabled] = React.useState(true);
-    const [error, setError] = React.useState("");
 
     /** Load balances of user canisters in small batches to avoid spikes */
     const loadBalances = async (canisterIds: string[]) => {
@@ -153,7 +152,6 @@ export const Icrc1TokensWallet = () => {
         canisterId =
             canisterId || (await promptPopUp(`ICRC canister id:`)) || "";
         if (!canisterId) return;
-        setError("");
         try {
             setDisabled(true);
             Principal.fromText(canisterId);
@@ -178,7 +176,7 @@ export const Icrc1TokensWallet = () => {
                 "update_wallet_tokens",
                 user.wallet_tokens,
             );
-            if (handleError(response, undefined, setError)) return;
+            if (handleError(response)) return;
 
             cacheLocalStorage(getUserCanisterKey(canisterId), meta);
             const balances = await loadBalances([canisterId]);
@@ -191,7 +189,10 @@ export const Icrc1TokensWallet = () => {
                 ),
             );
         } catch (error: any) {
-            setError(error?.message || "Failed to add token to your wallet");
+            showPopUp(
+                "error",
+                error?.message || "Failed to add token to your wallet",
+            );
         } finally {
             setDisabled(false);
         }
@@ -208,7 +209,6 @@ export const Icrc1TokensWallet = () => {
         if (!proceed) {
             return;
         }
-        setError("");
         try {
             setDisabled(true);
             Principal.fromText(canisterId);
@@ -228,13 +228,13 @@ export const Icrc1TokensWallet = () => {
                 "update_wallet_tokens",
                 user.wallet_tokens,
             );
-            if (handleError(response, undefined, setError)) return;
+            if (handleError(response)) return;
 
             localStorage.removeItem(getUserCanisterKey(canisterId));
 
             setTokens(tokens.filter(([id]) => id !== canisterId));
         } catch (error: any) {
-            setError(error?.message || "Failed to remove the token");
+            showPopUp("error", error?.message || "Failed to remove the token");
         } finally {
             setDisabled(false);
         }
@@ -295,11 +295,6 @@ export const Icrc1TokensWallet = () => {
                     disabled={disabled}
                 ></ButtonWithLoading>
             </div>
-            {error && (
-                <div className="error bottom_spaced" role="alert">
-                    {error}
-                </div>
-            )}
             {tokens.length > 0 && (
                 <div className="column_container">
                     {tokens.map(([canisterId, info]) => (
@@ -351,8 +346,10 @@ export const Icrc1TokensWallet = () => {
                                         info.fee,
                                     );
                                     if (isNaN(+(response || ""))) {
-                                        setError(JSON.stringify(response));
-                                        return;
+                                        return showPopUp(
+                                            "error",
+                                            JSON.stringify(response),
+                                        );
                                     }
                                     await loadBalances([canisterId]); // Refresh balance
                                 }}
