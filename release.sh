@@ -4,12 +4,50 @@ set -eo pipefail
 # Quiet by default — only stage markers and the playwright run print. Set
 # VERBOSE=1 to stream every underlying tool's stdout/stderr (cargo, icp,
 # build.sh, npm, ...) for debugging. fd 3/4 are the redirect targets used
-# throughout this script; in quiet mode they go to /dev/null.
+# throughout this script; in quiet mode they go to a log file whose tail is
+# printed on failure, so CI failures stay diagnosable.
 if [ "${VERBOSE:-}" = "1" ]; then
   exec 3>&1 4>&2
 else
-  exec 3>/dev/null 4>/dev/null
+  LOG_FILE=$(mktemp -t taggr-release.XXXXXX)
+  exec 3>>"$LOG_FILE" 4>&3
+  cleanup() {
+    status=$?
+    if [ "$status" -ne 0 ]; then
+      echo "--- last 200 lines of suppressed output ---"
+      tail -n 200 "$LOG_FILE" || true
+    fi
+    rm -f "$LOG_FILE"
+  }
+  trap cleanup EXIT
 fi
+
+# `icp network start` downloads the network launcher and pocket-ic on first
+# use; GitHub release downloads occasionally return 5xx. Retry a few times,
+# then wait for the gateway before continuing.
+start_network() {
+  local attempt
+  for attempt in 1 2 3; do
+    if icp network start -d >&3 2>&4; then
+      return 0
+    fi
+    echo "network start failed (attempt $attempt/3), retrying..."
+    icp network stop >&3 2>&4 || true
+    sleep 5
+  done
+  return 1
+}
+
+wait_for_network() {
+  local attempt
+  for attempt in $(seq 1 30); do
+    if icp network ping >&3 2>&4; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
 
 run_release() {
   # Rebuild the include_bytes! sources (run_e2e left them as the FEATURES=dev /
@@ -20,7 +58,11 @@ run_release() {
   fe_pid=$!
   ./build.sh bucket >&3 2>&4
   wait "$fe_pid"
-  icp network start -d >&3 2>&4
+  start_network
+  wait_for_network || {
+    echo "network did not become healthy"
+    exit 1
+  }
   icp deploy taggr >&3 2>&4
   icp canister status taggr >&3 2>&4
   OUTPUT=$(icp canister call taggr prod_release '()')
@@ -66,8 +108,11 @@ run_cargo_tests() {
 
 run_e2e() {
   echo "==> [4/7] e2e: network + canister create"
-  icp network start -d >&3 2>&4
-  icp network ping >&3 2>&4
+  start_network
+  wait_for_network || {
+    echo "network did not become healthy"
+    exit 1
+  }
   icp canister create taggr >&3 2>&4 || true
 
   echo "==> [5/7] e2e: dev build (needs .icp/cache/mappings/local.ids.json from create)"
