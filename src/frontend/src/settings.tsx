@@ -385,7 +385,13 @@ export const Settings = ({
     const setSetting = (key: string, e: any) => {
         const newSettings: { [name: string]: string } = {};
         Object.keys(settings).forEach((k) => (newSettings[k] = settings[k]));
-        newSettings[key] = e.target.value;
+        const value = e.target.value;
+        // An empty or non-positive delay parses to 0 downstream, where it makes
+        // reactions fire on touch. Drop the key instead so the default applies
+        // and the field cannot be left blank.
+        delete newSettings[key];
+        if (key != "tap_and_hold" || Number(value) > 0)
+            newSettings[key] = value;
         setSettings(newSettings);
         if (["theme", "columns"].includes(key)) setUIRefresh(true);
         return newSettings[key];
@@ -646,6 +652,7 @@ export const Settings = ({
                 className="bottom_spaced"
                 type="number"
                 min="0"
+                step="any"
                 value={
                     "tap_and_hold" in settings
                         ? settings.tap_and_hold

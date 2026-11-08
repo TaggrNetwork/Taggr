@@ -948,9 +948,12 @@ const PostBar = ({
     const newComments =
         window.user && (post.tree_update > window.lastVisit || updatedRecently);
     const ref = React.useRef<HTMLDivElement>(null);
+    // A stored delay of "", "0" or garbage parses to 0 or NaN, which would make
+    // reactions fire on touch; fall back to the default instead.
+    const storedHoldTime = Number(user?.settings.tap_and_hold);
     const delay =
-        user && "tap_and_hold" in user.settings
-            ? Number(user.settings.tap_and_hold)
+        Number.isFinite(storedHoldTime) && storedHoldTime > 0
+            ? storedHoldTime
             : DEFAULT_REACTION_HOLD_TIME;
 
     const reactionIndicatorWidth = React.useRef(0);
