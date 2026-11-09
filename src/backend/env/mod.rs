@@ -315,13 +315,16 @@ impl State {
             return Err("seed too long".into());
         }
 
+        let user_id = self.principal_to_user(caller).ok_or("user not found")?.id;
+        // Re-encrypting posts costs no external resources, so the fee is revenue.
+        self.charge(
+            user_id,
+            CONFIG.account_activation_cost,
+            "profile privacy change",
+        )?;
+
         let (username, len, is_deactivated) = {
-            let user = self.principal_to_user_mut(caller).ok_or("user not found")?;
-            user.change_credits(
-                CONFIG.account_activation_cost,
-                CreditsDelta::Minus,
-                "profile privacy change",
-            )?;
+            let user = self.users.get_mut(&user_id).ok_or("user not found")?;
             let len = user.posts.len();
             let username = user.name.clone();
             user.deactivated = !user.deactivated;

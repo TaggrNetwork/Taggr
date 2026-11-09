@@ -155,14 +155,8 @@ pub fn change_domain_config(
                 return Err("domain exists".into());
             }
 
-            state
-                .principal_to_user_mut(principal)
-                .ok_or("no user found")?
-                .change_credits(
-                    CONFIG.domain_cost,
-                    CreditsDelta::Minus,
-                    "domain config creation",
-                )?;
+            // A service fee: it creates no external cost, so it is revenue.
+            state.charge(caller_id, CONFIG.domain_cost, "domain config creation")?;
 
             cfg.owner = Some(caller_id);
             cfg.max_downvotes = CONFIG.default_max_downvotes;
