@@ -130,7 +130,7 @@ fn http_request(req: HttpRequest) -> HttpResponse {
                                 .encode(include_bytes!("../frontend/assets/apple-touch-icon.png"))
                         ),
                         maximum_supply: CONFIG.maximum_supply,
-                        total_supply: s.balances.values().copied().sum::<u64>(),
+                        total_supply: s.total_supply(),
                         latest_proposal_id: s.proposals.last().map(|p| p.id),
                         proposal_count: s.proposals.len() as u64,
                     })

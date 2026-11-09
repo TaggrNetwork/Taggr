@@ -294,8 +294,9 @@ fn mint_tokens(
     memo: &str,
 ) -> Result<(), String> {
     state.minting_mode = true;
-    crate::token::mint(state, account(receiver), tokens, memo);
+    let minted = crate::token::mint(state, account(receiver), tokens, memo);
     state.minting_mode = false;
+    minted?;
     tokens /= token::base();
     state.logger.info(format!(
         "`{}` ${} tokens were minted for `{}` via proposal execution.",
@@ -312,7 +313,7 @@ fn mint_tokens(
 
 impl Payload {
     pub fn validate(&self, state: &State) -> Result<(), String> {
-        let current_supply: Token = state.balances.values().sum();
+        let current_supply = state.total_supply();
         match self {
             Payload::AddRealmController(realm_id, user_id) => {
                 if !state.users.contains_key(user_id) {
@@ -534,6 +535,27 @@ pub mod tests {
 
     fn set_time(new_time: Time) {
         crate::TEST_TIME.with(|c| *c.borrow_mut() = new_time * WEEK);
+    }
+
+    #[test]
+    fn minting_proposals_respect_the_supply_cap() {
+        mutate(|state| {
+            state.init();
+            create_user(state, pr(1));
+            // The supply is almost exhausted.
+            insert_balance(
+                state,
+                pr(1),
+                CONFIG.maximum_supply - 5 * token::base() + 3 * token::base(),
+            );
+
+            assert_eq!(
+                mint_tokens(state, pr(1), 3 * token::base(), "test"),
+                Err("minting would exceed the maximum supply".to_string())
+            );
+            assert_eq!(mint_tokens(state, pr(1), 2 * token::base(), "test"), Ok(()));
+            assert_eq!(state.total_supply(), CONFIG.maximum_supply);
+        });
     }
 
     #[test]

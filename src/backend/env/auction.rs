@@ -282,6 +282,16 @@ pub async fn move_to_treasury(amount: u64) -> Result<u64, String> {
 /// treasury, converting them to revenue.
 pub async fn close_auction() -> (u64, u64) {
     let (bids, revenue, market_price) = mutate(|state| {
+        // Closing is all-or-nothing: `get_bids` mints exactly `auction.amount`,
+        // so defer the whole close while that does not fit.
+        if state.auction.amount > state.remaining_supply() {
+            state.logger.warn(format!(
+                "Auction close deferred: `{}` tokens would exceed the maximum supply",
+                state.auction.amount / token::base()
+            ));
+            return Default::default();
+        }
+
         let (bids, revenue, market_price) = state.auction.close();
         if bids.is_empty() {
             state.logger.info("Auction skipped: not enough bids");
@@ -291,7 +301,8 @@ pub async fn close_auction() -> (u64, u64) {
         state.minting_mode = true;
         for bid in &bids {
             let principal = state.users.get(&bid.user).expect("no user found").principal;
-            token::mint(state, account(principal), bid.amount, "auction bid");
+            token::mint(state, account(principal), bid.amount, "auction bid")
+                .expect("the remaining supply was checked");
         }
         state.minting_mode = false;
 

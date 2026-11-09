@@ -591,10 +591,21 @@ pub fn base() -> Token {
     10_u64.pow(CONFIG.token_decimals as u32)
 }
 
-pub fn mint(state: &mut State, account: Account, tokens: Token, memo: &str) {
+/// The only way tokens come into existence. Refuses to mint past
+/// `CONFIG.maximum_supply`. The caller must arm `state.minting_mode`, which is
+/// the guard `transfer` checks for transfers from the minting account.
+pub fn mint(
+    state: &mut State,
+    account: Account,
+    tokens: Token,
+    memo: &str,
+) -> Result<u128, String> {
+    if state.total_supply().saturating_add(tokens) > CONFIG.maximum_supply {
+        return Err("minting would exceed the maximum supply".to_string());
+    }
     let now = time();
     let truncated_memo = memo.chars().take(32).collect::<String>();
-    let _result = transfer(
+    let result = transfer(
         state,
         now,
         icrc1_minting_account().expect("no minting account").owner,
@@ -606,7 +617,9 @@ pub fn mint(state: &mut State, account: Account, tokens: Token, memo: &str) {
             memo: Some(truncated_memo.as_bytes().to_vec()),
             created_at_time: Some(now),
         },
-    );
+    )
+    .map_err(|err| format!("couldn't mint tokens: {:?}", err));
+    result
 }
 
 pub fn burn(
