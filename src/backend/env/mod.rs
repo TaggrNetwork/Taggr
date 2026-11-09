@@ -2304,6 +2304,13 @@ impl State {
         }
     }
 
+    /// The open proposals of a user. They lock part of the user's balance.
+    fn open_proposals(&self, user_id: UserId) -> impl Iterator<Item = &Proposal> + '_ {
+        self.proposals
+            .iter()
+            .filter(move |proposal| proposal.proposer == user_id && proposal.status == Status::Open)
+    }
+
     /// Returns for the given principal:
     /// - how many of their tokens should be locked for a new proposal (at least 1),
     /// - how many tokens are locked for already open proposal.
@@ -2314,9 +2321,7 @@ impl State {
         };
 
         let already_locked_tokens: Token = self
-            .proposals
-            .iter()
-            .filter(|proposal| proposal.proposer == user.id && proposal.status == Status::Open)
+            .open_proposals(user.id)
             .map(|proposal| proposal.escrow_tokens)
             .sum();
 
