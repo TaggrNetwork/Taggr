@@ -28,16 +28,6 @@ import { connect } from "./authentication";
 
 let interval: any = null;
 
-// Deterministic "up" target for deep links, where there is no in-app frame to
-// go back to.
-const parentHash = (hash: string) => {
-    const [handler, param] = hash.replace(/^#\/?/, "").split("/");
-    if ((handler === "post" || handler === "edit") && param)
-        return `#/thread/${param}`;
-    if (handler === "thread" && param) return `#/post/${param}`;
-    return "#/";
-};
-
 export const Header = ({
     style,
     route,
@@ -65,7 +55,11 @@ export const Header = ({
             history.back();
             return;
         }
-        location.href = parentHash(location.hash);
+        // A direct link, a new tab or a reload leaves no in-app frame to go
+        // back to. Fall back to home: a post used to map "up" to its thread and
+        // the thread back to the post, so Back ping-ponged between the two
+        // views forever. Home is the one target that never bounces back.
+        location.href = "#/";
     };
 
     const refreshMessageCounter = () => {
