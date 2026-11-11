@@ -289,6 +289,11 @@ fn snippet(value: &str, term: &str) -> String {
 fn remove_markdown(md: &str) -> String {
     let chars: Vec<char> = md.chars().collect();
     let n = chars.len();
+    // Scanning for a closer that does not exist walks the whole suffix, which
+    // turns the loop below quadratic on inputs like `![![![…`. Remember the
+    // last closer of each kind so a doomed scan is skipped instead.
+    let last_bracket = chars.iter().rposition(|&c| c == ']');
+    let last_paren = chars.iter().rposition(|&c| c == ')');
     let mut result = String::new();
     let mut i = 0;
 
@@ -302,20 +307,20 @@ fn remove_markdown(md: &str) -> String {
             '#' if !adjacent_alnum(&chars, i) => i += 1,
             // Image: drop `![alt]` and the following destination or label.
             '!' if i + 1 < n && chars[i + 1] == '[' => {
-                let mut j = i + 2;
-                while j < n && chars[j] != ']' {
-                    j += 1;
-                }
-                if j < n {
-                    i = skip_dest(&chars, j + 1);
-                } else {
+                if !has_closer(last_bracket, i + 2) {
                     // Unterminated `![`: keep the `!` as literal text.
                     result.push('!');
                     i += 1;
+                    continue;
                 }
+                let mut j = i + 2;
+                while chars[j] != ']' {
+                    j += 1;
+                }
+                i = skip_dest(&chars, j + 1, last_paren, last_bracket);
             }
             // Link: keep the text, drop `](dest)` or `][label]`.
-            ']' => i = skip_dest(&chars, i + 1),
+            ']' => i = skip_dest(&chars, i + 1, last_paren, last_bracket),
             '[' => i += 1,
             _ => {
                 result.push(chars[i]);
@@ -325,6 +330,11 @@ fn remove_markdown(md: &str) -> String {
     }
 
     result
+}
+
+// True when a closer exists at or after `from`.
+fn has_closer(last: Option<usize>, from: usize) -> bool {
+    matches!(last, Some(last) if last >= from)
 }
 
 // True when both neighbours of `chars[i]` are alphanumeric, i.e. the marker sits
@@ -342,13 +352,22 @@ fn adjacent_alnum(chars: &[char], i: usize) -> bool {
 // If `i` points at a link/image destination `(...)` or a reference label
 // `[...]`, returns the index just past the matching closer. Otherwise, or when
 // the closer is missing, returns `i` unchanged.
-fn skip_dest(chars: &[char], i: usize) -> usize {
-    let close = match chars.get(i) {
-        Some('(') => ')',
-        Some('[') => ']',
+fn skip_dest(
+    chars: &[char],
+    i: usize,
+    last_paren: Option<usize>,
+    last_bracket: Option<usize>,
+) -> usize {
+    let (open, close, last) = match chars.get(i) {
+        Some('(') => ('(', ')', last_paren),
+        Some('[') => ('[', ']', last_bracket),
         _ => return i,
     };
-    let open = chars[i];
+    // No closer left: the scan below would walk the whole suffix every time it
+    // is retried, so skip it and treat the destination as missing.
+    if !has_closer(last, i) {
+        return i;
+    }
     let mut depth = 0usize;
     let mut j = i;
     while j < chars.len() {
@@ -462,5 +481,18 @@ mod tests {
     #[test]
     fn keeps_bang_when_unterminated_image() {
         assert_eq!(remove_markdown("look![oops"), "look!oops");
+    }
+
+    #[test]
+    fn keeps_every_bang_when_images_never_close() {
+        assert_eq!(remove_markdown("![![!["), "!!!");
+    }
+
+    #[test]
+    fn unterminated_images_are_scanned_once() {
+        // Every `![` used to rescan the whole suffix, so this input was
+        // quadratic; the case would hang the suite if that came back.
+        let md = "![".repeat(10_000);
+        assert_eq!(remove_markdown(&md), "!".repeat(10_000));
     }
 }
