@@ -321,11 +321,19 @@ export const Settings = ({
     const [settings, setSettings] = React.useState<{ [name: string]: string }>(
         user?.settings || {},
     );
+    // Settings as last persisted by the server. A save overlays only the keys
+    // this form changed on top of the current server copy, so a stale
+    // mount-time map cannot wipe settings written elsewhere in the meantime
+    // (e.g. bucket_creation_state during storage setup).
+    const persistedSettings = React.useRef<{ [name: string]: string }>({
+        ...(user?.settings || {}),
+    });
     const [encKey, setEncKey] = React.useState("");
     const [label, setLabel] = React.useState(null);
     const [timer, setTimer] = React.useState<any>();
     const [uiRefresh, setUIRefresh] = React.useState(false);
     const [settingsError, setSettingsError] = React.useState("");
+    const [principalError, setPrincipalError] = React.useState("");
     const [governance, setGovernance] = React.useState(
         user?.governance.toString() || "true",
     );
@@ -373,6 +381,7 @@ export const Settings = ({
         setName(user.name);
         setAbout(user.about);
         setSettings(user.settings);
+        persistedSettings.current = { ...(user.settings || {}) };
         setGovernance(user.governance.toString());
         setMode(user.mode);
         setShowPostsInRealms(user.show_posts_in_realms.toString());
@@ -446,6 +455,22 @@ export const Settings = ({
                 return;
         }
 
+        // The backend replaces the whole settings map with what it receives.
+        // Start from the current server copy and overlay only the keys edited
+        // here, so keys written by another flow (bucket_creation_state while
+        // storage is set up) or another tab survive this save.
+        const settingsPayload: { [name: string]: string } = {
+            ...(window.user?.settings || {}),
+        };
+        Object.entries(settings).forEach(([key, value]) => {
+            if (persistedSettings.current[key] !== value)
+                settingsPayload[key] = value;
+        });
+        Object.keys(persistedSettings.current).forEach((key) => {
+            // Dropped here (e.g. a blank tap_and_hold) stays dropped.
+            if (!(key in settings)) delete settingsPayload[key];
+        });
+
         const responses = await Promise.all([
             window.api.call<any>(
                 "update_user",
@@ -457,12 +482,13 @@ export const Settings = ({
                 registrationFlow && invite ? "Credits" : mode,
                 showPostsInRealms == "true",
             ),
-            window.api.call<any>("update_user_settings", settings),
+            window.api.call<any>("update_user_settings", settingsPayload),
         ]);
         for (let i in responses) {
             const response = responses[i];
             if (handleError(response, undefined, setSettingsError)) return;
         }
+        persistedSettings.current = { ...settings };
         if (registrationFlow) {
             await window.reloadUser();
             location.href = registrationRealmId
@@ -911,6 +937,14 @@ export const Settings = ({
                                 setPrincipal(event.target.value)
                             }
                         />
+                        {principalError && (
+                            <div
+                                className="error bottom_half_spaced"
+                                role="alert"
+                            >
+                                {principalError}
+                            </div>
+                        )}
                         <ButtonWithLoading
                             classNameArg={
                                 principal != window.principalId
@@ -918,6 +952,7 @@ export const Settings = ({
                                     : "inactive"
                             }
                             onClick={async () => {
+                                setPrincipalError("");
                                 const accountBalance =
                                     await window.api.account_balance(
                                         ICP_LEDGER_ID,
@@ -992,7 +1027,7 @@ export const Settings = ({
                                     handleError(
                                         response,
                                         undefined,
-                                        setSettingsError,
+                                        setPrincipalError,
                                     )
                                 )
                                     return;
@@ -1015,12 +1050,12 @@ export const Settings = ({
             <>
                 <HeadBar title="Settings" shareLink="settings" />
                 <div className="spaced column_container">
+                    {profileSection}
                     {settingsError && (
-                        <div className="error bottom_spaced" role="alert">
+                        <div className="error bottom_half_spaced" role="alert">
                             {settingsError}
                         </div>
                     )}
-                    {profileSection}
                     <ButtonWithLoading
                         classNameArg="active top_spaced"
                         onClick={submit}
@@ -1035,11 +1070,6 @@ export const Settings = ({
         <>
             <HeadBar title="Settings" shareLink="settings" />
             <div className="spaced column_container">
-                {settingsError && (
-                    <div className="error bottom_spaced" role="alert">
-                        {settingsError}
-                    </div>
-                )}
                 <TabBar
                     tabs={[...TABS]}
                     activeTab={tab}
@@ -1052,16 +1082,31 @@ export const Settings = ({
                 {tab === "Advanced" && advancedSection}
                 {tab !== "Storage" && tab !== "Advanced" && (
                     <div className="sticky_save_bar">
-                        {dirty && (
-                            <span className="small_text right_spaced">
-                                Unsaved changes
-                            </span>
-                        )}
-                        <ButtonWithLoading
-                            classNameArg="active max_width_col"
-                            onClick={submit}
-                            label="Save"
-                        />
+                        <div className="max_width_col column_container">
+                            {/* Keep the failure next to the button that caused
+                                it: the page is long and the old alert at the
+                                top was off-screen. */}
+                            {settingsError && (
+                                <div
+                                    className="error small_text text_left bottom_half_spaced"
+                                    role="alert"
+                                >
+                                    {settingsError}
+                                </div>
+                            )}
+                            <div className="row_container vcentered">
+                                {dirty && (
+                                    <span className="small_text right_spaced">
+                                        Unsaved changes
+                                    </span>
+                                )}
+                                <ButtonWithLoading
+                                    classNameArg="active max_width_col"
+                                    onClick={submit}
+                                    label="Save"
+                                />
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
