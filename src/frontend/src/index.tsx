@@ -27,6 +27,7 @@ import {
     domain,
     onCanonicalDomain,
     getCanonicalDomain,
+    showPopUp,
 } from "./common";
 import { Settings } from "./settings";
 import { Welcome } from "./welcome";
@@ -411,13 +412,25 @@ export const instantiateApi = async () => {
 
     window.authClient = authClient;
     let identity;
-    if (authClient.isAuthenticated()) {
-        identity = await authClient.getIdentity();
-    } else if (localStorage.getItem("IDENTITY")) {
-        const serializedIdentity = localStorage.getItem("IDENTITY");
-        if (serializedIdentity) {
-            identity = Ed25519KeyIdentity.fromJSON(serializedIdentity);
+    try {
+        if (authClient.isAuthenticated()) {
+            identity = await authClient.getIdentity();
+        } else if (localStorage.getItem("IDENTITY")) {
+            const serializedIdentity = localStorage.getItem("IDENTITY");
+            if (serializedIdentity) {
+                identity = Ed25519KeyIdentity.fromJSON(serializedIdentity);
+            }
         }
+    } catch (err) {
+        // A failing Internet Identity session or a corrupt stored key must not
+        // abort bootstrap: the app would stay on the loading screen forever.
+        // Carry on anonymously and ask the user to sign in again.
+        console.error("Failed to restore the identity", err);
+        showPopUp(
+            "error",
+            "Failed to restore your session. Please sign in again.",
+            7,
+        );
     }
     const api = ApiGenerator(MAINNET_MODE, identity);
     if (identity) window.principalId = identity.getPrincipal().toString();
