@@ -804,6 +804,18 @@ article img {
     padding: var(--space-2);
 }
 
+/* Flex row so the arrow sits on the label's optical centre instead of relying
+   on the ◀ glyph's bearings, which rode ~1.5px above the word and 2px right. */
+.reply_tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.reply_tag path {
+    fill: currentColor;
+}
+
 .reply_tag,
 .realm_tag {
     cursor: pointer;

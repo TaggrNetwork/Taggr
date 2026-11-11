@@ -605,6 +605,18 @@ export const Menu = ({
     </svg>
 );
 
+export const ArrowLeft = () => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="9"
+        height="11"
+        viewBox="0 0 9 11"
+        aria-hidden="true"
+    >
+        <path d="M9 0 0 5.5 9 11z" />
+    </svg>
+);
+
 export const CarretRight = () => (
     <svg
         xmlns="http://www.w3.org/2000/svg"

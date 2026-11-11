@@ -33,6 +33,7 @@ import {
 } from "./common";
 import {
     reaction2icon,
+    ArrowLeft,
     Edit,
     Save,
     Unsave,
@@ -293,7 +294,8 @@ const PostViewImpl = ({
                                 className="reply_tag"
                                 href={`#/thread/${post.id}`}
                             >
-                                &#9664; Reply
+                                <ArrowLeft />
+                                Reply
                             </a>
                         )}
                         <UserLink
