@@ -171,9 +171,6 @@ h5 {
 
 .prime article {
     font-size: var(--text-lg);
-    max-width: 68ch;
-    margin-left: auto;
-    margin-right: auto;
     overflow-x: auto;
 }
 
