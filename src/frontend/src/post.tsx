@@ -293,9 +293,10 @@ const PostViewImpl = ({
                             <a
                                 className="reply_tag"
                                 href={`#/thread/${post.id}`}
+                                title="Open in its thread"
                             >
                                 <ArrowLeft />
-                                Reply
+                                Thread
                             </a>
                         )}
                         <UserLink
