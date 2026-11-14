@@ -1,4 +1,7 @@
 :root {
+    /* User-controlled text scale (see the "Text size" setting). Every text
+       size below is in rem, so scaling the root font size scales all of them. */
+    --font-scale: 1;
     --text-xs: 0.75rem;
     --text-sm: 0.875rem;
     --text-base: 1rem;
@@ -29,6 +32,10 @@
     --z-overlay: 1000;
     --z-modal: 1001;
     --z-toast: 2000;
+}
+
+html {
+    font-size: calc(100% * var(--font-scale));
 }
 
 body {
@@ -931,9 +938,6 @@ a.reply_tag {
     font-size: var(--text-base);
 }
 .large_text {
-    font-size: var(--text-lg);
-}
-.enlarged_text {
     font-size: var(--text-lg);
 }
 .x_large_text {

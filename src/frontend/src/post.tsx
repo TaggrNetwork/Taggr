@@ -373,7 +373,6 @@ const PostViewImpl = ({
                             value={body}
                             collapse={!expanded}
                             urls={urls}
-                            primeMode={isRoot(post) && !repost}
                         />
                     </article>
                 )}

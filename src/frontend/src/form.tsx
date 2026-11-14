@@ -435,7 +435,6 @@ export const Form = ({
                     urls={tmpUrls}
                     value={deferredValue}
                     preview={true}
-                    primeMode={postId == null}
                 />
                 {poll && (
                     <PollView

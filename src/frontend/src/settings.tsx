@@ -20,7 +20,12 @@ import {
 } from "./common";
 import { CanisterStatus, User, UserFilter } from "./types";
 import { Principal } from "@icp-sdk/core/principal";
-import { setTheme } from "./theme";
+import {
+    setTheme,
+    setFontScale,
+    FONT_SCALES,
+    DEFAULT_FONT_SCALE,
+} from "./theme";
 import { UserList } from "./user_resolve";
 import { UserLinks, linksError, parseLinks } from "./profile";
 import { Box, Credits, Fire, StorageCanister, HourGlass } from "./icons";
@@ -642,6 +647,21 @@ export const Settings = ({
                 <option value="classic">Classic</option>
                 <option value="black">Black</option>
                 <option value="light">Light</option>
+            </select>
+            <div className="bottom_half_spaced">Text size</div>
+            <select
+                aria-label="Text size"
+                value={settings.font_scale || String(DEFAULT_FONT_SCALE)}
+                className="bottom_spaced"
+                onChange={(event) =>
+                    setFontScale(Number(setSetting("font_scale", event)))
+                }
+            >
+                {FONT_SCALES.map((scale) => (
+                    <option key={scale} value={scale}>
+                        {scale}%
+                    </option>
+                ))}
             </select>
             <div className="bottom_half_spaced">
                 Override realm colour themes

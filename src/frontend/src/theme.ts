@@ -83,7 +83,22 @@ const themes: { [name: string]: Theme } = {
     },
 };
 
+export const FONT_SCALES = [90, 100, 110, 125, 150];
+export const DEFAULT_FONT_SCALE = 100;
+
+// Text scale is a user setting (percent). Everything textual is sized in rem,
+// so scaling the root font size scales the whole UI.
+export const setFontScale = (scale?: number) => {
+    const wanted = Number(scale ?? window.user?.settings.font_scale);
+    const eff = FONT_SCALES.includes(wanted) ? wanted : DEFAULT_FONT_SCALE;
+    document.documentElement.style.setProperty(
+        "--font-scale",
+        String(eff / 100),
+    );
+};
+
 const applyTheme = (palette: Theme) => {
+    setFontScale();
     const effPalette: Theme = palette ? palette : themes["dark"];
     effPalette.light_background =
         "#" + shade(effPalette.background, effPalette.light_factor || 3);

@@ -79,7 +79,6 @@ export const Content = ({
     urls,
     collapse,
     preview,
-    primeMode,
 }: {
     post?: boolean;
     blogTitle?: BlogTitle;
@@ -87,7 +86,6 @@ export const Content = ({
     urls?: { [id: string]: string };
     collapse?: boolean;
     preview?: boolean;
-    primeMode?: boolean;
 }) => {
     const pgpWrappedValue = React.useMemo(
         () =>
@@ -124,16 +122,7 @@ export const Content = ({
         processedValue = linkedValue.slice(0, cutPos);
         if (preview) processedValue += "\n\n---\n\n";
     }
-    const complexPost = ["# ", "## ", "!["].some((pref) =>
-        processedValue.startsWith(pref),
-    );
     const lines = processedValue.split("\n");
-    const words = processedValue.split(" ").length;
-    let className = "";
-    if (primeMode && lines.length < 10 && !complexPost) {
-        if (words < 50) className += " x_large_text";
-        else if (words < 100) className += " enlarged_text";
-    }
     const multipleHeaders =
         lines.filter((line) => line.startsWith("# ")).length > 1;
 
@@ -145,7 +134,6 @@ export const Content = ({
                     urls || {},
                     multipleHeaders ? undefined : blogTitle,
                     preview,
-                    className,
                 )}
                 {shortened &&
                     (collapse ? (
@@ -163,7 +151,6 @@ export const Content = ({
             blogTitle,
             multipleHeaders,
             preview,
-            className,
             shortened,
         ],
     );
@@ -232,10 +219,9 @@ const markdownizer = (
     urls: { [id: string]: string },
     blogTitle?: BlogTitle,
     preview?: boolean,
-    className?: string,
 ) =>
     !value ? null : (
-        <div className={`selectable ${className}`}>
+        <div className="selectable">
             <Markdown
                 children={value}
                 components={{
