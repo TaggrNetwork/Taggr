@@ -1114,18 +1114,12 @@ export const Settings = ({
                                     {settingsError}
                                 </div>
                             )}
-                            <div className="row_container vcentered">
-                                {dirty && (
-                                    <span className="small_text right_spaced">
-                                        Unsaved changes
-                                    </span>
-                                )}
-                                <ButtonWithLoading
-                                    classNameArg="active max_width_col"
-                                    onClick={submit}
-                                    label="Save"
-                                />
-                            </div>
+                            <ButtonWithLoading
+                                classNameArg="active max_width_col"
+                                onClick={submit}
+                                label="Save"
+                                disabled={!dirty}
+                            />
                         </div>
                     </div>
                 )}
