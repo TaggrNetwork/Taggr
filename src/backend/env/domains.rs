@@ -2,13 +2,7 @@ use std::collections::HashSet;
 
 use crate::assets;
 
-use super::{
-    config::CONFIG,
-    post::Post,
-    realms::validate_realm_id,
-    user::{CreditsDelta, UserId},
-    RealmId, State,
-};
+use super::{config::CONFIG, post::Post, realms::validate_realm_id, user::UserId, RealmId, State};
 use candid::Principal;
 use serde::{Deserialize, Serialize};
 
@@ -199,7 +193,7 @@ pub fn available_realms(
 #[cfg(test)]
 mod tests {
     use crate::{
-        env::{realms::tests::create_realm, Realm},
+        env::{realms::tests::create_realm, user::CreditsDelta, Realm},
         mutate,
     };
 
