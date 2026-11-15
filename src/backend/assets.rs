@@ -1,9 +1,4 @@
-use crate::{
-    config::CONFIG,
-    env::{domains::DomainConfig, token},
-    id,
-    metadata::set_index_metadata,
-};
+use crate::{env::domains::DomainConfig, id, metadata::set_index_metadata};
 use base64::{engine::general_purpose, Engine as _};
 use ic_certified_map::{labeled, labeled_hash, AsHashTree, Hash, RbTree};
 use serde_bytes::ByteBuf;
@@ -212,22 +207,6 @@ pub fn asset_certified(path: &str) -> Option<(Headers, ByteBuf)> {
 pub fn asset(path: &str) -> Option<(Headers, ByteBuf)> {
     let (headers, bytes) = assets().get(path)?;
     Some((headers.clone(), ByteBuf::from(bytes.as_slice())))
-}
-
-pub fn export_token_supply(total_supply: u128) {
-    for (path, tokens) in &[
-        ("total_supply", total_supply),
-        ("maximum_supply", CONFIG.maximum_supply as u128),
-    ] {
-        add_asset(
-            &[format!("/api/v1/{}", path).as_str()],
-            vec![("Content-Type".into(), "application/json".into())],
-            format!("{}", *tokens as f64 / token::base() as f64)
-                .as_bytes()
-                .to_vec(),
-        )
-    }
-    certify();
 }
 
 fn certificate_header(path: &str) -> (String, String) {

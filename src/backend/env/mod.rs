@@ -7,7 +7,6 @@ use self::post_iterators::{IteratorMerger, MergeStrategy};
 use self::proposals::{Payload, ReleaseInfo, Status};
 use self::token::{account, TransferArgs};
 use self::user::{Filters, Mode, Notification, Predicate, UserFilter};
-use crate::assets::export_token_supply;
 use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
 use crate::token::{Account, Token};
@@ -1413,8 +1412,6 @@ impl State {
                     .error(format!("couldn't archive cold data: {:?}", err));
             }
         });
-
-        export_token_supply(token::icrc1_total_supply());
     }
 
     fn archive_cold_data(&mut self) -> Result<(), String> {
