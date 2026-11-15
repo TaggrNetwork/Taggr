@@ -112,9 +112,8 @@ impl PartialEq for Post {
 impl Eq for Post {}
 
 impl PartialOrd for Post {
-    #[allow(clippy::non_canonical_partial_ord_impl)]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.id.cmp(&other.id))
+        Some(self.cmp(other))
     }
 }
 

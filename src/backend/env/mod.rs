@@ -7,7 +7,6 @@ use self::post_iterators::{IteratorMerger, MergeStrategy};
 use self::proposals::{Payload, ReleaseInfo, Status};
 use self::token::{account, TransferArgs};
 use self::user::{Filters, Mode, Notification, Predicate, UserFilter};
-use crate::assets::export_token_supply;
 use crate::env::user::CreditsDelta;
 use crate::proposals::Proposal;
 use crate::token::{Account, Token};
@@ -128,6 +127,7 @@ pub struct TokenStats {
     e8s_revenue_per_1k: u64,
     active_users_vp: u64,
     last_weekly_chores: u64,
+    bridged_out: Token,
     balances: Vec<(Account, Token, Option<UserId>, bool)>,
 }
 
@@ -247,6 +247,9 @@ pub struct State {
 
     #[serde(default)]
     pub eth_public_key: Vec<u8>,
+
+    #[serde(default)]
+    pub eth_bridge: ethereum::EthBridge,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -315,13 +318,16 @@ impl State {
             return Err("seed too long".into());
         }
 
+        let user_id = self.principal_to_user(caller).ok_or("user not found")?.id;
+        // Re-encrypting posts costs no external resources, so the fee is revenue.
+        self.charge(
+            user_id,
+            CONFIG.account_activation_cost,
+            "profile privacy change",
+        )?;
+
         let (username, len, is_deactivated) = {
-            let user = self.principal_to_user_mut(caller).ok_or("user not found")?;
-            user.change_credits(
-                CONFIG.account_activation_cost,
-                CreditsDelta::Minus,
-                "profile privacy change",
-            )?;
+            let user = self.users.get_mut(&user_id).ok_or("user not found")?;
             let len = user.posts.len();
             let username = user.name.clone();
             user.deactivated = !user.deactivated;
@@ -655,6 +661,7 @@ impl State {
         if self.auction.amount == 0 {
             self.auction.amount = CONFIG.weekly_auction_size_tokens_max;
         }
+        self.refresh_signing_fee();
         self.last_upgrade = time();
         self.timers.last_hourly = time();
     }
@@ -1080,6 +1087,12 @@ impl State {
         let mut tokens_to_mint = Vec::new();
         let mut total_tokens_to_mint: u64 = 0;
         let token_base = token::base();
+        let remaining_supply = self.remaining_supply();
+        if remaining_supply == 0 {
+            self.logger
+                .warn("Skipping minting: the maximum supply is reached");
+            return;
+        }
 
         for user in self
             .users
@@ -1107,6 +1120,14 @@ impl State {
                 break;
             }
 
+            if total_tokens_to_mint.saturating_add(tokens_earned) > remaining_supply {
+                self.logger.warn(format!(
+                    "Safety measure: stopping the minting because the maximum supply would be exceeded (`{}` remaining)",
+                    remaining_supply / token_base
+                ));
+                break;
+            }
+
             // burn a corresponding amount credits to generate revenue
             self.burned_cycles += rewards;
             user.take_positive_rewards();
@@ -1131,7 +1152,8 @@ impl State {
                 ));
                 items.push((tokens, minted_fractional, user.name.clone()));
                 let acc = account(user.principal);
-                crate::token::mint(self, acc, tokens, "weekly mint");
+                crate::token::mint(self, acc, tokens, "weekly mint")
+                    .expect("the remaining supply was checked");
                 minted_tokens += tokens;
             }
         }
@@ -1159,34 +1181,43 @@ impl State {
 
     // See the section "Founder's Tokens" in the white paper.
     fn vest_tokens_of_x(&mut self) {
-        let (vested, total_vesting) = &mut self.vesting_tokens_of_x;
+        let (vested, total_vesting) = self.vesting_tokens_of_x;
         let user = self.users.get(&0).expect("user 0 doesn't exist");
         let principal = user.principal;
         let total_balance = user.total_balance();
-        let vesting_left = total_vesting.saturating_sub(*vested);
+        let vesting_left = total_vesting.saturating_sub(vested);
         if vesting_left == 0 {
             return;
         }
 
-        let circulating_supply: Token = self.balances.values().sum();
-        // 1% of circulating supply is vesting.
-        let next_vesting = (circulating_supply / 100).min(vesting_left);
+        let total_supply = self.total_supply();
+        // 1% of the total supply is vesting.
+        let next_vesting = (total_supply / 100).min(vesting_left);
         // We use 14% because 1% will vest and we want to stay below 15%.
-        let cap = (circulating_supply * 14) / 100;
+        let cap = (total_supply * 14) / 100;
 
         // Vesting is allowed if the vested tokens OR the total current balance
         // of the founder stays below 15% of the current supply, or if 2/3 of total
         // supply is minted.
-        let balance = total_balance.max(*vested);
-        if balance <= cap || circulating_supply * 3 > CONFIG.maximum_supply * 2 {
-            *vested += next_vesting;
-            let new_vesting_left = *total_vesting - *vested;
-            crate::token::mint(self, account(principal), next_vesting, "vesting");
-            self.logger.info(format!(
-                "Minted `{}` team tokens for @X (still vesting: `{}`).",
-                next_vesting / 100,
-                new_vesting_left / 100
-            ));
+        let balance = total_balance.max(vested);
+        if balance <= cap || total_supply * 3 > CONFIG.maximum_supply * 2 {
+            // The supply cap is `token::mint`'s business: only record what it minted.
+            match crate::token::mint(self, account(principal), next_vesting, "vesting") {
+                Ok(_) => {
+                    self.vesting_tokens_of_x.0 += next_vesting;
+                    let new_vesting_left = total_vesting - self.vesting_tokens_of_x.0;
+                    self.logger.info(format!(
+                        "Minted `{}` team tokens for @X (still vesting: `{}`).",
+                        next_vesting / 100,
+                        new_vesting_left / 100
+                    ));
+                }
+                Err(err) => self.logger.error(format!(
+                    "Couldn't vest `{}` team tokens for @X: {}",
+                    next_vesting / 100,
+                    err
+                )),
+            }
         }
     }
 
@@ -1386,8 +1417,6 @@ impl State {
                     .error(format!("couldn't archive cold data: {:?}", err));
             }
         });
-
-        export_token_supply(token::icrc1_total_supply());
     }
 
     fn archive_cold_data(&mut self) -> Result<(), String> {
@@ -1509,14 +1538,15 @@ impl State {
         mutate(|state| {
             state.distribution_reports.clear();
             state.distribute_realm_revenue(now);
+            state.refresh_signing_fee();
         });
 
         #[cfg(not(feature = "dev"))] // don't create rewards in e2e tests
         State::random_reward().await;
 
-        let circulating_supply: Token = read(|state| state.balances.values().sum());
+        let remaining_supply = read(|state| state.remaining_supply());
         // only if we're below the maximum supply, we close the auction
-        let auction_revenue = if circulating_supply < CONFIG.maximum_supply {
+        let auction_revenue = if remaining_supply > 0 {
             let (market_price, revenue) = auction::close_auction().await;
             mutate(|state| {
                 state.logger.info(format!(
@@ -1605,13 +1635,19 @@ impl State {
                     CONFIG.dao_realm.into(),
                 );
                 state.minting_mode = true;
-                crate::token::mint(
+                let minted = crate::token::mint(
                     state,
                     account(winner_principal),
                     CONFIG.random_reward_amount,
                     "random rewards",
                 );
                 state.minting_mode = false;
+                if let Err(err) = minted {
+                    state
+                        .logger
+                        .warn(format!("Skipping the random reward: {}", err));
+                    return;
+                }
                 state
                     .principal_to_user_mut(winner_principal)
                     .expect("user not found")
@@ -2271,6 +2307,13 @@ impl State {
         }
     }
 
+    /// The open proposals of a user. They lock part of the user's balance.
+    fn open_proposals(&self, user_id: UserId) -> impl Iterator<Item = &Proposal> + '_ {
+        self.proposals
+            .iter()
+            .filter(move |proposal| proposal.proposer == user_id && proposal.status == Status::Open)
+    }
+
     /// Returns for the given principal:
     /// - how many of their tokens should be locked for a new proposal (at least 1),
     /// - how many tokens are locked for already open proposal.
@@ -2281,9 +2324,7 @@ impl State {
         };
 
         let already_locked_tokens: Token = self
-            .proposals
-            .iter()
-            .filter(|proposal| proposal.proposer == user.id && proposal.status == Status::Open)
+            .open_proposals(user.id)
             .map(|proposal| proposal.escrow_tokens)
             .sum();
 
@@ -2381,6 +2422,34 @@ impl State {
     pub fn principal_to_user_mut(&mut self, principal: Principal) -> Option<&mut User> {
         let id = self.principals.get(&principal)?;
         self.users.get_mut(id)
+    }
+
+    /// Like `principal_to_user`, but also resolves cold wallet principals.
+    pub fn principal_to_user_or_cold_wallet(&self, principal: Principal) -> Option<&User> {
+        self.principal_to_user(principal).or_else(|| {
+            self.cold_wallets
+                .get(&principal)
+                .and_then(|id| self.users.get(id))
+        })
+    }
+
+    /// Sum of the IC balances, excluding tokens burned into the bridge.
+    pub fn circulating_supply(&self) -> Token {
+        self.balances
+            .values()
+            .fold(0, |total, balance| total.saturating_add(*balance))
+    }
+
+    /// IC balances plus everything burned into the Ethereum bridge. This is the
+    /// supply that counts against `CONFIG.maximum_supply`.
+    pub fn total_supply(&self) -> Token {
+        self.circulating_supply()
+            .saturating_add(self.eth_bridge.bridged_out)
+    }
+
+    /// How many tokens can still be minted without exceeding the maximum supply.
+    pub fn remaining_supply(&self) -> Token {
+        CONFIG.maximum_supply.saturating_sub(self.total_supply())
     }
 
     fn new_user_id(&mut self) -> UserId {
@@ -2497,7 +2566,7 @@ impl State {
             invited_users,
             active_users,
             active_users_vp: active_users_vp / token::base(),
-            circulating_supply: self.balances.values().sum(),
+            circulating_supply: self.circulating_supply(),
         }
     }
 
@@ -2506,11 +2575,7 @@ impl State {
         let mut active_balances: Vec<(UserId, Token)> = Vec::new();
         let mut entries: Vec<(Account, Token, Option<UserId>, bool)> = Vec::new();
         for (acc, balance) in &self.balances {
-            let user = self.principal_to_user(acc.owner).or_else(|| {
-                self.cold_wallets
-                    .get(&acc.owner)
-                    .and_then(|id| self.users.get(id))
-            });
+            let user = self.principal_to_user_or_cold_wallet(acc.owner);
             let (user_id, active) = match user {
                 Some(u) => {
                     held_by_users += balance;
@@ -2566,7 +2631,7 @@ impl State {
         let volume_week = last_week_txs.into_iter().map(|(_, tx)| tx.amount).sum();
 
         TokenStats {
-            circulating_supply: self.balances.values().sum(),
+            circulating_supply: self.circulating_supply(),
             holders: self.balances.len(),
             held_by_users,
             nakamoto_coefficient,
@@ -2584,6 +2649,7 @@ impl State {
                 .sum::<Token>()
                 / token::base(),
             last_weekly_chores: self.timers.last_weekly,
+            bridged_out: self.eth_bridge.bridged_out,
             balances: entries,
         }
     }
@@ -2995,7 +3061,7 @@ pub(crate) mod tests {
 
     pub fn insert_balance(state: &mut State, principal: Principal, amount: Token) {
         state.minting_mode = true;
-        token::mint(state, account(principal), amount, "");
+        token::mint(state, account(principal), amount, "").expect("couldn't mint a test balance");
         state.minting_mode = false;
         if let Some(user) = state.principal_to_user_mut(principal) {
             user.change_rewards((amount / token::base()) as i64, "");
@@ -3097,7 +3163,8 @@ pub(crate) mod tests {
                 subaccount: Some(vec![1; 32]),
             };
             state.minting_mode = true;
-            token::mint(state, subaccount.clone(), 1000 * token::base(), "");
+            token::mint(state, subaccount.clone(), 1000 * token::base(), "")
+                .expect("couldn't mint tokens");
             state.minting_mode = false;
 
             let stats = state.token_stats(0);
@@ -3367,6 +3434,7 @@ pub(crate) mod tests {
 
             state.minting_mode = true;
             state.mint(market_price);
+            state.minting_mode = false;
 
             // User 0 (no rewards) and User 3 (miner) were excluded
             assert_eq!(state.balances.len(), 3);
@@ -4536,13 +4604,15 @@ pub(crate) mod tests {
             state.e8s_for_one_xdr = 100;
 
             // mint to burn miners rewards
+            state.minting_mode = true;
             state.mint(1);
+            state.minting_mode = false;
 
             let payout = state.assign_rewards_and_revenue(now, 100000000);
 
             // Payout will be the amount of burned cycles + rewards of miners,
             // divided by the XDR rate
-            assert_eq!(payout, 100330);
+            assert_eq!(payout, 100328);
             assert_eq!(
                 payout,
                 state.users.values().map(|u| u.treasury_e8s).sum::<u64>()
@@ -4551,23 +4621,61 @@ pub(crate) mod tests {
             // pr(0) had 0 rewards and 0 tokens
             assert_eq!(state.principal_to_user(pr(0)).unwrap().treasury_e8s, 0);
             // pr(1) had 100 rewards and 10000 tokens
-            assert_eq!(state.principal_to_user(pr(1)).unwrap().treasury_e8s, 12545);
+            assert_eq!(state.principal_to_user(pr(1)).unwrap().treasury_e8s, 12551);
             // pr(2) had 200 rewards and 20000 tokens
-            assert_eq!(state.principal_to_user(pr(2)).unwrap().treasury_e8s, 12545);
+            assert_eq!(state.principal_to_user(pr(2)).unwrap().treasury_e8s, 12551);
             // pr(3) had 300 rewards and 30000 tokens, but also a low credit balance
             let user = state.principal_to_user(pr(3)).unwrap();
             assert_eq!(user.credits(), 1000);
-            assert_eq!(user.treasury_e8s, 12455);
+            assert_eq!(user.treasury_e8s, 12461);
             // pr(4) had a pending report (no effect on VP => revenue ICP)
-            assert_eq!(state.principal_to_user(pr(4)).unwrap().treasury_e8s, 12545);
+            assert_eq!(state.principal_to_user(pr(4)).unwrap().treasury_e8s, 12551);
             // pr(5) is inactive and skipped for revenue
             assert_eq!(state.principal_to_user(pr(5)).unwrap().treasury_e8s, 0);
             // pr(6) has negative rewards balance (no effect on VP => revenue ICP)
-            assert_eq!(state.principal_to_user(pr(6)).unwrap().treasury_e8s, 12545);
+            assert_eq!(state.principal_to_user(pr(6)).unwrap().treasury_e8s, 12526);
             // pr(7) is not miner, so he gets the highest rewards
-            assert_eq!(state.principal_to_user(pr(7)).unwrap().treasury_e8s, 12605);
-            assert_eq!(state.principal_to_user(pr(8)).unwrap().treasury_e8s, 12545);
-            assert_eq!(state.principal_to_user(pr(9)).unwrap().treasury_e8s, 12545);
+            assert_eq!(state.principal_to_user(pr(7)).unwrap().treasury_e8s, 12586);
+            assert_eq!(state.principal_to_user(pr(8)).unwrap().treasury_e8s, 12551);
+            assert_eq!(state.principal_to_user(pr(9)).unwrap().treasury_e8s, 12551);
+        });
+    }
+
+    #[test]
+    fn minting_is_capped_by_the_maximum_supply() {
+        mutate(|state| {
+            state.init();
+            create_user(state, pr(1));
+            insert_balance(state, pr(1), CONFIG.maximum_supply - token::base());
+            assert_eq!(state.remaining_supply(), token::base());
+
+            state.minting_mode = true;
+            assert_eq!(
+                token::mint(state, account(pr(2)), 2 * token::base(), ""),
+                Err("minting would exceed the maximum supply".to_string())
+            );
+            assert!(token::mint(state, account(pr(2)), token::base(), "").is_ok());
+            state.minting_mode = false;
+            assert_eq!(state.circulating_supply(), CONFIG.maximum_supply);
+            assert_eq!(state.remaining_supply(), 0);
+        });
+    }
+
+    #[test]
+    fn supply_helpers_include_the_bridged_amount() {
+        mutate(|state| {
+            state.init();
+            create_user(state, pr(1));
+            insert_balance(state, pr(1), 10 * token::base());
+            let circulating = state.circulating_supply();
+            assert!(circulating >= 10 * token::base());
+
+            state.eth_bridge.bridged_out = 7 * token::base();
+            assert_eq!(state.total_supply(), circulating + 7 * token::base());
+            assert_eq!(
+                state.remaining_supply(),
+                CONFIG.maximum_supply - circulating - 7 * token::base()
+            );
         });
     }
 }

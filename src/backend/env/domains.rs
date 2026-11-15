@@ -2,13 +2,7 @@ use std::collections::HashSet;
 
 use crate::assets;
 
-use super::{
-    config::CONFIG,
-    post::Post,
-    realms::validate_realm_id,
-    user::{CreditsDelta, UserId},
-    RealmId, State,
-};
+use super::{config::CONFIG, post::Post, realms::validate_realm_id, user::UserId, RealmId, State};
 use candid::Principal;
 use serde::{Deserialize, Serialize};
 
@@ -155,14 +149,8 @@ pub fn change_domain_config(
                 return Err("domain exists".into());
             }
 
-            state
-                .principal_to_user_mut(principal)
-                .ok_or("no user found")?
-                .change_credits(
-                    CONFIG.domain_cost,
-                    CreditsDelta::Minus,
-                    "domain config creation",
-                )?;
+            // A service fee: it creates no external cost, so it is revenue.
+            state.charge(caller_id, CONFIG.domain_cost, "domain config creation")?;
 
             cfg.owner = Some(caller_id);
             cfg.max_downvotes = CONFIG.default_max_downvotes;
@@ -205,7 +193,7 @@ pub fn available_realms(
 #[cfg(test)]
 mod tests {
     use crate::{
-        env::{realms::tests::create_realm, Realm},
+        env::{realms::tests::create_realm, user::CreditsDelta, Realm},
         mutate,
     };
 

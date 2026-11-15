@@ -359,6 +359,16 @@ fn mint_credits_with_icp() {
     });
 }
 
+#[export_name = "canister_update bridge_out"]
+fn bridge_out() {
+    in_executor_context(|| {
+        spawn(async {
+            let (amount, eth_address): (u64, String) = parse(&arg_data_raw());
+            reply(State::bridge_out(read(caller), amount, eth_address).await);
+        })
+    });
+}
+
 #[export_name = "canister_update create_invite"]
 fn create_invite() {
     let (credits, credits_per_user, realm_id): (Credits, Option<Credits>, Option<RealmId>) =

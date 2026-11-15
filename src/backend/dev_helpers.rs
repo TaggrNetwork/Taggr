@@ -127,7 +127,7 @@ fn mint_tokens(principal: String, amount: u64) {
 
     mutate(|state| {
         state.minting_mode = true;
-        mint(state, account, amount, "test-mint");
+        mint(state, account, amount, "test-mint").expect("couldn't mint tokens");
         state.minting_mode = false;
     });
 }

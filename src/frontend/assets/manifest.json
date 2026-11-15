@@ -10,15 +10,15 @@
     "icons": [
         {
             "src": "https://6qfxa-ryaaa-aaaai-qbhsq-cai.raw.ic0.app/_/raw/apple-touch-icon.png",
-            "sizes": "180x180",
+            "sizes": "512x512",
             "type": "image/png",
             "purpose": "any maskable"
         },
         {
-            "src": "https://6qfxa-ryaaa-aaaai-qbhsq-cai.raw.ic0.app/_/raw/apple-touch-icon.png",
-            "sizes": "200x200",
-            "type": "image/png",
-            "purpose": "any maskable"
+            "src": "https://6qfxa-ryaaa-aaaai-qbhsq-cai.raw.ic0.app/_/raw/logo-32x32.svg",
+            "sizes": "32x32",
+            "type": "image/svg+xml",
+            "purpose": "any"
         },
         {
             "src": "/favicon.ico",
