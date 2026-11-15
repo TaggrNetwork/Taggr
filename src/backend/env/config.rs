@@ -372,7 +372,7 @@ pub const CONFIG: &Config = &Config {
     #[cfg(feature = "dev")]
     eth_token_address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
     #[cfg(not(feature = "dev"))]
-    eth_token_address: "",
+    eth_token_address: "0xDEc2121f501d7CB6f318cC7eA7c4f5fda67Db7D2",
     #[cfg(feature = "dev")]
     eth_chain_id: 31337,
     #[cfg(not(feature = "dev"))]
