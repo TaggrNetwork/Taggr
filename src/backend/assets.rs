@@ -76,6 +76,12 @@ pub fn load(domains: &HashMap<String, DomainConfig>) {
     );
 
     add_asset(
+        &["/_/raw/logo-32x32.svg"],
+        vec![("Content-Type".into(), "image/svg+xml".into())],
+        include_bytes!("../../src/frontend/assets/logo-32x32.svg").to_vec(),
+    );
+
+    add_asset(
         &["/_/raw/social-image.webp"],
         vec![("Content-Type".into(), "image/webp".into())],
         include_bytes!("../../src/frontend/assets/social-image.webp").to_vec(),
