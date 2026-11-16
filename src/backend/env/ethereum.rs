@@ -268,10 +268,15 @@ impl State {
         if self.eth_public_key.is_empty() {
             return Err("the canister's Ethereum key is not ready yet".to_string());
         }
-        let user_id = self
-            .principal_to_user_or_cold_wallet(caller)
-            .ok_or("user not found")?
-            .id;
+        // Cold wallets are refused: `link_cold_wallet` is one-sided (any
+        // unregistered principal can claim a user that has no cold wallet yet),
+        // so resolving the caller through `cold_wallets` would let a stranger
+        // bridge at the linked user's expense. Lift this once linking needs the
+        // user's approval (see docs/ETHEREUM.md).
+        if self.cold_wallets.contains_key(&caller) {
+            return Err("bridging from a cold wallet is disabled".to_string());
+        }
+        let user_id = self.principal_to_user(caller).ok_or("user not found")?.id;
         if self.voted_on_emergency_proposal(caller) {
             return Err(
                 "transfers are locked while a vote on a pending emergency proposal is registered"
@@ -507,11 +512,15 @@ mod tests {
             );
             state.emergency_votes.clear();
 
-            // Cold wallet principals of a registered user can bridge as well.
+            // Cold wallets cannot bridge: linking one is a one-sided claim, so a
+            // stranger could otherwise spend the linked user's credits.
             let user_id = create_user(state, pr(3));
             state.cold_wallets.insert(pr(200), user_id);
             insert_balance(state, pr(200), 500);
-            assert_eq!(state.bridge_out_precheck(pr(200), 500), Ok(user_id));
+            assert_eq!(
+                state.bridge_out_precheck(pr(200), 500),
+                Err("bridging from a cold wallet is disabled".to_string())
+            );
 
             // An open proposal locks tokens, so bridging is refused.
             let proposer = state.principal_to_user(pr(1)).unwrap().id;
