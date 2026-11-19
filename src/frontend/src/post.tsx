@@ -833,7 +833,9 @@ const PostInfo = ({
                                                     versions,
                                                 );
                                             if (handleError(response)) return;
-                                            await freePostFiles(post.files);
+                                            // Freeing bucket space is best-effort
+                                            // cleanup; don't block the UI on it.
+                                            freePostFiles(post.files);
                                             await callback();
                                         }}
                                         label={<Trash />}
