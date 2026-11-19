@@ -1093,28 +1093,20 @@ a.accent,
 }
 
 .banner,
-.controversial,
-.nsfw {
+.post_banner {
     text-align: center;
 }
 
 .comment .banner,
-.comment .nsfw,
-.comment .controversial,
+.comment .post_banner,
 .comment .deleted {
     margin: var(--space-4);
 }
 
 .banner,
-.nsfw,
-.controversial,
+.post_banner,
 .deleted {
     padding: var(--space-4);
-}
-
-.nsfw,
-.controversial {
-    color: $clickable;
 }
 
 .deleted {

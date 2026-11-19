@@ -322,24 +322,16 @@ const PostViewImpl = ({
                         )}
                     </div>
                 )}
-                {post.encrypted && (
-                    <div className="text_centered x_large_text">Encrypted</div>
-                )}
+                {post.encrypted && <PostBanner>Encrypted</PostBanner>}
                 {isNSFW && (
-                    <div
-                        className="nsfw x_large_text"
-                        onClick={() => setSafeToOpen(true)}
-                    >
+                    <PostBanner onClick={() => setSafeToOpen(true)}>
                         NSFW
-                    </div>
+                    </PostBanner>
                 )}
                 {isHidden && (
-                    <div
-                        className="nsfw x_large_text"
-                        onClick={() => setSafeToOpen(true)}
-                    >
+                    <PostBanner onClick={() => setSafeToOpen(true)}>
                         Hidden
-                    </div>
+                    </PostBanner>
                 )}
                 {notAllowed && (
                     <NotAllowed
@@ -440,6 +432,22 @@ const PostViewImpl = ({
         </div>
     );
 };
+
+// Shared caption shown in place of a post's body (encrypted, NSFW, hidden).
+const PostBanner = ({
+    onClick,
+    children,
+}: {
+    onClick?: () => void;
+    children: React.ReactNode;
+}) => (
+    <div
+        className={`post_banner x_large_text ${onClick ? "clickable_color" : ""}`}
+        onClick={onClick}
+    >
+        {children}
+    </div>
+);
 
 export const PostView = React.memo(PostViewImpl);
 
