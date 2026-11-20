@@ -1148,6 +1148,11 @@ label svg {
     margin-right: var(--space-3);
 }
 
+summary {
+    cursor: pointer;
+    color: $clickable;
+}
+
 .post_box > article ol,
 .post_box > article ul {
     padding-right: var(--space-2);
