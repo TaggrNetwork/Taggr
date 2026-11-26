@@ -80,7 +80,7 @@ export const Ethereum = () => {
         {},
     );
 
-    const user = window.user;
+    const [user, setUser] = React.useState(window.user);
 
     React.useEffect(() => {
         (async () => {
@@ -243,6 +243,7 @@ export const Ethereum = () => {
         setRecipes((previous) => [recipe, ...previous]);
         setAmount("");
         await window.reloadUser();
+        setUser(window.user);
     };
 
     const submit = async (recipe: EthMintRecipe) => {
