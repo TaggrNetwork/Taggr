@@ -2,7 +2,7 @@ use super::{
     canisters,
     config::{CONFIG, ICP_CYCLES_PER_XDR},
     token::{self, Token},
-    user::{CreditsDelta, UserId},
+    user::UserId,
     Credits, State,
 };
 use crate::{mutate, read};
@@ -371,14 +371,9 @@ impl State {
         let (index, user_id, digest, burn_block) =
             mutate(|state| -> Result<(u64, UserId, [u8; 32], u64), String> {
                 let user_id = state.bridge_out_precheck(caller, amount)?;
-                // Deliberately not `State::charge`: the fee only recovers the
-                // cycles burned by `sign_with_ecdsa`, so booking it as revenue
-                // would distribute ICP the canister also pays for the signature.
-                state
-                    .users
-                    .get_mut(&user_id)
-                    .ok_or("user not found")?
-                    .change_credits(fee, CreditsDelta::Minus, "Bridging to Ethereum")?;
+                // Booked as revenue: the cycles burned by `sign_with_ecdsa` are
+                // deducted from revenue when the canister is topped up.
+                state.charge(user_id, fee, "Bridging to Ethereum")?;
                 // Burn before signing: a `sign_with_ecdsa` response is visible to
                 // every replica that serves the call, so a signature produced
                 // for a burn that then failed would let a single subnet node
@@ -631,7 +626,7 @@ mod tests {
     }
 
     #[test]
-    fn signing_fee_is_charged_off_the_revenue_ledger() {
+    fn signing_fee_is_booked_as_revenue() {
         use crate::env::tests::{create_user_with_credits, pr};
 
         let (user_id, revenue) = mutate(|state| {
@@ -641,17 +636,10 @@ mod tests {
         });
 
         // Same call as in `bridge_out`.
-        mutate(|state| {
-            state
-                .users
-                .get_mut(&user_id)
-                .unwrap()
-                .change_credits(30, CreditsDelta::Minus, "Bridging to Ethereum")
-                .unwrap()
-        });
+        mutate(|state| state.charge(user_id, 30, "Bridging to Ethereum").unwrap());
         assert_eq!(read(|state| state.users[&user_id].credits()), 70);
-        // Cost recovery, not revenue.
-        assert_eq!(read(|state| state.burned_cycles), revenue);
+        // The top up deducts the signing cycles from revenue.
+        assert_eq!(read(|state| state.burned_cycles), revenue + 30);
     }
 
     #[test]
