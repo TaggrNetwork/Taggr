@@ -96,16 +96,15 @@ impl TryFrom<&Proposal> for ReleaseInfo {
 impl Proposal {
     fn vote(
         &mut self,
-        state: &State,
+        user_id: UserId,
+        balance: Token,
         principal: Principal,
         approve: bool,
         data: &str,
     ) -> Result<(), String> {
-        let user = state.principal_to_user(principal).ok_or("no user found")?;
-        if self.bulletins.iter().any(|(voter, _, _)| *voter == user.id) {
+        if self.bulletins.iter().any(|(voter, _, _)| *voter == user_id) {
             return Err("double vote".into());
         }
-        let balance = user.total_balance();
         if balance == 0 {
             return Err("only token holders can vote".into());
         }
@@ -143,12 +142,12 @@ impl Proposal {
                         max_funding_amount
                     ));
                 }
-                submissions.insert(user.id, tokens * base);
+                submissions.insert(user_id, tokens * base);
             }
             _ => {}
         }
 
-        self.bulletins.push((user.id, approve, balance));
+        self.bulletins.push((user_id, approve, balance));
         Ok(())
     }
 
@@ -447,20 +446,17 @@ pub fn vote_on_proposal(
     approved: bool,
     data: &str,
 ) -> Result<(), String> {
-    let mut proposals = std::mem::take(&mut state.proposals);
-    let proposal = proposals
-        .get_mut(proposal_id as usize)
-        .ok_or_else(|| "no proposals founds".to_string())?;
-    if proposal.status != Status::Open {
-        let status = proposal.status.clone();
-        state.proposals = proposals;
+    let status = &state
+        .proposals
+        .get(proposal_id as usize)
+        .ok_or("no proposals founds")?
+        .status;
+    if status != &Status::Open {
         return Err(format!("proposal status is {:?}", status));
     }
-    if let Err(err) = proposal.vote(state, caller, approved, data) {
-        state.proposals = proposals;
-        return Err(err);
-    }
-    state.proposals = proposals;
+    let user = state.principal_to_user(caller).ok_or("no user found")?;
+    let (user_id, balance) = (user.id, user.total_balance());
+    state.proposals[proposal_id as usize].vote(user_id, balance, caller, approved, data)?;
     execute_proposal(state, proposal_id, time)
 }
 
@@ -486,10 +482,10 @@ pub(super) fn execute_proposal(
         .iter()
         .position(|proposal| proposal.id == proposal_id)
         .ok_or("no proposal found")?;
-    let mut proposal = std::mem::take(&mut state.proposals[index]);
-    if proposal.status != Status::Open {
+    if state.proposals[index].status != Status::Open {
         return Err("last proposal is not open".into());
     }
+    let mut proposal = std::mem::take(&mut state.proposals[index]);
     let previous_state = proposal.status.clone();
     let result = proposal.execute(state, time);
     if let Err(err) = &result {
@@ -725,6 +721,14 @@ pub mod tests {
                 state.proposals.get(id as usize).unwrap().status,
                 Status::Cancelled
             );
+            assert_eq!(
+                execute_proposal(state, id, time()),
+                Err("last proposal is not open".into())
+            );
+            assert_eq!(
+                state.proposals.get(id as usize).unwrap().status,
+                Status::Cancelled
+            );
 
             assert_eq!(
                 state.proposals.get(upgrade_id as usize).unwrap().status,
@@ -841,6 +845,13 @@ pub mod tests {
             let user = state.principal_to_user_mut(proposer).unwrap();
             assert_eq!(user.total_balance(), token_balance);
 
+            assert_eq!(state.proposals.len(), 2);
+
+            // vote on non existing proposal
+            assert_eq!(
+                vote_on_proposal(state, time(), proposer, 999, false, data),
+                Err("no proposals founds".to_string())
+            );
             assert_eq!(state.proposals.len(), 2);
 
             // vote by non existing user
