@@ -1093,28 +1093,20 @@ a.accent,
 }
 
 .banner,
-.controversial,
-.nsfw {
+.post_banner {
     text-align: center;
 }
 
 .comment .banner,
-.comment .nsfw,
-.comment .controversial,
+.comment .post_banner,
 .comment .deleted {
     margin: var(--space-4);
 }
 
 .banner,
-.nsfw,
-.controversial,
+.post_banner,
 .deleted {
     padding: var(--space-4);
-}
-
-.nsfw,
-.controversial {
-    color: $clickable;
 }
 
 .deleted {
@@ -1154,6 +1146,11 @@ label svg {
 .post_box > article table {
     margin-left: var(--space-3);
     margin-right: var(--space-3);
+}
+
+summary {
+    cursor: pointer;
+    color: $clickable;
 }
 
 .post_box > article ol,

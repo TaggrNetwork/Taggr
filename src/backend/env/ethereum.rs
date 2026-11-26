@@ -2,7 +2,7 @@ use super::{
     canisters,
     config::{CONFIG, ICP_CYCLES_PER_XDR},
     token::{self, Token},
-    user::{CreditsDelta, UserId},
+    user::UserId,
     Credits, State,
 };
 use crate::{mutate, read};
@@ -173,7 +173,16 @@ pub fn sign_fee_credits(cycles: u128) -> Credits {
     (cycles * per_xdr).div_ceil(cycles_per_xdr) as Credits
 }
 
-pub async fn sign_digest(digest: &[u8; 32], cycles: u128) -> Result<Vec<u8>, String> {
+/// Why `sign_digest` returned no usable signature.
+pub enum SignError {
+    /// The call failed without a response, so no signature exists.
+    NotSigned(String),
+    /// A response arrived but could not be used. It may still carry a valid
+    /// signature, and every replica serving the call has seen it.
+    Unusable(String),
+}
+
+pub async fn sign_digest(digest: &[u8; 32], cycles: u128) -> Result<Vec<u8>, SignError> {
     let args = SignWithEcdsaArgs {
         message_hash: digest.to_vec(),
         derivation_path: vec![DERIVATION_PATH.to_vec()],
@@ -190,10 +199,16 @@ pub async fn sign_digest(digest: &[u8; 32], cycles: u128) -> Result<Vec<u8>, Str
         cycles,
     )
     .await
-    .map_err(|err| format!("sign_with_ecdsa call failed: {:?}", err))?;
+    .map_err(|err| {
+        let message = format!("sign_with_ecdsa call failed: {:?}", err);
+        match err {
+            ic_cdk::call::Error::CandidDecodeFailed(_) => SignError::Unusable(message),
+            _ => SignError::NotSigned(message),
+        }
+    })?;
 
     let public_key = read(|state| state.eth_public_key.clone());
-    normalize_signature(&result.signature, digest, &public_key)
+    normalize_signature(&result.signature, digest, &public_key).map_err(SignError::Unusable)
 }
 
 /// Normalizes the canister signature to a 65-byte low-s `r || s || v` with
@@ -268,10 +283,15 @@ impl State {
         if self.eth_public_key.is_empty() {
             return Err("the canister's Ethereum key is not ready yet".to_string());
         }
-        let user_id = self
-            .principal_to_user_or_cold_wallet(caller)
-            .ok_or("user not found")?
-            .id;
+        // Cold wallets are refused: `link_cold_wallet` is one-sided (any
+        // unregistered principal can claim a user that has no cold wallet yet),
+        // so resolving the caller through `cold_wallets` would let a stranger
+        // bridge at the linked user's expense. Lift this once linking needs the
+        // user's approval (see docs/ETHEREUM.md).
+        if self.cold_wallets.contains_key(&caller) {
+            return Err("bridging from a cold wallet is disabled".to_string());
+        }
+        let user_id = self.principal_to_user(caller).ok_or("user not found")?.id;
         if self.voted_on_emergency_proposal(caller) {
             return Err(
                 "transfers are locked while a vote on a pending emergency proposal is registered"
@@ -294,10 +314,47 @@ impl State {
         Ok(user_id)
     }
 
+    /// Burns the tokens a recipe will mint on L1 and books them as bridged. Runs
+    /// before the canister signs, so a signature can never exist for tokens that
+    /// are still on the IC.
+    fn burn_for_bridge(&mut self, caller: Principal, amount: Token) -> Result<u64, String> {
+        let burn_block = token::burn(self, caller, amount, "Bridging to Ethereum")
+            .map_err(|err| format!("couldn't burn tokens: {:?}", err))?;
+        self.eth_bridge.bridged_out = self
+            .eth_bridge
+            .bridged_out
+            .checked_add(amount)
+            .ok_or("bridged supply overflow")?;
+        Ok(burn_block as u64)
+    }
+
+    /// Undoes [`State::burn_for_bridge`] when no signature could be produced, so
+    /// a failed signing costs the fee and an index but not the tokens.
+    fn refund_bridge(&mut self, caller: Principal, amount: Token) -> Result<(), String> {
+        // Drop the bridged bookkeeping first: the burn moved the tokens from the
+        // balances into `bridged_out`, so subtracting here restores the supply
+        // the cap check sees to what it was before the bridge.
+        self.eth_bridge.bridged_out = self.eth_bridge.bridged_out.saturating_sub(amount);
+        self.minting_mode = true;
+        let refunded = token::mint(self, token::account(caller), amount, "Bridge refund");
+        self.minting_mode = false;
+        match refunded {
+            Ok(_) => Ok(()),
+            // Minting failed: keep the books as they were, so the burned tokens
+            // are still accounted and can be retried or refunded later.
+            Err(err) => {
+                self.eth_bridge.bridged_out = self.eth_bridge.bridged_out.saturating_add(amount);
+                Err(err)
+            }
+        }
+    }
+
     /// Burns `amount` IC tokens and stores an EIP-712 mint recipe for the L1
-    /// token. The recipe index is reserved before signing, and the fee is
-    /// charged before it too: it pays for the signature attempt, so it is not
-    /// refunded when signing or the burn fails.
+    /// token. The burn and the fee come first, so a signature is only ever
+    /// produced for tokens that have already left the IC; a rejected signing
+    /// call refunds the burn but keeps the fee, which paid for the attempt,
+    /// while an unusable response keeps the burn, as it may carry a signature. The index
+    /// is reserved before signing and is never reused, including after a failure.
     pub async fn bridge_out(
         caller: Principal,
         amount: Token,
@@ -311,41 +368,69 @@ impl State {
             return Err("couldn't compute the signing fee".to_string());
         }
 
-        let (index, user_id, digest) =
-            mutate(|state| -> Result<(u64, UserId, [u8; 32]), String> {
+        let (index, user_id, digest, burn_block) =
+            mutate(|state| -> Result<(u64, UserId, [u8; 32], u64), String> {
                 let user_id = state.bridge_out_precheck(caller, amount)?;
-                // Deliberately not `State::charge`: the fee only recovers the
-                // cycles burned by `sign_with_ecdsa`, so booking it as revenue
-                // would distribute ICP the canister also pays for the signature.
-                state
-                    .users
-                    .get_mut(&user_id)
-                    .ok_or("user not found")?
-                    .change_credits(fee, CreditsDelta::Minus, "Bridging to Ethereum")?;
+                // Booked as revenue: the cycles burned by `sign_with_ecdsa` are
+                // deducted from revenue when the canister is topped up.
+                state.charge(user_id, fee, "Bridging to Ethereum")?;
+                // Burn before signing: a `sign_with_ecdsa` response is visible to
+                // every replica that serves the call, so a signature produced
+                // for a burn that then failed would let a single subnet node
+                // mint on L1 without a matching burn.
+                let burn_block = state.burn_for_bridge(caller, amount)?;
                 let index = state.eth_bridge.next_index;
                 state.eth_bridge.next_index =
                     index.checked_add(1).ok_or("recipe index overflow")?;
-                Ok((index, user_id, mint_digest(token, to, amount, index)))
+                Ok((
+                    index,
+                    user_id,
+                    mint_digest(token, to, amount, index),
+                    burn_block,
+                ))
             })?;
 
-        // The fee is not refunded: it pays for the signature attempt, and a
-        // successful `sign_with_ecdsa` has already burned the cycles.
-        let signature = sign_digest(&digest, cycles).await?;
+        let signature = match sign_digest(&digest, cycles).await {
+            Ok(signature) => signature,
+            Err(SignError::Unusable(err)) => {
+                // No refund: the response may hold a valid signature that any
+                // replica could relay to L1, so the burn must stay.
+                mutate(|state| {
+                    state.logger.critical(format!(
+                        "Recipe #{} has no usable signature; `{}` {} stay burned: {}",
+                        index,
+                        amount / token::base(),
+                        CONFIG.token_symbol,
+                        err
+                    ))
+                });
+                return Err(err);
+            }
+            Err(SignError::NotSigned(err)) => {
+                // The fee stays: it pays for the signature attempt, and the call
+                // itself may have burned the cycles before failing.
+                mutate(|state| {
+                    if let Err(refund) = state.refund_bridge(caller, amount) {
+                        state.logger.critical(format!(
+                            "Couldn't refund `{}` {} after a failed signing: {}",
+                            amount / token::base(),
+                            CONFIG.token_symbol,
+                            refund
+                        ));
+                    }
+                });
+                return Err(err);
+            }
+        };
 
-        let result = mutate(|state| -> Result<EthMintRecipe, String> {
-            let burn_block = token::burn(state, caller, amount, "Bridging to Ethereum")
-                .map_err(|err| format!("couldn't burn tokens: {:?}", err))?;
-            state.eth_bridge.bridged_out = state
-                .eth_bridge
-                .bridged_out
-                .checked_add(amount)
-                .ok_or("bridged supply overflow")?;
+        // Cannot fail: the burn is already in the ledger and the index reserved.
+        Ok(mutate(|state| {
             let recipe = EthMintRecipe {
                 index,
                 user_id,
                 eth_address: format!("0x{}", hex::encode(to)),
                 amount,
-                burn_block: burn_block as u64,
+                burn_block,
                 signature,
             };
             state.eth_bridge.recipes.insert(index, recipe.clone());
@@ -355,9 +440,8 @@ impl State {
                 amount / token::base(),
                 CONFIG.token_symbol
             ));
-            Ok(recipe)
-        });
-        result
+            recipe
+        }))
     }
 }
 
@@ -507,11 +591,15 @@ mod tests {
             );
             state.emergency_votes.clear();
 
-            // Cold wallet principals of a registered user can bridge as well.
+            // Cold wallets cannot bridge: linking one is a one-sided claim, so a
+            // stranger could otherwise spend the linked user's credits.
             let user_id = create_user(state, pr(3));
             state.cold_wallets.insert(pr(200), user_id);
             insert_balance(state, pr(200), 500);
-            assert_eq!(state.bridge_out_precheck(pr(200), 500), Ok(user_id));
+            assert_eq!(
+                state.bridge_out_precheck(pr(200), 500),
+                Err("bridging from a cold wallet is disabled".to_string())
+            );
 
             // An open proposal locks tokens, so bridging is refused.
             let proposer = state.principal_to_user(pr(1)).unwrap().id;
@@ -538,7 +626,7 @@ mod tests {
     }
 
     #[test]
-    fn signing_fee_is_charged_off_the_revenue_ledger() {
+    fn signing_fee_is_booked_as_revenue() {
         use crate::env::tests::{create_user_with_credits, pr};
 
         let (user_id, revenue) = mutate(|state| {
@@ -548,17 +636,10 @@ mod tests {
         });
 
         // Same call as in `bridge_out`.
-        mutate(|state| {
-            state
-                .users
-                .get_mut(&user_id)
-                .unwrap()
-                .change_credits(30, CreditsDelta::Minus, "Bridging to Ethereum")
-                .unwrap()
-        });
+        mutate(|state| state.charge(user_id, 30, "Bridging to Ethereum").unwrap());
         assert_eq!(read(|state| state.users[&user_id].credits()), 70);
-        // Cost recovery, not revenue.
-        assert_eq!(read(|state| state.burned_cycles), revenue);
+        // The top up deducts the signing cycles from revenue.
+        assert_eq!(read(|state| state.burned_cycles), revenue + 30);
     }
 
     #[test]
@@ -566,5 +647,44 @@ mod tests {
         assert_eq!(sign_fee_credits(10_000_000_000), 10);
         assert_eq!(sign_fee_credits(0), 0);
         assert_eq!(sign_fee_credits(1), 1);
+    }
+
+    #[test]
+    fn a_failed_signing_refunds_the_burn() {
+        use crate::env::tests::{create_user, insert_balance, pr};
+
+        mutate(|state| {
+            state.init();
+            create_user(state, pr(1));
+            insert_balance(state, pr(1), 10 * token::base());
+            let account = token::account(pr(1));
+            let balance = state.balances[&account];
+            let supply = state.total_supply();
+            let ledger = state.memory.ledger.len();
+
+            // The burn leaves the combined supply untouched: the tokens only
+            // move from the IC balances into `bridged_out`.
+            let burn_block = state.burn_for_bridge(pr(1), 3 * token::base()).unwrap();
+            assert_eq!(burn_block as usize, ledger);
+            assert_eq!(state.balances[&account], balance - 3 * token::base());
+            assert_eq!(state.eth_bridge.bridged_out, 3 * token::base());
+            assert_eq!(state.total_supply(), supply);
+
+            state.refund_bridge(pr(1), 3 * token::base()).unwrap();
+            assert_eq!(state.balances[&account], balance);
+            assert_eq!(state.eth_bridge.bridged_out, 0);
+            assert_eq!(state.total_supply(), supply);
+
+            // A refund works even with the whole supply accounted for: it hands
+            // back exactly what the burn took, and the cap check sees the supply
+            // as it stood before the bridge.
+            state.eth_bridge.bridged_out = CONFIG.maximum_supply - state.circulating_supply();
+            assert_eq!(state.remaining_supply(), 0);
+            state.burn_for_bridge(pr(1), token::base()).unwrap();
+            assert_eq!(state.remaining_supply(), 0);
+            state.refund_bridge(pr(1), token::base()).unwrap();
+            assert_eq!(state.remaining_supply(), 0);
+            assert_eq!(state.balances[&account], balance);
+        });
     }
 }

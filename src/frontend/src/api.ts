@@ -230,6 +230,20 @@ export const ApiGenerator = (
                 return null;
             }
 
+            // A non-replicated rejection (e.g. a frozen or stopped canister)
+            // never enters the system, so polling its request status would
+            // spin until the polling timeout (minutes) instead of failing.
+            if (response.body && "reject_code" in response.body) {
+                const { reject_code, reject_message } = response.body as {
+                    reject_code: number;
+                    reject_message: string;
+                };
+                console.error(
+                    `Call to ${methodName} rejected (${reject_code}): ${reject_message}`,
+                );
+                return null;
+            }
+
             let certificate: Certificate | undefined;
             if (response.body && "certificate" in response.body) {
                 const cert = response.body.certificate;
