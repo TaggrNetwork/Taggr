@@ -1625,15 +1625,6 @@ impl State {
                     return;
                 };
 
-                let _ = state.system_message(
-                    format!(
-                        "@{} is the lucky receiver of `{}` ${} as a weekly random reward! 🎲",
-                        winner_name,
-                        CONFIG.random_reward_amount / base(),
-                        CONFIG.token_symbol,
-                    ),
-                    CONFIG.dao_realm.into(),
-                );
                 state.minting_mode = true;
                 let minted = crate::token::mint(
                     state,
@@ -1648,6 +1639,15 @@ impl State {
                         .warn(format!("Skipping the random reward: {}", err));
                     return;
                 }
+                let _ = state.system_message(
+                    format!(
+                        "@{} is the lucky receiver of `{}` ${} as a weekly random reward! 🎲",
+                        winner_name,
+                        CONFIG.random_reward_amount / base(),
+                        CONFIG.token_symbol,
+                    ),
+                    CONFIG.dao_realm.into(),
+                );
                 state
                     .principal_to_user_mut(winner_principal)
                     .expect("user not found")
