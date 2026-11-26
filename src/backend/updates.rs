@@ -364,7 +364,11 @@ fn bridge_out() {
     in_executor_context(|| {
         spawn(async {
             let (amount, eth_address): (u64, String) = parse(&arg_data_raw());
-            reply(State::bridge_out(read(caller), amount, eth_address).await);
+            let result = match read(raw_caller) {
+                Ok(principal) => State::bridge_out(principal, amount, eth_address).await,
+                Err(err) => Err(err),
+            };
+            reply(result);
         })
     });
 }
