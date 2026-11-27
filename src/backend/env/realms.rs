@@ -100,15 +100,25 @@ pub fn create_realm(
     state: &mut State,
     principal: Principal,
     realm_id: RealmId,
-    mut realm: Realm,
+    realm: Realm,
 ) -> Result<(), String> {
     realm.validate()?;
 
+    // Only the settings a controller can choose are taken over; everything else starts fresh.
     let Realm {
+        logo,
+        label_color,
+        theme,
+        description,
         controllers,
+        whitelist,
+        filter,
         cleanup_penalty,
+        adult_content,
+        comments_filtering,
+        max_downvotes,
         ..
-    } = &realm;
+    } = realm;
     if controllers.is_empty() {
         return Err("no controllers specified".into());
     }
@@ -137,12 +147,21 @@ pub fn create_realm(
     user.controlled_realms.insert(realm_id.clone());
     let user_name = user.name.clone();
 
-    realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(*cleanup_penalty);
+    let mut realm = Realm::new(description);
+    realm.logo = logo;
+    if !label_color.is_empty() {
+        realm.label_color = label_color;
+    }
+    realm.theme = theme;
+    realm.controllers = controllers;
+    realm.whitelist = whitelist;
+    realm.filter = filter;
+    realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty);
+    realm.adult_content = adult_content;
+    realm.comments_filtering = comments_filtering;
+    realm.max_downvotes = max_downvotes;
     realm.last_update = time();
     realm.created = time();
-    if realm.label_color.is_empty() {
-        realm.label_color = "#000000".into();
-    }
 
     state.realms.insert(realm_id.clone(), realm);
 
@@ -285,6 +304,48 @@ pub(crate) mod tests {
                     result
                 );
             }
+        })
+    }
+
+    #[test]
+    fn test_realm_creation_takes_only_settings() {
+        mutate(|state| {
+            create_user(state, pr(0));
+            let user = state.principal_to_user_mut(pr(0)).unwrap();
+            user.change_credits(10000, CreditsDelta::Plus, "").unwrap();
+            let realm = Realm {
+                description: "desc".into(),
+                controllers: [0].iter().copied().collect(),
+                theme: "theme".into(),
+                adult_content: true,
+                revenue: 1_000_000_000,
+                num_members: 1_000,
+                num_posts: 1_000,
+                posts: vec![1, 2, 3],
+                last_setting_update: 77,
+                created: 1,
+                ..Default::default()
+            };
+            assert_eq!(
+                super::create_realm(state, pr(0), "NEW".into(), realm),
+                Ok(())
+            );
+            let realm = state.realms.get("NEW").unwrap();
+            assert_eq!(realm.description, "desc");
+            assert_eq!(realm.theme, "theme");
+            assert!(realm.adult_content);
+            assert_eq!(realm.label_color, "#000000");
+            assert_eq!(realm.revenue, 0);
+            assert_eq!(realm.num_members, 0);
+            assert_eq!(realm.num_posts, 0);
+            assert!(realm.posts.is_empty());
+            assert_eq!(realm.last_setting_update, 0);
+            assert_eq!(realm.created, time());
+
+            // nothing is paid out for the new realm
+            let rewards = state.principal_to_user(pr(0)).unwrap().rewards();
+            state.distribute_realm_revenue(WEEK / 2);
+            assert_eq!(state.principal_to_user(pr(0)).unwrap().rewards(), rewards);
         })
     }
 

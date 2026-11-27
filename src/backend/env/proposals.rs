@@ -232,15 +232,9 @@ impl Proposal {
                     let votes = reward
                         .submissions
                         .iter()
-                        .map(|(user_id, proposed_reward)| {
-                            (
-                                state
-                                    .users
-                                    .get(user_id)
-                                    .expect("no user found")
-                                    .total_balance(),
-                                *proposed_reward,
-                            )
+                        .filter_map(|(user_id, proposed_reward)| {
+                            let user = state.users.get(user_id)?;
+                            Some((user.total_balance(), *proposed_reward))
                         })
                         .collect::<Vec<_>>();
                     let total: Token = votes.iter().map(|(vp, _)| vp).sum();
@@ -373,6 +367,12 @@ pub fn create_proposal(
     }
 
     payload.validate(state)?;
+
+    // Votes are collected after creation; a new proposal starts without any.
+    if let Payload::Rewards(rewards) = &mut payload {
+        rewards.submissions.clear();
+        rewards.minted = 0;
+    }
 
     let id = state.proposals.len() as u32;
     let (escrow_tokens, already_locked_tokens) = state.proposal_escrow_balance_required(caller);
@@ -1283,6 +1283,39 @@ pub mod tests {
                 state.principal_to_user(pr(1)).unwrap().total_balance(),
                 token_balance
             );
+        })
+    }
+
+    #[test]
+    fn test_reward_proposal_starts_without_votes() {
+        mutate(|state| {
+            for i in 1..=2 {
+                let p = pr(i);
+                create_user(state, p);
+                insert_balance(state, p, (100 * (1 << i)) * 100);
+            }
+            set_time(CONFIG.min_stalwart_account_age_weeks + 1);
+
+            let prop_id = propose(
+                state,
+                pr(1),
+                "test".into(),
+                Payload::Rewards(Rewards {
+                    receiver: pr(1),
+                    submissions: vec![(2, 1_000_000_000), (777, 1)].into_iter().collect(),
+                    minted: 5,
+                }),
+                time(),
+            )
+            .expect("couldn't propose");
+
+            match &state.proposals[prop_id as usize].payload {
+                Payload::Rewards(rewards) => {
+                    assert!(rewards.submissions.is_empty());
+                    assert_eq!(rewards.minted, 0);
+                }
+                _ => panic!("unexpected payload"),
+            }
         })
     }
 

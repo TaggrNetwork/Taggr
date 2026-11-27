@@ -447,6 +447,10 @@ fn add_post(
 ) -> Result<PostId, String> {
     mutate(|state| {
         let extension: Option<Extension> = extension.map(|bytes| parse(&bytes));
+        // proposal posts are linked by `create_proposal` only
+        if matches!(extension, Some(Extension::Proposal(_) | Extension::Feature)) {
+            return Err("invalid extension".into());
+        }
         Post::create(
             state,
             body,

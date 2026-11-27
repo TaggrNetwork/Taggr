@@ -157,7 +157,11 @@ pub fn change_domain_config(
             state.domains.insert(domain, cfg)
         }
         "remove" => state.domains.remove(&domain),
-        "update" => state.domains.insert(domain, cfg),
+        "update" => {
+            // the owner stays the same; only the settings change
+            cfg.owner = state.domains.get(&domain).and_then(|cfg| cfg.owner);
+            state.domains.insert(domain, cfg)
+        }
         _ => return Err("invalid command".into()),
     };
 
@@ -463,6 +467,25 @@ mod tests {
                     "update".to_string()
                 ),
                 Ok(())
+            );
+
+            // Test: an update keeps the owner
+            assert_eq!(
+                change_domain_config(
+                    state,
+                    owner_principal,
+                    "test.domain".to_string(),
+                    DomainConfig {
+                        owner: None,
+                        ..updated_config.clone()
+                    },
+                    "update".to_string()
+                ),
+                Ok(())
+            );
+            assert_eq!(
+                state.domains.get("test.domain").unwrap().owner,
+                Some(owner_id)
             );
 
             // Verify domain was updated

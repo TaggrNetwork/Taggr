@@ -137,7 +137,10 @@ impl Post {
     ) -> Self {
         // initialize all extensions properly
         if let Some(Extension::Poll(poll)) = &mut extension {
-            poll.votes.clear()
+            poll.votes.clear();
+            poll.voters.clear();
+            poll.weighted_by_karma.clear();
+            poll.weighted_by_tokens.clear();
         };
 
         Self {
@@ -1025,6 +1028,47 @@ mod tests {
             assert_eq!(post.body, "Hello world!");
             assert!(!state.principal_to_user_mut(p).unwrap().deactivated);
         });
+    }
+
+    #[test]
+    fn test_new_poll_has_no_votes() {
+        mutate(|state| {
+            let p = pr(0);
+            create_user(state, p);
+            state
+                .principal_to_user_mut(p)
+                .unwrap()
+                .change_credits(2000, CreditsDelta::Plus, "")
+                .unwrap();
+            let poll = Poll {
+                options: vec!["A".into(), "B".into()],
+                deadline: 24,
+                votes: vec![(0, vec![5].into_iter().collect())]
+                    .into_iter()
+                    .collect(),
+                voters: vec![5, 6].into_iter().collect(),
+                weighted_by_karma: vec![(0, 1_000)].into_iter().collect(),
+                weighted_by_tokens: vec![(1, 1_000)].into_iter().collect(),
+            };
+            let id = Post::create(
+                state,
+                "poll".into(),
+                &[],
+                p,
+                0,
+                None,
+                None,
+                Some(Extension::Poll(poll)),
+            )
+            .unwrap();
+            let Some(Extension::Poll(poll)) = &Post::get(state, &id).unwrap().extension else {
+                panic!("no poll");
+            };
+            assert!(poll.votes.is_empty());
+            assert!(poll.voters.is_empty());
+            assert!(poll.weighted_by_karma.is_empty());
+            assert!(poll.weighted_by_tokens.is_empty());
+        })
     }
 
     #[test]
