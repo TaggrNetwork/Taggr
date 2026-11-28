@@ -547,6 +547,11 @@ impl Post {
             (user_balance / token::base()).min(CONFIG.post_heat_token_balance_cap) as u32,
         );
         post.valid(refs)?;
+        if let Some(Extension::Repost(post_id)) = post.extension.as_ref() {
+            if Post::get(state, post_id).is_none() {
+                return Err("reposted post not found".into());
+            }
+        }
         if !refs.is_empty() {
             let bucket = bucket.ok_or("personal media bucket not configured")?;
             for (blob_id, offset, len) in refs {
@@ -1002,6 +1007,33 @@ fn xor(text: &str, seed: &str, encrypt: bool) -> String {
 mod tests {
     use super::*;
     use crate::env::tests::{create_user, pr};
+
+    #[test]
+    fn test_repost_of_missing_post_changes_nothing() {
+        mutate(|state| {
+            let p = pr(0);
+            create_user(state, p);
+            let credits = state.principal_to_user(p).unwrap().credits();
+            let next_id = state.next_post_id;
+            assert_eq!(
+                Post::create(
+                    state,
+                    "Hello world!".into(),
+                    &[],
+                    p,
+                    0,
+                    None,
+                    None,
+                    Some(Extension::Repost(999_999)),
+                ),
+                Err("reposted post not found".into())
+            );
+            let user = state.principal_to_user(p).unwrap();
+            assert_eq!(user.credits(), credits);
+            assert!(user.posts.is_empty());
+            assert_eq!(state.next_post_id, next_id);
+        });
+    }
 
     #[test]
     fn test_post_encryption() {

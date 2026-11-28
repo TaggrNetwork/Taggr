@@ -135,33 +135,53 @@ pub fn create_realm(
         .ok_or("user not found")?
         .id;
 
+    if !controllers.contains(&user_id) {
+        return Err("the realm creator must be a controller".into());
+    }
+    if controllers.iter().any(|id| !state.users.contains_key(id)) {
+        return Err("controller not found".into());
+    }
+
     state.charge(
         user_id,
         CONFIG.realm_cost,
         format!("new realm /{}", realm_id),
     )?;
 
-    let user = state
-        .principal_to_user_mut(principal)
-        .ok_or("user not found")?;
-    user.controlled_realms.insert(realm_id.clone());
-    let user_name = user.name.clone();
-
-    let mut realm = Realm::new(description);
-    realm.logo = logo;
-    if !label_color.is_empty() {
-        realm.label_color = label_color;
+    for id in &controllers {
+        state
+            .users
+            .get_mut(id)
+            .expect("user not found")
+            .controlled_realms
+            .insert(realm_id.clone());
     }
-    realm.theme = theme;
-    realm.controllers = controllers;
-    realm.whitelist = whitelist;
-    realm.filter = filter;
-    realm.cleanup_penalty = CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty);
-    realm.adult_content = adult_content;
-    realm.comments_filtering = comments_filtering;
-    realm.max_downvotes = max_downvotes;
-    realm.last_update = time();
-    realm.created = time();
+    let user_name = state
+        .principal_to_user(principal)
+        .ok_or("user not found")?
+        .name
+        .clone();
+
+    let default_realm = Realm::new(description);
+    let realm = Realm {
+        logo,
+        label_color: if label_color.is_empty() {
+            default_realm.label_color.clone()
+        } else {
+            label_color
+        },
+        theme,
+        controllers,
+        whitelist,
+        filter,
+        cleanup_penalty: CONFIG.max_realm_cleanup_penalty.min(cleanup_penalty),
+        adult_content,
+        comments_filtering,
+        max_downvotes,
+        last_update: time(),
+        created: time(),
+        ..default_realm
+    };
 
     state.realms.insert(realm_id.clone(), realm);
 
@@ -245,9 +265,13 @@ pub(crate) mod tests {
     use super::*;
 
     pub fn create_realm(state: &mut State, user: Principal, name: String) -> Result<(), String> {
+        let id = state
+            .principal_to_user(user)
+            .map(|u| u.id)
+            .unwrap_or_default();
         let realm = Realm {
             description: "Test description".into(),
-            controllers: vec![0].into_iter().collect(),
+            controllers: vec![id].into_iter().collect(),
             ..Default::default()
         };
         super::create_realm(state, user, name, realm)
@@ -346,6 +370,37 @@ pub(crate) mod tests {
             let rewards = state.principal_to_user(pr(0)).unwrap().rewards();
             state.distribute_realm_revenue(WEEK / 2);
             assert_eq!(state.principal_to_user(pr(0)).unwrap().rewards(), rewards);
+        })
+    }
+
+    #[test]
+    fn test_realm_creation_checks_controllers() {
+        mutate(|state| {
+            let u0 = create_user(state, pr(0));
+            let u1 = create_user(state, pr(1));
+            let user = state.principal_to_user_mut(pr(0)).unwrap();
+            user.change_credits(10000, CreditsDelta::Plus, "").unwrap();
+            let realm = |controllers: Vec<UserId>| Realm {
+                description: "desc".into(),
+                controllers: controllers.into_iter().collect(),
+                ..Default::default()
+            };
+
+            assert_eq!(
+                super::create_realm(state, pr(0), "NEW".into(), realm(vec![u1])),
+                Err("the realm creator must be a controller".into())
+            );
+            assert_eq!(
+                super::create_realm(state, pr(0), "NEW".into(), realm(vec![u0, 999_999])),
+                Err("controller not found".into())
+            );
+            assert_eq!(
+                super::create_realm(state, pr(0), "NEW".into(), realm(vec![u0, u1])),
+                Ok(())
+            );
+            for id in [u0, u1] {
+                assert!(state.users[&id].controlled_realms.contains("NEW"));
+            }
         })
     }
 
